@@ -56,3 +56,12 @@ cors:
   allowed-origins:
     - ${FRONTEND_URL:http://localhost:3000}
     - ${FLUTTER_URL:http://localhost:8080}
+
+spring:
+  kafka:
+    producer:
+      acks: all
+      enable-idempotence: true
+      retries: 2147483647
+      properties:
+        max.in.flight.requests.per.connection: 5

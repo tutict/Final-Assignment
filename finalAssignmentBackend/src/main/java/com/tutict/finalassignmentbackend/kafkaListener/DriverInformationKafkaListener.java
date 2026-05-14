@@ -5,6 +5,7 @@ import com.tutict.finalassignmentbackend.entity.DriverInformation;
 import com.tutict.finalassignmentbackend.service.DriverInformationService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.kafka.annotation.KafkaListener;
+import org.springframework.kafka.support.Acknowledgment;
 import org.springframework.kafka.support.KafkaHeaders;
 import org.springframework.messaging.handler.annotation.Header;
 import org.springframework.messaging.handler.annotation.Payload;
@@ -33,17 +34,21 @@ public class DriverInformationKafkaListener {
     // 监听 Kafka 消息
     @KafkaListener(topics = "driver_information_create", groupId = "driverInformationGroup", concurrency = "3")
     public void onDriverInformationCreate(@Header(value = KafkaHeaders.RECEIVED_KEY, required = false) byte[] rawKey,
-                                          @Payload String message) {
+                                          @Payload String message,
+                                      Acknowledgment ack) {
         log.log(Level.INFO, "Received Kafka message for DriverInformation create (payload omitted)");
-        Thread.ofVirtual().start(() -> processMessage(asKey(rawKey), message, "create"));
+        processMessage(asKey(rawKey), message, "create");
+        ack.acknowledge();
     }
 
     // 监听 Kafka 消息
     @KafkaListener(topics = "driver_information_update", groupId = "driverInformationGroup", concurrency = "3")
     public void onDriverInformationUpdate(@Header(value = KafkaHeaders.RECEIVED_KEY, required = false) byte[] rawKey,
-                                          @Payload String message) {
+                                          @Payload String message,
+                                      Acknowledgment ack) {
         log.log(Level.INFO, "Received Kafka message for DriverInformation update (payload omitted)");
-        Thread.ofVirtual().start(() -> processMessage(asKey(rawKey), message, "update"));
+        processMessage(asKey(rawKey), message, "update");
+        ack.acknowledge();
     }
 
     // 统一处理消息并执行业务逻辑
@@ -87,8 +92,8 @@ public class DriverInformationKafkaListener {
         try {
             return objectMapper.readValue(message, DriverInformation.class);
         } catch (Exception ex) {
-            log.log(Level.SEVERE, "Failed to deserialize driver message (payload omitted)");
-            return null;
+            log.log(Level.SEVERE, "Failed to deserialize Kafka message (payload omitted)", ex);
+            throw new IllegalArgumentException("Failed to deserialize Kafka message", ex);
         }
     }
     private String asKey(byte[] rawKey) {

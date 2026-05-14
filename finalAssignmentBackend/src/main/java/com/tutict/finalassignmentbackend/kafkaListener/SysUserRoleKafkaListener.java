@@ -2,10 +2,11 @@ package com.tutict.finalassignmentbackend.kafkaListener;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.tutict.finalassignmentbackend.entity.SysUserRole;
-import com.tutict.finalassignmentbackend.mapper.SysUserRoleMapper;
+import com.tutict.finalassignmentbackend.service.SysUserRoleService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.kafka.annotation.EnableKafka;
 import org.springframework.kafka.annotation.KafkaListener;
+import org.springframework.kafka.support.Acknowledgment;
 import org.springframework.stereotype.Service;
 
 import java.util.logging.Level;
@@ -18,28 +19,30 @@ public class SysUserRoleKafkaListener {
 
     private static final Logger log = Logger.getLogger(SysUserRoleKafkaListener.class.getName());
 
-    private final SysUserRoleMapper sysUserRoleMapper;
+    private final SysUserRoleService sysUserRoleService;
     private final ObjectMapper objectMapper;
 
     // 构造器注入依赖
     @Autowired
-    public SysUserRoleKafkaListener(SysUserRoleMapper sysUserRoleMapper, ObjectMapper objectMapper) {
-        this.sysUserRoleMapper = sysUserRoleMapper;
+    public SysUserRoleKafkaListener(SysUserRoleService sysUserRoleService, ObjectMapper objectMapper) {
+        this.sysUserRoleService = sysUserRoleService;
         this.objectMapper = objectMapper;
     }
 
     // 监听 Kafka 消息
     @KafkaListener(topics = "sys_user_role_create", groupId = "sysUserRoleGroup", concurrency = "3")
-    public void onSysUserRoleCreateReceived(String message) {
+    public void onSysUserRoleCreateReceived(String message, Acknowledgment ack) {
         log.log(Level.INFO, "Received Kafka message for create (payload omitted)");
-        Thread.ofVirtual().start(() -> processMessage(message, "create"));
+        processMessage(message, "create");
+        ack.acknowledge();
     }
 
     // 监听 Kafka 消息
     @KafkaListener(topics = "sys_user_role_update", groupId = "sysUserRoleGroup", concurrency = "3")
-    public void onSysUserRoleUpdateReceived(String message) {
+    public void onSysUserRoleUpdateReceived(String message, Acknowledgment ack) {
         log.log(Level.INFO, "Received Kafka message for update (payload omitted)");
-        Thread.ofVirtual().start(() -> processMessage(message, "update"));
+        processMessage(message, "update");
+        ack.acknowledge();
     }
 
     // 统一处理消息并执行业务逻辑
@@ -48,9 +51,9 @@ public class SysUserRoleKafkaListener {
             SysUserRole entity = deserializeMessage(message);
             if ("create".equals(action)) {
                 entity.setId(null);
-                sysUserRoleMapper.insert(entity);
+                sysUserRoleService.createRelation(entity);
             } else if ("update".equals(action)) {
-                sysUserRoleMapper.updateById(entity);
+                sysUserRoleService.updateRelation(entity);
             } else {
                 log.log(Level.WARNING, "Unsupported action: {0}", action);
                 return;

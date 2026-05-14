@@ -8,6 +8,7 @@ import com.tutict.finalassignmentbackend.payment.governance.PaymentGovernanceSou
 import com.tutict.finalassignmentbackend.service.PaymentRecordService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.kafka.annotation.KafkaListener;
+import org.springframework.kafka.support.Acknowledgment;
 import org.springframework.kafka.support.KafkaHeaders;
 import org.springframework.messaging.handler.annotation.Header;
 import org.springframework.messaging.handler.annotation.Payload;
@@ -38,17 +39,21 @@ public class PaymentRecordKafkaListener {
     // 监听 Kafka 消息
     @KafkaListener(topics = "payment_record_create", groupId = "paymentRecordGroup", concurrency = "3")
     public void onPaymentRecordCreate(@Header(value = KafkaHeaders.RECEIVED_KEY, required = false) byte[] rawKey,
-                                      @Payload String message) {
+                                      @Payload String message,
+                                      Acknowledgment ack) {
         log.log(Level.INFO, "Received Kafka message for PaymentRecord create (payload omitted)");
-        Thread.ofVirtual().start(() -> processMessage(asKey(rawKey), message, "create"));
+        processMessage(asKey(rawKey), message, "create");
+        ack.acknowledge();
     }
 
     // 监听 Kafka 消息
     @KafkaListener(topics = "payment_record_update", groupId = "paymentRecordGroup", concurrency = "3")
     public void onPaymentRecordUpdate(@Header(value = KafkaHeaders.RECEIVED_KEY, required = false) byte[] rawKey,
-                                      @Payload String message) {
+                                      @Payload String message,
+                                      Acknowledgment ack) {
         log.log(Level.INFO, "Received Kafka message for PaymentRecord update (payload omitted)");
-        Thread.ofVirtual().start(() -> processMessage(asKey(rawKey), message, "update"));
+        processMessage(asKey(rawKey), message, "update");
+        ack.acknowledge();
     }
 
     // 统一处理消息并执行业务逻辑
@@ -106,8 +111,8 @@ public class PaymentRecordKafkaListener {
         try {
             return objectMapper.readValue(message, PaymentRecord.class);
         } catch (Exception ex) {
-            log.log(Level.SEVERE, "Failed to deserialize PaymentRecord message (payload omitted)");
-            return null;
+            log.log(Level.SEVERE, "Failed to deserialize Kafka message (payload omitted)", ex);
+            throw new IllegalArgumentException("Failed to deserialize Kafka message", ex);
         }
     }
     private String asKey(byte[] rawKey) {

@@ -2,10 +2,11 @@ package com.tutict.finalassignmentbackend.kafkaListener;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.tutict.finalassignmentbackend.entity.SysSettings;
-import com.tutict.finalassignmentbackend.mapper.SysSettingsMapper;
+import com.tutict.finalassignmentbackend.service.SysSettingsService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.kafka.annotation.EnableKafka;
 import org.springframework.kafka.annotation.KafkaListener;
+import org.springframework.kafka.support.Acknowledgment;
 import org.springframework.stereotype.Service;
 
 import java.util.logging.Level;
@@ -18,28 +19,30 @@ public class SysSettingsKafkaListener {
 
     private static final Logger log = Logger.getLogger(SysSettingsKafkaListener.class.getName());
 
-    private final SysSettingsMapper sysSettingsMapper;
+    private final SysSettingsService sysSettingsService;
     private final ObjectMapper objectMapper;
 
     // 构造器注入依赖
     @Autowired
-    public SysSettingsKafkaListener(SysSettingsMapper sysSettingsMapper, ObjectMapper objectMapper) {
-        this.sysSettingsMapper = sysSettingsMapper;
+    public SysSettingsKafkaListener(SysSettingsService sysSettingsService, ObjectMapper objectMapper) {
+        this.sysSettingsService = sysSettingsService;
         this.objectMapper = objectMapper;
     }
 
     // 监听 Kafka 消息
     @KafkaListener(topics = "sys_settings_create", groupId = "sysSettingsGroup", concurrency = "3")
-    public void onSysSettingsCreateReceived(String message) {
+    public void onSysSettingsCreateReceived(String message, Acknowledgment ack) {
         log.log(Level.INFO, "Received Kafka message for create (payload omitted)");
-        Thread.ofVirtual().start(() -> processMessage(message, "create"));
+        processMessage(message, "create");
+        ack.acknowledge();
     }
 
     // 监听 Kafka 消息
     @KafkaListener(topics = "sys_settings_update", groupId = "sysSettingsGroup", concurrency = "3")
-    public void onSysSettingsUpdateReceived(String message) {
+    public void onSysSettingsUpdateReceived(String message, Acknowledgment ack) {
         log.log(Level.INFO, "Received Kafka message for update (payload omitted)");
-        Thread.ofVirtual().start(() -> processMessage(message, "update"));
+        processMessage(message, "update");
+        ack.acknowledge();
     }
 
     // 统一处理消息并执行业务逻辑
@@ -48,9 +51,9 @@ public class SysSettingsKafkaListener {
             SysSettings entity = deserializeMessage(message);
             if ("create".equals(action)) {
                 entity.setSettingId(null);
-                sysSettingsMapper.insert(entity);
+                sysSettingsService.createSysSettings(entity);
             } else if ("update".equals(action)) {
-                sysSettingsMapper.updateById(entity);
+                sysSettingsService.updateSysSettings(entity);
             } else {
                 log.log(Level.WARNING, "Unsupported action: {0}", action);
                 return;

@@ -5,6 +5,7 @@ import com.tutict.finalassignmentbackend.entity.AppealReview;
 import com.tutict.finalassignmentbackend.service.AppealReviewService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.kafka.annotation.KafkaListener;
+import org.springframework.kafka.support.Acknowledgment;
 import org.springframework.kafka.support.KafkaHeaders;
 import org.springframework.messaging.handler.annotation.Header;
 import org.springframework.messaging.handler.annotation.Payload;
@@ -33,17 +34,21 @@ public class AppealReviewKafkaListener {
     // 监听 Kafka 消息
     @KafkaListener(topics = "appeal_review_create", groupId = "appealReviewGroup", concurrency = "3")
     public void onAppealReviewCreate(@Header(value = KafkaHeaders.RECEIVED_KEY, required = false) byte[] rawKey,
-                                     @Payload String message) {
+                                     @Payload String message,
+                                      Acknowledgment ack) {
         log.log(Level.INFO, "Received Kafka message for AppealReview create (payload omitted)");
-        Thread.ofVirtual().start(() -> processMessage(asKey(rawKey), message, "create"));
+        processMessage(asKey(rawKey), message, "create");
+        ack.acknowledge();
     }
 
     // 监听 Kafka 消息
     @KafkaListener(topics = "appeal_review_update", groupId = "appealReviewGroup", concurrency = "3")
     public void onAppealReviewUpdate(@Header(value = KafkaHeaders.RECEIVED_KEY, required = false) byte[] rawKey,
-                                     @Payload String message) {
+                                     @Payload String message,
+                                      Acknowledgment ack) {
         log.log(Level.INFO, "Received Kafka message for AppealReview update (payload omitted)");
-        Thread.ofVirtual().start(() -> processMessage(asKey(rawKey), message, "update"));
+        processMessage(asKey(rawKey), message, "update");
+        ack.acknowledge();
     }
 
     // 统一处理消息并执行业务逻辑
@@ -87,8 +92,8 @@ public class AppealReviewKafkaListener {
         try {
             return objectMapper.readValue(message, AppealReview.class);
         } catch (Exception ex) {
-            log.log(Level.SEVERE, "Failed to deserialize appeal review message (payload omitted)");
-            return null;
+            log.log(Level.SEVERE, "Failed to deserialize Kafka message (payload omitted)", ex);
+            throw new IllegalArgumentException("Failed to deserialize Kafka message", ex);
         }
     }
     private String asKey(byte[] rawKey) {

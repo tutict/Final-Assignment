@@ -2,10 +2,11 @@ package com.tutict.finalassignmentbackend.kafkaListener;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.tutict.finalassignmentbackend.entity.SysUser;
-import com.tutict.finalassignmentbackend.mapper.SysUserMapper;
+import com.tutict.finalassignmentbackend.service.SysUserService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.kafka.annotation.EnableKafka;
 import org.springframework.kafka.annotation.KafkaListener;
+import org.springframework.kafka.support.Acknowledgment;
 import org.springframework.stereotype.Service;
 
 import java.util.logging.Level;
@@ -18,28 +19,30 @@ public class SysUserKafkaListener {
 
     private static final Logger log = Logger.getLogger(SysUserKafkaListener.class.getName());
 
-    private final SysUserMapper sysUserMapper;
+    private final SysUserService sysUserService;
     private final ObjectMapper objectMapper;
 
     // 构造器注入依赖
     @Autowired
-    public SysUserKafkaListener(SysUserMapper sysUserMapper, ObjectMapper objectMapper) {
-        this.sysUserMapper = sysUserMapper;
+    public SysUserKafkaListener(SysUserService sysUserService, ObjectMapper objectMapper) {
+        this.sysUserService = sysUserService;
         this.objectMapper = objectMapper;
     }
 
     // 监听 Kafka 消息
     @KafkaListener(topics = "sys_user_create", groupId = "sysUserGroup", concurrency = "3")
-    public void onSysUserCreateReceived(String message) {
+    public void onSysUserCreateReceived(String message, Acknowledgment ack) {
         log.log(Level.INFO, "Received Kafka message for create (payload omitted)");
-        Thread.ofVirtual().start(() -> processMessage(message, "create"));
+        processMessage(message, "create");
+        ack.acknowledge();
     }
 
     // 监听 Kafka 消息
     @KafkaListener(topics = "sys_user_update", groupId = "sysUserGroup", concurrency = "3")
-    public void onSysUserUpdateReceived(String message) {
+    public void onSysUserUpdateReceived(String message, Acknowledgment ack) {
         log.log(Level.INFO, "Received Kafka message for update (payload omitted)");
-        Thread.ofVirtual().start(() -> processMessage(message, "update"));
+        processMessage(message, "update");
+        ack.acknowledge();
     }
 
     // 统一处理消息并执行业务逻辑
@@ -48,9 +51,9 @@ public class SysUserKafkaListener {
             SysUser entity = deserializeMessage(message);
             if ("create".equals(action)) {
                 entity.setUserId(null);
-                sysUserMapper.insert(entity);
+                sysUserService.createSysUser(entity);
             } else if ("update".equals(action)) {
-                sysUserMapper.updateById(entity);
+                sysUserService.updateSysUser(entity);
             } else {
                 log.log(Level.WARNING, "Unsupported action: {0}", action);
                 return;

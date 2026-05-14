@@ -2,10 +2,11 @@ package com.tutict.finalassignmentbackend.kafkaListener;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.tutict.finalassignmentbackend.entity.VehicleInformation;
-import com.tutict.finalassignmentbackend.mapper.VehicleInformationMapper;
+import com.tutict.finalassignmentbackend.service.VehicleInformationService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.kafka.annotation.EnableKafka;
 import org.springframework.kafka.annotation.KafkaListener;
+import org.springframework.kafka.support.Acknowledgment;
 import org.springframework.stereotype.Service;
 
 import java.util.logging.Level;
@@ -18,28 +19,30 @@ public class VehicleInformationKafkaListener {
 
     private static final Logger log = Logger.getLogger(VehicleInformationKafkaListener.class.getName());
 
-    private final VehicleInformationMapper vehicleInformationMapper;
+    private final VehicleInformationService vehicleInformationService;
     private final ObjectMapper objectMapper;
 
     // 构造器注入依赖
     @Autowired
-    public VehicleInformationKafkaListener(VehicleInformationMapper vehicleInformationMapper, ObjectMapper objectMapper) {
-        this.vehicleInformationMapper = vehicleInformationMapper;
+    public VehicleInformationKafkaListener(VehicleInformationService vehicleInformationService, ObjectMapper objectMapper) {
+        this.vehicleInformationService = vehicleInformationService;
         this.objectMapper = objectMapper;
     }
 
     // 监听 Kafka 消息
     @KafkaListener(topics = "vehicle_information_create", groupId = "vehicleInformationGroup", concurrency = "3")
-    public void onVehicleInformationCreateReceived(String message) {
+    public void onVehicleInformationCreateReceived(String message, Acknowledgment ack) {
         log.log(Level.INFO, "Received Kafka message for create (payload omitted)");
-        Thread.ofVirtual().start(() -> processMessage(message, "create"));
+        processMessage(message, "create");
+        ack.acknowledge();
     }
 
     // 监听 Kafka 消息
     @KafkaListener(topics = "vehicle_information_update", groupId = "vehicleInformationGroup", concurrency = "3")
-    public void onVehicleInformationUpdateReceived(String message) {
+    public void onVehicleInformationUpdateReceived(String message, Acknowledgment ack) {
         log.log(Level.INFO, "Received Kafka message for update (payload omitted)");
-        Thread.ofVirtual().start(() -> processMessage(message, "update"));
+        processMessage(message, "update");
+        ack.acknowledge();
     }
 
     // 统一处理消息并执行业务逻辑
@@ -48,9 +51,9 @@ public class VehicleInformationKafkaListener {
             VehicleInformation entity = deserializeMessage(message);
             if ("create".equals(action)) {
                 entity.setVehicleId(null);
-                vehicleInformationMapper.insert(entity);
+                vehicleInformationService.createVehicleInformation(entity);
             } else if ("update".equals(action)) {
-                vehicleInformationMapper.updateById(entity);
+                vehicleInformationService.updateVehicleInformation(entity);
             } else {
                 log.log(Level.WARNING, "Unsupported action: {0}", action);
                 return;
