@@ -78,16 +78,9 @@ public class AuthController {
                             schema = @Schema(type = "object", example = "{\"error\":\"Invalid credentials\"}")))
     })
     public CompletableFuture<ResponseEntity<Map<String, Object>>> login(
-            @RequestBody
+            @Valid @RequestBody
             @Parameter(description = "登录请求体，包含用户名和密码", required = true)
             AuthWsService.LoginRequest loginRequest) {
-        if (loginRequest == null || loginRequest.getUsername() == null || loginRequest.getPassword() == null) {
-            LOG.log(Level.WARNING, "Login request missing username or password");
-            return CompletableFuture.completedFuture(
-                    ResponseEntity.status(HttpStatus.BAD_REQUEST)
-                            .body(Map.of("error", "Username and password are required")));
-        }
-
         return CompletableFuture.supplyAsync(() -> {
             try {
                 Map<String, Object> result = authWsService.login(loginRequest);
@@ -95,9 +88,9 @@ public class AuthController {
                 return ResponseEntity.ok(result);
             } catch (Exception ex) {
                 LOG.log(Level.SEVERE, "Login failed for username: {0}, error: {1}",
-                        new Object[]{loginRequest.getUsername(), ex.getMessage()});
+                        new Object[]{loginRequest.getUsername(), ex.getClass().getSimpleName()});
                 return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
-                        .body(Map.of("error", ex.getMessage()));
+                        .body(Map.of("error", "Invalid credentials"));
             }
         }, VIRTUAL_THREAD_EXECUTOR);
     }
@@ -130,7 +123,7 @@ public class AuthController {
                             schema = @Schema(type = "object", example = "{\"error\":\"Internal server error\"}")))
     })
     public CompletableFuture<ResponseEntity<Map<String, String>>> registerUser(
-            @RequestBody
+            @Valid @RequestBody
             @Parameter(description = "注册请求体，包含用户名、密码、角色以及幂等键", required = true)
             AuthWsService.RegisterRequest registerRequest) {
         return CompletableFuture.supplyAsync(() -> {
@@ -141,14 +134,14 @@ public class AuthController {
                                 .body(Map.of("status", status));
                     } catch (Exception ex) {
                         LOG.log(Level.WARNING, "Register failed for username: {0}, error: {1}",
-                                new Object[]{registerRequest.getUsername(), ex.getMessage()});
+                                new Object[]{registerRequest.getUsername(), ex.getClass().getSimpleName()});
                         return ResponseEntity.status(HttpStatus.CONFLICT)
-                                .body(Map.of("error", ex.getMessage()));
+                                .body(Map.of("error", "Registration failed"));
                     }
                 }, VIRTUAL_THREAD_EXECUTOR)
                 .exceptionally(throwable -> {
                     LOG.log(Level.SEVERE, "Unexpected error in registerUser for username: {0}, error: {1}",
-                            new Object[]{registerRequest.getUsername(), throwable.getMessage()});
+                            new Object[]{registerRequest.getUsername(), throwable.getClass().getSimpleName()});
                     return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
                             .body(Map.of("error", "Internal server error"));
                 });
@@ -198,11 +191,8 @@ public class AuthController {
             LOG.log(Level.INFO, "Fetched {0} users", users.size());
             return ResponseEntity.ok(com.tutict.finalassignmentbackend.dto.response.ApiResponse.ok(users));
         } catch (Exception ex) {
-            LOG.log(Level.SEVERE, "GetAllUsers failed: {0}", ex.getMessage());
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                    .body(com.tutict.finalassignmentbackend.dto.response.ApiResponse.error(
-                            "AUTH_USERS_QUERY_FAILED",
-                            "Failed to fetch users"));
+            LOG.log(Level.SEVERE, "GetAllUsers failed", ex);
+            throw new IllegalStateException("Failed to fetch users", ex);
         }
     }
 }

@@ -6,6 +6,7 @@ import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.annotation.security.RolesAllowed;
+import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.DeleteMapping;
@@ -40,7 +41,7 @@ public class LoginLogController {
 
     @PostMapping
     @Operation(summary = "写入登录日志")
-    public ResponseEntity<AuditLoginLog> create(@RequestBody AuditLoginLog request,
+    public ResponseEntity<AuditLoginLog> create(@Valid @RequestBody AuditLoginLog request,
                                                 @RequestHeader(value = "Idempotency-Key", required = false)
                                                 String idempotencyKey) {
         boolean useKey = hasKey(idempotencyKey);
@@ -68,7 +69,7 @@ public class LoginLogController {
     @PutMapping("/{logId}")
     @Operation(summary = "更新登录日志")
     public ResponseEntity<AuditLoginLog> update(@PathVariable Long logId,
-                                                @RequestBody AuditLoginLog request,
+                                                @Valid @RequestBody AuditLoginLog request,
                                                 @RequestHeader(value = "Idempotency-Key", required = false)
                                                 String idempotencyKey) {
         boolean useKey = hasKey(idempotencyKey);

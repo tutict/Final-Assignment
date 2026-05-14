@@ -6,6 +6,7 @@ import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.annotation.security.RolesAllowed;
+import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.DeleteMapping;
@@ -41,7 +42,7 @@ public class BackupRestoreController {
 
     @PostMapping
     @Operation(summary = "创建备份/还原任务")
-    public ResponseEntity<SysBackupRestore> create(@RequestBody SysBackupRestore request,
+    public ResponseEntity<SysBackupRestore> create(@Valid @RequestBody SysBackupRestore request,
                                                    @RequestHeader(value = "Idempotency-Key", required = false)
                                                    String idempotencyKey) {
         boolean useKey = hasKey(idempotencyKey);
@@ -69,7 +70,7 @@ public class BackupRestoreController {
     @PutMapping("/{backupId}")
     @Operation(summary = "更新备份/还原任务")
     public ResponseEntity<SysBackupRestore> update(@PathVariable Long backupId,
-                                                   @RequestBody SysBackupRestore request,
+                                                   @Valid @RequestBody SysBackupRestore request,
                                                    @RequestHeader(value = "Idempotency-Key", required = false)
                                                    String idempotencyKey) {
         boolean useKey = hasKey(idempotencyKey);

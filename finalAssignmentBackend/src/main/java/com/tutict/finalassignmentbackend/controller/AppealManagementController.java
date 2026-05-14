@@ -1,5 +1,7 @@
 package com.tutict.finalassignmentbackend.controller;
 
+import com.tutict.finalassignmentbackend.dto.mapper.AppealRecordRequestMapper;
+import com.tutict.finalassignmentbackend.dto.request.AppealCreateRequest;
 import com.tutict.finalassignmentbackend.entity.AppealRecord;
 import com.tutict.finalassignmentbackend.entity.AppealReview;
 import com.tutict.finalassignmentbackend.service.AppealRecordService;
@@ -8,6 +10,7 @@ import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.annotation.security.RolesAllowed;
+import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.DeleteMapping;
@@ -46,55 +49,57 @@ public class AppealManagementController {
 
     @PostMapping
     @Operation(summary = "创建申诉记录")
-    public ResponseEntity<AppealRecord> createAppeal(@RequestBody AppealRecord request,
+    public ResponseEntity<AppealRecord> createAppeal(@Valid @RequestBody AppealCreateRequest request,
                                                      @RequestHeader(value = "Idempotency-Key", required = false)
                                                      String idempotencyKey) {
         boolean useIdempotency = hasKey(idempotencyKey);
+        AppealRecord appealRecord = AppealRecordRequestMapper.toEntity(request);
         try {
             if (useIdempotency) {
                 if (appealRecordService.shouldSkipProcessing(idempotencyKey)) {
                     LOG.log(Level.INFO, "Appeal create skipped by idempotency key {0}", idempotencyKey);
                     return ResponseEntity.status(HttpStatus.ALREADY_REPORTED).build();
                 }
-                appealRecordService.checkAndInsertIdempotency(idempotencyKey, request, "create");
+                appealRecordService.checkAndInsertIdempotency(idempotencyKey, appealRecord, "create");
             }
-            AppealRecord saved = appealRecordService.createAppeal(request);
+            AppealRecord saved = appealRecordService.createAppeal(appealRecord);
             if (useIdempotency && saved.getAppealId() != null) {
                 appealRecordService.markHistorySuccess(idempotencyKey, saved.getAppealId());
             }
             return ResponseEntity.status(HttpStatus.CREATED).body(saved);
-        } catch (Exception ex) {
+        } catch (RuntimeException ex) {
             if (useIdempotency) {
                 appealRecordService.markHistoryFailure(idempotencyKey, ex.getMessage());
             }
             LOG.log(Level.SEVERE, "Create appeal failed", ex);
-            return ResponseEntity.status(resolveStatus(ex)).build();
+            throw ex;
         }
     }
 
     @PutMapping("/{appealId}")
     @Operation(summary = "更新申诉记录")
     public ResponseEntity<AppealRecord> updateAppeal(@PathVariable Long appealId,
-                                                     @RequestBody AppealRecord request,
+                                                     @Valid @RequestBody AppealCreateRequest request,
                                                      @RequestHeader(value = "Idempotency-Key", required = false)
                                                      String idempotencyKey) {
         boolean useIdempotency = hasKey(idempotencyKey);
+        AppealRecord appealRecord = AppealRecordRequestMapper.toEntity(request);
         try {
-            request.setAppealId(appealId);
+            appealRecord.setAppealId(appealId);
             if (useIdempotency) {
-                appealRecordService.checkAndInsertIdempotency(idempotencyKey, request, "update");
+                appealRecordService.checkAndInsertIdempotency(idempotencyKey, appealRecord, "update");
             }
-            AppealRecord updated = appealRecordService.updateAppeal(request);
+            AppealRecord updated = appealRecordService.updateAppeal(appealRecord);
             if (useIdempotency && updated.getAppealId() != null) {
                 appealRecordService.markHistorySuccess(idempotencyKey, updated.getAppealId());
             }
             return ResponseEntity.ok(updated);
-        } catch (Exception ex) {
+        } catch (RuntimeException ex) {
             if (useIdempotency) {
                 appealRecordService.markHistoryFailure(idempotencyKey, ex.getMessage());
             }
             LOG.log(Level.SEVERE, "Update appeal failed", ex);
-            return ResponseEntity.status(resolveStatus(ex)).build();
+            throw ex;
         }
     }
 
@@ -104,9 +109,9 @@ public class AppealManagementController {
         try {
             appealRecordService.deleteAppeal(appealId);
             return ResponseEntity.noContent().build();
-        } catch (Exception ex) {
+        } catch (RuntimeException ex) {
             LOG.log(Level.WARNING, "Delete appeal failed", ex);
-            return ResponseEntity.status(resolveStatus(ex)).build();
+            throw ex;
         }
     }
 
@@ -211,7 +216,7 @@ public class AppealManagementController {
     @PostMapping("/{appealId}/reviews")
     @Operation(summary = "创建复核记录")
     public ResponseEntity<AppealReview> createReview(@PathVariable Long appealId,
-                                                     @RequestBody AppealReview review,
+                                                     @Valid @RequestBody AppealReview review,
                                                      @RequestHeader(value = "Idempotency-Key", required = false)
                                                      String idempotencyKey) {
         boolean useIdempotency = hasKey(idempotencyKey);
@@ -229,19 +234,19 @@ public class AppealManagementController {
                 appealReviewService.markHistorySuccess(idempotencyKey, saved.getReviewId());
             }
             return ResponseEntity.status(HttpStatus.CREATED).body(saved);
-        } catch (Exception ex) {
+        } catch (RuntimeException ex) {
             if (useIdempotency) {
                 appealReviewService.markHistoryFailure(idempotencyKey, ex.getMessage());
             }
             LOG.log(Level.SEVERE, "Create appeal review failed", ex);
-            return ResponseEntity.status(resolveStatus(ex)).build();
+            throw ex;
         }
     }
 
     @PutMapping("/reviews/{reviewId}")
     @Operation(summary = "更新复核记录")
     public ResponseEntity<AppealReview> updateReview(@PathVariable Long reviewId,
-                                                     @RequestBody AppealReview review,
+                                                     @Valid @RequestBody AppealReview review,
                                                      @RequestHeader(value = "Idempotency-Key", required = false)
                                                      String idempotencyKey) {
         boolean useIdempotency = hasKey(idempotencyKey);
@@ -255,12 +260,12 @@ public class AppealManagementController {
                 appealReviewService.markHistorySuccess(idempotencyKey, updated.getReviewId());
             }
             return ResponseEntity.ok(updated);
-        } catch (Exception ex) {
+        } catch (RuntimeException ex) {
             if (useIdempotency) {
                 appealReviewService.markHistoryFailure(idempotencyKey, ex.getMessage());
             }
             LOG.log(Level.SEVERE, "Update appeal review failed", ex);
-            return ResponseEntity.status(resolveStatus(ex)).build();
+            throw ex;
         }
     }
 

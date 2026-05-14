@@ -17,6 +17,8 @@ import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+
+import jakarta.validation.constraints.NotBlank;
 import org.springframework.util.StringUtils;
 
 import java.time.LocalDateTime;
@@ -429,14 +431,19 @@ public class AuthWsService {
 
     @Data
     public static class LoginRequest {
+        @NotBlank(message = "username must not be blank")
         private String username;
+        @NotBlank(message = "password must not be blank")
         private String password;
     }
 
     @Data
     public static class RegisterRequest {
+        @NotBlank(message = "username must not be blank")
         private String username;
+        @NotBlank(message = "password must not be blank")
         private String password;
+        @NotBlank(message = "role must not be blank")
         private String role;
         private String idempotencyKey;
     }

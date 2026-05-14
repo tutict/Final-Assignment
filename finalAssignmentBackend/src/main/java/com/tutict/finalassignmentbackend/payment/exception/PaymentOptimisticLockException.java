@@ -1,6 +1,8 @@
 package com.tutict.finalassignmentbackend.payment.exception;
 
-public class PaymentOptimisticLockException extends RuntimeException {
+import com.tutict.finalassignmentbackend.exception.OptimisticLockException;
+
+public class PaymentOptimisticLockException extends OptimisticLockException {
 
     public PaymentOptimisticLockException(String message) {
         super(message);

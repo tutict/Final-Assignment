@@ -8,6 +8,7 @@ import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.annotation.security.RolesAllowed;
+import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.DeleteMapping;
@@ -46,7 +47,7 @@ public class VehicleInformationController {
 
     @PostMapping
     @Operation(summary = "创建车辆档案")
-    public ResponseEntity<VehicleInformation> createVehicle(@RequestBody VehicleInformation request,
+    public ResponseEntity<VehicleInformation> createVehicle(@Valid @RequestBody VehicleInformation request,
                                                             @RequestHeader(value = "Idempotency-Key", required = false)
                                                             String idempotencyKey) {
         try {
@@ -64,7 +65,7 @@ public class VehicleInformationController {
     @PutMapping("/{vehicleId}")
     @Operation(summary = "更新车辆档案")
     public ResponseEntity<VehicleInformation> updateVehicle(@PathVariable Long vehicleId,
-                                                            @RequestBody VehicleInformation request,
+                                                            @Valid @RequestBody VehicleInformation request,
                                                             @RequestHeader(value = "Idempotency-Key", required = false)
                                                             String idempotencyKey) {
         try {
@@ -199,7 +200,7 @@ public class VehicleInformationController {
     @PostMapping("/{vehicleId}/drivers")
     @Operation(summary = "创建车辆与驾驶员的绑定")
     public ResponseEntity<DriverVehicle> bindDriver(@PathVariable Long vehicleId,
-                                                    @RequestBody DriverVehicle relation,
+                                                    @Valid @RequestBody DriverVehicle relation,
                                                     @RequestHeader(value = "Idempotency-Key", required = false)
                                                     String idempotencyKey) {
         boolean useKey = hasKey(idempotencyKey);
@@ -253,7 +254,7 @@ public class VehicleInformationController {
     @PutMapping("/bindings/{bindingId}")
     @Operation(summary = "更新车辆与驾驶员的绑定")
     public ResponseEntity<DriverVehicle> updateBinding(@PathVariable Long bindingId,
-                                                       @RequestBody DriverVehicle relation,
+                                                       @Valid @RequestBody DriverVehicle relation,
                                                        @RequestHeader(value = "Idempotency-Key", required = false)
                                                        String idempotencyKey) {
         boolean useKey = hasKey(idempotencyKey);

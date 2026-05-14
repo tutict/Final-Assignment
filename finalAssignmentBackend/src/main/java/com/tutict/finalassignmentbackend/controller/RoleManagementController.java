@@ -8,6 +8,7 @@ import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.annotation.security.RolesAllowed;
+import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.DeleteMapping;
@@ -45,7 +46,7 @@ public class RoleManagementController {
 
     @PostMapping
     @Operation(summary = "创建角色")
-    public ResponseEntity<SysRole> createRole(@RequestBody SysRole request,
+    public ResponseEntity<SysRole> createRole(@Valid @RequestBody SysRole request,
                                               @RequestHeader(value = "Idempotency-Key", required = false)
                                               String idempotencyKey) {
         boolean useKey = hasKey(idempotencyKey);
@@ -73,7 +74,7 @@ public class RoleManagementController {
     @PutMapping("/{roleId}")
     @Operation(summary = "更新角色")
     public ResponseEntity<SysRole> updateRole(@PathVariable Integer roleId,
-                                              @RequestBody SysRole request,
+                                              @Valid @RequestBody SysRole request,
                                               @RequestHeader(value = "Idempotency-Key", required = false)
                                               String idempotencyKey) {
         boolean useKey = hasKey(idempotencyKey);
@@ -202,7 +203,7 @@ public class RoleManagementController {
     @PostMapping("/{roleId}/permissions")
     @Operation(summary = "为角色添加权限")
     public ResponseEntity<SysRolePermission> addPermission(@PathVariable Integer roleId,
-                                                           @RequestBody SysRolePermission relation,
+                                                           @Valid @RequestBody SysRolePermission relation,
                                                            @RequestHeader(value = "Idempotency-Key", required = false)
                                                            String idempotencyKey) {
         boolean useKey = hasKey(idempotencyKey);
@@ -256,7 +257,7 @@ public class RoleManagementController {
     @PutMapping("/permissions/{relationId}")
     @Operation(summary = "更新角色权限关联")
     public ResponseEntity<SysRolePermission> updatePermission(@PathVariable Long relationId,
-                                                              @RequestBody SysRolePermission relation,
+                                                              @Valid @RequestBody SysRolePermission relation,
                                                               @RequestHeader(value = "Idempotency-Key", required = false)
                                                               String idempotencyKey) {
         boolean useKey = hasKey(idempotencyKey);

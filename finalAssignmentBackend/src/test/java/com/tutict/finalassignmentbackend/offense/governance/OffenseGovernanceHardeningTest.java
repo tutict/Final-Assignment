@@ -3,6 +3,7 @@ package com.tutict.finalassignmentbackend.offense.governance;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.tutict.finalassignmentbackend.config.statemachine.states.OffenseProcessState;
 import com.tutict.finalassignmentbackend.controller.OffenseInformationController;
+import com.tutict.finalassignmentbackend.dto.request.OffenseCreateRequest;
 import com.tutict.finalassignmentbackend.entity.OffenseRecord;
 import com.tutict.finalassignmentbackend.mapper.OffenseRecordMapper;
 import com.tutict.finalassignmentbackend.mapper.SysRequestHistoryMapper;
@@ -86,7 +87,7 @@ class OffenseGovernanceHardeningTest {
     void createDuplicateNoOpReturnsBeforeMutationSideEffects() {
         OffenseRecordService service = mock(OffenseRecordService.class);
         OffenseInformationController controller = new OffenseInformationController(service);
-        OffenseRecord request = new OffenseRecord();
+        OffenseCreateRequest request = new OffenseCreateRequest();
         when(service.shouldSkipProcessing("dup-key")).thenReturn(true);
 
         ResponseEntity<OffenseRecord> response = controller.create(request, "dup-key");
@@ -104,20 +105,21 @@ class OffenseGovernanceHardeningTest {
     void createControllerPublishesKafkaOnlyAfterSuccessfulCreateAndHistorySuccess() {
         OffenseRecordService service = mock(OffenseRecordService.class);
         OffenseInformationController controller = new OffenseInformationController(service);
-        OffenseRecord request = new OffenseRecord();
+        OffenseCreateRequest request = new OffenseCreateRequest();
         OffenseRecord saved = new OffenseRecord();
         saved.setOffenseId(10L);
         when(service.shouldSkipProcessing("create-key")).thenReturn(false);
-        when(service.createOffenseRecord(request)).thenReturn(saved);
+        when(service.createOffenseRecord(any(OffenseRecord.class))).thenReturn(saved);
 
         ResponseEntity<OffenseRecord> response = controller.create(request, "create-key");
 
         assertThat(response.getStatusCode()).isEqualTo(HttpStatus.CREATED);
         assertThat(response.getBody()).isSameAs(saved);
+        ArgumentCaptor<OffenseRecord> mappedRecord = ArgumentCaptor.forClass(OffenseRecord.class);
         InOrder order = inOrder(service);
         order.verify(service).shouldSkipProcessing("create-key");
-        order.verify(service).checkAndInsertIdempotency("create-key", request, "create");
-        order.verify(service).createOffenseRecord(request);
+        order.verify(service).checkAndInsertIdempotency(eq("create-key"), mappedRecord.capture(), eq("create"));
+        order.verify(service).createOffenseRecord(mappedRecord.getValue());
         order.verify(service).markHistorySuccess("create-key", 10L);
         order.verify(service).publishCreateKafkaAfterCommit("create-key", saved);
         order.verifyNoMoreInteractions();

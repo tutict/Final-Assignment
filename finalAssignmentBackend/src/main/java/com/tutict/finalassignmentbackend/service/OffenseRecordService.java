@@ -26,6 +26,7 @@ import com.tutict.finalassignmentbackend.offense.governance.SemanticIntentClassi
 import com.tutict.finalassignmentbackend.offense.governance.StaleFullUpdateRejectedException;
 import com.tutict.finalassignmentbackend.offense.governance.rollout.GovernanceRolloutPolicy;
 import com.tutict.finalassignmentbackend.offense.governance.rollout.GovernanceSourceType;
+import com.tutict.finalassignmentbackend.exception.BusinessException;
 import com.tutict.finalassignmentbackend.repository.OffenseInformationSearchRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.cache.annotation.CacheEvict;
@@ -221,7 +222,7 @@ public class OffenseRecordService {
         applyOffenseStatusPrecondition(updateWrapper, existing.getProcessStatus());
         int rows = offenseRecordMapper.update(null, updateWrapper);
         if (rows == 0) {
-            throw new IllegalStateException("Offense record status has already been processed; refresh and retry");
+            throw new BusinessException("CONFLICT", "该记录已被处理，无法重复操作");
         }
         syncToIndexAfterCommit(policy, merged);
         return merged;

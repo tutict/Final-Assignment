@@ -6,6 +6,7 @@ import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.annotation.security.RolesAllowed;
+import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.DeleteMapping;
@@ -40,7 +41,7 @@ public class DriverInformationController {
 
     @PostMapping
     @Operation(summary = "创建驾驶员档案")
-    public ResponseEntity<DriverInformation> create(@RequestBody DriverInformation request,
+    public ResponseEntity<DriverInformation> create(@Valid @RequestBody DriverInformation request,
                                                     @RequestHeader(value = "Idempotency-Key", required = false)
                                                     String idempotencyKey) {
         boolean useKey = hasKey(idempotencyKey);
@@ -68,7 +69,7 @@ public class DriverInformationController {
     @PutMapping("/{driverId}")
     @Operation(summary = "更新驾驶员档案")
     public ResponseEntity<DriverInformation> update(@PathVariable Long driverId,
-                                                    @RequestBody DriverInformation request,
+                                                    @Valid @RequestBody DriverInformation request,
                                                     @RequestHeader(value = "Idempotency-Key", required = false)
                                                     String idempotencyKey) {
         boolean useKey = hasKey(idempotencyKey);

@@ -2,12 +2,16 @@ package com.tutict.finalassignmentbackend.exception.global;
 
 import com.github.dockerjava.api.exception.UnauthorizedException;
 import com.tutict.finalassignmentbackend.dto.response.ApiResponse;
+import com.tutict.finalassignmentbackend.exception.BusinessException;
+import com.tutict.finalassignmentbackend.exception.EntityNotFoundException;
+import com.tutict.finalassignmentbackend.exception.OptimisticLockException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.ConstraintViolation;
 import jakarta.validation.ConstraintViolationException;
 import jakarta.ws.rs.ForbiddenException;
 import org.apache.kafka.common.errors.ResourceNotFoundException;
 import org.springframework.dao.DataIntegrityViolationException;
+import org.springframework.dao.EmptyResultDataAccessException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.AccessDeniedException;
@@ -34,58 +38,58 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(ResourceNotFoundException.class)
     public ResponseEntity<Map<String, Object>> handleResourceNotFoundException(ResourceNotFoundException ex,
                                                                                HttpServletRequest request) {
-        logger.log(Level.WARNING, "资源未找到: {0}", ex.getMessage());
-        return buildResponse(HttpStatus.NOT_FOUND, "资源未找到: " + ex.getMessage(), request, null);
+        logger.log(Level.WARNING, "Resource not found: {0}", ex.getMessage());
+        return buildResponse(HttpStatus.NOT_FOUND, "请求的资源不存在", request, null);
     }
 
     @ExceptionHandler(IllegalArgumentException.class)
     public ResponseEntity<Map<String, Object>> handleIllegalArgumentException(IllegalArgumentException ex,
                                                                               HttpServletRequest request) {
-        logger.log(Level.WARNING, "无效的请求参数: {0}", ex.getMessage());
-        return buildResponse(HttpStatus.BAD_REQUEST, "无效的请求参数: " + ex.getMessage(), request, null);
+        logger.log(Level.WARNING, "Illegal argument: {0}", ex.getMessage());
+        return buildResponse(HttpStatus.BAD_REQUEST, ex.getMessage(), request, null);
     }
 
     @ExceptionHandler(UnauthorizedException.class)
     public ResponseEntity<Map<String, Object>> handleUnauthorizedException(UnauthorizedException ex,
                                                                            HttpServletRequest request) {
-        logger.log(Level.WARNING, "未授权访问: {0}", ex.getMessage());
-        return buildResponse(HttpStatus.UNAUTHORIZED, "未授权访问: " + ex.getMessage(), request, null);
+        logger.log(Level.WARNING, "Unauthorized: {0}", ex.getMessage());
+        return buildResponse(HttpStatus.UNAUTHORIZED, "未授权", request, null);
     }
 
     @ExceptionHandler(ForbiddenException.class)
     public ResponseEntity<Map<String, Object>> handleForbiddenException(ForbiddenException ex,
                                                                         HttpServletRequest request) {
-        logger.log(Level.WARNING, "禁止访问: {0}", ex.getMessage());
-        return buildResponse(HttpStatus.FORBIDDEN, "禁止访问: " + ex.getMessage(), request, null);
+        logger.log(Level.WARNING, "Forbidden: {0}", ex.getMessage());
+        return buildResponse(HttpStatus.FORBIDDEN, "无权访问", request, null);
     }
 
     @ExceptionHandler(AccessDeniedException.class)
     public ResponseEntity<ApiResponse<Void>> handleAccessDenied(AccessDeniedException ex) {
         logger.log(Level.WARNING, "Access denied: {0}", ex.getMessage());
         return ResponseEntity.status(HttpStatus.FORBIDDEN)
-                .body(ApiResponse.error("FORBIDDEN", "\u60a8\u6ca1\u6709\u6743\u9650\u6267\u884c\u6b64\u64cd\u4f5c"));
+                .body(ApiResponse.error("FORBIDDEN", "您没有权限执行此操作"));
     }
 
     @ExceptionHandler(AuthenticationException.class)
     public ResponseEntity<ApiResponse<Void>> handleUnauthorized(AuthenticationException ex) {
         logger.log(Level.WARNING, "Unauthorized: {0}", ex.getMessage());
         return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
-                .body(ApiResponse.error("UNAUTHORIZED", "\u8bf7\u5148\u767b\u5f55"));
+                .body(ApiResponse.error("UNAUTHORIZED", "请先登录"));
     }
 
     @ExceptionHandler(DataIntegrityViolationException.class)
     public ResponseEntity<Map<String, Object>> handleDataIntegrityViolationException(
             DataIntegrityViolationException ex,
             HttpServletRequest request) {
-        logger.log(Level.WARNING, "数据完整性冲突: {0}", ex.getMessage());
-        return buildResponse(HttpStatus.CONFLICT, "数据完整性冲突: " + ex.getMessage(), request, null);
+        logger.log(Level.WARNING, "Data integrity violation: {0}", ex.getMessage());
+        return buildResponse(HttpStatus.CONFLICT, "数据冲突或重复提交", request, null);
     }
 
     @ExceptionHandler(MethodArgumentNotValidException.class)
     public ResponseEntity<Map<String, Object>> handleMethodArgumentNotValidException(
             MethodArgumentNotValidException ex,
             HttpServletRequest request) {
-        logger.log(Level.WARNING, "请求参数验证失败: {0}", ex.getMessage());
+        logger.log(Level.WARNING, "Validation failed: {0}", ex.getMessage());
         List<Map<String, String>> fieldErrors = ex.getBindingResult()
                 .getFieldErrors()
                 .stream()
@@ -93,13 +97,13 @@ public class GlobalExceptionHandler {
                         "field", error.getField(),
                         "message", error.getDefaultMessage() == null ? "" : error.getDefaultMessage()))
                 .toList();
-        return buildResponse(HttpStatus.BAD_REQUEST, "请求参数验证失败", request, Map.of("errors", fieldErrors));
+        return buildResponse(HttpStatus.BAD_REQUEST, "参数校验失败", request, Map.of("errors", fieldErrors));
     }
 
     @ExceptionHandler(BindException.class)
     public ResponseEntity<Map<String, Object>> handleBindException(BindException ex,
                                                                    HttpServletRequest request) {
-        logger.log(Level.WARNING, "请求参数绑定失败: {0}", ex.getMessage());
+        logger.log(Level.WARNING, "Binding failed: {0}", ex.getMessage());
         List<Map<String, String>> fieldErrors = ex.getBindingResult()
                 .getFieldErrors()
                 .stream()
@@ -107,37 +111,54 @@ public class GlobalExceptionHandler {
                         "field", error.getField(),
                         "message", error.getDefaultMessage() == null ? "" : error.getDefaultMessage()))
                 .toList();
-        return buildResponse(HttpStatus.BAD_REQUEST, "请求参数绑定失败", request, Map.of("errors", fieldErrors));
+        return buildResponse(HttpStatus.BAD_REQUEST, "参数绑定失败", request, Map.of("errors", fieldErrors));
     }
 
     @ExceptionHandler(ConstraintViolationException.class)
     public ResponseEntity<Map<String, Object>> handleConstraintViolationException(
             ConstraintViolationException ex,
             HttpServletRequest request) {
-        logger.log(Level.WARNING, "请求参数校验失败: {0}", ex.getMessage());
+        logger.log(Level.WARNING, "Constraint violation: {0}", ex.getMessage());
         List<Map<String, String>> violations = ex.getConstraintViolations()
                 .stream()
                 .map(ConstraintViolation::getMessage)
                 .map(message -> Map.of("message", message))
                 .toList();
-        return buildResponse(HttpStatus.BAD_REQUEST, "请求参数校验失败", request, Map.of("violations", violations));
+        return buildResponse(HttpStatus.BAD_REQUEST, "参数约束失败", request, Map.of("violations", violations));
     }
 
     @ExceptionHandler(MissingServletRequestParameterException.class)
     public ResponseEntity<Map<String, Object>> handleMissingServletRequestParameterException(
             MissingServletRequestParameterException ex,
             HttpServletRequest request) {
-        logger.log(Level.WARNING, "缺少请求参数: {0}", ex.getParameterName());
+        logger.log(Level.WARNING, "Missing request parameter: {0}", ex.getParameterName());
         return buildResponse(HttpStatus.BAD_REQUEST,
                 "缺少请求参数: " + ex.getParameterName(), request, null);
     }
 
+    @ExceptionHandler(BusinessException.class)
+    public ResponseEntity<ApiResponse<Void>> handleBusiness(BusinessException ex) {
+        return ResponseEntity.badRequest()
+                .body(ApiResponse.error(ex.getCode(), ex.getMessage()));
+    }
+
+    @ExceptionHandler(OptimisticLockException.class)
+    public ResponseEntity<ApiResponse<Void>> handleOptimisticLock(OptimisticLockException ex) {
+        return ResponseEntity.status(HttpStatus.CONFLICT)
+                .body(ApiResponse.error("CONFLICT", ex.getMessage()));
+    }
+
+    @ExceptionHandler({EntityNotFoundException.class, EmptyResultDataAccessException.class})
+    public ResponseEntity<ApiResponse<Void>> handleNotFound(RuntimeException ex) {
+        return ResponseEntity.status(HttpStatus.NOT_FOUND)
+                .body(ApiResponse.error("NOT_FOUND", "请求的资源不存在"));
+    }
+
     @ExceptionHandler(Exception.class)
-    public ResponseEntity<Map<String, Object>> handleGenericException(Exception ex,
-                                                                      HttpServletRequest request) {
-        logger.log(Level.SEVERE, "未捕获异常: {0}", ex.getMessage());
-        return buildResponse(HttpStatus.INTERNAL_SERVER_ERROR,
-                "服务器内部错误: " + ex.getMessage(), request, null);
+    public ResponseEntity<ApiResponse<Void>> handleGenericException(Exception ex) {
+        logger.log(Level.SEVERE, "Unhandled exception", ex);
+        return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                .body(ApiResponse.error("INTERNAL_ERROR", "服务器内部错误，请联系管理员"));
     }
 
     private ResponseEntity<Map<String, Object>> buildResponse(HttpStatus status,

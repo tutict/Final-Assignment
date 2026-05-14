@@ -1,58 +1,45 @@
 package com.tutict.finalassignmentbackend.entity;
 
-import com.baomidou.mybatisplus.annotation.*;
+import com.baomidou.mybatisplus.annotation.FieldFill;
+import com.baomidou.mybatisplus.annotation.IdType;
+import com.baomidou.mybatisplus.annotation.TableField;
+import com.baomidou.mybatisplus.annotation.TableId;
+import com.baomidou.mybatisplus.annotation.TableLogic;
+import com.baomidou.mybatisplus.annotation.TableName;
+import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.Positive;
+import jakarta.validation.constraints.Size;
 import lombok.Data;
 
 import java.io.Serial;
 import java.io.Serializable;
 import java.time.LocalDateTime;
 
-/**
- * 用户角色关联表实体类，对应数据库表 "sys_user_role"
- * 用于定义用户和角色之间的多对多关系
- */
 @Data
 @TableName("sys_user_role")
 public class SysUserRole implements Serializable {
-    /**
-     * 序列化版本 UID
-     */
+
     @Serial
     private static final long serialVersionUID = 1L;
 
-    /**
-     * 关联 ID，主键，自动增长
-     */
     @TableId(value = "id", type = IdType.AUTO)
     private Long id;
 
-    /**
-     * 用户 ID
-     */
     @TableField("user_id")
     private Long userId;
 
-    /**
-     * 角色 ID
-     */
     @TableField("role_id")
+    @NotNull(message = "roleId must not be null")
+    @Positive(message = "roleId must be greater than zero")
     private Integer roleId;
 
-    /**
-     * 创建时间
-     */
     @TableField(value = "created_at", fill = FieldFill.INSERT)
     private LocalDateTime createdAt;
 
-    /**
-     * 创建人
-     */
     @TableField("created_by")
+    @Size(max = 100, message = "createdBy must not exceed 100 characters")
     private String createdBy;
 
-    /**
-     * 软删除时间戳
-     */
     @TableField("deleted_at")
     @TableLogic(value = "null", delval = "now()")
     private LocalDateTime deletedAt;

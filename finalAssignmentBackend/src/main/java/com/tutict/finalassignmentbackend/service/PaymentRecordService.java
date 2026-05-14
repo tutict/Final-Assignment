@@ -7,6 +7,7 @@ import com.tutict.finalassignmentbackend.config.websocket.WsAction;
 import com.tutict.finalassignmentbackend.entity.PaymentRecord;
 import com.tutict.finalassignmentbackend.entity.SysRequestHistory;
 import com.tutict.finalassignmentbackend.entity.elastic.PaymentRecordDocument;
+import com.tutict.finalassignmentbackend.exception.EntityNotFoundException;
 import com.tutict.finalassignmentbackend.mapper.PaymentRecordMapper;
 import com.tutict.finalassignmentbackend.mapper.SysRequestHistoryMapper;
 import com.tutict.finalassignmentbackend.payment.governance.PaymentGovernanceClassifier;
@@ -167,7 +168,7 @@ public class PaymentRecordService {
         requirePositive(paymentId, "Payment ID");
         PaymentRecord existing = paymentRecordMapper.selectById(paymentId);
         if (existing == null) {
-            throw new IllegalStateException("PaymentRecord not found for id=" + paymentId);
+            throw new EntityNotFoundException("PaymentRecord not found for id=" + paymentId);
         }
         logPaymentGovernance(PaymentGovernanceLogFactory.workflowStatus(
                 paymentGovernanceClassifier.classifyWorkflowStatus(newState),

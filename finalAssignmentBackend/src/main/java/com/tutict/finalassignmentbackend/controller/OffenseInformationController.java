@@ -1,11 +1,14 @@
 package com.tutict.finalassignmentbackend.controller;
 
+import com.tutict.finalassignmentbackend.dto.mapper.OffenseRecordRequestMapper;
+import com.tutict.finalassignmentbackend.dto.request.OffenseCreateRequest;
 import com.tutict.finalassignmentbackend.entity.OffenseRecord;
 import com.tutict.finalassignmentbackend.service.OffenseRecordService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.annotation.security.RolesAllowed;
+import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.DeleteMapping;
@@ -40,55 +43,57 @@ public class OffenseInformationController {
 
     @PostMapping
     @Operation(summary = "创建违法记录")
-    public ResponseEntity<OffenseRecord> create(@RequestBody OffenseRecord request,
+    public ResponseEntity<OffenseRecord> create(@Valid @RequestBody OffenseCreateRequest request,
                                                 @RequestHeader(value = "Idempotency-Key", required = false)
                                                 String idempotencyKey) {
         boolean useKey = hasKey(idempotencyKey);
+        OffenseRecord offenseRecord = OffenseRecordRequestMapper.toEntity(request);
         try {
             if (useKey) {
                 if (offenseRecordService.shouldSkipProcessing(idempotencyKey)) {
                     return ResponseEntity.status(HttpStatus.ALREADY_REPORTED).build();
                 }
-                offenseRecordService.checkAndInsertIdempotency(idempotencyKey, request, "create");
+                offenseRecordService.checkAndInsertIdempotency(idempotencyKey, offenseRecord, "create");
             }
-            OffenseRecord saved = offenseRecordService.createOffenseRecord(request);
+            OffenseRecord saved = offenseRecordService.createOffenseRecord(offenseRecord);
             if (useKey && saved.getOffenseId() != null) {
                 offenseRecordService.markHistorySuccess(idempotencyKey, saved.getOffenseId());
                 offenseRecordService.publishCreateKafkaAfterCommit(idempotencyKey, saved);
             }
             return ResponseEntity.status(HttpStatus.CREATED).body(saved);
-        } catch (Exception ex) {
+        } catch (RuntimeException ex) {
             if (useKey) {
                 offenseRecordService.markHistoryFailure(idempotencyKey, ex.getMessage());
             }
             LOG.log(Level.SEVERE, "Create offense failed", ex);
-            return ResponseEntity.status(resolveStatus(ex)).build();
+            throw ex;
         }
     }
 
     @PutMapping("/{offenseId}")
     @Operation(summary = "更新违法记录")
     public ResponseEntity<OffenseRecord> update(@PathVariable Long offenseId,
-                                                @RequestBody OffenseRecord request,
+                                                @Valid @RequestBody OffenseCreateRequest request,
                                                 @RequestHeader(value = "Idempotency-Key", required = false)
                                                 String idempotencyKey) {
         boolean useKey = hasKey(idempotencyKey);
+        OffenseRecord offenseRecord = OffenseRecordRequestMapper.toEntity(request);
         try {
-            request.setOffenseId(offenseId);
+            offenseRecord.setOffenseId(offenseId);
             if (useKey) {
-                offenseRecordService.checkAndInsertIdempotency(idempotencyKey, request, "update");
+                offenseRecordService.checkAndInsertIdempotency(idempotencyKey, offenseRecord, "update");
             }
-            OffenseRecord updated = offenseRecordService.updateOffenseRecord(request);
+            OffenseRecord updated = offenseRecordService.updateOffenseRecord(offenseRecord);
             if (useKey && updated.getOffenseId() != null) {
                 offenseRecordService.markHistorySuccess(idempotencyKey, updated.getOffenseId());
             }
             return ResponseEntity.ok(updated);
-        } catch (Exception ex) {
+        } catch (RuntimeException ex) {
             if (useKey) {
                 offenseRecordService.markHistoryFailure(idempotencyKey, ex.getMessage());
             }
             LOG.log(Level.SEVERE, "Update offense failed", ex);
-            return ResponseEntity.status(resolveStatus(ex)).build();
+            throw ex;
         }
     }
 
@@ -98,9 +103,9 @@ public class OffenseInformationController {
         try {
             offenseRecordService.deleteOffenseRecord(offenseId);
             return ResponseEntity.noContent().build();
-        } catch (Exception ex) {
+        } catch (RuntimeException ex) {
             LOG.log(Level.WARNING, "Delete offense failed", ex);
-            return ResponseEntity.status(resolveStatus(ex)).build();
+            throw ex;
         }
     }
 

@@ -6,6 +6,7 @@ import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.annotation.security.RolesAllowed;
+import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.DeleteMapping;
@@ -40,7 +41,7 @@ public class FineInformationController {
 
     @PostMapping
     @Operation(summary = "创建罚款记录")
-    public ResponseEntity<FineRecord> create(@RequestBody FineRecord request,
+    public ResponseEntity<FineRecord> create(@Valid @RequestBody FineRecord request,
                                              @RequestHeader(value = "Idempotency-Key", required = false)
                                              String idempotencyKey) {
         boolean useKey = hasKey(idempotencyKey);
@@ -68,7 +69,7 @@ public class FineInformationController {
     @PutMapping("/{fineId}")
     @Operation(summary = "更新罚款记录")
     public ResponseEntity<FineRecord> update(@PathVariable Long fineId,
-                                             @RequestBody FineRecord request,
+                                             @Valid @RequestBody FineRecord request,
                                              @RequestHeader(value = "Idempotency-Key", required = false)
                                              String idempotencyKey) {
         boolean useKey = hasKey(idempotencyKey);

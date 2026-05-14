@@ -8,6 +8,7 @@ import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.annotation.security.RolesAllowed;
+import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.DeleteMapping;
@@ -45,7 +46,7 @@ public class SystemSettingsController {
 
     @PostMapping
     @Operation(summary = "创建系统配置")
-    public ResponseEntity<SysSettings> createSetting(@RequestBody SysSettings request,
+    public ResponseEntity<SysSettings> createSetting(@Valid @RequestBody SysSettings request,
                                                      @RequestHeader(value = "Idempotency-Key", required = false)
                                                      String idempotencyKey) {
         boolean useKey = hasKey(idempotencyKey);
@@ -73,7 +74,7 @@ public class SystemSettingsController {
     @PutMapping("/{settingId}")
     @Operation(summary = "更新系统配置")
     public ResponseEntity<SysSettings> updateSetting(@PathVariable Integer settingId,
-                                                     @RequestBody SysSettings request,
+                                                     @Valid @RequestBody SysSettings request,
                                                      @RequestHeader(value = "Idempotency-Key", required = false)
                                                      String idempotencyKey) {
         boolean useKey = hasKey(idempotencyKey);
@@ -198,7 +199,7 @@ public class SystemSettingsController {
 
     @PostMapping("/dicts")
     @Operation(summary = "创建数据字典")
-    public ResponseEntity<SysDict> createDict(@RequestBody SysDict request,
+    public ResponseEntity<SysDict> createDict(@Valid @RequestBody SysDict request,
                                               @RequestHeader(value = "Idempotency-Key", required = false)
                                               String idempotencyKey) {
         boolean useKey = hasKey(idempotencyKey);
@@ -226,7 +227,7 @@ public class SystemSettingsController {
     @PutMapping("/dicts/{dictId}")
     @Operation(summary = "更新数据字典")
     public ResponseEntity<SysDict> updateDict(@PathVariable Integer dictId,
-                                              @RequestBody SysDict request,
+                                              @Valid @RequestBody SysDict request,
                                               @RequestHeader(value = "Idempotency-Key", required = false)
                                               String idempotencyKey) {
         boolean useKey = hasKey(idempotencyKey);

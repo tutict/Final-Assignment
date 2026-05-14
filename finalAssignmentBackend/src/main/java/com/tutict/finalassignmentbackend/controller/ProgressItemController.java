@@ -6,6 +6,7 @@ import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.annotation.security.RolesAllowed;
+import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.DeleteMapping;
@@ -41,7 +42,7 @@ public class ProgressItemController {
 
     @PostMapping
     @Operation(summary = "创建进度记录")
-    public ResponseEntity<SysRequestHistory> create(@RequestBody SysRequestHistory request,
+    public ResponseEntity<SysRequestHistory> create(@Valid @RequestBody SysRequestHistory request,
                                                     @RequestHeader(value = "Idempotency-Key", required = false)
                                                     String idempotencyKey) {
         boolean useKey = hasKey(idempotencyKey);
@@ -69,7 +70,7 @@ public class ProgressItemController {
     @PutMapping("/{historyId}")
     @Operation(summary = "更新进度记录")
     public ResponseEntity<SysRequestHistory> update(@PathVariable Long historyId,
-                                                    @RequestBody SysRequestHistory request,
+                                                    @Valid @RequestBody SysRequestHistory request,
                                                     @RequestHeader(value = "Idempotency-Key", required = false)
                                                     String idempotencyKey) {
         boolean useKey = hasKey(idempotencyKey);

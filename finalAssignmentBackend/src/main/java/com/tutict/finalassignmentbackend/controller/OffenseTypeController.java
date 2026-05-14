@@ -6,6 +6,7 @@ import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.annotation.security.RolesAllowed;
+import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.DeleteMapping;
@@ -40,7 +41,7 @@ public class OffenseTypeController {
 
     @PostMapping
     @Operation(summary = "创建违法类型")
-    public ResponseEntity<OffenseTypeDict> create(@RequestBody OffenseTypeDict request,
+    public ResponseEntity<OffenseTypeDict> create(@Valid @RequestBody OffenseTypeDict request,
                                                   @RequestHeader(value = "Idempotency-Key", required = false)
                                                   String idempotencyKey) {
         boolean useKey = hasKey(idempotencyKey);
@@ -68,7 +69,7 @@ public class OffenseTypeController {
     @PutMapping("/{typeId}")
     @Operation(summary = "更新违法类型")
     public ResponseEntity<OffenseTypeDict> update(@PathVariable Integer typeId,
-                                                  @RequestBody OffenseTypeDict request,
+                                                  @Valid @RequestBody OffenseTypeDict request,
                                                   @RequestHeader(value = "Idempotency-Key", required = false)
                                                   String idempotencyKey) {
         boolean useKey = hasKey(idempotencyKey);

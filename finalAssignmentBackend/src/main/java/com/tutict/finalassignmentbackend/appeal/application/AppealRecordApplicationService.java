@@ -15,6 +15,7 @@ import com.tutict.finalassignmentbackend.appeal.infrastructure.messaging.Transac
 import com.tutict.finalassignmentbackend.appeal.infrastructure.search.AppealRecordSearchIndexer;
 import com.tutict.finalassignmentbackend.config.statemachine.states.AppealProcessState;
 import com.tutict.finalassignmentbackend.entity.AppealRecord;
+import com.tutict.finalassignmentbackend.exception.BusinessException;
 import com.tutict.finalassignmentbackend.mapper.AppealRecordMapper;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -178,7 +179,7 @@ public class AppealRecordApplicationService {
         applyAppealStatusPrecondition(updateWrapper, existing.getProcessStatus());
         int rows = appealRecordMapper.update(null, updateWrapper);
         if (workflowDecisionPolicy.isMissingMutation(rows)) {
-            throw new IllegalStateException("Appeal status has already been processed; refresh and retry");
+            throw new BusinessException("CONFLICT", "该记录已被处理，无法重复操作");
         }
         searchIndexer.indexAfterCommit(merged);
         cachePolicy.onWrite();

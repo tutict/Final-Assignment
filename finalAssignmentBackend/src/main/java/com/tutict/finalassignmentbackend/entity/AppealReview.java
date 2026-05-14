@@ -1,6 +1,16 @@
 package com.tutict.finalassignmentbackend.entity;
 
-import com.baomidou.mybatisplus.annotation.*;
+import com.baomidou.mybatisplus.annotation.FieldFill;
+import com.baomidou.mybatisplus.annotation.IdType;
+import com.baomidou.mybatisplus.annotation.TableField;
+import com.baomidou.mybatisplus.annotation.TableId;
+import com.baomidou.mybatisplus.annotation.TableLogic;
+import com.baomidou.mybatisplus.annotation.TableName;
+import jakarta.validation.constraints.DecimalMin;
+import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.PastOrPresent;
+import jakarta.validation.constraints.PositiveOrZero;
+import jakarta.validation.constraints.Size;
 import lombok.Data;
 
 import java.io.Serial;
@@ -8,107 +18,69 @@ import java.io.Serializable;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 
-/**
- * 申诉审核表实体类，对应数据库表 "appeal_review"
- * 记录申诉的审核信息
- */
 @Data
 @TableName("appeal_review")
 public class AppealReview implements Serializable {
-    /**
-     * 序列化版本 UID
-     */
+
     @Serial
     private static final long serialVersionUID = 1L;
 
-    /**
-     * 审核记录 ID，主键，自动增长
-     */
     @TableId(value = "review_id", type = IdType.AUTO)
     private Long reviewId;
 
-    /**
-     * 申诉记录 ID
-     */
     @TableField("appeal_id")
     private Long appealId;
 
-    /**
-     * 审核级别 (Primary, Secondary, Final)
-     */
     @TableField("review_level")
+    @NotBlank(message = "reviewLevel must not be blank")
+    @Size(max = 50, message = "reviewLevel must not exceed 50 characters")
     private String reviewLevel;
 
-    /**
-     * 审核时间
-     */
     @TableField("review_time")
+    @PastOrPresent(message = "reviewTime must not be in the future")
     private LocalDateTime reviewTime;
 
-    /**
-     * 审核人
-     */
     @TableField("reviewer")
+    @NotBlank(message = "reviewer must not be blank")
+    @Size(max = 100, message = "reviewer must not exceed 100 characters")
     private String reviewer;
 
-    /**
-     * 审核部门
-     */
     @TableField("reviewer_dept")
+    @Size(max = 100, message = "reviewerDept must not exceed 100 characters")
     private String reviewerDept;
 
-    /**
-     * 审核结果 (Approved, Rejected, Need_Resubmit, Transfer)
-     */
     @TableField("review_result")
+    @NotBlank(message = "reviewResult must not be blank")
+    @Size(max = 50, message = "reviewResult must not exceed 50 characters")
     private String reviewResult;
 
-    /**
-     * 审核意见
-     */
     @TableField("review_opinion")
+    @Size(max = 2000, message = "reviewOpinion must not exceed 2000 characters")
     private String reviewOpinion;
 
-    /**
-     * 处理建议 (Cancel_Offense, Reduce_Fine, Reduce_Points, Reject_Appeal, Other)
-     */
     @TableField("suggested_action")
+    @Size(max = 100, message = "suggestedAction must not exceed 100 characters")
     private String suggestedAction;
 
-    /**
-     * 建议罚款金额 (元)
-     */
     @TableField("suggested_fine_amount")
+    @DecimalMin(value = "0.0", message = "suggestedFineAmount must not be negative")
     private BigDecimal suggestedFineAmount;
 
-    /**
-     * 建议扣分
-     */
     @TableField("suggested_points")
+    @PositiveOrZero(message = "suggestedPoints must not be negative")
     private Integer suggestedPoints;
 
-    /**
-     * 创建时间
-     */
     @TableField(value = "created_at", fill = FieldFill.INSERT)
     private LocalDateTime createdAt;
 
-    /**
-     * 更新时间
-     */
     @TableField(value = "updated_at", fill = FieldFill.INSERT_UPDATE)
     private LocalDateTime updatedAt;
 
-    /**
-     * 软删除时间戳
-     */
     @TableField("deleted_at")
     @TableLogic(value = "null", delval = "now()")
     private LocalDateTime deletedAt;
 
-    /**
-     * 备注
-     */
     @TableField("remarks")
+    @Size(max = 1000, message = "remarks must not exceed 1000 characters")
     private String remarks;
 }

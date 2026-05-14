@@ -6,6 +6,7 @@ import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.annotation.security.RolesAllowed;
+import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.DeleteMapping;
@@ -40,7 +41,7 @@ public class DeductionInformationController {
 
     @PostMapping
     @Operation(summary = "创建扣分记录")
-    public ResponseEntity<DeductionRecord> create(@RequestBody DeductionRecord request,
+    public ResponseEntity<DeductionRecord> create(@Valid @RequestBody DeductionRecord request,
                                                   @RequestHeader(value = "Idempotency-Key", required = false)
                                                   String idempotencyKey) {
         boolean useKey = hasKey(idempotencyKey);
@@ -68,7 +69,7 @@ public class DeductionInformationController {
     @PutMapping("/{deductionId}")
     @Operation(summary = "更新扣分记录")
     public ResponseEntity<DeductionRecord> update(@PathVariable Long deductionId,
-                                                  @RequestBody DeductionRecord request,
+                                                  @Valid @RequestBody DeductionRecord request,
                                                   @RequestHeader(value = "Idempotency-Key", required = false)
                                                   String idempotencyKey) {
         boolean useKey = hasKey(idempotencyKey);

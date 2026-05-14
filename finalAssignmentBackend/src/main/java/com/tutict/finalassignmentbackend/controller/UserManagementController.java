@@ -69,13 +69,12 @@ public class UserManagementController {
             }
             return ResponseEntity.status(HttpStatus.CREATED)
                     .body(ApiResponse.ok(toUserResponse(saved)));
-        } catch (Exception ex) {
+        } catch (RuntimeException ex) {
             if (useKey) {
                 sysUserService.markHistoryFailure(idempotencyKey, ex.getMessage());
             }
             LOG.log(Level.SEVERE, "Create user failed", ex);
-            return ResponseEntity.status(resolveStatus(ex))
-                    .body(ApiResponse.error("USER_CREATE_FAILED", ex.getMessage()));
+            throw ex;
         }
     }
 
@@ -97,13 +96,12 @@ public class UserManagementController {
                 sysUserService.markHistorySuccess(idempotencyKey, updated.getUserId());
             }
             return ResponseEntity.ok(ApiResponse.ok(toUserResponse(updated)));
-        } catch (Exception ex) {
+        } catch (RuntimeException ex) {
             if (useKey) {
                 sysUserService.markHistoryFailure(idempotencyKey, ex.getMessage());
             }
             LOG.log(Level.SEVERE, "Update user failed", ex);
-            return ResponseEntity.status(resolveStatus(ex))
-                    .body(ApiResponse.error("USER_UPDATE_FAILED", ex.getMessage()));
+            throw ex;
         }
     }
 
@@ -113,9 +111,9 @@ public class UserManagementController {
         try {
             sysUserService.deleteSysUser(userId);
             return ResponseEntity.noContent().build();
-        } catch (Exception ex) {
+        } catch (RuntimeException ex) {
             LOG.log(Level.WARNING, "Delete user failed", ex);
-            return ResponseEntity.status(resolveStatus(ex)).build();
+            throw ex;
         }
     }
 
@@ -267,7 +265,7 @@ public class UserManagementController {
     @PostMapping("/{userId}/roles")
     @Operation(summary = "绑定用户角色")
     public ResponseEntity<SysUserRole> addUserRole(@PathVariable Long userId,
-                                                   @RequestBody SysUserRole relation,
+                                                   @Valid @RequestBody SysUserRole relation,
                                                    @RequestHeader(value = "Idempotency-Key", required = false)
                                                    String idempotencyKey) {
         boolean useKey = hasKey(idempotencyKey);
@@ -284,12 +282,12 @@ public class UserManagementController {
                 sysUserRoleService.markHistorySuccess(idempotencyKey, saved.getId());
             }
             return ResponseEntity.status(HttpStatus.CREATED).body(saved);
-        } catch (Exception ex) {
+        } catch (RuntimeException ex) {
             if (useKey) {
                 sysUserRoleService.markHistoryFailure(idempotencyKey, ex.getMessage());
             }
             LOG.log(Level.SEVERE, "Add user role failed", ex);
-            return ResponseEntity.status(resolveStatus(ex)).build();
+            throw ex;
         }
     }
 
@@ -321,7 +319,7 @@ public class UserManagementController {
     @PutMapping("/role-bindings/{relationId}")
     @Operation(summary = "更新用户角色关联")
     public ResponseEntity<SysUserRole> updateUserRole(@PathVariable Long relationId,
-                                                      @RequestBody SysUserRole relation,
+                                                      @Valid @RequestBody SysUserRole relation,
                                                       @RequestHeader(value = "Idempotency-Key", required = false)
                                                       String idempotencyKey) {
         boolean useKey = hasKey(idempotencyKey);
@@ -335,12 +333,12 @@ public class UserManagementController {
                 sysUserRoleService.markHistorySuccess(idempotencyKey, updated.getId());
             }
             return ResponseEntity.ok(updated);
-        } catch (Exception ex) {
+        } catch (RuntimeException ex) {
             if (useKey) {
                 sysUserRoleService.markHistoryFailure(idempotencyKey, ex.getMessage());
             }
             LOG.log(Level.SEVERE, "Update user role failed", ex);
-            return ResponseEntity.status(resolveStatus(ex)).build();
+            throw ex;
         }
     }
 
