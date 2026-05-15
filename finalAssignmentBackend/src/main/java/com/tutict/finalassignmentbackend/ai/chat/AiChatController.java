@@ -1,14 +1,14 @@
 package com.tutict.finalassignmentbackend.ai.chat;
 
+import com.tutict.finalassignmentbackend.dto.response.ApiResponse;
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
+import org.springframework.http.ResponseEntity;
 import org.springframework.http.codec.ServerSentEvent;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
-import org.springframework.web.server.ResponseStatusException;
 import reactor.core.publisher.Flux;
 
 @RestController
@@ -22,7 +22,7 @@ public class AiChatController {
     public AiChatController(
             AiChatService aiChatService,
             StreamEventWriter streamEventWriter,
-            @Value("${ai.chat.streaming.enabled:false}") boolean streamingEnabled
+            @Value("${ai.chat.streaming.enabled:true}") boolean streamingEnabled
     ) {
         this.aiChatService = aiChatService;
         this.streamEventWriter = streamEventWriter;
@@ -34,13 +34,15 @@ public class AiChatController {
             consumes = MediaType.APPLICATION_JSON_VALUE,
             produces = MediaType.TEXT_EVENT_STREAM_VALUE
     )
-    public Flux<ServerSentEvent<String>> stream(@RequestBody AiChatStreamRequest request) {
+    public ResponseEntity<?> stream(@RequestBody AiChatStreamRequest request) {
         if (!streamingEnabled) {
-            throw new ResponseStatusException(
-                    HttpStatus.SERVICE_UNAVAILABLE,
-                    "AI chat streaming is disabled"
-            );
+            return ResponseEntity.status(503)
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .body(ApiResponse.error("SERVICE_UNAVAILABLE", "AI \u6d41\u5f0f\u670d\u52a1\u6682\u672a\u542f\u7528"));
         }
-        return streamEventWriter.write(aiChatService.stream(request));
+        Flux<ServerSentEvent<String>> stream = streamEventWriter.write(aiChatService.stream(request));
+        return ResponseEntity.ok()
+                .contentType(MediaType.TEXT_EVENT_STREAM)
+                .body(stream);
     }
 }

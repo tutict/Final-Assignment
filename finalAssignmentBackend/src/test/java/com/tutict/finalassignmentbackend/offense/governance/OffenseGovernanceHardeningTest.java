@@ -90,7 +90,7 @@ class OffenseGovernanceHardeningTest {
         OffenseCreateRequest request = new OffenseCreateRequest();
         when(service.shouldSkipProcessing("dup-key")).thenReturn(true);
 
-        ResponseEntity<OffenseRecord> response = controller.create(request, "dup-key");
+        ResponseEntity<?> response = controller.create(request, "dup-key");
 
         assertThat(response.getStatusCode()).isEqualTo(HttpStatus.ALREADY_REPORTED);
         verify(service).shouldSkipProcessing("dup-key");
@@ -111,7 +111,7 @@ class OffenseGovernanceHardeningTest {
         when(service.shouldSkipProcessing("create-key")).thenReturn(false);
         when(service.createOffenseRecord(any(OffenseRecord.class))).thenReturn(saved);
 
-        ResponseEntity<OffenseRecord> response = controller.create(request, "create-key");
+        ResponseEntity<?> response = controller.create(request, "create-key");
 
         assertThat(response.getStatusCode()).isEqualTo(HttpStatus.CREATED);
         assertThat(response.getBody()).isSameAs(saved);

@@ -1,21 +1,24 @@
-import 'package:final_assignment_front/core/utils/app_logger.dart';
 import 'dart:async';
-import 'package:flutter/material.dart';
-import 'package:get/get.dart';
+
+import 'package:final_assignment_front/core/utils/app_logger.dart';
 import 'package:final_assignment_front/features/ai/ai_chat_api.dart';
 import 'package:final_assignment_front/features/api/chat_controller_api.dart';
 import 'package:final_assignment_front/utils/ui/ui_utils.dart';
+import 'package:flutter/material.dart';
+import 'package:get/get.dart';
 
 class ChatMessage {
-  final String thinkContent;
-  final String formalContent;
-  final bool isUser;
-
-  ChatMessage({
+  const ChatMessage({
     this.thinkContent = '',
     this.formalContent = '',
     required this.isUser,
+    this.isSystem = false,
   });
+
+  final String thinkContent;
+  final String formalContent;
+  final bool isUser;
+  final bool isSystem;
 }
 
 class ChatController extends GetxController {
@@ -26,12 +29,14 @@ class ChatController extends GetxController {
   final TextEditingController textController = TextEditingController();
   final ChatControllerApi chatApi = ChatControllerApi();
 
-  final RxString userRole = "USER".obs;
+  final RxString userRole = 'USER'.obs;
   final RxBool enableWordStreaming = true.obs;
   final RxInt wordStreamDelayMs = 150.obs;
   final RxBool webSearchEnabled = false.obs;
   final RxBool isStreaming = false.obs;
+
   CancelToken? _activeCancelToken;
+  StreamSubscription<ChatStreamChunk>? _activeStreamSubscription;
 
   void setUserRole(String role) {
     userRole.value = role.toUpperCase();
@@ -44,219 +49,265 @@ class ChatController extends GetxController {
   }
 
   Future<void> sendMessage() async {
-    final String text = textController.text.trim();
+    final text = textController.text.trim();
     if (text.isEmpty || isStreaming.value) return;
 
     messages.add(ChatMessage(formalContent: text, isUser: true));
-    AppLogger.debug('添加用户消息: $text');
-// Add "Thinking..." message
-    messages.add(ChatMessage(formalContent: 'THINKING:思考中...', isUser: false));
-    AppLogger.debug('添加思考中消息');
+    messages.add(const ChatMessage(
+      formalContent: 'THINKING: Thinking...',
+      isUser: false,
+    ));
     textController.clear();
 
     final cancelToken = CancelToken();
     _activeCancelToken = cancelToken;
     isStreaming.value = true;
 
-    try {
-      int aiMessageIndex = messages.length - 1;
-      StringBuffer thinkBuffer = StringBuffer();
-      StringBuffer formalBuffer = StringBuffer();
-      StringBuffer chunkBuffer = StringBuffer();
-      Timer? debounceTimer;
-      Set<String> processedChunks = {}; // Deduplication set
-      bool isFirstMessage = true;
+    var aiMessageIndex = messages.length - 1;
+    final thinkBuffer = StringBuffer();
+    final formalBuffer = StringBuffer();
+    final chunkBuffer = StringBuffer();
+    final processedChunks = <String>{};
+    Timer? debounceTimer;
+    var isFirstMessage = true;
+    var receivedFallback = false;
+    var receivedAiContent = false;
 
-      await for (String chunk in chatApi
-          .streamChat(text, webSearchEnabled.value, cancelToken: cancelToken)) {
-        if (cancelToken.isCanceled) {
-          break;
-        }
-// Skip if chunk already processed
-        if (processedChunks.contains(chunk)) {
-          AppLogger.debug('Skipping duplicate chunk: $chunk');
-          continue;
-        }
-        processedChunks.add(chunk);
-        AppLogger.debug('Processing chunk: $chunk');
+    Future<void> processChunk(ChatStreamChunk streamChunk) async {
+      if (cancelToken.isCanceled) return;
 
-        if (chunk.startsWith('[搜索结果]') && webSearchEnabled.value) {
-          final result = chunk.substring(7).trim();
-          if (result.isNotEmpty) {
-            searchResults.add(result);
-            AppLogger.debug('收到搜索结果: $result');
-          }
-          continue;
-        }
-
-// Remove "Thinking..." message on first AI message
-        if (isFirstMessage &&
-            messages.isNotEmpty &&
-            messages.last.formalContent.startsWith('THINKING:')) {
-          messages.removeLast();
-          messages.add(ChatMessage(formalContent: "DeepSeek: ", isUser: false));
-          aiMessageIndex = messages.length - 1;
-          isFirstMessage = false;
-          AppLogger.debug('移除思考中消息，添加DeepSeek消息');
-        }
-
-        chunkBuffer.write(chunk);
-
-        if (chunkBuffer.length > 100 || !(debounceTimer?.isActive ?? false)) {
-          String cleanChunk = chunkBuffer.toString();
-          chunkBuffer.clear();
-
-          List<String> parts = _splitThinkAndFormal(cleanChunk);
-          String thinkPart = parts[0];
-          String formalPart = parts[1];
-
-          if (enableWordStreaming.value) {
-            if (thinkPart.isNotEmpty) {
-              List<String> words = _splitChineseWords(thinkPart);
-              for (String word in words) {
-                thinkBuffer.write(word);
-                messages[aiMessageIndex] = ChatMessage(
-                  thinkContent: thinkBuffer.toString(),
-                  formalContent: "DeepSeek: ${formalBuffer.toString()}",
-                  isUser: false,
-                );
-                await Future.delayed(
-                    Duration(milliseconds: wordStreamDelayMs.value));
-              }
-            }
-            if (formalPart.isNotEmpty) {
-              List<String> words = _splitChineseWords(formalPart);
-              for (String word in words) {
-                formalBuffer.write(word);
-                messages[aiMessageIndex] = ChatMessage(
-                  thinkContent: thinkBuffer.toString(),
-                  formalContent: "DeepSeek: ${formalBuffer.toString()}",
-                  isUser: false,
-                );
-                await Future.delayed(
-                    Duration(milliseconds: wordStreamDelayMs.value));
-              }
-            }
-          } else {
-            thinkBuffer.write(thinkPart);
-            formalBuffer.write(formalPart);
-            if (debounceTimer?.isActive ?? false) debounceTimer!.cancel();
-            debounceTimer = Timer(const Duration(milliseconds: 100), () {
-              messages[aiMessageIndex] = ChatMessage(
-                thinkContent: thinkBuffer.toString(),
-                formalContent: "DeepSeek: ${formalBuffer.toString()}",
-                isUser: false,
-              );
-            });
-          }
-        }
-      }
-
-// Process remaining buffer
-      if (!cancelToken.isCanceled && chunkBuffer.isNotEmpty) {
-        String cleanChunk = chunkBuffer.toString();
-        if (!processedChunks.contains(cleanChunk)) {
-          processedChunks.add(cleanChunk);
-          AppLogger.debug('Processing final chunk: $cleanChunk');
-          List<String> parts = _splitThinkAndFormal(cleanChunk);
-          String thinkPart = parts[0];
-          String formalPart = parts[1];
-
-          if (enableWordStreaming.value) {
-            if (thinkPart.isNotEmpty) {
-              List<String> words = _splitChineseWords(thinkPart);
-              for (String word in words) {
-                thinkBuffer.write(word);
-                messages[aiMessageIndex] = ChatMessage(
-                  thinkContent: thinkBuffer.toString(),
-                  formalContent: "DeepSeek: ${formalBuffer.toString()}",
-                  isUser: false,
-                );
-                await Future.delayed(
-                    Duration(milliseconds: wordStreamDelayMs.value));
-              }
-            }
-            if (formalPart.isNotEmpty) {
-              List<String> words = _splitChineseWords(formalPart);
-              for (String word in words) {
-                formalBuffer.write(word);
-                messages[aiMessageIndex] = ChatMessage(
-                  thinkContent: thinkBuffer.toString(),
-                  formalContent: "DeepSeek: ${formalBuffer.toString()}",
-                  isUser: false,
-                );
-                await Future.delayed(
-                    Duration(milliseconds: wordStreamDelayMs.value));
-              }
-            }
-          } else {
-            thinkBuffer.write(thinkPart);
-            formalBuffer.write(formalPart);
-          }
-        }
-      }
-
-// Final message update
-      if (cancelToken.isCanceled) {
+      final chunk = streamChunk.text;
+      if (streamChunk.isFallback) {
+        receivedFallback = true;
+        _removeThinkingMessage();
+        messages.add(ChatMessage(
+          formalContent: chunk,
+          isUser: false,
+          isSystem: true,
+        ));
+        AppLogger.debug(
+          'AI fallback shown as system message: ${streamChunk.fallbackReason ?? 'unknown'}',
+        );
         return;
       }
-      if (debounceTimer?.isActive ?? false) debounceTimer!.cancel();
-      String finalThinkContent = thinkBuffer.toString();
-      String finalFormalContent = formalBuffer.toString();
 
-// Deduplication: Prioritize structured formalContent
-      if (finalFormalContent.isNotEmpty) {
-        bool isFormalStructured = finalFormalContent
-            .contains(RegExp(r'^\s*(\d+\.\s+|[-*]\s+)', multiLine: true));
-        if (isFormalStructured) {
-          finalThinkContent =
-              ''; // Clear thinkContent if formalContent is structured
-          AppLogger.debug(
-              'Prioritized structured formalContent, cleared thinkContent');
-        } else {
-          AppLogger.debug(
-              'Retained thinkContent: non-structured formalContent');
+      if (processedChunks.contains(chunk)) {
+        AppLogger.debug('Skipping duplicate chunk: $chunk');
+        return;
+      }
+      processedChunks.add(chunk);
+
+      if (chunk.startsWith('[SEARCH]') && webSearchEnabled.value) {
+        final result = chunk.substring('[SEARCH]'.length).trim();
+        if (result.isNotEmpty) {
+          searchResults.add(result);
         }
+        return;
+      }
+
+      if (isFirstMessage) {
+        _removeThinkingMessage();
+        messages
+            .add(const ChatMessage(formalContent: 'DeepSeek: ', isUser: false));
+        aiMessageIndex = messages.length - 1;
+        isFirstMessage = false;
+      }
+
+      receivedAiContent = true;
+      chunkBuffer.write(chunk);
+
+      if (chunkBuffer.length <= 100 && (debounceTimer?.isActive ?? false)) {
+        return;
+      }
+
+      final cleanChunk = chunkBuffer.toString();
+      chunkBuffer.clear();
+      await _appendAiText(
+        cleanChunk,
+        aiMessageIndex,
+        thinkBuffer,
+        formalBuffer,
+        debounceTimer,
+      );
+      if (!enableWordStreaming.value) {
+        debounceTimer = Timer(const Duration(milliseconds: 100), () {
+          _updateAiMessage(aiMessageIndex, thinkBuffer, formalBuffer);
+        });
+      }
+    }
+
+    try {
+      final streamDone = Completer<void>();
+      late final StreamSubscription<ChatStreamChunk> subscription;
+      subscription = chatApi
+          .streamChatChunks(
+        text,
+        webSearchEnabled.value,
+        cancelToken: cancelToken,
+      )
+          .listen(
+        (chunk) {
+          subscription.pause();
+          unawaited(() async {
+            try {
+              await processChunk(chunk);
+            } catch (error, stackTrace) {
+              if (!streamDone.isCompleted) {
+                streamDone.completeError(error, stackTrace);
+              }
+              await subscription.cancel();
+              return;
+            }
+            if (!streamDone.isCompleted && !cancelToken.isCanceled) {
+              subscription.resume();
+            }
+          }());
+        },
+        onError: (Object error, StackTrace stackTrace) {
+          if (cancelToken.isCanceled) {
+            if (!streamDone.isCompleted) streamDone.complete();
+            return;
+          }
+          if (!streamDone.isCompleted) {
+            streamDone.completeError(error, stackTrace);
+          }
+        },
+        onDone: () {
+          if (!streamDone.isCompleted) streamDone.complete();
+        },
+        cancelOnError: true,
+      );
+      _activeStreamSubscription = subscription;
+
+      await streamDone.future;
+      if (cancelToken.isCanceled || receivedFallback) return;
+
+      debounceTimer?.cancel();
+      if (chunkBuffer.isNotEmpty) {
+        final cleanChunk = chunkBuffer.toString();
+        if (!processedChunks.contains(cleanChunk)) {
+          await _appendAiText(
+            cleanChunk,
+            aiMessageIndex,
+            thinkBuffer,
+            formalBuffer,
+            null,
+          );
+        }
+      }
+
+      if (!receivedAiContent) {
+        _removeThinkingMessage();
+        return;
+      }
+
+      final finalFormalContent = formalBuffer.toString();
+      var finalThinkContent = thinkBuffer.toString();
+      if (finalFormalContent.contains(
+        RegExp(r'^\s*(\d+\.\s+|[-*]\s+)', multiLine: true),
+      )) {
+        finalThinkContent = '';
       }
 
       messages[aiMessageIndex] = ChatMessage(
         thinkContent: finalThinkContent,
-        formalContent: "DeepSeek: $finalFormalContent",
+        formalContent: 'DeepSeek: $finalFormalContent',
         isUser: false,
       );
-
-      AppLogger.debug('AI 流完成: $text');
-    } catch (e) {
+    } catch (error, stackTrace) {
       if (cancelToken.isCanceled) {
         AppLogger.debug('AI stream canceled by user.');
         return;
       }
-      AppLogger.error('流式 AI 响应错误: $e');
-      _showFriendlyError('AI 响应失败，请稍后重试。', details: e.toString());
-// Remove "Thinking..." message on error
-      if (messages.isNotEmpty &&
-          messages.last.formalContent.startsWith('THINKING:')) {
-        messages.removeLast();
-      }
-      messages.add(ChatMessage(formalContent: "错误: $e", isUser: false));
+      AppLogger.error('AI stream failed', error: error, stackTrace: stackTrace);
+      _removeThinkingMessage();
+      _showFriendlyError('AI stream failed', details: error.toString());
+      messages.add(ChatMessage(
+        formalContent: 'Error: $error',
+        isUser: false,
+        isSystem: true,
+      ));
     } finally {
+      debounceTimer?.cancel();
+      await _activeStreamSubscription?.cancel();
+      _activeStreamSubscription = null;
       _activeCancelToken = null;
       isStreaming.value = false;
     }
   }
 
+  Future<void> _appendAiText(
+    String text,
+    int aiMessageIndex,
+    StringBuffer thinkBuffer,
+    StringBuffer formalBuffer,
+    Timer? debounceTimer,
+  ) async {
+    final parts = _splitThinkAndFormal(text);
+    final thinkPart = parts[0];
+    final formalPart = parts[1];
+
+    if (!enableWordStreaming.value) {
+      thinkBuffer.write(thinkPart);
+      formalBuffer.write(formalPart);
+      debounceTimer?.cancel();
+      return;
+    }
+
+    for (final word in _splitChineseWords(thinkPart)) {
+      thinkBuffer.write(word);
+      _updateAiMessage(aiMessageIndex, thinkBuffer, formalBuffer);
+      await Future<void>.delayed(
+          Duration(milliseconds: wordStreamDelayMs.value));
+    }
+    for (final word in _splitChineseWords(formalPart)) {
+      formalBuffer.write(word);
+      _updateAiMessage(aiMessageIndex, thinkBuffer, formalBuffer);
+      await Future<void>.delayed(
+          Duration(milliseconds: wordStreamDelayMs.value));
+    }
+  }
+
+  void _updateAiMessage(
+    int aiMessageIndex,
+    StringBuffer thinkBuffer,
+    StringBuffer formalBuffer,
+  ) {
+    if (aiMessageIndex < 0 || aiMessageIndex >= messages.length) return;
+    messages[aiMessageIndex] = ChatMessage(
+      thinkContent: thinkBuffer.toString(),
+      formalContent: 'DeepSeek: ${formalBuffer.toString()}',
+      isUser: false,
+    );
+  }
+
   void stopStreaming() {
+    _cancelActiveStream();
+  }
+
+  void _cancelActiveStream() {
     _activeCancelToken?.cancel();
+    unawaited(_activeStreamSubscription?.cancel() ?? Future<void>.value());
+    _activeStreamSubscription = null;
+    _activeCancelToken = null;
     isStreaming.value = false;
+    AppLogger.debug('SSE stream cancelled on page close');
+  }
+
+  void _removeThinkingMessage() {
+    if (messages.isNotEmpty &&
+        messages.last.formalContent.startsWith('THINKING:')) {
+      messages.removeLast();
+    }
   }
 
   List<String> _splitThinkAndFormal(String text) {
-    String thinkContent = '';
-    String formalContent = text;
+    var thinkContent = '';
+    var formalContent = text;
 
-    RegExp thinkRegex = RegExp(r'\[THINK\](.*?)\[/THINK\]', dotAll: true);
-    Iterable<Match> matches = thinkRegex.allMatches(text);
-    for (Match match in matches) {
+    final thinkRegex = RegExp(r'\[THINK\](.*?)\[/THINK\]', dotAll: true);
+    final matches = thinkRegex.allMatches(text);
+    for (final match in matches) {
       thinkContent += match.group(1)!.trim();
     }
     formalContent = text.replaceAll(thinkRegex, '').trim();
@@ -265,7 +316,7 @@ class ChatController extends GetxController {
   }
 
   List<String> _splitChineseWords(String text) {
-    RegExp regex = RegExp(r'[\u4e00-\u9fff]{1,4}|[^\u4e00-\u9fff\s]+|\s+');
+    final regex = RegExp(r'[\u4e00-\u9fff]{1,4}|[^\u4e00-\u9fff\s]+|\s+');
     return regex.allMatches(text).map((m) => m.group(0)!).toList();
   }
 
@@ -292,8 +343,8 @@ class ChatController extends GetxController {
       return;
     }
     final detailText = details == null || details.trim().isEmpty
-        ? '请检查网络或稍后再试。'
-        : '详情：${details.trim()}';
+        ? 'Please try again later.'
+        : details.trim();
     AppDialog.showCustomDialog(
       context: context,
       title: title,
@@ -301,7 +352,7 @@ class ChatController extends GetxController {
       actions: [
         TextButton(
           onPressed: () => Navigator.of(context).pop(),
-          child: const Text('知道了'),
+          child: const Text('OK'),
         ),
       ],
     );
@@ -309,6 +360,7 @@ class ChatController extends GetxController {
 
   @override
   void onClose() {
+    _cancelActiveStream();
     textController.dispose();
     super.onClose();
   }

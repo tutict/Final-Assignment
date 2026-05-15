@@ -1,8 +1,13 @@
 import 'dart:async';
 import 'dart:convert';
 
+import 'package:final_assignment_front/config/routes/app_routes.dart';
+import 'package:final_assignment_front/core/auth/auth_service.dart';
+import 'package:final_assignment_front/core/network/app_exception.dart';
 import 'package:final_assignment_front/core/network/api_client.dart';
+import 'package:final_assignment_front/shared/utils/navigation_helper.dart';
 import 'package:final_assignment_front/utils/services/auth_token_store.dart';
+import 'package:get/get.dart';
 import 'package:http/http.dart' as http;
 
 import 'ai_stream_event.dart';
@@ -33,6 +38,9 @@ class CancelToken {
 }
 
 class AiChatApi {
+  static const Duration _sseTimeout = Duration(seconds: 120);
+  static const Duration _firstTokenTimeout = Duration(seconds: 30);
+
   AiChatApi({
     ApiClient? apiClient,
     http.Client Function()? clientFactory,
@@ -51,11 +59,16 @@ class AiChatApi {
     late StreamController<AiStreamEvent> controller;
     http.Client? client;
     StreamSubscription<AiStreamEvent>? subscription;
+    Timer? firstTokenTimer;
+    Timer? overallTimer;
+    var receivedFirstToken = false;
     var closed = false;
 
     Future<void> stop() async {
       if (closed) return;
       closed = true;
+      firstTokenTimer?.cancel();
+      overallTimer?.cancel();
       await subscription?.cancel();
       client?.close();
     }
@@ -67,7 +80,19 @@ class AiChatApi {
       }
     }
 
-    Future<void> start() async {
+    void completeFirstToken() {
+      if (receivedFirstToken) return;
+      receivedFirstToken = true;
+      firstTokenTimer?.cancel();
+    }
+
+    void addStreamError(Object error) {
+      if (!controller.isClosed) {
+        controller.addError(AppException.fromError(error));
+      }
+    }
+
+    Future<void> start({bool retriedAfterRefresh = false}) async {
       if (cancelToken?.isCanceled ?? false) {
         await closeController();
         return;
@@ -94,9 +119,46 @@ class AiChatApi {
           return;
         }
 
+        if (response.statusCode == 401) {
+          client?.close();
+          client = null;
+          if (!retriedAfterRefresh && await _refreshJwtToken()) {
+            await start(retriedAfterRefresh: true);
+            return;
+          }
+          await NavigationHelper.offAllNamed(Routes.login);
+          addStreamError(const AppException(
+            type: AppErrorType.unauthorized,
+            message: 'Login expired. Please login again.',
+            statusCode: 401,
+          ));
+          await closeController();
+          return;
+        }
+
+        if (response.statusCode == 503) {
+          final message = await _errorMessageFromResponse(
+            response,
+            fallback:
+                'AI service is temporarily unavailable. Please try again later.',
+          );
+          addStreamError(AppException(
+            type: AppErrorType.serviceUnavailable,
+            message: message,
+            statusCode: 503,
+          ));
+          await closeController();
+          return;
+        }
+
         if (response.statusCode >= 400) {
-          controller.add(AiStreamEvent.error(
-            'AI stream request failed: ${response.statusCode}',
+          final message = await _errorMessageFromResponse(
+            response,
+            fallback: 'AI stream request failed: ${response.statusCode}',
+          );
+          addStreamError(AppException.fromStatusCode(
+            response.statusCode,
+            message: message,
           ));
           await closeController();
           return;
@@ -106,11 +168,14 @@ class AiChatApi {
             .transform(utf8.decoder)
             .transform(const SseStreamingParser())
             .listen(
-          controller.add,
-          onError: (Object error) {
-            if (!controller.isClosed) {
-              controller.add(AiStreamEvent.error(error.toString()));
+          (event) {
+            if (event.type == AiStreamEventType.token) {
+              completeFirstToken();
             }
+            controller.add(event);
+          },
+          onError: (Object error) {
+            addStreamError(error);
             closeController();
           },
           onDone: () {
@@ -119,7 +184,7 @@ class AiChatApi {
         );
       } catch (error) {
         if (!(cancelToken?.isCanceled ?? false) && !controller.isClosed) {
-          controller.add(AiStreamEvent.error(error.toString()));
+          addStreamError(error);
         }
         await closeController();
       }
@@ -127,6 +192,22 @@ class AiChatApi {
 
     controller = StreamController<AiStreamEvent>(
       onListen: () {
+        firstTokenTimer = Timer(_firstTokenTimeout, () {
+          if (!receivedFirstToken) {
+            addStreamError(const AppException(
+              type: AppErrorType.timeout,
+              message: 'AI response timed out. Please try again later.',
+            ));
+            closeController();
+          }
+        });
+        overallTimer = Timer(_sseTimeout, () {
+          addStreamError(const AppException(
+            type: AppErrorType.timeout,
+            message: 'AI response took too long and was stopped.',
+          ));
+          closeController();
+        });
         start();
       },
       onCancel: () async {
@@ -136,6 +217,13 @@ class AiChatApi {
     );
 
     return controller.stream;
+  }
+
+  Future<bool> _refreshJwtToken() async {
+    if (!Get.isRegistered<AuthService>()) {
+      return false;
+    }
+    return Get.find<AuthService>().refreshJwtToken();
   }
 
   Uri _streamUri() {
@@ -156,5 +244,25 @@ class AiChatApi {
       headers['Authorization'] = 'Bearer $jwtToken';
     }
     return headers;
+  }
+
+  Future<String> _errorMessageFromResponse(
+    http.StreamedResponse response, {
+    required String fallback,
+  }) async {
+    try {
+      final body = await response.stream.bytesToString();
+      if (body.trim().isEmpty) return fallback;
+      final decoded = jsonDecode(body);
+      if (decoded is Map) {
+        final message = decoded['message'];
+        if (message != null && message.toString().trim().isNotEmpty) {
+          return message.toString();
+        }
+      }
+    } catch (_) {
+      // Preserve the caller supplied fallback for malformed error bodies.
+    }
+    return fallback;
   }
 }

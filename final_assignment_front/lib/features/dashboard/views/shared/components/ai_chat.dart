@@ -330,27 +330,38 @@ class _AiChatState extends State<AiChat> with SingleTickerProviderStateMixin {
                                 gradient: LinearGradient(
                                   begin: Alignment.topLeft,
                                   end: Alignment.bottomRight,
-                                  colors: msg.isUser
+                                  colors: msg.isSystem
                                       ? [
                                           Theme.of(context)
                                               .colorScheme
-                                              .primary
-                                              .withValues(alpha: 0.9),
+                                              .tertiaryContainer
+                                              .withValues(alpha: 0.85),
                                           Theme.of(context)
                                               .colorScheme
-                                              .primary
-                                              .withValues(alpha: 0.7),
+                                              .surfaceContainerHighest
+                                              .withValues(alpha: 0.85),
                                         ]
-                                      : [
-                                          Theme.of(context)
-                                              .colorScheme
-                                              .surfaceContainer
-                                              .withValues(alpha: 0.9),
-                                          Theme.of(context)
-                                              .colorScheme
-                                              .surfaceContainer
-                                              .withValues(alpha: 0.7),
-                                        ],
+                                      : msg.isUser
+                                          ? [
+                                              Theme.of(context)
+                                                  .colorScheme
+                                                  .primary
+                                                  .withValues(alpha: 0.9),
+                                              Theme.of(context)
+                                                  .colorScheme
+                                                  .primary
+                                                  .withValues(alpha: 0.7),
+                                            ]
+                                          : [
+                                              Theme.of(context)
+                                                  .colorScheme
+                                                  .surfaceContainer
+                                                  .withValues(alpha: 0.9),
+                                              Theme.of(context)
+                                                  .colorScheme
+                                                  .surfaceContainer
+                                                  .withValues(alpha: 0.7),
+                                            ],
                                 ),
                                 borderRadius: BorderRadius.circular(16),
                                 boxShadow: [
@@ -361,15 +372,20 @@ class _AiChatState extends State<AiChat> with SingleTickerProviderStateMixin {
                                   ),
                                 ],
                                 border: Border.all(
-                                  color: msg.isUser
+                                  color: msg.isSystem
                                       ? Theme.of(context)
                                           .colorScheme
-                                          .primary
-                                          .withValues(alpha: 0.3)
-                                      : Theme.of(context)
-                                          .colorScheme
-                                          .outline
-                                          .withValues(alpha: 0.2),
+                                          .tertiary
+                                          .withValues(alpha: 0.45)
+                                      : msg.isUser
+                                          ? Theme.of(context)
+                                              .colorScheme
+                                              .primary
+                                              .withValues(alpha: 0.3)
+                                          : Theme.of(context)
+                                              .colorScheme
+                                              .outline
+                                              .withValues(alpha: 0.2),
                                   width: 1,
                                 ),
                               ),
@@ -407,15 +423,20 @@ class _AiChatState extends State<AiChat> with SingleTickerProviderStateMixin {
                                         fontSize: 14,
                                         fontWeight: FontWeight.w400,
                                         height: 1.3,
-                                        color: msg.isUser
+                                        color: msg.isSystem
                                             ? Theme.of(context)
                                                 .colorScheme
-                                                .onPrimary
+                                                .onTertiaryContainer
                                                 .withValues(alpha: 0.9)
-                                            : Theme.of(context)
-                                                .colorScheme
-                                                .onSurface
-                                                .withValues(alpha: 0.85),
+                                            : msg.isUser
+                                                ? Theme.of(context)
+                                                    .colorScheme
+                                                    .onPrimary
+                                                    .withValues(alpha: 0.9)
+                                                : Theme.of(context)
+                                                    .colorScheme
+                                                    .onSurface
+                                                    .withValues(alpha: 0.85),
                                         letterSpacing: 0.2,
                                       ),
                                     ),

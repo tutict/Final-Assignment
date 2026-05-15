@@ -146,6 +146,8 @@ public class AiProviderRegistry {
         return fallback.stream(prompt, options)
                 .timeout(options.streamingTimeout())
                 .map(token -> token.withMetadata("provider", fallback.providerName())
+                        .withMetadata("isFallback", true)
+                        .withMetadata("reason", "provider_unavailable")
                         .withMetadata("fallback_reason", reason));
     }
 

@@ -11,6 +11,18 @@ import 'package:http/http.dart' as http;
 
 final ApiClient defaultApiClient = ApiClient();
 
+class ChatStreamChunk {
+  const ChatStreamChunk({
+    required this.text,
+    this.isFallback = false,
+    this.fallbackReason,
+  });
+
+  final String text;
+  final bool isFallback;
+  final String? fallbackReason;
+}
+
 class ChatControllerApi with BaseApiClient {
   ChatControllerApi([ApiClient? apiClient])
       : apiClient = apiClient ?? defaultApiClient;
@@ -145,6 +157,20 @@ class ChatControllerApi with BaseApiClient {
     bool webSearch, {
     CancelToken? cancelToken,
   }) async* {
+    await for (final chunk in streamChatChunks(
+      message,
+      webSearch,
+      cancelToken: cancelToken,
+    )) {
+      yield chunk.text;
+    }
+  }
+
+  Stream<ChatStreamChunk> streamChatChunks(
+    String message,
+    bool webSearch, {
+    CancelToken? cancelToken,
+  }) async* {
     final typedApi = AiChatApi(apiClient: apiClient);
 
     await for (final event in typedApi.streamChat(
@@ -156,13 +182,20 @@ class ChatControllerApi with BaseApiClient {
         case AiStreamEventType.token:
           final token = removeMarkdown(event.token ?? '');
           if (token.isNotEmpty) {
-            yield token;
+            yield ChatStreamChunk(
+              text: token,
+              isFallback: event.isFallback,
+              fallbackReason: event.fallbackReason,
+            );
           }
           break;
         case AiStreamEventType.done:
           return;
         case AiStreamEventType.error:
-          throw Exception(event.message ?? 'AI stream failed');
+          throw AppException(
+            type: AppErrorType.businessError,
+            message: event.message ?? 'AI stream failed',
+          );
         case AiStreamEventType.keepalive:
           break;
         case AiStreamEventType.session:

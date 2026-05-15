@@ -395,6 +395,7 @@ mixin BaseApiClient {
       'CONFLICT' => AppErrorType.conflict,
       'DUPLICATE_REQUEST' => AppErrorType.duplicate,
       'VALIDATION_ERROR' => AppErrorType.validationError,
+      'SERVICE_UNAVAILABLE' => AppErrorType.serviceUnavailable,
       _ => AppErrorType.businessError,
     };
   }

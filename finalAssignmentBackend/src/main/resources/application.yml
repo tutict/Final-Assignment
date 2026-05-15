@@ -1,7 +1,7 @@
 ai:
   chat:
     streaming:
-      enabled: false
+      enabled: ${AI_STREAMING_ENABLED:true}
     stream:
       keepalive: PT15S
   search:

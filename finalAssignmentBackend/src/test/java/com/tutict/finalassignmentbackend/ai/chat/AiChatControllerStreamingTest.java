@@ -11,9 +11,10 @@ import com.tutict.finalassignmentbackend.ai.provider.AiProviderRegistry;
 import com.tutict.finalassignmentbackend.ai.provider.AiToken;
 import com.tutict.finalassignmentbackend.ai.provider.NoopAiProvider;
 import com.tutict.finalassignmentbackend.ai.provider.ProviderHealth;
+import com.tutict.finalassignmentbackend.dto.response.ApiResponse;
 import org.junit.jupiter.api.Test;
+import org.springframework.http.ResponseEntity;
 import org.springframework.http.codec.ServerSentEvent;
-import org.springframework.web.server.ResponseStatusException;
 import reactor.core.Disposable;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
@@ -26,7 +27,6 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 class AiChatControllerStreamingTest {
 
@@ -41,9 +41,10 @@ class AiChatControllerStreamingTest {
         ));
         AiChatController controller = controller(provider, Duration.ofSeconds(5), Duration.ofSeconds(15), true);
 
-        List<ServerSentEvent<String>> events = controller.stream(
-                        new AiChatStreamRequest("hello", "session-1", Map.of())
-                )
+        ResponseEntity<?> response = controller.stream(new AiChatStreamRequest("hello", "session-1", Map.of()));
+        assertThat(response.getStatusCode().value()).isEqualTo(200);
+
+        List<ServerSentEvent<String>> events = responseStream(response)
                 .collectList()
                 .block(Duration.ofSeconds(1));
 
@@ -62,9 +63,14 @@ class AiChatControllerStreamingTest {
                 false
         );
 
-        assertThatThrownBy(() -> controller.stream(new AiChatStreamRequest("hello", null, Map.of())))
-                .isInstanceOf(ResponseStatusException.class)
-                .hasMessageContaining("AI chat streaming is disabled");
+        ResponseEntity<?> response = controller.stream(new AiChatStreamRequest("hello", null, Map.of()));
+
+        assertThat(response.getStatusCode().value()).isEqualTo(503);
+        assertThat(response.getBody()).isInstanceOf(ApiResponse.class);
+        ApiResponse<?> body = (ApiResponse<?>) response.getBody();
+        assertThat(body.isSuccess()).isFalse();
+        assertThat(body.getErrorCode()).isEqualTo("SERVICE_UNAVAILABLE");
+        assertThat(body.getMessage()).isEqualTo("AI \u6d41\u5f0f\u670d\u52a1\u6682\u672a\u542f\u7528");
     }
 
     @Test
@@ -206,5 +212,11 @@ class AiChatControllerStreamingTest {
         } catch (Exception ex) {
             throw new AssertionError("Invalid SSE data: " + sse.data(), ex);
         }
+    }
+
+    @SuppressWarnings("unchecked")
+    private Flux<ServerSentEvent<String>> responseStream(ResponseEntity<?> response) {
+        assertThat(response.getBody()).isInstanceOf(Flux.class);
+        return (Flux<ServerSentEvent<String>>) response.getBody();
     }
 }

@@ -42,9 +42,25 @@ class AiStreamEvent {
   final Object? payload;
   final DateTime? timestamp;
 
-  String? get message {
+  Map<String, Object?>? get payloadMap {
     final payloadValue = payload;
     if (payloadValue is Map<String, Object?>) {
+      return payloadValue;
+    }
+    return null;
+  }
+
+  bool get isFallback {
+    final payloadValue = payloadMap;
+    return payloadValue?['isFallback'] == true ||
+        payloadValue?['fallback'] == true;
+  }
+
+  String? get fallbackReason => payloadMap?['reason']?.toString();
+
+  String? get message {
+    final payloadValue = payloadMap;
+    if (payloadValue != null) {
       final value = payloadValue['message'];
       return value?.toString();
     }

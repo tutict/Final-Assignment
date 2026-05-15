@@ -1,4 +1,4 @@
-﻿import 'dart:async';
+import 'dart:async';
 import 'dart:convert';
 
 import 'package:http/http.dart' as http;
@@ -14,6 +14,7 @@ enum AppErrorType {
   conflict,
   duplicate,
   validationError,
+  serviceUnavailable,
   serverError,
   businessError,
   unknown,
@@ -135,7 +136,8 @@ class AppException implements Exception {
     if (statusCode == 404) {
       return AppException(
         type: AppErrorType.notFound,
-        message: fallback?.isNotEmpty == true ? fallback! : 'Resource not found.',
+        message:
+            fallback?.isNotEmpty == true ? fallback! : 'Resource not found.',
         statusCode: statusCode,
         originalError: originalError,
       );
@@ -144,6 +146,15 @@ class AppException implements Exception {
       return AppException(
         type: AppErrorType.conflict,
         message: fallback?.isNotEmpty == true ? fallback! : 'Request conflict.',
+        statusCode: statusCode,
+        originalError: originalError,
+      );
+    }
+    if (statusCode == 503) {
+      return AppException(
+        type: AppErrorType.serviceUnavailable,
+        message:
+            fallback?.isNotEmpty == true ? fallback! : 'Service unavailable.',
         statusCode: statusCode,
         originalError: originalError,
       );
@@ -258,6 +269,7 @@ class AppException implements Exception {
       'CONFLICT' => AppErrorType.conflict,
       'DUPLICATE_REQUEST' => AppErrorType.duplicate,
       'VALIDATION_ERROR' => AppErrorType.validationError,
+      'SERVICE_UNAVAILABLE' => AppErrorType.serviceUnavailable,
       _ => _typeFromStatusCode(statusCode),
     };
   }
@@ -267,6 +279,7 @@ class AppException implements Exception {
     if (statusCode == 403) return AppErrorType.forbidden;
     if (statusCode == 404) return AppErrorType.notFound;
     if (statusCode == 409) return AppErrorType.conflict;
+    if (statusCode == 503) return AppErrorType.serviceUnavailable;
     if (statusCode >= 500) return AppErrorType.serverError;
     if (statusCode >= 400) return AppErrorType.businessError;
     return AppErrorType.unknown;
