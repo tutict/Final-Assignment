@@ -15,6 +15,7 @@ import com.tutict.finalassignmentbackend.payment.governance.PaymentGovernanceLog
 import com.tutict.finalassignmentbackend.payment.exception.PaymentDuplicateRequestException;
 import com.tutict.finalassignmentbackend.payment.exception.PaymentOptimisticLockException;
 import com.tutict.finalassignmentbackend.payment.messaging.PaymentRecordKafkaEvent;
+import com.tutict.finalassignmentbackend.service.events.PaymentStatusChangedEvent;
 import com.tutict.finalassignmentbackend.repository.PaymentRecordSearchRepository;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -114,6 +115,7 @@ public class PaymentRecordService {
             throw new PaymentOptimisticLockException("Payment record was updated concurrently; refresh and retry");
         }
         syncToIndexAfterCommit(paymentRecord);
+        publishPaymentStatusChanged(paymentRecord);
         return paymentRecord;
     }
 
@@ -139,6 +141,7 @@ public class PaymentRecordService {
         );
         markHistorySuccess(history, paymentRecord.getPaymentId());
         syncToIndexAfterCommit(paymentRecord);
+        publishPaymentStatusChanged(paymentRecord);
         return paymentRecord;
     }
 
@@ -182,6 +185,7 @@ public class PaymentRecordService {
             throw new PaymentOptimisticLockException("Payment status was updated concurrently; refresh and retry");
         }
         syncToIndexAfterCommit(existing);
+        publishPaymentStatusChanged(existing);
         return existing;
     }
 
@@ -575,5 +579,27 @@ public class PaymentRecordService {
 
     private org.springframework.data.domain.Pageable pageable(int page, int size) {
         return org.springframework.data.domain.PageRequest.of(Math.max(page - 1, 0), Math.max(size, 1));
+    }
+
+    private void publishPaymentStatusChanged(PaymentRecord record) {
+        if (record == null || isBlank(record.getPaymentStatus())) {
+            return;
+        }
+        applicationEventPublisher.publishEvent(new PaymentStatusChangedEvent(
+                firstNonBlank(record.getCreatedBy(), record.getUpdatedBy(), record.getPayerContact()),
+                record.getPaymentId(),
+                record.getFineId(),
+                record.getPaymentStatus(),
+                record.getUpdatedAt()
+        ));
+    }
+
+    private String firstNonBlank(String... values) {
+        for (String value : values) {
+            if (!isBlank(value)) {
+                return value;
+            }
+        }
+        return null;
     }
 }

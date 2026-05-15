@@ -1,7 +1,9 @@
 // ignore_for_file: use_build_context_synchronously
+import 'dart:async';
 import 'dart:convert';
 import 'package:final_assignment_front/config/routes/app_routes.dart';
 import 'package:final_assignment_front/core/auth/auth_service.dart';
+import 'package:final_assignment_front/core/realtime/business_event_listener.dart';
 import 'package:final_assignment_front/features/dashboard/bindings/progress_binding.dart';
 import 'package:final_assignment_front/features/dashboard/controllers/progress_controller.dart';
 import 'package:flutter/cupertino.dart';
@@ -58,6 +60,7 @@ class _UserAppealPageState extends State<UserAppealPage> {
   late ScrollController _scrollController;
   List<dynamic> _offenseCache = [];
   String? _currentDriverName;
+  StreamSubscription<AppealStatusChange>? _appealStatusSubscription;
 
   DateTime? _startTime;
   DateTime? _endTime;
@@ -73,18 +76,57 @@ class _UserAppealPageState extends State<UserAppealPage> {
     appealApi = AppealManagementControllerApi();
     driverApi = DriverInformationControllerApi();
     _scrollController = ScrollController();
+    _startBusinessEventSubscription();
     _loadAppealsAndCheckRole();
   }
 
   @override
   void dispose() {
+    _appealStatusSubscription?.cancel();
     _searchController.dispose();
     _scrollController.dispose();
     super.dispose();
   }
 
+  Future<void> _startBusinessEventSubscription() async {
+    if (!Get.isRegistered<BusinessEventListener>()) {
+      return;
+    }
+    final listener = Get.find<BusinessEventListener>();
+    try {
+      await listener.startListening();
+      _appealStatusSubscription ??=
+          listener.appealStatusChanges.stream.listen(_handleAppealStatusChange);
+    } catch (e) {
+      developer.log('Failed to start appeal status listener: $e');
+    }
+  }
+
+  void _handleAppealStatusChange(AppealStatusChange change) {
+    if (!mounted || change.appealId == 0) {
+      return;
+    }
+    final index =
+        _appeals.indexWhere((appeal) => appeal.appealId == change.appealId);
+    if (index == -1) {
+      return;
+    }
+    setState(() {
+      _appeals[index] = _appeals[index].copyWith(
+        processStatus: change.newStatus,
+        updatedAt: change.updatedAt,
+      );
+    });
+    Get.snackbar(
+      '申诉状态更新',
+      '您的申诉已更新为 ${getAppealProcessStatusLabel(change.newStatus)}',
+      snackPosition: SnackPosition.BOTTOM,
+      duration: const Duration(seconds: 3),
+    );
+  }
+
   Future<void> _loadAppealsAndCheckRole() async {
-      setState(() => _isLoading = true);
+    setState(() => _isLoading = true);
     try {
       final prefs = await SharedPreferences.getInstance();
       String? jwtToken = await AuthTokenStore.instance.getJwtToken();
@@ -411,246 +453,257 @@ class _UserAppealPageState extends State<UserAppealPage> {
                     mainAxisSize: MainAxisSize.min,
                     crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
-                    Text(
-                      '提交申诉',
-                      style: themeData.textTheme.titleMedium?.copyWith(
-                        color: themeData.colorScheme.onSurface,
-                        fontWeight: FontWeight.bold,
-                      ),
-                      textAlign: TextAlign.center,
-                    ),
-                    const SizedBox(height: 12.0),
-                    DropdownButtonFormField<int>(
-                      decoration: InputDecoration(
-                        labelText: '选择违法记录 *',
-                        labelStyle: TextStyle(
-                            color: themeData.colorScheme.onSurfaceVariant),
-                        filled: true,
-                        fillColor: themeData.colorScheme.surfaceContainerLowest,
-                        border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(8.0),
-                          borderSide: BorderSide(
-                              color: themeData.colorScheme.outline
-                                  .withValues(alpha: 0.3)),
+                      Text(
+                        '提交申诉',
+                        style: themeData.textTheme.titleMedium?.copyWith(
+                          color: themeData.colorScheme.onSurface,
+                          fontWeight: FontWeight.bold,
                         ),
+                        textAlign: TextAlign.center,
                       ),
-                      items: offenses.map((offense) {
-                        return DropdownMenuItem<int>(
-                          value: offense['offenseId'],
-                          child: Text(
-                              'ID: ${offense['offenseId']} - ${offense['offenseType'] ?? '无描述'}'),
-                        );
-                      }).toList(),
-                      onChanged: (value) => selectedOffenseId = value,
-                      validator: (value) => value == null ? '请选择一个违法记录' : null,
-                    ),
-                    const SizedBox(height: 12.0),
-                    TextFormField(
-                      controller: nameController,
-                      readOnly: isNameReadOnly,
-                      decoration: InputDecoration(
-                        labelText: '申诉人姓名 *',
-                        labelStyle: TextStyle(
-                            color: themeData.colorScheme.onSurfaceVariant),
-                        filled: true,
-                        fillColor: isNameReadOnly
-                            ? themeData.colorScheme.surfaceContainerHighest
-                                .withValues(alpha: 0.5)
-                            : themeData.colorScheme.surfaceContainerLowest,
-                        border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(8.0),
-                          borderSide: BorderSide(
-                              color: themeData.colorScheme.outline
-                                  .withValues(alpha: 0.3)),
+                      const SizedBox(height: 12.0),
+                      DropdownButtonFormField<int>(
+                        decoration: InputDecoration(
+                          labelText: '选择违法记录 *',
+                          labelStyle: TextStyle(
+                              color: themeData.colorScheme.onSurfaceVariant),
+                          filled: true,
+                          fillColor:
+                              themeData.colorScheme.surfaceContainerLowest,
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(8.0),
+                            borderSide: BorderSide(
+                                color: themeData.colorScheme.outline
+                                    .withValues(alpha: 0.3)),
+                          ),
                         ),
-                        suffixIcon: isNameReadOnly
-                            ? Icon(Icons.lock,
-                                size: 18, color: themeData.colorScheme.primary)
-                            : null,
+                        items: offenses.map((offense) {
+                          return DropdownMenuItem<int>(
+                            value: offense['offenseId'],
+                            child: Text(
+                                'ID: ${offense['offenseId']} - ${offense['offenseType'] ?? '无描述'}'),
+                          );
+                        }).toList(),
+                        onChanged: (value) => selectedOffenseId = value,
+                        validator: (value) =>
+                            value == null ? '请选择一个违法记录' : null,
                       ),
-                      validator: (value) {
-                        if (value == null || value.trim().isEmpty) {
-                          return '请输入申诉人姓名';
-                        }
-                        return null;
-                      },
-                      style: TextStyle(color: themeData.colorScheme.onSurface),
-                    ),
-                    const SizedBox(height: 12.0),
-                    TextFormField(
-                      controller: idCardController,
-                      readOnly: isIdCardReadOnly,
-                      decoration: InputDecoration(
-                        labelText: '身份证号码 *',
-                        labelStyle: TextStyle(
-                            color: themeData.colorScheme.onSurfaceVariant),
-                        filled: true,
-                        fillColor: isIdCardReadOnly
-                            ? themeData.colorScheme.surfaceContainerHighest
-                                .withValues(alpha: 0.5)
-                            : themeData.colorScheme.surfaceContainerLowest,
-                        border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(8.0),
-                          borderSide: BorderSide(
-                              color: themeData.colorScheme.outline
-                                  .withValues(alpha: 0.3)),
+                      const SizedBox(height: 12.0),
+                      TextFormField(
+                        controller: nameController,
+                        readOnly: isNameReadOnly,
+                        decoration: InputDecoration(
+                          labelText: '申诉人姓名 *',
+                          labelStyle: TextStyle(
+                              color: themeData.colorScheme.onSurfaceVariant),
+                          filled: true,
+                          fillColor: isNameReadOnly
+                              ? themeData.colorScheme.surfaceContainerHighest
+                                  .withValues(alpha: 0.5)
+                              : themeData.colorScheme.surfaceContainerLowest,
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(8.0),
+                            borderSide: BorderSide(
+                                color: themeData.colorScheme.outline
+                                    .withValues(alpha: 0.3)),
+                          ),
+                          suffixIcon: isNameReadOnly
+                              ? Icon(Icons.lock,
+                                  size: 18,
+                                  color: themeData.colorScheme.primary)
+                              : null,
                         ),
-                        suffixIcon: isIdCardReadOnly
-                            ? Icon(Icons.lock,
-                                size: 18, color: themeData.colorScheme.primary)
-                            : null,
+                        validator: (value) {
+                          if (value == null || value.trim().isEmpty) {
+                            return '请输入申诉人姓名';
+                          }
+                          return null;
+                        },
+                        style:
+                            TextStyle(color: themeData.colorScheme.onSurface),
                       ),
-                      keyboardType: TextInputType.text,
-                      validator: (value) {
-                        if (value == null || value.trim().isEmpty) {
-                          return '请输入身份证号';
-                        }
-                        final idRegex = RegExp(r'^\d{17}[\dXx]$');
-                        if (!idRegex.hasMatch(value.trim())) {
-                          return '请输入有效的 18 位身份证号';
-                        }
-                        return null;
-                      },
-                      style: TextStyle(color: themeData.colorScheme.onSurface),
-                    ),
-                    const SizedBox(height: 12.0),
-                    TextFormField(
-                      controller: contactController,
-                      readOnly: isContactReadOnly,
-                      decoration: InputDecoration(
-                        labelText: '联系电话 *',
-                        labelStyle: TextStyle(
-                            color: themeData.colorScheme.onSurfaceVariant),
-                        filled: true,
-                        fillColor: isContactReadOnly
-                            ? themeData.colorScheme.surfaceContainerHighest
-                                .withValues(alpha: 0.5)
-                            : themeData.colorScheme.surfaceContainerLowest,
-                        border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(8.0),
-                          borderSide: BorderSide(
-                              color: themeData.colorScheme.outline
-                                  .withValues(alpha: 0.3)),
+                      const SizedBox(height: 12.0),
+                      TextFormField(
+                        controller: idCardController,
+                        readOnly: isIdCardReadOnly,
+                        decoration: InputDecoration(
+                          labelText: '身份证号码 *',
+                          labelStyle: TextStyle(
+                              color: themeData.colorScheme.onSurfaceVariant),
+                          filled: true,
+                          fillColor: isIdCardReadOnly
+                              ? themeData.colorScheme.surfaceContainerHighest
+                                  .withValues(alpha: 0.5)
+                              : themeData.colorScheme.surfaceContainerLowest,
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(8.0),
+                            borderSide: BorderSide(
+                                color: themeData.colorScheme.outline
+                                    .withValues(alpha: 0.3)),
+                          ),
+                          suffixIcon: isIdCardReadOnly
+                              ? Icon(Icons.lock,
+                                  size: 18,
+                                  color: themeData.colorScheme.primary)
+                              : null,
                         ),
-                        suffixIcon: isContactReadOnly
-                            ? Icon(Icons.lock,
-                                size: 18, color: themeData.colorScheme.primary)
-                            : null,
+                        keyboardType: TextInputType.text,
+                        validator: (value) {
+                          if (value == null || value.trim().isEmpty) {
+                            return '请输入身份证号';
+                          }
+                          final idRegex = RegExp(r'^\d{17}[\dXx]$');
+                          if (!idRegex.hasMatch(value.trim())) {
+                            return '请输入有效的 18 位身份证号';
+                          }
+                          return null;
+                        },
+                        style:
+                            TextStyle(color: themeData.colorScheme.onSurface),
                       ),
-                      keyboardType: TextInputType.phone,
-                      validator: (value) {
-                        if (value == null || value.trim().isEmpty) {
-                          return '请输入联系电话';
-                        }
-                        final phoneRegex = RegExp(r'^1[3-9]\d{9}$');
-                        if (!phoneRegex.hasMatch(value.trim())) {
-                          return '请输入有效的 11 位手机号';
-                        }
-                        return null;
-                      },
-                      style: TextStyle(color: themeData.colorScheme.onSurface),
-                    ),
-                    const SizedBox(height: 12.0),
-                    TextFormField(
-                      controller: reasonController,
-                      decoration: InputDecoration(
-                        labelText: '申诉原因 *',
-                        labelStyle: TextStyle(
-                            color: themeData.colorScheme.onSurfaceVariant),
-                        filled: true,
-                        fillColor: themeData.colorScheme.surfaceContainerLowest,
-                        border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(8.0),
-                          borderSide: BorderSide(
-                              color: themeData.colorScheme.outline
-                                  .withValues(alpha: 0.3)),
+                      const SizedBox(height: 12.0),
+                      TextFormField(
+                        controller: contactController,
+                        readOnly: isContactReadOnly,
+                        decoration: InputDecoration(
+                          labelText: '联系电话 *',
+                          labelStyle: TextStyle(
+                              color: themeData.colorScheme.onSurfaceVariant),
+                          filled: true,
+                          fillColor: isContactReadOnly
+                              ? themeData.colorScheme.surfaceContainerHighest
+                                  .withValues(alpha: 0.5)
+                              : themeData.colorScheme.surfaceContainerLowest,
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(8.0),
+                            borderSide: BorderSide(
+                                color: themeData.colorScheme.outline
+                                    .withValues(alpha: 0.3)),
+                          ),
+                          suffixIcon: isContactReadOnly
+                              ? Icon(Icons.lock,
+                                  size: 18,
+                                  color: themeData.colorScheme.primary)
+                              : null,
                         ),
+                        keyboardType: TextInputType.phone,
+                        validator: (value) {
+                          if (value == null || value.trim().isEmpty) {
+                            return '请输入联系电话';
+                          }
+                          final phoneRegex = RegExp(r'^1[3-9]\d{9}$');
+                          if (!phoneRegex.hasMatch(value.trim())) {
+                            return '请输入有效的 11 位手机号';
+                          }
+                          return null;
+                        },
+                        style:
+                            TextStyle(color: themeData.colorScheme.onSurface),
                       ),
-                      maxLines: 3,
-                      validator: (value) {
-                        if (value == null || value.trim().isEmpty) {
-                          return '请输入申诉原因';
-                        }
-                        return null;
-                      },
-                      style: TextStyle(color: themeData.colorScheme.onSurface),
-                    ),
-                    const SizedBox(height: 16.0),
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                      children: [
-                        TextButton(
-                          onPressed: () => Navigator.pop(ctx),
-                          child: Text(
-                            '取消',
-                            style: themeData.textTheme.labelMedium?.copyWith(
-                              color: themeData.colorScheme.onSurface,
+                      const SizedBox(height: 12.0),
+                      TextFormField(
+                        controller: reasonController,
+                        decoration: InputDecoration(
+                          labelText: '申诉原因 *',
+                          labelStyle: TextStyle(
+                              color: themeData.colorScheme.onSurfaceVariant),
+                          filled: true,
+                          fillColor:
+                              themeData.colorScheme.surfaceContainerLowest,
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(8.0),
+                            borderSide: BorderSide(
+                                color: themeData.colorScheme.outline
+                                    .withValues(alpha: 0.3)),
+                          ),
+                        ),
+                        maxLines: 3,
+                        validator: (value) {
+                          if (value == null || value.trim().isEmpty) {
+                            return '请输入申诉原因';
+                          }
+                          return null;
+                        },
+                        style:
+                            TextStyle(color: themeData.colorScheme.onSurface),
+                      ),
+                      const SizedBox(height: 16.0),
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                        children: [
+                          TextButton(
+                            onPressed: () => Navigator.pop(ctx),
+                            child: Text(
+                              '取消',
+                              style: themeData.textTheme.labelMedium?.copyWith(
+                                color: themeData.colorScheme.onSurface,
+                              ),
                             ),
                           ),
-                        ),
-                        ElevatedButton(
-                          onPressed: isSubmitting
-                              ? null
-                              : () async {
-                                  setState(() => isSubmitting = true); // 禁用按钮
-                                  final String name =
-                                      nameController.text.trim();
-                                  final String idCard =
-                                      idCardController.text.trim();
-                                  final String contact =
-                                      contactController.text.trim();
-                                  final String reason =
-                                      reasonController.text.trim();
+                          ElevatedButton(
+                            onPressed: isSubmitting
+                                ? null
+                                : () async {
+                                    setState(() => isSubmitting = true); // 禁用按钮
+                                    final String name =
+                                        nameController.text.trim();
+                                    final String idCard =
+                                        idCardController.text.trim();
+                                    final String contact =
+                                        contactController.text.trim();
+                                    final String reason =
+                                        reasonController.text.trim();
 
-                                  if (!(formKey.currentState?.validate() ??
-                                      false)) {
-                                    setState(() => isSubmitting = false);
-                                    return;
-                                  }
+                                    if (!(formKey.currentState?.validate() ??
+                                        false)) {
+                                      setState(() => isSubmitting = false);
+                                      return;
+                                    }
 
-                                  final newAppeal = AppealRecordModel(
-                                    offenseId: selectedOffenseId,
-                                    appellantName: name,
-                                    appellantIdCard: idCard,
-                                    appellantContact: contact,
-                                    appealReason: reason,
-                                    appealTime: DateTime.now(),
-                                    acceptanceStatus:
-                                        AppealAcceptanceStatus.pending.code,
-                                    processStatus:
-                                        AppealProcessStatus.unprocessed.code,
-                                    processResult: '',
-                                  );
-                                  final idempotencyKey =
-                                      generateIdempotencyKey();
-                                  developer.log(
-                                      'Preparing to submit appeal with key: $idempotencyKey');
-                                  await _submitAppeal(
-                                      newAppeal, idempotencyKey);
-                                  setState(
-                                      () => isSubmitting = false); // 重新启用按钮
-                                  if (mounted) Navigator.pop(ctx);
-                                },
-                          style: themeData.elevatedButtonTheme.style?.copyWith(
-                            backgroundColor: WidgetStateProperty.all(
-                                themeData.colorScheme.primary),
-                            foregroundColor: WidgetStateProperty.all(
-                                themeData.colorScheme.onPrimary),
+                                    final newAppeal = AppealRecordModel(
+                                      offenseId: selectedOffenseId,
+                                      appellantName: name,
+                                      appellantIdCard: idCard,
+                                      appellantContact: contact,
+                                      appealReason: reason,
+                                      appealTime: DateTime.now(),
+                                      acceptanceStatus:
+                                          AppealAcceptanceStatus.pending.code,
+                                      processStatus:
+                                          AppealProcessStatus.unprocessed.code,
+                                      processResult: '',
+                                    );
+                                    final idempotencyKey =
+                                        generateIdempotencyKey();
+                                    developer.log(
+                                        'Preparing to submit appeal with key: $idempotencyKey');
+                                    await _submitAppeal(
+                                        newAppeal, idempotencyKey);
+                                    setState(
+                                        () => isSubmitting = false); // 重新启用按钮
+                                    if (mounted) Navigator.pop(ctx);
+                                  },
+                            style:
+                                themeData.elevatedButtonTheme.style?.copyWith(
+                              backgroundColor: WidgetStateProperty.all(
+                                  themeData.colorScheme.primary),
+                              foregroundColor: WidgetStateProperty.all(
+                                  themeData.colorScheme.onPrimary),
+                            ),
+                            child: isSubmitting
+                                ? const SizedBox(
+                                    width: 20,
+                                    height: 20,
+                                    child: CircularProgressIndicator(
+                                      strokeWidth: 2,
+                                      valueColor: AlwaysStoppedAnimation<Color>(
+                                          Colors.white),
+                                    ),
+                                  )
+                                : const Text('提交'),
                           ),
-                          child: isSubmitting
-                              ? const SizedBox(
-                                  width: 20,
-                                  height: 20,
-                                  child: CircularProgressIndicator(
-                                    strokeWidth: 2,
-                                    valueColor: AlwaysStoppedAnimation<Color>(
-                                        Colors.white),
-                                  ),
-                                )
-                              : const Text('提交'),
-                        ),
-                      ],
-                    ),
+                        ],
+                      ),
                     ],
                   ),
                 ),
@@ -1148,9 +1201,10 @@ class _UserAppealDetailPageState extends State<UserAppealDetailPage> {
                                             ),
                                             trailing: const Icon(
                                                 Icons.arrow_forward_ios),
-                                            onTap: () => NavigationHelper.toNamed(
-                                                '/progressDetail',
-                                                arguments: item),
+                                            onTap: () =>
+                                                NavigationHelper.toNamed(
+                                                    '/progressDetail',
+                                                    arguments: item),
                                           ))
                                       .toList(),
                                 );

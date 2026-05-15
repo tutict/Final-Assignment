@@ -582,7 +582,8 @@ class _AppealManagementAdminState extends State<ManagerAppealManagementPage> {
                                 onRetry: _errorMessage.contains('未授权') ||
                                         _errorMessage.contains('登录') ||
                                         _errorMessage.contains('权限不足')
-                                    ? () => NavigationHelper.offAllNamed(Routes.login)
+                                    ? () => NavigationHelper.offAllNamed(
+                                        Routes.login)
                                     : null,
                               ))
                         : _filteredAppeals.isEmpty
@@ -636,6 +637,7 @@ class _AppealDetailPageState extends State<AppealDetailPage> {
       AppealManagementControllerApi();
   final TextEditingController _rejectionReasonController =
       TextEditingController();
+  late AppealRecordModel _currentAppeal;
   bool _isLoading = false;
   bool _isAdmin = false;
   String _errorMessage = '';
@@ -645,6 +647,7 @@ class _AppealDetailPageState extends State<AppealDetailPage> {
   @override
   void initState() {
     super.initState();
+    _currentAppeal = widget.appeal;
     _initialize();
   }
 
@@ -798,21 +801,73 @@ class _AppealDetailPageState extends State<AppealDetailPage> {
     );
   }
 
+  void _applyUpdatedAppeal(AppealRecordModel appeal) {
+    _currentAppeal = appeal;
+    widget.onAppealUpdated?.call(appeal);
+  }
+
+  Future<void> _ensureReviewStarted(int appealId) async {
+    if (canApprove(_currentAppeal.processStatus)) {
+      return;
+    }
+    final acceptanceStatus = _currentAppeal.acceptanceStatus;
+    final needsStartReview = canStartReview(_currentAppeal.processStatus) ||
+        acceptanceStatus == 'Pending' ||
+        acceptanceStatus == 'Unprocessed';
+    if (!needsStartReview) {
+      return;
+    }
+    final underReview = await _triggerAppealWorkflowEvent(
+      appealId,
+      AppealProcessEventType.startReview,
+    );
+    _applyUpdatedAppeal(underReview);
+    await Future.delayed(const Duration(milliseconds: 500));
+  }
+
   Future<void> _approveAppeal(int appealId) async {
-    if (widget.appeal.appealId == null) {
+    if (_currentAppeal.appealId == null) {
       _showSnackBar('申诉ID无效', isError: true);
       return;
     }
     setState(() => _isLoading = true);
     try {
+      await _ensureReviewStarted(appealId);
       final updatedAppeal = await _triggerAppealWorkflowEvent(
           appealId, AppealProcessEventType.approve);
       developer.log('Approving appeal ID: $appealId via workflow event');
       _showSnackBar('申诉已审批通过！');
-      widget.onAppealUpdated?.call(updatedAppeal);
+      _applyUpdatedAppeal(updatedAppeal);
       if (mounted) Navigator.pop(context, true);
     } catch (e) {
       developer.log('Error approving appeal: $e',
+          stackTrace: StackTrace.current);
+      _showSnackBar(_formatErrorMessage(e), isError: true);
+    } finally {
+      if (mounted) setState(() => _isLoading = false);
+    }
+  }
+
+  Future<void> _startReviewAppeal(int appealId) async {
+    if (_currentAppeal.appealId == null) {
+      _showSnackBar('Invalid appeal ID', isError: true);
+      return;
+    }
+    setState(() => _isLoading = true);
+    try {
+      final updatedAppeal = await _triggerAppealWorkflowEvent(
+        appealId,
+        AppealProcessEventType.startReview,
+      );
+      developer.log('Starting review for appeal ID: $appealId');
+      _showSnackBar('Appeal review started');
+      if (mounted) {
+        setState(() => _applyUpdatedAppeal(updatedAppeal));
+      } else {
+        _applyUpdatedAppeal(updatedAppeal);
+      }
+    } catch (e) {
+      developer.log('Error starting appeal review: $e',
           stackTrace: StackTrace.current);
       _showSnackBar(_formatErrorMessage(e), isError: true);
     } finally {
@@ -892,20 +947,21 @@ class _AppealDetailPageState extends State<AppealDetailPage> {
                           _showSnackBar('请填写驳回原因', isError: true);
                           return;
                         }
-                        if (widget.appeal.appealId == null) {
+                        if (_currentAppeal.appealId == null) {
                           _showSnackBar('申诉ID无效', isError: true);
                           Navigator.pop(ctx);
                           return;
                         }
                         setState(() => _isLoading = true);
                         try {
+                          await _ensureReviewStarted(appealId);
                           final updatedAppeal =
                               await _triggerAppealWorkflowEvent(
                                   appealId, AppealProcessEventType.reject);
                           developer.log(
                               'Rejecting appeal ID: $appealId via workflow event');
                           _showSnackBar('申诉已驳回，用户可重新提交');
-                          widget.onAppealUpdated?.call(updatedAppeal);
+                          _applyUpdatedAppeal(updatedAppeal);
                           Navigator.pop(ctx);
                           if (mounted) Navigator.pop(context, true);
                         } catch (e) {
@@ -1003,15 +1059,15 @@ class _AppealDetailPageState extends State<AppealDetailPage> {
   Widget build(BuildContext context) {
     return Obx(() {
       final themeData = controller.currentBodyTheme.value;
-      final appealId = widget.appeal.appealId?.toString() ?? '未提供';
-      final offenseId = widget.appeal.offenseId?.toString() ?? '未提供';
-      final name = widget.appeal.appellantName ?? '未提供';
-      final idCard = widget.appeal.appellantIdCard ?? '未提供';
-      final contact = widget.appeal.appellantContact ?? '未提供';
-      final reason = widget.appeal.appealReason ?? '未提供';
-      final time = formatDateTime(widget.appeal.appealTime);
-      final status = widget.appeal.processStatus ?? '未提供';
-      final result = widget.appeal.processResult ?? '未提供';
+      final appealId = _currentAppeal.appealId?.toString() ?? '未提供';
+      final offenseId = _currentAppeal.offenseId?.toString() ?? '未提供';
+      final name = _currentAppeal.appellantName ?? '未提供';
+      final idCard = _currentAppeal.appellantIdCard ?? '未提供';
+      final contact = _currentAppeal.appellantContact ?? '未提供';
+      final reason = _currentAppeal.appealReason ?? '未提供';
+      final time = formatDateTime(_currentAppeal.appealTime);
+      final status = _currentAppeal.processStatus ?? '未提供';
+      final result = _currentAppeal.processResult ?? '未提供';
 
       return DashboardPageTemplate(
         theme: themeData,
@@ -1071,7 +1127,29 @@ class _AppealDetailPageState extends State<AppealDetailPage> {
                               ),
                             ),
                             const SizedBox(height: 24),
-                            if (_isAdmin &&
+                            if (_isAdmin && canStartReview(status)) ...[
+                              Center(
+                                child: ElevatedButton.icon(
+                                  onPressed: () => _startReviewAppeal(
+                                      _currentAppeal.appealId ?? 0),
+                                  icon:
+                                      const Icon(CupertinoIcons.eye, size: 20),
+                                  label: const Text('开始审核'),
+                                  style: ElevatedButton.styleFrom(
+                                    backgroundColor:
+                                        themeData.colorScheme.primary,
+                                    foregroundColor:
+                                        themeData.colorScheme.onPrimary,
+                                    shape: RoundedRectangleBorder(
+                                        borderRadius:
+                                            BorderRadius.circular(12.0)),
+                                    padding: const EdgeInsets.symmetric(
+                                        horizontal: 20.0, vertical: 12.0),
+                                    elevation: 2,
+                                  ),
+                                ),
+                              ),
+                            ] else if (_isAdmin &&
                                 (canApprove(status) || canReject(status))) ...[
                               Row(
                                 mainAxisAlignment:
@@ -1079,7 +1157,7 @@ class _AppealDetailPageState extends State<AppealDetailPage> {
                                 children: [
                                   ElevatedButton.icon(
                                     onPressed: () => _approveAppeal(
-                                        widget.appeal.appealId ?? 0),
+                                        _currentAppeal.appealId ?? 0),
                                     icon: const Icon(CupertinoIcons.checkmark,
                                         size: 20),
                                     label: const Text('通过'),
@@ -1096,7 +1174,7 @@ class _AppealDetailPageState extends State<AppealDetailPage> {
                                   ),
                                   ElevatedButton.icon(
                                     onPressed: () => _rejectAppeal(
-                                        widget.appeal.appealId ?? 0),
+                                        _currentAppeal.appealId ?? 0),
                                     icon: const Icon(CupertinoIcons.xmark,
                                         size: 20),
                                     label: const Text('驳回'),

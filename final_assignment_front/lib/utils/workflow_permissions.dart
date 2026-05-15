@@ -2,11 +2,26 @@ import 'package:final_assignment_front/utils/helpers/app_helpers.dart';
 
 bool canApprove(String? status) {
   final state = AppealProcessStatus.fromCode(status);
-  return state == AppealProcessStatus.unprocessed ||
-      state == AppealProcessStatus.underReview;
+  final normalized =
+      status?.replaceAll('-', '_').replaceAll(' ', '_').toLowerCase();
+  return state == AppealProcessStatus.underReview ||
+      normalized == 'under_review' ||
+      normalized == 'underreview';
 }
 
 bool canReject(String? status) => canApprove(status);
+
+bool canStartReview(String? status) {
+  final state = AppealProcessStatus.fromCode(status);
+  if (state == AppealProcessStatus.unprocessed) {
+    return true;
+  }
+  final normalized =
+      status?.replaceAll('-', '_').replaceAll(' ', '_').toLowerCase();
+  return normalized == 'pending' ||
+      normalized == 'unprocessed' ||
+      normalized == 'under_review_pending';
+}
 
 bool canEdit(String? status) {
   final appealState = AppealProcessStatus.fromCode(status);

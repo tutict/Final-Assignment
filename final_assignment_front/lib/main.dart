@@ -3,6 +3,7 @@ import 'package:final_assignment_front/core/auth/auth_service.dart';
 import 'package:final_assignment_front/core/auth/user_profile_service.dart';
 import 'package:final_assignment_front/core/lifecycle/app_lifecycle_observer.dart';
 import 'package:final_assignment_front/core/network/interceptor.dart';
+import 'package:final_assignment_front/core/realtime/business_event_listener.dart';
 import 'package:final_assignment_front/features/dashboard/controllers/user_dashboard_screen_controller.dart';
 import 'package:final_assignment_front/features/offense/offense_realtime_service.dart';
 import 'package:flutter/material.dart';
@@ -89,6 +90,10 @@ class AppBindings extends Bindings {
     );
     Get.put<AppLifecycleObserver>(
       AppLifecycleObserver(logWriter: apiInterceptor.logWriter)..start(),
+      permanent: true,
+    );
+    Get.put<BusinessEventListener>(
+      BusinessEventListener(),
       permanent: true,
     );
     Get.lazyPut<OffenseRealtimeService>(

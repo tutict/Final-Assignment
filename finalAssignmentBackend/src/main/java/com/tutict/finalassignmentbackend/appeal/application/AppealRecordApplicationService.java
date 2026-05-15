@@ -17,6 +17,9 @@ import com.tutict.finalassignmentbackend.config.statemachine.states.AppealProces
 import com.tutict.finalassignmentbackend.entity.AppealRecord;
 import com.tutict.finalassignmentbackend.exception.BusinessException;
 import com.tutict.finalassignmentbackend.mapper.AppealRecordMapper;
+import com.tutict.finalassignmentbackend.service.events.AppealStatusChangedEvent;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -41,7 +44,31 @@ public class AppealRecordApplicationService {
     private final AppealIdempotencyService idempotencyService;
     private final AppealWorkflowDecisionPolicy workflowDecisionPolicy;
     private final AppealUpdateMergeCoordinator updateMergeCoordinator;
+    private final ApplicationEventPublisher applicationEventPublisher;
     private final AppealEventIntentPolicy eventIntentPolicy = new AppealEventIntentPolicy();
+
+    @Autowired
+    public AppealRecordApplicationService(
+            AppealRecordMapper appealRecordMapper,
+            AppealRecordDomainService domainService,
+            AppealRecordSearchIndexer searchIndexer,
+            TransactionalDomainEventPublisher eventPublisher,
+            AppealCachePolicy cachePolicy,
+            AppealIdempotencyService idempotencyService,
+            AppealWorkflowDecisionPolicy workflowDecisionPolicy,
+            AppealUpdateMergeCoordinator updateMergeCoordinator,
+            ApplicationEventPublisher applicationEventPublisher
+    ) {
+        this.appealRecordMapper = appealRecordMapper;
+        this.domainService = domainService;
+        this.searchIndexer = searchIndexer;
+        this.eventPublisher = eventPublisher;
+        this.cachePolicy = cachePolicy;
+        this.idempotencyService = idempotencyService;
+        this.workflowDecisionPolicy = workflowDecisionPolicy;
+        this.updateMergeCoordinator = updateMergeCoordinator;
+        this.applicationEventPublisher = applicationEventPublisher;
+    }
 
     public AppealRecordApplicationService(
             AppealRecordMapper appealRecordMapper,
@@ -53,14 +80,18 @@ public class AppealRecordApplicationService {
             AppealWorkflowDecisionPolicy workflowDecisionPolicy,
             AppealUpdateMergeCoordinator updateMergeCoordinator
     ) {
-        this.appealRecordMapper = appealRecordMapper;
-        this.domainService = domainService;
-        this.searchIndexer = searchIndexer;
-        this.eventPublisher = eventPublisher;
-        this.cachePolicy = cachePolicy;
-        this.idempotencyService = idempotencyService;
-        this.workflowDecisionPolicy = workflowDecisionPolicy;
-        this.updateMergeCoordinator = updateMergeCoordinator;
+        this(
+                appealRecordMapper,
+                domainService,
+                searchIndexer,
+                eventPublisher,
+                cachePolicy,
+                idempotencyService,
+                workflowDecisionPolicy,
+                updateMergeCoordinator,
+                event -> {
+                }
+        );
     }
 
     @Transactional
@@ -109,6 +140,7 @@ public class AppealRecordApplicationService {
         }
         searchIndexer.indexAfterCommit(merged);
         cachePolicy.onWrite();
+        publishAppealStatusChangedIfNeeded(existing, merged);
         return merged;
     }
 
@@ -147,6 +179,7 @@ public class AppealRecordApplicationService {
         if (eventMetadata.evictsCache()) {
             cachePolicy.onWrite();
         }
+        publishAppealStatusChangedIfNeeded(existing, merged);
         return merged;
     }
 
@@ -183,6 +216,7 @@ public class AppealRecordApplicationService {
         }
         searchIndexer.indexAfterCommit(merged);
         cachePolicy.onWrite();
+        publishAppealStatusChangedIfNeeded(existing, merged);
         return merged;
     }
 
@@ -240,5 +274,35 @@ public class AppealRecordApplicationService {
             return SYSTEM_EVENT_CALLER;
         }
         return FULL_UPDATE_CALLER;
+    }
+
+    private void publishAppealStatusChangedIfNeeded(AppealRecord existing, AppealRecord updated) {
+        if (updated == null || isBlank(updated.getProcessStatus())) {
+            return;
+        }
+        String oldStatus = existing == null ? null : existing.getProcessStatus();
+        if (Objects.equals(oldStatus, updated.getProcessStatus())) {
+            return;
+        }
+        applicationEventPublisher.publishEvent(new AppealStatusChangedEvent(
+                firstNonBlank(updated.getCreatedBy(), existing == null ? null : existing.getCreatedBy(),
+                        updated.getAppellantContact(), updated.getAppellantEmail()),
+                updated.getAppealId(),
+                updated.getProcessStatus(),
+                updated.getUpdatedAt()
+        ));
+    }
+
+    private String firstNonBlank(String... values) {
+        for (String value : values) {
+            if (!isBlank(value)) {
+                return value;
+            }
+        }
+        return null;
+    }
+
+    private boolean isBlank(String value) {
+        return value == null || value.trim().isEmpty();
     }
 }

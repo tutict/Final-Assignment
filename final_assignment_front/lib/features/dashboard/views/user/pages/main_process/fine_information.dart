@@ -1,6 +1,8 @@
 import 'package:final_assignment_front/core/utils/app_logger.dart';
+import 'dart:async';
 import 'package:final_assignment_front/config/routes/app_routes.dart';
 import 'package:final_assignment_front/core/auth/auth_service.dart';
+import 'package:final_assignment_front/core/realtime/business_event_listener.dart';
 import 'package:final_assignment_front/features/api/fine_information_controller_api.dart';
 import 'package:final_assignment_front/features/api/driver_information_controller_api.dart';
 import 'package:final_assignment_front/features/api/user_management_controller_api.dart';
@@ -37,6 +39,7 @@ class _FineInformationPageState extends State<FineInformationPage> {
   String _errorMessage = '';
   String? _currentDriverName;
   final Map<String, Widget> _qrCodes = {};
+  StreamSubscription<PaymentStatusChange>? _paymentStatusSubscription;
 
   String? _paymentStatusOf(FineInformation fine) =>
       fine.paymentStatus ?? fine.status;
@@ -52,7 +55,56 @@ class _FineInformationPageState extends State<FineInformationPage> {
   void initState() {
     super.initState();
     fineApi = FineInformationControllerApi();
+    _startBusinessEventSubscription();
     _initializeFines();
+  }
+
+  @override
+  void dispose() {
+    _paymentStatusSubscription?.cancel();
+    super.dispose();
+  }
+
+  Future<void> _startBusinessEventSubscription() async {
+    if (!Get.isRegistered<BusinessEventListener>()) {
+      return;
+    }
+    final listener = Get.find<BusinessEventListener>();
+    try {
+      await listener.startListening();
+      _paymentStatusSubscription ??= listener.paymentStatusChanges.stream
+          .listen(_handlePaymentStatusChange);
+    } catch (e) {
+      AppLogger.debug('Failed to start payment status listener: $e');
+    }
+  }
+
+  Future<void> _handlePaymentStatusChange(PaymentStatusChange change) async {
+    if (!mounted || change.fineId == null || change.newStatus.isEmpty) {
+      return;
+    }
+    try {
+      final currentFines = await _finesFuture;
+      final updatedFines = currentFines.map((fine) {
+        if (fine.fineId != change.fineId) {
+          return fine;
+        }
+        return fine.copyWith(
+          paymentStatus: change.newStatus,
+          status: change.newStatus,
+          updatedAt: change.updatedAt,
+        );
+      }).toList();
+      if (!mounted) {
+        return;
+      }
+      setState(() {
+        _finesFuture = Future.value(updatedFines);
+      });
+      _showSnackBar('支付状态已更新为 ${_paymentStatusLabel(change.newStatus)}');
+    } catch (e) {
+      AppLogger.debug('Payment status local update failed: $e');
+    }
   }
 
   Future<void> _initializeFines() async {

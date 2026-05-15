@@ -27,6 +27,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.CopyOnWriteArraySet;
 import java.util.stream.Collectors;
 
 import static io.vertx.core.Vertx.vertx;
@@ -51,6 +53,7 @@ public class NetWorkHandler extends AbstractVerticle {
 
     private final ObjectMapper objectMapper;
     private final CorsProperties corsProperties;
+    private final Map<String, Set<ServerWebSocket>> webSocketsByUsername = new ConcurrentHashMap<>();
     private WebClient webClient;
 
     public NetWorkHandler(TokenProvider tokenProvider,
@@ -159,6 +162,7 @@ public class NetWorkHandler extends AbstractVerticle {
     }
 
     private void handleWebSocketConnection(ServerWebSocket ws, String username) {
+        registerWebSocket(username, ws);
         ws.frameHandler(frame -> {
             if (frame.isText()) {
                 String message = frame.textData();
@@ -222,7 +226,56 @@ public class NetWorkHandler extends AbstractVerticle {
             }
         });
 
-        ws.closeHandler(v -> log.info("WebSocket connection closed, path={} {}", ws.path(), v));
+        ws.closeHandler(v -> {
+            unregisterWebSocket(username, ws);
+            log.info("WebSocket connection closed, path={} {}", ws.path(), v);
+        });
+    }
+
+    public void pushToUser(String username, Map<String, Object> payload) {
+        if (username == null || username.isBlank()) {
+            broadcastBusinessEvent(payload);
+            return;
+        }
+        Set<ServerWebSocket> sockets = webSocketsByUsername.get(username);
+        if (sockets == null || sockets.isEmpty()) {
+            log.info("No active WebSocket session for user={}", username);
+            broadcastBusinessEvent(payload);
+            return;
+        }
+        sockets.forEach(ws -> writeWsResponse(ws, payload));
+    }
+
+    public void broadcastBusinessEvent(Map<String, Object> payload) {
+        webSocketsByUsername.values().stream()
+                .flatMap(Set::stream)
+                .forEach(ws -> writeWsResponse(ws, payload));
+    }
+
+    private void registerWebSocket(String username, ServerWebSocket ws) {
+        if (username == null || username.isBlank()) {
+            return;
+        }
+        webSocketsByUsername
+                .computeIfAbsent(username, ignored -> new CopyOnWriteArraySet<>())
+                .add(ws);
+        log.info("Registered WebSocket session for user={}, activeSessions={}",
+                username,
+                webSocketsByUsername.get(username).size());
+    }
+
+    private void unregisterWebSocket(String username, ServerWebSocket ws) {
+        if (username == null || username.isBlank()) {
+            return;
+        }
+        Set<ServerWebSocket> sockets = webSocketsByUsername.get(username);
+        if (sockets == null) {
+            return;
+        }
+        sockets.remove(ws);
+        if (sockets.isEmpty()) {
+            webSocketsByUsername.remove(username);
+        }
     }
 
     private void writeWsResult(ServerWebSocket ws, String requestId, Object result) {

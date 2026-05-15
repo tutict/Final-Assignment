@@ -41,7 +41,11 @@ class ApiClient {
   StreamSubscription<dynamic>? _wsSubscription;
   String? _wsUrl;
   final Map<String, Completer<Map<String, dynamic>>> _pendingRequests = {};
+  final StreamController<String> _wsMessageController =
+      StreamController<String>.broadcast();
   static Completer<bool>? _refreshCompleter;
+
+  Stream<String> get wsMessageStream => _wsMessageController.stream;
 
   static http.Client _createHttpClient() {
     final rawClient = client_factory.createHttpClient();
@@ -520,7 +524,8 @@ class ApiClient {
 
   void _handleWsData(dynamic data) {
     try {
-      final decoded = jsonDecode(data as String);
+      final rawMessage = data as String;
+      final decoded = jsonDecode(rawMessage);
       if (decoded is! Map<String, dynamic>) {
         throw AppException.http(400, 'WebSocket response is not a JSON object');
       }
@@ -529,12 +534,17 @@ class ApiClient {
       Completer<Map<String, dynamic>>? completer;
       if (requestId != null) {
         completer = _pendingRequests.remove(requestId);
-      } else if (_pendingRequests.length == 1) {
+      } else if (!_isBusinessPushMessage(decoded) &&
+          _pendingRequests.length == 1) {
         final fallbackId = _pendingRequests.keys.single;
         completer = _pendingRequests.remove(fallbackId);
       }
 
       if (completer == null) {
+        if (_isBusinessPushMessage(decoded)) {
+          _wsMessageController.add(rawMessage);
+          return;
+        }
         AppLogger.debug('Unmatched WebSocket response: $decoded');
         return;
       }
@@ -551,6 +561,13 @@ class ApiClient {
               ),
       );
     }
+  }
+
+  bool _isBusinessPushMessage(Map<String, dynamic> decoded) {
+    final type = decoded['type']?.toString();
+    return type == 'APPEAL_STATUS_CHANGED' ||
+        type == 'PAYMENT_STATUS_CHANGED' ||
+        type == 'ASYNC_OPERATION_FAILED';
   }
 
   void _completePendingWithError(Object error) {
