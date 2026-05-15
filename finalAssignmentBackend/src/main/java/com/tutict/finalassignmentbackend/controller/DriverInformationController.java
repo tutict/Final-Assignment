@@ -1,5 +1,7 @@
 package com.tutict.finalassignmentbackend.controller;
 
+import com.tutict.finalassignmentbackend.dto.response.ApiResponse;
+
 import com.tutict.finalassignmentbackend.dto.response.UserProfileResponse;
 import com.tutict.finalassignmentbackend.entity.DriverInformation;
 import com.tutict.finalassignmentbackend.service.AuthWsService;
@@ -60,14 +62,14 @@ public class DriverInformationController {
 
     @PostMapping
     @Operation(summary = "创建驾驶员档案")
-    public ResponseEntity<DriverInformation> create(@Valid @RequestBody DriverInformation request,
+    public ResponseEntity<?> create(@Valid @RequestBody DriverInformation request,
                                                     @RequestHeader(value = "Idempotency-Key", required = false)
                                                     String idempotencyKey) {
         boolean useKey = hasKey(idempotencyKey);
         try {
             if (useKey) {
                 if (driverInformationService.shouldSkipProcessing(idempotencyKey)) {
-                    return ResponseEntity.status(HttpStatus.ALREADY_REPORTED).build();
+                    return ResponseEntity.status(HttpStatus.ALREADY_REPORTED).body(ApiResponse.ok(null));
                 }
                 driverInformationService.checkAndInsertIdempotency(idempotencyKey, request, "create");
             }
@@ -81,7 +83,10 @@ public class DriverInformationController {
                 driverInformationService.markHistoryFailure(idempotencyKey, ex.getMessage());
             }
             LOG.log(Level.SEVERE, "Create driver failed", ex);
-            return ResponseEntity.status(resolveStatus(ex)).build();
+            if (ex instanceof RuntimeException) {
+                throw (RuntimeException) ex;
+            }
+            throw new RuntimeException(ex);
         }
     }
 
@@ -96,7 +101,7 @@ public class DriverInformationController {
         boolean useKey = hasKey(idempotencyKey);
         try {
             if (!canAccessDriver(authentication, driverId)) {
-                return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
+                throw new org.springframework.security.access.AccessDeniedException("Forbidden");
             }
             request.setDriverId(driverId);
             if (useKey) {
@@ -112,7 +117,10 @@ public class DriverInformationController {
                 driverInformationService.markHistoryFailure(idempotencyKey, ex.getMessage());
             }
             LOG.log(Level.SEVERE, "Update driver failed", ex);
-            return ResponseEntity.status(resolveStatus(ex)).build();
+            if (ex instanceof RuntimeException) {
+                throw (RuntimeException) ex;
+            }
+            throw new RuntimeException(ex);
         }
     }
 
@@ -124,7 +132,10 @@ public class DriverInformationController {
             return ResponseEntity.noContent().build();
         } catch (Exception ex) {
             LOG.log(Level.WARNING, "Delete driver failed", ex);
-            return ResponseEntity.status(resolveStatus(ex)).build();
+            if (ex instanceof RuntimeException) {
+                throw (RuntimeException) ex;
+            }
+            throw new RuntimeException(ex);
         }
     }
 
@@ -135,13 +146,16 @@ public class DriverInformationController {
                                                  Authentication authentication) {
         try {
             if (!canAccessDriver(authentication, driverId)) {
-                return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
+                throw new org.springframework.security.access.AccessDeniedException("Forbidden");
             }
             DriverInformation driver = driverInformationService.getDriverById(driverId);
             return driver == null ? ResponseEntity.notFound().build() : ResponseEntity.ok(driver);
         } catch (Exception ex) {
             LOG.log(Level.WARNING, "Get driver failed", ex);
-            return ResponseEntity.status(resolveStatus(ex)).build();
+            if (ex instanceof RuntimeException) {
+                throw (RuntimeException) ex;
+            }
+            throw new RuntimeException(ex);
         }
     }
 
@@ -152,7 +166,10 @@ public class DriverInformationController {
             return ResponseEntity.ok(driverInformationService.getAllDrivers());
         } catch (Exception ex) {
             LOG.log(Level.WARNING, "List drivers failed", ex);
-            return ResponseEntity.status(resolveStatus(ex)).build();
+            if (ex instanceof RuntimeException) {
+                throw (RuntimeException) ex;
+            }
+            throw new RuntimeException(ex);
         }
     }
 
@@ -165,7 +182,10 @@ public class DriverInformationController {
             return ResponseEntity.ok(driverInformationService.searchByIdCardNumber(keywords, page, size));
         } catch (Exception ex) {
             LOG.log(Level.WARNING, "Search driver by id card failed", ex);
-            return ResponseEntity.status(resolveStatus(ex)).build();
+            if (ex instanceof RuntimeException) {
+                throw (RuntimeException) ex;
+            }
+            throw new RuntimeException(ex);
         }
     }
 
@@ -178,7 +198,10 @@ public class DriverInformationController {
             return ResponseEntity.ok(driverInformationService.searchByDriverLicenseNumber(keywords, page, size));
         } catch (Exception ex) {
             LOG.log(Level.WARNING, "Search driver by license failed", ex);
-            return ResponseEntity.status(resolveStatus(ex)).build();
+            if (ex instanceof RuntimeException) {
+                throw (RuntimeException) ex;
+            }
+            throw new RuntimeException(ex);
         }
     }
 
@@ -191,7 +214,10 @@ public class DriverInformationController {
             return ResponseEntity.ok(driverInformationService.searchByName(keywords, page, size));
         } catch (Exception ex) {
             LOG.log(Level.WARNING, "Search driver by name failed", ex);
-            return ResponseEntity.status(resolveStatus(ex)).build();
+            if (ex instanceof RuntimeException) {
+                throw (RuntimeException) ex;
+            }
+            throw new RuntimeException(ex);
         }
     }
 

@@ -1,6 +1,6 @@
 import 'dart:convert';
 import 'package:final_assignment_front/features/model/operation_log.dart';
-import 'package:final_assignment_front/utils/helpers/api_exception.dart';
+import 'package:final_assignment_front/core/network/app_exception.dart';
 import 'package:final_assignment_front/utils/services/api_client.dart';
 import 'package:http/http.dart' as http;
 import 'package:final_assignment_front/utils/services/auth_token_store.dart';
@@ -34,7 +34,7 @@ class OperationLogControllerApi with BaseApiClient {
       null,
       const ['bearerAuth'],
     );
-    if (r.statusCode >= 400) throw ApiException(r.statusCode, _decode(r));
+    if (r.statusCode >= 400) throw AppException.http(r.statusCode, _decode(r));
     if (r.body.isEmpty) return [];
     final List<dynamic> data = jsonDecode(_decode(r));
     return data
@@ -56,7 +56,7 @@ class OperationLogControllerApi with BaseApiClient {
       passThroughStatusCodes: const {404},
     );
     if (r.statusCode == 404) return null;
-    if (r.statusCode >= 400) throw ApiException(r.statusCode, _decode(r));
+    if (r.statusCode >= 400) throw AppException.http(r.statusCode, _decode(r));
     return OperationLog.fromJson(jsonDecode(_decode(r)));
   }
 
@@ -75,7 +75,7 @@ class OperationLogControllerApi with BaseApiClient {
       'application/json',
       const ['bearerAuth'],
     );
-    if (r.statusCode >= 400) throw ApiException(r.statusCode, _decode(r));
+    if (r.statusCode >= 400) throw AppException.http(r.statusCode, _decode(r));
     return OperationLog.fromJson(jsonDecode(_decode(r)));
   }
 
@@ -95,7 +95,7 @@ class OperationLogControllerApi with BaseApiClient {
       'application/json',
       const ['bearerAuth'],
     );
-    if (r.statusCode >= 400) throw ApiException(r.statusCode, _decode(r));
+    if (r.statusCode >= 400) throw AppException.http(r.statusCode, _decode(r));
     return OperationLog.fromJson(jsonDecode(_decode(r)));
   }
 
@@ -111,7 +111,7 @@ class OperationLogControllerApi with BaseApiClient {
       null,
       const ['bearerAuth'],
     );
-    if (r.statusCode != 204) throw ApiException(r.statusCode, _decode(r));
+    if (r.statusCode != 204) throw AppException.http(r.statusCode, _decode(r));
   }
 
   // GET /api/logs/operation/search/module?module=&page=&size=
@@ -134,7 +134,7 @@ class OperationLogControllerApi with BaseApiClient {
       null,
       const ['bearerAuth'],
     );
-    if (r.statusCode >= 400) throw ApiException(r.statusCode, _decode(r));
+    if (r.statusCode >= 400) throw AppException.http(r.statusCode, _decode(r));
     if (r.body.isEmpty) return [];
     final List<dynamic> data = jsonDecode(_decode(r));
     return data
@@ -162,7 +162,7 @@ class OperationLogControllerApi with BaseApiClient {
       null,
       const ['bearerAuth'],
     );
-    if (r.statusCode >= 400) throw ApiException(r.statusCode, _decode(r));
+    if (r.statusCode >= 400) throw AppException.http(r.statusCode, _decode(r));
     if (r.body.isEmpty) return [];
     final List<dynamic> data = jsonDecode(_decode(r));
     return data
@@ -189,7 +189,7 @@ class OperationLogControllerApi with BaseApiClient {
       null,
       const ['bearerAuth'],
     );
-    if (r.statusCode >= 400) throw ApiException(r.statusCode, _decode(r));
+    if (r.statusCode >= 400) throw AppException.http(r.statusCode, _decode(r));
     if (r.body.isEmpty) return [];
     final List<dynamic> data = jsonDecode(_decode(r));
     return data
@@ -219,7 +219,7 @@ class OperationLogControllerApi with BaseApiClient {
       null,
       const ['bearerAuth'],
     );
-    if (r.statusCode >= 400) throw ApiException(r.statusCode, _decode(r));
+    if (r.statusCode >= 400) throw AppException.http(r.statusCode, _decode(r));
     if (r.body.isEmpty) return [];
     final List<dynamic> data = jsonDecode(_decode(r));
     return data
@@ -247,7 +247,7 @@ class OperationLogControllerApi with BaseApiClient {
       null,
       const ['bearerAuth'],
     );
-    if (r.statusCode >= 400) throw ApiException(r.statusCode, _decode(r));
+    if (r.statusCode >= 400) throw AppException.http(r.statusCode, _decode(r));
     if (r.body.isEmpty) return [];
     final List<dynamic> data = jsonDecode(_decode(r));
     return data
@@ -275,7 +275,7 @@ class OperationLogControllerApi with BaseApiClient {
       null,
       const ['bearerAuth'],
     );
-    if (r.statusCode >= 400) throw ApiException(r.statusCode, _decode(r));
+    if (r.statusCode >= 400) throw AppException.http(r.statusCode, _decode(r));
     if (r.body.isEmpty) return [];
     final List<dynamic> data = jsonDecode(_decode(r));
     return data
@@ -303,7 +303,7 @@ class OperationLogControllerApi with BaseApiClient {
       null,
       const ['bearerAuth'],
     );
-    if (r.statusCode >= 400) throw ApiException(r.statusCode, _decode(r));
+    if (r.statusCode >= 400) throw AppException.http(r.statusCode, _decode(r));
     if (r.body.isEmpty) return [];
     final List<dynamic> data = jsonDecode(_decode(r));
     return data
@@ -331,7 +331,7 @@ class OperationLogControllerApi with BaseApiClient {
       null,
       const ['bearerAuth'],
     );
-    if (r.statusCode >= 400) throw ApiException(r.statusCode, _decode(r));
+    if (r.statusCode >= 400) throw AppException.http(r.statusCode, _decode(r));
     if (r.body.isEmpty) return [];
     final List<dynamic> data = jsonDecode(_decode(r));
     return data

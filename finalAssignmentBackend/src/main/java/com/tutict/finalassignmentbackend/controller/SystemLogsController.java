@@ -56,7 +56,7 @@ public class SystemLogsController {
             return ResponseEntity.ok(result);
         } catch (Exception ex) {
             LOG.log(Level.WARNING, "Fetch log overview failed", ex);
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
+            throw new RuntimeException(ex);
         }
     }
 
@@ -67,7 +67,7 @@ public class SystemLogsController {
             return ResponseEntity.ok(auditLoginLogService.findRecent(normalizeLimit(limit)));
         } catch (Exception ex) {
             LOG.log(Level.WARNING, "Fetch recent login logs failed", ex);
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
+            throw new RuntimeException(ex);
         }
     }
 
@@ -78,7 +78,7 @@ public class SystemLogsController {
             return ResponseEntity.ok(auditOperationLogService.findRecent(normalizeLimit(limit)));
         } catch (Exception ex) {
             LOG.log(Level.WARNING, "Fetch recent operation logs failed", ex);
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
+            throw new RuntimeException(ex);
         }
     }
 
@@ -90,7 +90,7 @@ public class SystemLogsController {
             return history == null ? ResponseEntity.notFound().build() : ResponseEntity.ok(history);
         } catch (Exception ex) {
             LOG.log(Level.WARNING, "Fetch request history failed", ex);
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
+            throw new RuntimeException(ex);
         }
     }
 

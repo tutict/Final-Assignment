@@ -1,5 +1,7 @@
 package com.tutict.finalassignmentbackend.controller;
 
+import com.tutict.finalassignmentbackend.dto.response.ApiResponse;
+
 import com.tutict.finalassignmentbackend.dto.mapper.AppealRecordRequestMapper;
 import com.tutict.finalassignmentbackend.dto.request.AppealCreateRequest;
 import com.tutict.finalassignmentbackend.entity.AppealRecord;
@@ -49,7 +51,7 @@ public class AppealManagementController {
 
     @PostMapping
     @Operation(summary = "创建申诉记录")
-    public ResponseEntity<AppealRecord> createAppeal(@Valid @RequestBody AppealCreateRequest request,
+    public ResponseEntity<?> createAppeal(@Valid @RequestBody AppealCreateRequest request,
                                                      @RequestHeader(value = "Idempotency-Key", required = false)
                                                      String idempotencyKey) {
         boolean useIdempotency = hasKey(idempotencyKey);
@@ -58,7 +60,7 @@ public class AppealManagementController {
             if (useIdempotency) {
                 if (appealRecordService.shouldSkipProcessing(idempotencyKey)) {
                     LOG.log(Level.INFO, "Appeal create skipped by idempotency key {0}", idempotencyKey);
-                    return ResponseEntity.status(HttpStatus.ALREADY_REPORTED).build();
+                    return ResponseEntity.status(HttpStatus.ALREADY_REPORTED).body(ApiResponse.ok(null));
                 }
                 appealRecordService.checkAndInsertIdempotency(idempotencyKey, appealRecord, "create");
             }
@@ -123,7 +125,10 @@ public class AppealManagementController {
             return record == null ? ResponseEntity.notFound().build() : ResponseEntity.ok(record);
         } catch (Exception ex) {
             LOG.log(Level.WARNING, "Get appeal failed", ex);
-            return ResponseEntity.status(resolveStatus(ex)).build();
+            if (ex instanceof RuntimeException) {
+                throw (RuntimeException) ex;
+            }
+            throw new RuntimeException(ex);
         }
     }
 
@@ -136,7 +141,10 @@ public class AppealManagementController {
             return ResponseEntity.ok(appealRecordService.findByOffenseId(offenseId, page, size));
         } catch (Exception ex) {
             LOG.log(Level.WARNING, "List appeals failed", ex);
-            return ResponseEntity.status(resolveStatus(ex)).build();
+            if (ex instanceof RuntimeException) {
+                throw (RuntimeException) ex;
+            }
+            throw new RuntimeException(ex);
         }
     }
 
@@ -215,7 +223,7 @@ public class AppealManagementController {
 
     @PostMapping("/{appealId}/reviews")
     @Operation(summary = "创建复核记录")
-    public ResponseEntity<AppealReview> createReview(@PathVariable Long appealId,
+    public ResponseEntity<?> createReview(@PathVariable Long appealId,
                                                      @Valid @RequestBody AppealReview review,
                                                      @RequestHeader(value = "Idempotency-Key", required = false)
                                                      String idempotencyKey) {
@@ -225,7 +233,7 @@ public class AppealManagementController {
             if (useIdempotency) {
                 if (appealReviewService.shouldSkipProcessing(idempotencyKey)) {
                     LOG.log(Level.INFO, "Appeal review skipped by idempotency key {0}", idempotencyKey);
-                    return ResponseEntity.status(HttpStatus.ALREADY_REPORTED).build();
+                    return ResponseEntity.status(HttpStatus.ALREADY_REPORTED).body(ApiResponse.ok(null));
                 }
                 appealReviewService.checkAndInsertIdempotency(idempotencyKey, review, "create");
             }
@@ -277,7 +285,10 @@ public class AppealManagementController {
             return ResponseEntity.noContent().build();
         } catch (Exception ex) {
             LOG.log(Level.WARNING, "Delete appeal review failed", ex);
-            return ResponseEntity.status(resolveStatus(ex)).build();
+            if (ex instanceof RuntimeException) {
+                throw (RuntimeException) ex;
+            }
+            throw new RuntimeException(ex);
         }
     }
 
@@ -289,7 +300,10 @@ public class AppealManagementController {
             return review == null ? ResponseEntity.notFound().build() : ResponseEntity.ok(review);
         } catch (Exception ex) {
             LOG.log(Level.WARNING, "Get appeal review failed", ex);
-            return ResponseEntity.status(resolveStatus(ex)).build();
+            if (ex instanceof RuntimeException) {
+                throw (RuntimeException) ex;
+            }
+            throw new RuntimeException(ex);
         }
     }
 
@@ -300,7 +314,10 @@ public class AppealManagementController {
             return ResponseEntity.ok(appealReviewService.findAll());
         } catch (Exception ex) {
             LOG.log(Level.WARNING, "List appeal reviews failed", ex);
-            return ResponseEntity.status(resolveStatus(ex)).build();
+            if (ex instanceof RuntimeException) {
+                throw (RuntimeException) ex;
+            }
+            throw new RuntimeException(ex);
         }
     }
 
@@ -337,7 +354,10 @@ public class AppealManagementController {
             return ResponseEntity.ok(Map.of("reviewLevel", reviewLevel, "count", total));
         } catch (Exception ex) {
             LOG.log(Level.WARNING, "Count appeal reviews failed", ex);
-            return ResponseEntity.status(resolveStatus(ex)).build();
+            if (ex instanceof RuntimeException) {
+                throw (RuntimeException) ex;
+            }
+            throw new RuntimeException(ex);
         }
     }
 

@@ -4,7 +4,7 @@ import 'package:final_assignment_front/core/auth/auth_service.dart';
 import 'package:final_assignment_front/core/config/app_config.dart';
 import 'package:final_assignment_front/features/api/offense_information_controller_api.dart';
 import 'package:final_assignment_front/features/api/vehicle_information_controller_api.dart';
-import 'package:final_assignment_front/utils/helpers/api_exception.dart';
+import 'package:final_assignment_front/core/network/app_exception.dart';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'package:final_assignment_front/features/dashboard/controllers/manager_dashboard_controller.dart';
@@ -856,7 +856,7 @@ class _AddFinePageState extends State<AddFinePage> {
               (item) => item['payee'].toString().contains(prefix.toLowerCase()))
           .toList();
     } catch (e) {
-      if (e is ApiException && e.code == 400 && prefix.trim().isEmpty) {
+      if (e is AppException && e.code == 400 && prefix.trim().isEmpty) {
         return [];
       }
       _showSnackBar('获取缴款人建议失败: $e', isError: true);
@@ -975,7 +975,7 @@ class _AddFinePageState extends State<AddFinePage> {
         _showSnackBar('创建罚款成功！');
       }
       if (mounted) Navigator.pop(context, true);
-    } on ApiException catch (e) {
+    } on AppException catch (e) {
       _showSnackBar('${widget.isEditMode ? '更新' : '创建'}罚款失败: ${e.message}',
           isError: true);
     } catch (e) {
@@ -1349,7 +1349,7 @@ class _FineDetailPageState extends State<FineDetailPage> {
       _showSnackBar(
           '罚款记录状态已更新为${PaymentStatus.fromCode(status)?.label ?? status}');
       if (mounted) Navigator.pop(context, true);
-    } on ApiException catch (e) {
+    } on AppException catch (e) {
       _showSnackBar('更新状态失败: ${e.message}', isError: true);
     } catch (e) {
       _showSnackBar('更新状态失败: $e', isError: true);
@@ -1375,7 +1375,7 @@ class _FineDetailPageState extends State<FineDetailPage> {
         await fineApi.deleteFine(fineId: fineId);
         _showSnackBar('罚款删除成功！');
         if (mounted) Navigator.pop(context, true);
-      } on ApiException catch (e) {
+      } on AppException catch (e) {
         _showSnackBar('删除失败: ${e.message}', isError: true);
       } catch (e) {
         _showSnackBar('删除失败: $e', isError: true);

@@ -8,7 +8,7 @@ import 'package:final_assignment_front/features/api/auth_controller_api.dart';
 import 'package:final_assignment_front/features/model/login_request.dart';
 import 'package:final_assignment_front/features/model/register_request.dart';
 import 'package:final_assignment_front/shared_components/local_captcha_main.dart';
-import 'package:final_assignment_front/utils/helpers/api_exception.dart';
+import 'package:final_assignment_front/core/network/app_exception.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_login/flutter_login.dart';
 import 'package:get/get.dart';
@@ -158,7 +158,7 @@ class _LoginScreenState extends State<LoginScreen>
         return null;
       }
       return result['message'] ?? '登录失败';
-    } on ApiException catch (e) {
+    } on AppException catch (e) {
       return _formatErrorMessage(e, '登录失败');
     } catch (e) {
       AppLogger.error('登录中的常规异常: $e');
@@ -217,7 +217,7 @@ class _LoginScreenState extends State<LoginScreen>
         return loginResult['message'] ?? '注册成功，但登录失败';
       }
       return registerResult['error'] ?? '注册失败：未知错误';
-    } on ApiException catch (e) {
+    } on AppException catch (e) {
       return _formatErrorMessage(e, '注册失败');
     } catch (e) {
       AppLogger.error('General Exception in signup: $e');
@@ -371,10 +371,10 @@ class _LoginScreenState extends State<LoginScreen>
         );
         return null;
       } else {
-        throw ApiException(
+        throw AppException.http(
             response.statusCode, '密码重置失败: ${response.statusCode}');
       }
-    } on ApiException catch (e) {
+    } on AppException catch (e) {
       AppLogger.error('Reset Password Error: $e');
       return _formatErrorMessage(e, '密码重置失败');
     } catch (e) {
@@ -383,7 +383,7 @@ class _LoginScreenState extends State<LoginScreen>
     }
   }
 
-  String _formatErrorMessage(ApiException e, String defaultMessage) {
+  String _formatErrorMessage(AppException e, String defaultMessage) {
     switch (e.code) {
       case 400:
         return '$defaultMessage: 请求错误 - ${e.message}';

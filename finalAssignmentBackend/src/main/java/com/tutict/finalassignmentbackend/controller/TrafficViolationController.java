@@ -63,7 +63,7 @@ public class TrafficViolationController {
             return ResponseEntity.ok(offenseRecordService.findAll());
         } catch (Exception ex) {
             LOG.log(Level.WARNING, "List violations failed", ex);
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
+            throw new RuntimeException(ex);
         }
     }
 
@@ -98,7 +98,7 @@ public class TrafficViolationController {
             return ResponseEntity.ok(payload);
         } catch (Exception ex) {
             LOG.log(Level.SEVERE, "Get violation details failed", ex);
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
+            throw new RuntimeException(ex);
         }
     }
 
@@ -111,7 +111,7 @@ public class TrafficViolationController {
             return ResponseEntity.ok(offenseRecordService.searchByProcessStatus(processStatus, page, size));
         } catch (Exception ex) {
             LOG.log(Level.WARNING, "Filter violations by status failed", ex);
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
+            throw new RuntimeException(ex);
         }
     }
 }

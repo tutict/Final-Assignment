@@ -1,5 +1,7 @@
 package com.tutict.finalassignmentbackend.controller;
 
+import com.tutict.finalassignmentbackend.dto.response.ApiResponse;
+
 import com.tutict.finalassignmentbackend.dto.mapper.OffenseRecordRequestMapper;
 import com.tutict.finalassignmentbackend.dto.request.OffenseCreateRequest;
 import com.tutict.finalassignmentbackend.dto.response.UserProfileResponse;
@@ -63,7 +65,7 @@ public class OffenseInformationController {
 
     @PostMapping
     @Operation(summary = "创建违法记录")
-    public ResponseEntity<OffenseRecord> create(@Valid @RequestBody OffenseCreateRequest request,
+    public ResponseEntity<?> create(@Valid @RequestBody OffenseCreateRequest request,
                                                 @RequestHeader(value = "Idempotency-Key", required = false)
                                                 String idempotencyKey) {
         boolean useKey = hasKey(idempotencyKey);
@@ -71,7 +73,7 @@ public class OffenseInformationController {
         try {
             if (useKey) {
                 if (offenseRecordService.shouldSkipProcessing(idempotencyKey)) {
-                    return ResponseEntity.status(HttpStatus.ALREADY_REPORTED).build();
+                    return ResponseEntity.status(HttpStatus.ALREADY_REPORTED).body(ApiResponse.ok(null));
                 }
                 offenseRecordService.checkAndInsertIdempotency(idempotencyKey, offenseRecord, "create");
             }
@@ -137,7 +139,10 @@ public class OffenseInformationController {
             return record == null ? ResponseEntity.notFound().build() : ResponseEntity.ok(record);
         } catch (Exception ex) {
             LOG.log(Level.WARNING, "Get offense failed", ex);
-            return ResponseEntity.status(resolveStatus(ex)).build();
+            if (ex instanceof RuntimeException) {
+                throw (RuntimeException) ex;
+            }
+            throw new RuntimeException(ex);
         }
     }
 
@@ -148,7 +153,10 @@ public class OffenseInformationController {
             return ResponseEntity.ok(offenseRecordService.findAll());
         } catch (Exception ex) {
             LOG.log(Level.WARNING, "List offenses failed", ex);
-            return ResponseEntity.status(resolveStatus(ex)).build();
+            if (ex instanceof RuntimeException) {
+                throw (RuntimeException) ex;
+            }
+            throw new RuntimeException(ex);
         }
     }
 
@@ -161,12 +169,15 @@ public class OffenseInformationController {
                                                         Authentication authentication) {
         try {
             if (!canAccessDriver(authentication, driverId)) {
-                return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
+                throw new org.springframework.security.access.AccessDeniedException("Forbidden");
             }
             return ResponseEntity.ok(offenseRecordService.findByDriverId(driverId, page, size));
         } catch (Exception ex) {
             LOG.log(Level.WARNING, "List offenses by driver failed", ex);
-            return ResponseEntity.status(resolveStatus(ex)).build();
+            if (ex instanceof RuntimeException) {
+                throw (RuntimeException) ex;
+            }
+            throw new RuntimeException(ex);
         }
     }
 
@@ -179,7 +190,10 @@ public class OffenseInformationController {
             return ResponseEntity.ok(offenseRecordService.findByVehicleId(vehicleId, page, size));
         } catch (Exception ex) {
             LOG.log(Level.WARNING, "List offenses by vehicle failed", ex);
-            return ResponseEntity.status(resolveStatus(ex)).build();
+            if (ex instanceof RuntimeException) {
+                throw (RuntimeException) ex;
+            }
+            throw new RuntimeException(ex);
         }
     }
 
@@ -192,7 +206,10 @@ public class OffenseInformationController {
             return ResponseEntity.ok(offenseRecordService.searchByOffenseCode(offenseCode, page, size));
         } catch (Exception ex) {
             LOG.log(Level.WARNING, "Search offense by code failed", ex);
-            return ResponseEntity.status(resolveStatus(ex)).build();
+            if (ex instanceof RuntimeException) {
+                throw (RuntimeException) ex;
+            }
+            throw new RuntimeException(ex);
         }
     }
 
@@ -205,7 +222,10 @@ public class OffenseInformationController {
             return ResponseEntity.ok(offenseRecordService.searchByProcessStatus(status, page, size));
         } catch (Exception ex) {
             LOG.log(Level.WARNING, "Search offense by status failed", ex);
-            return ResponseEntity.status(resolveStatus(ex)).build();
+            if (ex instanceof RuntimeException) {
+                throw (RuntimeException) ex;
+            }
+            throw new RuntimeException(ex);
         }
     }
 
@@ -219,7 +239,10 @@ public class OffenseInformationController {
             return ResponseEntity.ok(offenseRecordService.searchByOffenseTimeRange(startTime, endTime, page, size));
         } catch (Exception ex) {
             LOG.log(Level.WARNING, "Search offense by time range failed", ex);
-            return ResponseEntity.status(resolveStatus(ex)).build();
+            if (ex instanceof RuntimeException) {
+                throw (RuntimeException) ex;
+            }
+            throw new RuntimeException(ex);
         }
     }
 
@@ -232,7 +255,10 @@ public class OffenseInformationController {
             return ResponseEntity.ok(offenseRecordService.searchByOffenseNumber(offenseNumber, page, size));
         } catch (Exception ex) {
             LOG.log(Level.WARNING, "Search offense by number failed", ex);
-            return ResponseEntity.status(resolveStatus(ex)).build();
+            if (ex instanceof RuntimeException) {
+                throw (RuntimeException) ex;
+            }
+            throw new RuntimeException(ex);
         }
     }
 
@@ -245,7 +271,10 @@ public class OffenseInformationController {
             return ResponseEntity.ok(offenseRecordService.searchByOffenseLocation(offenseLocation, page, size));
         } catch (Exception ex) {
             LOG.log(Level.WARNING, "Search offense by location failed", ex);
-            return ResponseEntity.status(resolveStatus(ex)).build();
+            if (ex instanceof RuntimeException) {
+                throw (RuntimeException) ex;
+            }
+            throw new RuntimeException(ex);
         }
     }
 
@@ -258,7 +287,10 @@ public class OffenseInformationController {
             return ResponseEntity.ok(offenseRecordService.searchByOffenseProvince(offenseProvince, page, size));
         } catch (Exception ex) {
             LOG.log(Level.WARNING, "Search offense by province failed", ex);
-            return ResponseEntity.status(resolveStatus(ex)).build();
+            if (ex instanceof RuntimeException) {
+                throw (RuntimeException) ex;
+            }
+            throw new RuntimeException(ex);
         }
     }
 
@@ -271,7 +303,10 @@ public class OffenseInformationController {
             return ResponseEntity.ok(offenseRecordService.searchByOffenseCity(offenseCity, page, size));
         } catch (Exception ex) {
             LOG.log(Level.WARNING, "Search offense by city failed", ex);
-            return ResponseEntity.status(resolveStatus(ex)).build();
+            if (ex instanceof RuntimeException) {
+                throw (RuntimeException) ex;
+            }
+            throw new RuntimeException(ex);
         }
     }
 
@@ -284,7 +319,10 @@ public class OffenseInformationController {
             return ResponseEntity.ok(offenseRecordService.searchByNotificationStatus(notificationStatus, page, size));
         } catch (Exception ex) {
             LOG.log(Level.WARNING, "Search offense by notification status failed", ex);
-            return ResponseEntity.status(resolveStatus(ex)).build();
+            if (ex instanceof RuntimeException) {
+                throw (RuntimeException) ex;
+            }
+            throw new RuntimeException(ex);
         }
     }
 
@@ -297,7 +335,10 @@ public class OffenseInformationController {
             return ResponseEntity.ok(offenseRecordService.searchByEnforcementAgency(enforcementAgency, page, size));
         } catch (Exception ex) {
             LOG.log(Level.WARNING, "Search offense by enforcement agency failed", ex);
-            return ResponseEntity.status(resolveStatus(ex)).build();
+            if (ex instanceof RuntimeException) {
+                throw (RuntimeException) ex;
+            }
+            throw new RuntimeException(ex);
         }
     }
 
@@ -311,7 +352,10 @@ public class OffenseInformationController {
             return ResponseEntity.ok(offenseRecordService.searchByFineAmountRange(minAmount, maxAmount, page, size));
         } catch (Exception ex) {
             LOG.log(Level.WARNING, "Search offense by fine amount range failed", ex);
-            return ResponseEntity.status(resolveStatus(ex)).build();
+            if (ex instanceof RuntimeException) {
+                throw (RuntimeException) ex;
+            }
+            throw new RuntimeException(ex);
         }
     }
 

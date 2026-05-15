@@ -1,5 +1,7 @@
 package com.tutict.finalassignmentbackend.controller;
 
+import com.tutict.finalassignmentbackend.dto.response.ApiResponse;
+
 import com.tutict.finalassignmentbackend.entity.FineRecord;
 import com.tutict.finalassignmentbackend.service.FineRecordService;
 import io.swagger.v3.oas.annotations.Operation;
@@ -41,14 +43,14 @@ public class FineInformationController {
 
     @PostMapping
     @Operation(summary = "创建罚款记录")
-    public ResponseEntity<FineRecord> create(@Valid @RequestBody FineRecord request,
+    public ResponseEntity<?> create(@Valid @RequestBody FineRecord request,
                                              @RequestHeader(value = "Idempotency-Key", required = false)
                                              String idempotencyKey) {
         boolean useKey = hasKey(idempotencyKey);
         try {
             if (useKey) {
                 if (fineRecordService.shouldSkipProcessing(idempotencyKey)) {
-                    return ResponseEntity.status(HttpStatus.ALREADY_REPORTED).build();
+                    return ResponseEntity.status(HttpStatus.ALREADY_REPORTED).body(ApiResponse.ok(null));
                 }
                 fineRecordService.checkAndInsertIdempotency(idempotencyKey, request, "create");
             }
@@ -62,7 +64,10 @@ public class FineInformationController {
                 fineRecordService.markHistoryFailure(idempotencyKey, ex.getMessage());
             }
             LOG.log(Level.SEVERE, "Create fine failed", ex);
-            return ResponseEntity.status(resolveStatus(ex)).build();
+            if (ex instanceof RuntimeException) {
+                throw (RuntimeException) ex;
+            }
+            throw new RuntimeException(ex);
         }
     }
 
@@ -88,7 +93,10 @@ public class FineInformationController {
                 fineRecordService.markHistoryFailure(idempotencyKey, ex.getMessage());
             }
             LOG.log(Level.SEVERE, "Update fine failed", ex);
-            return ResponseEntity.status(resolveStatus(ex)).build();
+            if (ex instanceof RuntimeException) {
+                throw (RuntimeException) ex;
+            }
+            throw new RuntimeException(ex);
         }
     }
 
@@ -100,7 +108,10 @@ public class FineInformationController {
             return ResponseEntity.noContent().build();
         } catch (Exception ex) {
             LOG.log(Level.WARNING, "Delete fine failed", ex);
-            return ResponseEntity.status(resolveStatus(ex)).build();
+            if (ex instanceof RuntimeException) {
+                throw (RuntimeException) ex;
+            }
+            throw new RuntimeException(ex);
         }
     }
 
@@ -112,7 +123,10 @@ public class FineInformationController {
             return record == null ? ResponseEntity.notFound().build() : ResponseEntity.ok(record);
         } catch (Exception ex) {
             LOG.log(Level.WARNING, "Get fine failed", ex);
-            return ResponseEntity.status(resolveStatus(ex)).build();
+            if (ex instanceof RuntimeException) {
+                throw (RuntimeException) ex;
+            }
+            throw new RuntimeException(ex);
         }
     }
 
@@ -123,7 +137,10 @@ public class FineInformationController {
             return ResponseEntity.ok(fineRecordService.findAll());
         } catch (Exception ex) {
             LOG.log(Level.WARNING, "List fines failed", ex);
-            return ResponseEntity.status(resolveStatus(ex)).build();
+            if (ex instanceof RuntimeException) {
+                throw (RuntimeException) ex;
+            }
+            throw new RuntimeException(ex);
         }
     }
 
@@ -136,7 +153,10 @@ public class FineInformationController {
             return ResponseEntity.ok(fineRecordService.findByOffenseId(offenseId, page, size));
         } catch (Exception ex) {
             LOG.log(Level.WARNING, "List fines by offense failed", ex);
-            return ResponseEntity.status(resolveStatus(ex)).build();
+            if (ex instanceof RuntimeException) {
+                throw (RuntimeException) ex;
+            }
+            throw new RuntimeException(ex);
         }
     }
 
@@ -153,7 +173,10 @@ public class FineInformationController {
             return ResponseEntity.ok(result);
         } catch (Exception ex) {
             LOG.log(Level.WARNING, "Search fine by handler failed", ex);
-            return ResponseEntity.status(resolveStatus(ex)).build();
+            if (ex instanceof RuntimeException) {
+                throw (RuntimeException) ex;
+            }
+            throw new RuntimeException(ex);
         }
     }
 
@@ -166,7 +189,10 @@ public class FineInformationController {
             return ResponseEntity.ok(fineRecordService.searchByPaymentStatus(status, page, size));
         } catch (Exception ex) {
             LOG.log(Level.WARNING, "Search fine by status failed", ex);
-            return ResponseEntity.status(resolveStatus(ex)).build();
+            if (ex instanceof RuntimeException) {
+                throw (RuntimeException) ex;
+            }
+            throw new RuntimeException(ex);
         }
     }
 
@@ -180,7 +206,10 @@ public class FineInformationController {
             return ResponseEntity.ok(fineRecordService.searchByFineDateRange(startDate, endDate, page, size));
         } catch (Exception ex) {
             LOG.log(Level.WARNING, "Search fine by date range failed", ex);
-            return ResponseEntity.status(resolveStatus(ex)).build();
+            if (ex instanceof RuntimeException) {
+                throw (RuntimeException) ex;
+            }
+            throw new RuntimeException(ex);
         }
     }
 

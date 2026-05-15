@@ -1,7 +1,7 @@
 import 'package:final_assignment_front/core/utils/app_logger.dart';
 import 'package:final_assignment_front/features/model/system_settings.dart';
 import 'package:final_assignment_front/features/model/sys_dict.dart';
-import 'package:final_assignment_front/utils/helpers/api_exception.dart';
+import 'package:final_assignment_front/core/network/app_exception.dart';
 import 'package:final_assignment_front/utils/services/api_client.dart';
 import 'package:http/http.dart';
 import 'package:final_assignment_front/utils/services/auth_token_store.dart';
@@ -337,7 +337,7 @@ class SystemSettingsControllerApi with BaseApiClient {
       ['bearerAuth'],
     );
     if (response.statusCode >= 400 && response.statusCode != 204) {
-      throw ApiException(response.statusCode, _decodeBodyBytes(response));
+      throw AppException.http(response.statusCode, _decodeBodyBytes(response));
     }
   }
 
@@ -609,7 +609,7 @@ class SystemSettingsControllerApi with BaseApiClient {
       ['bearerAuth'],
     );
     if (response.statusCode >= 400 && response.statusCode != 204) {
-      throw ApiException(response.statusCode, _decodeBodyBytes(response));
+      throw AppException.http(response.statusCode, _decodeBodyBytes(response));
     }
   }
 
@@ -839,7 +839,7 @@ class SystemSettingsControllerApi with BaseApiClient {
     };
     final respMap = await apiClient.sendWsMessage(msg);
     if (respMap.containsKey("error")) {
-      throw ApiException(400, respMap["error"]);
+      throw AppException.http(400, respMap["error"]);
     }
     return respMap["result"];
   }
@@ -854,7 +854,7 @@ class SystemSettingsControllerApi with BaseApiClient {
     };
     final respMap = await apiClient.sendWsMessage(msg);
     if (respMap.containsKey("error")) {
-      throw ApiException(400, respMap["error"]);
+      throw AppException.http(400, respMap["error"]);
     }
     return respMap["result"];
   }
@@ -869,7 +869,7 @@ class SystemSettingsControllerApi with BaseApiClient {
     };
     final respMap = await apiClient.sendWsMessage(msg);
     if (respMap.containsKey("error")) {
-      throw ApiException(400, respMap["error"]);
+      throw AppException.http(400, respMap["error"]);
     }
     return respMap["result"];
   }
@@ -884,7 +884,7 @@ class SystemSettingsControllerApi with BaseApiClient {
     };
     final respMap = await apiClient.sendWsMessage(msg);
     if (respMap.containsKey("error")) {
-      throw ApiException(400, respMap["error"]);
+      throw AppException.http(400, respMap["error"]);
     }
     return respMap["result"];
   }
@@ -899,7 +899,7 @@ class SystemSettingsControllerApi with BaseApiClient {
     };
     final respMap = await apiClient.sendWsMessage(msg);
     if (respMap.containsKey("error")) {
-      throw ApiException(400, respMap["error"]);
+      throw AppException.http(400, respMap["error"]);
     }
     return respMap["result"];
   }
@@ -914,7 +914,7 @@ class SystemSettingsControllerApi with BaseApiClient {
     };
     final respMap = await apiClient.sendWsMessage(msg);
     if (respMap.containsKey("error")) {
-      throw ApiException(400, respMap["error"]);
+      throw AppException.http(400, respMap["error"]);
     }
     return respMap["result"];
   }
@@ -929,7 +929,7 @@ class SystemSettingsControllerApi with BaseApiClient {
     };
     final respMap = await apiClient.sendWsMessage(msg);
     if (respMap.containsKey("error")) {
-      throw ApiException(400, respMap["error"]);
+      throw AppException.http(400, respMap["error"]);
     }
     return respMap["result"];
   }
@@ -945,7 +945,7 @@ class SystemSettingsControllerApi with BaseApiClient {
     };
     final respMap = await apiClient.sendWsMessage(msg);
     if (respMap.containsKey("error")) {
-      throw ApiException(400, respMap["error"]);
+      throw AppException.http(400, respMap["error"]);
     }
     return respMap["result"];
   }
@@ -960,7 +960,7 @@ class SystemSettingsControllerApi with BaseApiClient {
     };
     final respMap = await apiClient.sendWsMessage(msg);
     if (respMap.containsKey("error")) {
-      throw ApiException(400, respMap["error"]);
+      throw AppException.http(400, respMap["error"]);
     }
     return respMap["result"];
   }
@@ -975,7 +975,7 @@ class SystemSettingsControllerApi with BaseApiClient {
     };
     final respMap = await apiClient.sendWsMessage(msg);
     if (respMap.containsKey("error")) {
-      throw ApiException(400, respMap["error"]);
+      throw AppException.http(400, respMap["error"]);
     }
     return respMap["result"];
   }
@@ -990,7 +990,7 @@ class SystemSettingsControllerApi with BaseApiClient {
     };
     final respMap = await apiClient.sendWsMessage(msg);
     if (respMap.containsKey("error")) {
-      throw ApiException(400, respMap["error"]);
+      throw AppException.http(400, respMap["error"]);
     }
     return respMap["result"];
   }
@@ -1005,7 +1005,7 @@ class SystemSettingsControllerApi with BaseApiClient {
     };
     final respMap = await apiClient.sendWsMessage(msg);
     if (respMap.containsKey("error")) {
-      throw ApiException(400, respMap["error"]);
+      throw AppException.http(400, respMap["error"]);
     }
     return respMap["result"];
   }
@@ -1020,7 +1020,7 @@ class SystemSettingsControllerApi with BaseApiClient {
     };
     final respMap = await apiClient.sendWsMessage(msg);
     if (respMap.containsKey("error")) {
-      throw ApiException(400, respMap["error"]);
+      throw AppException.http(400, respMap["error"]);
     }
     return respMap["result"];
   }
@@ -1035,7 +1035,7 @@ class SystemSettingsControllerApi with BaseApiClient {
     };
     final respMap = await apiClient.sendWsMessage(msg);
     if (respMap.containsKey("error")) {
-      throw ApiException(400, respMap["error"]);
+      throw AppException.http(400, respMap["error"]);
     }
     return respMap["result"];
   }

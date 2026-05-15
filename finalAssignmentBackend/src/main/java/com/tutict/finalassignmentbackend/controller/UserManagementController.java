@@ -62,7 +62,7 @@ public class UserManagementController {
             if (useKey) {
                 if (sysUserService.shouldSkipProcessing(idempotencyKey)) {
                     return ResponseEntity.status(HttpStatus.ALREADY_REPORTED)
-                            .body(ApiResponse.error("DUPLICATE_REQUEST", "Duplicate request"));
+                            .body(ApiResponse.ok(null));
                 }
                 sysUserService.checkAndInsertIdempotency(idempotencyKey, user, "create");
             }
@@ -273,7 +273,7 @@ public class UserManagementController {
 
     @PostMapping("/{userId}/roles")
     @Operation(summary = "绑定用户角色")
-    public ResponseEntity<SysUserRole> addUserRole(@PathVariable Long userId,
+    public ResponseEntity<?> addUserRole(@PathVariable Long userId,
                                                    @Valid @RequestBody SysUserRole relation,
                                                    @RequestHeader(value = "Idempotency-Key", required = false)
                                                    String idempotencyKey) {
@@ -282,7 +282,7 @@ public class UserManagementController {
             relation.setUserId(userId);
             if (useKey) {
                 if (sysUserRoleService.shouldSkipProcessing(idempotencyKey)) {
-                    return ResponseEntity.status(HttpStatus.ALREADY_REPORTED).build();
+                    return ResponseEntity.status(HttpStatus.ALREADY_REPORTED).body(ApiResponse.ok(null));
                 }
                 sysUserRoleService.checkAndInsertIdempotency(idempotencyKey, relation, "create");
             }
@@ -308,7 +308,10 @@ public class UserManagementController {
             return ResponseEntity.noContent().build();
         } catch (Exception ex) {
             LOG.log(Level.WARNING, "Delete user role failed", ex);
-            return ResponseEntity.status(resolveStatus(ex)).build();
+            if (ex instanceof RuntimeException) {
+                throw (RuntimeException) ex;
+            }
+            throw new RuntimeException(ex);
         }
     }
 
@@ -321,7 +324,10 @@ public class UserManagementController {
             return ResponseEntity.ok(sysUserRoleService.findByUserId(userId, page, size));
         } catch (Exception ex) {
             LOG.log(Level.WARNING, "List user roles failed", ex);
-            return ResponseEntity.status(resolveStatus(ex)).build();
+            if (ex instanceof RuntimeException) {
+                throw (RuntimeException) ex;
+            }
+            throw new RuntimeException(ex);
         }
     }
 

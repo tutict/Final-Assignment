@@ -5,7 +5,7 @@ import 'package:final_assignment_front/features/dashboard/controllers/user_dashb
 import 'package:final_assignment_front/features/dashboard/views/user/widgets/user_page_app_bar.dart';
 import 'package:final_assignment_front/features/model/driver_information.dart';
 import 'package:final_assignment_front/features/model/user_management.dart';
-import 'package:final_assignment_front/utils/helpers/api_exception.dart';
+import 'package:final_assignment_front/core/network/app_exception.dart';
 import 'package:final_assignment_front/utils/services/api_client.dart';
 import 'package:final_assignment_front/utils/ui/ui_utils.dart';
 import 'package:flutter/cupertino.dart';
@@ -207,7 +207,7 @@ class _PersonalMainPageState extends State<PersonalMainPage> {
   }
 
   String _formatErrorMessage(dynamic error) {
-    if (error is ApiException) {
+    if (error is AppException) {
       return '璇锋眰澶辫触(${error.code}): ${error.message}';
     }
     return error.toString();

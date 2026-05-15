@@ -2,7 +2,7 @@ import 'package:final_assignment_front/core/utils/app_logger.dart';
 import 'dart:convert';
 import 'package:final_assignment_front/features/model/user_management.dart';
 import 'package:final_assignment_front/features/model/user_response.dart';
-import 'package:final_assignment_front/utils/helpers/api_exception.dart';
+import 'package:final_assignment_front/core/network/app_exception.dart';
 import 'package:http/http.dart' as http;
 import 'package:final_assignment_front/utils/services/api_client.dart';
 import 'package:final_assignment_front/utils/services/auth_token_store.dart';
@@ -104,7 +104,7 @@ class UserManagementControllerApi with BaseApiClient {
   ///
   /// 返回 [UserManagement] 列表；后端返回空响应时返回空列表。
   ///
-  /// 抛出 [ApiException]：当 HTTP 响应非 2xx 时。
+  /// 抛出 [AppException]：当 HTTP 响应非 2xx 时。
   ///
   /// 对应接口：GET /api/users
   Future<PageResult<UserResponse>> listUsersPage() async {
@@ -145,7 +145,7 @@ class UserManagementControllerApi with BaseApiClient {
     required String idempotencyKey,
   }) async {
     if (idempotencyKey.isEmpty) {
-      throw ApiException(400, "Missing required param: idempotencyKey");
+      throw AppException.http(400, "Missing required param: idempotencyKey");
     }
 
     final path = "/api/users".replaceAll("{format}", "json");
@@ -171,7 +171,7 @@ class UserManagementControllerApi with BaseApiClient {
   ///
   /// 返回后端创建后的 [UserManagement]；201 且空响应时返回 `null`。
   ///
-  /// 抛出 [ApiException]：当 HTTP 响应非 2xx 或响应体异常时。
+  /// 抛出 [AppException]：当 HTTP 响应非 2xx 或响应体异常时。
   ///
   /// 对应接口：POST /api/users
   Future<UserManagement?> createUser({
@@ -195,7 +195,7 @@ class UserManagementControllerApi with BaseApiClient {
       } else if (response.statusCode == 201) {
         return null; // 201 CREATEDï¼æ ååºä½?
       } else {
-        throw ApiException(response.statusCode, 'Empty response body');
+        throw AppException.http(response.statusCode, 'Empty response body');
       }
     } catch (e) {
       AppLogger.error('Users post error: $e');
@@ -210,7 +210,7 @@ class UserManagementControllerApi with BaseApiClient {
     int size = 20,
   }) async {
     if (status.isEmpty) {
-      throw ApiException(400, "Missing required param: status");
+      throw AppException.http(400, "Missing required param: status");
     }
     final path = "/api/users/search/status".replaceAll("{format}", "json");
     final headerParams = await _getHeaders();
@@ -238,7 +238,7 @@ class UserManagementControllerApi with BaseApiClient {
     int size = 20,
   }) async {
     if (department.isEmpty) {
-      throw ApiException(400, "Missing required param: department");
+      throw AppException.http(400, "Missing required param: department");
     }
     final path = "/api/users/search/department".replaceAll("{format}", "json");
     final headerParams = await _getHeaders();
@@ -267,7 +267,7 @@ class UserManagementControllerApi with BaseApiClient {
   ///
   /// 返回 [UserManagement] 列表；无匹配时返回空列表。
   ///
-  /// 抛出 [ApiException]：当 [department] 为空或 HTTP 响应非 2xx 时。
+  /// 抛出 [AppException]：当 [department] 为空或 HTTP 响应非 2xx 时。
   ///
   /// 对应接口：GET /api/users/search/department
   Future<List<UserManagement>> searchUsersByDepartment({
@@ -299,7 +299,7 @@ class UserManagementControllerApi with BaseApiClient {
   ///
   /// 返回 [UserManagement] 列表；无匹配时返回空列表。
   ///
-  /// 抛出 [ApiException]：当 HTTP 响应非 2xx 时。
+  /// 抛出 [AppException]：当 HTTP 响应非 2xx 时。
   ///
   /// 对应接口：GET /api/users/search/username/prefix
   Future<List<UserManagement>> searchUsersByUsernamePrefix({
@@ -333,7 +333,7 @@ class UserManagementControllerApi with BaseApiClient {
   ///
   /// 返回 [UserManagement] 列表；无匹配时返回空列表。
   ///
-  /// 抛出 [ApiException]：当 HTTP 响应非 2xx 时。
+  /// 抛出 [AppException]：当 HTTP 响应非 2xx 时。
   ///
   /// 对应接口：GET /api/users/search/username/fuzzy
   Future<List<UserManagement>> searchUsersByUsernameFuzzy({
@@ -367,7 +367,7 @@ class UserManagementControllerApi with BaseApiClient {
   ///
   /// 返回 [UserManagement] 列表；无匹配时返回空列表。
   ///
-  /// 抛出 [ApiException]：当 HTTP 响应非 2xx 时。
+  /// 抛出 [AppException]：当 HTTP 响应非 2xx 时。
   ///
   /// 对应接口：GET /api/users/search/real-name/prefix
   Future<List<UserManagement>> searchUsersByRealNamePrefix({
@@ -401,7 +401,7 @@ class UserManagementControllerApi with BaseApiClient {
   ///
   /// 返回 [UserManagement] 列表；无匹配时返回空列表。
   ///
-  /// 抛出 [ApiException]：当 HTTP 响应非 2xx 时。
+  /// 抛出 [AppException]：当 HTTP 响应非 2xx 时。
   ///
   /// 对应接口：GET /api/users/search/real-name/fuzzy
   Future<List<UserManagement>> searchUsersByRealNameFuzzy({
@@ -435,7 +435,7 @@ class UserManagementControllerApi with BaseApiClient {
   ///
   /// 返回 [UserManagement] 列表；无匹配时返回空列表。
   ///
-  /// 抛出 [ApiException]：当 HTTP 响应非 2xx 时。
+  /// 抛出 [AppException]：当 HTTP 响应非 2xx 时。
   ///
   /// 对应接口：GET /api/users/search/id-card
   Future<List<UserManagement>> searchUsersByIdCard({
@@ -469,7 +469,7 @@ class UserManagementControllerApi with BaseApiClient {
   ///
   /// 返回 [UserManagement] 列表；无匹配时返回空列表。
   ///
-  /// 抛出 [ApiException]：当 HTTP 响应非 2xx 时。
+  /// 抛出 [AppException]：当 HTTP 响应非 2xx 时。
   ///
   /// 对应接口：GET /api/users/search/contact
   Future<List<UserManagement>> searchUsersByContact({
@@ -501,7 +501,7 @@ class UserManagementControllerApi with BaseApiClient {
     required String idempotencyKey,
   }) async {
     if (idempotencyKey.isEmpty) {
-      throw ApiException(400, "Missing required param: idempotencyKey");
+      throw AppException.http(400, "Missing required param: idempotencyKey");
     }
     final path = "/api/users/$userId/roles".replaceAll("{format}", "json");
     final headerParams = await _getHeaders(idempotencyKey: idempotencyKey);
@@ -528,7 +528,7 @@ class UserManagementControllerApi with BaseApiClient {
   ///
   /// 返回后端返回的绑定关系 Map；后端空响应时返回 `null`。
   ///
-  /// 抛出 [ApiException]：当 [idempotencyKey] 为空或 HTTP 响应非 2xx 时。
+  /// 抛出 [AppException]：当 [idempotencyKey] 为空或 HTTP 响应非 2xx 时。
   ///
   /// 对应接口：POST /api/users/{userId}/roles
   Future<Map<String, dynamic>?> bindUserRole({
@@ -551,7 +551,7 @@ class UserManagementControllerApi with BaseApiClient {
   ///
   /// 删除成功时无返回值；该操作会撤销用户通过该绑定获得的对应角色权限。
   ///
-  /// 抛出 [ApiException]：当 HTTP 响应非 2xx 时。
+  /// 抛出 [AppException]：当 HTTP 响应非 2xx 时。
   ///
   /// 对应接口：DELETE /api/users/roles/{relationId}
   Future<void> deleteUserRoleBinding({required int relationId}) async {
@@ -578,7 +578,7 @@ class UserManagementControllerApi with BaseApiClient {
   ///
   /// 返回用户角色绑定关系 Map 列表；无数据时返回空列表。
   ///
-  /// 抛出 [ApiException]：当 HTTP 响应非 2xx 时。
+  /// 抛出 [AppException]：当 HTTP 响应非 2xx 时。
   ///
   /// 对应接口：GET /api/users/{userId}/roles
   Future<List<Map<String, dynamic>>> listUserRoles({
@@ -610,7 +610,7 @@ class UserManagementControllerApi with BaseApiClient {
   ///
   /// 返回后端返回的绑定关系 Map；后端空响应时返回 `null`。
   ///
-  /// 抛出 [ApiException]：当 [idempotencyKey] 为空或 HTTP 响应非 2xx 时。
+  /// 抛出 [AppException]：当 [idempotencyKey] 为空或 HTTP 响应非 2xx 时。
   ///
   /// 对应接口：PUT /api/users/role-bindings/{relationId}
   Future<Map<String, dynamic>?> updateUserRoleBinding({
@@ -619,7 +619,7 @@ class UserManagementControllerApi with BaseApiClient {
     required String idempotencyKey,
   }) async {
     if (idempotencyKey.isEmpty) {
-      throw ApiException(400, "Missing required param: idempotencyKey");
+      throw AppException.http(400, "Missing required param: idempotencyKey");
     }
     final path =
         "/api/users/role-bindings/$relationId".replaceAll("{format}", "json");
@@ -644,7 +644,7 @@ class UserManagementControllerApi with BaseApiClient {
   ///
   /// 返回绑定关系 Map；后端空响应时返回 `null`。
   ///
-  /// 抛出 [ApiException]：当 HTTP 响应非 2xx 时。
+  /// 抛出 [AppException]：当 HTTP 响应非 2xx 时。
   ///
   /// 对应接口：GET /api/users/role-bindings/{relationId}
   Future<Map<String, dynamic>?> getUserRoleBinding({
@@ -674,7 +674,7 @@ class UserManagementControllerApi with BaseApiClient {
   ///
   /// 返回绑定关系 Map 列表；无数据时返回空列表。
   ///
-  /// 抛出 [ApiException]：当 HTTP 响应非 2xx 时。
+  /// 抛出 [AppException]：当 HTTP 响应非 2xx 时。
   ///
   /// 对应接口：GET /api/users/role-bindings
   Future<List<Map<String, dynamic>>> listUserRoleBindings({
@@ -705,7 +705,7 @@ class UserManagementControllerApi with BaseApiClient {
   ///
   /// 返回绑定了该角色的关系 Map 列表；无数据时返回空列表。
   ///
-  /// 抛出 [ApiException]：当 HTTP 响应非 2xx 时。
+  /// 抛出 [AppException]：当 HTTP 响应非 2xx 时。
   ///
   /// 对应接口：GET /api/users/role-bindings/by-role/{roleId}
   Future<List<Map<String, dynamic>>> listUserRoleBindingsByRole({
@@ -738,7 +738,7 @@ class UserManagementControllerApi with BaseApiClient {
   ///
   /// 返回 [UserManagement] 列表；无匹配时返回空列表。
   ///
-  /// 抛出 [ApiException]：当 HTTP 响应非 2xx 时。
+  /// 抛出 [AppException]：当 HTTP 响应非 2xx 时。
   ///
   /// 对应接口：GET /api/users/search/department/prefix
   Future<List<UserManagement>> searchUsersByDepartmentPrefix({
@@ -772,7 +772,7 @@ class UserManagementControllerApi with BaseApiClient {
   ///
   /// 返回 [UserManagement] 列表；无匹配时返回空列表。
   ///
-  /// 抛出 [ApiException]：当 HTTP 响应非 2xx 时。
+  /// 抛出 [AppException]：当 HTTP 响应非 2xx 时。
   ///
   /// 对应接口：GET /api/users/search/employee-number
   Future<List<UserManagement>> searchUsersByEmployeeNumber({
@@ -807,7 +807,7 @@ class UserManagementControllerApi with BaseApiClient {
   ///
   /// 返回 [UserManagement] 列表；无匹配时返回空列表。
   ///
-  /// 抛出 [ApiException]：当 HTTP 响应非 2xx 时。
+  /// 抛出 [AppException]：当 HTTP 响应非 2xx 时。
   ///
   /// 对应接口：GET /api/users/search/last-login-range
   Future<List<UserManagement>> searchUsersByLastLoginRange({
@@ -844,7 +844,7 @@ class UserManagementControllerApi with BaseApiClient {
   ///
   /// 返回匹配的绑定关系 Map 列表；无匹配时返回空列表。
   ///
-  /// 抛出 [ApiException]：当 HTTP 响应非 2xx 时。
+  /// 抛出 [AppException]：当 HTTP 响应非 2xx 时。
   ///
   /// 对应接口：GET /api/users/role-bindings/search
   Future<List<Map<String, dynamic>>> searchUserRoleBindings({
@@ -879,7 +879,7 @@ class UserManagementControllerApi with BaseApiClient {
   ///
   /// 返回 [UserManagement] 列表；无匹配时返回空列表。
   ///
-  /// 抛出 [ApiException]：当 [status] 为空或 HTTP 响应非 2xx 时。
+  /// 抛出 [AppException]：当 [status] 为空或 HTTP 响应非 2xx 时。
   ///
   /// 对应接口：GET /api/users/search/status
   Future<List<UserManagement>> searchUsersByStatus({
@@ -908,7 +908,7 @@ class UserManagementControllerApi with BaseApiClient {
     required String userId,
   }) async {
     if (userId.isEmpty) {
-      throw ApiException(400, "Missing required param: userId");
+      throw AppException.http(400, "Missing required param: userId");
     }
 
     final path = "/api/users/$userId".replaceAll("{format}", "json");
@@ -932,7 +932,7 @@ class UserManagementControllerApi with BaseApiClient {
   ///
   /// 删除成功时无返回值。
   ///
-  /// 抛出 [ApiException]：当 [userId] 为空或 HTTP 响应非 2xx 时。
+  /// 抛出 [AppException]：当 [userId] 为空或 HTTP 响应非 2xx 时。
   ///
   /// 对应接口：DELETE /api/users/{userId}
   Future<void> deleteUser({
@@ -953,7 +953,7 @@ class UserManagementControllerApi with BaseApiClient {
     required String userId,
   }) async {
     if (userId.isEmpty) {
-      throw ApiException(400, "Missing required param: userId");
+      throw AppException.http(400, "Missing required param: userId");
     }
 
     final path = "/api/users/$userId".replaceAll("{format}", "json");
@@ -977,7 +977,7 @@ class UserManagementControllerApi with BaseApiClient {
   ///
   /// 返回 [UserManagement]；后端返回空响应时返回 `null`。
   ///
-  /// 抛出 [ApiException]：当 [userId] 为空或 HTTP 响应非 2xx 时。
+  /// 抛出 [AppException]：当 [userId] 为空或 HTTP 响应非 2xx 时。
   ///
   /// 对应接口：GET /api/users/{userId}
   Future<UserManagement?> getUser({
@@ -1003,10 +1003,10 @@ class UserManagementControllerApi with BaseApiClient {
     required String idempotencyKey,
   }) async {
     if (userId.isEmpty) {
-      throw ApiException(400, "Missing required param: userId");
+      throw AppException.http(400, "Missing required param: userId");
     }
     if (idempotencyKey.isEmpty) {
-      throw ApiException(400, "Missing required param: idempotencyKey");
+      throw AppException.http(400, "Missing required param: idempotencyKey");
     }
 
     final path = "/api/users/$userId".replaceAll("{format}", "json");
@@ -1033,7 +1033,7 @@ class UserManagementControllerApi with BaseApiClient {
   ///
   /// 更新成功时无返回值。
   ///
-  /// 抛出 [ApiException]：当 [userId] 或 [idempotencyKey] 为空，或 HTTP 响应非 2xx 时。
+  /// 抛出 [AppException]：当 [userId] 或 [idempotencyKey] 为空，或 HTTP 响应非 2xx 时。
   ///
   /// 对应接口：PUT /api/users/{userId}
   Future<void> updateUser({
@@ -1062,11 +1062,11 @@ class UserManagementControllerApi with BaseApiClient {
     required String username,
   }) async {
     if (username.isEmpty) {
-      throw ApiException(400, "Missing required param: username");
+      throw AppException.http(400, "Missing required param: username");
     }
 
     // removed endpoint
-    throw ApiException(
+    throw AppException.http(
         410, "Endpoint removed: DELETE /api/users/username/{username}");
   }
 
@@ -1074,14 +1074,14 @@ class UserManagementControllerApi with BaseApiClient {
   ///
   /// [username] 用户名，不能为空。
   ///
-  /// 当前后端已移除该 REST 接口，调用会抛出 410 [ApiException]。
+  /// 当前后端已移除该 REST 接口，调用会抛出 410 [AppException]。
   ///
   /// 对应接口：DELETE /api/users/username/{username}
   Future<void> deleteUserByUsername({
     required String username,
   }) async {
     // removed endpoint
-    throw ApiException(
+    throw AppException.http(
         410, "Endpoint removed: DELETE /api/users/username/{username}");
   }
 
@@ -1091,7 +1091,7 @@ class UserManagementControllerApi with BaseApiClient {
     required String username,
   }) async {
     if (username.isEmpty) {
-      throw ApiException(400, "Missing required param: username");
+      throw AppException.http(400, "Missing required param: username");
     }
 
     // replaced by /api/users/search/username/{username}
@@ -1106,7 +1106,7 @@ class UserManagementControllerApi with BaseApiClient {
   ///
   /// 返回 [UserManagement]；后端返回空响应时返回 `null`。
   ///
-  /// 抛出 [ApiException]：当 [username] 为空或 HTTP 响应非 2xx 时。
+  /// 抛出 [AppException]：当 [username] 为空或 HTTP 响应非 2xx 时。
   ///
   /// 对应接口：GET /api/users/search/username/{username}
   Future<UserManagement?> getUserByUsername({
@@ -1120,7 +1120,7 @@ class UserManagementControllerApi with BaseApiClient {
     required String username,
   }) async {
     if (username.isEmpty) {
-      throw ApiException(400, "Missing required param: username");
+      throw AppException.http(400, "Missing required param: username");
     }
     final path = "/api/users/search/username/${Uri.encodeComponent(username)}"
         .replaceAll("{format}", "json");
@@ -1143,7 +1143,7 @@ class UserManagementControllerApi with BaseApiClient {
   ///
   /// 返回 [UserManagement]；后端返回空响应时返回 `null`。
   ///
-  /// 抛出 [ApiException]：当 [username] 为空或 HTTP 响应非 2xx 时。
+  /// 抛出 [AppException]：当 [username] 为空或 HTTP 响应非 2xx 时。
   ///
   /// 对应接口：GET /api/users/search/username/{username}
   Future<UserManagement?> searchUsersByUsername({
@@ -1168,7 +1168,7 @@ class UserManagementControllerApi with BaseApiClient {
     required String prefix,
   }) async {
     if (prefix.isEmpty) {
-      throw ApiException(400, "Missing required param: prefix");
+      throw AppException.http(400, "Missing required param: prefix");
     }
 
     final path =
@@ -1194,7 +1194,7 @@ class UserManagementControllerApi with BaseApiClient {
   ///
   /// 返回用户名字符串列表；无匹配时返回空列表。
   ///
-  /// 抛出 [ApiException]：当 [prefix] 为空或 HTTP 响应非 2xx 时。
+  /// 抛出 [AppException]：当 [prefix] 为空或 HTTP 响应非 2xx 时。
   ///
   /// 对应接口：GET /api/users/autocomplete/usernames
   Future<List<String>> autocompleteUsernames({
@@ -1219,7 +1219,7 @@ class UserManagementControllerApi with BaseApiClient {
   Future<http.Response> _autocompleteUserStatusesWithHttpInfo({
     required String prefix,
   }) async {
-    throw ApiException(
+    throw AppException.http(
         410, "Endpoint removed: /api/users/autocomplete/statuses");
   }
 
@@ -1227,13 +1227,13 @@ class UserManagementControllerApi with BaseApiClient {
   ///
   /// [prefix] 状态前缀。
   ///
-  /// 当前后端已移除该接口，调用会抛出 410 [ApiException]。
+  /// 当前后端已移除该接口，调用会抛出 410 [AppException]。
   ///
   /// 对应接口：GET /api/users/autocomplete/statuses
   Future<List<String>> autocompleteUserStatuses({
     required String prefix,
   }) async {
-    throw ApiException(
+    throw AppException.http(
         410, "Endpoint removed: /api/users/autocomplete/statuses");
   }
 
@@ -1242,7 +1242,7 @@ class UserManagementControllerApi with BaseApiClient {
   Future<http.Response> _autocompleteUserPhoneNumbersWithHttpInfo({
     required String prefix,
   }) async {
-    throw ApiException(
+    throw AppException.http(
         410, "Endpoint removed: /api/users/autocomplete/phone-numbers");
   }
 
@@ -1250,13 +1250,13 @@ class UserManagementControllerApi with BaseApiClient {
   ///
   /// [prefix] 手机号前缀。
   ///
-  /// 当前后端已移除该接口，调用会抛出 410 [ApiException]。
+  /// 当前后端已移除该接口，调用会抛出 410 [AppException]。
   ///
   /// 对应接口：GET /api/users/autocomplete/phone-numbers
   Future<List<String>> autocompleteUserPhoneNumbers({
     required String prefix,
   }) async {
-    throw ApiException(
+    throw AppException.http(
         410, "Endpoint removed: /api/users/autocomplete/phone-numbers");
   }
 
@@ -1268,7 +1268,7 @@ class UserManagementControllerApi with BaseApiClient {
   ///
   /// 返回 [UserManagement] 列表；eventbus result 非列表时返回 `null`。
   ///
-  /// 抛出 [ApiException]：当 WebSocket 响应包含 `error` 字段时。
+  /// 抛出 [AppException]：当 WebSocket 响应包含 `error` 字段时。
   ///
   /// 对应实时动作：UserManagementService.getAllUsers
   Future<List<UserManagement>?> eventbusUsersGet() async {
@@ -1282,7 +1282,7 @@ class UserManagementControllerApi with BaseApiClient {
       AppLogger.debug('WebSocket users get response: $respMap');
 
       if (respMap.containsKey("error")) {
-        throw ApiException(400, respMap["error"]);
+        throw AppException.http(400, respMap["error"]);
       }
       if (respMap.containsKey("result") && respMap["result"] is List) {
         return (respMap["result"] as List)
@@ -1309,7 +1309,7 @@ class UserManagementControllerApi with BaseApiClient {
       AppLogger.debug('WebSocket users me get response: $respMap');
 
       if (respMap.containsKey("error")) {
-        throw ApiException(400, respMap["error"]);
+        throw AppException.http(400, respMap["error"]);
       }
       if (respMap.containsKey("result") && respMap["result"] != null) {
         return UserManagement.fromJson(respMap["result"]);
@@ -1326,9 +1326,9 @@ class UserManagementControllerApi with BaseApiClient {
   ///
   /// [username] 当前登录用户名。
   ///
-  /// 返回 [UserManagement]；未找到当前用户时抛出 404 [ApiException]。
+  /// 返回 [UserManagement]；未找到当前用户时抛出 404 [AppException]。
   ///
-  /// 抛出 [ApiException]：当 WebSocket 响应包含 `error` 字段或用户不存在时。
+  /// 抛出 [AppException]：当 WebSocket 响应包含 `error` 字段或用户不存在时。
   ///
   /// 对应实时动作：UserManagementService.getCurrentUser
   Future<UserManagement> getCurrentUser({
@@ -1336,7 +1336,7 @@ class UserManagementControllerApi with BaseApiClient {
   }) async {
     final user = await _getCurrentUserViaEventbus(username: username);
     if (user == null) {
-      throw ApiException(404, "Current user not found");
+      throw AppException.http(404, "Current user not found");
     }
     return user;
   }
@@ -1351,7 +1351,7 @@ class UserManagementControllerApi with BaseApiClient {
   ///
   /// 更新成功时无返回值。
   ///
-  /// 抛出 [ApiException]：当 WebSocket 响应包含 `error` 字段时。
+  /// 抛出 [AppException]：当 WebSocket 响应包含 `error` 字段时。
   ///
   /// 对应实时动作：UserManagementService.updateCurrentUser
   Future<void> eventbusUsersMePut({
@@ -1369,7 +1369,7 @@ class UserManagementControllerApi with BaseApiClient {
       AppLogger.debug('WebSocket users me put response: $respMap');
 
       if (respMap.containsKey("error")) {
-        throw ApiException(400, respMap["error"]);
+        throw AppException.http(400, respMap["error"]);
       }
     } catch (e) {
       AppLogger.error('WebSocket users me put error: $e');
@@ -1386,7 +1386,7 @@ class UserManagementControllerApi with BaseApiClient {
   ///
   /// 返回创建后的 [UserManagement]；eventbus result 为空时返回 `null`。
   ///
-  /// 抛出 [ApiException]：当 WebSocket 响应包含 `error` 字段时。
+  /// 抛出 [AppException]：当 WebSocket 响应包含 `error` 字段时。
   ///
   /// 对应实时动作：UserManagementService.createUser
   Future<UserManagement?> eventbusUsersPost({
@@ -1403,7 +1403,7 @@ class UserManagementControllerApi with BaseApiClient {
       AppLogger.debug('WebSocket users post response: $respMap');
 
       if (respMap.containsKey("error")) {
-        throw ApiException(400, respMap["error"]);
+        throw AppException.http(400, respMap["error"]);
       }
       if (respMap.containsKey("result") && respMap["result"] != null) {
         return UserManagement.fromJson(respMap["result"]);
@@ -1423,7 +1423,7 @@ class UserManagementControllerApi with BaseApiClient {
   ///
   /// 返回 [UserManagement] 列表；eventbus result 非列表时返回 `null`。
   ///
-  /// 抛出 [ApiException]：当 WebSocket 响应包含 `error` 字段时。
+  /// 抛出 [AppException]：当 WebSocket 响应包含 `error` 字段时。
   ///
   /// 对应实时动作：UserManagementService.getUsersByStatus
   Future<List<UserManagement>?> eventbusUsersStatusStatusGet({
@@ -1439,7 +1439,7 @@ class UserManagementControllerApi with BaseApiClient {
       AppLogger.debug('WebSocket users status get response: $respMap');
 
       if (respMap.containsKey("error")) {
-        throw ApiException(400, respMap["error"]);
+        throw AppException.http(400, respMap["error"]);
       }
       if (respMap.containsKey("result") && respMap["result"] is List) {
         return (respMap["result"] as List)
@@ -1461,7 +1461,7 @@ class UserManagementControllerApi with BaseApiClient {
   ///
   /// 返回 [UserManagement] 列表；eventbus result 非列表时返回 `null`。
   ///
-  /// 抛出 [ApiException]：当 WebSocket 响应包含 `error` 字段时。
+  /// 抛出 [AppException]：当 WebSocket 响应包含 `error` 字段时。
   ///
   /// 对应实时动作：UserManagementService.getUsersByType
   Future<List<UserManagement>?> eventbusUsersTypeUserTypeGet({
@@ -1477,7 +1477,7 @@ class UserManagementControllerApi with BaseApiClient {
       AppLogger.debug('WebSocket users type get response: $respMap');
 
       if (respMap.containsKey("error")) {
-        throw ApiException(400, respMap["error"]);
+        throw AppException.http(400, respMap["error"]);
       }
       if (respMap.containsKey("result") && respMap["result"] is List) {
         return (respMap["result"] as List)
@@ -1499,7 +1499,7 @@ class UserManagementControllerApi with BaseApiClient {
   ///
   /// 删除成功时无返回值。
   ///
-  /// 抛出 [ApiException]：当 WebSocket 响应包含 `error` 字段时。
+  /// 抛出 [AppException]：当 WebSocket 响应包含 `error` 字段时。
   ///
   /// 对应实时动作：UserManagementService.deleteUser
   Future<void> eventbusUsersUserIdDelete({required String userId}) async {
@@ -1513,7 +1513,7 @@ class UserManagementControllerApi with BaseApiClient {
       AppLogger.debug('WebSocket users delete response: $respMap');
 
       if (respMap.containsKey("error")) {
-        throw ApiException(400, respMap["error"]);
+        throw AppException.http(400, respMap["error"]);
       }
     } catch (e) {
       AppLogger.error('WebSocket users delete error: $e');
@@ -1529,7 +1529,7 @@ class UserManagementControllerApi with BaseApiClient {
   ///
   /// 返回 [UserManagement]；eventbus result 为空时返回 `null`。
   ///
-  /// 抛出 [ApiException]：当 WebSocket 响应包含 `error` 字段时。
+  /// 抛出 [AppException]：当 WebSocket 响应包含 `error` 字段时。
   ///
   /// 对应实时动作：UserManagementService.getUserById
   Future<UserManagement?> eventbusUsersUserIdGet({
@@ -1545,7 +1545,7 @@ class UserManagementControllerApi with BaseApiClient {
       AppLogger.debug('WebSocket users userId get response: $respMap');
 
       if (respMap.containsKey("error")) {
-        throw ApiException(400, respMap["error"]);
+        throw AppException.http(400, respMap["error"]);
       }
       if (respMap.containsKey("result") && respMap["result"] != null) {
         return UserManagement.fromJson(respMap["result"]);
@@ -1567,7 +1567,7 @@ class UserManagementControllerApi with BaseApiClient {
   ///
   /// 更新成功时无返回值。
   ///
-  /// 抛出 [ApiException]：当 WebSocket 响应包含 `error` 字段时。
+  /// 抛出 [AppException]：当 WebSocket 响应包含 `error` 字段时。
   ///
   /// 对应实时动作：UserManagementService.updateUser
   Future<void> eventbusUsersUserIdPut({
@@ -1585,7 +1585,7 @@ class UserManagementControllerApi with BaseApiClient {
       AppLogger.debug('WebSocket users userId put response: $respMap');
 
       if (respMap.containsKey("error")) {
-        throw ApiException(400, respMap["error"]);
+        throw AppException.http(400, respMap["error"]);
       }
     } catch (e) {
       AppLogger.error('WebSocket users userId put error: $e');
@@ -1601,7 +1601,7 @@ class UserManagementControllerApi with BaseApiClient {
   ///
   /// 删除成功时无返回值。
   ///
-  /// 抛出 [ApiException]：当 WebSocket 响应包含 `error` 字段时。
+  /// 抛出 [AppException]：当 WebSocket 响应包含 `error` 字段时。
   ///
   /// 对应实时动作：UserManagementService.deleteUserByUsername
   Future<void> eventbusUsersUsernameUsernameDelete({
@@ -1617,7 +1617,7 @@ class UserManagementControllerApi with BaseApiClient {
       AppLogger.debug('WebSocket users username delete response: $respMap');
 
       if (respMap.containsKey("error")) {
-        throw ApiException(400, respMap["error"]);
+        throw AppException.http(400, respMap["error"]);
       }
     } catch (e) {
       AppLogger.error('WebSocket users username delete error: $e');
@@ -1633,7 +1633,7 @@ class UserManagementControllerApi with BaseApiClient {
   ///
   /// 返回 [UserManagement]；eventbus result 为空时返回 `null`。
   ///
-  /// 抛出 [ApiException]：当 WebSocket 响应包含 `error` 字段时。
+  /// 抛出 [AppException]：当 WebSocket 响应包含 `error` 字段时。
   ///
   /// 对应实时动作：UserManagementService.getUserByUsername
   Future<UserManagement?> eventbusUsersUsernameUsernameGet({
@@ -1649,7 +1649,7 @@ class UserManagementControllerApi with BaseApiClient {
       AppLogger.debug('WebSocket users username get response: $respMap');
 
       if (respMap.containsKey("error")) {
-        throw ApiException(400, respMap["error"]);
+        throw AppException.http(400, respMap["error"]);
       }
       if (respMap.containsKey("result") && respMap["result"] != null) {
         return UserManagement.fromJson(respMap["result"]);
@@ -1669,14 +1669,14 @@ class UserManagementControllerApi with BaseApiClient {
   ///
   /// 返回用户名字符串列表；无匹配时返回空列表。
   ///
-  /// 抛出 [ApiException]：当 [prefix] 为空或 WebSocket 响应包含 `error` 字段时。
+  /// 抛出 [AppException]：当 [prefix] 为空或 WebSocket 响应包含 `error` 字段时。
   ///
   /// 对应实时动作：UserManagementService.getUsernameAutocompleteSuggestionsGlobally
   Future<List<String>> eventbusUsersAutocompleteUsernamesGet({
     required String prefix,
   }) async {
     if (prefix.isEmpty) {
-      throw ApiException(400, "Missing required param: prefix");
+      throw AppException.http(400, "Missing required param: prefix");
     }
     final msg = {
       "service": "UserManagementService",
@@ -1689,7 +1689,7 @@ class UserManagementControllerApi with BaseApiClient {
           'WebSocket users autocomplete usernames response: $respMap');
 
       if (respMap.containsKey("error")) {
-        throw ApiException(400, respMap["error"]);
+        throw AppException.http(400, respMap["error"]);
       }
       if (respMap.containsKey("result") && respMap["result"] is List) {
         return (respMap["result"] as List).cast<String>();
@@ -1709,14 +1709,14 @@ class UserManagementControllerApi with BaseApiClient {
   ///
   /// 返回状态字符串列表；无匹配时返回空列表。
   ///
-  /// 抛出 [ApiException]：当 [prefix] 为空或 WebSocket 响应包含 `error` 字段时。
+  /// 抛出 [AppException]：当 [prefix] 为空或 WebSocket 响应包含 `error` 字段时。
   ///
   /// 对应实时动作：UserManagementService.getStatusAutocompleteSuggestionsGlobally
   Future<List<String>> eventbusUsersAutocompleteStatusesGet({
     required String prefix,
   }) async {
     if (prefix.isEmpty) {
-      throw ApiException(400, "Missing required param: prefix");
+      throw AppException.http(400, "Missing required param: prefix");
     }
     final msg = {
       "service": "UserManagementService",
@@ -1729,7 +1729,7 @@ class UserManagementControllerApi with BaseApiClient {
           'WebSocket users autocomplete statuses response: $respMap');
 
       if (respMap.containsKey("error")) {
-        throw ApiException(400, respMap["error"]);
+        throw AppException.http(400, respMap["error"]);
       }
       if (respMap.containsKey("result") && respMap["result"] is List) {
         return (respMap["result"] as List).cast<String>();
@@ -1749,14 +1749,14 @@ class UserManagementControllerApi with BaseApiClient {
   ///
   /// 返回手机号字符串列表；无匹配时返回空列表。
   ///
-  /// 抛出 [ApiException]：当 [prefix] 为空或 WebSocket 响应包含 `error` 字段时。
+  /// 抛出 [AppException]：当 [prefix] 为空或 WebSocket 响应包含 `error` 字段时。
   ///
   /// 对应实时动作：UserManagementService.getPhoneNumberAutocompleteSuggestionsGlobally
   Future<List<String>> eventbusUsersAutocompletePhoneNumbersGet({
     required String prefix,
   }) async {
     if (prefix.isEmpty) {
-      throw ApiException(400, "Missing required param: prefix");
+      throw AppException.http(400, "Missing required param: prefix");
     }
     final msg = {
       "service": "UserManagementService",
@@ -1769,7 +1769,7 @@ class UserManagementControllerApi with BaseApiClient {
           'WebSocket users autocomplete phone-numbers response: $respMap');
 
       if (respMap.containsKey("error")) {
-        throw ApiException(400, respMap["error"]);
+        throw AppException.http(400, respMap["error"]);
       }
       if (respMap.containsKey("result") && respMap["result"] is List) {
         return (respMap["result"] as List).cast<String>();

@@ -1,5 +1,7 @@
 package com.tutict.finalassignmentbackend.controller;
 
+import com.tutict.finalassignmentbackend.dto.response.ApiResponse;
+
 import com.tutict.finalassignmentbackend.entity.OffenseTypeDict;
 import com.tutict.finalassignmentbackend.service.OffenseTypeDictService;
 import io.swagger.v3.oas.annotations.Operation;
@@ -41,14 +43,14 @@ public class OffenseTypeController {
 
     @PostMapping
     @Operation(summary = "创建违法类型")
-    public ResponseEntity<OffenseTypeDict> create(@Valid @RequestBody OffenseTypeDict request,
+    public ResponseEntity<?> create(@Valid @RequestBody OffenseTypeDict request,
                                                   @RequestHeader(value = "Idempotency-Key", required = false)
                                                   String idempotencyKey) {
         boolean useKey = hasKey(idempotencyKey);
         try {
             if (useKey) {
                 if (offenseTypeDictService.shouldSkipProcessing(idempotencyKey)) {
-                    return ResponseEntity.status(HttpStatus.ALREADY_REPORTED).build();
+                    return ResponseEntity.status(HttpStatus.ALREADY_REPORTED).body(ApiResponse.ok(null));
                 }
                 offenseTypeDictService.checkAndInsertIdempotency(idempotencyKey, request, "create");
             }
@@ -62,7 +64,10 @@ public class OffenseTypeController {
                 offenseTypeDictService.markHistoryFailure(idempotencyKey, ex.getMessage());
             }
             LOG.log(Level.SEVERE, "Create offense type failed", ex);
-            return ResponseEntity.status(resolveStatus(ex)).build();
+            if (ex instanceof RuntimeException) {
+                throw (RuntimeException) ex;
+            }
+            throw new RuntimeException(ex);
         }
     }
 
@@ -88,7 +93,10 @@ public class OffenseTypeController {
                 offenseTypeDictService.markHistoryFailure(idempotencyKey, ex.getMessage());
             }
             LOG.log(Level.SEVERE, "Update offense type failed", ex);
-            return ResponseEntity.status(resolveStatus(ex)).build();
+            if (ex instanceof RuntimeException) {
+                throw (RuntimeException) ex;
+            }
+            throw new RuntimeException(ex);
         }
     }
 
@@ -100,7 +108,10 @@ public class OffenseTypeController {
             return ResponseEntity.noContent().build();
         } catch (Exception ex) {
             LOG.log(Level.WARNING, "Delete offense type failed", ex);
-            return ResponseEntity.status(resolveStatus(ex)).build();
+            if (ex instanceof RuntimeException) {
+                throw (RuntimeException) ex;
+            }
+            throw new RuntimeException(ex);
         }
     }
 
@@ -112,7 +123,10 @@ public class OffenseTypeController {
             return dict == null ? ResponseEntity.notFound().build() : ResponseEntity.ok(dict);
         } catch (Exception ex) {
             LOG.log(Level.WARNING, "Get offense type failed", ex);
-            return ResponseEntity.status(resolveStatus(ex)).build();
+            if (ex instanceof RuntimeException) {
+                throw (RuntimeException) ex;
+            }
+            throw new RuntimeException(ex);
         }
     }
 
@@ -123,7 +137,7 @@ public class OffenseTypeController {
             return ResponseEntity.ok(offenseTypeDictService.findAll());
         } catch (Exception ex) {
             LOG.log(Level.WARNING, "List offense types failed", ex);
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
+            throw new RuntimeException(ex);
         }
     }
 

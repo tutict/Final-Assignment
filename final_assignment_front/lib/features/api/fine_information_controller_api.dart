@@ -1,7 +1,7 @@
 import 'package:final_assignment_front/core/utils/app_logger.dart';
 import 'dart:convert';
 import 'package:final_assignment_front/features/model/fine_information.dart';
-import 'package:final_assignment_front/utils/helpers/api_exception.dart';
+import 'package:final_assignment_front/core/network/app_exception.dart';
 import 'package:final_assignment_front/utils/services/api_client.dart';
 import 'package:http/http.dart' as http;
 import 'package:final_assignment_front/utils/services/auth_token_store.dart';
@@ -165,7 +165,7 @@ class FineInformationControllerApi with BaseApiClient {
     required String payee,
   }) async {
     if (payee.isEmpty) {
-      throw ApiException(400, "Missing required param: payee");
+      throw AppException.http(400, "Missing required param: payee");
     }
     final path = '/api/fines/payee/${Uri.encodeComponent(payee)}';
     final headerParams = await _getHeaders();
@@ -215,7 +215,7 @@ class FineInformationControllerApi with BaseApiClient {
     required String receiptNumber,
   }) async {
     if (receiptNumber.isEmpty) {
-      throw ApiException(400, "Missing required param: receiptNumber");
+      throw AppException.http(400, "Missing required param: receiptNumber");
     }
     final path =
         '/api/fines/receiptNumber/${Uri.encodeComponent(receiptNumber)}';
@@ -326,7 +326,7 @@ class FineInformationControllerApi with BaseApiClient {
     int maxSuggestions = 10,
   }) async {
     if (startTime.isEmpty || endTime.isEmpty) {
-      throw ApiException(400, "Missing required params: startTime or endTime");
+      throw AppException.http(400, "Missing required params: startTime or endTime");
     }
     const path = '/api/fines/by-time-range';
     final queryParams = [
@@ -364,7 +364,7 @@ class FineInformationControllerApi with BaseApiClient {
     };
     final respMap = await apiClient.sendWsMessage(msg);
     if (respMap.containsKey("error")) {
-      throw ApiException(400, respMap["error"]);
+      throw AppException.http(400, respMap["error"]);
     }
   }
 
@@ -382,7 +382,7 @@ class FineInformationControllerApi with BaseApiClient {
       if (respMap["error"].toString().contains("not found")) {
         return null; // Not found, return null
       }
-      throw ApiException(400, respMap["error"]);
+      throw AppException.http(400, respMap["error"]);
     }
     if (respMap["result"] == null) return null;
     return FineInformation.fromJson(respMap["result"] as Map<String, dynamic>);
@@ -397,7 +397,7 @@ class FineInformationControllerApi with BaseApiClient {
     };
     final respMap = await apiClient.sendWsMessage(msg);
     if (respMap.containsKey("error")) {
-      throw ApiException(400, respMap["error"]);
+      throw AppException.http(400, respMap["error"]);
     }
     if (respMap["result"] is List) {
       return (respMap["result"] as List)
@@ -421,9 +421,9 @@ class FineInformationControllerApi with BaseApiClient {
     final respMap = await apiClient.sendWsMessage(msg);
     if (respMap.containsKey("error")) {
       if (respMap["error"].toString().contains("not found")) {
-        throw ApiException(404, "Fine not found with ID: $fineId");
+        throw AppException.http(404, "Fine not found with ID: $fineId");
       }
-      throw ApiException(400, respMap["error"]);
+      throw AppException.http(400, respMap["error"]);
     }
     if (respMap["result"] == null) return null;
     return FineInformation.fromJson(respMap["result"] as Map<String, dynamic>);
@@ -441,11 +441,11 @@ class FineInformationControllerApi with BaseApiClient {
     final respMap = await apiClient.sendWsMessage(msg);
     if (respMap.containsKey("error")) {
       if (respMap["error"].toString().contains("not found")) {
-        throw ApiException(404, "Fine not found with ID: $fineId");
+        throw AppException.http(404, "Fine not found with ID: $fineId");
       } else if (respMap["error"].toString().contains("Unauthorized")) {
-        throw ApiException(403, "Unauthorized: Only ADMIN can delete fines");
+        throw AppException.http(403, "Unauthorized: Only ADMIN can delete fines");
       }
-      throw ApiException(400, respMap["error"]);
+      throw AppException.http(400, respMap["error"]);
     }
   }
 
@@ -454,7 +454,7 @@ class FineInformationControllerApi with BaseApiClient {
     required String payee,
   }) async {
     if (payee.isEmpty) {
-      throw ApiException(400, "Missing required param: payee");
+      throw AppException.http(400, "Missing required param: payee");
     }
     final msg = {
       "service": "FineRecordService",
@@ -463,7 +463,7 @@ class FineInformationControllerApi with BaseApiClient {
     };
     final respMap = await apiClient.sendWsMessage(msg);
     if (respMap.containsKey("error")) {
-      throw ApiException(400, respMap["error"]);
+      throw AppException.http(400, respMap["error"]);
     }
     if (respMap["result"] is List) {
       return (respMap["result"] as List)
@@ -478,7 +478,7 @@ class FineInformationControllerApi with BaseApiClient {
     required String receiptNumber,
   }) async {
     if (receiptNumber.isEmpty) {
-      throw ApiException(400, "Missing required param: receiptNumber");
+      throw AppException.http(400, "Missing required param: receiptNumber");
     }
     final msg = {
       "service": "FineRecordService",
@@ -490,7 +490,7 @@ class FineInformationControllerApi with BaseApiClient {
       if (respMap["error"].toString().contains("not found")) {
         return null; // Not found, return null
       }
-      throw ApiException(400, respMap["error"]);
+      throw AppException.http(400, respMap["error"]);
     }
     if (respMap["result"] == null) return null;
     return FineInformation.fromJson(respMap["result"] as Map<String, dynamic>);
@@ -508,7 +508,7 @@ class FineInformationControllerApi with BaseApiClient {
     };
     final respMap = await apiClient.sendWsMessage(msg);
     if (respMap.containsKey("error")) {
-      throw ApiException(400, respMap["error"]);
+      throw AppException.http(400, respMap["error"]);
     }
     if (respMap["result"] is List) {
       return (respMap["result"] as List)

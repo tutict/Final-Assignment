@@ -1,6 +1,6 @@
 import 'package:final_assignment_front/core/utils/app_logger.dart';
 import 'package:final_assignment_front/features/model/progress_item.dart';
-import 'package:final_assignment_front/utils/helpers/api_exception.dart';
+import 'package:final_assignment_front/core/network/app_exception.dart';
 import 'package:final_assignment_front/utils/services/api_client.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
@@ -41,7 +41,7 @@ class ProgressControllerApi with BaseApiClient {
   }) async {
     final jwtToken = (await AuthTokenStore.instance.getJwtToken());
     if (jwtToken == null) {
-      throw ApiException(401, 'No JWT token found');
+      throw AppException.http(401, 'No JWT token found');
     }
 
     Object postBody = progressItem.toJson();
@@ -79,7 +79,7 @@ class ProgressControllerApi with BaseApiClient {
     if (response.statusCode == 201) {
       return ProgressItem.fromJson(jsonDecode(_decodeBodyBytes(response)));
     }
-    throw ApiException(response.statusCode, _decodeBodyBytes(response));
+    throw AppException.http(response.statusCode, _decodeBodyBytes(response));
   }
 
   /// è·åææè¿åº¦è®°å½ã?with HTTP info returned
@@ -88,7 +88,7 @@ class ProgressControllerApi with BaseApiClient {
   }) async {
     final jwtToken = (await AuthTokenStore.instance.getJwtToken());
     if (jwtToken == null) {
-      throw ApiException(401, 'No JWT token found');
+      throw AppException.http(401, 'No JWT token found');
     }
 
     Object postBody = ''; // GET è¯·æ±éå¸¸æ²¡æ body
@@ -126,7 +126,7 @@ class ProgressControllerApi with BaseApiClient {
       final List<dynamic> data = jsonDecode(_decodeBodyBytes(response));
       return data.map((json) => ProgressItem.fromJson(json)).toList();
     }
-    throw ApiException(response.statusCode, _decodeBodyBytes(response));
+    throw AppException.http(response.statusCode, _decodeBodyBytes(response));
   }
 
   /// æ ¹æ®ç¨æ·åè·åè¿åº¦è®°å½ã?with HTTP info returned
@@ -136,7 +136,7 @@ class ProgressControllerApi with BaseApiClient {
   }) async {
     final jwtToken = (await AuthTokenStore.instance.getJwtToken());
     if (jwtToken == null) {
-      throw ApiException(401, 'No JWT token found');
+      throw AppException.http(401, 'No JWT token found');
     }
 
     Object postBody = ''; // GET è¯·æ±éå¸¸æ²¡æ body
@@ -177,7 +177,7 @@ class ProgressControllerApi with BaseApiClient {
       final List<dynamic> data = jsonDecode(_decodeBodyBytes(response));
       return data.map((json) => ProgressItem.fromJson(json)).toList();
     }
-    throw ApiException(response.statusCode, _decodeBodyBytes(response));
+    throw AppException.http(response.statusCode, _decodeBodyBytes(response));
   }
 
   /// æ ¹æ®è¿åº¦IDæ´æ°è¿åº¦ç¶æã?with HTTP info returned
@@ -188,7 +188,7 @@ class ProgressControllerApi with BaseApiClient {
   }) async {
     final jwtToken = (await AuthTokenStore.instance.getJwtToken());
     if (jwtToken == null) {
-      throw ApiException(401, 'No JWT token found');
+      throw AppException.http(401, 'No JWT token found');
     }
 
     Object postBody =
@@ -231,7 +231,7 @@ class ProgressControllerApi with BaseApiClient {
     if (response.statusCode == 200) {
       return ProgressItem.fromJson(jsonDecode(_decodeBodyBytes(response)));
     }
-    throw ApiException(response.statusCode, _decodeBodyBytes(response));
+    throw AppException.http(response.statusCode, _decodeBodyBytes(response));
   }
 
   /// å é¤æå®è¿åº¦è®°å½ã?with HTTP info returned
@@ -241,7 +241,7 @@ class ProgressControllerApi with BaseApiClient {
   }) async {
     final jwtToken = (await AuthTokenStore.instance.getJwtToken());
     if (jwtToken == null) {
-      throw ApiException(401, 'No JWT token found');
+      throw AppException.http(401, 'No JWT token found');
     }
 
     Object postBody = ''; // DELETE è¯·æ±éå¸¸æ²¡æ body
@@ -277,7 +277,7 @@ class ProgressControllerApi with BaseApiClient {
     http.Response response = await _deleteProgressItemWithHttpInfo(
         progressId: progressId, headers: headers);
     if (response.statusCode != 204) {
-      throw ApiException(response.statusCode, _decodeBodyBytes(response));
+      throw AppException.http(response.statusCode, _decodeBodyBytes(response));
     }
   }
 
@@ -288,7 +288,7 @@ class ProgressControllerApi with BaseApiClient {
   }) async {
     final jwtToken = (await AuthTokenStore.instance.getJwtToken());
     if (jwtToken == null) {
-      throw ApiException(401, 'No JWT token found');
+      throw AppException.http(401, 'No JWT token found');
     }
 
     Object postBody = ''; // GET è¯·æ±éå¸¸æ²¡æ body
@@ -327,7 +327,7 @@ class ProgressControllerApi with BaseApiClient {
       final List<dynamic> data = jsonDecode(_decodeBodyBytes(response));
       return data.map((json) => ProgressItem.fromJson(json)).toList();
     }
-    throw ApiException(response.statusCode, _decodeBodyBytes(response));
+    throw AppException.http(response.statusCode, _decodeBodyBytes(response));
   }
 
   /// æ ¹æ®æ¶é´èå´è·åè¿åº¦è®°å½ã?with HTTP info returned
@@ -338,7 +338,7 @@ class ProgressControllerApi with BaseApiClient {
   }) async {
     final jwtToken = (await AuthTokenStore.instance.getJwtToken());
     if (jwtToken == null) {
-      throw ApiException(401, 'No JWT token found');
+      throw AppException.http(401, 'No JWT token found');
     }
 
     Object postBody = ''; // GET è¯·æ±éå¸¸æ²¡æ body
@@ -381,7 +381,7 @@ class ProgressControllerApi with BaseApiClient {
       final List<dynamic> data = jsonDecode(_decodeBodyBytes(response));
       return data.map((json) => ProgressItem.fromJson(json)).toList();
     }
-    throw ApiException(response.statusCode, _decodeBodyBytes(response));
+    throw AppException.http(response.statusCode, _decodeBodyBytes(response));
   }
 
   /// æ ¹æ®ç¨æ·åè·åè¿åº¦è®°å½?(WebSocket)
@@ -397,7 +397,7 @@ class ProgressControllerApi with BaseApiClient {
 
     final respMap = await apiClient.sendWsMessage(msg);
     if (respMap.containsKey("error")) {
-      throw ApiException(400, respMap["error"]);
+      throw AppException.http(400, respMap["error"]);
     }
     if (respMap["result"] is List) {
       return (respMap["result"] as List).cast<Object>();
@@ -416,7 +416,7 @@ class ProgressControllerApi with BaseApiClient {
 
     final respMap = await apiClient.sendWsMessage(msg);
     if (respMap.containsKey("error")) {
-      throw ApiException(400, respMap["error"]);
+      throw AppException.http(400, respMap["error"]);
     }
     if (respMap["result"] is List) {
       return (respMap["result"] as List).cast<Object>();
@@ -437,7 +437,7 @@ class ProgressControllerApi with BaseApiClient {
 
     final respMap = await apiClient.sendWsMessage(msg);
     if (respMap.containsKey("error")) {
-      throw ApiException(400, respMap["error"]);
+      throw AppException.http(400, respMap["error"]);
     }
     if (respMap["result"] is List) {
       return (respMap["result"] as List).cast<Object>();
@@ -459,7 +459,7 @@ class ProgressControllerApi with BaseApiClient {
 
     final respMap = await apiClient.sendWsMessage(msg);
     if (respMap.containsKey("error")) {
-      throw ApiException(400, respMap["error"]);
+      throw AppException.http(400, respMap["error"]);
     }
     if (respMap["result"] is List) {
       return (respMap["result"] as List).cast<Object>();
@@ -480,7 +480,7 @@ class ProgressControllerApi with BaseApiClient {
 
     final respMap = await apiClient.sendWsMessage(msg);
     if (respMap.containsKey("error")) {
-      throw ApiException(400, respMap["error"]);
+      throw AppException.http(400, respMap["error"]);
     }
     return respMap["result"];
   }
@@ -499,7 +499,7 @@ class ProgressControllerApi with BaseApiClient {
 
     final respMap = await apiClient.sendWsMessage(msg);
     if (respMap.containsKey("error")) {
-      throw ApiException(400, respMap["error"]);
+      throw AppException.http(400, respMap["error"]);
     }
     return respMap["result"];
   }
@@ -517,7 +517,7 @@ class ProgressControllerApi with BaseApiClient {
 
     final respMap = await apiClient.sendWsMessage(msg);
     if (respMap.containsKey("error")) {
-      throw ApiException(400, respMap["error"]);
+      throw AppException.http(400, respMap["error"]);
     }
     return respMap["result"];
   }

@@ -256,7 +256,7 @@ class _VehicleManagementState extends State<VehicleManagementPage> {
             .toList();
       }
     } catch (e) {
-      AppLogger.error('Failed to fetch autocomplete suggestions: $e');
+      AppLogger.debug('Autocomplete failed: ${e.toString()}');
       return [];
     }
   }

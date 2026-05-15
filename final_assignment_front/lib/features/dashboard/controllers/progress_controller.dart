@@ -4,7 +4,7 @@ import 'package:final_assignment_front/features/api/appeal_management_controller
 import 'package:final_assignment_front/features/model/appeal_record.dart';
 import 'package:final_assignment_front/features/model/progress_item.dart';
 import 'package:final_assignment_front/shared/controllers/base_list_controller.dart';
-import 'package:final_assignment_front/utils/helpers/api_exception.dart';
+import 'package:final_assignment_front/core/network/app_exception.dart';
 import 'package:final_assignment_front/utils/services/api_client.dart';
 import 'package:final_assignment_front/utils/ui/ui_utils.dart';
 import 'package:get/get.dart';
@@ -125,7 +125,7 @@ class ProgressController extends BaseListController<ProgressItem> {
             data.map((json) => ProgressItem.fromJson(json)).toList();
         filteredItems.value = progressItems;
       } else {
-        throw ApiException(response.statusCode, 'Failed to fetch progress');
+        throw AppException.http(response.statusCode, 'Failed to fetch progress');
       }
     });
   }
@@ -168,7 +168,7 @@ class ProgressController extends BaseListController<ProgressItem> {
           await fetchProgress();
           _showSnackbar('成功', '进度提交成功');
         } else {
-          throw ApiException(response.statusCode, 'Failed to submit progress');
+          throw AppException.http(response.statusCode, 'Failed to submit progress');
         }
       },
       onError: (_, __) =>
@@ -216,7 +216,7 @@ class ProgressController extends BaseListController<ProgressItem> {
           await fetchProgress();
           _showSnackbar('成功', '进度更新成功');
         } else {
-          throw ApiException(response.statusCode, 'Failed to update progress');
+          throw AppException.http(response.statusCode, 'Failed to update progress');
         }
       },
       onError: (_, __) =>
@@ -257,7 +257,7 @@ class ProgressController extends BaseListController<ProgressItem> {
           await fetchProgress();
           _showSnackbar('成功', '状态更新成功');
         } else {
-          throw ApiException(response.statusCode, 'Failed to update status');
+          throw AppException.http(response.statusCode, 'Failed to update status');
         }
       },
       onError: (_, __) =>
@@ -289,7 +289,7 @@ class ProgressController extends BaseListController<ProgressItem> {
           await fetchProgress();
           _showSnackbar('成功', '进度删除成功');
         } else {
-          throw ApiException(response.statusCode, 'Failed to delete progress');
+          throw AppException.http(response.statusCode, 'Failed to delete progress');
         }
       },
       onError: (_, __) =>
@@ -326,7 +326,7 @@ class ProgressController extends BaseListController<ProgressItem> {
         filteredItems.value =
             data.map((json) => ProgressItem.fromJson(json)).toList();
       } else {
-        throw ApiException(
+        throw AppException.http(
             response.statusCode, 'Failed to fetch progress by time range');
       }
     });
@@ -351,7 +351,7 @@ class ProgressController extends BaseListController<ProgressItem> {
   }
 
   String _formatErrorMessage(dynamic error) {
-    if (error is ApiException) {
+    if (error is AppException) {
       switch (error.code) {
         case 400:
           return '请求错误: ${error.message}';

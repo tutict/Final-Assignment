@@ -4,7 +4,7 @@ import 'package:final_assignment_front/features/model/login_log.dart';
 import 'package:final_assignment_front/features/model/operation_log.dart';
 import 'package:final_assignment_front/features/model/sys_request_history.dart';
 import 'package:final_assignment_front/features/model/system_logs.dart';
-import 'package:final_assignment_front/utils/helpers/api_exception.dart';
+import 'package:final_assignment_front/core/network/app_exception.dart';
 import 'package:final_assignment_front/utils/services/api_client.dart';
 import 'package:final_assignment_front/utils/services/auth_token_store.dart';
 import 'package:http/http.dart' as http;
@@ -39,7 +39,7 @@ class SystemLogsControllerApi with BaseApiClient {
   ///
   /// 返回概览统计 Map；后端返回空响应时返回空 Map。
   ///
-  /// 抛出 [ApiException]：当 HTTP 响应非 2xx 时。
+  /// 抛出 [AppException]：当 HTTP 响应非 2xx 时。
   ///
   /// 对应接口：GET /api/system/logs/overview
   Future<Map<String, dynamic>> getSystemLogsOverview() async {
@@ -54,7 +54,7 @@ class SystemLogsControllerApi with BaseApiClient {
       const ['bearerAuth'],
     );
     if (r.statusCode >= 400) {
-      throw ApiException(r.statusCode, _decode(r));
+      throw AppException.http(r.statusCode, _decode(r));
     }
     if (r.body.isEmpty) return {};
     return jsonDecode(_decode(r)) as Map<String, dynamic>;
@@ -67,7 +67,7 @@ class SystemLogsControllerApi with BaseApiClient {
   ///
   /// 返回 [LoginLog] 列表；无数据时返回空列表。
   ///
-  /// 抛出 [ApiException]：当 HTTP 响应非 2xx 时。
+  /// 抛出 [AppException]：当 HTTP 响应非 2xx 时。
   ///
   /// 对应接口：GET /api/system/logs/login/recent
   Future<List<LoginLog>> listRecentLoginLogs({int limit = 10}) async {
@@ -81,7 +81,7 @@ class SystemLogsControllerApi with BaseApiClient {
       null,
       const ['bearerAuth'],
     );
-    if (r.statusCode >= 400) throw ApiException(r.statusCode, _decode(r));
+    if (r.statusCode >= 400) throw AppException.http(r.statusCode, _decode(r));
     if (r.body.isEmpty) return [];
     final List<dynamic> data = jsonDecode(_decode(r));
     return data
@@ -96,7 +96,7 @@ class SystemLogsControllerApi with BaseApiClient {
   ///
   /// 返回 [OperationLog] 列表；无数据时返回空列表。
   ///
-  /// 抛出 [ApiException]：当 HTTP 响应非 2xx 时。
+  /// 抛出 [AppException]：当 HTTP 响应非 2xx 时。
   ///
   /// 对应接口：GET /api/system/logs/operation/recent
   Future<List<OperationLog>> listRecentOperationLogs({int limit = 10}) async {
@@ -110,7 +110,7 @@ class SystemLogsControllerApi with BaseApiClient {
       null,
       const ['bearerAuth'],
     );
-    if (r.statusCode >= 400) throw ApiException(r.statusCode, _decode(r));
+    if (r.statusCode >= 400) throw AppException.http(r.statusCode, _decode(r));
     if (r.body.isEmpty) return [];
     final List<dynamic> data = jsonDecode(_decode(r));
     return data
@@ -125,7 +125,7 @@ class SystemLogsControllerApi with BaseApiClient {
   ///
   /// 返回 [SysRequestHistoryModel]；后端返回 404 或空响应时返回 `null`。
   ///
-  /// 抛出 [ApiException]：当 HTTP 响应非 2xx 且不是 404 时。
+  /// 抛出 [AppException]：当 HTTP 响应非 2xx 且不是 404 时。
   ///
   /// 对应接口：GET /api/system/logs/requests/{historyId}
   Future<SysRequestHistoryModel?> getRequestHistory({
@@ -143,7 +143,7 @@ class SystemLogsControllerApi with BaseApiClient {
       passThroughStatusCodes: const {404},
     );
     if (r.statusCode == 404) return null;
-    if (r.statusCode >= 400) throw ApiException(r.statusCode, _decode(r));
+    if (r.statusCode >= 400) throw AppException.http(r.statusCode, _decode(r));
     if (r.body.isEmpty) return null;
     return SysRequestHistoryModel.fromJson(jsonDecode(_decode(r)));
   }
@@ -157,7 +157,7 @@ class SystemLogsControllerApi with BaseApiClient {
   ///
   /// 返回 [SysRequestHistoryModel] 列表；无匹配时返回空列表。
   ///
-  /// 抛出 [ApiException]：当 HTTP 响应非 2xx 时。
+  /// 抛出 [AppException]：当 HTTP 响应非 2xx 时。
   ///
   /// 对应接口：GET /api/system/logs/requests/search/idempotency
   Future<List<SysRequestHistoryModel>> searchRequestHistoryByIdempotency({
@@ -179,7 +179,7 @@ class SystemLogsControllerApi with BaseApiClient {
       null,
       const ['bearerAuth'],
     );
-    if (r.statusCode >= 400) throw ApiException(r.statusCode, _decode(r));
+    if (r.statusCode >= 400) throw AppException.http(r.statusCode, _decode(r));
     if (r.body.isEmpty) return [];
     final List<dynamic> data = jsonDecode(_decode(r));
     return data
@@ -196,7 +196,7 @@ class SystemLogsControllerApi with BaseApiClient {
   ///
   /// 返回 [SysRequestHistoryModel] 列表；无匹配时返回空列表。
   ///
-  /// 抛出 [ApiException]：当 HTTP 响应非 2xx 时。
+  /// 抛出 [AppException]：当 HTTP 响应非 2xx 时。
   ///
   /// 对应接口：GET /api/system/logs/requests/search/method
   Future<List<SysRequestHistoryModel>> searchRequestHistoryByMethod({
@@ -218,7 +218,7 @@ class SystemLogsControllerApi with BaseApiClient {
       null,
       const ['bearerAuth'],
     );
-    if (r.statusCode >= 400) throw ApiException(r.statusCode, _decode(r));
+    if (r.statusCode >= 400) throw AppException.http(r.statusCode, _decode(r));
     if (r.body.isEmpty) return [];
     final List<dynamic> data = jsonDecode(_decode(r));
     return data
@@ -235,7 +235,7 @@ class SystemLogsControllerApi with BaseApiClient {
   ///
   /// 返回 [SysRequestHistoryModel] 列表；无匹配时返回空列表。
   ///
-  /// 抛出 [ApiException]：当 HTTP 响应非 2xx 时。
+  /// 抛出 [AppException]：当 HTTP 响应非 2xx 时。
   ///
   /// 对应接口：GET /api/system/logs/requests/search/url
   Future<List<SysRequestHistoryModel>> searchRequestHistoryByUrl({
@@ -257,7 +257,7 @@ class SystemLogsControllerApi with BaseApiClient {
       null,
       const ['bearerAuth'],
     );
-    if (r.statusCode >= 400) throw ApiException(r.statusCode, _decode(r));
+    if (r.statusCode >= 400) throw AppException.http(r.statusCode, _decode(r));
     if (r.body.isEmpty) return [];
     final List<dynamic> data = jsonDecode(_decode(r));
     return data
@@ -274,7 +274,7 @@ class SystemLogsControllerApi with BaseApiClient {
   ///
   /// 返回 [SysRequestHistoryModel] 列表；无匹配时返回空列表。
   ///
-  /// 抛出 [ApiException]：当 HTTP 响应非 2xx 时。
+  /// 抛出 [AppException]：当 HTTP 响应非 2xx 时。
   ///
   /// 对应接口：GET /api/system/logs/requests/search/business-type
   Future<List<SysRequestHistoryModel>> searchRequestHistoryByBusinessType({
@@ -296,7 +296,7 @@ class SystemLogsControllerApi with BaseApiClient {
       null,
       const ['bearerAuth'],
     );
-    if (r.statusCode >= 400) throw ApiException(r.statusCode, _decode(r));
+    if (r.statusCode >= 400) throw AppException.http(r.statusCode, _decode(r));
     if (r.body.isEmpty) return [];
     final List<dynamic> data = jsonDecode(_decode(r));
     return data
@@ -313,7 +313,7 @@ class SystemLogsControllerApi with BaseApiClient {
   ///
   /// 返回 [SysRequestHistoryModel] 列表；无匹配时返回空列表。
   ///
-  /// 抛出 [ApiException]：当 HTTP 响应非 2xx 时。
+  /// 抛出 [AppException]：当 HTTP 响应非 2xx 时。
   ///
   /// 对应接口：GET /api/system/logs/requests/search/business-id
   Future<List<SysRequestHistoryModel>> searchRequestHistoryByBusinessId({
@@ -335,7 +335,7 @@ class SystemLogsControllerApi with BaseApiClient {
       null,
       const ['bearerAuth'],
     );
-    if (r.statusCode >= 400) throw ApiException(r.statusCode, _decode(r));
+    if (r.statusCode >= 400) throw AppException.http(r.statusCode, _decode(r));
     if (r.body.isEmpty) return [];
     final List<dynamic> data = jsonDecode(_decode(r));
     return data
@@ -352,7 +352,7 @@ class SystemLogsControllerApi with BaseApiClient {
   ///
   /// 返回 [SysRequestHistoryModel] 列表；无匹配时返回空列表。
   ///
-  /// 抛出 [ApiException]：当 HTTP 响应非 2xx 时。
+  /// 抛出 [AppException]：当 HTTP 响应非 2xx 时。
   ///
   /// 对应接口：GET /api/system/logs/requests/search/status
   Future<List<SysRequestHistoryModel>> searchRequestHistoryByStatus({
@@ -374,7 +374,7 @@ class SystemLogsControllerApi with BaseApiClient {
       null,
       const ['bearerAuth'],
     );
-    if (r.statusCode >= 400) throw ApiException(r.statusCode, _decode(r));
+    if (r.statusCode >= 400) throw AppException.http(r.statusCode, _decode(r));
     if (r.body.isEmpty) return [];
     final List<dynamic> data = jsonDecode(_decode(r));
     return data
@@ -391,7 +391,7 @@ class SystemLogsControllerApi with BaseApiClient {
   ///
   /// 返回 [SysRequestHistoryModel] 列表；无匹配时返回空列表。
   ///
-  /// 抛出 [ApiException]：当 HTTP 响应非 2xx 时。
+  /// 抛出 [AppException]：当 HTTP 响应非 2xx 时。
   ///
   /// 对应接口：GET /api/system/logs/requests/search/user
   Future<List<SysRequestHistoryModel>> searchRequestHistoryByUser({
@@ -413,7 +413,7 @@ class SystemLogsControllerApi with BaseApiClient {
       null,
       const ['bearerAuth'],
     );
-    if (r.statusCode >= 400) throw ApiException(r.statusCode, _decode(r));
+    if (r.statusCode >= 400) throw AppException.http(r.statusCode, _decode(r));
     if (r.body.isEmpty) return [];
     final List<dynamic> data = jsonDecode(_decode(r));
     return data
@@ -430,7 +430,7 @@ class SystemLogsControllerApi with BaseApiClient {
   ///
   /// 返回 [SysRequestHistoryModel] 列表；无匹配时返回空列表。
   ///
-  /// 抛出 [ApiException]：当 HTTP 响应非 2xx 时。
+  /// 抛出 [AppException]：当 HTTP 响应非 2xx 时。
   ///
   /// 对应接口：GET /api/system/logs/requests/search/ip
   Future<List<SysRequestHistoryModel>> searchRequestHistoryByIp({
@@ -452,7 +452,7 @@ class SystemLogsControllerApi with BaseApiClient {
       null,
       const ['bearerAuth'],
     );
-    if (r.statusCode >= 400) throw ApiException(r.statusCode, _decode(r));
+    if (r.statusCode >= 400) throw AppException.http(r.statusCode, _decode(r));
     if (r.body.isEmpty) return [];
     final List<dynamic> data = jsonDecode(_decode(r));
     return data
@@ -470,7 +470,7 @@ class SystemLogsControllerApi with BaseApiClient {
   ///
   /// 返回 [SysRequestHistoryModel] 列表；无匹配时返回空列表。
   ///
-  /// 抛出 [ApiException]：当 HTTP 响应非 2xx 时。
+  /// 抛出 [AppException]：当 HTTP 响应非 2xx 时。
   ///
   /// 对应接口：GET /api/system/logs/requests/search/time-range
   Future<List<SysRequestHistoryModel>> searchRequestHistoryByTimeRange({
@@ -494,7 +494,7 @@ class SystemLogsControllerApi with BaseApiClient {
       null,
       const ['bearerAuth'],
     );
-    if (r.statusCode >= 400) throw ApiException(r.statusCode, _decode(r));
+    if (r.statusCode >= 400) throw AppException.http(r.statusCode, _decode(r));
     if (r.body.isEmpty) return [];
     final List<dynamic> data = jsonDecode(_decode(r));
     return data
@@ -508,7 +508,7 @@ class SystemLogsControllerApi with BaseApiClient {
   ///
   /// 返回 [SystemLogs] 列表；eventbus result 为空时返回空列表。
   ///
-  /// 抛出 [ApiException]：当 WebSocket 响应包含 `error` 字段时。
+  /// 抛出 [AppException]：当 WebSocket 响应包含 `error` 字段时。
   ///
   /// 对应实时动作：SystemLogsService.getAllSystemLogs
   Future<List<SystemLogs>> eventbusSystemLogsGet() async {
@@ -519,7 +519,7 @@ class SystemLogsControllerApi with BaseApiClient {
     };
     final respMap = await _apiClient.sendWsMessage(msg);
     if (respMap.containsKey('error')) {
-      throw ApiException(400, respMap['error']);
+      throw AppException.http(400, respMap['error']);
     }
     final result = respMap['result'] as List<dynamic>?;
     if (result == null) return [];

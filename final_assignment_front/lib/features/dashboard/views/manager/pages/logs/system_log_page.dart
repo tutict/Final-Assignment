@@ -7,7 +7,7 @@ import 'package:final_assignment_front/features/dashboard/controllers/manager_da
 import 'package:final_assignment_front/features/dashboard/views/shared/widgets/dashboard_page_template.dart';
 import 'package:final_assignment_front/features/model/login_log.dart';
 import 'package:final_assignment_front/features/model/operation_log.dart';
-import 'package:final_assignment_front/utils/helpers/api_exception.dart';
+import 'package:final_assignment_front/core/network/app_exception.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
@@ -152,7 +152,7 @@ class _SystemLogPageState extends State<SystemLogPage> {
       developer.log('Failed to fetch system logs: $e',
           stackTrace: StackTrace.current);
       setState(() {
-        if (e is ApiException && e.code == 403) {
+        if (e is AppException && e.code == 403) {
           _errorMessage = '您没有权限查看系统日志';
         } else {
           _errorMessage = '加载系统日志失败: ${_formatErrorMessage(e)}';
@@ -192,7 +192,7 @@ class _SystemLogPageState extends State<SystemLogPage> {
   }
 
   String _formatErrorMessage(dynamic error) {
-    if (error is ApiException) {
+    if (error is AppException) {
       switch (error.code) {
         case 400:
           return '请求错误: ${error.message}';

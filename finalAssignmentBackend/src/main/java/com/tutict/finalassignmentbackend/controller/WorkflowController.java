@@ -6,6 +6,7 @@ import com.tutict.finalassignmentbackend.config.statemachine.events.PaymentEvent
 import com.tutict.finalassignmentbackend.config.statemachine.states.AppealProcessState;
 import com.tutict.finalassignmentbackend.config.statemachine.states.OffenseProcessState;
 import com.tutict.finalassignmentbackend.config.statemachine.states.PaymentState;
+import com.tutict.finalassignmentbackend.dto.response.ApiResponse;
 import com.tutict.finalassignmentbackend.entity.AppealRecord;
 import com.tutict.finalassignmentbackend.entity.OffenseRecord;
 import com.tutict.finalassignmentbackend.entity.PaymentRecord;
@@ -74,16 +75,16 @@ public class WorkflowController {
 
     @PostMapping("/payments/{paymentId}/events/{event}")
     @Operation(summary = "触发支付状态事件")
-    public ResponseEntity<PaymentRecord> triggerPaymentEvent(@PathVariable Long paymentId,
-                                                             @PathVariable PaymentEvent event,
-                                                             @RequestHeader(value = "Idempotency-Key", required = true)
-                                                             String idempotencyKey) {
+    public ResponseEntity<?> triggerPaymentEvent(@PathVariable Long paymentId,
+                                                 @PathVariable PaymentEvent event,
+                                                 @RequestHeader(value = "Idempotency-Key", required = true)
+                                                 String idempotencyKey) {
         PaymentRecord record = paymentRecordService.findById(paymentId);
         if (record == null) {
             return ResponseEntity.notFound().build();
         }
         if (paymentRecordService.isDuplicateIdempotencyKey(idempotencyKey)) {
-            return ResponseEntity.status(HttpStatus.ALREADY_REPORTED).body(record);
+            return ResponseEntity.status(HttpStatus.ALREADY_REPORTED).body(ApiResponse.ok(null));
         }
         PaymentState currentState = resolvePaymentState(record.getPaymentStatus());
         PaymentState newState = stateMachineService.processPaymentState(paymentId, currentState, event);
@@ -95,7 +96,7 @@ public class WorkflowController {
             PaymentRecord updated = paymentRecordService.updatePaymentStatus(paymentId, newState, idempotencyKey);
             return ResponseEntity.ok(updated);
         } catch (PaymentDuplicateRequestException ex) {
-            return ResponseEntity.status(HttpStatus.ALREADY_REPORTED).body(record);
+            return ResponseEntity.status(HttpStatus.ALREADY_REPORTED).body(ApiResponse.ok(null));
         } catch (PaymentOptimisticLockException ex) {
             return ResponseEntity.status(HttpStatus.CONFLICT).body(record);
         }

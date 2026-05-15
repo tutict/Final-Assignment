@@ -3,7 +3,7 @@ import 'dart:convert';
 
 import 'package:final_assignment_front/features/model/appeal_record.dart';
 import 'package:final_assignment_front/features/model/appeal_review.dart';
-import 'package:final_assignment_front/utils/helpers/api_exception.dart';
+import 'package:final_assignment_front/core/network/app_exception.dart';
 import 'package:final_assignment_front/utils/services/api_client.dart';
 import 'package:http/http.dart' as http;
 import 'package:final_assignment_front/utils/services/auth_token_store.dart';
@@ -144,7 +144,7 @@ class AppealManagementControllerApi with BaseApiClient {
     int size = 20,
   }) async {
     if (offenseId <= 0) {
-      throw ApiException(400, 'Missing required param: offenseId');
+      throw AppException.http(400, 'Missing required param: offenseId');
     }
     final queryParams = <QueryParam>[
       QueryParam('offenseId', offenseId.toString()),
@@ -569,7 +569,7 @@ class AppealManagementControllerApi with BaseApiClient {
     required String reviewLevel,
   }) async {
     if (reviewLevel.trim().isEmpty) {
-      throw ApiException(400, 'Missing required param: reviewLevel');
+      throw AppException.http(400, 'Missing required param: reviewLevel');
     }
     final response = await apiClient.invokeAPI(
       '/api/appeals/reviews/count',

@@ -33,6 +33,7 @@ class ManagerDashboardController extends GetxController {
   late Rx<Future<List<OffenseInformation>>> offensesFuture;
   final RxString currentDriverName = ''.obs;
   final RxString currentEmail = ''.obs;
+  final RxString errorMessage = ''.obs;
   final RxBool _refreshPersonalPage = false.obs;
   final offenseApi = OffenseInformationControllerApi();
   final roleApi = RoleManagementControllerApi();
@@ -91,8 +92,8 @@ class ManagerDashboardController extends GetxController {
       await roleApi.initializeWithJwt();
     } else {
       ErrorHandler.showError(
-        Exception('请先登录以访问管理功能'),
-        fallbackMessage: '请先登录以访问管理功能',
+        Exception('Login required to access manager features'),
+        fallbackMessage: 'Login required to access manager features',
       );
       _redirectToLogin();
     }
@@ -102,7 +103,7 @@ class ManagerDashboardController extends GetxController {
     try {
       final role = await roleApi.getCurrentUserRole();
       if (role != 'ADMIN') {
-        throw Exception('权限不足：仅管理员可访问此功能');
+        throw Exception('Admin role is required');
       }
     } catch (e) {
       ErrorHandler.showError(e, fallbackMessage: '令牌验证失败，请重新登录');
@@ -276,8 +277,8 @@ class ManagerDashboardController extends GetxController {
       }
       return typeCountMap;
     } catch (e) {
-      ErrorHandler.showError(e, fallbackMessage: '无法加载违法类型分布');
-      return {};
+      errorMessage.value = ErrorHandler.extractMessage(e);
+      rethrow;
     }
   }
 
@@ -286,8 +287,8 @@ class ManagerDashboardController extends GetxController {
       await _validateTokenAndRole();
       return await offenseApi.listOffenses();
     } catch (e) {
-      ErrorHandler.showError(e, fallbackMessage: '无法加载违法行为信息');
-      return [];
+      errorMessage.value = ErrorHandler.extractMessage(e);
+      rethrow;
     }
   }
 

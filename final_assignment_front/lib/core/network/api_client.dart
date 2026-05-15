@@ -8,7 +8,6 @@ import 'package:http/http.dart' as http;
 import 'package:uuid/uuid.dart';
 import 'package:web_socket_channel/web_socket_channel.dart';
 
-import '../../utils/helpers/api_exception.dart';
 import '../../utils/services/auth_token_store.dart';
 import '../../utils/services/authentication.dart';
 import '../../utils/services/http_bearer_auth.dart';
@@ -112,7 +111,7 @@ class ApiClient {
       }
     } on Exception catch (error, stackTrace) {
       AppLogger.error('Deserialization error for $targetType: $error');
-      throw ApiException.withInner(
+      throw AppException.withInner(
         500,
         'Exception during deserialization: $error',
         error,
@@ -185,6 +184,16 @@ class ApiClient {
 
       if (kDebugMode) {
         AppLogger.debug('Response: ${response.statusCode} - ${response.body}');
+      }
+
+      if (response.statusCode == 208) {
+        return http.Response(
+          jsonEncode({'success': true, 'data': null}),
+          response.statusCode,
+          headers: response.headers,
+          request: response.request,
+          reasonPhrase: response.reasonPhrase,
+        );
       }
 
       if (response.statusCode == 401 &&
@@ -401,10 +410,12 @@ class ApiClient {
     _wsSubscription = _wsChannel!.stream.listen(
       _handleWsData,
       onError: (Object error) {
-        _completePendingWithError(ApiException(500, 'WebSocket error: $error'));
+        _completePendingWithError(
+          AppException.http(500, 'WebSocket error: $error'),
+        );
       },
       onDone: () {
-        _completePendingWithError(ApiException(500, 'WebSocket closed'));
+        _completePendingWithError(AppException.http(500, 'WebSocket closed'));
       },
     );
 
@@ -478,7 +489,7 @@ class ApiClient {
   ) async {
     final channel = _wsChannel;
     if (channel == null || _wsSubscription == null) {
-      throw ApiException(500, 'WebSocket not connected');
+      throw AppException.http(500, 'WebSocket not connected');
     }
 
     final requestId = message['requestId']?.toString() ?? _uuid.v4();
@@ -493,17 +504,17 @@ class ApiClient {
         const Duration(seconds: 30),
       );
       if (decoded.containsKey('error')) {
-        throw ApiException(400, decoded['error'].toString());
+        throw AppException.http(400, decoded['error'].toString());
       }
       return decoded;
     } on TimeoutException {
       _pendingRequests.remove(requestId);
-      throw ApiException(504, 'WebSocket request timed out');
-    } on ApiException {
+      throw AppException.http(504, 'WebSocket request timed out');
+    } on AppException {
       rethrow;
     } catch (error) {
       _pendingRequests.remove(requestId);
-      throw ApiException(500, 'WebSocket read error: $error');
+      throw AppException.http(500, 'WebSocket read error: $error');
     }
   }
 
@@ -511,7 +522,7 @@ class ApiClient {
     try {
       final decoded = jsonDecode(data as String);
       if (decoded is! Map<String, dynamic>) {
-        throw ApiException(400, 'WebSocket response is not a JSON object');
+        throw AppException.http(400, 'WebSocket response is not a JSON object');
       }
 
       final requestId = decoded['requestId']?.toString();
@@ -532,9 +543,12 @@ class ApiClient {
       }
     } catch (error) {
       _completePendingWithError(
-        error is ApiException
+        error is AppException
             ? error
-            : ApiException(500, 'WebSocket response parse error: $error'),
+            : AppException.http(
+                500,
+                'WebSocket response parse error: $error',
+              ),
       );
     }
   }
@@ -569,7 +583,7 @@ class ApiClient {
 
     channel.sink.close();
     _wsSubscription?.cancel();
-    _completePendingWithError(ApiException(500, 'WebSocket closed'));
+    _completePendingWithError(AppException.http(500, 'WebSocket closed'));
     if (kDebugMode) {
       AppLogger.debug('[WebSocket closed] ${_sanitizeWsUrl(_wsUrl ?? '')}');
     }

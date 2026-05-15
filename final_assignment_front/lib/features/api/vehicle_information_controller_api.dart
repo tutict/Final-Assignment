@@ -1,7 +1,7 @@
 import 'package:final_assignment_front/core/utils/app_logger.dart';
 import 'dart:convert';
 import 'package:final_assignment_front/features/model/vehicle_information.dart';
-import 'package:final_assignment_front/utils/helpers/api_exception.dart';
+import 'package:final_assignment_front/core/network/app_exception.dart';
 import 'package:final_assignment_front/utils/services/api_client.dart';
 import 'package:http/http.dart' as http;
 import 'package:final_assignment_front/utils/services/auth_token_store.dart';
@@ -40,7 +40,7 @@ class VehicleInformationControllerApi with BaseApiClient {
   ///
   /// 返回 [VehicleInformation] 列表；后端返回空响应时返回空列表。
   ///
-  /// 抛出 [ApiException]：当 HTTP 响应非 2xx 时。
+  /// 抛出 [AppException]：当 HTTP 响应非 2xx 时。
   ///
   /// 对应接口：GET /api/vehicles
   Future<List<VehicleInformation>> listVehicles() async {
@@ -54,7 +54,7 @@ class VehicleInformationControllerApi with BaseApiClient {
       null,
       const ['bearerAuth'],
     );
-    if (r.statusCode >= 400) throw ApiException(r.statusCode, _decode(r));
+    if (r.statusCode >= 400) throw AppException.http(r.statusCode, _decode(r));
     if (r.body.isEmpty) return [];
     final List<dynamic> data = jsonDecode(_decode(r));
     return data.map((e) => VehicleInformation.fromJson(e)).toList();
@@ -67,7 +67,7 @@ class VehicleInformationControllerApi with BaseApiClient {
   ///
   /// 返回 [VehicleInformation]；后端返回 404 或空响应时返回 `null`。
   ///
-  /// 抛出 [ApiException]：当 HTTP 响应非 2xx 且不是 404 时。
+  /// 抛出 [AppException]：当 HTTP 响应非 2xx 且不是 404 时。
   ///
   /// 对应接口：GET /api/vehicles/{vehicleId}
   Future<VehicleInformation?> getVehicle({required int vehicleId}) async {
@@ -83,7 +83,7 @@ class VehicleInformationControllerApi with BaseApiClient {
       passThroughStatusCodes: const {404},
     );
     if (r.statusCode == 404) return null;
-    if (r.statusCode >= 400) throw ApiException(r.statusCode, _decode(r));
+    if (r.statusCode >= 400) throw AppException.http(r.statusCode, _decode(r));
     if (r.body.isEmpty) return null;
     return VehicleInformation.fromJson(jsonDecode(_decode(r)));
   }
@@ -96,7 +96,7 @@ class VehicleInformationControllerApi with BaseApiClient {
   ///
   /// 返回后端创建后的 [VehicleInformation]。
   ///
-  /// 抛出 [ApiException]：当 HTTP 响应非 2xx 时。
+  /// 抛出 [AppException]：当 HTTP 响应非 2xx 时。
   ///
   /// 对应接口：POST /api/vehicles
   Future<VehicleInformation> createVehicle({
@@ -113,7 +113,7 @@ class VehicleInformationControllerApi with BaseApiClient {
       'application/json',
       const ['bearerAuth'],
     );
-    if (r.statusCode >= 400) throw ApiException(r.statusCode, _decode(r));
+    if (r.statusCode >= 400) throw AppException.http(r.statusCode, _decode(r));
     return VehicleInformation.fromJson(jsonDecode(_decode(r)));
   }
 
@@ -126,7 +126,7 @@ class VehicleInformationControllerApi with BaseApiClient {
   ///
   /// 返回后端更新后的 [VehicleInformation]。
   ///
-  /// 抛出 [ApiException]：当 HTTP 响应非 2xx 时。
+  /// 抛出 [AppException]：当 HTTP 响应非 2xx 时。
   ///
   /// 对应接口：PUT /api/vehicles/{vehicleId}
   Future<VehicleInformation> updateVehicle({
@@ -144,7 +144,7 @@ class VehicleInformationControllerApi with BaseApiClient {
       'application/json',
       const ['bearerAuth'],
     );
-    if (r.statusCode >= 400) throw ApiException(r.statusCode, _decode(r));
+    if (r.statusCode >= 400) throw AppException.http(r.statusCode, _decode(r));
     return VehicleInformation.fromJson(jsonDecode(_decode(r)));
   }
 
@@ -155,7 +155,7 @@ class VehicleInformationControllerApi with BaseApiClient {
   ///
   /// 删除成功时无返回值；当前实现期望后端返回 204。
   ///
-  /// 抛出 [ApiException]：当 HTTP 状态码不是 204 时。
+  /// 抛出 [AppException]：当 HTTP 状态码不是 204 时。
   ///
   /// 对应接口：DELETE /api/vehicles/{vehicleId}
   Future<void> deleteVehicle({required int vehicleId}) async {
@@ -169,7 +169,7 @@ class VehicleInformationControllerApi with BaseApiClient {
       null,
       const ['bearerAuth'],
     );
-    if (r.statusCode != 204) throw ApiException(r.statusCode, _decode(r));
+    if (r.statusCode != 204) throw AppException.http(r.statusCode, _decode(r));
   }
 
   // DELETE /api/vehicles/license/{licensePlate}
@@ -179,7 +179,7 @@ class VehicleInformationControllerApi with BaseApiClient {
   ///
   /// 删除成功时无返回值；当前实现期望后端返回 204。
   ///
-  /// 抛出 [ApiException]：当 HTTP 状态码不是 204 时。
+  /// 抛出 [AppException]：当 HTTP 状态码不是 204 时。
   ///
   /// 对应接口：DELETE /api/vehicles/license/{licensePlate}
   Future<void> deleteVehicleByLicense({required String licensePlate}) async {
@@ -193,7 +193,7 @@ class VehicleInformationControllerApi with BaseApiClient {
       null,
       const ['bearerAuth'],
     );
-    if (r.statusCode != 204) throw ApiException(r.statusCode, _decode(r));
+    if (r.statusCode != 204) throw AppException.http(r.statusCode, _decode(r));
   }
 
   // GET /api/vehicles/search/license?licensePlate=
@@ -203,7 +203,7 @@ class VehicleInformationControllerApi with BaseApiClient {
   ///
   /// 返回 [VehicleInformation]；未找到或空响应时返回 `null`。
   ///
-  /// 抛出 [ApiException]：当 HTTP 响应非 2xx 且不是 404 时。
+  /// 抛出 [AppException]：当 HTTP 响应非 2xx 且不是 404 时。
   ///
   /// 对应接口：GET /api/vehicles/search/license
   Future<VehicleInformation?> searchVehiclesByLicense(
@@ -220,7 +220,7 @@ class VehicleInformationControllerApi with BaseApiClient {
       passThroughStatusCodes: const {404},
     );
     if (r.statusCode == 404) return null;
-    if (r.statusCode >= 400) throw ApiException(r.statusCode, _decode(r));
+    if (r.statusCode >= 400) throw AppException.http(r.statusCode, _decode(r));
     if (r.body.isEmpty) return null;
     return VehicleInformation.fromJson(jsonDecode(_decode(r)));
   }
@@ -232,7 +232,7 @@ class VehicleInformationControllerApi with BaseApiClient {
   ///
   /// 返回 [VehicleInformation] 列表；无匹配时返回空列表。
   ///
-  /// 抛出 [ApiException]：当 HTTP 响应非 2xx 时。
+  /// 抛出 [AppException]：当 HTTP 响应非 2xx 时。
   ///
   /// 对应接口：GET /api/vehicles/search/owner
   Future<List<VehicleInformation>> searchVehiclesByOwner(
@@ -247,7 +247,7 @@ class VehicleInformationControllerApi with BaseApiClient {
       null,
       const ['bearerAuth'],
     );
-    if (r.statusCode >= 400) throw ApiException(r.statusCode, _decode(r));
+    if (r.statusCode >= 400) throw AppException.http(r.statusCode, _decode(r));
     if (r.body.isEmpty) return [];
     final List<dynamic> data = jsonDecode(_decode(r));
     return data.map((e) => VehicleInformation.fromJson(e)).toList();
@@ -260,7 +260,7 @@ class VehicleInformationControllerApi with BaseApiClient {
   ///
   /// 返回 [VehicleInformation] 列表；无匹配时返回空列表。
   ///
-  /// 抛出 [ApiException]：当 HTTP 响应非 2xx 时。
+  /// 抛出 [AppException]：当 HTTP 响应非 2xx 时。
   ///
   /// 对应接口：GET /api/vehicles/search/type
   Future<List<VehicleInformation>> searchVehiclesByType(
@@ -275,7 +275,7 @@ class VehicleInformationControllerApi with BaseApiClient {
       null,
       const ['bearerAuth'],
     );
-    if (r.statusCode >= 400) throw ApiException(r.statusCode, _decode(r));
+    if (r.statusCode >= 400) throw AppException.http(r.statusCode, _decode(r));
     if (r.body.isEmpty) return [];
     final List<dynamic> data = jsonDecode(_decode(r));
     return data.map((e) => VehicleInformation.fromJson(e)).toList();
@@ -288,7 +288,7 @@ class VehicleInformationControllerApi with BaseApiClient {
   ///
   /// 返回 [VehicleInformation] 列表；无匹配时返回空列表。
   ///
-  /// 抛出 [ApiException]：当 HTTP 响应非 2xx 时。
+  /// 抛出 [AppException]：当 HTTP 响应非 2xx 时。
   ///
   /// 对应接口：GET /api/vehicles/search/owner/name
   Future<List<VehicleInformation>> searchVehiclesByOwnerName(
@@ -303,7 +303,7 @@ class VehicleInformationControllerApi with BaseApiClient {
       null,
       const ['bearerAuth'],
     );
-    if (r.statusCode >= 400) throw ApiException(r.statusCode, _decode(r));
+    if (r.statusCode >= 400) throw AppException.http(r.statusCode, _decode(r));
     if (r.body.isEmpty) return [];
     final List<dynamic> data = jsonDecode(_decode(r));
     return data.map((e) => VehicleInformation.fromJson(e)).toList();
@@ -316,7 +316,7 @@ class VehicleInformationControllerApi with BaseApiClient {
   ///
   /// 返回 [VehicleInformation] 列表；无匹配时返回空列表。
   ///
-  /// 抛出 [ApiException]：当 HTTP 响应非 2xx 时。
+  /// 抛出 [AppException]：当 HTTP 响应非 2xx 时。
   ///
   /// 对应接口：GET /api/vehicles/search/status
   Future<List<VehicleInformation>> searchVehiclesByStatus(
@@ -331,7 +331,7 @@ class VehicleInformationControllerApi with BaseApiClient {
       null,
       const ['bearerAuth'],
     );
-    if (r.statusCode >= 400) throw ApiException(r.statusCode, _decode(r));
+    if (r.statusCode >= 400) throw AppException.http(r.statusCode, _decode(r));
     if (r.body.isEmpty) return [];
     final List<dynamic> data = jsonDecode(_decode(r));
     return data.map((e) => VehicleInformation.fromJson(e)).toList();
@@ -346,7 +346,7 @@ class VehicleInformationControllerApi with BaseApiClient {
   ///
   /// 返回 [VehicleInformation] 列表；无匹配时返回空列表。
   ///
-  /// 抛出 [ApiException]：当 HTTP 响应非 2xx 时。
+  /// 抛出 [AppException]：当 HTTP 响应非 2xx 时。
   ///
   /// 对应接口：GET /api/vehicles/search/general
   Future<List<VehicleInformation>> searchVehiclesByGeneral({
@@ -368,7 +368,7 @@ class VehicleInformationControllerApi with BaseApiClient {
       null,
       const ['bearerAuth'],
     );
-    if (r.statusCode >= 400) throw ApiException(r.statusCode, _decode(r));
+    if (r.statusCode >= 400) throw AppException.http(r.statusCode, _decode(r));
     if (r.body.isEmpty) return [];
     final List<dynamic> data = jsonDecode(_decode(r));
     return data.map((e) => VehicleInformation.fromJson(e)).toList();
@@ -382,7 +382,7 @@ class VehicleInformationControllerApi with BaseApiClient {
   ///
   /// 返回车牌号字符串列表；无匹配时返回空列表。
   ///
-  /// 抛出 [ApiException]：当 HTTP 响应非 2xx 时。
+  /// 抛出 [AppException]：当 HTTP 响应非 2xx 时。
   ///
   /// 对应接口：GET /api/vehicles/search/license/global
   Future<List<String>> searchVehiclesByLicenseGlobal({
@@ -402,7 +402,7 @@ class VehicleInformationControllerApi with BaseApiClient {
       null,
       const ['bearerAuth'],
     );
-    if (r.statusCode >= 400) throw ApiException(r.statusCode, _decode(r));
+    if (r.statusCode >= 400) throw AppException.http(r.statusCode, _decode(r));
     if (r.body.isEmpty) return [];
     final List<dynamic> data = jsonDecode(_decode(r));
     return data.cast<String>();
@@ -417,7 +417,7 @@ class VehicleInformationControllerApi with BaseApiClient {
   ///
   /// 返回车牌号字符串列表；无匹配时返回空列表。
   ///
-  /// 抛出 [ApiException]：当 HTTP 响应非 2xx 时。
+  /// 抛出 [AppException]：当 HTTP 响应非 2xx 时。
   ///
   /// 对应接口：GET /api/vehicles/autocomplete/plates
   Future<List<String>> autocompleteVehiclePlates({
@@ -439,7 +439,7 @@ class VehicleInformationControllerApi with BaseApiClient {
       null,
       const ['bearerAuth'],
     );
-    if (r.statusCode >= 400) throw ApiException(r.statusCode, _decode(r));
+    if (r.statusCode >= 400) throw AppException.http(r.statusCode, _decode(r));
     if (r.body.isEmpty) return [];
     final List<dynamic> data = jsonDecode(_decode(r));
     return data.cast<String>();
@@ -454,7 +454,7 @@ class VehicleInformationControllerApi with BaseApiClient {
   ///
   /// 返回车辆类型字符串列表；无匹配时返回空列表。
   ///
-  /// 抛出 [ApiException]：当 HTTP 响应非 2xx 时。
+  /// 抛出 [AppException]：当 HTTP 响应非 2xx 时。
   ///
   /// 对应接口：GET /api/vehicles/autocomplete/types
   Future<List<String>> autocompleteVehicleTypes({
@@ -476,7 +476,7 @@ class VehicleInformationControllerApi with BaseApiClient {
       null,
       const ['bearerAuth'],
     );
-    if (r.statusCode >= 400) throw ApiException(r.statusCode, _decode(r));
+    if (r.statusCode >= 400) throw AppException.http(r.statusCode, _decode(r));
     if (r.body.isEmpty) return [];
     final List<dynamic> data = jsonDecode(_decode(r));
     return data.cast<String>();
@@ -490,7 +490,7 @@ class VehicleInformationControllerApi with BaseApiClient {
   ///
   /// 返回车辆类型字符串列表；无匹配时返回空列表。
   ///
-  /// 抛出 [ApiException]：当 HTTP 响应非 2xx 时。
+  /// 抛出 [AppException]：当 HTTP 响应非 2xx 时。
   ///
   /// 对应接口：GET /api/vehicles/autocomplete/types/global
   Future<List<String>> autocompleteVehicleTypesGlobal({
@@ -510,7 +510,7 @@ class VehicleInformationControllerApi with BaseApiClient {
       null,
       const ['bearerAuth'],
     );
-    if (r.statusCode >= 400) throw ApiException(r.statusCode, _decode(r));
+    if (r.statusCode >= 400) throw AppException.http(r.statusCode, _decode(r));
     if (r.body.isEmpty) return [];
     final List<dynamic> data = jsonDecode(_decode(r));
     return data.cast<String>();
@@ -523,7 +523,7 @@ class VehicleInformationControllerApi with BaseApiClient {
   ///
   /// 返回 `true` 表示车牌已存在，返回 `false` 表示不存在或响应缺少 `exists` 字段。
   ///
-  /// 抛出 [ApiException]：当 HTTP 响应非 2xx 时；业务不存在不会通过异常表示。
+  /// 抛出 [AppException]：当 HTTP 响应非 2xx 时；业务不存在不会通过异常表示。
   ///
   /// 对应接口：GET /api/vehicles/exists/{licensePlate}
   Future<bool> vehicleLicensePlateExists({required String licensePlate}) async {
@@ -537,7 +537,7 @@ class VehicleInformationControllerApi with BaseApiClient {
       null,
       const ['bearerAuth'],
     );
-    if (r.statusCode >= 400) throw ApiException(r.statusCode, _decode(r));
+    if (r.statusCode >= 400) throw AppException.http(r.statusCode, _decode(r));
     final Map<String, dynamic> data = jsonDecode(_decode(r));
     return (data['exists'] as bool?) ?? false;
   }

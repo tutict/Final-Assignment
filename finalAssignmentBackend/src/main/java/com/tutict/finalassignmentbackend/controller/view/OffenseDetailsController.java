@@ -91,7 +91,7 @@ public class OffenseDetailsController {
             return ResponseEntity.ok(payload);
         } catch (Exception ex) {
             LOG.log(Level.SEVERE, "Fetch offense view failed", ex);
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
+            throw new RuntimeException(ex);
         }
     }
 

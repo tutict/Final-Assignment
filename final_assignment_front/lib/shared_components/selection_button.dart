@@ -1,7 +1,6 @@
 // 导入所需包和库
 import 'package:flutter/material.dart';
 import 'package:final_assignment_front/constants/app_constants.dart';
-import 'package:get/get.dart';
 import 'package:final_assignment_front/shared/utils/navigation_helper.dart';
 
 // 定义选择按钮的数据模型，包含图标、标签和回调函数等信息

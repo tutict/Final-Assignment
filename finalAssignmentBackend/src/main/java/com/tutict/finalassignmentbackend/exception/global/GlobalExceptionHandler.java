@@ -5,7 +5,6 @@ import com.tutict.finalassignmentbackend.dto.response.ApiResponse;
 import com.tutict.finalassignmentbackend.exception.BusinessException;
 import com.tutict.finalassignmentbackend.exception.EntityNotFoundException;
 import com.tutict.finalassignmentbackend.exception.OptimisticLockException;
-import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.ConstraintViolation;
 import jakarta.validation.ConstraintViolationException;
 import jakarta.ws.rs.ForbiddenException;
@@ -22,11 +21,7 @@ import org.springframework.web.bind.MissingServletRequestParameterException;
 import org.springframework.web.bind.annotation.ControllerAdvice;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 
-import java.time.OffsetDateTime;
-import java.time.format.DateTimeFormatter;
-import java.util.LinkedHashMap;
 import java.util.List;
-import java.util.Map;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
@@ -36,104 +31,91 @@ public class GlobalExceptionHandler {
     private static final Logger logger = Logger.getLogger(GlobalExceptionHandler.class.getName());
 
     @ExceptionHandler(ResourceNotFoundException.class)
-    public ResponseEntity<Map<String, Object>> handleResourceNotFoundException(ResourceNotFoundException ex,
-                                                                               HttpServletRequest request) {
+    public ResponseEntity<ApiResponse<Void>> handleResourceNotFoundException(ResourceNotFoundException ex) {
         logger.log(Level.WARNING, "Resource not found: {0}", ex.getMessage());
-        return buildResponse(HttpStatus.NOT_FOUND, "请求的资源不存在", request, null);
+        return ResponseEntity.status(HttpStatus.NOT_FOUND)
+                .body(ApiResponse.error("NOT_FOUND", messageOrDefault(ex.getMessage(), "Resource not found")));
     }
 
     @ExceptionHandler(IllegalArgumentException.class)
-    public ResponseEntity<Map<String, Object>> handleIllegalArgumentException(IllegalArgumentException ex,
-                                                                              HttpServletRequest request) {
+    public ResponseEntity<ApiResponse<Void>> handleIllegalArgumentException(IllegalArgumentException ex) {
         logger.log(Level.WARNING, "Illegal argument: {0}", ex.getMessage());
-        return buildResponse(HttpStatus.BAD_REQUEST, ex.getMessage(), request, null);
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                .body(ApiResponse.error("INVALID_ARGUMENT", messageOrDefault(ex.getMessage(), "Invalid argument")));
     }
 
     @ExceptionHandler(UnauthorizedException.class)
-    public ResponseEntity<Map<String, Object>> handleUnauthorizedException(UnauthorizedException ex,
-                                                                           HttpServletRequest request) {
+    public ResponseEntity<ApiResponse<Void>> handleUnauthorizedException(UnauthorizedException ex) {
         logger.log(Level.WARNING, "Unauthorized: {0}", ex.getMessage());
-        return buildResponse(HttpStatus.UNAUTHORIZED, "未授权", request, null);
+        return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+                .body(ApiResponse.error("UNAUTHORIZED", "Unauthorized"));
     }
 
     @ExceptionHandler(ForbiddenException.class)
-    public ResponseEntity<Map<String, Object>> handleForbiddenException(ForbiddenException ex,
-                                                                        HttpServletRequest request) {
+    public ResponseEntity<ApiResponse<Void>> handleForbiddenException(ForbiddenException ex) {
         logger.log(Level.WARNING, "Forbidden: {0}", ex.getMessage());
-        return buildResponse(HttpStatus.FORBIDDEN, "无权访问", request, null);
+        return ResponseEntity.status(HttpStatus.FORBIDDEN)
+                .body(ApiResponse.error("FORBIDDEN", "Forbidden"));
     }
 
     @ExceptionHandler(AccessDeniedException.class)
     public ResponseEntity<ApiResponse<Void>> handleAccessDenied(AccessDeniedException ex) {
         logger.log(Level.WARNING, "Access denied: {0}", ex.getMessage());
         return ResponseEntity.status(HttpStatus.FORBIDDEN)
-                .body(ApiResponse.error("FORBIDDEN", "您没有权限执行此操作"));
+                .body(ApiResponse.error("FORBIDDEN", "Forbidden"));
     }
 
     @ExceptionHandler(AuthenticationException.class)
     public ResponseEntity<ApiResponse<Void>> handleUnauthorized(AuthenticationException ex) {
         logger.log(Level.WARNING, "Unauthorized: {0}", ex.getMessage());
         return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
-                .body(ApiResponse.error("UNAUTHORIZED", "请先登录"));
+                .body(ApiResponse.error("UNAUTHORIZED", "Please login first"));
     }
 
     @ExceptionHandler(DataIntegrityViolationException.class)
-    public ResponseEntity<Map<String, Object>> handleDataIntegrityViolationException(
-            DataIntegrityViolationException ex,
-            HttpServletRequest request) {
+    public ResponseEntity<ApiResponse<Void>> handleDataIntegrityViolationException(DataIntegrityViolationException ex) {
         logger.log(Level.WARNING, "Data integrity violation: {0}", ex.getMessage());
-        return buildResponse(HttpStatus.CONFLICT, "数据冲突或重复提交", request, null);
+        return ResponseEntity.status(HttpStatus.CONFLICT)
+                .body(ApiResponse.error("CONFLICT", "\u6570\u636e\u7ea6\u675f\u51b2\u7a81"));
     }
 
     @ExceptionHandler(MethodArgumentNotValidException.class)
-    public ResponseEntity<Map<String, Object>> handleMethodArgumentNotValidException(
-            MethodArgumentNotValidException ex,
-            HttpServletRequest request) {
+    public ResponseEntity<ApiResponse<List<FieldError>>> handleMethodArgumentNotValidException(
+            MethodArgumentNotValidException ex) {
         logger.log(Level.WARNING, "Validation failed: {0}", ex.getMessage());
-        List<Map<String, String>> fieldErrors = ex.getBindingResult()
-                .getFieldErrors()
-                .stream()
-                .map(error -> Map.of(
-                        "field", error.getField(),
-                        "message", error.getDefaultMessage() == null ? "" : error.getDefaultMessage()))
-                .toList();
-        return buildResponse(HttpStatus.BAD_REQUEST, "参数校验失败", request, Map.of("errors", fieldErrors));
+        return validationError(ex.getBindingResult().getFieldErrors().stream()
+                .map(error -> new FieldError(
+                        error.getField(),
+                        messageOrDefault(error.getDefaultMessage(), "Invalid value")))
+                .toList());
     }
 
     @ExceptionHandler(BindException.class)
-    public ResponseEntity<Map<String, Object>> handleBindException(BindException ex,
-                                                                   HttpServletRequest request) {
+    public ResponseEntity<ApiResponse<List<FieldError>>> handleBindException(BindException ex) {
         logger.log(Level.WARNING, "Binding failed: {0}", ex.getMessage());
-        List<Map<String, String>> fieldErrors = ex.getBindingResult()
-                .getFieldErrors()
-                .stream()
-                .map(error -> Map.of(
-                        "field", error.getField(),
-                        "message", error.getDefaultMessage() == null ? "" : error.getDefaultMessage()))
-                .toList();
-        return buildResponse(HttpStatus.BAD_REQUEST, "参数绑定失败", request, Map.of("errors", fieldErrors));
+        return validationError(ex.getBindingResult().getFieldErrors().stream()
+                .map(error -> new FieldError(
+                        error.getField(),
+                        messageOrDefault(error.getDefaultMessage(), "Invalid value")))
+                .toList());
     }
 
     @ExceptionHandler(ConstraintViolationException.class)
-    public ResponseEntity<Map<String, Object>> handleConstraintViolationException(
-            ConstraintViolationException ex,
-            HttpServletRequest request) {
+    public ResponseEntity<ApiResponse<List<FieldError>>> handleConstraintViolationException(
+            ConstraintViolationException ex) {
         logger.log(Level.WARNING, "Constraint violation: {0}", ex.getMessage());
-        List<Map<String, String>> violations = ex.getConstraintViolations()
-                .stream()
-                .map(ConstraintViolation::getMessage)
-                .map(message -> Map.of("message", message))
-                .toList();
-        return buildResponse(HttpStatus.BAD_REQUEST, "参数约束失败", request, Map.of("violations", violations));
+        return validationError(ex.getConstraintViolations().stream()
+                .map(this::toFieldError)
+                .toList());
     }
 
     @ExceptionHandler(MissingServletRequestParameterException.class)
-    public ResponseEntity<Map<String, Object>> handleMissingServletRequestParameterException(
-            MissingServletRequestParameterException ex,
-            HttpServletRequest request) {
+    public ResponseEntity<ApiResponse<List<FieldError>>> handleMissingServletRequestParameterException(
+            MissingServletRequestParameterException ex) {
         logger.log(Level.WARNING, "Missing request parameter: {0}", ex.getParameterName());
-        return buildResponse(HttpStatus.BAD_REQUEST,
-                "缺少请求参数: " + ex.getParameterName(), request, null);
+        return validationError(List.of(new FieldError(
+                ex.getParameterName(),
+                "Missing required request parameter")));
     }
 
     @ExceptionHandler(BusinessException.class)
@@ -151,29 +133,37 @@ public class GlobalExceptionHandler {
     @ExceptionHandler({EntityNotFoundException.class, EmptyResultDataAccessException.class})
     public ResponseEntity<ApiResponse<Void>> handleNotFound(RuntimeException ex) {
         return ResponseEntity.status(HttpStatus.NOT_FOUND)
-                .body(ApiResponse.error("NOT_FOUND", "请求的资源不存在"));
+                .body(ApiResponse.error("NOT_FOUND", "Resource not found"));
     }
 
     @ExceptionHandler(Exception.class)
     public ResponseEntity<ApiResponse<Void>> handleGenericException(Exception ex) {
         logger.log(Level.SEVERE, "Unhandled exception", ex);
         return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                .body(ApiResponse.error("INTERNAL_ERROR", "服务器内部错误，请联系管理员"));
+                .body(ApiResponse.error("INTERNAL_ERROR", "Internal server error"));
     }
 
-    private ResponseEntity<Map<String, Object>> buildResponse(HttpStatus status,
-                                                              String message,
-                                                              HttpServletRequest request,
-                                                              Map<String, Object> extra) {
-        Map<String, Object> body = new LinkedHashMap<>();
-        body.put("timestamp", OffsetDateTime.now().format(DateTimeFormatter.ISO_OFFSET_DATE_TIME));
-        body.put("status", status.value());
-        body.put("error", status.getReasonPhrase());
-        body.put("message", message);
-        body.put("path", request == null ? "" : request.getRequestURI());
-        if (extra != null && !extra.isEmpty()) {
-            body.putAll(extra);
-        }
-        return ResponseEntity.status(status).body(body);
+    private ResponseEntity<ApiResponse<List<FieldError>>> validationError(List<FieldError> errors) {
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                .body(ApiResponse.<List<FieldError>>builder()
+                        .success(false)
+                        .errorCode("VALIDATION_ERROR")
+                        .message("\u8bf7\u6c42\u53c2\u6570\u6821\u9a8c\u5931\u8d25")
+                        .data(errors)
+                        .build());
+    }
+
+    private FieldError toFieldError(ConstraintViolation<?> violation) {
+        String path = violation.getPropertyPath() == null ? "" : violation.getPropertyPath().toString();
+        int lastDot = path.lastIndexOf('.');
+        String field = lastDot >= 0 ? path.substring(lastDot + 1) : path;
+        return new FieldError(field, violation.getMessage());
+    }
+
+    private static String messageOrDefault(String message, String fallback) {
+        return message == null || message.isBlank() ? fallback : message;
+    }
+
+    private record FieldError(String field, String message) {
     }
 }

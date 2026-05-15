@@ -1,5 +1,7 @@
 package com.tutict.finalassignmentbackend.controller;
 
+import com.tutict.finalassignmentbackend.dto.response.ApiResponse;
+
 import com.tutict.finalassignmentbackend.entity.AuditLoginLog;
 import com.tutict.finalassignmentbackend.service.AuditLoginLogService;
 import io.swagger.v3.oas.annotations.Operation;
@@ -41,14 +43,14 @@ public class LoginLogController {
 
     @PostMapping
     @Operation(summary = "写入登录日志")
-    public ResponseEntity<AuditLoginLog> create(@Valid @RequestBody AuditLoginLog request,
+    public ResponseEntity<?> create(@Valid @RequestBody AuditLoginLog request,
                                                 @RequestHeader(value = "Idempotency-Key", required = false)
                                                 String idempotencyKey) {
         boolean useKey = hasKey(idempotencyKey);
         try {
             if (useKey) {
                 if (auditLoginLogService.shouldSkipProcessing(idempotencyKey)) {
-                    return ResponseEntity.status(HttpStatus.ALREADY_REPORTED).build();
+                    return ResponseEntity.status(HttpStatus.ALREADY_REPORTED).body(ApiResponse.ok(null));
                 }
                 auditLoginLogService.checkAndInsertIdempotency(idempotencyKey, request, "create");
             }
@@ -62,7 +64,10 @@ public class LoginLogController {
                 auditLoginLogService.markHistoryFailure(idempotencyKey, ex.getMessage());
             }
             LOG.log(Level.SEVERE, "Create login log failed", ex);
-            return ResponseEntity.status(resolveStatus(ex)).build();
+            if (ex instanceof RuntimeException) {
+                throw (RuntimeException) ex;
+            }
+            throw new RuntimeException(ex);
         }
     }
 
@@ -88,7 +93,10 @@ public class LoginLogController {
                 auditLoginLogService.markHistoryFailure(idempotencyKey, ex.getMessage());
             }
             LOG.log(Level.SEVERE, "Update login log failed", ex);
-            return ResponseEntity.status(resolveStatus(ex)).build();
+            if (ex instanceof RuntimeException) {
+                throw (RuntimeException) ex;
+            }
+            throw new RuntimeException(ex);
         }
     }
 
@@ -100,7 +108,10 @@ public class LoginLogController {
             return ResponseEntity.noContent().build();
         } catch (Exception ex) {
             LOG.log(Level.WARNING, "Delete login log failed", ex);
-            return ResponseEntity.status(resolveStatus(ex)).build();
+            if (ex instanceof RuntimeException) {
+                throw (RuntimeException) ex;
+            }
+            throw new RuntimeException(ex);
         }
     }
 
@@ -112,7 +123,10 @@ public class LoginLogController {
             return log == null ? ResponseEntity.notFound().build() : ResponseEntity.ok(log);
         } catch (Exception ex) {
             LOG.log(Level.WARNING, "Get login log failed", ex);
-            return ResponseEntity.status(resolveStatus(ex)).build();
+            if (ex instanceof RuntimeException) {
+                throw (RuntimeException) ex;
+            }
+            throw new RuntimeException(ex);
         }
     }
 
@@ -123,7 +137,10 @@ public class LoginLogController {
             return ResponseEntity.ok(auditLoginLogService.findAll());
         } catch (Exception ex) {
             LOG.log(Level.WARNING, "List login logs failed", ex);
-            return ResponseEntity.status(resolveStatus(ex)).build();
+            if (ex instanceof RuntimeException) {
+                throw (RuntimeException) ex;
+            }
+            throw new RuntimeException(ex);
         }
     }
 
@@ -136,7 +153,10 @@ public class LoginLogController {
             return ResponseEntity.ok(auditLoginLogService.searchByUsername(username, page, size));
         } catch (Exception ex) {
             LOG.log(Level.WARNING, "Search login log by username failed", ex);
-            return ResponseEntity.status(resolveStatus(ex)).build();
+            if (ex instanceof RuntimeException) {
+                throw (RuntimeException) ex;
+            }
+            throw new RuntimeException(ex);
         }
     }
 
@@ -149,7 +169,10 @@ public class LoginLogController {
             return ResponseEntity.ok(auditLoginLogService.searchByLoginResult(result, page, size));
         } catch (Exception ex) {
             LOG.log(Level.WARNING, "Search login log by result failed", ex);
-            return ResponseEntity.status(resolveStatus(ex)).build();
+            if (ex instanceof RuntimeException) {
+                throw (RuntimeException) ex;
+            }
+            throw new RuntimeException(ex);
         }
     }
 
@@ -163,7 +186,10 @@ public class LoginLogController {
             return ResponseEntity.ok(auditLoginLogService.searchByLoginTimeRange(startTime, endTime, page, size));
         } catch (Exception ex) {
             LOG.log(Level.WARNING, "Search login log by time range failed", ex);
-            return ResponseEntity.status(resolveStatus(ex)).build();
+            if (ex instanceof RuntimeException) {
+                throw (RuntimeException) ex;
+            }
+            throw new RuntimeException(ex);
         }
     }
 
@@ -176,7 +202,10 @@ public class LoginLogController {
             return ResponseEntity.ok(auditLoginLogService.searchByLoginIp(ip, page, size));
         } catch (Exception ex) {
             LOG.log(Level.WARNING, "Search login log by IP failed", ex);
-            return ResponseEntity.status(resolveStatus(ex)).build();
+            if (ex instanceof RuntimeException) {
+                throw (RuntimeException) ex;
+            }
+            throw new RuntimeException(ex);
         }
     }
 
@@ -189,7 +218,10 @@ public class LoginLogController {
             return ResponseEntity.ok(auditLoginLogService.searchByLoginLocation(loginLocation, page, size));
         } catch (Exception ex) {
             LOG.log(Level.WARNING, "Search login log by location failed", ex);
-            return ResponseEntity.status(resolveStatus(ex)).build();
+            if (ex instanceof RuntimeException) {
+                throw (RuntimeException) ex;
+            }
+            throw new RuntimeException(ex);
         }
     }
 
@@ -202,7 +234,10 @@ public class LoginLogController {
             return ResponseEntity.ok(auditLoginLogService.searchByDeviceType(deviceType, page, size));
         } catch (Exception ex) {
             LOG.log(Level.WARNING, "Search login log by device type failed", ex);
-            return ResponseEntity.status(resolveStatus(ex)).build();
+            if (ex instanceof RuntimeException) {
+                throw (RuntimeException) ex;
+            }
+            throw new RuntimeException(ex);
         }
     }
 
@@ -215,7 +250,10 @@ public class LoginLogController {
             return ResponseEntity.ok(auditLoginLogService.searchByBrowserType(browserType, page, size));
         } catch (Exception ex) {
             LOG.log(Level.WARNING, "Search login log by browser type failed", ex);
-            return ResponseEntity.status(resolveStatus(ex)).build();
+            if (ex instanceof RuntimeException) {
+                throw (RuntimeException) ex;
+            }
+            throw new RuntimeException(ex);
         }
     }
 
@@ -229,7 +267,10 @@ public class LoginLogController {
             return ResponseEntity.ok(auditLoginLogService.searchByLogoutTimeRange(startTime, endTime, page, size));
         } catch (Exception ex) {
             LOG.log(Level.WARNING, "Search login log by logout time range failed", ex);
-            return ResponseEntity.status(resolveStatus(ex)).build();
+            if (ex instanceof RuntimeException) {
+                throw (RuntimeException) ex;
+            }
+            throw new RuntimeException(ex);
         }
     }
 

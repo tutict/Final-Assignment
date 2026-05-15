@@ -7,7 +7,7 @@ import 'package:final_assignment_front/features/api/system_logs_controller_api.d
 import 'package:final_assignment_front/features/model/login_log.dart';
 import 'package:final_assignment_front/features/model/operation_log.dart';
 import 'package:final_assignment_front/shared/controllers/base_list_controller.dart';
-import 'package:final_assignment_front/utils/helpers/api_exception.dart';
+import 'package:final_assignment_front/core/network/app_exception.dart';
 import 'package:get/get.dart';
 
 class LogController extends BaseListController<Object> {
@@ -155,7 +155,7 @@ class LogController extends BaseListController<Object> {
         await _ensureAuthenticated();
         await action();
       },
-      errorMessageBuilder: (error) => error is ApiException && error.code == 403
+      errorMessageBuilder: (error) => error is AppException && error.code == 403
           ? 'Forbidden'
           : error.toString(),
       onError: _handleError,
@@ -179,7 +179,7 @@ class LogController extends BaseListController<Object> {
       stackTrace: stackTrace,
     );
 
-    if (error is ApiException && error.code == 403) {
+    if (error is AppException && error.code == 403) {
       errorMessage.value = 'Forbidden';
       return;
     }

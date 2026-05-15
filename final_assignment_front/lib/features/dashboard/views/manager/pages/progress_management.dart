@@ -163,7 +163,7 @@ class ProgressManagementPage extends StatelessWidget {
                                                               Routes
                                                                   .progressDetailPage,
                                                               arguments: item)
-                                                          ?.then((result) {
+                                                          .then((result) {
                                                         if (result == true) {
                                                           progressController
                                                               .fetchProgress();
@@ -278,7 +278,7 @@ class ProgressManagementPage extends StatelessWidget {
                                           onTap: () => NavigationHelper.toNamed(
                                                   Routes.progressDetailPage,
                                                   arguments: item)
-                                              ?.then((result) {
+                                               .then((result) {
                                             if (result == true) {
                                               progressController
                                                   .fetchProgress();

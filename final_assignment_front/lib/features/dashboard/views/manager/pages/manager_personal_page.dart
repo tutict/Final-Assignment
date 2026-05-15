@@ -9,7 +9,7 @@ import 'package:final_assignment_front/features/model/driver_information.dart';
 import 'package:final_assignment_front/features/model/user_management.dart';
 import 'package:final_assignment_front/shared/utils/error_handler.dart';
 import 'package:final_assignment_front/shared/widgets/index.dart';
-import 'package:final_assignment_front/utils/helpers/api_exception.dart';
+import 'package:final_assignment_front/core/network/app_exception.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
@@ -238,7 +238,7 @@ class _ManagerPersonalPageState extends State<ManagerPersonalPage> {
   }
 
   String _formatErrorMessage(dynamic error) {
-    if (error is ApiException) {
+    if (error is AppException) {
       switch (error.code) {
         case 400:
           return '请求错误: ${error.message}';

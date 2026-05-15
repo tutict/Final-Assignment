@@ -1,6 +1,6 @@
 import 'package:final_assignment_front/core/utils/app_logger.dart';
 import 'package:final_assignment_front/features/model/user_management.dart';
-import 'package:final_assignment_front/utils/helpers/api_exception.dart';
+import 'package:final_assignment_front/core/network/app_exception.dart';
 import 'package:final_assignment_front/utils/services/api_client.dart';
 import 'package:get/get.dart';
 
@@ -23,7 +23,7 @@ class UserRealtimeService extends GetxService {
       AppLogger.debug('WebSocket users me get response: $respMap');
 
       if (respMap.containsKey('error')) {
-        throw ApiException(400, respMap['error']);
+        throw AppException.http(400, respMap['error']);
       }
       if (respMap.containsKey('result') && respMap['result'] != null) {
         return UserManagement.fromJson(respMap['result']);

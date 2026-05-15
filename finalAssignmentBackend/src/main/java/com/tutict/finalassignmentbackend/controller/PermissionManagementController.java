@@ -1,5 +1,7 @@
 package com.tutict.finalassignmentbackend.controller;
 
+import com.tutict.finalassignmentbackend.dto.response.ApiResponse;
+
 import com.tutict.finalassignmentbackend.entity.SysPermission;
 import com.tutict.finalassignmentbackend.service.SysPermissionService;
 import io.swagger.v3.oas.annotations.Operation;
@@ -41,14 +43,14 @@ public class PermissionManagementController {
 
     @PostMapping
     @Operation(summary = "创建权限")
-    public ResponseEntity<SysPermission> create(@Valid @RequestBody SysPermission request,
+    public ResponseEntity<?> create(@Valid @RequestBody SysPermission request,
                                                 @RequestHeader(value = "Idempotency-Key", required = false)
                                                 String idempotencyKey) {
         boolean useKey = hasKey(idempotencyKey);
         try {
             if (useKey) {
                 if (sysPermissionService.shouldSkipProcessing(idempotencyKey)) {
-                    return ResponseEntity.status(HttpStatus.ALREADY_REPORTED).build();
+                    return ResponseEntity.status(HttpStatus.ALREADY_REPORTED).body(ApiResponse.ok(null));
                 }
                 sysPermissionService.checkAndInsertIdempotency(idempotencyKey, request, "create");
             }
@@ -62,7 +64,10 @@ public class PermissionManagementController {
                 sysPermissionService.markHistoryFailure(idempotencyKey, ex.getMessage());
             }
             LOG.log(Level.SEVERE, "Create permission failed", ex);
-            return ResponseEntity.status(resolveStatus(ex)).build();
+            if (ex instanceof RuntimeException) {
+                throw (RuntimeException) ex;
+            }
+            throw new RuntimeException(ex);
         }
     }
 
@@ -88,7 +93,10 @@ public class PermissionManagementController {
                 sysPermissionService.markHistoryFailure(idempotencyKey, ex.getMessage());
             }
             LOG.log(Level.SEVERE, "Update permission failed", ex);
-            return ResponseEntity.status(resolveStatus(ex)).build();
+            if (ex instanceof RuntimeException) {
+                throw (RuntimeException) ex;
+            }
+            throw new RuntimeException(ex);
         }
     }
 
@@ -100,7 +108,10 @@ public class PermissionManagementController {
             return ResponseEntity.noContent().build();
         } catch (Exception ex) {
             LOG.log(Level.WARNING, "Delete permission failed", ex);
-            return ResponseEntity.status(resolveStatus(ex)).build();
+            if (ex instanceof RuntimeException) {
+                throw (RuntimeException) ex;
+            }
+            throw new RuntimeException(ex);
         }
     }
 
@@ -112,7 +123,10 @@ public class PermissionManagementController {
             return permission == null ? ResponseEntity.notFound().build() : ResponseEntity.ok(permission);
         } catch (Exception ex) {
             LOG.log(Level.WARNING, "Get permission failed", ex);
-            return ResponseEntity.status(resolveStatus(ex)).build();
+            if (ex instanceof RuntimeException) {
+                throw (RuntimeException) ex;
+            }
+            throw new RuntimeException(ex);
         }
     }
 
@@ -123,7 +137,10 @@ public class PermissionManagementController {
             return ResponseEntity.ok(sysPermissionService.findAll());
         } catch (Exception ex) {
             LOG.log(Level.WARNING, "List permissions failed", ex);
-            return ResponseEntity.status(resolveStatus(ex)).build();
+            if (ex instanceof RuntimeException) {
+                throw (RuntimeException) ex;
+            }
+            throw new RuntimeException(ex);
         }
     }
 
@@ -136,7 +153,10 @@ public class PermissionManagementController {
             return ResponseEntity.ok(sysPermissionService.findByParentId(parentId, page, size));
         } catch (Exception ex) {
             LOG.log(Level.WARNING, "List permissions by parent failed", ex);
-            return ResponseEntity.status(resolveStatus(ex)).build();
+            if (ex instanceof RuntimeException) {
+                throw (RuntimeException) ex;
+            }
+            throw new RuntimeException(ex);
         }
     }
 

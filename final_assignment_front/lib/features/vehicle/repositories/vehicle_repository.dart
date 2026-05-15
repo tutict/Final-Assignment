@@ -3,7 +3,7 @@ import 'dart:convert';
 import 'package:final_assignment_front/core/repository/base_repository.dart';
 import 'package:final_assignment_front/features/api/vehicle_information_controller_api.dart';
 import 'package:final_assignment_front/features/model/vehicle_information.dart';
-import 'package:final_assignment_front/utils/helpers/api_exception.dart';
+import 'package:final_assignment_front/core/network/app_exception.dart';
 import 'package:final_assignment_front/utils/services/api_client.dart';
 
 abstract class VehicleRepository {
@@ -125,7 +125,7 @@ class VehicleRepositoryImpl extends BaseRepository
         const ['bearerAuth'],
       );
       if (response.body.isEmpty) {
-        throw ApiException(
+        throw AppException.http(
             response.statusCode, 'Empty vehicle create response');
       }
       return VehicleInformation.fromJson(
@@ -153,7 +153,7 @@ class VehicleRepositoryImpl extends BaseRepository
         const ['bearerAuth'],
       );
       if (response.body.isEmpty) {
-        throw ApiException(
+        throw AppException.http(
             response.statusCode, 'Empty vehicle update response');
       }
       return VehicleInformation.fromJson(
@@ -313,7 +313,7 @@ class VehicleRepositoryImpl extends BaseRepository
   Map<String, String> _headersWithIdempotencyKey(String idempotencyKey) {
     final trimmed = idempotencyKey.trim();
     if (trimmed.isEmpty) {
-      throw ApiException(400, 'Missing required header: Idempotency-Key');
+      throw AppException.http(400, 'Missing required header: Idempotency-Key');
     }
     return {'Idempotency-Key': trimmed};
   }

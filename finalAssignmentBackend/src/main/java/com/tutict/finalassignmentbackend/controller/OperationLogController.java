@@ -1,5 +1,7 @@
 package com.tutict.finalassignmentbackend.controller;
 
+import com.tutict.finalassignmentbackend.dto.response.ApiResponse;
+
 import com.tutict.finalassignmentbackend.entity.AuditOperationLog;
 import com.tutict.finalassignmentbackend.service.AuditOperationLogService;
 import io.swagger.v3.oas.annotations.Operation;
@@ -41,14 +43,14 @@ public class OperationLogController {
 
     @PostMapping
     @Operation(summary = "写入操作日志")
-    public ResponseEntity<AuditOperationLog> create(@Valid @RequestBody AuditOperationLog request,
+    public ResponseEntity<?> create(@Valid @RequestBody AuditOperationLog request,
                                                     @RequestHeader(value = "Idempotency-Key", required = false)
                                                     String idempotencyKey) {
         boolean useKey = hasKey(idempotencyKey);
         try {
             if (useKey) {
                 if (auditOperationLogService.shouldSkipProcessing(idempotencyKey)) {
-                    return ResponseEntity.status(HttpStatus.ALREADY_REPORTED).build();
+                    return ResponseEntity.status(HttpStatus.ALREADY_REPORTED).body(ApiResponse.ok(null));
                 }
                 auditOperationLogService.checkAndInsertIdempotency(idempotencyKey, request, "create");
             }
@@ -62,7 +64,10 @@ public class OperationLogController {
                 auditOperationLogService.markHistoryFailure(idempotencyKey, ex.getMessage());
             }
             LOG.log(Level.SEVERE, "Create operation log failed", ex);
-            return ResponseEntity.status(resolveStatus(ex)).build();
+            if (ex instanceof RuntimeException) {
+                throw (RuntimeException) ex;
+            }
+            throw new RuntimeException(ex);
         }
     }
 
@@ -88,7 +93,10 @@ public class OperationLogController {
                 auditOperationLogService.markHistoryFailure(idempotencyKey, ex.getMessage());
             }
             LOG.log(Level.SEVERE, "Update operation log failed", ex);
-            return ResponseEntity.status(resolveStatus(ex)).build();
+            if (ex instanceof RuntimeException) {
+                throw (RuntimeException) ex;
+            }
+            throw new RuntimeException(ex);
         }
     }
 
@@ -100,7 +108,10 @@ public class OperationLogController {
             return ResponseEntity.noContent().build();
         } catch (Exception ex) {
             LOG.log(Level.WARNING, "Delete operation log failed", ex);
-            return ResponseEntity.status(resolveStatus(ex)).build();
+            if (ex instanceof RuntimeException) {
+                throw (RuntimeException) ex;
+            }
+            throw new RuntimeException(ex);
         }
     }
 
@@ -112,7 +123,10 @@ public class OperationLogController {
             return log == null ? ResponseEntity.notFound().build() : ResponseEntity.ok(log);
         } catch (Exception ex) {
             LOG.log(Level.WARNING, "Get operation log failed", ex);
-            return ResponseEntity.status(resolveStatus(ex)).build();
+            if (ex instanceof RuntimeException) {
+                throw (RuntimeException) ex;
+            }
+            throw new RuntimeException(ex);
         }
     }
 
@@ -123,7 +137,10 @@ public class OperationLogController {
             return ResponseEntity.ok(auditOperationLogService.findAll());
         } catch (Exception ex) {
             LOG.log(Level.WARNING, "List operation logs failed", ex);
-            return ResponseEntity.status(resolveStatus(ex)).build();
+            if (ex instanceof RuntimeException) {
+                throw (RuntimeException) ex;
+            }
+            throw new RuntimeException(ex);
         }
     }
 
@@ -136,7 +153,10 @@ public class OperationLogController {
             return ResponseEntity.ok(auditOperationLogService.searchByModule(module, page, size));
         } catch (Exception ex) {
             LOG.log(Level.WARNING, "Search operation log by module failed", ex);
-            return ResponseEntity.status(resolveStatus(ex)).build();
+            if (ex instanceof RuntimeException) {
+                throw (RuntimeException) ex;
+            }
+            throw new RuntimeException(ex);
         }
     }
 
@@ -149,7 +169,10 @@ public class OperationLogController {
             return ResponseEntity.ok(auditOperationLogService.searchByOperationType(type, page, size));
         } catch (Exception ex) {
             LOG.log(Level.WARNING, "Search operation log by type failed", ex);
-            return ResponseEntity.status(resolveStatus(ex)).build();
+            if (ex instanceof RuntimeException) {
+                throw (RuntimeException) ex;
+            }
+            throw new RuntimeException(ex);
         }
     }
 
@@ -162,7 +185,10 @@ public class OperationLogController {
             return ResponseEntity.ok(auditOperationLogService.findByUserId(userId, page, size));
         } catch (Exception ex) {
             LOG.log(Level.WARNING, "Search operation log by user failed", ex);
-            return ResponseEntity.status(resolveStatus(ex)).build();
+            if (ex instanceof RuntimeException) {
+                throw (RuntimeException) ex;
+            }
+            throw new RuntimeException(ex);
         }
     }
 
@@ -176,7 +202,10 @@ public class OperationLogController {
             return ResponseEntity.ok(auditOperationLogService.searchByOperationTimeRange(startTime, endTime, page, size));
         } catch (Exception ex) {
             LOG.log(Level.WARNING, "Search operation log by time range failed", ex);
-            return ResponseEntity.status(resolveStatus(ex)).build();
+            if (ex instanceof RuntimeException) {
+                throw (RuntimeException) ex;
+            }
+            throw new RuntimeException(ex);
         }
     }
 
@@ -189,7 +218,10 @@ public class OperationLogController {
             return ResponseEntity.ok(auditOperationLogService.searchByUsername(username, page, size));
         } catch (Exception ex) {
             LOG.log(Level.WARNING, "Search operation log by username failed", ex);
-            return ResponseEntity.status(resolveStatus(ex)).build();
+            if (ex instanceof RuntimeException) {
+                throw (RuntimeException) ex;
+            }
+            throw new RuntimeException(ex);
         }
     }
 
@@ -202,7 +234,10 @@ public class OperationLogController {
             return ResponseEntity.ok(auditOperationLogService.searchByRequestUrl(requestUrl, page, size));
         } catch (Exception ex) {
             LOG.log(Level.WARNING, "Search operation log by request URL failed", ex);
-            return ResponseEntity.status(resolveStatus(ex)).build();
+            if (ex instanceof RuntimeException) {
+                throw (RuntimeException) ex;
+            }
+            throw new RuntimeException(ex);
         }
     }
 
@@ -215,7 +250,10 @@ public class OperationLogController {
             return ResponseEntity.ok(auditOperationLogService.searchByRequestMethod(requestMethod, page, size));
         } catch (Exception ex) {
             LOG.log(Level.WARNING, "Search operation log by request method failed", ex);
-            return ResponseEntity.status(resolveStatus(ex)).build();
+            if (ex instanceof RuntimeException) {
+                throw (RuntimeException) ex;
+            }
+            throw new RuntimeException(ex);
         }
     }
 
@@ -228,7 +266,10 @@ public class OperationLogController {
             return ResponseEntity.ok(auditOperationLogService.searchByOperationResult(operationResult, page, size));
         } catch (Exception ex) {
             LOG.log(Level.WARNING, "Search operation log by result failed", ex);
-            return ResponseEntity.status(resolveStatus(ex)).build();
+            if (ex instanceof RuntimeException) {
+                throw (RuntimeException) ex;
+            }
+            throw new RuntimeException(ex);
         }
     }
 

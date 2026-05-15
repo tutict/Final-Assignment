@@ -4,13 +4,13 @@ import 'package:get/get.dart';
 
 class NavigationHelper {
   /// Safe named navigation. Falls back to the home route and logs failures.
-  static Future<void> toNamed(
+  static Future<T?> toNamed<T>(
     String routeName, {
     dynamic arguments,
     String fallback = Routes.home,
   }) async {
     try {
-      await Get.toNamed(routeName, arguments: arguments);
+      return await Get.toNamed<T>(routeName, arguments: arguments);
     } catch (e, stackTrace) {
       AppLogger.error(
         'Navigation failed: $routeName',
@@ -18,6 +18,7 @@ class NavigationHelper {
         stackTrace: stackTrace,
       );
       await Get.offNamed(fallback);
+      return null;
     }
   }
 

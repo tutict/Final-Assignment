@@ -1,6 +1,6 @@
 // ignore_for_file: use_build_context_synchronously
 import 'dart:developer' as developer;
-import 'package:final_assignment_front/utils/helpers/api_exception.dart';
+import 'package:final_assignment_front/core/network/app_exception.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
@@ -1294,7 +1294,7 @@ class _DriverDetailPageState extends State<DriverDetailPage> {
 
 class AppUtils {
   static String formatErrorMessage(dynamic error) {
-    if (error is ApiException) {
+    if (error is AppException) {
       switch (error.code) {
         case 400:
           return '请求错误: ${error.message}';

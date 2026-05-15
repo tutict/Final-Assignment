@@ -8,7 +8,7 @@ import 'package:final_assignment_front/features/dashboard/controllers/manager_da
 import 'package:final_assignment_front/features/dashboard/views/shared/widgets/dashboard_page_template.dart';
 import 'package:final_assignment_front/features/model/deduction_record.dart';
 import 'package:final_assignment_front/shared/widgets/index.dart';
-import 'package:final_assignment_front/utils/helpers/api_exception.dart';
+import 'package:final_assignment_front/core/network/app_exception.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:http/http.dart' as http;
@@ -184,7 +184,7 @@ class _DeductionManagementState extends State<DeductionManagementPage> {
     } catch (e) {
       AppLogger.error('Load Deductions Error: $e');
       setState(() {
-        if (e is ApiException && e.code == 404) {
+        if (e is AppException && e.code == 404) {
           _deductions.clear();
           _filteredDeductions.clear();
           _errorMessage = '未找到符合条件的扣分记录';
@@ -257,7 +257,7 @@ class _DeductionManagementState extends State<DeductionManagementPage> {
   }
 
   String _formatErrorMessage(dynamic error) {
-    if (error is ApiException) {
+    if (error is AppException) {
       switch (error.code) {
         case 400:
           return '请求错误: ${error.message}';
@@ -871,7 +871,7 @@ class _AddDeductionPageState extends State<AddDeductionPage> {
   }
 
   String _formatErrorMessage(dynamic error) {
-    if (error is ApiException) {
+    if (error is AppException) {
       switch (error.code) {
         case 400:
           return '请求错误: ${error.message}';
@@ -1317,7 +1317,7 @@ class _EditDeductionPageState extends State<EditDeductionPage> {
   }
 
   String _formatErrorMessage(dynamic error) {
-    if (error is ApiException) {
+    if (error is AppException) {
       switch (error.code) {
         case 400:
           return '请求错误: ${error.message}';

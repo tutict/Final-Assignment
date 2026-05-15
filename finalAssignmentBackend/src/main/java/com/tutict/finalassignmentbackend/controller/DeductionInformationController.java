@@ -1,5 +1,7 @@
 package com.tutict.finalassignmentbackend.controller;
 
+import com.tutict.finalassignmentbackend.dto.response.ApiResponse;
+
 import com.tutict.finalassignmentbackend.entity.DeductionRecord;
 import com.tutict.finalassignmentbackend.service.DeductionRecordService;
 import io.swagger.v3.oas.annotations.Operation;
@@ -41,14 +43,14 @@ public class DeductionInformationController {
 
     @PostMapping
     @Operation(summary = "创建扣分记录")
-    public ResponseEntity<DeductionRecord> create(@Valid @RequestBody DeductionRecord request,
+    public ResponseEntity<?> create(@Valid @RequestBody DeductionRecord request,
                                                   @RequestHeader(value = "Idempotency-Key", required = false)
                                                   String idempotencyKey) {
         boolean useKey = hasKey(idempotencyKey);
         try {
             if (useKey) {
                 if (deductionRecordService.shouldSkipProcessing(idempotencyKey)) {
-                    return ResponseEntity.status(HttpStatus.ALREADY_REPORTED).build();
+                    return ResponseEntity.status(HttpStatus.ALREADY_REPORTED).body(ApiResponse.ok(null));
                 }
                 deductionRecordService.checkAndInsertIdempotency(idempotencyKey, request, "create");
             }
@@ -62,7 +64,10 @@ public class DeductionInformationController {
                 deductionRecordService.markHistoryFailure(idempotencyKey, ex.getMessage());
             }
             LOG.log(Level.SEVERE, "Create deduction failed", ex);
-            return ResponseEntity.status(resolveStatus(ex)).build();
+            if (ex instanceof RuntimeException) {
+                throw (RuntimeException) ex;
+            }
+            throw new RuntimeException(ex);
         }
     }
 
@@ -88,7 +93,10 @@ public class DeductionInformationController {
                 deductionRecordService.markHistoryFailure(idempotencyKey, ex.getMessage());
             }
             LOG.log(Level.SEVERE, "Update deduction failed", ex);
-            return ResponseEntity.status(resolveStatus(ex)).build();
+            if (ex instanceof RuntimeException) {
+                throw (RuntimeException) ex;
+            }
+            throw new RuntimeException(ex);
         }
     }
 
@@ -100,7 +108,10 @@ public class DeductionInformationController {
             return ResponseEntity.noContent().build();
         } catch (Exception ex) {
             LOG.log(Level.WARNING, "Delete deduction failed", ex);
-            return ResponseEntity.status(resolveStatus(ex)).build();
+            if (ex instanceof RuntimeException) {
+                throw (RuntimeException) ex;
+            }
+            throw new RuntimeException(ex);
         }
     }
 
@@ -112,7 +123,10 @@ public class DeductionInformationController {
             return record == null ? ResponseEntity.notFound().build() : ResponseEntity.ok(record);
         } catch (Exception ex) {
             LOG.log(Level.WARNING, "Get deduction failed", ex);
-            return ResponseEntity.status(resolveStatus(ex)).build();
+            if (ex instanceof RuntimeException) {
+                throw (RuntimeException) ex;
+            }
+            throw new RuntimeException(ex);
         }
     }
 
@@ -123,7 +137,10 @@ public class DeductionInformationController {
             return ResponseEntity.ok(deductionRecordService.findAll());
         } catch (Exception ex) {
             LOG.log(Level.WARNING, "List deductions failed", ex);
-            return ResponseEntity.status(resolveStatus(ex)).build();
+            if (ex instanceof RuntimeException) {
+                throw (RuntimeException) ex;
+            }
+            throw new RuntimeException(ex);
         }
     }
 
@@ -136,7 +153,10 @@ public class DeductionInformationController {
             return ResponseEntity.ok(deductionRecordService.findByDriverId(driverId, page, size));
         } catch (Exception ex) {
             LOG.log(Level.WARNING, "List deductions by driver failed", ex);
-            return ResponseEntity.status(resolveStatus(ex)).build();
+            if (ex instanceof RuntimeException) {
+                throw (RuntimeException) ex;
+            }
+            throw new RuntimeException(ex);
         }
     }
 
@@ -149,7 +169,10 @@ public class DeductionInformationController {
             return ResponseEntity.ok(deductionRecordService.findByOffenseId(offenseId, page, size));
         } catch (Exception ex) {
             LOG.log(Level.WARNING, "List deductions by offense failed", ex);
-            return ResponseEntity.status(resolveStatus(ex)).build();
+            if (ex instanceof RuntimeException) {
+                throw (RuntimeException) ex;
+            }
+            throw new RuntimeException(ex);
         }
     }
 
@@ -166,7 +189,10 @@ public class DeductionInformationController {
             return ResponseEntity.ok(result);
         } catch (Exception ex) {
             LOG.log(Level.WARNING, "Search deduction by handler failed", ex);
-            return ResponseEntity.status(resolveStatus(ex)).build();
+            if (ex instanceof RuntimeException) {
+                throw (RuntimeException) ex;
+            }
+            throw new RuntimeException(ex);
         }
     }
 
@@ -179,7 +205,10 @@ public class DeductionInformationController {
             return ResponseEntity.ok(deductionRecordService.searchByStatus(status, page, size));
         } catch (Exception ex) {
             LOG.log(Level.WARNING, "Search deduction by status failed", ex);
-            return ResponseEntity.status(resolveStatus(ex)).build();
+            if (ex instanceof RuntimeException) {
+                throw (RuntimeException) ex;
+            }
+            throw new RuntimeException(ex);
         }
     }
 
@@ -193,7 +222,10 @@ public class DeductionInformationController {
             return ResponseEntity.ok(deductionRecordService.searchByDeductionTimeRange(startTime, endTime, page, size));
         } catch (Exception ex) {
             LOG.log(Level.WARNING, "Search deduction by time range failed", ex);
-            return ResponseEntity.status(resolveStatus(ex)).build();
+            if (ex instanceof RuntimeException) {
+                throw (RuntimeException) ex;
+            }
+            throw new RuntimeException(ex);
         }
     }
 

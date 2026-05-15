@@ -1,5 +1,5 @@
 import 'package:final_assignment_front/features/model/offense_information.dart';
-import 'package:final_assignment_front/utils/helpers/api_exception.dart';
+import 'package:final_assignment_front/core/network/app_exception.dart';
 import 'package:final_assignment_front/utils/services/api_client.dart';
 import 'package:get/get.dart';
 
@@ -51,7 +51,7 @@ class OffenseRealtimeService extends GetxService {
       if (error.contains('not found')) {
         return null;
       }
-      throw ApiException(400, error);
+      throw AppException.http(400, error);
     }
 
     final result = respMap['result'];
@@ -139,7 +139,7 @@ class OffenseRealtimeService extends GetxService {
     if (value is Map) {
       return Map<String, dynamic>.from(value);
     }
-    throw ApiException(400, 'WebSocket result is not a JSON object');
+    throw AppException.http(400, 'WebSocket result is not a JSON object');
   }
 
   void _throwIfError(
@@ -153,15 +153,15 @@ class OffenseRealtimeService extends GetxService {
       return;
     }
     if (notFoundMessage != null && error.contains('not found')) {
-      throw ApiException(404, notFoundMessage);
+      throw AppException.http(404, notFoundMessage);
     }
     if (duplicateMessage != null && error.contains('Duplicate')) {
-      throw ApiException(409, duplicateMessage);
+      throw AppException.http(409, duplicateMessage);
     }
     if (unauthorizedMessage != null && error.contains('Unauthorized')) {
-      throw ApiException(403, unauthorizedMessage);
+      throw AppException.http(403, unauthorizedMessage);
     }
-    throw ApiException(400, error);
+    throw AppException.http(400, error);
   }
 
   String? _errorText(Map<String, dynamic> respMap) {

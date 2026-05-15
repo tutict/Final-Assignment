@@ -1,6 +1,6 @@
 import 'package:final_assignment_front/core/utils/app_logger.dart';
 import 'package:final_assignment_front/features/model/permission_management.dart';
-import 'package:final_assignment_front/utils/helpers/api_exception.dart';
+import 'package:final_assignment_front/core/network/app_exception.dart';
 import 'package:final_assignment_front/utils/services/api_client.dart';
 import 'package:http/http.dart';
 import 'package:final_assignment_front/utils/services/auth_token_store.dart';
@@ -51,7 +51,7 @@ class PermissionManagementControllerApi with BaseApiClient {
   ///
   /// 返回 [PermissionManagement] 列表；调用方需要具备后端要求的权限管理角色。
   ///
-  /// 抛出 [ApiException]：当 HTTP 响应非 2xx 或后端角色校验失败时。
+  /// 抛出 [AppException]：当 HTTP 响应非 2xx 或后端角色校验失败时。
   ///
   /// 对应接口：GET /api/permissions
   Future<List<PermissionManagement>> listPermissions() async {
@@ -78,12 +78,12 @@ class PermissionManagementControllerApi with BaseApiClient {
   ///
   /// 删除成功时无返回值；调用方需要具备后端要求的权限管理角色。
   ///
-  /// 抛出 [ApiException]：当 [permissionName] 为空、HTTP 响应非 2xx 或后端角色校验失败时。
+  /// 抛出 [AppException]：当 [permissionName] 为空、HTTP 响应非 2xx 或后端角色校验失败时。
   ///
   /// 对应接口：DELETE /api/permissions/name/{permissionName}
   Future<void> deletePermissionByName({required String permissionName}) async {
     if (permissionName.isEmpty) {
-      throw ApiException(400, "Missing required param: permissionName");
+      throw AppException.http(400, "Missing required param: permissionName");
     }
     await apiClient.invokeAPI(
       '/api/permissions/name/$permissionName',
@@ -104,13 +104,13 @@ class PermissionManagementControllerApi with BaseApiClient {
   ///
   /// 返回 [PermissionManagement]；后端返回空响应时返回 `null`。
   ///
-  /// 抛出 [ApiException]：当 [permissionName] 为空、HTTP 响应非 2xx 或后端角色校验失败时。
+  /// 抛出 [AppException]：当 [permissionName] 为空、HTTP 响应非 2xx 或后端角色校验失败时。
   ///
   /// 对应接口：GET /api/permissions/name/{permissionName}
   Future<PermissionManagement?> getPermissionByName(
       {required String permissionName}) async {
     if (permissionName.isEmpty) {
-      throw ApiException(400, "Missing required param: permissionName");
+      throw AppException.http(400, "Missing required param: permissionName");
     }
     final response = await apiClient.invokeAPI(
       '/api/permissions/name/$permissionName',
@@ -136,12 +136,12 @@ class PermissionManagementControllerApi with BaseApiClient {
   ///
   /// 删除成功时无返回值；调用方需要具备后端要求的权限管理角色。
   ///
-  /// 抛出 [ApiException]：当 [permissionId] 为空、HTTP 响应非 2xx 或后端角色校验失败时。
+  /// 抛出 [AppException]：当 [permissionId] 为空、HTTP 响应非 2xx 或后端角色校验失败时。
   ///
   /// 对应接口：DELETE /api/permissions/{permissionId}
   Future<void> deletePermission({required String permissionId}) async {
     if (permissionId.isEmpty) {
-      throw ApiException(400, "Missing required param: permissionId");
+      throw AppException.http(400, "Missing required param: permissionId");
     }
     await apiClient.invokeAPI(
       '/api/permissions/$permissionId',
@@ -162,13 +162,13 @@ class PermissionManagementControllerApi with BaseApiClient {
   ///
   /// 返回 [PermissionManagement]；后端返回空响应时返回 `null`。
   ///
-  /// 抛出 [ApiException]：当 [permissionId] 为空、HTTP 响应非 2xx 或后端角色校验失败时。
+  /// 抛出 [AppException]：当 [permissionId] 为空、HTTP 响应非 2xx 或后端角色校验失败时。
   ///
   /// 对应接口：GET /api/permissions/{permissionId}
   Future<PermissionManagement?> getPermission(
       {required String permissionId}) async {
     if (permissionId.isEmpty) {
-      throw ApiException(400, "Missing required param: permissionId");
+      throw AppException.http(400, "Missing required param: permissionId");
     }
     final response = await apiClient.invokeAPI(
       '/api/permissions/$permissionId',
@@ -195,7 +195,7 @@ class PermissionManagementControllerApi with BaseApiClient {
   ///
   /// 返回后端更新后的 [PermissionManagement]；调用方需要具备后端要求的权限管理角色。
   ///
-  /// 抛出 [ApiException]：当 [permissionId] 为空、HTTP 响应非 2xx 或后端角色校验失败时。
+  /// 抛出 [AppException]：当 [permissionId] 为空、HTTP 响应非 2xx 或后端角色校验失败时。
   ///
   /// 对应接口：PUT /api/permissions/{permissionId}
   Future<PermissionManagement> updatePermission({
@@ -203,7 +203,7 @@ class PermissionManagementControllerApi with BaseApiClient {
     required PermissionManagement permissionManagement,
   }) async {
     if (permissionId.isEmpty) {
-      throw ApiException(400, "Missing required param: permissionId");
+      throw AppException.http(400, "Missing required param: permissionId");
     }
     final response = await apiClient.invokeAPI(
       '/api/permissions/$permissionId',
@@ -228,7 +228,7 @@ class PermissionManagementControllerApi with BaseApiClient {
   ///
   /// 返回后端创建后的 [PermissionManagement]；调用方需要具备后端要求的权限管理角色。
   ///
-  /// 抛出 [ApiException]：当 HTTP 响应非 2xx 或后端角色校验失败时。
+  /// 抛出 [AppException]：当 HTTP 响应非 2xx 或后端角色校验失败时。
   ///
   /// 对应接口：POST /api/permissions
   Future<PermissionManagement> createPermission(
@@ -255,7 +255,7 @@ class PermissionManagementControllerApi with BaseApiClient {
   ///
   /// 返回 [PermissionManagement] 列表；调用方需要具备后端要求的权限管理角色。
   ///
-  /// 抛出 [ApiException]：当 HTTP 响应非 2xx 或后端角色校验失败时。
+  /// 抛出 [AppException]：当 HTTP 响应非 2xx 或后端角色校验失败时。
   ///
   /// 对应接口：GET /api/permissions/search
   Future<List<PermissionManagement>> searchPermissions({String? name}) async {
@@ -283,7 +283,7 @@ class PermissionManagementControllerApi with BaseApiClient {
   ///
   /// 返回 eventbus 原始权限对象列表；result 不是列表时返回 `null`。
   ///
-  /// 抛出 [ApiException]：当 WebSocket 响应包含 `error` 字段时。
+  /// 抛出 [AppException]：当 WebSocket 响应包含 `error` 字段时。
   ///
   /// 对应实时动作：PermissionManagement.getAllPermissions
   Future<List<Object>?> eventbusPermissionsGet() async {
@@ -294,7 +294,7 @@ class PermissionManagementControllerApi with BaseApiClient {
     };
     final respMap = await apiClient.sendWsMessage(msg);
     if (respMap.containsKey("error")) {
-      throw ApiException(400, respMap["error"]);
+      throw AppException.http(400, respMap["error"]);
     }
     if (respMap["result"] is List) {
       return (respMap["result"] as List).cast<Object>();
@@ -311,13 +311,13 @@ class PermissionManagementControllerApi with BaseApiClient {
   ///
   /// 返回 `true` 表示 eventbus 未返回错误；调用方需要具备后端要求的权限管理角色。
   ///
-  /// 抛出 [ApiException]：当 [permissionName] 为空或 WebSocket 响应包含 `error` 字段时。
+  /// 抛出 [AppException]：当 [permissionName] 为空或 WebSocket 响应包含 `error` 字段时。
   ///
   /// 对应实时动作：PermissionManagement.deletePermissionByName
   Future<bool> eventbusPermissionsNamePermissionNameDelete(
       {required String permissionName}) async {
     if (permissionName.isEmpty) {
-      throw ApiException(400, "Missing required param: permissionName");
+      throw AppException.http(400, "Missing required param: permissionName");
     }
     final msg = {
       "service": "PermissionManagement",
@@ -326,7 +326,7 @@ class PermissionManagementControllerApi with BaseApiClient {
     };
     final respMap = await apiClient.sendWsMessage(msg);
     if (respMap.containsKey("error")) {
-      throw ApiException(400, respMap["error"]);
+      throw AppException.http(400, respMap["error"]);
     }
     return true; // Success if no error
   }
@@ -340,13 +340,13 @@ class PermissionManagementControllerApi with BaseApiClient {
   ///
   /// 返回 eventbus 原始 result；未找到时可能返回 `null`。
   ///
-  /// 抛出 [ApiException]：当 [permissionName] 为空或 WebSocket 响应包含 `error` 字段时。
+  /// 抛出 [AppException]：当 [permissionName] 为空或 WebSocket 响应包含 `error` 字段时。
   ///
   /// 对应实时动作：PermissionManagement.getPermissionByName
   Future<Object?> eventbusPermissionsNamePermissionNameGet(
       {required String permissionName}) async {
     if (permissionName.isEmpty) {
-      throw ApiException(400, "Missing required param: permissionName");
+      throw AppException.http(400, "Missing required param: permissionName");
     }
     final msg = {
       "service": "PermissionManagement",
@@ -355,7 +355,7 @@ class PermissionManagementControllerApi with BaseApiClient {
     };
     final respMap = await apiClient.sendWsMessage(msg);
     if (respMap.containsKey("error")) {
-      throw ApiException(400, respMap["error"]);
+      throw AppException.http(400, respMap["error"]);
     }
     return respMap["result"];
   }
@@ -369,13 +369,13 @@ class PermissionManagementControllerApi with BaseApiClient {
   ///
   /// 返回 `true` 表示 eventbus 未返回错误；调用方需要具备后端要求的权限管理角色。
   ///
-  /// 抛出 [ApiException]：当 [permissionId] 为空或 WebSocket 响应包含 `error` 字段时。
+  /// 抛出 [AppException]：当 [permissionId] 为空或 WebSocket 响应包含 `error` 字段时。
   ///
   /// 对应实时动作：PermissionManagement.deletePermission
   Future<bool> eventbusPermissionsPermissionIdDelete(
       {required String permissionId}) async {
     if (permissionId.isEmpty) {
-      throw ApiException(400, "Missing required param: permissionId");
+      throw AppException.http(400, "Missing required param: permissionId");
     }
     final msg = {
       "service": "PermissionManagement",
@@ -384,7 +384,7 @@ class PermissionManagementControllerApi with BaseApiClient {
     };
     final respMap = await apiClient.sendWsMessage(msg);
     if (respMap.containsKey("error")) {
-      throw ApiException(400, respMap["error"]);
+      throw AppException.http(400, respMap["error"]);
     }
     return true; // Success if no error
   }
@@ -398,13 +398,13 @@ class PermissionManagementControllerApi with BaseApiClient {
   ///
   /// 返回 eventbus 原始 result；未找到时可能返回 `null`。
   ///
-  /// 抛出 [ApiException]：当 [permissionId] 为空或 WebSocket 响应包含 `error` 字段时。
+  /// 抛出 [AppException]：当 [permissionId] 为空或 WebSocket 响应包含 `error` 字段时。
   ///
   /// 对应实时动作：PermissionManagement.getPermissionById
   Future<Object?> eventbusPermissionsPermissionIdGet(
       {required String permissionId}) async {
     if (permissionId.isEmpty) {
-      throw ApiException(400, "Missing required param: permissionId");
+      throw AppException.http(400, "Missing required param: permissionId");
     }
     final msg = {
       "service": "PermissionManagement",
@@ -413,7 +413,7 @@ class PermissionManagementControllerApi with BaseApiClient {
     };
     final respMap = await apiClient.sendWsMessage(msg);
     if (respMap.containsKey("error")) {
-      throw ApiException(400, respMap["error"]);
+      throw AppException.http(400, respMap["error"]);
     }
     return respMap["result"];
   }
@@ -428,7 +428,7 @@ class PermissionManagementControllerApi with BaseApiClient {
   ///
   /// 返回 eventbus 原始 result；调用方需要具备后端要求的权限管理角色。
   ///
-  /// 抛出 [ApiException]：当 [permissionId] 为空或 WebSocket 响应包含 `error` 字段时。
+  /// 抛出 [AppException]：当 [permissionId] 为空或 WebSocket 响应包含 `error` 字段时。
   ///
   /// 对应实时动作：PermissionManagement.updatePermission
   Future<Object?> eventbusPermissionsPermissionIdPut({
@@ -436,7 +436,7 @@ class PermissionManagementControllerApi with BaseApiClient {
     required PermissionManagement permissionManagement,
   }) async {
     if (permissionId.isEmpty) {
-      throw ApiException(400, "Missing required param: permissionId");
+      throw AppException.http(400, "Missing required param: permissionId");
     }
     final msg = {
       "service": "PermissionManagement",
@@ -445,7 +445,7 @@ class PermissionManagementControllerApi with BaseApiClient {
     };
     final respMap = await apiClient.sendWsMessage(msg);
     if (respMap.containsKey("error")) {
-      throw ApiException(400, respMap["error"]);
+      throw AppException.http(400, respMap["error"]);
     }
     return respMap["result"];
   }
@@ -459,7 +459,7 @@ class PermissionManagementControllerApi with BaseApiClient {
   ///
   /// 返回 eventbus 原始 result；调用方需要具备后端要求的权限管理角色。
   ///
-  /// 抛出 [ApiException]：当 WebSocket 响应包含 `error` 字段时。
+  /// 抛出 [AppException]：当 WebSocket 响应包含 `error` 字段时。
   ///
   /// 对应实时动作：PermissionManagement.createPermission
   Future<Object?> eventbusPermissionsPost(
@@ -471,7 +471,7 @@ class PermissionManagementControllerApi with BaseApiClient {
     };
     final respMap = await apiClient.sendWsMessage(msg);
     if (respMap.containsKey("error")) {
-      throw ApiException(400, respMap["error"]);
+      throw AppException.http(400, respMap["error"]);
     }
     return respMap["result"];
   }
@@ -485,7 +485,7 @@ class PermissionManagementControllerApi with BaseApiClient {
   ///
   /// 返回 eventbus 原始权限对象列表；result 不是列表时返回 `null`。
   ///
-  /// 抛出 [ApiException]：当 WebSocket 响应包含 `error` 字段时。
+  /// 抛出 [AppException]：当 WebSocket 响应包含 `error` 字段时。
   ///
   /// 对应实时动作：PermissionManagement.getPermissionsByNameLike
   Future<List<Object>?> eventbusPermissionsSearchGet({String? name}) async {
@@ -496,7 +496,7 @@ class PermissionManagementControllerApi with BaseApiClient {
     };
     final respMap = await apiClient.sendWsMessage(msg);
     if (respMap.containsKey("error")) {
-      throw ApiException(400, respMap["error"]);
+      throw AppException.http(400, respMap["error"]);
     }
     if (respMap["result"] is List) {
       return (respMap["result"] as List).cast<Object>();
@@ -513,7 +513,7 @@ class PermissionManagementControllerApi with BaseApiClient {
   ///
   /// 返回 [PermissionManagement] 列表；调用方需要具备后端要求的权限管理角色。
   ///
-  /// 抛出 [ApiException]：当 HTTP 响应非 2xx 或后端角色校验失败时。
+  /// 抛出 [AppException]：当 HTTP 响应非 2xx 或后端角色校验失败时。
   ///
   /// 对应接口：GET /api/permissions/parent/{parentId}
   Future<List<PermissionManagement>> listPermissionsByParent({
@@ -548,7 +548,7 @@ class PermissionManagementControllerApi with BaseApiClient {
   ///
   /// 返回 [PermissionManagement] 列表；调用方需要具备后端要求的权限管理角色。
   ///
-  /// 抛出 [ApiException]：当 HTTP 响应非 2xx 或后端角色校验失败时。
+  /// 抛出 [AppException]：当 HTTP 响应非 2xx 或后端角色校验失败时。
   ///
   /// 对应接口：GET /api/permissions/search/code/prefix
   Future<List<PermissionManagement>> searchPermissionsByCodePrefix({
@@ -584,7 +584,7 @@ class PermissionManagementControllerApi with BaseApiClient {
   ///
   /// 返回 [PermissionManagement] 列表；调用方需要具备后端要求的权限管理角色。
   ///
-  /// 抛出 [ApiException]：当 HTTP 响应非 2xx 或后端角色校验失败时。
+  /// 抛出 [AppException]：当 HTTP 响应非 2xx 或后端角色校验失败时。
   ///
   /// 对应接口：GET /api/permissions/search/code/fuzzy
   Future<List<PermissionManagement>> searchPermissionsByCodeFuzzy({
@@ -620,7 +620,7 @@ class PermissionManagementControllerApi with BaseApiClient {
   ///
   /// 返回 [PermissionManagement] 列表；调用方需要具备后端要求的权限管理角色。
   ///
-  /// 抛出 [ApiException]：当 HTTP 响应非 2xx 或后端角色校验失败时。
+  /// 抛出 [AppException]：当 HTTP 响应非 2xx 或后端角色校验失败时。
   ///
   /// 对应接口：GET /api/permissions/search/name/prefix
   Future<List<PermissionManagement>> searchPermissionsByNamePrefix({
@@ -656,7 +656,7 @@ class PermissionManagementControllerApi with BaseApiClient {
   ///
   /// 返回 [PermissionManagement] 列表；调用方需要具备后端要求的权限管理角色。
   ///
-  /// 抛出 [ApiException]：当 HTTP 响应非 2xx 或后端角色校验失败时。
+  /// 抛出 [AppException]：当 HTTP 响应非 2xx 或后端角色校验失败时。
   ///
   /// 对应接口：GET /api/permissions/search/name/fuzzy
   Future<List<PermissionManagement>> searchPermissionsByNameFuzzy({
@@ -692,7 +692,7 @@ class PermissionManagementControllerApi with BaseApiClient {
   ///
   /// 返回 [PermissionManagement] 列表；调用方需要具备后端要求的权限管理角色。
   ///
-  /// 抛出 [ApiException]：当 HTTP 响应非 2xx 或后端角色校验失败时。
+  /// 抛出 [AppException]：当 HTTP 响应非 2xx 或后端角色校验失败时。
   ///
   /// 对应接口：GET /api/permissions/search/type
   Future<List<PermissionManagement>> searchPermissionsByType({
@@ -728,7 +728,7 @@ class PermissionManagementControllerApi with BaseApiClient {
   ///
   /// 返回 [PermissionManagement] 列表；调用方需要具备后端要求的权限管理角色。
   ///
-  /// 抛出 [ApiException]：当 HTTP 响应非 2xx 或后端角色校验失败时。
+  /// 抛出 [AppException]：当 HTTP 响应非 2xx 或后端角色校验失败时。
   ///
   /// 对应接口：GET /api/permissions/search/api-path
   Future<List<PermissionManagement>> searchPermissionsByApiPath({
@@ -764,7 +764,7 @@ class PermissionManagementControllerApi with BaseApiClient {
   ///
   /// 返回 [PermissionManagement] 列表；调用方需要具备后端要求的权限管理角色。
   ///
-  /// 抛出 [ApiException]：当 HTTP 响应非 2xx 或后端角色校验失败时。
+  /// 抛出 [AppException]：当 HTTP 响应非 2xx 或后端角色校验失败时。
   ///
   /// 对应接口：GET /api/permissions/search/menu-path
   Future<List<PermissionManagement>> searchPermissionsByMenuPath({
@@ -800,7 +800,7 @@ class PermissionManagementControllerApi with BaseApiClient {
   ///
   /// 返回 [PermissionManagement] 列表；调用方需要具备后端要求的权限管理角色。
   ///
-  /// 抛出 [ApiException]：当 HTTP 响应非 2xx 或后端角色校验失败时。
+  /// 抛出 [AppException]：当 HTTP 响应非 2xx 或后端角色校验失败时。
   ///
   /// 对应接口：GET /api/permissions/search/visible
   Future<List<PermissionManagement>> searchPermissionsByVisible({
@@ -836,7 +836,7 @@ class PermissionManagementControllerApi with BaseApiClient {
   ///
   /// 返回 [PermissionManagement] 列表；调用方需要具备后端要求的权限管理角色。
   ///
-  /// 抛出 [ApiException]：当 HTTP 响应非 2xx 或后端角色校验失败时。
+  /// 抛出 [AppException]：当 HTTP 响应非 2xx 或后端角色校验失败时。
   ///
   /// 对应接口：GET /api/permissions/search/external
   Future<List<PermissionManagement>> searchPermissionsByExternal({
@@ -872,7 +872,7 @@ class PermissionManagementControllerApi with BaseApiClient {
   ///
   /// 返回 [PermissionManagement] 列表；调用方需要具备后端要求的权限管理角色。
   ///
-  /// 抛出 [ApiException]：当 HTTP 响应非 2xx 或后端角色校验失败时。
+  /// 抛出 [AppException]：当 HTTP 响应非 2xx 或后端角色校验失败时。
   ///
   /// 对应接口：GET /api/permissions/search/status
   Future<List<PermissionManagement>> searchPermissionsByStatus({

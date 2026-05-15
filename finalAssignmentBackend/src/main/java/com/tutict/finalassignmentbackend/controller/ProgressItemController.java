@@ -1,5 +1,7 @@
 package com.tutict.finalassignmentbackend.controller;
 
+import com.tutict.finalassignmentbackend.dto.response.ApiResponse;
+
 import com.tutict.finalassignmentbackend.entity.SysRequestHistory;
 import com.tutict.finalassignmentbackend.service.SysRequestHistoryService;
 import io.swagger.v3.oas.annotations.Operation;
@@ -42,14 +44,14 @@ public class ProgressItemController {
 
     @PostMapping
     @Operation(summary = "创建进度记录")
-    public ResponseEntity<SysRequestHistory> create(@Valid @RequestBody SysRequestHistory request,
+    public ResponseEntity<?> create(@Valid @RequestBody SysRequestHistory request,
                                                     @RequestHeader(value = "Idempotency-Key", required = false)
                                                     String idempotencyKey) {
         boolean useKey = hasKey(idempotencyKey);
         try {
             if (useKey) {
                 if (sysRequestHistoryService.shouldSkipProcessing(idempotencyKey)) {
-                    return ResponseEntity.status(HttpStatus.ALREADY_REPORTED).build();
+                    return ResponseEntity.status(HttpStatus.ALREADY_REPORTED).body(ApiResponse.ok(null));
                 }
                 sysRequestHistoryService.checkAndInsertIdempotency(idempotencyKey, request, "create");
             }
@@ -63,7 +65,10 @@ public class ProgressItemController {
                 sysRequestHistoryService.markHistoryFailure(idempotencyKey, ex.getMessage());
             }
             LOG.log(Level.SEVERE, "Create request history failed", ex);
-            return ResponseEntity.status(resolveStatus(ex)).build();
+            if (ex instanceof RuntimeException) {
+                throw (RuntimeException) ex;
+            }
+            throw new RuntimeException(ex);
         }
     }
 
@@ -89,7 +94,10 @@ public class ProgressItemController {
                 sysRequestHistoryService.markHistoryFailure(idempotencyKey, ex.getMessage());
             }
             LOG.log(Level.SEVERE, "Update request history failed", ex);
-            return ResponseEntity.status(resolveStatus(ex)).build();
+            if (ex instanceof RuntimeException) {
+                throw (RuntimeException) ex;
+            }
+            throw new RuntimeException(ex);
         }
     }
 
@@ -101,7 +109,10 @@ public class ProgressItemController {
             return ResponseEntity.noContent().build();
         } catch (Exception ex) {
             LOG.log(Level.WARNING, "Delete request history failed", ex);
-            return ResponseEntity.status(resolveStatus(ex)).build();
+            if (ex instanceof RuntimeException) {
+                throw (RuntimeException) ex;
+            }
+            throw new RuntimeException(ex);
         }
     }
 
@@ -113,7 +124,10 @@ public class ProgressItemController {
             return history == null ? ResponseEntity.notFound().build() : ResponseEntity.ok(history);
         } catch (Exception ex) {
             LOG.log(Level.WARNING, "Get request history failed", ex);
-            return ResponseEntity.status(resolveStatus(ex)).build();
+            if (ex instanceof RuntimeException) {
+                throw (RuntimeException) ex;
+            }
+            throw new RuntimeException(ex);
         }
     }
 
@@ -124,7 +138,10 @@ public class ProgressItemController {
             return ResponseEntity.ok(sysRequestHistoryService.findAll());
         } catch (Exception ex) {
             LOG.log(Level.WARNING, "List request histories failed", ex);
-            return ResponseEntity.status(resolveStatus(ex)).build();
+            if (ex instanceof RuntimeException) {
+                throw (RuntimeException) ex;
+            }
+            throw new RuntimeException(ex);
         }
     }
 
@@ -137,7 +154,10 @@ public class ProgressItemController {
             return ResponseEntity.ok(sysRequestHistoryService.findByBusinessStatus(status, page, size));
         } catch (Exception ex) {
             LOG.log(Level.WARNING, "List request histories by status failed", ex);
-            return ResponseEntity.status(resolveStatus(ex)).build();
+            if (ex instanceof RuntimeException) {
+                throw (RuntimeException) ex;
+            }
+            throw new RuntimeException(ex);
         }
     }
 
@@ -149,7 +169,10 @@ public class ProgressItemController {
             return history.map(ResponseEntity::ok).orElseGet(() -> ResponseEntity.notFound().build());
         } catch (Exception ex) {
             LOG.log(Level.WARNING, "Get request history by idempotency key failed", ex);
-            return ResponseEntity.status(resolveStatus(ex)).build();
+            if (ex instanceof RuntimeException) {
+                throw (RuntimeException) ex;
+            }
+            throw new RuntimeException(ex);
         }
     }
 

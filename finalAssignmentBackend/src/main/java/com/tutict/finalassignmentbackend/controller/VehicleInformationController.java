@@ -1,5 +1,7 @@
 package com.tutict.finalassignmentbackend.controller;
 
+import com.tutict.finalassignmentbackend.dto.response.ApiResponse;
+
 import com.tutict.finalassignmentbackend.entity.DriverVehicle;
 import com.tutict.finalassignmentbackend.entity.VehicleInformation;
 import com.tutict.finalassignmentbackend.service.DriverVehicleService;
@@ -58,7 +60,10 @@ public class VehicleInformationController {
             return ResponseEntity.status(HttpStatus.CREATED).body(saved);
         } catch (Exception ex) {
             LOG.log(Level.SEVERE, "Create vehicle failed", ex);
-            return ResponseEntity.status(resolveStatus(ex)).build();
+            if (ex instanceof RuntimeException) {
+                throw (RuntimeException) ex;
+            }
+            throw new RuntimeException(ex);
         }
     }
 
@@ -77,7 +82,10 @@ public class VehicleInformationController {
             return ResponseEntity.ok(updated);
         } catch (Exception ex) {
             LOG.log(Level.SEVERE, "Update vehicle failed", ex);
-            return ResponseEntity.status(resolveStatus(ex)).build();
+            if (ex instanceof RuntimeException) {
+                throw (RuntimeException) ex;
+            }
+            throw new RuntimeException(ex);
         }
     }
 
@@ -89,7 +97,10 @@ public class VehicleInformationController {
             return ResponseEntity.noContent().build();
         } catch (Exception ex) {
             LOG.log(Level.WARNING, "Delete vehicle failed", ex);
-            return ResponseEntity.status(resolveStatus(ex)).build();
+            if (ex instanceof RuntimeException) {
+                throw (RuntimeException) ex;
+            }
+            throw new RuntimeException(ex);
         }
     }
 
@@ -101,7 +112,10 @@ public class VehicleInformationController {
             return ResponseEntity.noContent().build();
         } catch (Exception ex) {
             LOG.log(Level.WARNING, "Delete vehicle by license failed", ex);
-            return ResponseEntity.status(resolveStatus(ex)).build();
+            if (ex instanceof RuntimeException) {
+                throw (RuntimeException) ex;
+            }
+            throw new RuntimeException(ex);
         }
     }
 
@@ -113,7 +127,10 @@ public class VehicleInformationController {
             return vehicle == null ? ResponseEntity.notFound().build() : ResponseEntity.ok(vehicle);
         } catch (Exception ex) {
             LOG.log(Level.WARNING, "Get vehicle failed", ex);
-            return ResponseEntity.status(resolveStatus(ex)).build();
+            if (ex instanceof RuntimeException) {
+                throw (RuntimeException) ex;
+            }
+            throw new RuntimeException(ex);
         }
     }
 
@@ -124,7 +141,10 @@ public class VehicleInformationController {
             return ResponseEntity.ok(vehicleInformationService.getAllVehicleInformation());
         } catch (Exception ex) {
             LOG.log(Level.WARNING, "List vehicles failed", ex);
-            return ResponseEntity.status(resolveStatus(ex)).build();
+            if (ex instanceof RuntimeException) {
+                throw (RuntimeException) ex;
+            }
+            throw new RuntimeException(ex);
         }
     }
 
@@ -136,7 +156,10 @@ public class VehicleInformationController {
             return vehicle == null ? ResponseEntity.notFound().build() : ResponseEntity.ok(vehicle);
         } catch (Exception ex) {
             LOG.log(Level.WARNING, "Search vehicle by license failed", ex);
-            return ResponseEntity.status(resolveStatus(ex)).build();
+            if (ex instanceof RuntimeException) {
+                throw (RuntimeException) ex;
+            }
+            throw new RuntimeException(ex);
         }
     }
 
@@ -147,7 +170,10 @@ public class VehicleInformationController {
             return ResponseEntity.ok(vehicleInformationService.getVehicleInformationByIdCardNumber(idCard));
         } catch (Exception ex) {
             LOG.log(Level.WARNING, "Search vehicle by id card failed", ex);
-            return ResponseEntity.status(resolveStatus(ex)).build();
+            if (ex instanceof RuntimeException) {
+                throw (RuntimeException) ex;
+            }
+            throw new RuntimeException(ex);
         }
     }
 
@@ -158,7 +184,10 @@ public class VehicleInformationController {
             return ResponseEntity.ok(vehicleInformationService.getVehicleInformationByType(type));
         } catch (Exception ex) {
             LOG.log(Level.WARNING, "Search vehicle by type failed", ex);
-            return ResponseEntity.status(resolveStatus(ex)).build();
+            if (ex instanceof RuntimeException) {
+                throw (RuntimeException) ex;
+            }
+            throw new RuntimeException(ex);
         }
     }
 
@@ -169,7 +198,10 @@ public class VehicleInformationController {
             return ResponseEntity.ok(vehicleInformationService.getVehicleInformationByOwnerName(ownerName));
         } catch (Exception ex) {
             LOG.log(Level.WARNING, "Search vehicle by owner name failed", ex);
-            return ResponseEntity.status(resolveStatus(ex)).build();
+            if (ex instanceof RuntimeException) {
+                throw (RuntimeException) ex;
+            }
+            throw new RuntimeException(ex);
         }
     }
 
@@ -180,7 +212,10 @@ public class VehicleInformationController {
             return ResponseEntity.ok(vehicleInformationService.getVehicleInformationByStatus(status));
         } catch (Exception ex) {
             LOG.log(Level.WARNING, "Search vehicle by status failed", ex);
-            return ResponseEntity.status(resolveStatus(ex)).build();
+            if (ex instanceof RuntimeException) {
+                throw (RuntimeException) ex;
+            }
+            throw new RuntimeException(ex);
         }
     }
 
@@ -193,13 +228,16 @@ public class VehicleInformationController {
             return ResponseEntity.ok(vehicleInformationService.searchVehicles(keywords, page, size));
         } catch (Exception ex) {
             LOG.log(Level.WARNING, "General vehicle search failed", ex);
-            return ResponseEntity.status(resolveStatus(ex)).build();
+            if (ex instanceof RuntimeException) {
+                throw (RuntimeException) ex;
+            }
+            throw new RuntimeException(ex);
         }
     }
 
     @PostMapping("/{vehicleId}/drivers")
     @Operation(summary = "创建车辆与驾驶员的绑定")
-    public ResponseEntity<DriverVehicle> bindDriver(@PathVariable Long vehicleId,
+    public ResponseEntity<?> bindDriver(@PathVariable Long vehicleId,
                                                     @Valid @RequestBody DriverVehicle relation,
                                                     @RequestHeader(value = "Idempotency-Key", required = false)
                                                     String idempotencyKey) {
@@ -208,7 +246,7 @@ public class VehicleInformationController {
             relation.setVehicleId(vehicleId);
             if (useKey) {
                 if (driverVehicleService.shouldSkipProcessing(idempotencyKey)) {
-                    return ResponseEntity.status(HttpStatus.ALREADY_REPORTED).build();
+                    return ResponseEntity.status(HttpStatus.ALREADY_REPORTED).body(ApiResponse.ok(null));
                 }
                 driverVehicleService.checkAndInsertIdempotency(idempotencyKey, relation, "create");
             }
@@ -222,7 +260,10 @@ public class VehicleInformationController {
                 driverVehicleService.markHistoryFailure(idempotencyKey, ex.getMessage());
             }
             LOG.log(Level.SEVERE, "Create driver-vehicle binding failed", ex);
-            return ResponseEntity.status(resolveStatus(ex)).build();
+            if (ex instanceof RuntimeException) {
+                throw (RuntimeException) ex;
+            }
+            throw new RuntimeException(ex);
         }
     }
 
@@ -235,7 +276,10 @@ public class VehicleInformationController {
             return ResponseEntity.ok(driverVehicleService.findByVehicleId(vehicleId, page, size));
         } catch (Exception ex) {
             LOG.log(Level.WARNING, "List driver-vehicle binding failed", ex);
-            return ResponseEntity.status(resolveStatus(ex)).build();
+            if (ex instanceof RuntimeException) {
+                throw (RuntimeException) ex;
+            }
+            throw new RuntimeException(ex);
         }
     }
 
@@ -247,7 +291,10 @@ public class VehicleInformationController {
             return ResponseEntity.noContent().build();
         } catch (Exception ex) {
             LOG.log(Level.WARNING, "Delete driver-vehicle binding failed", ex);
-            return ResponseEntity.status(resolveStatus(ex)).build();
+            if (ex instanceof RuntimeException) {
+                throw (RuntimeException) ex;
+            }
+            throw new RuntimeException(ex);
         }
     }
 
@@ -273,7 +320,10 @@ public class VehicleInformationController {
                 driverVehicleService.markHistoryFailure(idempotencyKey, ex.getMessage());
             }
             LOG.log(Level.SEVERE, "Update driver-vehicle binding failed", ex);
-            return ResponseEntity.status(resolveStatus(ex)).build();
+            if (ex instanceof RuntimeException) {
+                throw (RuntimeException) ex;
+            }
+            throw new RuntimeException(ex);
         }
     }
 
@@ -285,7 +335,10 @@ public class VehicleInformationController {
             return binding == null ? ResponseEntity.notFound().build() : ResponseEntity.ok(binding);
         } catch (Exception ex) {
             LOG.log(Level.WARNING, "Get driver-vehicle binding failed", ex);
-            return ResponseEntity.status(resolveStatus(ex)).build();
+            if (ex instanceof RuntimeException) {
+                throw (RuntimeException) ex;
+            }
+            throw new RuntimeException(ex);
         }
     }
 
@@ -296,7 +349,10 @@ public class VehicleInformationController {
             return ResponseEntity.ok(driverVehicleService.findAll());
         } catch (Exception ex) {
             LOG.log(Level.WARNING, "List driver-vehicle bindings failed", ex);
-            return ResponseEntity.status(resolveStatus(ex)).build();
+            if (ex instanceof RuntimeException) {
+                throw (RuntimeException) ex;
+            }
+            throw new RuntimeException(ex);
         }
     }
 
@@ -309,7 +365,10 @@ public class VehicleInformationController {
             return ResponseEntity.ok(driverVehicleService.findByDriverId(driverId, page, size));
         } catch (Exception ex) {
             LOG.log(Level.WARNING, "List driver bindings failed", ex);
-            return ResponseEntity.status(resolveStatus(ex)).build();
+            if (ex instanceof RuntimeException) {
+                throw (RuntimeException) ex;
+            }
+            throw new RuntimeException(ex);
         }
     }
 
@@ -320,7 +379,10 @@ public class VehicleInformationController {
             return ResponseEntity.ok(driverVehicleService.findPrimaryBinding(driverId));
         } catch (Exception ex) {
             LOG.log(Level.WARNING, "Get primary binding failed", ex);
-            return ResponseEntity.status(resolveStatus(ex)).build();
+            if (ex instanceof RuntimeException) {
+                throw (RuntimeException) ex;
+            }
+            throw new RuntimeException(ex);
         }
     }
 
@@ -333,7 +395,10 @@ public class VehicleInformationController {
             return ResponseEntity.ok(driverVehicleService.searchByRelationship(relationship, page, size));
         } catch (Exception ex) {
             LOG.log(Level.WARNING, "Search bindings by relationship failed", ex);
-            return ResponseEntity.status(resolveStatus(ex)).build();
+            if (ex instanceof RuntimeException) {
+                throw (RuntimeException) ex;
+            }
+            throw new RuntimeException(ex);
         }
     }
 
@@ -345,7 +410,10 @@ public class VehicleInformationController {
             return ResponseEntity.ok(vehicleInformationService.getVehicleInformationByLicensePlateGlobally(prefix, size));
         } catch (Exception ex) {
             LOG.log(Level.WARNING, "Fetch global plate suggestions failed", ex);
-            return ResponseEntity.status(resolveStatus(ex)).build();
+            if (ex instanceof RuntimeException) {
+                throw (RuntimeException) ex;
+            }
+            throw new RuntimeException(ex);
         }
     }
 
@@ -358,7 +426,10 @@ public class VehicleInformationController {
             return ResponseEntity.ok(vehicleInformationService.getLicensePlateAutocompleteSuggestions(prefix, size, idCard));
         } catch (Exception ex) {
             LOG.log(Level.WARNING, "Fetch plate autocomplete failed", ex);
-            return ResponseEntity.status(resolveStatus(ex)).build();
+            if (ex instanceof RuntimeException) {
+                throw (RuntimeException) ex;
+            }
+            throw new RuntimeException(ex);
         }
     }
 
@@ -371,7 +442,10 @@ public class VehicleInformationController {
             return ResponseEntity.ok(vehicleInformationService.getVehicleTypeAutocompleteSuggestions(idCard, prefix, size));
         } catch (Exception ex) {
             LOG.log(Level.WARNING, "Fetch vehicle type autocomplete failed", ex);
-            return ResponseEntity.status(resolveStatus(ex)).build();
+            if (ex instanceof RuntimeException) {
+                throw (RuntimeException) ex;
+            }
+            throw new RuntimeException(ex);
         }
     }
 
@@ -383,7 +457,10 @@ public class VehicleInformationController {
             return ResponseEntity.ok(vehicleInformationService.getVehicleTypesByPrefixGlobally(prefix, size));
         } catch (Exception ex) {
             LOG.log(Level.WARNING, "Fetch global vehicle type autocomplete failed", ex);
-            return ResponseEntity.status(resolveStatus(ex)).build();
+            if (ex instanceof RuntimeException) {
+                throw (RuntimeException) ex;
+            }
+            throw new RuntimeException(ex);
         }
     }
 
@@ -395,7 +472,10 @@ public class VehicleInformationController {
             return ResponseEntity.ok(Map.of("exists", exists));
         } catch (Exception ex) {
             LOG.log(Level.WARNING, "License plate existence check failed", ex);
-            return ResponseEntity.status(resolveStatus(ex)).build();
+            if (ex instanceof RuntimeException) {
+                throw (RuntimeException) ex;
+            }
+            throw new RuntimeException(ex);
         }
     }
 

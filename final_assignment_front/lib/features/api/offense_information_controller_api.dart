@@ -1,7 +1,7 @@
 import 'package:final_assignment_front/features/model/driver_information.dart';
 import 'package:final_assignment_front/features/model/offense_information.dart';
 import 'package:final_assignment_front/features/model/vehicle_information.dart';
-import 'package:final_assignment_front/utils/helpers/api_exception.dart';
+import 'package:final_assignment_front/core/network/app_exception.dart';
 import 'package:final_assignment_front/utils/services/api_client.dart';
 import 'package:http/http.dart' as http;
 
@@ -41,7 +41,7 @@ class OffenseInformationControllerApi with BaseApiClient {
   ///
   /// 返回后端创建后的 [OffenseInformation]；空响应但 HTTP 成功时返回原始 [body]。
   ///
-  /// 抛出 [ApiException]：当请求数据无效、幂等键重复或 HTTP 响应非 2xx 时。
+  /// 抛出 [AppException]：当请求数据无效、幂等键重复或 HTTP 响应非 2xx 时。
   ///
   /// 对应接口：POST /api/offenses
   Future<OffenseInformation> createOffense(OffenseInformation body) async {
@@ -68,7 +68,7 @@ class OffenseInformationControllerApi with BaseApiClient {
   ///
   /// 返回 [OffenseInformation]；后端返回空响应或 404 时返回 `null`。
   ///
-  /// 抛出 [ApiException]：当 HTTP 响应非 2xx 且不是可空响应时。
+  /// 抛出 [AppException]：当 HTTP 响应非 2xx 且不是可空响应时。
   ///
   /// 对应接口：GET /api/offenses/{offenseId}
   Future<OffenseInformation?> getOffense({
@@ -91,7 +91,7 @@ class OffenseInformationControllerApi with BaseApiClient {
   ///
   /// 返回 [OffenseInformation] 列表；无数据时返回空列表。
   ///
-  /// 抛出 [ApiException]：当 HTTP 响应非 2xx 时。
+  /// 抛出 [AppException]：当 HTTP 响应非 2xx 时。
   ///
   /// 对应接口：GET /api/offenses
   Future<List<OffenseInformation>> listOffenses() async {
@@ -116,7 +116,7 @@ class OffenseInformationControllerApi with BaseApiClient {
   ///
   /// 返回后端更新后的 [OffenseInformation]。
   ///
-  /// 抛出 [ApiException]：当记录不存在、幂等键重复或 HTTP 响应非 2xx 时。
+  /// 抛出 [AppException]：当记录不存在、幂等键重复或 HTTP 响应非 2xx 时。
   ///
   /// 对应接口：PUT /api/offenses/{offenseId}
   Future<OffenseInformation> updateOffense({
@@ -150,7 +150,7 @@ class OffenseInformationControllerApi with BaseApiClient {
   ///
   /// 删除成功时无返回值。
   ///
-  /// 抛出 [ApiException]：当记录不存在、无权限或 HTTP 响应非 2xx 时。
+  /// 抛出 [AppException]：当记录不存在、无权限或 HTTP 响应非 2xx 时。
   ///
   /// 对应接口：DELETE /api/offenses/{offenseId}
   Future<void> deleteOffense({
@@ -182,7 +182,7 @@ class OffenseInformationControllerApi with BaseApiClient {
   ///
   /// 返回匹配时间区间的 [OffenseInformation] 列表；无匹配时返回空列表。
   ///
-  /// 抛出 [ApiException]：当 HTTP 响应非 2xx 时。
+  /// 抛出 [AppException]：当 HTTP 响应非 2xx 时。
   ///
   /// 对应接口：GET /api/offenses/search/time-range
   Future<List<OffenseInformation>> searchOffensesByTimeRange({
@@ -213,7 +213,7 @@ class OffenseInformationControllerApi with BaseApiClient {
   ///
   /// 返回 [OffenseInformation] 列表；无匹配记录时返回空列表。
   ///
-  /// 抛出 [ApiException]：当 [query] 为空或 HTTP 响应非 2xx 时。
+  /// 抛出 [AppException]：当 [query] 为空或 HTTP 响应非 2xx 时。
   ///
   /// 对应接口：GET /api/offenses/search/code
   Future<List<OffenseInformation>> listOffensesByOffenseType({
@@ -222,7 +222,7 @@ class OffenseInformationControllerApi with BaseApiClient {
     int size = 10,
   }) async {
     if (query.isEmpty) {
-      throw ApiException(400, 'Missing required param: query');
+      throw AppException.http(400, 'Missing required param: query');
     }
     final response = await apiClient.invokeAPI(
       '/api/offenses/search/code',
@@ -253,7 +253,7 @@ class OffenseInformationControllerApi with BaseApiClient {
   ///
   /// 返回聚合后的 [OffenseInformation] 列表；无司机或无违法记录时返回空列表。
   ///
-  /// 抛出 [ApiException]：当 [query] 为空，或司机搜索接口 HTTP 响应非 2xx 时。
+  /// 抛出 [AppException]：当 [query] 为空，或司机搜索接口 HTTP 响应非 2xx 时。
   /// 单个司机的违法记录查询失败会被跳过，不会中断其他司机的查询。
   ///
   /// 对应接口：GET /api/drivers/search/name + GET /api/offenses/driver/{driverId}
@@ -263,7 +263,7 @@ class OffenseInformationControllerApi with BaseApiClient {
     int size = 10,
   }) async {
     if (query.isEmpty) {
-      throw ApiException(400, 'Missing required param: query');
+      throw AppException.http(400, 'Missing required param: query');
     }
 
     final headerParams = await getHeaders();
@@ -329,7 +329,7 @@ class OffenseInformationControllerApi with BaseApiClient {
   ///
   /// 返回 [OffenseInformation] 列表；无记录时返回空列表。
   ///
-  /// 抛出 [ApiException]：当 HTTP 响应非 2xx 时。
+  /// 抛出 [AppException]：当 HTTP 响应非 2xx 时。
   ///
   /// 对应接口：GET /api/offenses/driver/{driverId}
   Future<List<OffenseInformation>> listOffensesByDriver({
@@ -361,7 +361,7 @@ class OffenseInformationControllerApi with BaseApiClient {
   ///
   /// 返回 [OffenseInformation] 列表；无记录时返回空列表。
   ///
-  /// 抛出 [ApiException]：当 HTTP 响应非 2xx 时。
+  /// 抛出 [AppException]：当 HTTP 响应非 2xx 时。
   ///
   /// 对应接口：GET /api/offenses/vehicle/{vehicleId}
   Future<List<OffenseInformation>> listOffensesByVehicle({
@@ -393,7 +393,7 @@ class OffenseInformationControllerApi with BaseApiClient {
   ///
   /// 返回 [OffenseInformation] 列表；无匹配时返回空列表。
   ///
-  /// 抛出 [ApiException]：当 HTTP 响应非 2xx 时。
+  /// 抛出 [AppException]：当 HTTP 响应非 2xx 时。
   ///
   /// 对应接口：GET /api/offenses/search/status
   Future<List<OffenseInformation>> searchOffensesByStatus({
@@ -426,7 +426,7 @@ class OffenseInformationControllerApi with BaseApiClient {
   ///
   /// 返回 [OffenseInformation] 列表；无匹配时返回空列表。
   ///
-  /// 抛出 [ApiException]：当 HTTP 响应非 2xx 时。
+  /// 抛出 [AppException]：当 HTTP 响应非 2xx 时。
   ///
   /// 对应接口：GET /api/offenses/search/number
   Future<List<OffenseInformation>> searchOffensesByNumber({
@@ -459,7 +459,7 @@ class OffenseInformationControllerApi with BaseApiClient {
   ///
   /// 返回 [OffenseInformation] 列表；无匹配时返回空列表。
   ///
-  /// 抛出 [ApiException]：当 HTTP 响应非 2xx 时。
+  /// 抛出 [AppException]：当 HTTP 响应非 2xx 时。
   ///
   /// 对应接口：GET /api/offenses/search/location
   Future<List<OffenseInformation>> searchOffensesByLocation({
@@ -492,7 +492,7 @@ class OffenseInformationControllerApi with BaseApiClient {
   ///
   /// 返回 [OffenseInformation] 列表；无匹配时返回空列表。
   ///
-  /// 抛出 [ApiException]：当 HTTP 响应非 2xx 时。
+  /// 抛出 [AppException]：当 HTTP 响应非 2xx 时。
   ///
   /// 对应接口：GET /api/offenses/search/province
   Future<List<OffenseInformation>> searchOffensesByProvince({
@@ -525,7 +525,7 @@ class OffenseInformationControllerApi with BaseApiClient {
   ///
   /// 返回 [OffenseInformation] 列表；无匹配时返回空列表。
   ///
-  /// 抛出 [ApiException]：当 HTTP 响应非 2xx 时。
+  /// 抛出 [AppException]：当 HTTP 响应非 2xx 时。
   ///
   /// 对应接口：GET /api/offenses/search/city
   Future<List<OffenseInformation>> searchOffensesByCity({
@@ -558,7 +558,7 @@ class OffenseInformationControllerApi with BaseApiClient {
   ///
   /// 返回 [OffenseInformation] 列表；无匹配时返回空列表。
   ///
-  /// 抛出 [ApiException]：当 HTTP 响应非 2xx 时。
+  /// 抛出 [AppException]：当 HTTP 响应非 2xx 时。
   ///
   /// 对应接口：GET /api/offenses/search/notification
   Future<List<OffenseInformation>> searchOffensesByNotification({
@@ -591,7 +591,7 @@ class OffenseInformationControllerApi with BaseApiClient {
   ///
   /// 返回 [OffenseInformation] 列表；无匹配时返回空列表。
   ///
-  /// 抛出 [ApiException]：当 HTTP 响应非 2xx 时。
+  /// 抛出 [AppException]：当 HTTP 响应非 2xx 时。
   ///
   /// 对应接口：GET /api/offenses/search/agency
   Future<List<OffenseInformation>> searchOffensesByAgency({
@@ -625,7 +625,7 @@ class OffenseInformationControllerApi with BaseApiClient {
   ///
   /// 返回金额落在区间内的 [OffenseInformation] 列表；无匹配时返回空列表。
   ///
-  /// 抛出 [ApiException]：当 HTTP 响应非 2xx 时。
+  /// 抛出 [AppException]：当 HTTP 响应非 2xx 时。
   ///
   /// 对应接口：GET /api/offenses/search/fine-range
   Future<List<OffenseInformation>> searchOffensesByFineRange({
@@ -663,7 +663,7 @@ class OffenseInformationControllerApi with BaseApiClient {
   ///
   /// 返回 [OffenseInformation] 列表；车辆不存在、车辆 ID 为空或无违法记录时返回空列表。
   ///
-  /// 抛出 [ApiException]：当 [query] 为空，或车辆/违法记录接口返回非 2xx 且不是 404 空结果时。
+  /// 抛出 [AppException]：当 [query] 为空，或车辆/违法记录接口返回非 2xx 且不是 404 空结果时。
   ///
   /// 对应接口：GET /api/vehicles/search/license + GET /api/offenses/vehicle/{vehicleId}
   Future<List<OffenseInformation>> listOffensesByLicensePlate({
@@ -672,7 +672,7 @@ class OffenseInformationControllerApi with BaseApiClient {
     int size = 10,
   }) async {
     if (query.isEmpty) {
-      throw ApiException(400, 'Missing required param: query');
+      throw AppException.http(400, 'Missing required param: query');
     }
 
     final headerParams = await getHeaders();

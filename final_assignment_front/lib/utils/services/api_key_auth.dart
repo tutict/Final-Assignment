@@ -1,5 +1,5 @@
 import 'package:final_assignment_front/utils/services/authentication.dart';
-import 'package:final_assignment_front/utils/helpers/api_exception.dart';
+import 'package:final_assignment_front/core/network/app_exception.dart';
 import 'package:final_assignment_front/utils/services/api_client.dart';
 
 class ApiKeyAuth implements Authentication {
@@ -20,7 +20,7 @@ class ApiKeyAuth implements Authentication {
       List<QueryParam> queryParams, Map<String, String> headerParams) {
     // Ensure that _apiKey has been set before using it
     if (_apiKey.isEmpty) {
-      throw ApiException(400, "API key is not set.");
+      throw AppException.http(400, "API key is not set.");
     }
 
     String value = apiKeyPrefix.isNotEmpty ? '$apiKeyPrefix $_apiKey' : _apiKey;
@@ -30,7 +30,7 @@ class ApiKeyAuth implements Authentication {
     } else if (location.toLowerCase() == 'header') {
       headerParams[paramName] = value;
     } else {
-      throw ApiException(400, "Invalid location: $location");
+      throw AppException.http(400, "Invalid location: $location");
     }
   }
 }

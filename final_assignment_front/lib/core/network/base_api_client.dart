@@ -8,6 +8,7 @@ import 'package:uuid/uuid.dart';
 import '../../utils/services/auth_token_store.dart';
 import 'app_exception.dart';
 import 'api_client.dart';
+import 'field_validation_error.dart';
 
 class PageResult<T> {
   const PageResult({
@@ -23,12 +24,13 @@ class PageResult<T> {
   final int size;
 }
 
-abstract mixin class BaseApiClient {
+mixin BaseApiClient {
   static const String defaultContentType = 'application/json; charset=utf-8';
   static const Set<int> defaultSuccessStatusCodes = {
     200,
     201,
     202,
+    208,
     204,
   };
 
@@ -41,7 +43,7 @@ abstract mixin class BaseApiClient {
     if (jwtToken == null || jwtToken.isEmpty) {
       throw const AppException(
         type: AppErrorType.unauthorized,
-        message: '登录已过期，请重新登录',
+        message: 'Login expired, please login again',
         statusCode: 401,
       );
     }
@@ -102,10 +104,12 @@ abstract mixin class BaseApiClient {
     if (!success) {
       final code = body['errorCode'] as String? ?? 'UNKNOWN';
       final message = body['message'] as String? ?? '操作失败';
+      final fieldErrors = _fieldErrorsFromData(body['data']);
       throw AppException(
         type: _mapErrorCode(code),
         message: message,
         errorCode: code,
+        fieldErrors: fieldErrors,
         originalError: body,
       );
     }
@@ -158,6 +162,9 @@ abstract mixin class BaseApiClient {
     Set<int>? successStatusCodes,
     Map<int, String> statusMessages = const {},
   }) {
+    if (response.statusCode == 208) {
+      return;
+    }
     final success = successStatusCodes?.contains(response.statusCode) ??
         (response.statusCode >= 200 && response.statusCode < 400);
     if (!success) {
@@ -172,8 +179,10 @@ abstract mixin class BaseApiClient {
     final decoded = _tryDecodeJson(response);
     if (decoded is Map && decoded['success'] == false) {
       throw AppException(
-        type: AppErrorType.businessError,
+        type: _mapErrorCode(decoded['errorCode']?.toString() ?? 'UNKNOWN'),
         message: _messageFromMap(decoded),
+        errorCode: decoded['errorCode']?.toString(),
+        fieldErrors: _fieldErrorsFromData(decoded['data']),
         statusCode: response.statusCode,
         originalError: response,
       );
@@ -345,6 +354,7 @@ abstract mixin class BaseApiClient {
           type: _mapErrorCode(code),
           message: _messageFromMap(decoded),
           errorCode: code,
+          fieldErrors: _fieldErrorsFromData(decoded['data']),
           statusCode: 400,
           originalError: decoded,
         );
@@ -384,8 +394,20 @@ abstract mixin class BaseApiClient {
       'NOT_FOUND' => AppErrorType.notFound,
       'CONFLICT' => AppErrorType.conflict,
       'DUPLICATE_REQUEST' => AppErrorType.duplicate,
+      'VALIDATION_ERROR' => AppErrorType.validationError,
       _ => AppErrorType.businessError,
     };
+  }
+
+  List<FieldValidationError>? _fieldErrorsFromData(dynamic data) {
+    if (data is! List) return null;
+    return data
+        .whereType<Map>()
+        .map((item) => FieldValidationError.fromJson(
+              Map<String, dynamic>.from(item),
+            ))
+        .where((item) => item.field.isNotEmpty || item.message.isNotEmpty)
+        .toList();
   }
 
   int _asInt(dynamic value, {int fallback = 0}) {

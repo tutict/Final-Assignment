@@ -1,5 +1,7 @@
 package com.tutict.finalassignmentbackend.controller;
 
+import com.tutict.finalassignmentbackend.dto.response.ApiResponse;
+
 import com.tutict.finalassignmentbackend.entity.SysDict;
 import com.tutict.finalassignmentbackend.entity.SysSettings;
 import com.tutict.finalassignmentbackend.service.SysDictService;
@@ -46,14 +48,14 @@ public class SystemSettingsController {
 
     @PostMapping
     @Operation(summary = "创建系统配置")
-    public ResponseEntity<SysSettings> createSetting(@Valid @RequestBody SysSettings request,
+    public ResponseEntity<?> createSetting(@Valid @RequestBody SysSettings request,
                                                      @RequestHeader(value = "Idempotency-Key", required = false)
                                                      String idempotencyKey) {
         boolean useKey = hasKey(idempotencyKey);
         try {
             if (useKey) {
                 if (sysSettingsService.shouldSkipProcessing(idempotencyKey)) {
-                    return ResponseEntity.status(HttpStatus.ALREADY_REPORTED).build();
+                    return ResponseEntity.status(HttpStatus.ALREADY_REPORTED).body(ApiResponse.ok(null));
                 }
                 sysSettingsService.checkAndInsertIdempotency(idempotencyKey, request, "create");
             }
@@ -67,7 +69,10 @@ public class SystemSettingsController {
                 sysSettingsService.markHistoryFailure(idempotencyKey, ex.getMessage());
             }
             LOG.log(Level.SEVERE, "Create setting failed", ex);
-            return ResponseEntity.status(resolveStatus(ex)).build();
+            if (ex instanceof RuntimeException) {
+                throw (RuntimeException) ex;
+            }
+            throw new RuntimeException(ex);
         }
     }
 
@@ -93,7 +98,10 @@ public class SystemSettingsController {
                 sysSettingsService.markHistoryFailure(idempotencyKey, ex.getMessage());
             }
             LOG.log(Level.SEVERE, "Update setting failed", ex);
-            return ResponseEntity.status(resolveStatus(ex)).build();
+            if (ex instanceof RuntimeException) {
+                throw (RuntimeException) ex;
+            }
+            throw new RuntimeException(ex);
         }
     }
 
@@ -105,7 +113,10 @@ public class SystemSettingsController {
             return ResponseEntity.noContent().build();
         } catch (Exception ex) {
             LOG.log(Level.WARNING, "Delete setting failed", ex);
-            return ResponseEntity.status(resolveStatus(ex)).build();
+            if (ex instanceof RuntimeException) {
+                throw (RuntimeException) ex;
+            }
+            throw new RuntimeException(ex);
         }
     }
 
@@ -117,7 +128,10 @@ public class SystemSettingsController {
             return settings == null ? ResponseEntity.notFound().build() : ResponseEntity.ok(settings);
         } catch (Exception ex) {
             LOG.log(Level.WARNING, "Get setting failed", ex);
-            return ResponseEntity.status(resolveStatus(ex)).build();
+            if (ex instanceof RuntimeException) {
+                throw (RuntimeException) ex;
+            }
+            throw new RuntimeException(ex);
         }
     }
 
@@ -128,7 +142,10 @@ public class SystemSettingsController {
             return ResponseEntity.ok(sysSettingsService.findAll());
         } catch (Exception ex) {
             LOG.log(Level.WARNING, "List settings failed", ex);
-            return ResponseEntity.status(resolveStatus(ex)).build();
+            if (ex instanceof RuntimeException) {
+                throw (RuntimeException) ex;
+            }
+            throw new RuntimeException(ex);
         }
     }
 
@@ -140,7 +157,10 @@ public class SystemSettingsController {
             return settings == null ? ResponseEntity.notFound().build() : ResponseEntity.ok(settings);
         } catch (Exception ex) {
             LOG.log(Level.WARNING, "Get setting by key failed", ex);
-            return ResponseEntity.status(resolveStatus(ex)).build();
+            if (ex instanceof RuntimeException) {
+                throw (RuntimeException) ex;
+            }
+            throw new RuntimeException(ex);
         }
     }
 
@@ -153,7 +173,10 @@ public class SystemSettingsController {
             return ResponseEntity.ok(sysSettingsService.findByCategory(category, page, size));
         } catch (Exception ex) {
             LOG.log(Level.WARNING, "List settings by category failed", ex);
-            return ResponseEntity.status(resolveStatus(ex)).build();
+            if (ex instanceof RuntimeException) {
+                throw (RuntimeException) ex;
+            }
+            throw new RuntimeException(ex);
         }
     }
 
@@ -199,14 +222,14 @@ public class SystemSettingsController {
 
     @PostMapping("/dicts")
     @Operation(summary = "创建数据字典")
-    public ResponseEntity<SysDict> createDict(@Valid @RequestBody SysDict request,
+    public ResponseEntity<?> createDict(@Valid @RequestBody SysDict request,
                                               @RequestHeader(value = "Idempotency-Key", required = false)
                                               String idempotencyKey) {
         boolean useKey = hasKey(idempotencyKey);
         try {
             if (useKey) {
                 if (sysDictService.shouldSkipProcessing(idempotencyKey)) {
-                    return ResponseEntity.status(HttpStatus.ALREADY_REPORTED).build();
+                    return ResponseEntity.status(HttpStatus.ALREADY_REPORTED).body(ApiResponse.ok(null));
                 }
                 sysDictService.checkAndInsertIdempotency(idempotencyKey, request, "create");
             }
@@ -220,7 +243,10 @@ public class SystemSettingsController {
                 sysDictService.markHistoryFailure(idempotencyKey, ex.getMessage());
             }
             LOG.log(Level.SEVERE, "Create dict failed", ex);
-            return ResponseEntity.status(resolveStatus(ex)).build();
+            if (ex instanceof RuntimeException) {
+                throw (RuntimeException) ex;
+            }
+            throw new RuntimeException(ex);
         }
     }
 
@@ -246,7 +272,10 @@ public class SystemSettingsController {
                 sysDictService.markHistoryFailure(idempotencyKey, ex.getMessage());
             }
             LOG.log(Level.SEVERE, "Update dict failed", ex);
-            return ResponseEntity.status(resolveStatus(ex)).build();
+            if (ex instanceof RuntimeException) {
+                throw (RuntimeException) ex;
+            }
+            throw new RuntimeException(ex);
         }
     }
 
@@ -258,7 +287,10 @@ public class SystemSettingsController {
             return ResponseEntity.noContent().build();
         } catch (Exception ex) {
             LOG.log(Level.WARNING, "Delete dict failed", ex);
-            return ResponseEntity.status(resolveStatus(ex)).build();
+            if (ex instanceof RuntimeException) {
+                throw (RuntimeException) ex;
+            }
+            throw new RuntimeException(ex);
         }
     }
 
@@ -270,7 +302,10 @@ public class SystemSettingsController {
             return dict == null ? ResponseEntity.notFound().build() : ResponseEntity.ok(dict);
         } catch (Exception ex) {
             LOG.log(Level.WARNING, "Get dict failed", ex);
-            return ResponseEntity.status(resolveStatus(ex)).build();
+            if (ex instanceof RuntimeException) {
+                throw (RuntimeException) ex;
+            }
+            throw new RuntimeException(ex);
         }
     }
 
@@ -337,7 +372,10 @@ public class SystemSettingsController {
             return ResponseEntity.ok(sysDictService.findAll());
         } catch (Exception ex) {
             LOG.log(Level.WARNING, "List dicts failed", ex);
-            return ResponseEntity.status(resolveStatus(ex)).build();
+            if (ex instanceof RuntimeException) {
+                throw (RuntimeException) ex;
+            }
+            throw new RuntimeException(ex);
         }
     }
 

@@ -11,7 +11,7 @@ import 'package:final_assignment_front/features/dashboard/controllers/manager_da
 import 'package:final_assignment_front/features/dashboard/views/shared/widgets/dashboard_page_template.dart';
 import 'package:final_assignment_front/features/model/appeal_record.dart';
 import 'package:final_assignment_front/shared/widgets/index.dart';
-import 'package:final_assignment_front/utils/helpers/api_exception.dart';
+import 'package:final_assignment_front/core/network/app_exception.dart';
 import 'package:final_assignment_front/utils/helpers/app_helpers.dart';
 import 'package:final_assignment_front/utils/workflow_permissions.dart';
 import 'package:flutter/cupertino.dart';
@@ -297,7 +297,7 @@ class _AppealManagementAdminState extends State<ManagerAppealManagementPage> {
       setState(() {
         _appeals.clear();
         _filteredAppeals.clear();
-        if (e is ApiException && e.code == 403) {
+        if (e is AppException && e.code == 403) {
           _errorMessage = '您没有权限查看申诉信息';
         } else {
           _errorMessage = '加载申诉信息失败: ${_formatErrorMessage(e)}';
@@ -397,7 +397,7 @@ class _AppealManagementAdminState extends State<ManagerAppealManagementPage> {
   }
 
   String _formatErrorMessage(dynamic error) {
-    if (error is ApiException) {
+    if (error is AppException) {
       switch (error.code) {
         case 400:
           return '请求错误: ${error.message}';
@@ -776,7 +776,7 @@ class _AppealDetailPageState extends State<AppealDetailPage> {
   ) async {
     if (!await _validateJwtToken()) {
       NavigationHelper.offAllNamed(Routes.login);
-      throw ApiException(401, '未授权');
+      throw AppException.http(401, '未授权');
     }
     final jwtToken = await AuthTokenStore.instance.getJwtToken();
     final response = await http.post(
@@ -792,7 +792,7 @@ class _AppealDetailPageState extends State<AppealDetailPage> {
       return AppealRecordModel.fromJson(
           jsonDecode(response.body) as Map<String, dynamic>);
     }
-    throw ApiException(
+    throw AppException.http(
       response.statusCode,
       response.body.isEmpty ? '工作流事件提交失败' : response.body,
     );
@@ -954,7 +954,7 @@ class _AppealDetailPageState extends State<AppealDetailPage> {
   }
 
   String _formatErrorMessage(dynamic error) {
-    if (error is ApiException) {
+    if (error is AppException) {
       switch (error.code) {
         case 400:
           return '请求错误: ${error.message}';

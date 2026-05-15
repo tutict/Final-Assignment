@@ -9,7 +9,7 @@ import 'package:final_assignment_front/features/dashboard/views/shared/widgets/d
 import 'package:final_assignment_front/features/model/operation_log.dart';
 import 'package:final_assignment_front/shared/dialogs/app_dialog.dart';
 import 'package:final_assignment_front/shared/widgets/index.dart';
-import 'package:final_assignment_front/utils/helpers/api_exception.dart';
+import 'package:final_assignment_front/core/network/app_exception.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
@@ -213,7 +213,7 @@ class _OperationLogPageState extends State<OperationLogPage> {
     } catch (e) {
       developer.log('Error fetching logs: $e', stackTrace: StackTrace.current);
       setState(() {
-        if (e is ApiException && e.code == 404) {
+        if (e is AppException && e.code == 404) {
           _logs.clear();
           _filteredLogs.clear();
           _errorMessage = '未找到符合条件的日志记录';
@@ -615,7 +615,7 @@ class _OperationLogPageState extends State<OperationLogPage> {
   }
 
   String _formatErrorMessage(dynamic error) {
-    if (error is ApiException) {
+    if (error is AppException) {
       switch (error.code) {
         case 400:
           return '请求错误: ${error.message}';

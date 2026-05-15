@@ -9,7 +9,7 @@ import 'package:final_assignment_front/features/dashboard/controllers/user_dashb
 import 'package:final_assignment_front/features/dashboard/views/shared/widgets/dashboard_page_template.dart';
 import 'package:final_assignment_front/features/model/offense_information.dart';
 import 'package:final_assignment_front/shared/widgets/index.dart';
-import 'package:final_assignment_front/utils/helpers/api_exception.dart';
+import 'package:final_assignment_front/core/network/app_exception.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
@@ -186,7 +186,7 @@ class _UserOffenseListPageState extends State<UserOffenseListPage> {
       developer.log('Error fetching offenses: $e',
           stackTrace: StackTrace.current);
       setState(() {
-        if (e is ApiException && e.code == 204) {
+        if (e is AppException && e.code == 204) {
           _offenses.clear();
           _filteredOffenses.clear();
           _errorMessage = '未找到违法记录';
@@ -203,7 +203,7 @@ class _UserOffenseListPageState extends State<UserOffenseListPage> {
   }
 
   String _formatErrorMessage(dynamic error) {
-    if (error is ApiException) {
+    if (error is AppException) {
       switch (error.code) {
         case 400:
           return '请求错误: ${error.message}';

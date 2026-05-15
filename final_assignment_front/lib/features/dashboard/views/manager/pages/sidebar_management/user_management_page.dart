@@ -9,7 +9,7 @@ import 'package:final_assignment_front/features/api/user_management_controller_a
 import 'package:final_assignment_front/features/model/user_management.dart';
 import 'package:final_assignment_front/shared/dialogs/app_dialog.dart';
 import 'package:final_assignment_front/shared/widgets/index.dart';
-import 'package:final_assignment_front/utils/helpers/api_exception.dart';
+import 'package:final_assignment_front/core/network/app_exception.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
@@ -162,7 +162,7 @@ class _UserManagementPageState extends State<UserManagementPage> {
       _logger.info('Username $username already exists');
       return false; // 用户存在
     } catch (e) {
-      if (e is ApiException && e.code == 404) {
+      if (e is AppException && e.code == 404) {
         _logger.info('Username $username is available');
         return true; // 用户不存在，可用
       }
@@ -262,7 +262,7 @@ class _UserManagementPageState extends State<UserManagementPage> {
       });
     } catch (e) {
       setState(() {
-        if (e is ApiException) {
+        if (e is AppException) {
           switch (e.code) {
             case 403:
               _errorMessage = '您没有权限查看用户信息';
@@ -392,7 +392,7 @@ class _UserManagementPageState extends State<UserManagementPage> {
   }
 
   String _formatErrorMessage(dynamic error) {
-    if (error is ApiException) {
+    if (error is AppException) {
       switch (error.code) {
         case 400:
           return '请求错误: ${error.message}';
@@ -606,9 +606,9 @@ class _UserManagementPageState extends State<UserManagementPage> {
                     } catch (e) {
                       _logger.severe(
                           'User creation failed: $e', StackTrace.current);
-                      if (e is ApiException && e.code == 409) {
+                      if (e is AppException && e.code == 409) {
                         _showSnackBar('账号已被占用，请尝试其他账号', isError: true);
-                      } else if (e is ApiException && e.code == 400) {
+                      } else if (e is AppException && e.code == 400) {
                         _showSnackBar('请求无效，请检查输入', isError: true);
                       } else {
                         _showSnackBar('创建用户失败: ${_formatErrorMessage(e)}',

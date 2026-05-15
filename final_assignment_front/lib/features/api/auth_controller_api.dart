@@ -3,7 +3,7 @@ import 'dart:convert';
 import 'package:final_assignment_front/features/model/login_request.dart';
 import 'package:final_assignment_front/features/model/register_request.dart';
 import 'package:final_assignment_front/features/model/user_response.dart';
-import 'package:final_assignment_front/utils/helpers/api_exception.dart';
+import 'package:final_assignment_front/core/network/app_exception.dart';
 import 'package:http/http.dart' as http; // ç¨äº Response å?MultipartRequest
 import 'package:final_assignment_front/utils/services/api_client.dart';
 
@@ -101,7 +101,7 @@ class AuthControllerApi with BaseApiClient {
       } else if (response.statusCode == 201) {
         return {'status': 'CREATED'};
       } else {
-        throw ApiException(response.statusCode, 'Empty response body');
+        throw AppException.http(response.statusCode, 'Empty response body');
       }
     } catch (e) {
       AppLogger.error('Register error: $e');
@@ -200,7 +200,7 @@ class AuthControllerApi with BaseApiClient {
     final respMap = await apiClient.sendWsMessage(msg);
 
     if (respMap.containsKey("error")) {
-      throw ApiException(400, respMap["error"]);
+      throw AppException.http(400, respMap["error"]);
     }
     if (respMap.containsKey("result")) {
       return respMap["result"];
@@ -227,7 +227,7 @@ class AuthControllerApi with BaseApiClient {
     final respMap = await apiClient.sendWsMessage(msg);
 
     if (respMap.containsKey("error")) {
-      throw ApiException(400, respMap["error"]);
+      throw AppException.http(400, respMap["error"]);
     }
     if (respMap.containsKey("result")) {
       return respMap["result"];
@@ -246,7 +246,7 @@ class AuthControllerApi with BaseApiClient {
     final respMap = await apiClient.sendWsMessage(msg);
 
     if (respMap.containsKey("error")) {
-      throw ApiException(400, respMap["error"]);
+      throw AppException.http(400, respMap["error"]);
     }
     if (respMap.containsKey("result")) {
       return respMap["result"];

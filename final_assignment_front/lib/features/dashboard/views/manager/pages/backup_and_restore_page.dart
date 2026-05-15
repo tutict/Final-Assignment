@@ -5,7 +5,7 @@ import 'package:final_assignment_front/features/model/backup_restore.dart';
 import 'package:final_assignment_front/shared/controllers/base_list_controller.dart';
 import 'package:final_assignment_front/shared/utils/error_handler.dart';
 import 'package:final_assignment_front/shared/widgets/index.dart';
-import 'package:final_assignment_front/utils/helpers/api_exception.dart';
+import 'package:final_assignment_front/core/network/app_exception.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:jwt_decoder/jwt_decoder.dart';
@@ -298,7 +298,7 @@ class _BackupAndRestoreState extends State<BackupAndRestorePage> {
   }
 
   String _formatErrorMessage(dynamic error) {
-    if (error is ApiException) {
+    if (error is AppException) {
       final message = error.message.isNotEmpty ? error.message : '服务器错误';
       return '$message (HTTP ${error.code})';
     }
@@ -770,7 +770,7 @@ class _BackupDetailPageState extends State<BackupDetailPage> {
   }
 
   String _formatErrorMessage(dynamic error) {
-    if (error is ApiException) {
+    if (error is AppException) {
       final message = error.message.isNotEmpty ? error.message : '服务器错误';
       return '$message (HTTP ${error.code})';
     }

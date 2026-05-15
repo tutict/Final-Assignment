@@ -7,9 +7,11 @@ import 'package:get/get.dart';
 class ErrorHandler {
   /// 操作失败时调用：显示 Snackbar + 记录日志
   static void showError(Object error, {String? fallbackMessage}) {
-    final msg = error is AppException
-        ? error.message
-        : (fallbackMessage ?? '操作失败，请稍后重试');
+    final appException = AppException.fromError(
+      error,
+      fallbackMessage: fallbackMessage,
+    );
+    final msg = appException.message;
 
     Get.snackbar(
       '错误',
@@ -28,7 +30,9 @@ class ErrorHandler {
 
   /// 页面加载失败时调用：只更新 Controller 状态，不弹 Snackbar
   static String extractMessage(Object error, {String? fallback}) {
-    if (error is AppException) return error.message;
-    return fallback ?? '加载失败，请刷新重试';
+    return AppException.fromError(
+      error,
+      fallbackMessage: fallback,
+    ).message;
   }
 }

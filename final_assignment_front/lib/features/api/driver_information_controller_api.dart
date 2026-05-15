@@ -1,7 +1,7 @@
 import 'package:final_assignment_front/core/utils/app_logger.dart';
 import 'dart:convert';
 import 'package:final_assignment_front/features/model/driver_information.dart';
-import 'package:final_assignment_front/utils/helpers/api_exception.dart';
+import 'package:final_assignment_front/core/network/app_exception.dart';
 import 'package:final_assignment_front/utils/services/api_client.dart';
 import 'package:http/http.dart' as http;
 import 'package:final_assignment_front/utils/services/auth_token_store.dart';
@@ -219,7 +219,7 @@ class DriverInformationControllerApi with BaseApiClient {
     int size = 10,
   }) async {
     if (query.isEmpty) {
-      throw ApiException(400, "Missing required param: query");
+      throw AppException.http(400, "Missing required param: query");
     }
     const path = '/api/drivers/search/id-card';
     final queryParams = [
@@ -250,7 +250,7 @@ class DriverInformationControllerApi with BaseApiClient {
     int size = 10,
   }) async {
     if (query.isEmpty) {
-      throw ApiException(400, "Missing required param: query");
+      throw AppException.http(400, "Missing required param: query");
     }
     const path = '/api/drivers/search/license';
     final queryParams = [
@@ -281,7 +281,7 @@ class DriverInformationControllerApi with BaseApiClient {
     int size = 10,
   }) async {
     if (query.isEmpty) {
-      throw ApiException(400, "Missing required param: query");
+      throw AppException.http(400, "Missing required param: query");
     }
     const path = '/api/drivers/search/name';
     final queryParams = [
@@ -320,10 +320,10 @@ class DriverInformationControllerApi with BaseApiClient {
     final respMap = await apiClient.sendWsMessage(msg);
     if (respMap.containsKey("error")) {
       if (respMap["error"].toString().contains("Duplicate request")) {
-        throw ApiException(409,
+        throw AppException.http(409,
             "Duplicate request detected with idempotencyKey: $idempotencyKey");
       }
-      throw ApiException(400, respMap["error"]);
+      throw AppException.http(400, respMap["error"]);
     }
   }
 
@@ -341,7 +341,7 @@ class DriverInformationControllerApi with BaseApiClient {
       if (respMap["error"].toString().contains("not found")) {
         return null; // Not found, return null
       }
-      throw ApiException(400, respMap["error"]);
+      throw AppException.http(400, respMap["error"]);
     }
     if (respMap["result"] == null) return null;
     return DriverInformation.fromJson(
@@ -357,7 +357,7 @@ class DriverInformationControllerApi with BaseApiClient {
     };
     final respMap = await apiClient.sendWsMessage(msg);
     if (respMap.containsKey("error")) {
-      throw ApiException(400, respMap["error"]);
+      throw AppException.http(400, respMap["error"]);
     }
     if (respMap["result"] is List) {
       return (respMap["result"] as List)
@@ -382,12 +382,12 @@ class DriverInformationControllerApi with BaseApiClient {
     final respMap = await apiClient.sendWsMessage(msg);
     if (respMap.containsKey("error")) {
       if (respMap["error"].toString().contains("not found")) {
-        throw ApiException(404, "Driver not found with ID: $driverId");
+        throw AppException.http(404, "Driver not found with ID: $driverId");
       } else if (respMap["error"].toString().contains("Duplicate request")) {
-        throw ApiException(409,
+        throw AppException.http(409,
             "Duplicate request detected with idempotencyKey: $idempotencyKey");
       }
-      throw ApiException(400, respMap["error"]);
+      throw AppException.http(400, respMap["error"]);
     }
   }
 
@@ -403,11 +403,11 @@ class DriverInformationControllerApi with BaseApiClient {
     final respMap = await apiClient.sendWsMessage(msg);
     if (respMap.containsKey("error")) {
       if (respMap["error"].toString().contains("not found")) {
-        throw ApiException(404, "Driver not found with ID: $driverId");
+        throw AppException.http(404, "Driver not found with ID: $driverId");
       } else if (respMap["error"].toString().contains("Unauthorized")) {
-        throw ApiException(403, "Unauthorized: Only ADMIN can delete drivers");
+        throw AppException.http(403, "Unauthorized: Only ADMIN can delete drivers");
       }
-      throw ApiException(400, respMap["error"]);
+      throw AppException.http(400, respMap["error"]);
     }
   }
 }

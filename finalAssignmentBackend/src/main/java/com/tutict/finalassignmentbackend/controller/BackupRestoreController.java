@@ -1,5 +1,7 @@
 package com.tutict.finalassignmentbackend.controller;
 
+import com.tutict.finalassignmentbackend.dto.response.ApiResponse;
+
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.tutict.finalassignmentbackend.common.PageRequest;
 import com.tutict.finalassignmentbackend.dto.response.PageResponse;
@@ -44,14 +46,14 @@ public class BackupRestoreController {
 
     @PostMapping
     @Operation(summary = "创建备份/还原任务")
-    public ResponseEntity<SysBackupRestore> create(@Valid @RequestBody SysBackupRestore request,
+    public ResponseEntity<?> create(@Valid @RequestBody SysBackupRestore request,
                                                    @RequestHeader(value = "Idempotency-Key", required = false)
                                                    String idempotencyKey) {
         boolean useKey = hasKey(idempotencyKey);
         try {
             if (useKey) {
                 if (backupRestoreService.shouldSkipProcessing(idempotencyKey)) {
-                    return ResponseEntity.status(HttpStatus.ALREADY_REPORTED).build();
+                    return ResponseEntity.status(HttpStatus.ALREADY_REPORTED).body(ApiResponse.ok(null));
                 }
                 backupRestoreService.checkAndInsertIdempotency(idempotencyKey, request, "create");
             }
@@ -65,7 +67,10 @@ public class BackupRestoreController {
                 backupRestoreService.markHistoryFailure(idempotencyKey, ex.getMessage());
             }
             LOG.log(Level.SEVERE, "Create backup task failed", ex);
-            return ResponseEntity.status(resolveStatus(ex)).build();
+            if (ex instanceof RuntimeException) {
+                throw (RuntimeException) ex;
+            }
+            throw new RuntimeException(ex);
         }
     }
 
@@ -91,7 +96,10 @@ public class BackupRestoreController {
                 backupRestoreService.markHistoryFailure(idempotencyKey, ex.getMessage());
             }
             LOG.log(Level.SEVERE, "Update backup task failed", ex);
-            return ResponseEntity.status(resolveStatus(ex)).build();
+            if (ex instanceof RuntimeException) {
+                throw (RuntimeException) ex;
+            }
+            throw new RuntimeException(ex);
         }
     }
 
@@ -103,7 +111,10 @@ public class BackupRestoreController {
             return ResponseEntity.noContent().build();
         } catch (Exception ex) {
             LOG.log(Level.WARNING, "Delete backup task failed", ex);
-            return ResponseEntity.status(resolveStatus(ex)).build();
+            if (ex instanceof RuntimeException) {
+                throw (RuntimeException) ex;
+            }
+            throw new RuntimeException(ex);
         }
     }
 
@@ -115,7 +126,10 @@ public class BackupRestoreController {
             return record == null ? ResponseEntity.notFound().build() : ResponseEntity.ok(record);
         } catch (Exception ex) {
             LOG.log(Level.WARNING, "Get backup task failed", ex);
-            return ResponseEntity.status(resolveStatus(ex)).build();
+            if (ex instanceof RuntimeException) {
+                throw (RuntimeException) ex;
+            }
+            throw new RuntimeException(ex);
         }
     }
 
@@ -134,7 +148,10 @@ public class BackupRestoreController {
                     pageRequest.getSize()));
         } catch (Exception ex) {
             LOG.log(Level.WARNING, "List backup tasks failed", ex);
-            return ResponseEntity.status(resolveStatus(ex)).build();
+            if (ex instanceof RuntimeException) {
+                throw (RuntimeException) ex;
+            }
+            throw new RuntimeException(ex);
         }
     }
 

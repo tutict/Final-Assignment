@@ -70,7 +70,7 @@ public class PaymentRecordController {
                             idempotencyKey
                     ));
                     return ResponseEntity.status(HttpStatus.ALREADY_REPORTED)
-                            .body(ApiResponse.error("DUPLICATE_REQUEST", "Duplicate request"));
+                            .body(ApiResponse.ok(null));
                 }
                 logPaymentGovernance(PaymentGovernanceLogFactory.preMutationKafka(
                         PaymentGovernanceSource.CONTROLLER,
@@ -93,7 +93,7 @@ public class PaymentRecordController {
                     .body(ApiResponse.ok(toPaymentResponse(saved)));
         } catch (PaymentDuplicateRequestException ex) {
             return ResponseEntity.status(HttpStatus.ALREADY_REPORTED)
-                    .body(ApiResponse.error("DUPLICATE_REQUEST", "Duplicate request"));
+                    .body(ApiResponse.ok(null));
         } catch (RuntimeException ex) {
             if (useKey) {
                 paymentRecordService.markHistoryFailure(idempotencyKey, ex.getMessage());
@@ -116,7 +116,7 @@ public class PaymentRecordController {
             if (useKey) {
                 if (paymentRecordService.isDuplicateIdempotencyKey(idempotencyKey)) {
                     return ResponseEntity.status(HttpStatus.ALREADY_REPORTED)
-                            .body(ApiResponse.error("DUPLICATE_REQUEST", "Duplicate request"));
+                            .body(ApiResponse.ok(null));
                 }
                 logPaymentGovernance(PaymentGovernanceLogFactory.preMutationKafka(
                         PaymentGovernanceSource.CONTROLLER,
@@ -138,7 +138,7 @@ public class PaymentRecordController {
             return ResponseEntity.ok(ApiResponse.ok(toPaymentResponse(updated)));
         } catch (PaymentDuplicateRequestException ex) {
             return ResponseEntity.status(HttpStatus.ALREADY_REPORTED)
-                    .body(ApiResponse.error("DUPLICATE_REQUEST", "Duplicate request"));
+                    .body(ApiResponse.ok(null));
         } catch (RuntimeException ex) {
             if (useKey) {
                 paymentRecordService.markHistoryFailure(idempotencyKey, ex.getMessage());
@@ -156,7 +156,10 @@ public class PaymentRecordController {
             return ResponseEntity.noContent().build();
         } catch (Exception ex) {
             LOG.log(Level.WARNING, "Delete payment record failed", ex);
-            return ResponseEntity.status(resolveStatus(ex)).build();
+            if (ex instanceof RuntimeException) {
+                throw (RuntimeException) ex;
+            }
+            throw new RuntimeException(ex);
         }
     }
 
@@ -274,18 +277,6 @@ public class PaymentRecordController {
 
     private boolean hasKey(String value) {
         return value != null && !value.isBlank();
-    }
-
-    private HttpStatus resolveStatus(Exception ex) {
-        if (ex instanceof PaymentDuplicateRequestException) {
-            return HttpStatus.ALREADY_REPORTED;
-        }
-        if (ex instanceof PaymentOptimisticLockException) {
-            return HttpStatus.CONFLICT;
-        }
-        return (ex instanceof IllegalArgumentException || ex instanceof IllegalStateException)
-                ? HttpStatus.BAD_REQUEST
-                : HttpStatus.INTERNAL_SERVER_ERROR;
     }
 
     private void logPaymentGovernance(String payload) {

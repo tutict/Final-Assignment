@@ -1,6 +1,6 @@
 import 'package:final_assignment_front/core/utils/app_logger.dart';
 import 'package:final_assignment_front/features/model/role_management.dart';
-import 'package:final_assignment_front/utils/helpers/api_exception.dart';
+import 'package:final_assignment_front/core/network/app_exception.dart';
 import 'package:final_assignment_front/utils/services/api_client.dart';
 import 'package:http/http.dart' as http;
 import 'package:final_assignment_front/utils/services/auth_token_store.dart';
@@ -55,7 +55,7 @@ class RoleManagementControllerApi with BaseApiClient {
       ['bearerAuth'],
     );
     if (response.statusCode != 201) {
-      throw ApiException(response.statusCode, _decodeBodyBytes(response));
+      throw AppException.http(response.statusCode, _decodeBodyBytes(response));
     }
     final data = apiClient.deserialize(
         _decodeBodyBytes(response), 'Map<String, dynamic>');
@@ -100,7 +100,7 @@ class RoleManagementControllerApi with BaseApiClient {
   /// GET /api/roles/name/{roleName} - æ ¹æ®è§è²åç§°è·åè§è²ä¿¡æ¯ (USER å?ADMIN)
   Future<RoleManagement?> getRoleByName(String roleName) async {
     if (roleName.isEmpty) {
-      throw ApiException(400, "Missing required param: roleName");
+      throw AppException.http(400, "Missing required param: roleName");
     }
     final response = await apiClient.invokeAPI(
       '/api/roles/name/$roleName',
@@ -167,14 +167,14 @@ class RoleManagementControllerApi with BaseApiClient {
       ['bearerAuth'],
     );
     if (response.statusCode != 204) {
-      throw ApiException(response.statusCode, _decodeBodyBytes(response));
+      throw AppException.http(response.statusCode, _decodeBodyBytes(response));
     }
   }
 
   /// DELETE /api/roles/name/{roleName} - æ ¹æ®è§è²åç§°å é¤è§è²è®°å½ (ä»?ADMIN)
   Future<void> deleteRoleByName(String roleName) async {
     if (roleName.isEmpty) {
-      throw ApiException(400, "Missing required param: roleName");
+      throw AppException.http(400, "Missing required param: roleName");
     }
     final response = await apiClient.invokeAPI(
       '/api/roles/name/$roleName',
@@ -187,7 +187,7 @@ class RoleManagementControllerApi with BaseApiClient {
       ['bearerAuth'],
     );
     if (response.statusCode != 204) {
-      throw ApiException(response.statusCode, _decodeBodyBytes(response));
+      throw AppException.http(response.statusCode, _decodeBodyBytes(response));
     }
   }
 
@@ -200,7 +200,7 @@ class RoleManagementControllerApi with BaseApiClient {
             .roleName!; // è¿åç¬¬ä¸ä¸ªéç©ºè§è²åï¼åè®¾ç¨æ·åªæä¸ä¸ªä¸»è¦è§è?
       }
     }
-    throw ApiException(403, 'æ æ³ç¡®å®ç¨æ·è§è²');
+    throw AppException.http(403, 'æ æ³ç¡®å®ç¨æ·è§è²');
   }
 
   // WebSocket Methods (Aligned with HTTP Endpoints)
@@ -215,7 +215,7 @@ class RoleManagementControllerApi with BaseApiClient {
     };
     final respMap = await apiClient.sendWsMessage(msg);
     if (respMap.containsKey("error")) {
-      throw ApiException(400, respMap["error"]);
+      throw AppException.http(400, respMap["error"]);
     }
     if (respMap["result"] is List) {
       return (respMap["result"] as List)
@@ -230,7 +230,7 @@ class RoleManagementControllerApi with BaseApiClient {
   Future<bool> eventbusRolesNameRoleNameDelete(
       {required String roleName}) async {
     if (roleName.isEmpty) {
-      throw ApiException(400, "Missing required param: roleName");
+      throw AppException.http(400, "Missing required param: roleName");
     }
     final msg = {
       "service": "RoleManagement",
@@ -239,7 +239,7 @@ class RoleManagementControllerApi with BaseApiClient {
     };
     final respMap = await apiClient.sendWsMessage(msg);
     if (respMap.containsKey("error")) {
-      throw ApiException(400, respMap["error"]);
+      throw AppException.http(400, respMap["error"]);
     }
     return true; // Success if no error
   }
@@ -249,7 +249,7 @@ class RoleManagementControllerApi with BaseApiClient {
   Future<RoleManagement?> eventbusRolesNameRoleNameGet(
       {required String roleName}) async {
     if (roleName.isEmpty) {
-      throw ApiException(400, "Missing required param: roleName");
+      throw AppException.http(400, "Missing required param: roleName");
     }
     final msg = {
       "service": "RoleManagement",
@@ -258,7 +258,7 @@ class RoleManagementControllerApi with BaseApiClient {
     };
     final respMap = await apiClient.sendWsMessage(msg);
     if (respMap.containsKey("error")) {
-      throw ApiException(400, respMap["error"]);
+      throw AppException.http(400, respMap["error"]);
     }
     if (respMap["result"] != null) {
       return RoleManagement.fromJson(respMap["result"] as Map<String, dynamic>);
@@ -279,7 +279,7 @@ class RoleManagementControllerApi with BaseApiClient {
     };
     final respMap = await apiClient.sendWsMessage(msg);
     if (respMap.containsKey("error")) {
-      throw ApiException(400, respMap["error"]);
+      throw AppException.http(400, respMap["error"]);
     }
     return RoleManagement.fromJson(respMap["result"] as Map<String, dynamic>);
   }
@@ -294,7 +294,7 @@ class RoleManagementControllerApi with BaseApiClient {
     };
     final respMap = await apiClient.sendWsMessage(msg);
     if (respMap.containsKey("error")) {
-      throw ApiException(400, respMap["error"]);
+      throw AppException.http(400, respMap["error"]);
     }
     return true; // Success if no error
   }
@@ -309,7 +309,7 @@ class RoleManagementControllerApi with BaseApiClient {
     };
     final respMap = await apiClient.sendWsMessage(msg);
     if (respMap.containsKey("error")) {
-      throw ApiException(400, respMap["error"]);
+      throw AppException.http(400, respMap["error"]);
     }
     if (respMap["result"] != null) {
       return RoleManagement.fromJson(respMap["result"] as Map<String, dynamic>);
@@ -333,7 +333,7 @@ class RoleManagementControllerApi with BaseApiClient {
     };
     final respMap = await apiClient.sendWsMessage(msg);
     if (respMap.containsKey("error")) {
-      throw ApiException(400, respMap["error"]);
+      throw AppException.http(400, respMap["error"]);
     }
     return RoleManagement.fromJson(respMap["result"] as Map<String, dynamic>);
   }
@@ -348,7 +348,7 @@ class RoleManagementControllerApi with BaseApiClient {
     };
     final respMap = await apiClient.sendWsMessage(msg);
     if (respMap.containsKey("error")) {
-      throw ApiException(400, respMap["error"]);
+      throw AppException.http(400, respMap["error"]);
     }
     if (respMap["result"] is List) {
       return (respMap["result"] as List)
@@ -361,7 +361,7 @@ class RoleManagementControllerApi with BaseApiClient {
   // HTTP: GET /api/roles/by-code/{roleCode} - æ ¹æ®è§è²ç¼ç è·å
   Future<RoleManagement?> getRoleByCode(String roleCode) async {
     if (roleCode.isEmpty) {
-      throw ApiException(400, "Missing required param: roleCode");
+      throw AppException.http(400, "Missing required param: roleCode");
     }
     final response = await apiClient.invokeAPI(
       '/api/roles/by-code/$roleCode',

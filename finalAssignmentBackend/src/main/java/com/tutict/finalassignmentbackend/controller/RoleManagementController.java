@@ -1,5 +1,7 @@
 package com.tutict.finalassignmentbackend.controller;
 
+import com.tutict.finalassignmentbackend.dto.response.ApiResponse;
+
 import com.tutict.finalassignmentbackend.entity.SysRole;
 import com.tutict.finalassignmentbackend.entity.SysRolePermission;
 import com.tutict.finalassignmentbackend.service.SysRolePermissionService;
@@ -46,14 +48,14 @@ public class RoleManagementController {
 
     @PostMapping
     @Operation(summary = "创建角色")
-    public ResponseEntity<SysRole> createRole(@Valid @RequestBody SysRole request,
+    public ResponseEntity<?> createRole(@Valid @RequestBody SysRole request,
                                               @RequestHeader(value = "Idempotency-Key", required = false)
                                               String idempotencyKey) {
         boolean useKey = hasKey(idempotencyKey);
         try {
             if (useKey) {
                 if (sysRoleService.shouldSkipProcessing(idempotencyKey)) {
-                    return ResponseEntity.status(HttpStatus.ALREADY_REPORTED).build();
+                    return ResponseEntity.status(HttpStatus.ALREADY_REPORTED).body(ApiResponse.ok(null));
                 }
                 sysRoleService.checkAndInsertIdempotency(idempotencyKey, request, "create");
             }
@@ -67,7 +69,10 @@ public class RoleManagementController {
                 sysRoleService.markHistoryFailure(idempotencyKey, ex.getMessage());
             }
             LOG.log(Level.SEVERE, "Create role failed", ex);
-            return ResponseEntity.status(resolveStatus(ex)).build();
+            if (ex instanceof RuntimeException) {
+                throw (RuntimeException) ex;
+            }
+            throw new RuntimeException(ex);
         }
     }
 
@@ -93,7 +98,10 @@ public class RoleManagementController {
                 sysRoleService.markHistoryFailure(idempotencyKey, ex.getMessage());
             }
             LOG.log(Level.SEVERE, "Update role failed", ex);
-            return ResponseEntity.status(resolveStatus(ex)).build();
+            if (ex instanceof RuntimeException) {
+                throw (RuntimeException) ex;
+            }
+            throw new RuntimeException(ex);
         }
     }
 
@@ -105,7 +113,10 @@ public class RoleManagementController {
             return ResponseEntity.noContent().build();
         } catch (Exception ex) {
             LOG.log(Level.WARNING, "Delete role failed", ex);
-            return ResponseEntity.status(resolveStatus(ex)).build();
+            if (ex instanceof RuntimeException) {
+                throw (RuntimeException) ex;
+            }
+            throw new RuntimeException(ex);
         }
     }
 
@@ -117,7 +128,10 @@ public class RoleManagementController {
             return role == null ? ResponseEntity.notFound().build() : ResponseEntity.ok(role);
         } catch (Exception ex) {
             LOG.log(Level.WARNING, "Get role failed", ex);
-            return ResponseEntity.status(resolveStatus(ex)).build();
+            if (ex instanceof RuntimeException) {
+                throw (RuntimeException) ex;
+            }
+            throw new RuntimeException(ex);
         }
     }
 
@@ -128,7 +142,10 @@ public class RoleManagementController {
             return ResponseEntity.ok(sysRoleService.findAll());
         } catch (Exception ex) {
             LOG.log(Level.WARNING, "List roles failed", ex);
-            return ResponseEntity.status(resolveStatus(ex)).build();
+            if (ex instanceof RuntimeException) {
+                throw (RuntimeException) ex;
+            }
+            throw new RuntimeException(ex);
         }
     }
 
@@ -140,7 +157,10 @@ public class RoleManagementController {
             return role == null ? ResponseEntity.notFound().build() : ResponseEntity.ok(role);
         } catch (Exception ex) {
             LOG.log(Level.WARNING, "Get role by code failed", ex);
-            return ResponseEntity.status(resolveStatus(ex)).build();
+            if (ex instanceof RuntimeException) {
+                throw (RuntimeException) ex;
+            }
+            throw new RuntimeException(ex);
         }
     }
 
@@ -202,7 +222,7 @@ public class RoleManagementController {
 
     @PostMapping("/{roleId}/permissions")
     @Operation(summary = "为角色添加权限")
-    public ResponseEntity<SysRolePermission> addPermission(@PathVariable Integer roleId,
+    public ResponseEntity<?> addPermission(@PathVariable Integer roleId,
                                                            @Valid @RequestBody SysRolePermission relation,
                                                            @RequestHeader(value = "Idempotency-Key", required = false)
                                                            String idempotencyKey) {
@@ -211,7 +231,7 @@ public class RoleManagementController {
             relation.setRoleId(roleId);
             if (useKey) {
                 if (sysRolePermissionService.shouldSkipProcessing(idempotencyKey)) {
-                    return ResponseEntity.status(HttpStatus.ALREADY_REPORTED).build();
+                    return ResponseEntity.status(HttpStatus.ALREADY_REPORTED).body(ApiResponse.ok(null));
                 }
                 sysRolePermissionService.checkAndInsertIdempotency(idempotencyKey, relation, "create");
             }
@@ -225,7 +245,10 @@ public class RoleManagementController {
                 sysRolePermissionService.markHistoryFailure(idempotencyKey, ex.getMessage());
             }
             LOG.log(Level.SEVERE, "Add role permission failed", ex);
-            return ResponseEntity.status(resolveStatus(ex)).build();
+            if (ex instanceof RuntimeException) {
+                throw (RuntimeException) ex;
+            }
+            throw new RuntimeException(ex);
         }
     }
 
@@ -237,7 +260,10 @@ public class RoleManagementController {
             return ResponseEntity.noContent().build();
         } catch (Exception ex) {
             LOG.log(Level.WARNING, "Delete role permission failed", ex);
-            return ResponseEntity.status(resolveStatus(ex)).build();
+            if (ex instanceof RuntimeException) {
+                throw (RuntimeException) ex;
+            }
+            throw new RuntimeException(ex);
         }
     }
 
@@ -250,7 +276,10 @@ public class RoleManagementController {
             return ResponseEntity.ok(sysRolePermissionService.findByRoleId(roleId, page, size));
         } catch (Exception ex) {
             LOG.log(Level.WARNING, "List role permissions failed", ex);
-            return ResponseEntity.status(resolveStatus(ex)).build();
+            if (ex instanceof RuntimeException) {
+                throw (RuntimeException) ex;
+            }
+            throw new RuntimeException(ex);
         }
     }
 
@@ -276,7 +305,10 @@ public class RoleManagementController {
                 sysRolePermissionService.markHistoryFailure(idempotencyKey, ex.getMessage());
             }
             LOG.log(Level.SEVERE, "Update role permission failed", ex);
-            return ResponseEntity.status(resolveStatus(ex)).build();
+            if (ex instanceof RuntimeException) {
+                throw (RuntimeException) ex;
+            }
+            throw new RuntimeException(ex);
         }
     }
 
@@ -288,7 +320,10 @@ public class RoleManagementController {
             return relation == null ? ResponseEntity.notFound().build() : ResponseEntity.ok(relation);
         } catch (Exception ex) {
             LOG.log(Level.WARNING, "Get role permission failed", ex);
-            return ResponseEntity.status(resolveStatus(ex)).build();
+            if (ex instanceof RuntimeException) {
+                throw (RuntimeException) ex;
+            }
+            throw new RuntimeException(ex);
         }
     }
 
@@ -300,7 +335,10 @@ public class RoleManagementController {
             return ResponseEntity.ok(sysRolePermissionService.findAll(page, size));
         } catch (Exception ex) {
             LOG.log(Level.WARNING, "List role permission relations failed", ex);
-            return ResponseEntity.status(resolveStatus(ex)).build();
+            if (ex instanceof RuntimeException) {
+                throw (RuntimeException) ex;
+            }
+            throw new RuntimeException(ex);
         }
     }
 
@@ -313,7 +351,10 @@ public class RoleManagementController {
             return ResponseEntity.ok(sysRolePermissionService.findByPermissionId(permissionId, page, size));
         } catch (Exception ex) {
             LOG.log(Level.WARNING, "List role permissions by permissionId failed", ex);
-            return ResponseEntity.status(resolveStatus(ex)).build();
+            if (ex instanceof RuntimeException) {
+                throw (RuntimeException) ex;
+            }
+            throw new RuntimeException(ex);
         }
     }
 

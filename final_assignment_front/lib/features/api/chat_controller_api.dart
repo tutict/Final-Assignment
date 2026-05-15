@@ -5,7 +5,7 @@ import 'package:final_assignment_front/features/ai/ai_chat_api.dart';
 import 'package:final_assignment_front/features/ai/ai_stream_event.dart';
 import 'package:final_assignment_front/features/model/chat_action_response.dart';
 import 'package:final_assignment_front/features/model/chat_response.dart';
-import 'package:final_assignment_front/utils/helpers/api_exception.dart';
+import 'package:final_assignment_front/core/network/app_exception.dart';
 import 'package:final_assignment_front/utils/services/api_client.dart';
 import 'package:http/http.dart' as http;
 
@@ -221,7 +221,7 @@ class ChatControllerApi with BaseApiClient {
   ///
   /// 返回 [ChatResponse]；当 eventbus result 为空时返回 `null`。
   ///
-  /// 抛出 [ApiException]：当 WebSocket 响应包含 `error` 字段时。
+  /// 抛出 [AppException]：当 WebSocket 响应包含 `error` 字段时。
   ///
   /// 对应实时动作：AiService.getChatResponse
   Future<ChatResponse?> eventbusAiChatGet() async {
@@ -232,7 +232,7 @@ class ChatControllerApi with BaseApiClient {
     };
     final respMap = await apiClient.sendWsMessage(msg);
     if (respMap.containsKey('error')) {
-      throw ApiException(400, respMap['error']);
+      throw AppException.http(400, respMap['error']);
     }
     if (respMap['result'] != null) {
       final resultMap = respMap['result'] as Map<String, dynamic>;
