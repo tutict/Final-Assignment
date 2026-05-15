@@ -3,12 +3,10 @@ import 'dart:developer' as developer;
 
 import 'package:final_assignment_front/config/routes/app_routes.dart';
 import 'package:final_assignment_front/core/auth/auth_service.dart';
-import 'package:final_assignment_front/features/api/driver_information_controller_api.dart';
+import 'package:final_assignment_front/core/auth/user_profile_service.dart';
 import 'package:final_assignment_front/features/api/offense_information_controller_api.dart';
-import 'package:final_assignment_front/features/api/user_management_controller_api.dart';
 import 'package:final_assignment_front/features/dashboard/controllers/user_dashboard_screen_controller.dart';
 import 'package:final_assignment_front/features/dashboard/views/shared/widgets/dashboard_page_template.dart';
-import 'package:final_assignment_front/features/model/driver_information.dart';
 import 'package:final_assignment_front/features/model/offense_information.dart';
 import 'package:final_assignment_front/shared/widgets/index.dart';
 import 'package:final_assignment_front/utils/helpers/api_exception.dart';
@@ -39,15 +37,13 @@ class UserOffenseListPage extends StatefulWidget {
 class _UserOffenseListPageState extends State<UserOffenseListPage> {
   final OffenseInformationControllerApi offenseApi =
       OffenseInformationControllerApi();
-  final DriverInformationControllerApi driverApi =
-      DriverInformationControllerApi();
-  final UserManagementControllerApi userApi = UserManagementControllerApi();
   final List<OffenseInformation> _offenses = [];
   List<OffenseInformation> _filteredOffenses = [];
   final TextEditingController _searchController = TextEditingController();
   String _driverName = '';
   int _currentPage = 1;
   final int _pageSize = 20;
+  int? _driverId;
   bool _hasMore = true;
   bool _isLoading = false;
   bool _isUser = false;
@@ -93,24 +89,20 @@ class _UserOffenseListPageState extends State<UserOffenseListPage> {
         }
         decodedToken = JwtDecoder.decode(jwtToken);
       }
-      final roles = decodedToken['roles']?.toString().split(',') ?? [];
+      final roles = _extractRoleCodes(decodedToken['roles']);
       _isUser = roles.contains('USER');
       if (!_isUser) {
         setState(() => _errorMessage = '权限不足：仅用户可访问此页面');
         return false;
       }
-      await userApi.initializeWithJwt();
-      // Try to get driverName from SharedPreferences first
-      _driverName = prefs.getString('driverName') ?? '';
-      if (_driverName.isEmpty) {
-        _driverName = await _fetchDriverName(jwtToken) ?? '';
-        if (_driverName.isEmpty) {
-          setState(() => _errorMessage = '无法获取司机姓名，请重新登录');
-          return false;
-        }
-        await prefs.setString('driverName', _driverName);
-        developer.log('Stored driverName: $_driverName');
+      final profile = await Get.find<UserProfileService>().getProfile();
+      _driverId = profile.driverId;
+      _driverName = profile.driverName ?? prefs.getString('driverName') ?? '';
+      if (_driverId == null) {
+        setState(() => _errorMessage = '您的账户尚未关联司机档案');
+        return false;
       }
+      _driverName = _driverName.isNotEmpty ? _driverName : profile.username;
       return true;
     } catch (e) {
       developer.log('JWT validation error: $e');
@@ -119,79 +111,24 @@ class _UserOffenseListPageState extends State<UserOffenseListPage> {
     }
   }
 
-  Future<String?> _fetchDriverName(String jwtToken) async {
-    try {
-      final prefs = await SharedPreferences.getInstance();
-      final storedUsername = prefs.getString('userName');
-      Map<String, dynamic>? decoded;
-      try {
-        decoded = JwtDecoder.decode(jwtToken);
-      } catch (e, stackTrace) {
-        developer.log(
-          'JWT decode failed',
-          name: 'AuthError',
-          error: e,
-          stackTrace: stackTrace,
-        );
-        if (Get.isRegistered<AuthService>()) {
-          await Get.find<AuthService>().clearTokens();
-        } else {
-          await prefs.remove('jwtToken');
-          await prefs.remove('refreshToken');
-        }
-        NavigationHelper.offAllNamed(Routes.login);
-        return null;
-      }
-      final username = storedUsername?.isNotEmpty == true
-          ? storedUsername!
-          : decoded['sub']?.toString();
-      if (username == null || username.isEmpty) {
-        throw Exception('无法确定当前用户名');
-      }
-      await userApi.initializeWithJwt();
-      final user = await userApi.searchUsersByUsername(username: username);
-      if (user?.userId == null) {
-        throw Exception('User data does not contain userId');
-      }
-      final authUserId = user!.userId!;
-      // 此处 authUserId 与 driverId 当前相同，待后端分离后更新
-      final driverId = authUserId;
-      await driverApi.initializeWithJwt();
-      var driverInfo = await driverApi.getDriver(driverId: driverId);
-      if (driverInfo == null) {
-        driverInfo = DriverInformation(
-          driverId: driverId,
-          name: user.username ?? '未知用户',
-          contactNumber: user.contactNumber ?? '',
-          idCardNumber: '',
-          driverLicenseNumber:
-              '${DateTime.now().millisecondsSinceEpoch.toString().substring(6)}${(1000 + (DateTime.now().millisecondsSinceEpoch % 9000)).toString()}',
-        );
-        await driverApi.createDriver(
-          driverInformation: driverInfo,
-          idempotencyKey: generateIdempotencyKey(),
-        );
-        driverInfo = await driverApi.getDriver(driverId: driverId);
-      }
-      final driverName = driverInfo?.name ?? user.username ?? '未知用户';
-      developer.log('Driver name from API: $driverName');
-      return driverName;
-    } catch (e) {
-      developer.log('Error fetching driver name: $e');
-      return null;
-    }
+  List<String> _extractRoleCodes(Object? value) {
+    final rawRoles = value is Iterable
+        ? value.map((role) => role.toString())
+        : value?.toString().split(',') ?? const Iterable<String>.empty();
+    return rawRoles
+        .map((role) => role.replaceFirst('ROLE_', '').trim().toUpperCase())
+        .where((role) => role.isNotEmpty)
+        .toList(growable: false);
   }
 
   Future<void> _initialize() async {
     setState(() => _isLoading = true);
     try {
       if (!await _validateJwtToken()) {
-        NavigationHelper.offAllNamed(Routes.login);
         return;
       }
-      if (_driverName.isEmpty) {
-        setState(() => _errorMessage = '无法获取司机姓名，请重新登录');
-        NavigationHelper.offAllNamed(Routes.login);
+      if (_driverId == null) {
+        setState(() => _errorMessage = '您的账户尚未关联司机档案');
         return;
       }
       await offenseApi.initializeWithJwt();
@@ -205,7 +142,7 @@ class _UserOffenseListPageState extends State<UserOffenseListPage> {
   }
 
   Future<void> _loadOffenses({bool reset = false}) async {
-    if (!_hasMore || _driverName.isEmpty) return;
+    if (!_hasMore || _driverId == null) return;
 
     if (reset) {
       _currentPage = 1;
@@ -225,17 +162,11 @@ class _UserOffenseListPageState extends State<UserOffenseListPage> {
         NavigationHelper.offAllNamed(Routes.login);
         return;
       }
-      final offenses = _searchController.text.isNotEmpty
-          ? await offenseApi.listOffensesByDriverName(
-              query: _driverName,
-              page: _currentPage,
-              size: _pageSize,
-            )
-          : await offenseApi.listOffensesByDriverName(
-              query: _driverName,
-              page: _currentPage,
-              size: _pageSize,
-            );
+      final offenses = await offenseApi.listOffensesByDriver(
+        driverId: _driverId!,
+        page: _currentPage,
+        size: _pageSize,
+      );
 
       setState(() {
         _offenses.addAll(offenses);
@@ -330,8 +261,9 @@ class _UserOffenseListPageState extends State<UserOffenseListPage> {
 
   Future<List<String>> _fetchAutocompleteSuggestions(String prefix) async {
     try {
-      final offenses = await offenseApi.listOffensesByDriverName(
-        query: _driverName,
+      if (_driverId == null) return [];
+      final offenses = await offenseApi.listOffensesByDriver(
+        driverId: _driverId!,
         page: 1,
         size: 10,
       );
@@ -511,7 +443,8 @@ class _UserOffenseListPageState extends State<UserOffenseListPage> {
                                             const EdgeInsets.only(top: 16.0),
                                         child: ElevatedButton(
                                           onPressed: () =>
-                                              NavigationHelper.offAllNamed(Routes.login),
+                                              NavigationHelper.offAllNamed(
+                                                  Routes.login),
                                           style: ElevatedButton.styleFrom(
                                             backgroundColor:
                                                 themeData.colorScheme.primary,

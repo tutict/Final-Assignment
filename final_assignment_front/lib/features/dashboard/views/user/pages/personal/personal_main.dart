@@ -1,8 +1,6 @@
 // ignore_for_file: use_build_context_synchronously
-import 'dart:math';
-
+import 'package:final_assignment_front/core/auth/user_profile_service.dart';
 import 'package:final_assignment_front/features/api/driver_information_controller_api.dart';
-import 'package:final_assignment_front/features/api/user_management_controller_api.dart';
 import 'package:final_assignment_front/features/dashboard/controllers/user_dashboard_screen_controller.dart';
 import 'package:final_assignment_front/features/dashboard/views/user/widgets/user_page_app_bar.dart';
 import 'package:final_assignment_front/features/model/driver_information.dart';
@@ -18,13 +16,6 @@ import 'package:shared_preferences/shared_preferences.dart';
 String generateIdempotencyKey() =>
     DateTime.now().millisecondsSinceEpoch.toString();
 
-String generateDriverLicenseNumber() {
-  final timestamp = DateTime.now().millisecondsSinceEpoch.toString();
-  final timestampPart = timestamp.substring(timestamp.length - 8);
-  final randomPart = (1000 + Random().nextInt(9000)).toString();
-  return timestampPart + randomPart;
-}
-
 class PersonalMainPage extends StatefulWidget {
   const PersonalMainPage({super.key});
 
@@ -37,7 +28,6 @@ class _PersonalMainPageState extends State<PersonalMainPage> {
       Get.find<UserDashboardController>();
   final DriverInformationControllerApi driverApi =
       DriverInformationControllerApi();
-  final UserManagementControllerApi userApi = UserManagementControllerApi();
   final ApiClient apiClient = ApiClient();
 
   final TextEditingController _nameController = TextEditingController();
@@ -51,6 +41,7 @@ class _PersonalMainPageState extends State<PersonalMainPage> {
 
   Future<UserManagement?>? _userFuture;
   DriverInformation? _driverInfo;
+  int? _driverId;
   bool _isLoading = true;
   bool _driverLicenseFinalized = false;
   String _errorMessage = '';
@@ -85,53 +76,58 @@ class _PersonalMainPageState extends State<PersonalMainPage> {
     try {
       final prefs = await SharedPreferences.getInstance();
       final jwtToken = prefs.getString('jwtToken');
-      final storedUsername = prefs.getString('userName');
-      if (jwtToken == null || storedUsername == null) {
+      if (jwtToken == null) {
         throw Exception('未登录，请重新登录');
       }
+
+      final profile = await Get.find<UserProfileService>().getProfile();
+      final user = UserManagement(
+        userId: profile.authUserId,
+        username: profile.username,
+        realName: profile.displayName,
+        contactNumber: profile.phoneNumber,
+        email: profile.email,
+      );
+
+      final driverId = profile.driverId;
+      _driverId = driverId;
+      if (driverId == null) {
+        setState(() {
+          _driverInfo = null;
+          _userFuture = Future.value(user);
+          _isLoading = false;
+          _errorMessage = '您的账户尚未关联司机档案';
+          _nameController.text = profile.displayName ?? profile.username;
+          _contactNumberController.text = profile.phoneNumber ?? '';
+          _idCardController.clear();
+          _licenseController.clear();
+        });
+        dashboardController.updateCurrentUser(
+          profile.displayName ?? profile.username,
+          profile.email ?? '',
+        );
+        return;
+      }
+
       await driverApi.initializeWithJwt();
-      await userApi.initializeWithJwt();
-      final user =
-          await userApi.searchUsersByUsername(username: storedUsername);
-      if (user == null || user.userId == null) {
-        throw Exception('加载用户信息失败');
-      }
-      final authUserId = user.userId!;
-      // 此处 authUserId 与 driverId 当前相同，待后端分离后更新
-      final driverId = authUserId;
-      DriverInformation? driverInfo =
-          await driverApi.getDriver(driverId: driverId);
-      if (driverInfo == null) {
-        final newDriver = DriverInformation(
-          driverId: driverId,
-          name: user.username ?? '未知用户',
-          contactNumber: user.contactNumber ?? '',
-          idCardNumber: '',
-          driverLicenseNumber: generateDriverLicenseNumber(),
-        );
-        await driverApi.createDriver(
-          driverInformation: newDriver,
-          idempotencyKey: generateIdempotencyKey(),
-        );
-        driverInfo = await driverApi.getDriver(driverId: driverId);
-        _driverLicenseFinalized = true;
-      } else {
-        _driverLicenseFinalized =
-            driverInfo.driverLicenseNumber?.isNotEmpty ?? false;
-      }
+      final driverInfo = await driverApi.getDriver(driverId: driverId);
+      _driverLicenseFinalized =
+          driverInfo?.driverLicenseNumber?.isNotEmpty ?? false;
+
       setState(() {
         _driverInfo = driverInfo;
         _userFuture = Future.value(user);
-        _nameController.text = driverInfo?.name ?? user.username ?? '';
+        _nameController.text =
+            driverInfo?.name ?? profile.displayName ?? profile.username;
         _contactNumberController.text =
-            driverInfo?.contactNumber ?? user.contactNumber ?? '';
+            driverInfo?.contactNumber ?? profile.phoneNumber ?? '';
         _idCardController.text = driverInfo?.idCardNumber ?? '';
         _licenseController.text = driverInfo?.driverLicenseNumber ?? '';
         _isLoading = false;
       });
       dashboardController.updateCurrentUser(
-        driverInfo?.name ?? user.username ?? '',
-        user.email ?? '',
+        driverInfo?.name ?? profile.displayName ?? profile.username,
+        profile.email ?? '',
       );
     } catch (e) {
       setState(() {
@@ -148,9 +144,10 @@ class _PersonalMainPageState extends State<PersonalMainPage> {
       if (user == null || user.userId == null) {
         throw Exception('未找到当前用户信息');
       }
-      final authUserId = user.userId!;
-      // 此处 authUserId 与 driverId 当前相同，待后端分离后更新
-      final driverId = authUserId;
+      final driverId = _driverId;
+      if (driverId == null) {
+        throw Exception('您的账户尚未关联司机档案');
+      }
       final idempotencyKey = generateIdempotencyKey();
       final prefs = await SharedPreferences.getInstance();
       final jwtToken = prefs.getString('jwtToken');
@@ -165,7 +162,7 @@ class _PersonalMainPageState extends State<PersonalMainPage> {
             driverId: driverId,
             name: field == 'name'
                 ? value
-                : _driverInfo?.name ?? user.username ?? '未知用户',
+                : _driverInfo?.name ?? user.realName ?? user.username ?? '未知用户',
             contactNumber: field == 'contactNumber'
                 ? value
                 : _driverInfo?.contactNumber ?? user.contactNumber ?? '',
@@ -176,7 +173,8 @@ class _PersonalMainPageState extends State<PersonalMainPage> {
                 ? value
                 : _driverInfo?.driverLicenseNumber ?? '',
           );
-          await driverApi.createDriver(
+          await driverApi.updateDriver(
+            driverId: driverId,
             driverInformation: updatedDriver,
             idempotencyKey: idempotencyKey,
           );
@@ -209,7 +207,7 @@ class _PersonalMainPageState extends State<PersonalMainPage> {
 
   String _formatErrorMessage(dynamic error) {
     if (error is ApiException) {
-      return '请求失败(${error.code}): ${error.message}';
+      return '璇锋眰澶辫触(${error.code}): ${error.message}';
     }
     return error.toString();
   }
@@ -218,11 +216,11 @@ class _PersonalMainPageState extends State<PersonalMainPage> {
       String field, TextEditingController controller, VoidCallback onSave) {
     AppDialog.showCustomDialog(
       context: context,
-      title: '编辑 $field',
+      title: '缂栬緫 $field',
       content: TextField(
         controller: controller,
         decoration: InputDecoration(
-          hintText: '输入新的 $field',
+          hintText: '杈撳叆鏂扮殑 $field',
           border: OutlineInputBorder(
             borderRadius: BorderRadius.circular(12),
           ),
@@ -231,14 +229,14 @@ class _PersonalMainPageState extends State<PersonalMainPage> {
       actions: [
         TextButton(
           onPressed: () => Navigator.of(context).pop(),
-          child: const Text('取消'),
+          child: const Text('鍙栨秷'),
         ),
         ElevatedButton(
           onPressed: () {
             Navigator.of(context).pop();
             onSave();
           },
-          child: const Text('保存'),
+          child: const Text('淇濆瓨'),
         ),
       ],
     );
@@ -252,7 +250,7 @@ class _PersonalMainPageState extends State<PersonalMainPage> {
         backgroundColor: themeData.colorScheme.surface,
         appBar: UserPageAppBar(
           theme: themeData,
-          title: '个人信息管理',
+          title: '涓汉淇℃伅绠＄悊',
           onThemeToggle: dashboardController.toggleBodyTheme,
         ),
         body: _isLoading

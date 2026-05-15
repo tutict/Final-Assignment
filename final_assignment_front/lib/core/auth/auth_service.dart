@@ -4,6 +4,7 @@ import 'dart:developer' as developer;
 
 import 'package:final_assignment_front/config/routes/app_routes.dart';
 import 'package:final_assignment_front/core/config/app_config.dart';
+import 'package:final_assignment_front/core/auth/user_profile_service.dart';
 import 'package:final_assignment_front/core/utils/app_logger.dart';
 import 'package:final_assignment_front/utils/services/auth_token_store.dart';
 import 'package:get/get.dart';
@@ -247,8 +248,16 @@ class AuthService extends GetxService {
     await prefs.remove('userId');
     await prefs.remove('userRole');
     await prefs.remove('userName');
+    await prefs.remove('username');
+    await prefs.remove('roles');
+    await prefs.remove('displayName');
+    await prefs.remove('email');
+    await prefs.remove('phoneNumber');
     await prefs.remove('driverName');
     await prefs.remove('userEmail');
+    if (Get.isRegistered<UserProfileService>()) {
+      Get.find<UserProfileService>().invalidate();
+    }
   }
 
   Future<void> clearToken() => clearTokens();

@@ -4,12 +4,15 @@ import com.tutict.finalassignmentbackend.config.login.jwt.TokenProvider;
 import com.tutict.finalassignmentbackend.config.websocket.WsAction;
 import com.tutict.finalassignmentbackend.dto.request.RefreshRequest;
 import com.tutict.finalassignmentbackend.dto.response.TokenResponse;
+import com.tutict.finalassignmentbackend.dto.response.UserProfileResponse;
 import com.tutict.finalassignmentbackend.entity.AuditLoginLog;
+import com.tutict.finalassignmentbackend.entity.DriverInformation;
 import com.tutict.finalassignmentbackend.entity.SysRole;
 import com.tutict.finalassignmentbackend.entity.SysUser;
 import com.tutict.finalassignmentbackend.entity.SysUserRole;
 import com.tutict.finalassignmentbackend.enums.DataScope;
 import com.tutict.finalassignmentbackend.enums.RoleType;
+import com.tutict.finalassignmentbackend.exception.EntityNotFoundException;
 import lombok.Data;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.cache.annotation.CacheEvict;
@@ -46,6 +49,7 @@ public class AuthWsService {
     private final PasswordEncoder passwordEncoder;
     private final RefreshTokenService refreshTokenService;
     private final TokenBlacklistService tokenBlacklistService;
+    private final DriverInformationService driverInformationService;
 
     @Autowired
     public AuthWsService(TokenProvider tokenProvider,
@@ -55,7 +59,8 @@ public class AuthWsService {
                          SysUserRoleService sysUserRoleService,
                          PasswordEncoder passwordEncoder,
                          RefreshTokenService refreshTokenService,
-                         TokenBlacklistService tokenBlacklistService) {
+                         TokenBlacklistService tokenBlacklistService,
+                         DriverInformationService driverInformationService) {
         this.tokenProvider = tokenProvider;
         this.auditLoginLogService = auditLoginLogService;
         this.sysUserService = sysUserService;
@@ -64,6 +69,7 @@ public class AuthWsService {
         this.passwordEncoder = passwordEncoder;
         this.refreshTokenService = refreshTokenService;
         this.tokenBlacklistService = tokenBlacklistService;
+        this.driverInformationService = driverInformationService;
     }
 
     @CacheEvict(cacheNames = "AuthCache", allEntries = true)
@@ -76,11 +82,13 @@ public class AuthWsService {
 
         if (user != null && authenticateUser(user, loginRequest.getPassword())) {
             RoleAggregation aggregation = requireRoles(user, loginRequest.getUsername());
-            List<String> roles = aggregation.getRoleNames();
-            String rolesString = String.join(",", roles);
+            List<String> roleNames = aggregation.getRoleNames();
+            List<String> roleCodes = aggregation.getRoleCodes();
+            String rolesString = String.join(",", roleCodes);
             String jwtToken = issueAccessToken(user, aggregation, rolesString);
             String refreshToken = refreshTokenService.createRefreshToken(user.getUserId());
             String dataScopeCode = aggregation.getDataScope().getCode();
+            DriverInformation driver = driverInformationService.findLinkedDriver(user);
 
             boolean systemRole = tokenProvider.hasSystemRole(jwtToken);
             boolean businessRole = tokenProvider.hasBusinessRole(jwtToken);
@@ -97,8 +105,13 @@ public class AuthWsService {
             result.put("expiresIn", tokenProvider.getAccessTokenExpirationSeconds());
             result.put("refreshTokenExpiresIn", refreshTokenService.getRefreshTokenExpirationSeconds());
             result.put("username", user.getUsername());
-            result.put("roles", roles);
-            result.put("roleCodes", aggregation.getRoleCodes());
+            result.put("authUserId", user.getUserId());
+            result.put("driverId", driver != null ? driver.getDriverId() : null);
+            result.put("displayName", resolveDisplayName(user));
+            result.put("driverName", driver != null ? driver.getName() : null);
+            result.put("roles", roleCodes);
+            result.put("roleNames", roleNames);
+            result.put("roleCodes", roleCodes);
             result.put("roleTypes", aggregation.getRoleTypes());
             result.put("dataScope", dataScopeCode);
             result.put("systemRole", systemRole);
@@ -110,6 +123,32 @@ public class AuthWsService {
         logger.severe(() -> String.format("Authentication failed (WS) for user: %s", loginRequest.getUsername()));
         recordFailedLogin(loginRequest.getUsername(), "INVALID_CREDENTIALS");
         throw new BadCredentialsException("Invalid username or password.");
+    }
+
+    @Transactional(readOnly = true)
+    public UserProfileResponse getCurrentUserProfile(String username) {
+        if (!StringUtils.hasText(username)) {
+            throw new EntityNotFoundException("User not found");
+        }
+
+        SysUser user = sysUserService.findByUsername(username);
+        if (user == null) {
+            throw new EntityNotFoundException("User not found: " + username);
+        }
+
+        RoleAggregation aggregation = aggregateRoles(user.getUserId());
+        DriverInformation driver = driverInformationService.findLinkedDriver(user);
+
+        return UserProfileResponse.builder()
+                .authUserId(user.getUserId())
+                .username(user.getUsername())
+                .displayName(resolveDisplayName(user))
+                .email(user.getEmail())
+                .phoneNumber(maskPhone(user.getContactNumber()))
+                .roles(aggregation.getRoleCodes())
+                .driverId(driver != null ? driver.getDriverId() : null)
+                .driverName(driver != null ? driver.getName() : null)
+                .build();
     }
 
     @Transactional
@@ -238,6 +277,24 @@ public class AuthWsService {
             throw new BadCredentialsException("Bearer access token is required");
         }
         return bearerToken.substring(7);
+    }
+
+    private String resolveDisplayName(SysUser user) {
+        if (user == null) {
+            return null;
+        }
+        return StringUtils.hasText(user.getRealName()) ? user.getRealName() : user.getUsername();
+    }
+
+    private String maskPhone(String phoneNumber) {
+        if (!StringUtils.hasText(phoneNumber)) {
+            return phoneNumber;
+        }
+        String trimmed = phoneNumber.trim();
+        if (trimmed.length() < 7) {
+            return trimmed.charAt(0) + "****";
+        }
+        return trimmed.substring(0, 3) + "****" + trimmed.substring(trimmed.length() - 4);
     }
 
     private void validateLoginRequest(LoginRequest loginRequest) {

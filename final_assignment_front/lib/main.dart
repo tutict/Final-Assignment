@@ -1,5 +1,6 @@
 import 'package:final_assignment_front/core/utils/app_logger.dart';
 import 'package:final_assignment_front/core/auth/auth_service.dart';
+import 'package:final_assignment_front/core/auth/user_profile_service.dart';
 import 'package:final_assignment_front/core/lifecycle/app_lifecycle_observer.dart';
 import 'package:final_assignment_front/core/network/interceptor.dart';
 import 'package:final_assignment_front/features/dashboard/controllers/user_dashboard_screen_controller.dart';
@@ -81,6 +82,7 @@ class AppBindings extends Bindings {
   @override
   void dependencies() {
     final authService = Get.put<AuthService>(AuthService(), permanent: true);
+    Get.put<UserProfileService>(UserProfileService(), permanent: true);
     final apiInterceptor = Get.put<ApiRequestLoggingInterceptor>(
       ApiRequestLoggingInterceptor(authService: authService),
       permanent: true,

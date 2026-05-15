@@ -2,15 +2,19 @@ package com.tutict.finalassignmentbackend.controller;
 
 import com.tutict.finalassignmentbackend.dto.mapper.OffenseRecordRequestMapper;
 import com.tutict.finalassignmentbackend.dto.request.OffenseCreateRequest;
+import com.tutict.finalassignmentbackend.dto.response.UserProfileResponse;
 import com.tutict.finalassignmentbackend.entity.OffenseRecord;
+import com.tutict.finalassignmentbackend.service.AuthWsService;
 import com.tutict.finalassignmentbackend.service.OffenseRecordService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.annotation.security.RolesAllowed;
 import jakarta.validation.Valid;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -23,6 +27,8 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import java.util.List;
+import java.util.Objects;
+import java.util.Set;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
@@ -34,11 +40,25 @@ import java.util.logging.Logger;
 public class OffenseInformationController {
 
     private static final Logger LOG = Logger.getLogger(OffenseInformationController.class.getName());
+    private static final Set<String> ELEVATED_AUTHORITIES = Set.of(
+            "ROLE_SUPER_ADMIN",
+            "ROLE_ADMIN",
+            "ROLE_TRAFFIC_POLICE",
+            "ROLE_APPEAL_REVIEWER"
+    );
 
+    private final AuthWsService authWsService;
     private final OffenseRecordService offenseRecordService;
 
-    public OffenseInformationController(OffenseRecordService offenseRecordService) {
+    @Autowired
+    public OffenseInformationController(AuthWsService authWsService,
+                                        OffenseRecordService offenseRecordService) {
+        this.authWsService = authWsService;
         this.offenseRecordService = offenseRecordService;
+    }
+
+    public OffenseInformationController(OffenseRecordService offenseRecordService) {
+        this(null, offenseRecordService);
     }
 
     @PostMapping
@@ -133,11 +153,16 @@ public class OffenseInformationController {
     }
 
     @GetMapping("/driver/{driverId}")
+    @RolesAllowed({"SUPER_ADMIN", "ADMIN", "TRAFFIC_POLICE", "APPEAL_REVIEWER", "USER"})
     @Operation(summary = "按驾驶证分页查询违法")
     public ResponseEntity<List<OffenseRecord>> byDriver(@PathVariable Long driverId,
                                                         @RequestParam(defaultValue = "1") int page,
-                                                        @RequestParam(defaultValue = "20") int size) {
+                                                        @RequestParam(defaultValue = "20") int size,
+                                                        Authentication authentication) {
         try {
+            if (!canAccessDriver(authentication, driverId)) {
+                return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
+            }
             return ResponseEntity.ok(offenseRecordService.findByDriverId(driverId, page, size));
         } catch (Exception ex) {
             LOG.log(Level.WARNING, "List offenses by driver failed", ex);
@@ -292,6 +317,27 @@ public class OffenseInformationController {
 
     private boolean hasKey(String value) {
         return value != null && !value.isBlank();
+    }
+
+    private boolean canAccessDriver(Authentication authentication, Long driverId) {
+        if (authentication == null || driverId == null) {
+            return false;
+        }
+        boolean elevated = authentication.getAuthorities().stream()
+                .anyMatch(authority -> ELEVATED_AUTHORITIES.contains(authority.getAuthority()));
+        if (elevated) {
+            return true;
+        }
+        boolean regularUser = authentication.getAuthorities().stream()
+                .anyMatch(authority -> "ROLE_USER".equals(authority.getAuthority()));
+        if (!regularUser) {
+            return false;
+        }
+        if (authWsService == null) {
+            return false;
+        }
+        UserProfileResponse profile = authWsService.getCurrentUserProfile(authentication.getName());
+        return Objects.equals(profile.getDriverId(), driverId);
     }
 
     private HttpStatus resolveStatus(Exception ex) {

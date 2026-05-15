@@ -3,6 +3,7 @@ package com.tutict.finalassignmentbackend.controller;
 import com.tutict.finalassignmentbackend.dto.mapper.UserResponseMapper;
 import com.tutict.finalassignmentbackend.dto.request.RefreshRequest;
 import com.tutict.finalassignmentbackend.dto.response.TokenResponse;
+import com.tutict.finalassignmentbackend.dto.response.UserProfileResponse;
 import com.tutict.finalassignmentbackend.dto.response.UserResponse;
 import com.tutict.finalassignmentbackend.service.AuthWsService;
 import io.swagger.v3.oas.annotations.Operation;
@@ -19,6 +20,8 @@ import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.scheduling.annotation.Async;
+import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.security.core.Authentication;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -161,6 +164,16 @@ public class AuthController {
             @AuthenticationPrincipal String username) {
         authWsService.logout(username, bearerToken);
         return ResponseEntity.ok(com.tutict.finalassignmentbackend.dto.response.ApiResponse.ok(null));
+    }
+
+    @GetMapping("/me")
+    @PreAuthorize("isAuthenticated()")
+    @SecurityRequirement(name = "bearerAuth")
+    public ResponseEntity<com.tutict.finalassignmentbackend.dto.response.ApiResponse<UserProfileResponse>> getCurrentUser(
+            Authentication authentication) {
+        String username = authentication.getName();
+        UserProfileResponse profile = authWsService.getCurrentUserProfile(username);
+        return ResponseEntity.ok(com.tutict.finalassignmentbackend.dto.response.ApiResponse.ok(profile));
     }
 
     @GetMapping("/users")

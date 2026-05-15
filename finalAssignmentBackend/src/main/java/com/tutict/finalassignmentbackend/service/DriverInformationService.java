@@ -1,5 +1,6 @@
 package com.tutict.finalassignmentbackend.service;
 
+import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.tutict.finalassignmentbackend.config.websocket.WsAction;
 import com.tutict.finalassignmentbackend.entity.DriverInformation;
@@ -144,6 +145,24 @@ public class DriverInformationService {
                     }
                     return dbEntity;
                 });
+    }
+
+    public DriverInformation findLinkedDriver(SysUser user) {
+        if (user == null) {
+            return null;
+        }
+
+        DriverInformation byIdCard = findFirstByColumn("id_card_number", user.getIdCardNumber());
+        if (byIdCard != null) {
+            return byIdCard;
+        }
+
+        DriverInformation byContactNumber = findFirstByColumn("contact_number", user.getContactNumber());
+        if (byContactNumber != null) {
+            return byContactNumber;
+        }
+
+        return findFirstByColumn("email", user.getEmail());
     }
 
     @Cacheable(cacheNames = CACHE_NAME, key = "'all'", unless = "#result == null || #result.isEmpty()")
@@ -306,6 +325,17 @@ public class DriverInformationService {
         if (driverId == null || driverId <= 0) {
             throw new IllegalArgumentException("Invalid driver ID: " + driverId);
         }
+    }
+
+    private DriverInformation findFirstByColumn(String column, String value) {
+        if (value == null || value.trim().isEmpty()) {
+            return null;
+        }
+        QueryWrapper<DriverInformation> wrapper = new QueryWrapper<>();
+        wrapper.eq(column, value.trim())
+                .isNull("deleted_at")
+                .last("LIMIT 1");
+        return driverInformationMapper.selectOne(wrapper);
     }
 
     private void validatePagination(int page, int size) {

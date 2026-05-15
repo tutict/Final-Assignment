@@ -3,10 +3,8 @@ import 'package:final_assignment_front/core/utils/app_logger.dart';
 import 'dart:convert';
 import 'dart:math';
 import 'package:final_assignment_front/config/routes/app_routes.dart';
+import 'package:final_assignment_front/core/auth/user_profile_service.dart';
 import 'package:final_assignment_front/features/api/auth_controller_api.dart';
-import 'package:final_assignment_front/features/api/driver_information_controller_api.dart';
-import 'package:final_assignment_front/features/api/user_management_controller_api.dart';
-import 'package:final_assignment_front/features/model/driver_information.dart';
 import 'package:final_assignment_front/features/model/login_request.dart';
 import 'package:final_assignment_front/features/model/register_request.dart';
 import 'package:final_assignment_front/shared_components/local_captcha_main.dart';
@@ -48,7 +46,6 @@ class LoginScreen extends StatefulWidget with ValidatorMixin {
 class _LoginScreenState extends State<LoginScreen>
     with TickerProviderStateMixin {
   late AuthControllerApi authApi;
-  late DriverInformationControllerApi driverApi;
   String? _userRole;
   bool _hasSentRegisterRequest = false;
   bool _isDarkMode = false;
@@ -57,7 +54,6 @@ class _LoginScreenState extends State<LoginScreen>
   void initState() {
     super.initState();
     authApi = AuthControllerApi();
-    driverApi = DriverInformationControllerApi();
     _userRole = null;
     _hasSentRegisterRequest = false;
     _loadTheme();
@@ -85,8 +81,13 @@ class _LoginScreenState extends State<LoginScreen>
     return jsonDecode(utf8.decode(payload));
   }
 
-  static String determineRole(String rolesFromJwt) {
-    return rolesFromJwt; // e.g., "USER" or "ADMIN"
+  static String determineRole(Object? rolesFromJwt) {
+    final roles = rolesFromJwt is List
+        ? rolesFromJwt.map((role) => role.toString())
+        : rolesFromJwt?.toString().split(',') ?? const ['USER'];
+    return roles
+        .map((role) => role.replaceFirst('ROLE_', '').trim().toUpperCase())
+        .firstWhere((role) => role.isNotEmpty, orElse: () => 'USER');
   }
 
   String? _stringValue(Object? value) {
@@ -108,12 +109,15 @@ class _LoginScreenState extends State<LoginScreen>
       await prefs.setString('refresh_token', refreshToken);
     }
 
-    final userData = result['user'];
-    final authUserId = result['authUserId'] ??
-        result['userId'] ??
+    final data = result['success'] == true && result['data'] is Map
+        ? Map<String, dynamic>.from(result['data'] as Map)
+        : result;
+    final userData = data['user'];
+    final authUserId = data['authUserId'] ??
+        data['userId'] ??
         (userData is Map ? userData['authUserId'] ?? userData['userId'] : null);
-    final driverId = result['driverId'] ??
-        (userData is Map ? userData['driverId'] : null);
+    final driverId =
+        data['driverId'] ?? (userData is Map ? userData['driverId'] : null);
 
     if (authUserId != null) {
       final value = authUserId.toString();
@@ -126,6 +130,7 @@ class _LoginScreenState extends State<LoginScreen>
       await prefs.setString('driverId', value);
       await prefs.setString('driver_id', value);
     }
+    await Get.find<UserProfileService>().persistFromLoginResponse(data);
   }
 
   Future<String?> _authUser(LoginData data) async {
@@ -137,7 +142,8 @@ class _LoginScreenState extends State<LoginScreen>
         loginRequest: LoginRequest(username: username, password: password),
       );
 
-      final accessToken = _stringValue(result['accessToken'] ?? result['jwtToken']);
+      final accessToken =
+          _stringValue(result['accessToken'] ?? result['jwtToken']);
       if (accessToken != null) {
         final decodedJwt = _decodeJwt(accessToken);
         _userRole = determineRole(decodedJwt['roles'] ?? 'USER');
@@ -146,94 +152,9 @@ class _LoginScreenState extends State<LoginScreen>
         await prefs.setString('userRole', _userRole!);
         await prefs.setString('userName', username);
 
-        final userData = result['user'] ?? {};
-        AppLogger.debug('登录返回的用户数据: $userData');
-        final int? authUserIdFromLogin =
-            userData['authUserId'] ?? userData['userId'];
-        final int? driverIdFromLogin =
-            userData['driverId'] ?? result['driverId'];
-        String resolvedName = userData['name'] ?? username.split('@').first;
-        String resolvedEmail = userData['email'] ?? username;
+        final profile = await Get.find<UserProfileService>().getProfile();
         AppLogger.debug(
-            '提取的 authUserId: $authUserIdFromLogin, driverId: $driverIdFromLogin, 姓名: $resolvedName, 邮箱: $resolvedEmail');
-
-        String driverName = resolvedName;
-
-        await driverApi.initializeWithJwt();
-        AppLogger.debug('Driver API 已初始化');
-        final userManagementApi = UserManagementControllerApi();
-        await userManagementApi.initializeWithJwt();
-        AppLogger.debug('UserManagement API 已初始化');
-
-        int? authUserId = authUserIdFromLogin;
-        int? driverId = driverIdFromLogin;
-        try {
-          final userInfo =
-              await userManagementApi.searchUsersByUsername(username: username);
-          if (userInfo != null) {
-            authUserId = userInfo.userId ?? authUserId;
-            resolvedName =
-                userInfo.realName ?? userInfo.username ?? resolvedName;
-            resolvedEmail = userInfo.email ?? resolvedEmail;
-            AppLogger.debug(
-                '通过用户名查询获取的 userId: $authUserId, 姓名: $resolvedName');
-          }
-        } catch (e) {
-          AppLogger.error('通过用户名查询用户信息失败: $e');
-        }
-
-        if (driverId == null && authUserId != null) {
-          // 此处 authUserId 与 driverId 当前相同，待后端分离后更新
-          driverId = authUserId;
-        }
-
-        if (driverId != null) {
-          try {
-            final driverInfo = await driverApi.getDriver(driverId: driverId);
-            if (driverInfo != null && driverInfo.name != null) {
-              driverName = driverInfo.name!;
-              AppLogger.debug('从数据库获取的 driverName: $driverName');
-            } else {
-              AppLogger.debug('DriverInformation 未找到或 name 为空');
-            }
-          } catch (e) {
-            if (e is ApiException && e.code == 404) {
-              final idempotencyKey = generateIdempotencyKey();
-              final newDriverInfo = DriverInformation(
-                driverId: driverId,
-                name: resolvedName,
-                contactNumber: '',
-                idCardNumber: '',
-              );
-              await driverApi.createDriver(
-                driverInformation: newDriverInfo,
-                idempotencyKey: idempotencyKey,
-              );
-              driverName = resolvedName;
-              AppLogger.debug('创建新司机记录，driverName: $driverName');
-            } else {
-              AppLogger.error('获取 DriverInformation 失败: $e');
-            }
-          }
-        } else {
-          AppLogger.debug('无法获取 driverId，跳过 DriverInformation 查询');
-        }
-
-        driverName = driverName.isNotEmpty ? driverName : resolvedName;
-        await prefs.setString('driverName', driverName);
-        await prefs.setString('userEmail', resolvedEmail);
-        if (authUserId != null) {
-          await prefs.setString('authUserId', authUserId.toString());
-          await prefs.setString('auth_user_id', authUserId.toString());
-          await prefs.setString('userId', authUserId.toString());
-        }
-        if (driverId != null) {
-          await prefs.setString('driverId', driverId.toString());
-          await prefs.setString('driver_id', driverId.toString());
-        }
-
-        AppLogger.debug(
-            '登录成功 - 角色: $_userRole, authUserId: $authUserId, driverId: $driverId, 姓名: $driverName, 邮箱: $resolvedEmail');
+            '登录成功 - 角色: $_userRole, authUserId: ${profile.authUserId}, driverId: ${profile.driverId}');
         return null;
       }
       return result['message'] ?? '登录失败';
@@ -288,46 +209,9 @@ class _LoginScreenState extends State<LoginScreen>
           await prefs.setString('userRole', _userRole!);
           await prefs.setString('userName', username);
 
-          final userData = loginResult['user'] ?? {};
-          final int? authUserId = userData['authUserId'] ?? userData['userId'];
-          int? driverId = userData['driverId'] ?? loginResult['driverId'];
-          String resolvedName = userData['name'] ?? username.split('@').first;
-          String resolvedEmail = userData['email'] ?? username;
-
-          String driverName = resolvedName;
-          if (driverId == null && authUserId != null) {
-            // 此处 authUserId 与 driverId 当前相同，待后端分离后更新
-            driverId = authUserId;
-          }
-
-          if (driverId != null) {
-            await driverApi.initializeWithJwt();
-            final driverInfo = DriverInformation(
-              driverId: driverId,
-              name: resolvedName,
-              idCardNumber: '',
-              contactNumber: '',
-            );
-            await driverApi.createDriver(
-              driverInformation: driverInfo,
-              idempotencyKey: generateIdempotencyKey(),
-            );
-            final fetchedDriver = await driverApi.getDriver(driverId: driverId);
-            driverName = fetchedDriver?.name ?? resolvedName;
-            await prefs.setString('driverName', driverName);
-            await prefs.setString('userEmail', resolvedEmail);
-            if (authUserId != null) {
-              await prefs.setString('authUserId', authUserId.toString());
-              await prefs.setString('auth_user_id', authUserId.toString());
-              await prefs.setString('userId', authUserId.toString());
-            }
-            await prefs.setString('driverId', driverId.toString());
-            await prefs.setString('driver_id', driverId.toString());
-            AppLogger.debug('Driver created and fetched name: $driverName');
-          }
-
+          final profile = await Get.find<UserProfileService>().getProfile();
           AppLogger.debug(
-              'Signup and login successful - Role: $_userRole, Name: $driverName, Email: $resolvedEmail');
+              'Signup and login successful - Role: $_userRole, authUserId: ${profile.authUserId}, driverId: ${profile.driverId}');
           return null;
         }
         return loginResult['message'] ?? '注册成功，但登录失败';
