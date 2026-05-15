@@ -20,6 +20,7 @@ import java.util.Map;
 public class WsActionRegistry {
 
     private static final Logger log = LoggerFactory.getLogger(WsActionRegistry.class);
+    private static final String BASE_PACKAGE = "com.tutict.finalassignmentbackend.service";
 
     private final Map<String, HandlerMethod> registry = new HashMap<>();
 
@@ -30,7 +31,7 @@ public class WsActionRegistry {
     }
 
     @PostConstruct
-    void init() {
+    public void init() {
         log.info("---- WsActionRegistry init start ----");
 
         // 获取Spring容器中所有的Bean
@@ -41,7 +42,7 @@ public class WsActionRegistry {
             Class<?> actualClass = getActualClass(beanClass);
 
             // 如果不想遍历全部, 你可以加判断:
-            if (!actualClass.getPackageName().startsWith("finalassignmentbackend.service")) continue;
+            if (!actualClass.getPackageName().startsWith(BASE_PACKAGE)) continue;
 
             for (Method m : actualClass.getMethods()) {
                 WsAction anno = m.getAnnotation(WsAction.class);
@@ -58,6 +59,10 @@ public class WsActionRegistry {
             }
         }
 
+        log.info("WsActionRegistry initialized with {} actions: {}", registry.size(), registry.keySet());
+        if (registry.isEmpty()) {
+            log.warn("WsActionRegistry is EMPTY - check BASE_PACKAGE: {}", BASE_PACKAGE);
+        }
         log.info("---- WsActionRegistry init end, total size={} ----", registry.size());
     }
 

@@ -314,8 +314,8 @@ class DriverInformationControllerApi with BaseApiClient {
   }) async {
     final msg = {
       "service": "DriverInformationService",
-      "action": "createDriver",
-      "args": [driverInformation.toJson(), idempotencyKey]
+      "action": "checkAndInsertIdempotency",
+      "args": [idempotencyKey, driverInformation.toJson(), "create"]
     };
     final respMap = await apiClient.sendWsMessage(msg);
     if (respMap.containsKey("error")) {
@@ -376,8 +376,8 @@ class DriverInformationControllerApi with BaseApiClient {
   }) async {
     final msg = {
       "service": "DriverInformationService",
-      "action": "updateDriver",
-      "args": [driverId, driverInformation.toJson(), idempotencyKey]
+      "action": "checkAndInsertIdempotency",
+      "args": [idempotencyKey, driverInformation.toJson(), "update"]
     };
     final respMap = await apiClient.sendWsMessage(msg);
     if (respMap.containsKey("error")) {

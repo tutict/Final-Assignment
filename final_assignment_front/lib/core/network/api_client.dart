@@ -5,6 +5,7 @@ import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:get/get.dart';
 import 'package:http/http.dart' as http;
+import 'package:uuid/uuid.dart';
 import 'package:web_socket_channel/web_socket_channel.dart';
 
 import '../../utils/helpers/api_exception.dart';
@@ -33,12 +34,14 @@ class ApiClient {
     'bearerAuth': HttpBearerAuth(),
   };
 
+  static const _uuid = Uuid();
   final RegExp _regList = RegExp(r'^List<(.*)>$');
   final RegExp _regMap = RegExp(r'^Map<String,(.*)>$');
 
   WebSocketChannel? _wsChannel;
-  Stream<dynamic>? _wsStream;
+  StreamSubscription<dynamic>? _wsSubscription;
   String? _wsUrl;
+  final Map<String, Completer<Map<String, dynamic>>> _pendingRequests = {};
   static Completer<bool>? _refreshCompleter;
 
   static http.Client _createHttpClient() {
@@ -377,12 +380,14 @@ class ApiClient {
     String path,
     Iterable<QueryParam> queryParams,
   ) async {
+    closeWebSocket();
+
     final token = await AuthTokenStore.instance.getJwtToken();
     if (token != null && token.isNotEmpty) {
       setJwtToken(token);
     }
 
-    final wsUri = _buildWsUri(path, queryParams, token);
+    final wsUri = _buildWsUri(_normalizeWsPath(path), queryParams, token);
     final headers = <String, dynamic>{};
     if (!AppConfig.isWeb && token != null && token.isNotEmpty) {
       headers['Authorization'] = 'Bearer $token';
@@ -393,10 +398,20 @@ class ApiClient {
       headers: headers.isEmpty ? null : headers,
     );
     _wsUrl = wsUri.toString();
-    _wsStream = _wsChannel!.stream.asBroadcastStream();
+    _wsSubscription = _wsChannel!.stream.listen(
+      _handleWsData,
+      onError: (Object error) {
+        _completePendingWithError(ApiException(500, 'WebSocket error: $error'));
+      },
+      onDone: () {
+        _completePendingWithError(ApiException(500, 'WebSocket closed'));
+      },
+    );
 
     if (kDebugMode) {
-      AppLogger.debug('[WebSocket connected] $_wsUrl');
+      AppLogger.debug(
+        '[WebSocket connected] ${_sanitizeWsUrl(_wsUrl ?? '')}',
+      );
     }
   }
 
@@ -405,12 +420,8 @@ class ApiClient {
     Iterable<QueryParam> queryParams,
     String? token,
   ) {
-    final base = Uri.parse(
-      _joinBasePath(path).replaceFirst(
-        RegExp(r'^https?'),
-        basePath.startsWith('https') ? 'wss' : 'ws',
-      ),
-    );
+    final base = Uri.parse(AppConfig.wsBaseUrl);
+    final wsPath = _joinWsPath(base.path, path);
     final mergedQuery = <String, String>{
       ...base.queryParameters,
       for (final p in queryParams)
@@ -418,7 +429,37 @@ class ApiClient {
       if (token != null && token.isNotEmpty) 'access_token': token,
     };
     return base.replace(
-        queryParameters: mergedQuery.isEmpty ? null : mergedQuery);
+      path: wsPath,
+      queryParameters: mergedQuery.isEmpty ? null : mergedQuery,
+    );
+  }
+
+  String _normalizeWsPath(String path) {
+    final normalized = path.startsWith('/') ? path : '/$path';
+    return normalized == '/eventbus' ? '/eventbus/websocket' : normalized;
+  }
+
+  String _joinWsPath(String basePath, String path) {
+    final normalizedBase = basePath == '/' || basePath.isEmpty
+        ? ''
+        : (basePath.startsWith('/') ? basePath : '/$basePath')
+            .replaceFirst(RegExp(r'/+$'), '');
+    final normalizedPath = path.isEmpty
+        ? ''
+        : (path.startsWith('/') ? path : '/$path')
+            .replaceFirst(RegExp(r'/+$'), '');
+
+    if (normalizedPath.isEmpty) {
+      return normalizedBase.isEmpty ? '/' : normalizedBase;
+    }
+    if (normalizedBase.isEmpty) {
+      return normalizedPath;
+    }
+    if (normalizedPath == normalizedBase ||
+        normalizedPath.startsWith('$normalizedBase/')) {
+      return normalizedPath;
+    }
+    return '$normalizedBase$normalizedPath';
   }
 
   WebSocketChannel connectWebSocketFactory(
@@ -436,29 +477,85 @@ class ApiClient {
     Map<String, dynamic> message,
   ) async {
     final channel = _wsChannel;
-    final stream = _wsStream;
-    if (channel == null || stream == null) {
+    if (channel == null || _wsSubscription == null) {
       throw ApiException(500, 'WebSocket not connected');
     }
 
-    channel.sink.add(jsonEncode(message));
+    final requestId = message['requestId']?.toString() ?? _uuid.v4();
+    final outbound = Map<String, dynamic>.from(message)
+      ..['requestId'] = requestId;
+    final completer = Completer<Map<String, dynamic>>();
+    _pendingRequests[requestId] = completer;
 
     try {
-      final responseRaw =
-          await stream.first.timeout(const Duration(seconds: 30));
-      final decoded = jsonDecode(responseRaw as String);
-      if (decoded is! Map<String, dynamic>) {
-        throw ApiException(400, 'WebSocket response is not a JSON object');
-      }
+      channel.sink.add(jsonEncode(outbound));
+      final decoded = await completer.future.timeout(
+        const Duration(seconds: 30),
+      );
       if (decoded.containsKey('error')) {
         throw ApiException(400, decoded['error'].toString());
       }
       return decoded;
+    } on TimeoutException {
+      _pendingRequests.remove(requestId);
+      throw ApiException(504, 'WebSocket request timed out');
     } on ApiException {
       rethrow;
     } catch (error) {
+      _pendingRequests.remove(requestId);
       throw ApiException(500, 'WebSocket read error: $error');
     }
+  }
+
+  void _handleWsData(dynamic data) {
+    try {
+      final decoded = jsonDecode(data as String);
+      if (decoded is! Map<String, dynamic>) {
+        throw ApiException(400, 'WebSocket response is not a JSON object');
+      }
+
+      final requestId = decoded['requestId']?.toString();
+      Completer<Map<String, dynamic>>? completer;
+      if (requestId != null) {
+        completer = _pendingRequests.remove(requestId);
+      } else if (_pendingRequests.length == 1) {
+        final fallbackId = _pendingRequests.keys.single;
+        completer = _pendingRequests.remove(fallbackId);
+      }
+
+      if (completer == null) {
+        AppLogger.debug('Unmatched WebSocket response: $decoded');
+        return;
+      }
+      if (!completer.isCompleted) {
+        completer.complete(decoded);
+      }
+    } catch (error) {
+      _completePendingWithError(
+        error is ApiException
+            ? error
+            : ApiException(500, 'WebSocket response parse error: $error'),
+      );
+    }
+  }
+
+  void _completePendingWithError(Object error) {
+    final pending = Map<String, Completer<Map<String, dynamic>>>.from(
+      _pendingRequests,
+    );
+    _pendingRequests.clear();
+    for (final completer in pending.values) {
+      if (!completer.isCompleted) {
+        completer.completeError(error);
+      }
+    }
+  }
+
+  String _sanitizeWsUrl(String value) {
+    return value.replaceAll(
+      RegExp(r'access_token=[^&]+'),
+      'access_token=***',
+    );
   }
 
   void closeWebSocket() {
@@ -471,11 +568,13 @@ class ApiClient {
     }
 
     channel.sink.close();
+    _wsSubscription?.cancel();
+    _completePendingWithError(ApiException(500, 'WebSocket closed'));
     if (kDebugMode) {
-      AppLogger.debug('[WebSocket closed] ${_wsUrl ?? ''}');
+      AppLogger.debug('[WebSocket closed] ${_sanitizeWsUrl(_wsUrl ?? '')}');
     }
     _wsChannel = null;
-    _wsStream = null;
+    _wsSubscription = null;
     _wsUrl = null;
   }
 }

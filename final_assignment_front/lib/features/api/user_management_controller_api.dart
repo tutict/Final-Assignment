@@ -1273,7 +1273,7 @@ class UserManagementControllerApi with BaseApiClient {
   /// 对应实时动作：UserManagementService.getAllUsers
   Future<List<UserManagement>?> eventbusUsersGet() async {
     final msg = {
-      "service": "UserManagementService",
+      "service": "AuthWsService",
       "action": "getAllUsers",
       "args": [],
     };
@@ -1360,9 +1360,9 @@ class UserManagementControllerApi with BaseApiClient {
     required String idempotencyKey,
   }) async {
     final msg = {
-      "service": "UserManagementService",
-      "action": "updateCurrentUser",
-      "args": [username, userManagement.toUserRequestJson(), idempotencyKey],
+      "service": "SysUserService",
+      "action": "checkAndInsertIdempotency",
+      "args": [idempotencyKey, userManagement.toUserRequestJson(), "update"],
     };
     try {
       final respMap = await apiClient.sendWsMessage(msg);
@@ -1394,9 +1394,9 @@ class UserManagementControllerApi with BaseApiClient {
     required String idempotencyKey,
   }) async {
     final msg = {
-      "service": "UserManagementService",
-      "action": "createUser",
-      "args": [userManagement.toUserRequestJson(), idempotencyKey],
+      "service": "SysUserService",
+      "action": "checkAndInsertIdempotency",
+      "args": [idempotencyKey, userManagement.toUserRequestJson(), "create"],
     };
     try {
       final respMap = await apiClient.sendWsMessage(msg);
@@ -1576,9 +1576,9 @@ class UserManagementControllerApi with BaseApiClient {
     required String idempotencyKey,
   }) async {
     final msg = {
-      "service": "UserManagementService",
-      "action": "updateUser",
-      "args": [userId, userManagement.toUserRequestJson(), idempotencyKey],
+      "service": "SysUserService",
+      "action": "checkAndInsertIdempotency",
+      "args": [idempotencyKey, userManagement.toUserRequestJson(), "update"],
     };
     try {
       final respMap = await apiClient.sendWsMessage(msg);

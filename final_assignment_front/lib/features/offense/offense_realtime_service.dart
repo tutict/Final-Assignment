@@ -12,7 +12,7 @@ class OffenseRealtimeService extends GetxService {
   final ApiClient apiClient;
 
   Future<void> connect({
-    String path = '/eventbus',
+    String path = '/eventbus/websocket',
     List<QueryParam> params = const [],
   }) {
     return apiClient.connectWs(path, params: params);
@@ -27,7 +27,7 @@ class OffenseRealtimeService extends GetxService {
     required String idempotencyKey,
   }) async {
     final respMap = await apiClient.sendWsMessage({
-      'service': 'OffenseInformationService',
+      'service': 'OffenseRecordService',
       'action': 'checkAndInsertIdempotency',
       'args': [idempotencyKey, offenseInformation.toJson(), 'create'],
     });
@@ -42,7 +42,7 @@ class OffenseRealtimeService extends GetxService {
     required int offenseId,
   }) async {
     final respMap = await apiClient.sendWsMessage({
-      'service': 'OffenseInformationService',
+      'service': 'OffenseRecordService',
       'action': 'getOffenseByOffenseId',
       'args': [offenseId],
     });
@@ -63,7 +63,7 @@ class OffenseRealtimeService extends GetxService {
 
   Future<List<OffenseInformation>> eventbusOffensesGet() async {
     final respMap = await apiClient.sendWsMessage({
-      'service': 'OffenseInformationService',
+      'service': 'OffenseRecordService',
       'action': 'getOffensesInformation',
       'args': [],
     });
@@ -77,7 +77,7 @@ class OffenseRealtimeService extends GetxService {
     required String idempotencyKey,
   }) async {
     final respMap = await apiClient.sendWsMessage({
-      'service': 'OffenseInformationService',
+      'service': 'OffenseRecordService',
       'action': 'checkAndInsertIdempotency',
       'args': [idempotencyKey, offenseInformation.toJson(), 'update'],
     });
@@ -99,7 +99,7 @@ class OffenseRealtimeService extends GetxService {
     required int offenseId,
   }) async {
     final respMap = await apiClient.sendWsMessage({
-      'service': 'OffenseInformationService',
+      'service': 'OffenseRecordService',
       'action': 'deleteOffense',
       'args': [offenseId],
     });
@@ -115,7 +115,7 @@ class OffenseRealtimeService extends GetxService {
     String endTime = '2100-01-01',
   }) async {
     final respMap = await apiClient.sendWsMessage({
-      'service': 'OffenseInformationService',
+      'service': 'OffenseRecordService',
       'action': 'getOffensesByTimeRange',
       'args': [startTime, endTime],
     });

@@ -190,7 +190,7 @@ class AuthControllerApi with BaseApiClient {
   Future<Object?> eventbusAuthLoginPost(
       {required LoginRequest loginRequest}) async {
     final msg = <String, dynamic>{
-      "service": "Auth",
+      "service": "AuthWsService",
       "action": "login",
       "args": [
         {"username": loginRequest.username, "password": loginRequest.password}
@@ -212,8 +212,8 @@ class AuthControllerApi with BaseApiClient {
   Future<Object?> eventbusAuthRegisterPost(
       {required RegisterRequest registerRequest}) async {
     final msg = <String, dynamic>{
-      "service": "Auth",
-      "action": "register",
+      "service": "AuthWsService",
+      "action": "registerUser",
       "args": [
         {
           "username": registerRequest.username,
@@ -238,7 +238,7 @@ class AuthControllerApi with BaseApiClient {
   /// è·åææç¨æ·ï¼WebSocketï¼?
   Future<Object?> eventbusAuthUsersGet() async {
     final msg = <String, dynamic>{
-      "service": "Auth",
+      "service": "AuthWsService",
       "action": "getAllUsers",
       "args": []
     };

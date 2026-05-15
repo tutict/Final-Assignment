@@ -10,7 +10,12 @@ class AppConfig {
   static const apiBaseUrlOverride =
       String.fromEnvironment('API_BASE_URL', defaultValue: '');
 
+  static const wsBaseUrlOverride =
+      String.fromEnvironment('WS_BASE_URL', defaultValue: '');
+
   static const apiPort = int.fromEnvironment('API_PORT', defaultValue: 8080);
+
+  static const wsPort = int.fromEnvironment('WS_PORT', defaultValue: 8081);
 
   static const apiPortOffset =
       int.fromEnvironment('API_PORT_OFFSET', defaultValue: 0);
@@ -49,10 +54,24 @@ class AppConfig {
   }
 
   static String get wsBaseUrl {
-    if (apiBaseUrl.startsWith('https')) {
-      return apiBaseUrl.replaceFirst('https', 'wss');
+    if (wsBaseUrlOverride.isNotEmpty) {
+      return _withoutTrailingSlash(wsBaseUrlOverride);
     }
-    return apiBaseUrl.replaceFirst('http', 'ws');
+
+    if (isProd) {
+      final prodUrl = _withoutTrailingSlash(prodApiBaseUrl);
+      return prodUrl.startsWith('https')
+          ? prodUrl.replaceFirst('https', 'wss')
+          : prodUrl.replaceFirst('http', 'ws');
+    }
+
+    if (kIsWeb) {
+      final host = Uri.base.host.isEmpty ? 'localhost' : Uri.base.host;
+      final scheme = Uri.base.scheme == 'https' ? 'wss' : 'ws';
+      return '$scheme://$host:$wsPort';
+    }
+
+    return 'ws://localhost:$wsPort';
   }
 
   static String _withoutTrailingSlash(String value) {

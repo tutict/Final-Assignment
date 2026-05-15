@@ -358,9 +358,9 @@ class FineInformationControllerApi with BaseApiClient {
     required String idempotencyKey,
   }) async {
     final msg = {
-      "service": "FineInformationService",
-      "action": "createFine",
-      "args": [fineInformation.toJson(), idempotencyKey]
+      "service": "FineRecordService",
+      "action": "checkAndInsertIdempotency",
+      "args": [idempotencyKey, fineInformation.toJson(), "create"]
     };
     final respMap = await apiClient.sendWsMessage(msg);
     if (respMap.containsKey("error")) {
@@ -373,7 +373,7 @@ class FineInformationControllerApi with BaseApiClient {
     required int fineId,
   }) async {
     final msg = {
-      "service": "FineInformationService",
+      "service": "FineRecordService",
       "action": "getFineById",
       "args": [fineId]
     };
@@ -391,7 +391,7 @@ class FineInformationControllerApi with BaseApiClient {
   /// GET /api/fines (WebSocket)
   Future<List<FineInformation>> eventbusFinesGet() async {
     final msg = {
-      "service": "FineInformationService",
+      "service": "FineRecordService",
       "action": "getAllFines",
       "args": []
     };
@@ -414,9 +414,9 @@ class FineInformationControllerApi with BaseApiClient {
     required String idempotencyKey,
   }) async {
     final msg = {
-      "service": "FineInformationService",
-      "action": "updateFine",
-      "args": [fineId, fineInformation.toJson(), idempotencyKey]
+      "service": "FineRecordService",
+      "action": "checkAndInsertIdempotency",
+      "args": [idempotencyKey, fineInformation.toJson(), "update"]
     };
     final respMap = await apiClient.sendWsMessage(msg);
     if (respMap.containsKey("error")) {
@@ -434,7 +434,7 @@ class FineInformationControllerApi with BaseApiClient {
     required int fineId,
   }) async {
     final msg = {
-      "service": "FineInformationService",
+      "service": "FineRecordService",
       "action": "deleteFine",
       "args": [fineId]
     };
@@ -457,7 +457,7 @@ class FineInformationControllerApi with BaseApiClient {
       throw ApiException(400, "Missing required param: payee");
     }
     final msg = {
-      "service": "FineInformationService",
+      "service": "FineRecordService",
       "action": "getFinesByPayee",
       "args": [payee]
     };
@@ -481,7 +481,7 @@ class FineInformationControllerApi with BaseApiClient {
       throw ApiException(400, "Missing required param: receiptNumber");
     }
     final msg = {
-      "service": "FineInformationService",
+      "service": "FineRecordService",
       "action": "getFineByReceiptNumber",
       "args": [receiptNumber]
     };
@@ -502,7 +502,7 @@ class FineInformationControllerApi with BaseApiClient {
     String endTime = '2100-01-01',
   }) async {
     final msg = {
-      "service": "FineInformationService",
+      "service": "FineRecordService",
       "action": "getFinesByTimeRange",
       "args": [startTime, endTime]
     };

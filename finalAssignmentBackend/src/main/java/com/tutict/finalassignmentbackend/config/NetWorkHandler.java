@@ -22,6 +22,7 @@ import org.springframework.context.annotation.Lazy;
 import org.springframework.stereotype.Component;
 
 import java.lang.reflect.Method;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -161,9 +162,11 @@ public class NetWorkHandler extends AbstractVerticle {
         ws.frameHandler(frame -> {
             if (frame.isText()) {
                 String message = frame.textData();
+                String requestId = null;
                 try {
                     JsonNode root = objectMapper.readTree(message);
 
+                    requestId = root.path("requestId").asText(null);
                     String service = root.path("service").asText(null);
                     String action = root.path("action").asText(null);
                     String idempotencyKey = root.path("idempotencyKey").asText(null);
@@ -171,9 +174,7 @@ public class NetWorkHandler extends AbstractVerticle {
                     JsonNode argsArray = root.path("args");
                     if (argsArray.isMissingNode() || !argsArray.isArray()) {
                         log.warn("Invalid or missing 'args' array");
-                        ws.writeTextMessage("{\"error\":\"Missing or invalid 'args' array\"}")
-                                .onSuccess(result -> log.info("WebSocket write success: {}", result))
-                                .onFailure(failure -> log.error("WebSocket write failure: {}", failure.getMessage(), failure));
+                        writeWsError(ws, requestId, "Missing or invalid 'args' array");
                         return;
                     }
 
@@ -182,9 +183,7 @@ public class NetWorkHandler extends AbstractVerticle {
 
                     WsActionRegistry.HandlerMethod handler = wsActionRegistry.getHandler(service, action);
                     if (handler == null) {
-                        ws.writeTextMessage("{\"error\":\"No such WsAction for " + service + "#" + action + "\"}")
-                                .onSuccess(result -> log.info("WebSocket write success: {}", result))
-                                .onFailure(failure -> log.error("WebSocket write failure: {}", failure.getMessage(), failure));
+                        writeWsError(ws, requestId, "No such WsAction for " + service + "#" + action);
                         return;
                     }
 
@@ -194,10 +193,8 @@ public class NetWorkHandler extends AbstractVerticle {
                     int paramCount = paramTypes.length;
 
                     if (argsArray.size() != paramCount) {
-                        ws.writeTextMessage("{\"error\":\"Param mismatch, method expects "
-                                        + paramCount + " but got " + argsArray.size() + "\"}")
-                                .onSuccess(result -> log.info("WebSocket write success: {}", result))
-                                .onFailure(failure -> log.error("WebSocket write failure: {}", failure.getMessage(), failure));
+                        writeWsError(ws, requestId, "Param mismatch, method expects "
+                                + paramCount + " but got " + argsArray.size());
                         return;
                     }
 
@@ -211,33 +208,14 @@ public class NetWorkHandler extends AbstractVerticle {
                     Object result = method.invoke(bean, invokeArgs);
 
                     if (method.getReturnType() != void.class && result != null) {
-                        try {
-                            String retJson = objectMapper.writeValueAsString(result);
-                            ws.writeTextMessage("{\"result\":" + retJson + "}")
-                                    .onSuccess(response -> log.info("WebSocket write success: {}", response))
-                                    .onFailure(failure -> log.error("WebSocket write failure: {}", failure.getMessage(), failure));
-                        } catch (JsonProcessingException e) {
-                            log.error("Error serializing result to JSON", e);
-                            ws.writeTextMessage("{\"error\":\"Internal server error\"}")
-                                    .onSuccess(response -> log.info("Error response sent: {}", response))
-                                    .onFailure(failure -> log.error("Failed to send error response: {}", failure.getMessage(), failure));
-                        }
+                        writeWsResult(ws, requestId, result);
                     } else {
-                        ws.writeTextMessage("{\"status\":\"OK\"}")
-                                .onSuccess(response -> log.info("WebSocket write success: {}", response))
-                                .onFailure(failure -> log.error("WebSocket write failure: {}", failure.getMessage(), failure));
+                        writeWsStatus(ws, requestId, "OK");
                     }
 
                 } catch (Exception e) {
                     log.error("JSON parsing or reflection error", e);
-                    ws.close((short) 1000, "Invalid JSON or reflect error")
-                            .onComplete(ar -> {
-                                if (ar.succeeded()) {
-                                    log.info("WebSocket closed due to invalid JSON");
-                                } else {
-                                    log.error("Error closing WebSocket: {}", ar.cause().getMessage(), ar.cause());
-                                }
-                            });
+                    writeWsError(ws, requestId, "Invalid JSON or reflect error");
                 }
             } else {
                 log.warn("Unsupported WebSocket frame type");
@@ -245,6 +223,45 @@ public class NetWorkHandler extends AbstractVerticle {
         });
 
         ws.closeHandler(v -> log.info("WebSocket connection closed, path={} {}", ws.path(), v));
+    }
+
+    private void writeWsResult(ServerWebSocket ws, String requestId, Object result) {
+        Map<String, Object> response = baseWsResponse(requestId);
+        response.put("result", result);
+        writeWsResponse(ws, response);
+    }
+
+    private void writeWsStatus(ServerWebSocket ws, String requestId, String status) {
+        Map<String, Object> response = baseWsResponse(requestId);
+        response.put("status", status);
+        writeWsResponse(ws, response);
+    }
+
+    private void writeWsError(ServerWebSocket ws, String requestId, String error) {
+        Map<String, Object> response = baseWsResponse(requestId);
+        response.put("error", error);
+        writeWsResponse(ws, response);
+    }
+
+    private Map<String, Object> baseWsResponse(String requestId) {
+        Map<String, Object> response = new LinkedHashMap<>();
+        if (requestId != null && !requestId.isBlank()) {
+            response.put("requestId", requestId);
+        }
+        return response;
+    }
+
+    private void writeWsResponse(ServerWebSocket ws, Map<String, Object> response) {
+        try {
+            ws.writeTextMessage(objectMapper.writeValueAsString(response))
+                    .onSuccess(result -> log.info("WebSocket write success: {}", result))
+                    .onFailure(failure -> log.error("WebSocket write failure: {}", failure.getMessage(), failure));
+        } catch (JsonProcessingException e) {
+            log.error("Error serializing WebSocket response", e);
+            ws.writeTextMessage("{\"error\":\"Internal server error\"}")
+                    .onSuccess(result -> log.info("Error response sent: {}", result))
+                    .onFailure(failure -> log.error("Failed to send error response: {}", failure.getMessage(), failure));
+        }
     }
 
     private Object convertJsonToParam(JsonNode node, Class<?> targetType) throws JsonProcessingException {
