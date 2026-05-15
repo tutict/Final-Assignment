@@ -21,6 +21,8 @@ class ChatMessage {
   final bool isSystem;
 }
 
+enum ChatLoadingState { idle, thinking, searching, generating }
+
 class ChatController extends GetxController {
   static ChatController get to => Get.find();
 
@@ -34,9 +36,21 @@ class ChatController extends GetxController {
   final RxInt wordStreamDelayMs = 150.obs;
   final RxBool webSearchEnabled = false.obs;
   final RxBool isStreaming = false.obs;
+  final Rx<ChatLoadingState> loadingState = ChatLoadingState.idle.obs;
 
   CancelToken? _activeCancelToken;
   StreamSubscription<ChatStreamChunk>? _activeStreamSubscription;
+  String? _sessionKey;
+  bool _contextLimitHintShown = false;
+
+  String get loadingText {
+    return switch (loadingState.value) {
+      ChatLoadingState.idle => '',
+      ChatLoadingState.thinking => '思考中...',
+      ChatLoadingState.searching => '正在搜索相关信息...',
+      ChatLoadingState.generating => '生成中...',
+    };
+  }
 
   void setUserRole(String role) {
     userRole.value = role.toUpperCase();
@@ -52,9 +66,19 @@ class ChatController extends GetxController {
     final text = textController.text.trim();
     if (text.isEmpty || isStreaming.value) return;
 
+    final conversationWindow = _buildConversationWindow();
+    if (messages.length >= 20) {
+      _showContextLimitHint();
+    }
+
     messages.add(ChatMessage(formalContent: text, isUser: true));
-    messages.add(const ChatMessage(
-      formalContent: 'THINKING: Thinking...',
+    loadingState.value = webSearchEnabled.value
+        ? ChatLoadingState.searching
+        : ChatLoadingState.thinking;
+    messages.add(ChatMessage(
+      formalContent: webSearchEnabled.value
+          ? 'THINKING: Searching...'
+          : 'THINKING: Thinking...',
       isUser: false,
     ));
     textController.clear();
@@ -76,6 +100,10 @@ class ChatController extends GetxController {
     Future<void> processChunk(ChatStreamChunk streamChunk) async {
       if (cancelToken.isCanceled) return;
 
+      if (_sessionKey == null && streamChunk.sessionKey != null) {
+        _sessionKey = streamChunk.sessionKey;
+      }
+
       final chunk = streamChunk.text;
       if (streamChunk.isFallback) {
         receivedFallback = true;
@@ -90,6 +118,8 @@ class ChatController extends GetxController {
         );
         return;
       }
+
+      loadingState.value = ChatLoadingState.generating;
 
       if (processedChunks.contains(chunk)) {
         AppLogger.debug('Skipping duplicate chunk: $chunk');
@@ -143,6 +173,10 @@ class ChatController extends GetxController {
           .streamChatChunks(
         text,
         webSearchEnabled.value,
+        sessionKey: _sessionKey,
+        metadata: {
+          'conversationWindow': conversationWindow,
+        },
         cancelToken: cancelToken,
       )
           .listen(
@@ -233,6 +267,7 @@ class ChatController extends GetxController {
       _activeStreamSubscription = null;
       _activeCancelToken = null;
       isStreaming.value = false;
+      loadingState.value = ChatLoadingState.idle;
     }
   }
 
@@ -291,7 +326,41 @@ class ChatController extends GetxController {
     _activeStreamSubscription = null;
     _activeCancelToken = null;
     isStreaming.value = false;
+    loadingState.value = ChatLoadingState.idle;
     AppLogger.debug('SSE stream cancelled on page close');
+  }
+
+  List<Map<String, String>> _buildConversationWindow() {
+    const maxHistory = 10;
+    final visibleMessages = messages.where((message) {
+      if (message.isSystem) return false;
+      if (message.formalContent.startsWith('THINKING:')) return false;
+      return _messageContentForHistory(message).isNotEmpty;
+    }).toList();
+    final recent = visibleMessages.length > maxHistory
+        ? visibleMessages.sublist(visibleMessages.length - maxHistory)
+        : visibleMessages;
+
+    return recent
+        .map((message) => {
+              'role': message.isUser ? 'user' : 'assistant',
+              'content': _messageContentForHistory(message),
+            })
+        .toList();
+  }
+
+  String _messageContentForHistory(ChatMessage message) {
+    final content = message.formalContent.trim();
+    if (!message.isUser && content.startsWith('DeepSeek:')) {
+      return content.substring('DeepSeek:'.length).trim();
+    }
+    return content;
+  }
+
+  void _showContextLimitHint() {
+    if (_contextLimitHintShown) return;
+    _contextLimitHintShown = true;
+    Get.snackbar('提示', '对话历史较长，较早的消息可能不会被考虑');
   }
 
   void _removeThinkingMessage() {
@@ -334,6 +403,13 @@ class ChatController extends GetxController {
     messages.clear();
     searchResults.clear();
     textController.clear();
+    _sessionKey = null;
+    _contextLimitHintShown = false;
+  }
+
+  void startNewConversation() {
+    _cancelActiveStream();
+    clearMessages();
   }
 
   void _showFriendlyError(String title, {String? details}) {

@@ -14,11 +14,15 @@ final ApiClient defaultApiClient = ApiClient();
 class ChatStreamChunk {
   const ChatStreamChunk({
     required this.text,
+    this.sessionKey,
+    this.messageId,
     this.isFallback = false,
     this.fallbackReason,
   });
 
   final String text;
+  final String? sessionKey;
+  final String? messageId;
   final bool isFallback;
   final String? fallbackReason;
 }
@@ -30,22 +34,6 @@ class ChatControllerApi with BaseApiClient {
   @override
   final ApiClient apiClient;
 
-  Future<http.Response> _sendChatMessageWithHttpInfo(String message) async {
-    final queryParams = [QueryParam('message', message)];
-    final headerParams = await getHeaders();
-
-    return apiClient.invokeAPI(
-      '/api/ai/chat',
-      'GET',
-      queryParams,
-      '',
-      headerParams,
-      {},
-      null,
-      [],
-    );
-  }
-
   /// 发送单轮 AI 聊天消息并返回清洗后的文本回复。
   ///
   /// [message] 用户输入的自然语言消息。
@@ -55,20 +43,16 @@ class ChatControllerApi with BaseApiClient {
   /// 抛出 [Exception]：当 HTTP 响应非 2xx、响应结构无效或解析失败时。
   ///
   /// 对应接口：GET /api/ai/chat
+  @Deprecated('Use streamChat or streamChatChunks instead.')
   Future<String?> sendChatMessage(String message) async {
     try {
-      final response = await _sendChatMessageWithHttpInfo(message);
-      final decodedBody = utf8.decode(response.bodyBytes, allowMalformed: true);
-      if (decodedBody.isEmpty) {
-        return 'AI returned an empty response.';
+      final buffer = StringBuffer();
+      await for (final chunk in streamChat(message, false)) {
+        buffer.write(chunk);
       }
-
-      final jsonResponse = jsonDecode(decodedBody);
-      if (jsonResponse is Map<String, dynamic> &&
-          jsonResponse['message'] != null) {
-        return removeMarkdown(jsonResponse['message'].toString());
-      }
-      return 'No valid response from AI.';
+      return buffer.isEmpty
+          ? 'AI returned an empty response.'
+          : buffer.toString();
     } catch (error) {
       developer.log('Error in sendChatMessage: $error',
           name: 'ChatControllerApi');
@@ -169,13 +153,20 @@ class ChatControllerApi with BaseApiClient {
   Stream<ChatStreamChunk> streamChatChunks(
     String message,
     bool webSearch, {
+    String? sessionKey,
+    Map<String, Object?> metadata = const {},
     CancelToken? cancelToken,
   }) async* {
     final typedApi = AiChatApi(apiClient: apiClient);
+    final requestMetadata = <String, Object?>{
+      ...metadata,
+      'webSearchRequested': webSearch,
+    };
 
     await for (final event in typedApi.streamChat(
       message: message,
-      metadata: {'webSearchRequested': webSearch},
+      sessionKey: sessionKey,
+      metadata: requestMetadata,
       cancelToken: cancelToken,
     )) {
       switch (event.type) {
@@ -184,6 +175,8 @@ class ChatControllerApi with BaseApiClient {
           if (token.isNotEmpty) {
             yield ChatStreamChunk(
               text: token,
+              sessionKey: event.sessionKey,
+              messageId: event.messageId,
               isFallback: event.isFallback,
               fallbackReason: event.fallbackReason,
             );

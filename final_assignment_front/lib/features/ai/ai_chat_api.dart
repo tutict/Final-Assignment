@@ -57,7 +57,6 @@ class AiChatApi {
     CancelToken? cancelToken,
   }) {
     late StreamController<AiStreamEvent> controller;
-    http.Client? client;
     StreamSubscription<AiStreamEvent>? subscription;
     Timer? firstTokenTimer;
     Timer? overallTimer;
@@ -70,7 +69,6 @@ class AiChatApi {
       firstTokenTimer?.cancel();
       overallTimer?.cancel();
       await subscription?.cancel();
-      client?.close();
     }
 
     Future<void> closeController() async {
@@ -92,102 +90,34 @@ class AiChatApi {
       }
     }
 
-    Future<void> start({bool retriedAfterRefresh = false}) async {
+    Future<void> start() async {
       if (cancelToken?.isCanceled ?? false) {
         await closeController();
         return;
       }
 
-      client = _clientFactory();
-      cancelToken?._onCancel(() {
-        closeController();
-      });
-
-      try {
-        final request = http.Request('POST', _streamUri())
-          ..headers.addAll(await _headers())
-          ..body = jsonEncode({
-            'message': message,
-            if (sessionKey != null && sessionKey.isNotEmpty)
-              'sessionKey': sessionKey,
-            if (metadata.isNotEmpty) 'metadata': metadata,
-          });
-
-        final response = await client!.send(request);
-        if (cancelToken?.isCanceled ?? false) {
-          await closeController();
-          return;
-        }
-
-        if (response.statusCode == 401) {
-          client?.close();
-          client = null;
-          if (!retriedAfterRefresh && await _refreshJwtToken()) {
-            await start(retriedAfterRefresh: true);
-            return;
+      subscription = _streamWithAuthRetry(
+        message: message,
+        sessionKey: sessionKey,
+        metadata: metadata,
+        cancelToken: cancelToken,
+      ).listen(
+        (event) {
+          if (event.type == AiStreamEventType.token) {
+            completeFirstToken();
           }
-          await NavigationHelper.offAllNamed(Routes.login);
-          addStreamError(const AppException(
-            type: AppErrorType.unauthorized,
-            message: 'Login expired. Please login again.',
-            statusCode: 401,
-          ));
-          await closeController();
-          return;
-        }
-
-        if (response.statusCode == 503) {
-          final message = await _errorMessageFromResponse(
-            response,
-            fallback:
-                'AI service is temporarily unavailable. Please try again later.',
-          );
-          addStreamError(AppException(
-            type: AppErrorType.serviceUnavailable,
-            message: message,
-            statusCode: 503,
-          ));
-          await closeController();
-          return;
-        }
-
-        if (response.statusCode >= 400) {
-          final message = await _errorMessageFromResponse(
-            response,
-            fallback: 'AI stream request failed: ${response.statusCode}',
-          );
-          addStreamError(AppException.fromStatusCode(
-            response.statusCode,
-            message: message,
-          ));
-          await closeController();
-          return;
-        }
-
-        subscription = response.stream
-            .transform(utf8.decoder)
-            .transform(const SseStreamingParser())
-            .listen(
-          (event) {
-            if (event.type == AiStreamEventType.token) {
-              completeFirstToken();
-            }
+          if (!controller.isClosed) {
             controller.add(event);
-          },
-          onError: (Object error) {
-            addStreamError(error);
-            closeController();
-          },
-          onDone: () {
-            closeController();
-          },
-        );
-      } catch (error) {
-        if (!(cancelToken?.isCanceled ?? false) && !controller.isClosed) {
+          }
+        },
+        onError: (Object error) {
           addStreamError(error);
-        }
-        await closeController();
-      }
+          closeController();
+        },
+        onDone: () {
+          closeController();
+        },
+      );
     }
 
     controller = StreamController<AiStreamEvent>(
@@ -217,6 +147,86 @@ class AiChatApi {
     );
 
     return controller.stream;
+  }
+
+  Stream<AiStreamEvent> _streamWithAuthRetry({
+    required String message,
+    String? sessionKey,
+    Map<String, Object?> metadata = const {},
+    CancelToken? cancelToken,
+    bool isRetry = false,
+  }) async* {
+    if (cancelToken?.isCanceled ?? false) {
+      return;
+    }
+
+    final client = _clientFactory();
+    cancelToken?._onCancel(client.close);
+
+    try {
+      final request = http.Request('POST', _streamUri())
+        ..headers.addAll(await _headers())
+        ..body = jsonEncode({
+          'message': message,
+          if (sessionKey != null && sessionKey.isNotEmpty)
+            'sessionKey': sessionKey,
+          if (metadata.isNotEmpty) 'metadata': metadata,
+        });
+
+      final response = await client.send(request);
+      if (cancelToken?.isCanceled ?? false) {
+        return;
+      }
+
+      if (response.statusCode == 401) {
+        if (!isRetry && await _refreshJwtToken()) {
+          yield* _streamWithAuthRetry(
+            message: message,
+            sessionKey: sessionKey,
+            metadata: metadata,
+            cancelToken: cancelToken,
+            isRetry: true,
+          );
+          return;
+        }
+        await NavigationHelper.offAllNamed(Routes.login);
+        throw const AppException(
+          type: AppErrorType.unauthorized,
+          message: 'Login expired. Please login again.',
+          statusCode: 401,
+        );
+      }
+
+      if (response.statusCode == 503) {
+        final message = await _errorMessageFromResponse(
+          response,
+          fallback:
+              'AI service is temporarily unavailable. Please try again later.',
+        );
+        throw AppException(
+          type: AppErrorType.serviceUnavailable,
+          message: message,
+          statusCode: 503,
+        );
+      }
+
+      if (response.statusCode >= 400) {
+        final message = await _errorMessageFromResponse(
+          response,
+          fallback: 'AI stream request failed: ${response.statusCode}',
+        );
+        throw AppException.fromStatusCode(
+          response.statusCode,
+          message: message,
+        );
+      }
+
+      yield* response.stream
+          .transform(utf8.decoder)
+          .transform(const SseStreamingParser());
+    } finally {
+      client.close();
+    }
   }
 
   Future<bool> _refreshJwtToken() async {

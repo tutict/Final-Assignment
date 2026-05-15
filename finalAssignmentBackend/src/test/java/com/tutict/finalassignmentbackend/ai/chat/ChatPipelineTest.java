@@ -121,6 +121,41 @@ class ChatPipelineTest {
     }
 
     @Test
+    void acceptsFlutterConversationWindowMaps() {
+        CapturingProvider provider = new CapturingProvider("primary", tokenStream("answer"));
+        ChatPipeline pipeline = pipeline(provider, null, ragProperties(false));
+        Map<String, Object> metadata = Map.of(
+                "conversationWindow",
+                List.of(
+                        Map.of("role", "user", "content", "prior question"),
+                        Map.of("role", "assistant", "content", "prior answer")
+                )
+        );
+
+        pipeline.stream(new AiChatStreamRequest("next question", "session-1", metadata))
+                .collectList()
+                .block(Duration.ofSeconds(1));
+
+        assertThat(provider.prompts().getFirst())
+                .contains("[1] user: prior question")
+                .contains("[2] assistant: prior answer");
+    }
+
+    @Test
+    void readsWebSearchFlagFromFlutterMetadata() {
+        assertThat(new AiChatStreamRequest(
+                "hello",
+                "session-1",
+                Map.of("webSearchRequested", true)
+        ).isWebSearchEnabled()).isTrue();
+        assertThat(new AiChatStreamRequest(
+                "hello",
+                "session-1",
+                Map.of("webSearchRequested", "true")
+        ).isWebSearchEnabled()).isTrue();
+    }
+
+    @Test
     void passesProviderStreamThroughExistingChatEvents() {
         CapturingProvider provider = new CapturingProvider("primary", Flux.just(
                 new AiToken("he", false, Map.of("traceId", "t1")),

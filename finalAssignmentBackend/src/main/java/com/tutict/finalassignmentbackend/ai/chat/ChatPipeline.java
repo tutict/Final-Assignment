@@ -7,6 +7,7 @@ import com.tutict.finalassignmentbackend.ai.rag.config.RagRetrievalProperties;
 import com.tutict.finalassignmentbackend.ai.rag.dto.RetrievalResult;
 import com.tutict.finalassignmentbackend.ai.rag.query.RagQueryRequest;
 import com.tutict.finalassignmentbackend.ai.rag.query.RagQueryService;
+import com.tutict.finalassignmentbackend.service.AIChatSearchService;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.stereotype.Service;
 import reactor.core.publisher.Flux;
@@ -23,18 +24,21 @@ public class ChatPipeline {
     private final PromptAssembler promptAssembler;
     private final RagQueryService ragQueryService;
     private final RagRetrievalProperties ragRetrievalProperties;
+    private final AIChatSearchService aiChatSearchService;
 
     public ChatPipeline(
             ChatStreamService chatStreamService,
             PromptAssembler promptAssembler,
             ObjectProvider<RagQueryService> ragQueryService,
-            ObjectProvider<RagRetrievalProperties> ragRetrievalProperties
+            ObjectProvider<RagRetrievalProperties> ragRetrievalProperties,
+            ObjectProvider<AIChatSearchService> aiChatSearchService
     ) {
         this(
                 chatStreamService,
                 promptAssembler,
                 ragQueryService.getIfAvailable(),
-                ragRetrievalProperties.getIfAvailable()
+                ragRetrievalProperties.getIfAvailable(),
+                aiChatSearchService.getIfAvailable()
         );
     }
 
@@ -43,7 +47,8 @@ public class ChatPipeline {
                 chatStreamService,
                 new PromptAssembler(new PromptTemplateService(), new ContextBuilder(1200)),
                 null,
-                disabledRagProperties()
+                disabledRagProperties(),
+                null
         );
     }
 
@@ -53,16 +58,29 @@ public class ChatPipeline {
             RagQueryService ragQueryService,
             RagRetrievalProperties ragRetrievalProperties
     ) {
+        this(chatStreamService, promptAssembler, ragQueryService, ragRetrievalProperties, null);
+    }
+
+    ChatPipeline(
+            ChatStreamService chatStreamService,
+            PromptAssembler promptAssembler,
+            RagQueryService ragQueryService,
+            RagRetrievalProperties ragRetrievalProperties,
+            AIChatSearchService aiChatSearchService
+    ) {
         this.chatStreamService = chatStreamService;
         this.promptAssembler = promptAssembler;
         this.ragQueryService = ragQueryService;
         this.ragRetrievalProperties = ragRetrievalProperties;
+        this.aiChatSearchService = aiChatSearchService;
     }
 
     public Flux<ChatStreamEvent> stream(AiChatStreamRequest request) {
         String userMessage = request.normalizedMessage();
         Map<String, Object> metadata = request.metadata();
-        List<RetrievalResult> retrievalResults = retrieve(userMessage, metadata);
+        List<RetrievalResult> retrievalResults = new ArrayList<>();
+        retrievalResults.addAll(retrieve(userMessage, metadata));
+        retrievalResults.addAll(webSearch(userMessage, request));
         String prompt = promptAssembler.assemble(
                 userMessage,
                 conversationWindow(metadata),
@@ -73,6 +91,61 @@ public class ChatPipeline {
                 request.sessionKey(),
                 metadata
         ));
+    }
+
+    private List<RetrievalResult> webSearch(String userMessage, AiChatStreamRequest request) {
+        if (!request.isWebSearchEnabled() || aiChatSearchService == null) {
+            return List.of();
+        }
+        try {
+            List<Map<String, String>> results = aiChatSearchService.search(userMessage);
+            List<RetrievalResult> retrievalResults = new ArrayList<>();
+            int index = 1;
+            for (Map<String, String> result : results) {
+                String title = stringValue(result, "title");
+                String content = firstNonBlank(
+                        stringValue(result, "abstract"),
+                        stringValue(result, "content"),
+                        stringValue(result, "snippet")
+                );
+                if (content == null || content.isBlank()) {
+                    continue;
+                }
+                retrievalResults.add(new RetrievalResult(
+                        "web-search-" + index,
+                        "web-search",
+                        content,
+                        firstNonBlank(title, "Web search result " + index),
+                        "WEB_SEARCH",
+                        "web_search",
+                        String.valueOf(index),
+                        "content",
+                        stringValue(result, "url"),
+                        0.0,
+                        0.0,
+                        Math.max(0.1, 1.0 - (index * 0.01)),
+                        Map.of("source", firstNonBlank(stringValue(result, "url"), "web-search"))
+                ));
+                index++;
+            }
+            return List.copyOf(retrievalResults);
+        } catch (RuntimeException ex) {
+            return List.of(new RetrievalResult(
+                    "web-search-error",
+                    "web-search",
+                    "Web search failed: " + ex.getMessage(),
+                    "Web search unavailable",
+                    "WEB_SEARCH",
+                    "web_search",
+                    "error",
+                    "content",
+                    null,
+                    0.0,
+                    0.0,
+                    0.0,
+                    Map.of("source", "web-search")
+            ));
+        }
     }
 
     private List<RetrievalResult> retrieve(String userMessage, Map<String, Object> metadata) {
@@ -110,8 +183,9 @@ public class ChatPipeline {
         if (value instanceof Collection<?> collection) {
             List<String> turns = new ArrayList<>();
             for (Object turn : collection) {
-                if (turn != null && !turn.toString().isBlank()) {
-                    turns.add(turn.toString());
+                String normalized = conversationTurn(turn);
+                if (!normalized.isBlank()) {
+                    turns.add(normalized);
                 }
             }
             return List.copyOf(turns);
@@ -120,6 +194,23 @@ public class ChatPipeline {
             return List.of(value.toString());
         }
         return List.of();
+    }
+
+    private static String conversationTurn(Object turn) {
+        if (turn == null) {
+            return "";
+        }
+        if (turn instanceof Map<?, ?> map) {
+            Object role = map.get("role");
+            Object content = map.get("content");
+            if (content != null && !content.toString().isBlank()) {
+                String roleText = role == null || role.toString().isBlank()
+                        ? "message"
+                        : role.toString().trim();
+                return roleText + ": " + content.toString().trim();
+            }
+        }
+        return turn.toString().trim();
     }
 
     private static Integer intValue(Map<String, Object> metadata, String... keys) {
@@ -157,6 +248,25 @@ public class ChatPipeline {
     private static String stringValue(Map<String, Object> metadata, String... keys) {
         Object value = value(metadata, keys);
         return value == null ? null : value.toString();
+    }
+
+    private static String stringValue(Map<String, String> metadata, String key) {
+        if (metadata == null) {
+            return null;
+        }
+        return metadata.get(key);
+    }
+
+    private static String firstNonBlank(String... values) {
+        if (values == null) {
+            return null;
+        }
+        for (String value : values) {
+            if (value != null && !value.isBlank()) {
+                return value.trim();
+            }
+        }
+        return null;
     }
 
     private static Object value(Map<String, Object> metadata, String... keys) {
