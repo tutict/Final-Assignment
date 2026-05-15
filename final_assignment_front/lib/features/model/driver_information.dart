@@ -1,3 +1,5 @@
+import 'package:final_assignment_front/utils/date_formatter.dart';
+
 class DriverInformation {
   final int? driverId;
   final String? name;
@@ -147,16 +149,22 @@ class DriverInformation {
       'name': name,
       'idCardNumber': idCardNumber,
       'gender': gender,
-      'birthdate': birthdate?.toIso8601String(),
+      'birthdate':
+          birthdate != null ? DateFormatter.formatLocalDate(birthdate!) : null,
       'contactNumber': contactNumber,
       'email': email,
       'address': address,
       'driverLicenseNumber': driverLicenseNumber,
       'licenseType': licenseType ?? allowedVehicleType,
       'allowedVehicleType': allowedVehicleType ?? licenseType,
-      'firstLicenseDate': firstLicenseDate?.toIso8601String(),
-      'issueDate': issueDate?.toIso8601String(),
-      'expiryDate': expiryDate?.toIso8601String(),
+      'firstLicenseDate': firstLicenseDate != null
+          ? DateFormatter.formatLocalDate(firstLicenseDate!)
+          : null,
+      'issueDate':
+          issueDate != null ? DateFormatter.formatLocalDate(issueDate!) : null,
+      'expiryDate': expiryDate != null
+          ? DateFormatter.formatLocalDate(expiryDate!)
+          : null,
       'issuingAuthority': issuingAuthority,
       'currentPoints': currentPoints,
       'totalDeductedPoints': totalDeductedPoints,

@@ -32,14 +32,12 @@ class FineInformationControllerApi with BaseApiClient {
   }
 
   /// è·åå¸¦æ JWT çè¯·æ±å¤´
-  Future<Map<String, String>> _getHeaders() async {
-    return getHeaders();
+  Future<Map<String, String>> _getHeaders({String? idempotencyKey}) async {
+    return getHeaders(idempotencyKey: idempotencyKey);
   }
 
   /// æ·»å  idempotencyKey ä½ä¸ºæ¥è¯¢åæ°
-  List<QueryParam> _addIdempotencyKey(String idempotencyKey) {
-    return idempotencyParams(idempotencyKey);
-  }
+  List<QueryParam> _addIdempotencyKey(String idempotencyKey) => const [];
 
   // HTTP Methods
 
@@ -50,7 +48,7 @@ class FineInformationControllerApi with BaseApiClient {
     required String idempotencyKey,
   }) async {
     const path = '/api/fines';
-    final headerParams = await _getHeaders();
+    final headerParams = await _getHeaders(idempotencyKey: idempotencyKey);
     await apiClient.invokeAPI(
       path,
       'POST',
@@ -127,7 +125,7 @@ class FineInformationControllerApi with BaseApiClient {
     required String idempotencyKey,
   }) async {
     final path = '/api/fines/$fineId';
-    final headerParams = await _getHeaders();
+    final headerParams = await _getHeaders(idempotencyKey: idempotencyKey);
     final response = await apiClient.invokeAPI(
       path,
       'PUT',

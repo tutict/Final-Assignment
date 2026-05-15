@@ -68,9 +68,9 @@ class LoginLogControllerApi with BaseApiClient {
     final r = await _apiClient.invokeAPI(
       '/api/logs/login',
       'POST',
-      idempotencyParams(idempotencyKey),
+      const [],
       loginLog.toJson(),
-      {},
+      await getHeaders(idempotencyKey: idempotencyKey),
       {},
       'application/json',
       const ['bearerAuth'],
@@ -88,9 +88,9 @@ class LoginLogControllerApi with BaseApiClient {
     final r = await _apiClient.invokeAPI(
       '/api/logs/login/$logId',
       'PUT',
-      idempotencyParams(idempotencyKey),
+      const [],
       loginLog.toJson(),
-      {},
+      await getHeaders(idempotencyKey: idempotencyKey),
       {},
       'application/json',
       const ['bearerAuth'],

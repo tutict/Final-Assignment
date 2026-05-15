@@ -1,5 +1,4 @@
 import 'package:final_assignment_front/core/utils/app_logger.dart';
-import 'dart:convert';
 
 import 'package:final_assignment_front/features/model/backup_restore.dart';
 import 'package:final_assignment_front/utils/services/api_client.dart';
@@ -25,10 +24,6 @@ class BackupRestoreControllerApi with BaseApiClient {
         'Initialized BackupRestoreControllerApi with token: $jwtToken');
   }
 
-  String _decodeBodyBytes(http.Response response) {
-    return decodeBodyBytes(response);
-  }
-
   Future<Map<String, String>> _getHeaders({String? idempotencyKey}) async {
     return getHeaders(idempotencyKey: idempotencyKey);
   }
@@ -37,12 +32,9 @@ class BackupRestoreControllerApi with BaseApiClient {
     ensureSuccess(response);
   }
 
-  List<BackupRestore> _parseList(String body) {
-    if (body.isEmpty) return [];
-    final List<dynamic> jsonList = jsonDecode(body) as List<dynamic>;
-    return jsonList
-        .map((item) => BackupRestore.fromJson(item as Map<String, dynamic>))
-        .toList();
+  List<BackupRestore> _parseList(http.Response response) {
+    if (response.body.isEmpty) return [];
+    return parseListResponse(response, BackupRestore.fromJson);
   }
 
   /// POST /api/system/backup
@@ -61,8 +53,7 @@ class BackupRestoreControllerApi with BaseApiClient {
       ['bearerAuth'],
     );
     _ensureSuccess(response);
-    return BackupRestore.fromJson(
-        jsonDecode(_decodeBodyBytes(response)) as Map<String, dynamic>);
+    return parseResponse(response, BackupRestore.fromJson);
   }
 
   /// PUT /api/system/backup/{backupId}
@@ -82,8 +73,7 @@ class BackupRestoreControllerApi with BaseApiClient {
       ['bearerAuth'],
     );
     _ensureSuccess(response);
-    return BackupRestore.fromJson(
-        jsonDecode(_decodeBodyBytes(response)) as Map<String, dynamic>);
+    return parseResponse(response, BackupRestore.fromJson);
   }
 
   /// DELETE /api/system/backup/{backupId}
@@ -98,9 +88,7 @@ class BackupRestoreControllerApi with BaseApiClient {
       null,
       ['bearerAuth'],
     );
-    if (response.statusCode != 204 && response.statusCode != 200) {
-      _ensureSuccess(response);
-    }
+    _ensureSuccess(response);
   }
 
   /// GET /api/system/backup/{backupId}
@@ -123,8 +111,11 @@ class BackupRestoreControllerApi with BaseApiClient {
     if (response.body.isEmpty) {
       return null;
     }
-    return BackupRestore.fromJson(
-        jsonDecode(_decodeBodyBytes(response)) as Map<String, dynamic>);
+    return parseNullableResponse(
+      response,
+      BackupRestore.fromJson,
+      nullStatusCodes: const {},
+    );
   }
 
   /// GET /api/system/backup?status=...
@@ -148,7 +139,7 @@ class BackupRestoreControllerApi with BaseApiClient {
       return [];
     }
     _ensureSuccess(response);
-    return _parseList(_decodeBodyBytes(response));
+    return _parseList(response);
   }
 
   /// GET /api/system/backup/search/type
@@ -172,7 +163,7 @@ class BackupRestoreControllerApi with BaseApiClient {
       ['bearerAuth'],
     );
     _ensureSuccess(response);
-    return _parseList(_decodeBodyBytes(response));
+    return _parseList(response);
   }
 
   /// GET /api/system/backup/search/file-name
@@ -196,7 +187,7 @@ class BackupRestoreControllerApi with BaseApiClient {
       ['bearerAuth'],
     );
     _ensureSuccess(response);
-    return _parseList(_decodeBodyBytes(response));
+    return _parseList(response);
   }
 
   /// GET /api/system/backup/search/handler
@@ -220,7 +211,7 @@ class BackupRestoreControllerApi with BaseApiClient {
       ['bearerAuth'],
     );
     _ensureSuccess(response);
-    return _parseList(_decodeBodyBytes(response));
+    return _parseList(response);
   }
 
   /// GET /api/system/backup/search/restore-status
@@ -244,7 +235,7 @@ class BackupRestoreControllerApi with BaseApiClient {
       ['bearerAuth'],
     );
     _ensureSuccess(response);
-    return _parseList(_decodeBodyBytes(response));
+    return _parseList(response);
   }
 
   /// GET /api/system/backup/search/status
@@ -268,7 +259,7 @@ class BackupRestoreControllerApi with BaseApiClient {
       ['bearerAuth'],
     );
     _ensureSuccess(response);
-    return _parseList(_decodeBodyBytes(response));
+    return _parseList(response);
   }
 
   /// GET /api/system/backup/search/backup-time-range
@@ -294,7 +285,7 @@ class BackupRestoreControllerApi with BaseApiClient {
       ['bearerAuth'],
     );
     _ensureSuccess(response);
-    return _parseList(_decodeBodyBytes(response));
+    return _parseList(response);
   }
 
   /// GET /api/system/backup/search/restore-time-range
@@ -320,6 +311,6 @@ class BackupRestoreControllerApi with BaseApiClient {
       ['bearerAuth'],
     );
     _ensureSuccess(response);
-    return _parseList(_decodeBodyBytes(response));
+    return _parseList(response);
   }
 }

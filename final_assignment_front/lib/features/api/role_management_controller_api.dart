@@ -35,12 +35,9 @@ class RoleManagementControllerApi with BaseApiClient {
 
   /// è¾
 // å©æ¹æ³ï¼æ·»å æ¥è¯¢åæ°ï¼å¦åç§°æç´¢ï¼
-  List<QueryParam> _addQueryParams({String? name, String? idempotencyKey}) {
+  List<QueryParam> _addQueryParams({String? name}) {
     final queryParams = <QueryParam>[];
     if (name != null) queryParams.add(QueryParam('name', name));
-    if (idempotencyKey != null) {
-      queryParams.addAll(idempotencyParams(idempotencyKey));
-    }
     return queryParams;
   }
 
@@ -50,9 +47,9 @@ class RoleManagementControllerApi with BaseApiClient {
     final response = await apiClient.invokeAPI(
       '/api/roles',
       'POST',
-      _addQueryParams(idempotencyKey: idempotencyKey),
+      _addQueryParams(),
       role.toJson(),
-      {},
+      await getHeaders(idempotencyKey: idempotencyKey),
       {},
       'application/json',
       ['bearerAuth'],
@@ -145,9 +142,9 @@ class RoleManagementControllerApi with BaseApiClient {
     final response = await apiClient.invokeAPI(
       '/api/roles/$roleId',
       'PUT',
-      _addQueryParams(idempotencyKey: idempotencyKey),
+      _addQueryParams(),
       updatedRole.toJson(),
-      {},
+      await getHeaders(idempotencyKey: idempotencyKey),
       {},
       'application/json',
       ['bearerAuth'],

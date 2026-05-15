@@ -26,11 +26,11 @@ class DeductionInformationControllerApi with BaseApiClient {
 
   String _decode(http.Response r) => decodeBodyBytes(r);
 
-  Future<Map<String, String>> _headers() async {
-    return getHeaders();
+  Future<Map<String, String>> _headers({String? idempotencyKey}) async {
+    return getHeaders(idempotencyKey: idempotencyKey);
   }
 
-  List<QueryParam> _idem(String key) => idempotencyParams(key);
+  List<QueryParam> _idem(String key) => const [];
 
   // POST /api/deductions
   Future<DeductionRecordModel> createDeduction({
@@ -45,7 +45,7 @@ class DeductionInformationControllerApi with BaseApiClient {
       'POST',
       _idem(idempotencyKey),
       body.toJson(),
-      await _headers(),
+      await _headers(idempotencyKey: idempotencyKey),
       const {},
       'application/json',
       const ['bearerAuth'],
@@ -107,7 +107,7 @@ class DeductionInformationControllerApi with BaseApiClient {
       'PUT',
       _idem(idempotencyKey),
       body.toJson(),
-      await _headers(),
+      await _headers(idempotencyKey: idempotencyKey),
       const {},
       'application/json',
       const ['bearerAuth'],

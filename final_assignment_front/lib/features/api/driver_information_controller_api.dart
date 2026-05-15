@@ -37,14 +37,12 @@ class DriverInformationControllerApi with BaseApiClient {
   }
 
   /// è·åå¸¦æ JWT çè¯·æ±å¤´
-  Future<Map<String, String>> _getHeaders() async {
-    return getHeaders();
+  Future<Map<String, String>> _getHeaders({String? idempotencyKey}) async {
+    return getHeaders(idempotencyKey: idempotencyKey);
   }
 
   /// æ·»å  idempotencyKey ä½ä¸ºæ¥è¯¢åæ°
-  List<QueryParam> _addIdempotencyKey(String idempotencyKey) {
-    return idempotencyParams(idempotencyKey);
-  }
+  List<QueryParam> _addIdempotencyKey(String idempotencyKey) => const [];
 
   // HTTP Methods
 
@@ -54,7 +52,7 @@ class DriverInformationControllerApi with BaseApiClient {
     required String idempotencyKey,
   }) async {
     const path = '/api/drivers';
-    final headerParams = await _getHeaders();
+    final headerParams = await _getHeaders(idempotencyKey: idempotencyKey);
     await apiClient.invokeAPI(
       path,
       'POST',
@@ -119,7 +117,7 @@ class DriverInformationControllerApi with BaseApiClient {
     required String idempotencyKey,
   }) async {
     final path = '/api/drivers/$driverId/name';
-    final headerParams = await _getHeaders();
+    final headerParams = await _getHeaders(idempotencyKey: idempotencyKey);
     await apiClient.invokeAPI(
       path,
       'PUT',
@@ -140,7 +138,7 @@ class DriverInformationControllerApi with BaseApiClient {
     required String idempotencyKey,
   }) async {
     final path = '/api/drivers/$driverId/contactNumber';
-    final headerParams = await _getHeaders();
+    final headerParams = await _getHeaders(idempotencyKey: idempotencyKey);
     await apiClient.invokeAPI(
       path,
       'PUT',
@@ -161,7 +159,7 @@ class DriverInformationControllerApi with BaseApiClient {
     required String idempotencyKey,
   }) async {
     final path = '/api/drivers/$driverId/idCardNumber';
-    final headerParams = await _getHeaders();
+    final headerParams = await _getHeaders(idempotencyKey: idempotencyKey);
     await apiClient.invokeAPI(
       path,
       'PUT',
@@ -182,7 +180,7 @@ class DriverInformationControllerApi with BaseApiClient {
     required String idempotencyKey,
   }) async {
     final path = '/api/drivers/$driverId';
-    final headerParams = await _getHeaders();
+    final headerParams = await _getHeaders(idempotencyKey: idempotencyKey);
     await apiClient.invokeAPI(
       path,
       'PUT',

@@ -3,6 +3,10 @@
 /// 对应 API：GET /api/offenses、POST /api/offenses
 ///
 /// 注意：[processStatus] 和 [idempotencyKey] 由后端控制，前端只读。
+// ignore_for_file: dangling_library_doc_comments
+
+import 'package:final_assignment_front/utils/date_formatter.dart';
+
 class OffenseInformation {
   /// 违法记录主键，用于标识本条违法记录。
   /// 与 [driverId]、[vehicleId] 是关联关系：本字段是违法记录 ID，
@@ -231,7 +235,9 @@ class OffenseInformation {
       'offenseId': offenseId,
       'offenseCode': offenseCode,
       'offenseNumber': offenseNumber,
-      'offenseTime': offenseTime?.toIso8601String(),
+      'offenseTime': offenseTime != null
+          ? DateFormatter.formatLocalDateTime(offenseTime!)
+          : null,
       'offenseLocation': offenseLocation,
       'offenseProvince': offenseProvince,
       'offenseCity': offenseCity,

@@ -1,3 +1,5 @@
+import 'package:final_assignment_front/utils/date_formatter.dart';
+
 class AppealRecordModel {
   final int? appealId;
   final int? offenseId;
@@ -98,7 +100,9 @@ class AppealRecordModel {
         'appellantAddress': appellantAddress,
         'appealType': appealType,
         'appealReason': appealReason,
-        'appealTime': appealTime?.toIso8601String(),
+        'appealTime': appealTime != null
+            ? DateFormatter.formatLocalDateTime(appealTime!)
+            : null,
         'evidenceDescription': evidenceDescription,
         'evidenceUrls': evidenceUrls,
         'acceptanceStatus': acceptanceStatus,

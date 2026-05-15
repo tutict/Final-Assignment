@@ -11,6 +11,8 @@ enum AppErrorType {
   unauthorized,
   forbidden,
   notFound,
+  conflict,
+  duplicate,
   serverError,
   businessError,
   unknown,
@@ -21,12 +23,14 @@ class AppException implements Exception {
     required this.type,
     required this.message,
     this.statusCode,
+    this.errorCode,
     this.originalError,
   });
 
   final AppErrorType type;
   final String message;
   final int? statusCode;
+  final String? errorCode;
   final Object? originalError;
 
   @override
@@ -96,6 +100,14 @@ class AppException implements Exception {
       return AppException(
         type: AppErrorType.notFound,
         message: fallback?.isNotEmpty == true ? fallback! : '请求的资源不存在',
+        statusCode: statusCode,
+        originalError: originalError,
+      );
+    }
+    if (statusCode == 409) {
+      return AppException(
+        type: AppErrorType.conflict,
+        message: fallback?.isNotEmpty == true ? fallback! : 'Request conflict',
         statusCode: statusCode,
         originalError: originalError,
       );

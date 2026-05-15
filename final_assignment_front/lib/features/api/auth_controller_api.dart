@@ -2,6 +2,7 @@ import 'package:final_assignment_front/core/utils/app_logger.dart';
 import 'dart:convert';
 import 'package:final_assignment_front/features/model/login_request.dart';
 import 'package:final_assignment_front/features/model/register_request.dart';
+import 'package:final_assignment_front/features/model/user_response.dart';
 import 'package:final_assignment_front/utils/helpers/api_exception.dart';
 import 'package:http/http.dart' as http; // ç¨äº Response å?MultipartRequest
 import 'package:final_assignment_front/utils/services/api_client.dart';
@@ -127,16 +128,21 @@ class AuthControllerApi with BaseApiClient {
   }
 
   /// è·åææç¨æ?
-  Future<Map<String, dynamic>> listAuthUsers() async {
+  Future<List<UserResponse>> listAuthUsers() async {
     try {
       http.Response response = await _listAuthUsersWithHttpInfo();
       AppLogger.debug('Users get response status: ${response.statusCode}');
       AppLogger.debug('Users get response body: ${response.body}');
 
       if (response.body.isNotEmpty) {
-        return jsonDecode(response.body) as Map<String, dynamic>;
+        return unwrapApiResponse(
+          jsonDecode(decodeBodyBytes(response)) as Map<String, dynamic>,
+          (data) => (data as List)
+              .map((e) => UserResponse.fromJson(e as Map<String, dynamic>))
+              .toList(),
+        );
       } else {
-        return {};
+        return [];
       }
     } catch (e) {
       AppLogger.error('Users get error: $e');

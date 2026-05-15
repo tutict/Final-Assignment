@@ -1,6 +1,7 @@
 import 'package:final_assignment_front/core/utils/app_logger.dart';
 import 'dart:convert';
 import 'package:final_assignment_front/features/model/user_management.dart';
+import 'package:final_assignment_front/features/model/user_response.dart';
 import 'package:final_assignment_front/utils/helpers/api_exception.dart';
 import 'package:http/http.dart' as http;
 import 'package:final_assignment_front/utils/services/api_client.dart';
@@ -34,8 +35,52 @@ class UserManagementControllerApi with BaseApiClient {
   String _decodeBodyBytes(http.Response response) => decodeBodyBytes(response);
 
   // è·åè¯·æ±å¤?
-  Future<Map<String, String>> _getHeaders() async {
-    return getHeaders();
+  Future<Map<String, String>> _getHeaders({String? idempotencyKey}) async {
+    return getHeaders(idempotencyKey: idempotencyKey);
+  }
+
+  List<UserManagement> _parseUserListResponse(http.Response response) {
+    if (response.body.isEmpty) return [];
+    return parseListResponse(response, UserResponse.fromJson)
+        .map(UserManagement.fromUserResponse)
+        .toList();
+  }
+
+  UserManagement? _parseUserResponse(http.Response response) {
+    if (response.body.isEmpty) return null;
+    final userResponse = parseNullableResponse(
+      response,
+      UserResponse.fromJson,
+      nullStatusCodes: const {},
+    );
+    return userResponse == null
+        ? null
+        : UserManagement.fromUserResponse(userResponse);
+  }
+
+  List<Map<String, dynamic>> _parseMapListResponse(http.Response response) {
+    if (response.body.isEmpty) return [];
+    return parseListResponse<Map<String, dynamic>>(response, (json) => json);
+  }
+
+  Map<String, dynamic>? _parseMapResponse(http.Response response) {
+    if (response.body.isEmpty) return null;
+    return parseMapResponse(response);
+  }
+
+  List<String> _parseStringListResponse(http.Response response) {
+    if (response.body.isEmpty) return [];
+    ensureSuccess(response);
+    final payload = unwrapPayload(decodeJsonBody(response));
+    final list = switch (payload) {
+      List<dynamic> value => value,
+      Map<String, dynamic> value when value['content'] is List<dynamic> =>
+        value['content'] as List<dynamic>,
+      Map value when value['content'] is List<dynamic> =>
+        value['content'] as List<dynamic>,
+      _ => const <dynamic>[],
+    };
+    return list.map((item) => item.toString()).toList();
   }
 
 // --- GET /api/users ---
@@ -62,22 +107,34 @@ class UserManagementControllerApi with BaseApiClient {
   /// 抛出 [ApiException]：当 HTTP 响应非 2xx 时。
   ///
   /// 对应接口：GET /api/users
-  Future<List<UserManagement>> listUsers() async {
+  Future<PageResult<UserResponse>> listUsersPage() async {
     try {
       final response = await _listUsersWithHttpInfo();
       AppLogger.debug('Users get response status: ${response.statusCode}');
       AppLogger.debug('Users get response body: ${response.body}');
 
       if (response.body.isNotEmpty) {
-        final List<dynamic> jsonList = jsonDecode(_decodeBodyBytes(response));
-        return jsonList.map((json) => UserManagement.fromJson(json)).toList();
+        return unwrapPageResponse(
+          jsonDecode(_decodeBodyBytes(response)) as Map<String, dynamic>,
+          UserResponse.fromJson,
+        );
       } else {
-        return [];
+        return const PageResult<UserResponse>(
+          content: [],
+          total: 0,
+          page: 0,
+          size: 20,
+        );
       }
     } catch (e) {
       AppLogger.error('Users get error: $e');
       rethrow;
     }
+  }
+
+  Future<List<UserManagement>> listUsers() async {
+    final result = await listUsersPage();
+    return result.content.map(UserManagement.fromUserResponse).toList();
   }
 
   // removed: /api/users/me (not provided by backend controllers)
@@ -92,14 +149,14 @@ class UserManagementControllerApi with BaseApiClient {
     }
 
     final path = "/api/users".replaceAll("{format}", "json");
-    final queryParams = [QueryParam("idempotencyKey", idempotencyKey)];
-    final headerParams = await _getHeaders();
+    final queryParams = <QueryParam>[];
+    final headerParams = await _getHeaders(idempotencyKey: idempotencyKey);
 
     return await apiClient.invokeAPI(
       path,
       'POST',
       queryParams,
-      userManagement.toJson(),
+      userManagement.toUserRequestJson(),
       headerParams,
       {},
       'application/json',
@@ -130,7 +187,11 @@ class UserManagementControllerApi with BaseApiClient {
       AppLogger.debug('Users post response body: ${response.body}');
 
       if (response.body.isNotEmpty) {
-        return UserManagement.fromJson(jsonDecode(_decodeBodyBytes(response)));
+        final userResponse = unwrapApiResponse(
+          jsonDecode(_decodeBodyBytes(response)) as Map<String, dynamic>,
+          (data) => UserResponse.fromJson(data as Map<String, dynamic>),
+        );
+        return UserManagement.fromUserResponse(userResponse);
       } else if (response.statusCode == 201) {
         return null; // 201 CREATEDï¼æ ååºä½?
       } else {
@@ -222,12 +283,7 @@ class UserManagementControllerApi with BaseApiClient {
       AppLogger.debug(
           'Users search department response body: ${response.body}');
 
-      if (response.body.isNotEmpty) {
-        final List<dynamic> jsonList = jsonDecode(_decodeBodyBytes(response));
-        return jsonList.map((json) => UserManagement.fromJson(json)).toList();
-      } else {
-        return [];
-      }
+      return _parseUserListResponse(response);
     } catch (e) {
       AppLogger.error('Users search department error: $e');
       rethrow;
@@ -265,9 +321,7 @@ class UserManagementControllerApi with BaseApiClient {
       null,
       ['bearerAuth'],
     );
-    if (response.body.isEmpty) return [];
-    final List<dynamic> jsonList = jsonDecode(_decodeBodyBytes(response));
-    return jsonList.map((json) => UserManagement.fromJson(json)).toList();
+    return _parseUserListResponse(response);
   }
 
   // --- GET /api/users/search/username/fuzzy?username=&page=&size= ---
@@ -301,9 +355,7 @@ class UserManagementControllerApi with BaseApiClient {
       null,
       ['bearerAuth'],
     );
-    if (response.body.isEmpty) return [];
-    final List<dynamic> jsonList = jsonDecode(_decodeBodyBytes(response));
-    return jsonList.map((json) => UserManagement.fromJson(json)).toList();
+    return _parseUserListResponse(response);
   }
 
   // --- GET /api/users/search/real-name/prefix?realName=&page=&size= ---
@@ -337,9 +389,7 @@ class UserManagementControllerApi with BaseApiClient {
       null,
       ['bearerAuth'],
     );
-    if (response.body.isEmpty) return [];
-    final List<dynamic> jsonList = jsonDecode(_decodeBodyBytes(response));
-    return jsonList.map((json) => UserManagement.fromJson(json)).toList();
+    return _parseUserListResponse(response);
   }
 
   // --- GET /api/users/search/real-name/fuzzy?realName=&page=&size= ---
@@ -373,9 +423,7 @@ class UserManagementControllerApi with BaseApiClient {
       null,
       ['bearerAuth'],
     );
-    if (response.body.isEmpty) return [];
-    final List<dynamic> jsonList = jsonDecode(_decodeBodyBytes(response));
-    return jsonList.map((json) => UserManagement.fromJson(json)).toList();
+    return _parseUserListResponse(response);
   }
 
   // --- GET /api/users/search/id-card?idCardNumber=&page=&size= ---
@@ -409,9 +457,7 @@ class UserManagementControllerApi with BaseApiClient {
       null,
       ['bearerAuth'],
     );
-    if (response.body.isEmpty) return [];
-    final List<dynamic> jsonList = jsonDecode(_decodeBodyBytes(response));
-    return jsonList.map((json) => UserManagement.fromJson(json)).toList();
+    return _parseUserListResponse(response);
   }
 
   // --- GET /api/users/search/contact?contactNumber=&page=&size= ---
@@ -445,9 +491,7 @@ class UserManagementControllerApi with BaseApiClient {
       null,
       ['bearerAuth'],
     );
-    if (response.body.isEmpty) return [];
-    final List<dynamic> jsonList = jsonDecode(_decodeBodyBytes(response));
-    return jsonList.map((json) => UserManagement.fromJson(json)).toList();
+    return _parseUserListResponse(response);
   }
 
   // --- POST /api/users/{userId}/roles --- bind user role
@@ -460,8 +504,8 @@ class UserManagementControllerApi with BaseApiClient {
       throw ApiException(400, "Missing required param: idempotencyKey");
     }
     final path = "/api/users/$userId/roles".replaceAll("{format}", "json");
-    final headerParams = await _getHeaders();
-    final queryParams = [QueryParam("idempotencyKey", idempotencyKey)];
+    final headerParams = await _getHeaders(idempotencyKey: idempotencyKey);
+    final queryParams = <QueryParam>[];
     return await apiClient.invokeAPI(
       path,
       'POST',
@@ -497,9 +541,7 @@ class UserManagementControllerApi with BaseApiClient {
       body: body,
       idempotencyKey: idempotencyKey,
     );
-    return response.body.isNotEmpty
-        ? jsonDecode(_decodeBodyBytes(response)) as Map<String, dynamic>
-        : null;
+    return _parseMapResponse(response);
   }
 
   // --- DELETE /api/users/roles/{relationId} ---
@@ -556,9 +598,7 @@ class UserManagementControllerApi with BaseApiClient {
       null,
       ['bearerAuth'],
     );
-    if (response.body.isEmpty) return [];
-    final List<dynamic> jsonList = jsonDecode(_decodeBodyBytes(response));
-    return jsonList.cast<Map<String, dynamic>>();
+    return _parseMapListResponse(response);
   }
 
   // --- PUT /api/users/role-bindings/{relationId} ---
@@ -587,16 +627,14 @@ class UserManagementControllerApi with BaseApiClient {
     final response = await apiClient.invokeAPI(
       path,
       'PUT',
-      [QueryParam("idempotencyKey", idempotencyKey)],
+      const [],
       body,
       headerParams,
       {},
       'application/json',
       ['bearerAuth'],
     );
-    return response.body.isNotEmpty
-        ? jsonDecode(_decodeBodyBytes(response)) as Map<String, dynamic>
-        : null;
+    return _parseMapResponse(response);
   }
 
   // --- GET /api/users/role-bindings/{relationId} ---
@@ -625,9 +663,7 @@ class UserManagementControllerApi with BaseApiClient {
       null,
       ['bearerAuth'],
     );
-    return response.body.isNotEmpty
-        ? jsonDecode(_decodeBodyBytes(response)) as Map<String, dynamic>
-        : null;
+    return _parseMapResponse(response);
   }
 
   // --- GET /api/users/role-bindings?page=&size= ---
@@ -657,9 +693,7 @@ class UserManagementControllerApi with BaseApiClient {
       null,
       ['bearerAuth'],
     );
-    if (response.body.isEmpty) return [];
-    final List<dynamic> jsonList = jsonDecode(_decodeBodyBytes(response));
-    return jsonList.cast<Map<String, dynamic>>();
+    return _parseMapListResponse(response);
   }
 
   // --- GET /api/users/role-bindings/by-role/{roleId}?page=&size= ---
@@ -692,9 +726,7 @@ class UserManagementControllerApi with BaseApiClient {
       null,
       ['bearerAuth'],
     );
-    if (response.body.isEmpty) return [];
-    final List<dynamic> jsonList = jsonDecode(_decodeBodyBytes(response));
-    return jsonList.cast<Map<String, dynamic>>();
+    return _parseMapListResponse(response);
   }
 
   // --- GET /api/users/search/department/prefix?department=&page=&size= ---
@@ -728,9 +760,7 @@ class UserManagementControllerApi with BaseApiClient {
       null,
       ['bearerAuth'],
     );
-    if (response.body.isEmpty) return [];
-    final List<dynamic> jsonList = jsonDecode(_decodeBodyBytes(response));
-    return jsonList.map((json) => UserManagement.fromJson(json)).toList();
+    return _parseUserListResponse(response);
   }
 
   // --- GET /api/users/search/employee-number?employeeNumber=&page=&size= ---
@@ -764,9 +794,7 @@ class UserManagementControllerApi with BaseApiClient {
       null,
       ['bearerAuth'],
     );
-    if (response.body.isEmpty) return [];
-    final List<dynamic> jsonList = jsonDecode(_decodeBodyBytes(response));
-    return jsonList.map((json) => UserManagement.fromJson(json)).toList();
+    return _parseUserListResponse(response);
   }
 
   // --- GET /api/users/search/last-login-range?startTime=&endTime=&page=&size= ---
@@ -803,9 +831,7 @@ class UserManagementControllerApi with BaseApiClient {
       null,
       ['bearerAuth'],
     );
-    if (response.body.isEmpty) return [];
-    final List<dynamic> jsonList = jsonDecode(_decodeBodyBytes(response));
-    return jsonList.map((json) => UserManagement.fromJson(json)).toList();
+    return _parseUserListResponse(response);
   }
 
   // --- GET /api/users/role-bindings/search?userId=&roleId=&page=&size= ---
@@ -842,9 +868,7 @@ class UserManagementControllerApi with BaseApiClient {
       null,
       ['bearerAuth'],
     );
-    if (response.body.isEmpty) return [];
-    final List<dynamic> jsonList = jsonDecode(_decodeBodyBytes(response));
-    return jsonList.cast<Map<String, dynamic>>();
+    return _parseMapListResponse(response);
   }
 
   /// 按用户状态搜索用户。
@@ -870,12 +894,7 @@ class UserManagementControllerApi with BaseApiClient {
           'Users search status response status: ${response.statusCode}');
       AppLogger.debug('Users search status response body: ${response.body}');
 
-      if (response.body.isNotEmpty) {
-        final List<dynamic> jsonList = jsonDecode(_decodeBodyBytes(response));
-        return jsonList.map((json) => UserManagement.fromJson(json)).toList();
-      } else {
-        return [];
-      }
+      return _parseUserListResponse(response);
     } catch (e) {
       AppLogger.error('Users search status error: $e');
       rethrow;
@@ -970,11 +989,7 @@ class UserManagementControllerApi with BaseApiClient {
           'Users userId get response status: ${response.statusCode}');
       AppLogger.debug('Users userId get response body: ${response.body}');
 
-      if (response.body.isNotEmpty) {
-        return UserManagement.fromJson(jsonDecode(_decodeBodyBytes(response)));
-      } else {
-        return null;
-      }
+      return _parseUserResponse(response);
     } catch (e) {
       AppLogger.error('Users userId get error: $e');
       rethrow;
@@ -995,14 +1010,14 @@ class UserManagementControllerApi with BaseApiClient {
     }
 
     final path = "/api/users/$userId".replaceAll("{format}", "json");
-    final queryParams = [QueryParam("idempotencyKey", idempotencyKey)];
-    final headerParams = await _getHeaders();
+    final queryParams = <QueryParam>[];
+    final headerParams = await _getHeaders(idempotencyKey: idempotencyKey);
 
     return await apiClient.invokeAPI(
       path,
       'PUT',
       queryParams,
-      userManagement.toJson(),
+      userManagement.toUserRequestJson(),
       headerParams,
       {},
       'application/json',
@@ -1141,11 +1156,7 @@ class UserManagementControllerApi with BaseApiClient {
           'Users search username response status: ${response.statusCode}');
       AppLogger.debug('Users search username response body: ${response.body}');
 
-      if (response.body.isNotEmpty) {
-        return UserManagement.fromJson(jsonDecode(_decodeBodyBytes(response)));
-      } else {
-        return null;
-      }
+      return _parseUserResponse(response);
     } catch (e) {
       AppLogger.error('Users search username error: $e');
       rethrow;
@@ -1196,12 +1207,7 @@ class UserManagementControllerApi with BaseApiClient {
       AppLogger.debug(
           'Users autocomplete usernames response body: ${response.body}');
 
-      if (response.body.isNotEmpty) {
-        final List<dynamic> jsonList = jsonDecode(_decodeBodyBytes(response));
-        return jsonList.cast<String>();
-      } else {
-        return [];
-      }
+      return _parseStringListResponse(response);
     } catch (e) {
       AppLogger.error('Users autocomplete usernames error: $e');
       rethrow;
@@ -1356,7 +1362,7 @@ class UserManagementControllerApi with BaseApiClient {
     final msg = {
       "service": "UserManagementService",
       "action": "updateCurrentUser",
-      "args": [username, userManagement.toJson(), idempotencyKey],
+      "args": [username, userManagement.toUserRequestJson(), idempotencyKey],
     };
     try {
       final respMap = await apiClient.sendWsMessage(msg);
@@ -1390,7 +1396,7 @@ class UserManagementControllerApi with BaseApiClient {
     final msg = {
       "service": "UserManagementService",
       "action": "createUser",
-      "args": [userManagement.toJson(), idempotencyKey],
+      "args": [userManagement.toUserRequestJson(), idempotencyKey],
     };
     try {
       final respMap = await apiClient.sendWsMessage(msg);
@@ -1572,7 +1578,7 @@ class UserManagementControllerApi with BaseApiClient {
     final msg = {
       "service": "UserManagementService",
       "action": "updateUser",
-      "args": [userId, userManagement.toJson(), idempotencyKey],
+      "args": [userId, userManagement.toUserRequestJson(), idempotencyKey],
     };
     try {
       final respMap = await apiClient.sendWsMessage(msg);

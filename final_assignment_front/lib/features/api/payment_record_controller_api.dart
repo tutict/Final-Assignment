@@ -37,13 +37,9 @@ class PaymentRecordControllerApi with BaseApiClient {
     ensureSuccess(response);
   }
 
-  List<PaymentRecordModel> _parseList(String body) {
-    if (body.isEmpty) return [];
-    final List<dynamic> jsonList = jsonDecode(body) as List<dynamic>;
-    return jsonList
-        .map(
-            (item) => PaymentRecordModel.fromJson(item as Map<String, dynamic>))
-        .toList();
+  List<PaymentRecordModel> _parseList(http.Response response) {
+    if (response.body.isEmpty) return [];
+    return parseListResponse(response, PaymentRecordModel.fromJson);
   }
 
   /// POST /api/payments
@@ -62,8 +58,10 @@ class PaymentRecordControllerApi with BaseApiClient {
       ['bearerAuth'],
     );
     _ensureSuccess(response);
-    return PaymentRecordModel.fromJson(
-        jsonDecode(_decodeBodyBytes(response)) as Map<String, dynamic>);
+    return unwrapApiResponse(
+      jsonDecode(_decodeBodyBytes(response)) as Map<String, dynamic>,
+      (data) => PaymentRecordModel.fromJson(data as Map<String, dynamic>),
+    );
   }
 
   /// PUT /api/payments/{paymentId}
@@ -83,8 +81,10 @@ class PaymentRecordControllerApi with BaseApiClient {
       ['bearerAuth'],
     );
     _ensureSuccess(response);
-    return PaymentRecordModel.fromJson(
-        jsonDecode(_decodeBodyBytes(response)) as Map<String, dynamic>);
+    return unwrapApiResponse(
+      jsonDecode(_decodeBodyBytes(response)) as Map<String, dynamic>,
+      (data) => PaymentRecordModel.fromJson(data as Map<String, dynamic>),
+    );
   }
 
   /// DELETE /api/payments/{paymentId}
@@ -99,9 +99,7 @@ class PaymentRecordControllerApi with BaseApiClient {
       null,
       ['bearerAuth'],
     );
-    if (response.statusCode != 204 && response.statusCode != 200) {
-      _ensureSuccess(response);
-    }
+    _ensureSuccess(response);
   }
 
   /// GET /api/payments/{paymentId}
@@ -122,8 +120,10 @@ class PaymentRecordControllerApi with BaseApiClient {
     if (response.statusCode == 404) return null;
     _ensureSuccess(response);
     if (response.body.isEmpty) return null;
-    return PaymentRecordModel.fromJson(
-        jsonDecode(_decodeBodyBytes(response)) as Map<String, dynamic>);
+    return unwrapApiResponse(
+      jsonDecode(_decodeBodyBytes(response)) as Map<String, dynamic>,
+      (data) => PaymentRecordModel.fromJson(data as Map<String, dynamic>),
+    );
   }
 
   /// GET /api/payments
@@ -139,7 +139,7 @@ class PaymentRecordControllerApi with BaseApiClient {
       ['bearerAuth'],
     );
     _ensureSuccess(response);
-    return _parseList(_decodeBodyBytes(response));
+    return _parseList(response);
   }
 
   /// GET /api/payments/fine/{fineId}?page=&size=
@@ -162,7 +162,7 @@ class PaymentRecordControllerApi with BaseApiClient {
       ['bearerAuth'],
     );
     _ensureSuccess(response);
-    return _parseList(_decodeBodyBytes(response));
+    return _parseList(response);
   }
 
   /// GET /api/payments/search/payer?idCard=&page=&size=
@@ -186,7 +186,7 @@ class PaymentRecordControllerApi with BaseApiClient {
       ['bearerAuth'],
     );
     _ensureSuccess(response);
-    return _parseList(_decodeBodyBytes(response));
+    return _parseList(response);
   }
 
   /// GET /api/payments/search/status?status=&page=&size=
@@ -210,7 +210,7 @@ class PaymentRecordControllerApi with BaseApiClient {
       ['bearerAuth'],
     );
     _ensureSuccess(response);
-    return _parseList(_decodeBodyBytes(response));
+    return _parseList(response);
   }
 
   /// GET /api/payments/search/transaction?transactionId=&page=&size=
@@ -234,7 +234,7 @@ class PaymentRecordControllerApi with BaseApiClient {
       ['bearerAuth'],
     );
     _ensureSuccess(response);
-    return _parseList(_decodeBodyBytes(response));
+    return _parseList(response);
   }
 
   /// GET /api/payments/search/payment-number?paymentNumber=&page=&size=
@@ -258,7 +258,7 @@ class PaymentRecordControllerApi with BaseApiClient {
       ['bearerAuth'],
     );
     _ensureSuccess(response);
-    return _parseList(_decodeBodyBytes(response));
+    return _parseList(response);
   }
 
   /// GET /api/payments/search/payer-name?payerName=&page=&size=
@@ -282,7 +282,7 @@ class PaymentRecordControllerApi with BaseApiClient {
       ['bearerAuth'],
     );
     _ensureSuccess(response);
-    return _parseList(_decodeBodyBytes(response));
+    return _parseList(response);
   }
 
   /// GET /api/payments/search/payment-method?paymentMethod=&page=&size=
@@ -306,7 +306,7 @@ class PaymentRecordControllerApi with BaseApiClient {
       ['bearerAuth'],
     );
     _ensureSuccess(response);
-    return _parseList(_decodeBodyBytes(response));
+    return _parseList(response);
   }
 
   /// GET /api/payments/search/payment-channel?paymentChannel=&page=&size=
@@ -330,7 +330,7 @@ class PaymentRecordControllerApi with BaseApiClient {
       ['bearerAuth'],
     );
     _ensureSuccess(response);
-    return _parseList(_decodeBodyBytes(response));
+    return _parseList(response);
   }
 
   /// GET /api/payments/search/time-range?startTime=&endTime=&page=&size=
@@ -356,26 +356,31 @@ class PaymentRecordControllerApi with BaseApiClient {
       ['bearerAuth'],
     );
     _ensureSuccess(response);
-    return _parseList(_decodeBodyBytes(response));
+    return _parseList(response);
   }
 
   /// PUT /api/payments/{paymentId}/status/{state}
-  Future<PaymentRecordModel> updatePaymentStatus({
-    required int paymentId,
-    required String state,
+  Future<void> updatePaymentStatus(
+    int id,
+    String state, {
+    required String idempotencyKey,
   }) async {
+    final upperState = state.toUpperCase();
     final response = await apiClient.invokeAPI(
-      '/api/payments/$paymentId/status/$state',
+      '/api/payments/$id/status/$upperState',
       'PUT',
       const [],
       null,
-      await _getHeaders(),
+      await _getHeaders(idempotencyKey: idempotencyKey),
       const {},
       null,
       ['bearerAuth'],
     );
     _ensureSuccess(response);
-    return PaymentRecordModel.fromJson(
-        jsonDecode(_decodeBodyBytes(response)) as Map<String, dynamic>);
+    if (response.body.isEmpty) return;
+    unwrapApiResponse(
+      jsonDecode(_decodeBodyBytes(response)) as Map<String, dynamic>,
+      (_) => null,
+    );
   }
 }

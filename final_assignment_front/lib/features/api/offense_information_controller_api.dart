@@ -26,7 +26,7 @@ class OffenseInformationControllerApi with BaseApiClient {
     return apiClient.invokeAPI(
       '/api/offenses',
       'POST',
-      idempotencyParams(idempotencyKey),
+      const [],
       body.toJson(),
       await getHeaders(idempotencyKey: idempotencyKey),
       const {},
@@ -127,7 +127,7 @@ class OffenseInformationControllerApi with BaseApiClient {
     final response = await apiClient.invokeAPI(
       '/api/offenses/$offenseId',
       'PUT',
-      idempotencyParams(idempotencyKey),
+      const [],
       offenseInformation.toJson(),
       await getHeaders(idempotencyKey: idempotencyKey),
       const {},
@@ -405,7 +405,7 @@ class OffenseInformationControllerApi with BaseApiClient {
       '/api/offenses/search/status',
       'GET',
       [
-        QueryParam('processStatus', processStatus),
+        QueryParam('status', processStatus),
         QueryParam('page', page.toString()),
         QueryParam('size', size.toString()),
       ],

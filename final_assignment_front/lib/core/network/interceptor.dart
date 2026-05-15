@@ -109,8 +109,7 @@ class LogEventWriter {
         remarks: remarks,
         idempotencyKey: idempotencyKey,
       );
-      final uri = Uri.parse('${AppConfig.apiBaseUrl}/api/system/logs')
-          .replace(queryParameters: {'idempotencyKey': idempotencyKey});
+      final uri = Uri.parse('${AppConfig.apiBaseUrl}/api/system/logs');
 
       final response = await _client
           .post(
@@ -118,6 +117,7 @@ class LogEventWriter {
             headers: {
               'Authorization': 'Bearer $token',
               'Content-Type': 'application/json; charset=utf-8',
+              'Idempotency-Key': idempotencyKey,
             },
             body: jsonEncode(logEntry.toJson()),
           )
@@ -181,8 +181,8 @@ class LogEventWriter {
         executionTime: executionTime,
         remarks: remarks,
       );
-      final uri = Uri.parse('${AppConfig.apiBaseUrl}/api/logs/operation')
-          .replace(queryParameters: {'idempotencyKey': _uuid.v4()});
+      final idempotencyKey = _uuid.v4();
+      final uri = Uri.parse('${AppConfig.apiBaseUrl}/api/logs/operation');
 
       final response = await _client
           .post(
@@ -190,6 +190,7 @@ class LogEventWriter {
             headers: {
               'Authorization': 'Bearer $token',
               'Content-Type': 'application/json; charset=utf-8',
+              'Idempotency-Key': idempotencyKey,
             },
             body: jsonEncode(operationLog.toJson()),
           )

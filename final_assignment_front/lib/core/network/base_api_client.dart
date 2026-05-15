@@ -9,6 +9,20 @@ import '../../utils/services/auth_token_store.dart';
 import 'app_exception.dart';
 import 'api_client.dart';
 
+class PageResult<T> {
+  const PageResult({
+    required this.content,
+    required this.total,
+    required this.page,
+    required this.size,
+  });
+
+  final List<T> content;
+  final int total;
+  final int page;
+  final int size;
+}
+
 abstract mixin class BaseApiClient {
   static const String defaultContentType = 'application/json; charset=utf-8';
   static const Set<int> defaultSuccessStatusCodes = {
@@ -77,10 +91,54 @@ abstract mixin class BaseApiClient {
     return generateIfMissing ? generateIdempotencyKey() : null;
   }
 
-  List<QueryParam> idempotencyParams([String? idempotencyKey]) {
-    return [
-      QueryParam('idempotencyKey', resolveIdempotencyKey(idempotencyKey)!)
-    ];
+  List<QueryParam> idempotencyParams([String? idempotencyKey]) => const [];
+
+  /// Unwraps `ApiResponse<T>` and returns the response data.
+  T unwrapApiResponse<T>(
+    Map<String, dynamic> body,
+    T Function(dynamic data) fromData,
+  ) {
+    final success = body['success'] as bool? ?? false;
+    if (!success) {
+      final code = body['errorCode'] as String? ?? 'UNKNOWN';
+      final message = body['message'] as String? ?? '操作失败';
+      throw AppException(
+        type: _mapErrorCode(code),
+        message: message,
+        errorCode: code,
+        originalError: body,
+      );
+    }
+    return fromData(body['data']);
+  }
+
+  /// Unwraps `ApiResponse<PageResponse<T>>`.
+  PageResult<T> unwrapPageResponse<T>(
+    Map<String, dynamic> body,
+    T Function(Map<String, dynamic>) itemFromJson,
+  ) {
+    return unwrapApiResponse(body, (data) {
+      if (data is! Map) {
+        throw AppException(
+          type: AppErrorType.businessError,
+          message: 'Expected page response, got ${data.runtimeType}',
+          originalError: body,
+        );
+      }
+      final page = Map<String, dynamic>.from(data);
+      final content = page['content'];
+      return PageResult<T>(
+        content: content is List
+            ? content
+                .map((item) => itemFromJson(
+                    Map<String, dynamic>.from(item as Map<dynamic, dynamic>)))
+                .toList()
+            : <T>[],
+        total: _asInt(page['total']),
+        page: _asInt(page['page']),
+        size: _asInt(page['size'], fallback: 20),
+      );
+    });
   }
 
   String decodeBodyBytes(http.Response response) {
@@ -282,9 +340,11 @@ abstract mixin class BaseApiClient {
   dynamic unwrapPayload(dynamic decoded) {
     if (decoded is Map) {
       if (decoded['success'] == false) {
+        final code = decoded['errorCode']?.toString() ?? 'UNKNOWN';
         throw AppException(
-          type: AppErrorType.businessError,
+          type: _mapErrorCode(code),
           message: _messageFromMap(decoded),
+          errorCode: code,
           statusCode: 400,
           originalError: decoded,
         );
@@ -315,6 +375,24 @@ abstract mixin class BaseApiClient {
     }
 
     return body;
+  }
+
+  AppErrorType _mapErrorCode(String code) {
+    return switch (code) {
+      'UNAUTHORIZED' => AppErrorType.unauthorized,
+      'FORBIDDEN' => AppErrorType.forbidden,
+      'NOT_FOUND' => AppErrorType.notFound,
+      'CONFLICT' => AppErrorType.conflict,
+      'DUPLICATE_REQUEST' => AppErrorType.duplicate,
+      _ => AppErrorType.businessError,
+    };
+  }
+
+  int _asInt(dynamic value, {int fallback = 0}) {
+    if (value is int) return value;
+    if (value is num) return value.toInt();
+    if (value is String) return int.tryParse(value) ?? fallback;
+    return fallback;
   }
 
   dynamic _tryDecodeJson(http.Response response) {

@@ -349,13 +349,14 @@ class _LoginScreenState extends State<LoginScreen>
 
     try {
       final response = await authApi.apiClient.invokeAPI(
-        '/api/users/me/password?idempotencyKey=$idempotencyKey',
+        '/api/users/me/password',
         'PUT',
         [],
         newPassword,
         {
           'Authorization': 'Bearer $jwtToken',
-          'Content-Type': 'text/plain; charset=utf-8'
+          'Content-Type': 'text/plain; charset=utf-8',
+          'Idempotency-Key': idempotencyKey,
         },
         {},
         'text/plain',

@@ -1,3 +1,5 @@
+import 'package:final_assignment_front/utils/date_formatter.dart';
+
 class PaymentRecordModel {
   final int? paymentId;
   final int? fineId;
@@ -141,7 +143,9 @@ class PaymentRecordModel {
       'paymentNumber': paymentNumber,
       'paymentAmount': paymentAmount,
       'paymentMethod': paymentMethod,
-      'paymentTime': paymentTime?.toIso8601String(),
+      'paymentTime': paymentTime != null
+          ? DateFormatter.formatLocalDateTime(paymentTime!)
+          : null,
       'paymentChannel': paymentChannel,
       'payerName': payerName,
       'payerIdCard': payerIdCard,

@@ -181,13 +181,14 @@ class _PersonalMainPageState extends State<PersonalMainPage> {
           break;
         case 'password':
           await apiClient.invokeAPI(
-            '/api/users/me/password?idempotencyKey=$idempotencyKey',
+            '/api/users/me/password',
             'PUT',
             const [],
             value,
             {
               'Authorization': 'Bearer $jwtToken',
               'Content-Type': 'text/plain; charset=utf-8',
+              'Idempotency-Key': idempotencyKey,
             },
             const {},
             'text/plain',

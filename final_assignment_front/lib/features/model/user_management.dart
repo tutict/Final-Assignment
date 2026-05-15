@@ -1,3 +1,7 @@
+import 'package:final_assignment_front/utils/date_formatter.dart';
+
+import 'user_response.dart';
+
 class UserManagement {
   final int? userId;
   final String? username;
@@ -7,6 +11,7 @@ class UserManagement {
   final String? idCardNumber;
   final String? gender;
   final String? contactNumber;
+  final String? roleName;
   final String? email;
   final String? department;
   final String? position;
@@ -34,6 +39,7 @@ class UserManagement {
     this.idCardNumber,
     this.gender,
     this.contactNumber,
+    this.roleName,
     this.email,
     this.department,
     this.position,
@@ -62,6 +68,7 @@ class UserManagement {
     String? idCardNumber,
     String? gender,
     String? contactNumber,
+    String? roleName,
     String? email,
     String? department,
     String? position,
@@ -89,6 +96,7 @@ class UserManagement {
       idCardNumber: idCardNumber ?? this.idCardNumber,
       gender: gender ?? this.gender,
       contactNumber: contactNumber ?? this.contactNumber,
+      roleName: roleName ?? this.roleName,
       email: email ?? this.email,
       department: department ?? this.department,
       position: position ?? this.position,
@@ -118,7 +126,8 @@ class UserManagement {
       realName: json['realName'] ?? json['name'],
       idCardNumber: json['idCardNumber'],
       gender: json['gender'],
-      contactNumber: json['contactNumber'],
+      contactNumber: json['phoneNumber'] ?? json['contactNumber'],
+      roleName: json['roleName'],
       email: json['email'],
       department: json['department'],
       position: json['position'],
@@ -129,7 +138,8 @@ class UserManagement {
       lastLoginTime: _parseDateTime(json['lastLoginTime']),
       lastLoginIp: json['lastLoginIp'],
       passwordUpdateTime: _parseDateTime(json['passwordUpdateTime']),
-      createdTime: _parseDateTime(json['createdAt'] ?? json['createdTime']),
+      createdTime: _parseDateTime(
+          json['createTime'] ?? json['createdAt'] ?? json['createdTime']),
       modifiedTime: _parseDateTime(json['updatedAt'] ?? json['modifiedTime']),
       createdBy: json['createdBy'],
       updatedBy: json['updatedBy'],
@@ -145,6 +155,7 @@ class UserManagement {
       'username': username,
       'password': password,
       'salt': salt,
+      'phoneNumber': contactNumber,
       'realName': realName,
       'idCardNumber': idCardNumber,
       'gender': gender,
@@ -154,7 +165,9 @@ class UserManagement {
       'position': position,
       'employeeNumber': employeeNumber,
       'status': status,
-      'accountExpiryDate': accountExpiryDate?.toIso8601String(),
+      'accountExpiryDate': accountExpiryDate != null
+          ? DateFormatter.formatLocalDate(accountExpiryDate!)
+          : null,
       'loginFailures': loginFailures,
       'lastLoginTime': lastLoginTime?.toIso8601String(),
       'lastLoginIp': lastLoginIp,
@@ -170,6 +183,39 @@ class UserManagement {
       'idempotencyKey': idempotencyKey,
     };
     return json;
+  }
+
+  Map<String, dynamic> toUserRequestJson() {
+    return {
+      'username': username,
+      'password': password,
+      'email': email,
+      'phoneNumber': contactNumber,
+      'realName': realName,
+      'gender': gender,
+      'department': department,
+      'position': position,
+      'employeeNumber': employeeNumber,
+      'status': status,
+      'remarks': remarks,
+    };
+  }
+
+  factory UserManagement.fromUserResponse(UserResponse response) {
+    return UserManagement(
+      userId: response.userId,
+      username: response.username,
+      realName: response.realName,
+      contactNumber: response.phoneNumber,
+      roleName: response.roleName,
+      email: response.email,
+      gender: response.gender,
+      department: response.department,
+      position: response.position,
+      employeeNumber: response.employeeNumber,
+      status: response.status,
+      createdTime: response.createTime,
+    );
   }
 
   @override

@@ -4,6 +4,10 @@
 ///
 /// 注意：[status] 表示车辆当前状态；[plateStatusSnapshot] 是历史快照字段，
 /// 不应与当前状态混用。
+// ignore_for_file: dangling_library_doc_comments
+
+import 'package:final_assignment_front/utils/date_formatter.dart';
+
 class VehicleInformation {
   final int? vehicleId;
   final String? licensePlate;
@@ -188,13 +192,21 @@ class VehicleInformation {
       'ownerContact': ownerContact,
       'contactNumber': ownerContact,
       'ownerAddress': ownerAddress,
-      'firstRegistrationDate': firstRegistrationDate?.toIso8601String(),
-      'registrationDate': registrationDate?.toIso8601String(),
+      'firstRegistrationDate': firstRegistrationDate != null
+          ? DateFormatter.formatLocalDate(firstRegistrationDate!)
+          : null,
+      'registrationDate': registrationDate != null
+          ? DateFormatter.formatLocalDate(registrationDate!)
+          : null,
       'issuingAuthority': issuingAuthority,
       'status': status,
       'currentStatus': status,
-      'inspectionExpiryDate': inspectionExpiryDate?.toIso8601String(),
-      'insuranceExpiryDate': insuranceExpiryDate?.toIso8601String(),
+      'inspectionExpiryDate': inspectionExpiryDate != null
+          ? DateFormatter.formatLocalDate(inspectionExpiryDate!)
+          : null,
+      'insuranceExpiryDate': insuranceExpiryDate != null
+          ? DateFormatter.formatLocalDate(insuranceExpiryDate!)
+          : null,
       'createdAt': createdAt?.toIso8601String(),
       'updatedAt': updatedAt?.toIso8601String(),
       'createdBy': createdBy,
