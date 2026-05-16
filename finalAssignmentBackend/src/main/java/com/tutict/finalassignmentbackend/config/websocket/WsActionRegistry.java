@@ -59,10 +59,12 @@ public class WsActionRegistry {
             }
         }
 
-        log.info("WsActionRegistry initialized with {} actions: {}", registry.size(), registry.keySet());
         if (registry.isEmpty()) {
-            log.warn("WsActionRegistry is EMPTY - check BASE_PACKAGE: {}", BASE_PACKAGE);
+            throw new IllegalStateException(
+                    "WsActionRegistry is EMPTY! Check BASE_PACKAGE: " + BASE_PACKAGE);
         }
+        log.info("WsActionRegistry: {} actions registered", registry.size());
+        registry.keySet().forEach(k -> log.debug("  Registered action: {}", k));
         log.info("---- WsActionRegistry init end, total size={} ----", registry.size());
     }
 

@@ -2,6 +2,10 @@ import 'package:final_assignment_front/core/utils/app_logger.dart';
 import 'dart:async';
 import 'dart:convert';
 
+import 'package:final_assignment_front/config/routes/app_routes.dart';
+import 'package:final_assignment_front/core/realtime/business_event_listener.dart';
+import 'package:final_assignment_front/shared/utils/error_handler.dart';
+import 'package:final_assignment_front/shared/utils/navigation_helper.dart';
 import 'package:flutter/foundation.dart';
 import 'package:get/get.dart';
 import 'package:http/http.dart' as http;
@@ -40,10 +44,17 @@ class ApiClient {
   WebSocketChannel? _wsChannel;
   StreamSubscription<dynamic>? _wsSubscription;
   String? _wsUrl;
+  String? _lastWsPath;
+  List<QueryParam> _lastWsQueryParams = const [];
+  bool _manualWsClose = false;
+  bool _isReconnecting = false;
+  int _reconnectAttempts = 0;
   final Map<String, Completer<Map<String, dynamic>>> _pendingRequests = {};
   final StreamController<String> _wsMessageController =
       StreamController<String>.broadcast();
   static Completer<bool>? _refreshCompleter;
+  static const int _maxReconnectAttempts = 5;
+  static const Duration _initialReconnectDelay = Duration(seconds: 1);
 
   Stream<String> get wsMessageStream => _wsMessageController.stream;
 
@@ -399,7 +410,24 @@ class ApiClient {
     String path,
     Iterable<QueryParam> queryParams,
   ) async {
-    closeWebSocket();
+    _lastWsPath = path;
+    _lastWsQueryParams = List<QueryParam>.unmodifiable(queryParams);
+    _manualWsClose = false;
+
+    if (Get.isRegistered<AuthService>()) {
+      final isValid = await Get.find<AuthService>().ensureValidSession(
+        redirectIfInvalid: false,
+      );
+      if (!isValid) {
+        AppLogger.error(
+          'WebSocket connect: session invalid, redirecting to login',
+        );
+        NavigationHelper.offAllNamed(Routes.login);
+        return;
+      }
+    }
+
+    closeWebSocket(manual: false);
 
     final token = await AuthTokenStore.instance.getJwtToken();
     if (token != null && token.isNotEmpty) {
@@ -423,11 +451,15 @@ class ApiClient {
         _completePendingWithError(
           AppException.http(500, 'WebSocket error: $error'),
         );
+        _handleWsDisconnect(error);
       },
       onDone: () {
         _completePendingWithError(AppException.http(500, 'WebSocket closed'));
+        _handleWsDisconnect(null);
       },
     );
+    _reconnectAttempts = 0;
+    _isReconnecting = false;
 
     if (kDebugMode) {
       AppLogger.debug(
@@ -514,7 +546,16 @@ class ApiClient {
         const Duration(seconds: 30),
       );
       if (decoded.containsKey('error')) {
-        throw AppException.http(400, decoded['error'].toString());
+        final errorMessage = decoded['error'].toString();
+        if (errorMessage.contains('No such WsAction')) {
+          AppLogger.error('WsAction not found: $errorMessage');
+          throw AppException(
+            type: AppErrorType.businessError,
+            message: '功能暂时不可用，请稍后重试',
+            statusCode: 400,
+          );
+        }
+        throw AppException.http(400, errorMessage);
       }
       return decoded;
     } on TimeoutException {
@@ -526,6 +567,83 @@ class ApiClient {
       _pendingRequests.remove(requestId);
       throw AppException.http(500, 'WebSocket read error: $error');
     }
+  }
+
+  void _handleWsDisconnect(Object? error) {
+    if (_manualWsClose) {
+      return;
+    }
+
+    if (_isAuthError(error)) {
+      _retryConnectAfterRefresh();
+      return;
+    }
+
+    _scheduleReconnect();
+  }
+
+  bool _isAuthError(Object? error) {
+    final text = error?.toString().toLowerCase() ?? '';
+    return text.contains('401') ||
+        text.contains('unauthorized') ||
+        text.contains('handshake') ||
+        text.contains('authentication') ||
+        text.contains('forbidden');
+  }
+
+  Future<void> _retryConnectAfterRefresh() async {
+    if (!Get.isRegistered<AuthService>()) {
+      NavigationHelper.offAllNamed(Routes.login);
+      return;
+    }
+    final refreshed = await Get.find<AuthService>().refreshJwtToken();
+    if (refreshed) {
+      await connectWebSocket(
+        _lastWsPath ?? '/eventbus/websocket',
+        _lastWsQueryParams,
+      );
+      return;
+    }
+    NavigationHelper.offAllNamed(Routes.login);
+  }
+
+  void _scheduleReconnect() {
+    if (_manualWsClose) return;
+    if (_isReconnecting || _reconnectAttempts >= _maxReconnectAttempts) {
+      if (_reconnectAttempts >= _maxReconnectAttempts) {
+        AppLogger.error('WebSocket max reconnect attempts reached');
+        ErrorHandler.showError(
+          AppException(
+            type: AppErrorType.network,
+            message: '实时连接已断开，请刷新页面',
+          ),
+        );
+      }
+      return;
+    }
+
+    _isReconnecting = true;
+    final exponent = 1 << (_reconnectAttempts.clamp(0, 4));
+    final delay = Duration(
+      milliseconds: _initialReconnectDelay.inMilliseconds * exponent,
+    );
+
+    Future.delayed(delay, () async {
+      _isReconnecting = false;
+      try {
+        await connectWebSocket(
+          _lastWsPath ?? '/eventbus/websocket',
+          _lastWsQueryParams,
+        );
+        _reconnectAttempts = 0;
+        if (Get.isRegistered<BusinessEventListener>()) {
+          Get.find<BusinessEventListener>().resumeSubscriptions();
+        }
+      } catch (error) {
+        _reconnectAttempts++;
+        _scheduleReconnect();
+      }
+    });
   }
 
   void _handleWsData(dynamic data) {
@@ -595,7 +713,8 @@ class ApiClient {
     );
   }
 
-  void closeWebSocket() {
+  void closeWebSocket({bool manual = true}) {
+    _manualWsClose = manual;
     final channel = _wsChannel;
     if (channel == null) {
       if (kDebugMode) {

@@ -60,6 +60,7 @@ class BusinessEventListener extends GetxService {
   final appealStatusChanges = StreamController<AppealStatusChange>.broadcast();
   final paymentStatusChanges =
       StreamController<PaymentStatusChange>.broadcast();
+  final reconnectSignal = StreamController<void>.broadcast();
 
   Future<void> startListening() async {
     if (_started) {
@@ -111,12 +112,27 @@ class BusinessEventListener extends GetxService {
     }
   }
 
+  void resumeSubscriptions() {
+    if (!_started) return;
+    AppLogger.debug(
+      'BusinessEventListener: resuming subscriptions after reconnect',
+    );
+    _notifyReconnected();
+  }
+
+  void _notifyReconnected() {
+    if (!reconnectSignal.isClosed) {
+      reconnectSignal.add(null);
+    }
+  }
+
   @override
   void onClose() {
     _wsSubscription?.cancel();
     _apiClient.closeWebSocket();
     appealStatusChanges.close();
     paymentStatusChanges.close();
+    reconnectSignal.close();
     super.onClose();
   }
 }
