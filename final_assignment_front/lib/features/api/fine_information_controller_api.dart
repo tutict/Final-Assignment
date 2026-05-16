@@ -37,7 +37,10 @@ class FineInformationControllerApi with BaseApiClient {
   }
 
   /// æ·»å  idempotencyKey ä½ä¸ºæ¥è¯¢åæ°
-  List<QueryParam> _addIdempotencyKey(String idempotencyKey) => const [];
+  void _setIdempotencyHeader(
+      Map<String, String> headerParams, String idempotencyKey) {
+    headerParams['Idempotency-Key'] = idempotencyKey;
+  }
 
   // HTTP Methods
 
@@ -49,10 +52,11 @@ class FineInformationControllerApi with BaseApiClient {
   }) async {
     const path = '/api/fines';
     final headerParams = await _getHeaders(idempotencyKey: idempotencyKey);
+    _setIdempotencyHeader(headerParams, idempotencyKey);
     await apiClient.invokeAPI(
       path,
       'POST',
-      _addIdempotencyKey(idempotencyKey),
+      [],
       fineInformation.toJson(),
       headerParams,
       {},
@@ -126,10 +130,11 @@ class FineInformationControllerApi with BaseApiClient {
   }) async {
     final path = '/api/fines/$fineId';
     final headerParams = await _getHeaders(idempotencyKey: idempotencyKey);
+    _setIdempotencyHeader(headerParams, idempotencyKey);
     final response = await apiClient.invokeAPI(
       path,
       'PUT',
-      _addIdempotencyKey(idempotencyKey),
+      [],
       fineInformation.toJson(),
       headerParams,
       {},
@@ -326,7 +331,8 @@ class FineInformationControllerApi with BaseApiClient {
     int maxSuggestions = 10,
   }) async {
     if (startTime.isEmpty || endTime.isEmpty) {
-      throw AppException.http(400, "Missing required params: startTime or endTime");
+      throw AppException.http(
+          400, "Missing required params: startTime or endTime");
     }
     const path = '/api/fines/by-time-range';
     final queryParams = [
@@ -443,7 +449,8 @@ class FineInformationControllerApi with BaseApiClient {
       if (respMap["error"].toString().contains("not found")) {
         throw AppException.http(404, "Fine not found with ID: $fineId");
       } else if (respMap["error"].toString().contains("Unauthorized")) {
-        throw AppException.http(403, "Unauthorized: Only ADMIN can delete fines");
+        throw AppException.http(
+            403, "Unauthorized: Only ADMIN can delete fines");
       }
       throw AppException.http(400, respMap["error"]);
     }

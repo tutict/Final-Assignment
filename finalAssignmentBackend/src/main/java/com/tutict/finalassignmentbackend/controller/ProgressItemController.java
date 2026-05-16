@@ -11,6 +11,7 @@ import jakarta.annotation.security.RolesAllowed;
 import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -24,6 +25,7 @@ import org.springframework.web.bind.annotation.RestController;
 
 import java.util.List;
 import java.util.Optional;
+import java.time.LocalDateTime;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
@@ -133,11 +135,32 @@ public class ProgressItemController {
 
     @GetMapping
     @Operation(summary = "查询全部进度记录")
-    public ResponseEntity<List<SysRequestHistory>> list() {
+    public ResponseEntity<List<SysRequestHistory>> list(@RequestParam(required = false) String username,
+                                                        @RequestParam(defaultValue = "1") int page,
+                                                        @RequestParam(defaultValue = "20") int size) {
         try {
+            if (hasKey(username)) {
+                return ResponseEntity.ok(sysRequestHistoryService.findByUsername(username, page, size));
+            }
             return ResponseEntity.ok(sysRequestHistoryService.findAll());
         } catch (Exception ex) {
             LOG.log(Level.WARNING, "List request histories failed", ex);
+            if (ex instanceof RuntimeException) {
+                throw (RuntimeException) ex;
+            }
+            throw new RuntimeException(ex);
+        }
+    }
+
+    @GetMapping("/timeRange")
+    @Operation(summary = "List request histories by created time range")
+    public ResponseEntity<List<SysRequestHistory>> getByTimeRange(
+            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime startTime,
+            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime endTime) {
+        try {
+            return ResponseEntity.ok(sysRequestHistoryService.findByTimeRange(startTime, endTime));
+        } catch (Exception ex) {
+            LOG.log(Level.WARNING, "List request histories by time range failed", ex);
             if (ex instanceof RuntimeException) {
                 throw (RuntimeException) ex;
             }

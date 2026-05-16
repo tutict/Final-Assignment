@@ -136,7 +136,10 @@ public class OffenseInformationController {
     public ResponseEntity<OffenseRecord> get(@PathVariable Long offenseId) {
         try {
             OffenseRecord record = offenseRecordService.findById(offenseId);
-            return record == null ? ResponseEntity.notFound().build() : ResponseEntity.ok(record);
+            if (record == null) {
+                throw new com.tutict.finalassignmentbackend.exception.EntityNotFoundException("Offense not found: " + offenseId);
+            }
+            return ResponseEntity.ok(record);
         } catch (Exception ex) {
             LOG.log(Level.WARNING, "Get offense failed", ex);
             if (ex instanceof RuntimeException) {

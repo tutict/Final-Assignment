@@ -42,7 +42,10 @@ class DriverInformationControllerApi with BaseApiClient {
   }
 
   /// æ·»å  idempotencyKey ä½ä¸ºæ¥è¯¢åæ°
-  List<QueryParam> _addIdempotencyKey(String idempotencyKey) => const [];
+  void _setIdempotencyHeader(
+      Map<String, String> headerParams, String idempotencyKey) {
+    headerParams['Idempotency-Key'] = idempotencyKey;
+  }
 
   // HTTP Methods
 
@@ -53,10 +56,11 @@ class DriverInformationControllerApi with BaseApiClient {
   }) async {
     const path = '/api/drivers';
     final headerParams = await _getHeaders(idempotencyKey: idempotencyKey);
+    _setIdempotencyHeader(headerParams, idempotencyKey);
     await apiClient.invokeAPI(
       path,
       'POST',
-      _addIdempotencyKey(idempotencyKey),
+      [],
       driverInformation.toJson(),
       headerParams,
       {},
@@ -118,10 +122,11 @@ class DriverInformationControllerApi with BaseApiClient {
   }) async {
     final path = '/api/drivers/$driverId/name';
     final headerParams = await _getHeaders(idempotencyKey: idempotencyKey);
+    _setIdempotencyHeader(headerParams, idempotencyKey);
     await apiClient.invokeAPI(
       path,
       'PUT',
-      _addIdempotencyKey(idempotencyKey),
+      [],
       jsonEncode(name),
       // String directly encoded as JSON
       headerParams,
@@ -139,10 +144,11 @@ class DriverInformationControllerApi with BaseApiClient {
   }) async {
     final path = '/api/drivers/$driverId/contactNumber';
     final headerParams = await _getHeaders(idempotencyKey: idempotencyKey);
+    _setIdempotencyHeader(headerParams, idempotencyKey);
     await apiClient.invokeAPI(
       path,
       'PUT',
-      _addIdempotencyKey(idempotencyKey),
+      [],
       jsonEncode(contactNumber),
       // String directly encoded as JSON
       headerParams,
@@ -160,10 +166,11 @@ class DriverInformationControllerApi with BaseApiClient {
   }) async {
     final path = '/api/drivers/$driverId/idCardNumber';
     final headerParams = await _getHeaders(idempotencyKey: idempotencyKey);
+    _setIdempotencyHeader(headerParams, idempotencyKey);
     await apiClient.invokeAPI(
       path,
       'PUT',
-      _addIdempotencyKey(idempotencyKey),
+      [],
       jsonEncode(idCardNumber),
       // String directly encoded as JSON
       headerParams,
@@ -181,10 +188,11 @@ class DriverInformationControllerApi with BaseApiClient {
   }) async {
     final path = '/api/drivers/$driverId';
     final headerParams = await _getHeaders(idempotencyKey: idempotencyKey);
+    _setIdempotencyHeader(headerParams, idempotencyKey);
     await apiClient.invokeAPI(
       path,
       'PUT',
-      _addIdempotencyKey(idempotencyKey),
+      [],
       driverInformation.toJson(),
       headerParams,
       {},
@@ -405,7 +413,8 @@ class DriverInformationControllerApi with BaseApiClient {
       if (respMap["error"].toString().contains("not found")) {
         throw AppException.http(404, "Driver not found with ID: $driverId");
       } else if (respMap["error"].toString().contains("Unauthorized")) {
-        throw AppException.http(403, "Unauthorized: Only ADMIN can delete drivers");
+        throw AppException.http(
+            403, "Unauthorized: Only ADMIN can delete drivers");
       }
       throw AppException.http(400, respMap["error"]);
     }

@@ -42,7 +42,7 @@ class RoleManagementControllerApi with BaseApiClient {
   }
 
   /// POST /api/roles - åå»ºæ°çè§è²è®°å½ (ä»?ADMIN)
-  Future<RoleManagement> createRole(
+  Future<RoleManagement?> createRole(
       RoleManagement role, String idempotencyKey) async {
     final response = await apiClient.invokeAPI(
       '/api/roles',
@@ -54,7 +54,10 @@ class RoleManagementControllerApi with BaseApiClient {
       'application/json',
       ['bearerAuth'],
     );
-    if (response.statusCode != 201) {
+    if (response.statusCode == 208) {
+      return null;
+    }
+    if (response.statusCode != 201 && response.statusCode != 200) {
       throw AppException.http(response.statusCode, _decodeBodyBytes(response));
     }
     final data = apiClient.deserialize(
@@ -102,29 +105,19 @@ class RoleManagementControllerApi with BaseApiClient {
     if (roleName.isEmpty) {
       throw AppException.http(400, "Missing required param: roleName");
     }
-    final response = await apiClient.invokeAPI(
-      '/api/roles/name/$roleName',
-      'GET',
-      [],
-      '',
-      {},
-      {},
-      null,
-      ['bearerAuth'],
-    );
-    if (response.body.isEmpty) return null;
-    final data = apiClient.deserialize(
-        _decodeBodyBytes(response), 'Map<String, dynamic>');
-    return RoleManagement.fromJson(data);
+    return getRoleByCode(roleName);
   }
 
   /// GET /api/roles/search - æ ¹æ®è§è²åç§°æ¨¡ç³å¹é
 // è·åè§è²ä¿¡æ¯ (USER å?ADMIN)
   Future<List<RoleManagement>> searchRoles({String? name}) async {
+    if (name == null || name.isEmpty) {
+      return listRoles();
+    }
     final response = await apiClient.invokeAPI(
-      '/api/roles/search',
+      '/api/roles/search/name/fuzzy',
       'GET',
-      _addQueryParams(name: name),
+      [QueryParam('roleName', name)],
       '',
       {},
       {},
@@ -176,19 +169,12 @@ class RoleManagementControllerApi with BaseApiClient {
     if (roleName.isEmpty) {
       throw AppException.http(400, "Missing required param: roleName");
     }
-    final response = await apiClient.invokeAPI(
-      '/api/roles/name/$roleName',
-      'DELETE',
-      [],
-      '',
-      {},
-      {},
-      null,
-      ['bearerAuth'],
-    );
-    if (response.statusCode != 204) {
-      throw AppException.http(response.statusCode, _decodeBodyBytes(response));
+    final role = await getRoleByCode(roleName);
+    final roleId = role?.roleId;
+    if (roleId == null) {
+      throw AppException.http(404, 'Role not found for code: $roleName');
     }
+    await deleteRole(roleId);
   }
 
   /// è·åå½åç¨æ·è§è² (USER å?ADMIN)

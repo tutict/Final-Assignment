@@ -122,7 +122,10 @@ public class AppealManagementController {
     public ResponseEntity<AppealRecord> getAppeal(@PathVariable Long appealId) {
         try {
             AppealRecord record = appealRecordService.getAppealById(appealId);
-            return record == null ? ResponseEntity.notFound().build() : ResponseEntity.ok(record);
+            if (record == null) {
+                throw new com.tutict.finalassignmentbackend.exception.EntityNotFoundException("Appeal not found: " + appealId);
+            }
+            return ResponseEntity.ok(record);
         } catch (Exception ex) {
             LOG.log(Level.WARNING, "Get appeal failed", ex);
             if (ex instanceof RuntimeException) {
@@ -297,7 +300,10 @@ public class AppealManagementController {
     public ResponseEntity<AppealReview> getReview(@PathVariable Long reviewId) {
         try {
             AppealReview review = appealReviewService.findById(reviewId);
-            return review == null ? ResponseEntity.notFound().build() : ResponseEntity.ok(review);
+            if (review == null) {
+                throw new com.tutict.finalassignmentbackend.exception.EntityNotFoundException("Appeal review not found: " + reviewId);
+            }
+            return ResponseEntity.ok(review);
         } catch (Exception ex) {
             LOG.log(Level.WARNING, "Get appeal review failed", ex);
             if (ex instanceof RuntimeException) {

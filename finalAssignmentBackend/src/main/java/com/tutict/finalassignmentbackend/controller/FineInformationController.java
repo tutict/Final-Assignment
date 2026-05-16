@@ -120,7 +120,10 @@ public class FineInformationController {
     public ResponseEntity<FineRecord> get(@PathVariable Long fineId) {
         try {
             FineRecord record = fineRecordService.findById(fineId);
-            return record == null ? ResponseEntity.notFound().build() : ResponseEntity.ok(record);
+            if (record == null) {
+                throw new com.tutict.finalassignmentbackend.exception.EntityNotFoundException("Fine not found: " + fineId);
+            }
+            return ResponseEntity.ok(record);
         } catch (Exception ex) {
             LOG.log(Level.WARNING, "Get fine failed", ex);
             if (ex instanceof RuntimeException) {

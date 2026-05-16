@@ -144,6 +144,19 @@ public class SysRequestHistoryService {
     }
 
     @Transactional(readOnly = true)
+    @Cacheable(cacheNames = CACHE_NAME, key = "'username:' + #username + ':' + #page + ':' + #size", unless = "#result == null || #result.isEmpty()")
+    public List<SysRequestHistory> findByUsername(String username, int page, int size) {
+        if (isBlank(username)) {
+            return findAll();
+        }
+        validatePagination(page, size);
+        long offset = (long) (page - 1) * size;
+        List<SysRequestHistory> records = sysRequestHistoryMapper.selectByUsername(username, offset, size);
+        syncBatchToIndexAfterCommit(records);
+        return records;
+    }
+
+    @Transactional(readOnly = true)
     public long count() {
         return sysRequestHistoryMapper.selectCount(null);
     }
@@ -292,6 +305,19 @@ public class SysRequestHistoryService {
         wrapper.between("created_at", start, end)
                 .orderByDesc("updated_at");
         return fetchFromDatabase(wrapper, page, size);
+    }
+
+    @Transactional(readOnly = true)
+    public List<SysRequestHistory> findByTimeRange(LocalDateTime startTime, LocalDateTime endTime) {
+        if (startTime == null || endTime == null) {
+            return List.of();
+        }
+        QueryWrapper<SysRequestHistory> wrapper = new QueryWrapper<>();
+        wrapper.between("created_at", startTime, endTime)
+                .orderByDesc("updated_at");
+        List<SysRequestHistory> records = sysRequestHistoryMapper.selectList(wrapper);
+        syncBatchToIndexAfterCommit(records);
+        return records;
     }
 
     public Optional<SysRequestHistory> findByIdempotencyKey(String key) {

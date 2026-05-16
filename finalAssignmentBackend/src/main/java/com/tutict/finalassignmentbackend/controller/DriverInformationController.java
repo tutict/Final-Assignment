@@ -149,7 +149,10 @@ public class DriverInformationController {
                 throw new org.springframework.security.access.AccessDeniedException("Forbidden");
             }
             DriverInformation driver = driverInformationService.getDriverById(driverId);
-            return driver == null ? ResponseEntity.notFound().build() : ResponseEntity.ok(driver);
+            if (driver == null) {
+                throw new com.tutict.finalassignmentbackend.exception.EntityNotFoundException("Driver not found: " + driverId);
+            }
+            return ResponseEntity.ok(driver);
         } catch (Exception ex) {
             LOG.log(Level.WARNING, "Get driver failed", ex);
             if (ex instanceof RuntimeException) {

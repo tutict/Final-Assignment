@@ -123,7 +123,10 @@ public class BackupRestoreController {
     public ResponseEntity<SysBackupRestore> get(@PathVariable Long backupId) {
         try {
             SysBackupRestore record = backupRestoreService.findById(backupId);
-            return record == null ? ResponseEntity.notFound().build() : ResponseEntity.ok(record);
+            if (record == null) {
+                throw new com.tutict.finalassignmentbackend.exception.EntityNotFoundException("Backup task not found: " + backupId);
+            }
+            return ResponseEntity.ok(record);
         } catch (Exception ex) {
             LOG.log(Level.WARNING, "Get backup task failed", ex);
             if (ex instanceof RuntimeException) {

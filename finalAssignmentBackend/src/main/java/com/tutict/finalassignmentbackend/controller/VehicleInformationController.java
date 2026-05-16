@@ -124,7 +124,10 @@ public class VehicleInformationController {
     public ResponseEntity<VehicleInformation> getVehicle(@PathVariable Long vehicleId) {
         try {
             VehicleInformation vehicle = vehicleInformationService.getVehicleInformationById(vehicleId);
-            return vehicle == null ? ResponseEntity.notFound().build() : ResponseEntity.ok(vehicle);
+            if (vehicle == null) {
+                throw new com.tutict.finalassignmentbackend.exception.EntityNotFoundException("Vehicle not found: " + vehicleId);
+            }
+            return ResponseEntity.ok(vehicle);
         } catch (Exception ex) {
             LOG.log(Level.WARNING, "Get vehicle failed", ex);
             if (ex instanceof RuntimeException) {
@@ -153,7 +156,10 @@ public class VehicleInformationController {
     public ResponseEntity<VehicleInformation> searchByLicense(@RequestParam String licensePlate) {
         try {
             VehicleInformation vehicle = vehicleInformationService.getVehicleInformationByLicensePlate(licensePlate);
-            return vehicle == null ? ResponseEntity.notFound().build() : ResponseEntity.ok(vehicle);
+            if (vehicle == null) {
+                throw new com.tutict.finalassignmentbackend.exception.EntityNotFoundException("Vehicle not found: " + licensePlate);
+            }
+            return ResponseEntity.ok(vehicle);
         } catch (Exception ex) {
             LOG.log(Level.WARNING, "Search vehicle by license failed", ex);
             if (ex instanceof RuntimeException) {
@@ -332,7 +338,10 @@ public class VehicleInformationController {
     public ResponseEntity<DriverVehicle> getBinding(@PathVariable Long bindingId) {
         try {
             DriverVehicle binding = driverVehicleService.findById(bindingId);
-            return binding == null ? ResponseEntity.notFound().build() : ResponseEntity.ok(binding);
+            if (binding == null) {
+                throw new com.tutict.finalassignmentbackend.exception.EntityNotFoundException("Vehicle binding not found: " + bindingId);
+            }
+            return ResponseEntity.ok(binding);
         } catch (Exception ex) {
             LOG.log(Level.WARNING, "Get driver-vehicle binding failed", ex);
             if (ex instanceof RuntimeException) {

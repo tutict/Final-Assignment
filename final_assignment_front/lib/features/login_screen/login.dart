@@ -391,9 +391,17 @@ class _LoginScreenState extends State<LoginScreen>
   }
 
   String _formatErrorMessage(AppException e, String defaultMessage) {
-    switch (e.code) {
+    switch (e.statusCode) {
+      case 401:
+        return '用户名或密码错误';
       case 400:
         return '$defaultMessage: 请求错误 - ${e.message}';
+      case 423:
+        return '账户已被锁定，请联系管理员';
+      case 429:
+        return '登录尝试过于频繁，请稍后再试';
+      case 503:
+        return '服务暂时不可用，请稍后重试';
       case 403:
         return '$defaultMessage: 无权限 - ${e.message}';
       case 404:

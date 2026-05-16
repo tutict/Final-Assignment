@@ -2,6 +2,7 @@ package com.tutict.finalassignmentbackend.exception.global;
 
 import com.github.dockerjava.api.exception.UnauthorizedException;
 import com.tutict.finalassignmentbackend.dto.response.ApiResponse;
+import com.tutict.finalassignmentbackend.dto.response.FieldErrorDetail;
 import com.tutict.finalassignmentbackend.exception.BusinessException;
 import com.tutict.finalassignmentbackend.exception.EntityNotFoundException;
 import com.tutict.finalassignmentbackend.exception.OptimisticLockException;
@@ -80,28 +81,28 @@ public class GlobalExceptionHandler {
     }
 
     @ExceptionHandler(MethodArgumentNotValidException.class)
-    public ResponseEntity<ApiResponse<List<FieldError>>> handleMethodArgumentNotValidException(
+    public ResponseEntity<ApiResponse<List<FieldErrorDetail>>> handleMethodArgumentNotValidException(
             MethodArgumentNotValidException ex) {
         logger.log(Level.WARNING, "Validation failed: {0}", ex.getMessage());
         return validationError(ex.getBindingResult().getFieldErrors().stream()
-                .map(error -> new FieldError(
+                .map(error -> new FieldErrorDetail(
                         error.getField(),
-                        messageOrDefault(error.getDefaultMessage(), "Invalid value")))
+                        translateMessage(messageOrDefault(error.getDefaultMessage(), "校验失败"))))
                 .toList());
     }
 
     @ExceptionHandler(BindException.class)
-    public ResponseEntity<ApiResponse<List<FieldError>>> handleBindException(BindException ex) {
+    public ResponseEntity<ApiResponse<List<FieldErrorDetail>>> handleBindException(BindException ex) {
         logger.log(Level.WARNING, "Binding failed: {0}", ex.getMessage());
         return validationError(ex.getBindingResult().getFieldErrors().stream()
-                .map(error -> new FieldError(
+                .map(error -> new FieldErrorDetail(
                         error.getField(),
-                        messageOrDefault(error.getDefaultMessage(), "Invalid value")))
+                        translateMessage(messageOrDefault(error.getDefaultMessage(), "校验失败"))))
                 .toList());
     }
 
     @ExceptionHandler(ConstraintViolationException.class)
-    public ResponseEntity<ApiResponse<List<FieldError>>> handleConstraintViolationException(
+    public ResponseEntity<ApiResponse<List<FieldErrorDetail>>> handleConstraintViolationException(
             ConstraintViolationException ex) {
         logger.log(Level.WARNING, "Constraint violation: {0}", ex.getMessage());
         return validationError(ex.getConstraintViolations().stream()
@@ -110,12 +111,13 @@ public class GlobalExceptionHandler {
     }
 
     @ExceptionHandler(MissingServletRequestParameterException.class)
-    public ResponseEntity<ApiResponse<List<FieldError>>> handleMissingServletRequestParameterException(
+    public ResponseEntity<ApiResponse<Void>> handleMissingServletRequestParameterException(
             MissingServletRequestParameterException ex) {
         logger.log(Level.WARNING, "Missing request parameter: {0}", ex.getParameterName());
-        return validationError(List.of(new FieldError(
-                ex.getParameterName(),
-                "Missing required request parameter")));
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                .body(ApiResponse.error(
+                        "MISSING_PARAMETER",
+                        "缺少必要请求参数: " + ex.getParameterName()));
     }
 
     @ExceptionHandler(BusinessException.class)
@@ -143,9 +145,9 @@ public class GlobalExceptionHandler {
                 .body(ApiResponse.error("INTERNAL_ERROR", "Internal server error"));
     }
 
-    private ResponseEntity<ApiResponse<List<FieldError>>> validationError(List<FieldError> errors) {
+    private ResponseEntity<ApiResponse<List<FieldErrorDetail>>> validationError(List<FieldErrorDetail> errors) {
         return ResponseEntity.status(HttpStatus.BAD_REQUEST)
-                .body(ApiResponse.<List<FieldError>>builder()
+                .body(ApiResponse.<List<FieldErrorDetail>>builder()
                         .success(false)
                         .errorCode("VALIDATION_ERROR")
                         .message("\u8bf7\u6c42\u53c2\u6570\u6821\u9a8c\u5931\u8d25")
@@ -153,17 +155,26 @@ public class GlobalExceptionHandler {
                         .build());
     }
 
-    private FieldError toFieldError(ConstraintViolation<?> violation) {
+    private FieldErrorDetail toFieldError(ConstraintViolation<?> violation) {
         String path = violation.getPropertyPath() == null ? "" : violation.getPropertyPath().toString();
         int lastDot = path.lastIndexOf('.');
         String field = lastDot >= 0 ? path.substring(lastDot + 1) : path;
-        return new FieldError(field, violation.getMessage());
+        return new FieldErrorDetail(field, translateMessage(violation.getMessage()));
     }
 
     private static String messageOrDefault(String message, String fallback) {
         return message == null || message.isBlank() ? fallback : message;
     }
 
-    private record FieldError(String field, String message) {
+    private static String translateMessage(String message) {
+        if (message == null) {
+            return "校验失败";
+        }
+        return switch (message) {
+            case "must not be blank" -> "不能为空";
+            case "must not be null" -> "不能为空";
+            case "must be positive" -> "必须大于 0";
+            default -> message;
+        };
     }
 }

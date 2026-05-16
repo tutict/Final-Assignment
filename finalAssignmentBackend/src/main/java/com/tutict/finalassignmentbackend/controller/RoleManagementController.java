@@ -125,7 +125,10 @@ public class RoleManagementController {
     public ResponseEntity<SysRole> getRole(@PathVariable Integer roleId) {
         try {
             SysRole role = sysRoleService.findById(roleId);
-            return role == null ? ResponseEntity.notFound().build() : ResponseEntity.ok(role);
+            if (role == null) {
+                throw new com.tutict.finalassignmentbackend.exception.EntityNotFoundException("Role not found: " + roleId);
+            }
+            return ResponseEntity.ok(role);
         } catch (Exception ex) {
             LOG.log(Level.WARNING, "Get role failed", ex);
             if (ex instanceof RuntimeException) {
@@ -154,7 +157,10 @@ public class RoleManagementController {
     public ResponseEntity<SysRole> getByCode(@PathVariable String roleCode) {
         try {
             SysRole role = sysRoleService.findByRoleCode(roleCode);
-            return role == null ? ResponseEntity.notFound().build() : ResponseEntity.ok(role);
+            if (role == null) {
+                throw new com.tutict.finalassignmentbackend.exception.EntityNotFoundException("Role not found: " + roleCode);
+            }
+            return ResponseEntity.ok(role);
         } catch (Exception ex) {
             LOG.log(Level.WARNING, "Get role by code failed", ex);
             if (ex instanceof RuntimeException) {
@@ -317,7 +323,10 @@ public class RoleManagementController {
     public ResponseEntity<SysRolePermission> getPermissionRelation(@PathVariable Long relationId) {
         try {
             SysRolePermission relation = sysRolePermissionService.findById(relationId);
-            return relation == null ? ResponseEntity.notFound().build() : ResponseEntity.ok(relation);
+            if (relation == null) {
+                throw new com.tutict.finalassignmentbackend.exception.EntityNotFoundException("Role permission relation not found: " + relationId);
+            }
+            return ResponseEntity.ok(relation);
         } catch (Exception ex) {
             LOG.log(Level.WARNING, "Get role permission failed", ex);
             if (ex instanceof RuntimeException) {

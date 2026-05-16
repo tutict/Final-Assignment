@@ -40,12 +40,6 @@ class PermissionManagementControllerApi with BaseApiClient {
 
   /// è¾
 // å©æ¹æ³ï¼æ·»å æ¥è¯¢åæ°ï¼å¦åç§°æç´¢ï¼
-  List<QueryParam> _addQueryParams({String? name}) {
-    final queryParams = <QueryParam>[];
-    if (name != null) queryParams.add(QueryParam('name', name));
-    return queryParams;
-  }
-
   /// GET /api/permissions - è·åæææé?
   /// 获取权限配置列表。
   ///
@@ -85,16 +79,14 @@ class PermissionManagementControllerApi with BaseApiClient {
     if (permissionName.isEmpty) {
       throw AppException.http(400, "Missing required param: permissionName");
     }
-    await apiClient.invokeAPI(
-      '/api/permissions/name/$permissionName',
-      'DELETE',
-      [],
-      '',
-      {},
-      {},
-      null,
-      ['bearerAuth'],
-    );
+    final permission =
+        await getPermissionByName(permissionName: permissionName);
+    final permissionId = permission?.permissionId;
+    if (permissionId == null) {
+      throw AppException.http(
+          404, 'Permission not found for name: $permissionName');
+    }
+    await deletePermission(permissionId: permissionId.toString());
   }
 
   /// GET /api/permissions/name/{permissionName} - æ ¹æ®åç§°è·åæé
@@ -112,20 +104,15 @@ class PermissionManagementControllerApi with BaseApiClient {
     if (permissionName.isEmpty) {
       throw AppException.http(400, "Missing required param: permissionName");
     }
-    final response = await apiClient.invokeAPI(
-      '/api/permissions/name/$permissionName',
-      'GET',
-      [],
-      '',
-      {},
-      {},
-      null,
-      ['bearerAuth'],
-    );
-    if (response.body.isEmpty) return null;
-    final data = apiClient.deserialize(
-        _decodeBodyBytes(response), 'Map<String, dynamic>');
-    return PermissionManagement.fromJson(data);
+    final permissions =
+        await searchPermissionsByNameFuzzy(permissionName: permissionName);
+    for (final permission in permissions) {
+      if (permission.permissionName == permissionName ||
+          permission.permissionCode == permissionName) {
+        return permission;
+      }
+    }
+    return permissions.isEmpty ? null : permissions.first;
   }
 
   /// DELETE /api/permissions/{permissionId} - æ ¹æ®IDå é¤æé (ä»
@@ -259,10 +246,13 @@ class PermissionManagementControllerApi with BaseApiClient {
   ///
   /// 对应接口：GET /api/permissions/search
   Future<List<PermissionManagement>> searchPermissions({String? name}) async {
+    if (name == null || name.isEmpty) {
+      return listPermissions();
+    }
     final response = await apiClient.invokeAPI(
-      '/api/permissions/search',
+      '/api/permissions/search/name/fuzzy',
       'GET',
-      _addQueryParams(name: name),
+      [QueryParam('permissionName', name)],
       '',
       {},
       {},

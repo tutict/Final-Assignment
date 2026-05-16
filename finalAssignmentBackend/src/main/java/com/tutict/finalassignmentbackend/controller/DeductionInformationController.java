@@ -120,7 +120,10 @@ public class DeductionInformationController {
     public ResponseEntity<DeductionRecord> get(@PathVariable Long deductionId) {
         try {
             DeductionRecord record = deductionRecordService.findById(deductionId);
-            return record == null ? ResponseEntity.notFound().build() : ResponseEntity.ok(record);
+            if (record == null) {
+                throw new com.tutict.finalassignmentbackend.exception.EntityNotFoundException("Deduction not found: " + deductionId);
+            }
+            return ResponseEntity.ok(record);
         } catch (Exception ex) {
             LOG.log(Level.WARNING, "Get deduction failed", ex);
             if (ex instanceof RuntimeException) {

@@ -195,13 +195,33 @@ class ProgressControllerApi with BaseApiClient {
         ''; // PUT è¯·æ±è¿éä¸éè¦?bodyï¼å ä¸ºåæ°å¨æ¥è¯¢å­ç¬¦ä¸²ä¸­
 
     // åå»ºè·¯å¾åæ å°åé?
-    String path =
-        "/api/progress/$progressId/status".replaceAll("{format}", "json");
+    final currentResponse = await apiClient.invokeAPI(
+      "/api/progress/$progressId",
+      'GET',
+      [],
+      '',
+      {
+        ...?headers,
+        'Authorization': 'Bearer $jwtToken',
+        'Content-Type': 'application/json',
+      },
+      {},
+      null,
+      [],
+    );
+    if (currentResponse.statusCode != 200) {
+      return currentResponse;
+    }
+    final progressBody =
+        jsonDecode(_decodeBodyBytes(currentResponse)) as Map<String, dynamic>;
+    progressBody['businessStatus'] = newStatus;
+    progressBody['status'] = newStatus;
+    postBody = progressBody;
+
+    String path = "/api/progress/$progressId".replaceAll("{format}", "json");
 
     // æ¥è¯¢åæ°
-    List<QueryParam> queryParams = [
-      QueryParam('newStatus', newStatus),
-    ];
+    List<QueryParam> queryParams = [];
     Map<String, String> headerParams = {
       ...?headers,
       'Authorization': 'Bearer $jwtToken',
@@ -209,7 +229,7 @@ class ProgressControllerApi with BaseApiClient {
     };
     Map<String, String> formParams = {};
 
-    List<String> contentTypes = [];
+    List<String> contentTypes = ["application/json"];
 
     String? nullableContentType =
         contentTypes.isNotEmpty ? contentTypes[0] : null;
@@ -294,10 +314,12 @@ class ProgressControllerApi with BaseApiClient {
     Object postBody = ''; // GET è¯·æ±éå¸¸æ²¡æ body
 
     // åå»ºè·¯å¾åæ å°åé?
-    String path = "/api/progress/status/$status".replaceAll("{format}", "json");
+    String path = "/api/progress/status".replaceAll("{format}", "json");
 
     // æ¥è¯¢åæ°
-    List<QueryParam> queryParams = [];
+    List<QueryParam> queryParams = [
+      QueryParam('status', status),
+    ];
     Map<String, String> headerParams = {
       ...?headers,
       'Authorization': 'Bearer $jwtToken',
