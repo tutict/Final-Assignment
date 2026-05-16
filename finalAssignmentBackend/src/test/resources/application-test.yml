@@ -1,0 +1,30 @@
+spring:
+  datasource:
+    url: ${TEST_DB_URL:jdbc:tc:mysql:8.0:///testdb}
+    driver-class-name: org.testcontainers.jdbc.ContainerDatabaseDriver
+  kafka:
+    bootstrap-servers: ${TEST_KAFKA_SERVERS:localhost:9092}
+  data:
+    redis:
+      host: localhost
+      port: 6379
+
+# AI 测试使用 mock provider，不调用真实 Ollama
+ai:
+  provider:
+    primary: mock
+  chat:
+    streaming:
+      enabled: true
+
+# 测试用 JWT secret（固定值，方便生成测试 token）
+jwt:
+  secret: test-secret-key-for-integration-tests-minimum-32-chars
+  access-token-expiration: 3600
+  refresh-token-expiration: 86400
+
+# 测试日志
+logging:
+  level:
+    com.tutict.finalassignmentbackend: DEBUG
+    org.springframework.security: DEBUG
