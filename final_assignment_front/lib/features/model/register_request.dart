@@ -4,15 +4,12 @@ class RegisterRequest {
   final String role;
   final String? idempotencyKey;
 
-  // 使用静态常量正则表达式，提高效率和可读性
-  static final RegExp _domainRegExp = RegExp(r'@([^.]+)\.');
-
-  /// 构造函数，根据 [username] 自动设置 [role]
+  /// 公开注册固定为普通用户；管理员角色应由后台受保护接口分配。
   RegisterRequest({
     required this.username,
     required this.password,
     required this.idempotencyKey,
-  }) : role = _determineRole(username);
+  }) : role = 'USER';
 
   /// 从 JSON 创建 [RegisterRequest] 实例
   factory RegisterRequest.fromJson(Map<String, dynamic> json) {
@@ -46,19 +43,6 @@ class RegisterRequest {
   String toString() {
     // 为了安全，隐藏密码字段
     return 'RegisterRequest[username=$username, password=******, role=$role, idempotencyKey=$idempotencyKey]';
-  }
-
-  /// 根据 [username] 确定角色
-  /// 如果域名是 'admin'，返回 'ADMIN'，否则返回 'USER'
-  static String _determineRole(String username) {
-    final match = _domainRegExp.firstMatch(username);
-    if (match != null && match.groupCount >= 1) {
-      final domain = match.group(1)?.toLowerCase();
-      if (domain == 'admin') {
-        return 'ADMIN';
-      }
-    }
-    return 'USER';
   }
 
   /// 从 JSON 列表创建 [RegisterRequest] 列表

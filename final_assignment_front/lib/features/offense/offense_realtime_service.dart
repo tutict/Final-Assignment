@@ -111,8 +111,8 @@ class OffenseRealtimeService extends GetxService {
   }
 
   Future<List<OffenseInformation>> eventbusOffensesTimeRangeGet({
-    String startTime = '1970-01-01',
-    String endTime = '2100-01-01',
+    String startTime = '1970-01-01T00:00:00',
+    String endTime = '2100-01-01T23:59:59',
   }) async {
     final respMap = await apiClient.sendWsMessage({
       'service': 'OffenseRecordService',

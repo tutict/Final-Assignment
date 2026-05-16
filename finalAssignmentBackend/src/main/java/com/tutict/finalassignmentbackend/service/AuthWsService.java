@@ -40,6 +40,7 @@ public class AuthWsService {
 
     private static final Logger logger = Logger.getLogger(AuthWsService.class.getName());
     private static final int MAX_ROLE_PAGE_SIZE = 100;
+    private static final String PUBLIC_REGISTER_ROLE = "USER";
 
     private final TokenProvider tokenProvider;
     private final AuditLoginLogService auditLoginLogService;
@@ -228,7 +229,7 @@ public class AuthWsService {
             throw new RuntimeException("User registration failed: user was not persisted");
         }
 
-        SysRole role = resolveOrCreateRole(registerRequest.getRole());
+        SysRole role = resolveOrCreateRole(PUBLIC_REGISTER_ROLE);
         assignRole(savedUser, role);
 
         logger.info(() -> String.format("User registered successfully: %s", registerRequest.getUsername()));
@@ -500,7 +501,6 @@ public class AuthWsService {
         private String username;
         @NotBlank(message = "password must not be blank")
         private String password;
-        @NotBlank(message = "role must not be blank")
         private String role;
         private String idempotencyKey;
     }

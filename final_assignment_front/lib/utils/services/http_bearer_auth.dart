@@ -21,7 +21,7 @@ class HttpBearerAuth implements Authentication {
             'Type of Bearer accessToken should be String or String Function().');
       }
       headerParams["Authorization"] = "Bearer $token";
-      AppLogger.debug('Applied Authorization header: Bearer $token');
+      AppLogger.debug('Applied Authorization header');
     } else {
       AppLogger.debug('No access token set for HttpBearerAuth');
     }
@@ -33,7 +33,7 @@ class HttpBearerAuth implements Authentication {
           'Type of Bearer accessToken should be String or String Function().');
     }
     _accessToken = accessToken;
-    AppLogger.debug('Set access token: $_accessToken');
+    AppLogger.debug('Set access token');
   }
 
   /// Returns the resolved token string if available, otherwise null.

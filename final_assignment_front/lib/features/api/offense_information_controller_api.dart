@@ -186,8 +186,8 @@ class OffenseInformationControllerApi with BaseApiClient {
   ///
   /// 对应接口：GET /api/offenses/search/time-range
   Future<List<OffenseInformation>> searchOffensesByTimeRange({
-    String startTime = '1970-01-01',
-    String endTime = '2100-01-01',
+    String startTime = '1970-01-01T00:00:00',
+    String endTime = '2100-01-01T23:59:59',
   }) async {
     final response = await apiClient.invokeAPI(
       '/api/offenses/search/time-range',

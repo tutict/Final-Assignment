@@ -197,10 +197,18 @@ public class PaymentRecordService {
         if (rows == 0) {
             throw new IllegalStateException("No PaymentRecord deleted for id=" + paymentId);
         }
+        runAfterCommitOrNow(() -> paymentRecordSearchRepository.deleteById(paymentId));
+    }
+
+    private void runAfterCommitOrNow(Runnable action) {
+        if (!TransactionSynchronizationManager.isSynchronizationActive()) {
+            action.run();
+            return;
+        }
         TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
             @Override
             public void afterCommit() {
-                paymentRecordSearchRepository.deleteById(paymentId);
+                action.run();
             }
         });
     }
@@ -423,13 +431,10 @@ public class PaymentRecordService {
         if (paymentRecord == null) {
             return;
         }
-        TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
-            @Override
-            public void afterCommit() {
-                PaymentRecordDocument doc = PaymentRecordDocument.fromEntity(paymentRecord);
-                if (doc != null) {
-                    paymentRecordSearchRepository.save(doc);
-                }
+        runAfterCommitOrNow(() -> {
+            PaymentRecordDocument doc = PaymentRecordDocument.fromEntity(paymentRecord);
+            if (doc != null) {
+                paymentRecordSearchRepository.save(doc);
             }
         });
     }
@@ -552,17 +557,14 @@ public class PaymentRecordService {
         if (records == null || records.isEmpty()) {
             return;
         }
-        TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
-            @Override
-            public void afterCommit() {
-                List<PaymentRecordDocument> documents = records.stream()
-                        .filter(Objects::nonNull)
-                        .map(PaymentRecordDocument::fromEntity)
-                        .filter(Objects::nonNull)
-                        .collect(Collectors.toList());
-                if (!documents.isEmpty()) {
-                    paymentRecordSearchRepository.saveAll(documents);
-                }
+        runAfterCommitOrNow(() -> {
+            List<PaymentRecordDocument> documents = records.stream()
+                    .filter(Objects::nonNull)
+                    .map(PaymentRecordDocument::fromEntity)
+                    .filter(Objects::nonNull)
+                    .collect(Collectors.toList());
+            if (!documents.isEmpty()) {
+                paymentRecordSearchRepository.saveAll(documents);
             }
         });
     }

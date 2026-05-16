@@ -57,7 +57,6 @@ public class SecurityConfig {
                                 "/api/auth/register",
                                 "/api/auth/login",
                                 "/api/auth/refresh",
-                                "/api/users/me/password",
                                 "/actuator/health",
                                 "/actuator/health/**"
                         ).permitAll()

@@ -46,10 +46,8 @@ public class NetWorkHandler extends AbstractVerticle {
     @Value("${backend.port}")
     int backendPort;
 
-    TokenProvider tokenProvider;
-
-    @Lazy
-    WsActionRegistry wsActionRegistry;
+    private final TokenProvider tokenProvider;
+    private final WsActionRegistry wsActionRegistry;
 
     private final ObjectMapper objectMapper;
     private final CorsProperties corsProperties;
@@ -57,9 +55,11 @@ public class NetWorkHandler extends AbstractVerticle {
     private WebClient webClient;
 
     public NetWorkHandler(TokenProvider tokenProvider,
+                          @Lazy WsActionRegistry wsActionRegistry,
                           ObjectMapper objectMapper,
                           CorsProperties corsProperties) {
         this.tokenProvider = tokenProvider;
+        this.wsActionRegistry = wsActionRegistry;
         this.objectMapper = objectMapper;
         this.corsProperties = corsProperties;
     }
@@ -240,7 +240,6 @@ public class NetWorkHandler extends AbstractVerticle {
         Set<ServerWebSocket> sockets = webSocketsByUsername.get(username);
         if (sockets == null || sockets.isEmpty()) {
             log.info("No active WebSocket session for user={}", username);
-            broadcastBusinessEvent(payload);
             return;
         }
         sockets.forEach(ws -> writeWsResponse(ws, payload));
