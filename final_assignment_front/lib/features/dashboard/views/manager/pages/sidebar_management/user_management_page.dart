@@ -132,7 +132,11 @@ class _UserManagementPageState extends State<UserManagementPage> {
         return;
       }
       await userApi.initializeWithJwt();
-      final jwtToken = (await AuthTokenStore.instance.getJwtToken())!;
+      final jwtToken = await AuthTokenStore.instance.getJwtToken();
+      if (jwtToken == null || jwtToken.isEmpty) {
+        NavigationHelper.offAllNamed(Routes.login);
+        return;
+      }
       final decodedToken = JwtDecoder.decode(jwtToken);
       final roles = decodedToken['roles'] is List
           ? (decodedToken['roles'] as List).map((r) => r.toString()).toList()
@@ -977,7 +981,8 @@ class _UserManagementPageState extends State<UserManagementPage> {
                                     padding: const EdgeInsets.only(top: 20.0),
                                     child: ElevatedButton(
                                       onPressed: () =>
-                                          NavigationHelper.offAllNamed(Routes.login),
+                                          NavigationHelper.offAllNamed(
+                                              Routes.login),
                                       style: ElevatedButton.styleFrom(
                                         backgroundColor:
                                             themeData.colorScheme.primary,

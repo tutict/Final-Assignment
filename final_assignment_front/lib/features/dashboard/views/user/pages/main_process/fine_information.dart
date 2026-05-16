@@ -2,6 +2,7 @@ import 'package:final_assignment_front/core/utils/app_logger.dart';
 import 'dart:async';
 import 'package:final_assignment_front/config/routes/app_routes.dart';
 import 'package:final_assignment_front/core/auth/auth_service.dart';
+import 'package:final_assignment_front/core/auth/user_profile_service.dart';
 import 'package:final_assignment_front/core/realtime/business_event_listener.dart';
 import 'package:final_assignment_front/features/api/fine_information_controller_api.dart';
 import 'package:final_assignment_front/features/api/driver_information_controller_api.dart';
@@ -124,7 +125,7 @@ class _FineInformationPageState extends State<FineInformationPage> {
       }
       _currentDriverName = prefs.getString('driverName');
       if (_currentDriverName == null && jwtToken != null) {
-        _currentDriverName = await _fetchDriverName(jwtToken);
+        _currentDriverName = await _fetchDriverName();
         if (_currentDriverName != null) {
           await prefs.setString('driverName', _currentDriverName!);
         }
@@ -154,8 +155,12 @@ class _FineInformationPageState extends State<FineInformationPage> {
     }
   }
 
-  Future<String?> _fetchDriverName(String jwtToken) async {
+  Future<String?> _fetchDriverName() async {
     try {
+      final jwtToken = await AuthTokenStore.instance.getJwtToken();
+      if (jwtToken == null || jwtToken.isEmpty) {
+        return null;
+      }
       await userApi.initializeWithJwt();
       final prefs = await SharedPreferences.getInstance();
       final storedUsername = prefs.getString('userName');
@@ -185,19 +190,26 @@ class _FineInformationPageState extends State<FineInformationPage> {
         throw Exception('无法确定当前用户名');
       }
 
-      final user = await userApi.searchUsersByUsername(username: username);
-      if (user?.userId == null) {
-        throw Exception('User data does not contain userId');
+      if (!Get.isRegistered<UserProfileService>()) {
+        throw Exception('UserProfileService is not registered');
+      }
+      final profile = await Get.find<UserProfileService>().getProfile();
+      final driverId = profile.driverId;
+      if (driverId == null) {
+        setState(() {
+          _errorMessage = '您的账户尚未关联司机档案，请联系管理员';
+        });
+        return null;
       }
 
       await driverApi.initializeWithJwt();
-      final driverInfo = await driverApi.getDriver(driverId: user!.userId!);
+      final driverInfo = await driverApi.getDriver(driverId: driverId);
       if (driverInfo != null && driverInfo.name != null) {
         final driverName = driverInfo.name!;
         developer.log('Driver name from API: $driverName');
         return driverName;
       } else {
-        developer.log('No driver info found for userId: ${user.userId}');
+        developer.log('No driver info found for driverId: $driverId');
         return null;
       }
     } catch (e) {

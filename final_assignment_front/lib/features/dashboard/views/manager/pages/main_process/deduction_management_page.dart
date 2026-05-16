@@ -99,8 +99,11 @@ class _DeductionManagementState extends State<DeductionManagementPage> {
         return;
       }
       await deductionApi.initializeWithJwt();
-      final prefs = await SharedPreferences.getInstance();
-      final jwtToken = prefs.getString('jwtToken')!;
+      final jwtToken = await AuthTokenStore.instance.getJwtToken();
+      if (jwtToken == null || jwtToken.isEmpty) {
+        NavigationHelper.offAllNamed(Routes.login);
+        return;
+      }
       final decodedToken = JwtDecoder.decode(jwtToken);
       _isAdmin = decodedToken['roles'] == 'ADMIN' ||
           (decodedToken['roles'] is List &&

@@ -260,9 +260,15 @@ class ApiClient {
   }
 
   Future<void> _handleAppException(AppException exception) async {
-    if (exception.type != AppErrorType.unauthorized) return;
     if (!Get.isRegistered<AuthService>()) return;
-    await Get.find<AuthService>().handleUnauthorized();
+    final authService = Get.find<AuthService>();
+    if (exception.type == AppErrorType.unauthorized) {
+      await authService.handleUnauthorized();
+      return;
+    }
+    if (exception.type == AppErrorType.forbidden) {
+      await authService.handleForbidden(message: exception.message);
+    }
   }
 
   Future<bool> _safeRefreshToken() async {

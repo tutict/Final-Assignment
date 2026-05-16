@@ -5,7 +5,9 @@ import 'dart:developer' as developer;
 import 'package:final_assignment_front/config/routes/app_routes.dart';
 import 'package:final_assignment_front/core/config/app_config.dart';
 import 'package:final_assignment_front/core/auth/user_profile_service.dart';
+import 'package:final_assignment_front/core/network/app_exception.dart';
 import 'package:final_assignment_front/core/utils/app_logger.dart';
+import 'package:final_assignment_front/shared/utils/error_handler.dart';
 import 'package:final_assignment_front/utils/services/auth_token_store.dart';
 import 'package:get/get.dart';
 import 'package:http/http.dart' as http;
@@ -164,6 +166,13 @@ class AuthService extends GetxService {
           )
           .timeout(const Duration(seconds: 10));
 
+      if (response.statusCode == 404) {
+        AppLogger.error('Refresh endpoint not found - may be using Cloud auth');
+        await clearTokens();
+        NavigationHelper.offAllNamed(Routes.login);
+        return false;
+      }
+
       if (response.statusCode != 200 || response.body.isEmpty) {
         developer.log('JWT refresh failed: ${response.statusCode}');
         return false;
@@ -173,8 +182,7 @@ class AuthService extends GetxService {
       final data = body['success'] == true && body['data'] is Map
           ? Map<String, dynamic>.from(body['data'] as Map)
           : body;
-      final newJwt =
-          (data['accessToken'] ?? data['jwtToken'])?.toString();
+      final newJwt = (data['accessToken'] ?? data['jwtToken'])?.toString();
       if (newJwt == null || newJwt.isEmpty) {
         developer.log('JWT refresh response did not contain accessToken');
         return false;
@@ -198,9 +206,16 @@ class AuthService extends GetxService {
     }
   }
 
-  Future<void> handleForbidden({String? source}) async {
+  Future<void> handleForbidden({String? source, String? message}) async {
     developer.log(
       'Forbidden${source == null ? '' : ' from $source'}',
+    );
+    ErrorHandler.showError(
+      AppException(
+        type: AppErrorType.forbidden,
+        message: message ?? '您没有权限执行此操作',
+        statusCode: 403,
+      ),
     );
   }
 
@@ -266,15 +281,17 @@ class AuthService extends GetxService {
     try {
       final token = await AuthTokenStore.instance.getJwtToken();
       if (token != null && token.isNotEmpty) {
-        await _client
-            .post(
-              Uri.parse('${AppConfig.apiBaseUrl}/api/auth/logout'),
-              headers: {
-                'Authorization': 'Bearer $token',
-                'Content-Type': 'application/json',
-              },
-            )
-            .timeout(const Duration(seconds: 5));
+        final response = await _client.post(
+          Uri.parse('${AppConfig.apiBaseUrl}/api/auth/logout'),
+          headers: {
+            'Authorization': 'Bearer $token',
+            'Content-Type': 'application/json',
+          },
+        ).timeout(const Duration(seconds: 5));
+        if (response.statusCode == 404) {
+          AppLogger.error(
+              'Logout endpoint not found - may be using Cloud auth');
+        }
       }
     } catch (error, stackTrace) {
       AppLogger.error(

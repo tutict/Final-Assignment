@@ -1,12 +1,12 @@
 import 'dart:developer' as developer;
 
 import 'package:final_assignment_front/config/routes/app_routes.dart';
+import 'package:final_assignment_front/core/auth/user_profile_service.dart';
 import 'package:final_assignment_front/config/themes/app_theme.dart';
 import 'package:final_assignment_front/constants/app_constants.dart';
 import 'package:final_assignment_front/features/api/driver_information_controller_api.dart';
 import 'package:final_assignment_front/features/api/offense_information_controller_api.dart';
 import 'package:final_assignment_front/features/api/role_management_controller_api.dart';
-import 'package:final_assignment_front/features/api/user_management_controller_api.dart';
 import 'package:final_assignment_front/features/dashboard/models/profile.dart';
 import 'package:final_assignment_front/shared_components/case_card.dart';
 import 'package:final_assignment_front/shared_components/project_card.dart';
@@ -96,8 +96,7 @@ class UserDashboardController extends GetxController {
         currentEmail.value = userEmail;
         await offenseApi.initializeWithJwt();
         await roleApi.initializeWithJwt();
-        // Fetch driver data to ensure correct name
-        await _fetchDriverData();
+        await _loadUserProfile();
       } else {
         _showErrorSnackBar('请先登录以访问管理功能');
         _redirectToLogin();
@@ -111,28 +110,26 @@ class UserDashboardController extends GetxController {
     }
   }
 
-  Future<void> _fetchDriverData() async {
+  Future<void> _loadUserProfile() async {
     try {
       final prefs = await SharedPreferences.getInstance();
-      final storedUsername = prefs.getString('userName');
-      if (storedUsername == null || storedUsername.isEmpty) {
-        throw Exception('Username not found in storage');
+      if (!Get.isRegistered<UserProfileService>()) {
+        throw Exception('UserProfileService is not registered');
       }
-      final userApi = UserManagementControllerApi();
-      await userApi.initializeWithJwt();
-      final user =
-          await userApi.searchUsersByUsername(username: storedUsername);
-      if (user == null || user.userId == null) {
-        throw Exception('User or user ID not found');
+      final profile = await Get.find<UserProfileService>().getProfile();
+      final driverId = profile.driverId;
+      if (driverId == null) {
+        throw Exception('您的账户尚未关联司机档案，请联系管理员');
       }
-      final userId = user.userId!;
 
       final driverApi = DriverInformationControllerApi();
       await driverApi.initializeWithJwt();
-      final driver = await driverApi.getDriver(driverId: userId);
-      final resolvedName =
-          driver?.name ?? user.realName ?? user.username ?? storedUsername;
-      final resolvedEmail = user.email ?? currentEmail.value;
+      final driver = await driverApi.getDriver(driverId: driverId);
+      final resolvedName = driver?.name ??
+          profile.driverName ??
+          profile.displayName ??
+          profile.username;
+      final resolvedEmail = profile.email ?? currentEmail.value;
 
       updateCurrentUser(
         resolvedName,
@@ -141,12 +138,15 @@ class UserDashboardController extends GetxController {
       driverLicenseNumber.value = driver?.driverLicenseNumber ?? '';
       idCardNumber.value = driver?.idCardNumber ?? '';
       await prefs.setString('userName', resolvedName);
-      await prefs.setString('userId', userId.toString());
+      await prefs.setString('authUserId', profile.authUserId.toString());
+      await prefs.setString('userId', profile.authUserId.toString());
+      await prefs.setString('driverId', driverId.toString());
       if (resolvedEmail.isNotEmpty) {
         await prefs.setString('userEmail', resolvedEmail);
       }
-      developer
-          .log('Updated user info from API: name=$resolvedName, id=$userId');
+      developer.log(
+        'Updated user info from profile: name=$resolvedName, driverId=$driverId',
+      );
     } catch (e) {
       developer.log('Failed to fetch driver data: $e');
       _showErrorSnackBar('无法获取司机信息: $e');

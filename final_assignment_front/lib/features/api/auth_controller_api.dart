@@ -25,6 +25,13 @@ class AuthControllerApi with BaseApiClient {
     return getHeaders();
   }
 
+  Map<String, String> _getPublicHeaders() {
+    return {
+      'Content-Type': 'application/json',
+      'Accept': 'application/json',
+    };
+  }
+
   /// ä½¿ç¨ HTTP ä¿¡æ¯è¿è¡ç»å½
   Future<http.Response> _loginWithHttpInfo(
       {required LoginRequest loginRequest}) async {
@@ -33,7 +40,7 @@ class AuthControllerApi with BaseApiClient {
     String path = "/api/auth/login".replaceAll("{format}", "json");
 
     List<QueryParam> queryParams = [];
-    Map<String, String> headerParams = await _getHeaders();
+    Map<String, String> headerParams = _getPublicHeaders();
     Map<String, String> formParams = {};
 
     List<String> contentTypes = ["application/json"];
@@ -74,7 +81,7 @@ class AuthControllerApi with BaseApiClient {
     String path = "/api/auth/register".replaceAll("{format}", "json");
 
     List<QueryParam> queryParams = [];
-    Map<String, String> headerParams = await _getHeaders();
+    Map<String, String> headerParams = _getPublicHeaders();
     Map<String, String> formParams = {};
 
     List<String> contentTypes = ["application/json"];

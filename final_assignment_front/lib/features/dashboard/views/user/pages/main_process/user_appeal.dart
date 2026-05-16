@@ -3,6 +3,7 @@ import 'dart:async';
 import 'dart:convert';
 import 'package:final_assignment_front/config/routes/app_routes.dart';
 import 'package:final_assignment_front/core/auth/auth_service.dart';
+import 'package:final_assignment_front/core/auth/user_profile_service.dart';
 import 'package:final_assignment_front/core/realtime/business_event_listener.dart';
 import 'package:final_assignment_front/features/dashboard/bindings/progress_binding.dart';
 import 'package:final_assignment_front/features/dashboard/controllers/progress_controller.dart';
@@ -214,20 +215,25 @@ class _UserAppealPageState extends State<UserAppealPage> {
       if (username == null || username.isEmpty) {
         throw Exception('无法确定当前用户');
       }
-      await userApi.initializeWithJwt();
-      final userData = await userApi.searchUsersByUsername(username: username);
-      if (userData == null || userData.userId == null) {
-        throw Exception('User data does not contain userId');
+      if (!Get.isRegistered<UserProfileService>()) {
+        throw Exception('UserProfileService is not registered');
       }
-      final int userId = userData.userId!;
+      final profile = await Get.find<UserProfileService>().getProfile();
+      final driverId = profile.driverId;
+      if (driverId == null) {
+        setState(() {
+          _errorMessage = '您的账户尚未关联司机档案，请联系管理员';
+        });
+        return null;
+      }
 
       await driverApi.initializeWithJwt();
-      var driverInfo = await driverApi.getDriver(driverId: userId);
+      var driverInfo = await driverApi.getDriver(driverId: driverId);
       if (driverInfo == null) {
         driverInfo = DriverInformation(
-          driverId: userId,
-          name: userData.username ?? '未知用户',
-          contactNumber: userData.contactNumber ?? '',
+          driverId: driverId,
+          name: profile.driverName ?? profile.displayName ?? profile.username,
+          contactNumber: profile.phoneNumber ?? '',
           idCardNumber: '',
           driverLicenseNumber:
               '${DateTime.now().millisecondsSinceEpoch.toString().substring(6)}${(1000 + (DateTime.now().millisecondsSinceEpoch % 9000)).toString()}',
@@ -236,9 +242,12 @@ class _UserAppealPageState extends State<UserAppealPage> {
           driverInformation: driverInfo,
           idempotencyKey: generateIdempotencyKey(),
         );
-        driverInfo = await driverApi.getDriver(driverId: userId);
+        driverInfo = await driverApi.getDriver(driverId: driverId);
       }
-      final driverName = driverInfo?.name ?? userData.username ?? '未知用户';
+      final driverName = driverInfo?.name ??
+          profile.driverName ??
+          profile.displayName ??
+          profile.username;
       developer.log('Driver name from API: $driverName');
       return driverName;
     } catch (e) {

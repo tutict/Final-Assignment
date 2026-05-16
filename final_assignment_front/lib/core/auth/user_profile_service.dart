@@ -2,7 +2,10 @@ import 'dart:convert';
 
 import 'package:final_assignment_front/core/auth/user_profile.dart';
 import 'package:final_assignment_front/core/utils/app_logger.dart';
+import 'package:final_assignment_front/config/routes/app_routes.dart';
+import 'package:final_assignment_front/shared/utils/navigation_helper.dart';
 import 'package:final_assignment_front/utils/services/api_client.dart';
+import 'package:final_assignment_front/utils/services/auth_token_store.dart';
 import 'package:get/get.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -75,6 +78,17 @@ class UserProfileService extends GetxService {
       null,
       const ['bearerAuth'],
     );
+
+    if (response.statusCode == 404) {
+      AppLogger.error('Profile endpoint not found - may be using Cloud auth');
+      await AuthTokenStore.instance.clearJwtToken();
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.remove('refreshToken');
+      await prefs.remove('refresh_token');
+      invalidate();
+      NavigationHelper.offAllNamed(Routes.login);
+      throw StateError('Profile endpoint not found');
+    }
 
     final body = response.body.isEmpty
         ? <String, dynamic>{}
