@@ -3,8 +3,10 @@ import 'dart:convert';
 
 import 'package:final_assignment_front/config/routes/app_routes.dart';
 import 'package:final_assignment_front/core/auth/auth_service.dart';
+import 'package:final_assignment_front/core/config/app_config.dart';
 import 'package:final_assignment_front/core/network/app_exception.dart';
 import 'package:final_assignment_front/core/network/api_client.dart';
+import 'package:final_assignment_front/core/utils/app_logger.dart';
 import 'package:final_assignment_front/shared/utils/navigation_helper.dart';
 import 'package:final_assignment_front/utils/services/auth_token_store.dart';
 import 'package:get/get.dart';
@@ -38,8 +40,8 @@ class CancelToken {
 }
 
 class AiChatApi {
-  static const Duration _sseTimeout = Duration(seconds: 120);
-  static const Duration _firstTokenTimeout = Duration(seconds: 30);
+  static const Duration _sseOverallTimeout = Duration(seconds: 90);
+  static const Duration _firstTokenTimeout = Duration(seconds: 45);
 
   AiChatApi({
     ApiClient? apiClient,
@@ -96,7 +98,7 @@ class AiChatApi {
         if (!receivedFirstToken) {
           addStreamError(const AppException(
             type: AppErrorType.timeout,
-            message: 'AI response timed out. Please try again later.',
+            message: 'AI service returned an invalid stream format.',
           ));
           closeController();
         }
@@ -140,10 +142,10 @@ class AiChatApi {
     controller = StreamController<AiStreamEvent>(
       onListen: () {
         startFirstTokenTimer();
-        overallTimer = Timer(_sseTimeout, () {
+        overallTimer = Timer(_sseOverallTimeout, () {
           addStreamError(const AppException(
             type: AppErrorType.timeout,
-            message: 'AI response took too long and was stopped.',
+            message: 'AI service returned an invalid stream format.',
           ));
           closeController();
         });
@@ -206,29 +208,8 @@ class AiChatApi {
         );
       }
 
-      if (response.statusCode == 503) {
-        final message = await _errorMessageFromResponse(
-          response,
-          fallback:
-              'AI service is temporarily unavailable. Please try again later.',
-        );
-        throw AppException(
-          type: AppErrorType.serviceUnavailable,
-          message: message,
-          statusCode: 503,
-        );
-      }
-
-      if (response.statusCode >= 400) {
-        final message = await _errorMessageFromResponse(
-          response,
-          fallback: 'AI stream request failed: ${response.statusCode}',
-        );
-        throw AppException.fromStatusCode(
-          response.statusCode,
-          message: message,
-        );
-      }
+      await _throwIfNotOk(response);
+      await _validateSseResponse(response);
 
       yield* response.stream
           .transform(utf8.decoder)
@@ -249,7 +230,10 @@ class AiChatApi {
     final base = apiClient.basePath.endsWith('/')
         ? apiClient.basePath.substring(0, apiClient.basePath.length - 1)
         : apiClient.basePath;
-    return Uri.parse('$base/api/ai/chat/stream');
+    final aiBasePath = AppConfig.aiBasePath.startsWith('/')
+        ? AppConfig.aiBasePath
+        : '/${AppConfig.aiBasePath}';
+    return Uri.parse('$base$aiBasePath/chat/stream');
   }
 
   Future<Map<String, String>> _headers() async {
@@ -265,23 +249,46 @@ class AiChatApi {
     return headers;
   }
 
-  Future<String> _errorMessageFromResponse(
-    http.StreamedResponse response, {
-    required String fallback,
-  }) async {
+  Future<void> _throwIfNotOk(http.StreamedResponse response) async {
+    if (response.statusCode == 200) return;
+    final body = await response.stream.bytesToString();
+    final message = _messageFromBody(body) ??
+        (response.statusCode == 503
+            ? 'AI service is temporarily unavailable. Please try again later.'
+            : 'AI stream request failed: ${response.statusCode}');
+    throw AppException.fromStatusCode(response.statusCode, message: message);
+  }
+
+  Future<void> _validateSseResponse(http.StreamedResponse response) async {
+    final contentType = response.headers['content-type'] ?? '';
+    if (contentType.toLowerCase().contains('text/event-stream')) {
+      return;
+    }
+    final body = await response.stream.bytesToString();
+    AppLogger.error('Expected SSE but got: $contentType, body: $body');
+    throw const AppException(
+      type: AppErrorType.businessError,
+      message: 'AI service returned an invalid stream format.',
+    );
+  }
+
+  String? _messageFromBody(String body) {
     try {
-      final body = await response.stream.bytesToString();
-      if (body.trim().isEmpty) return fallback;
+      if (body.trim().isEmpty) return null;
       final decoded = jsonDecode(body);
       if (decoded is Map) {
         final message = decoded['message'];
         if (message != null && message.toString().trim().isNotEmpty) {
           return message.toString();
         }
+        final error = decoded['error'];
+        if (error != null && error.toString().trim().isNotEmpty) {
+          return error.toString();
+        }
       }
     } catch (_) {
-      // Preserve the caller supplied fallback for malformed error bodies.
+      return null;
     }
-    return fallback;
+    return null;
   }
 }

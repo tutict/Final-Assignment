@@ -54,6 +54,6 @@ public class AiChatController {
             @RequestParam(value = "message", required = false) String message
     ) {
         return ResponseEntity.status(410)
-                .body(ApiResponse.error("GONE", "此接口已废弃，请使用 POST /api/ai/chat/stream"));
+                .body(ApiResponse.error("GONE", "This endpoint is deprecated. Use POST /api/ai/chat/stream."));
     }
 }

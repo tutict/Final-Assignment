@@ -43,21 +43,15 @@ class ChatControllerApi with BaseApiClient {
   /// 抛出 [Exception]：当 HTTP 响应非 2xx、响应结构无效或解析失败时。
   ///
   /// 对应接口：GET /api/ai/chat
-  @Deprecated('Use streamChat or streamChatChunks instead.')
+  @Deprecated('Use streamChatChunks() instead.')
   Future<String?> sendChatMessage(String message) async {
-    try {
-      final buffer = StringBuffer();
-      await for (final chunk in streamChat(message, false)) {
-        buffer.write(chunk);
-      }
-      return buffer.isEmpty
-          ? 'AI returned an empty response.'
-          : buffer.toString();
-    } catch (error) {
-      developer.log('Error in sendChatMessage: $error',
-          name: 'ChatControllerApi');
-      throw Exception('Failed to process AI response: $error');
-    }
+    developer.log(
+      'sendChatMessage is deprecated and disabled. Use streamChatChunks().',
+      name: 'ChatControllerApi',
+    );
+    throw UnimplementedError(
+      'sendChatMessage is deprecated. Use streamChatChunks().',
+    );
   }
 
   Future<http.Response> _getChatActionsWithHttpInfo(

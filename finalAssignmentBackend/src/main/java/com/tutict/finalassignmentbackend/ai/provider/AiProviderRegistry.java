@@ -3,8 +3,11 @@ package com.tutict.finalassignmentbackend.ai.provider;
 import io.micrometer.core.instrument.MeterRegistry;
 import io.micrometer.core.instrument.Metrics;
 import io.micrometer.core.instrument.Timer;
+import jakarta.annotation.PostConstruct;
+import org.springframework.beans.factory.annotation.Value;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
@@ -26,23 +29,53 @@ public class AiProviderRegistry {
     private final Map<String, AiProvider> providers;
     private final AiProviderProperties properties;
     private final MeterRegistry meterRegistry;
+    private final boolean streamingEnabled;
     private final Map<String, AtomicInteger> failures = new ConcurrentHashMap<>();
     private final Map<String, CachedHealth> healthCache = new ConcurrentHashMap<>();
 
     public AiProviderRegistry(List<AiProvider> providers,
                               AiProviderProperties properties) {
-        this(providers, properties, Metrics.globalRegistry);
+        this(providers, properties, Metrics.globalRegistry, true);
     }
 
     public AiProviderRegistry(List<AiProvider> providers,
                               AiProviderProperties properties,
                               MeterRegistry meterRegistry) {
+        this(providers, properties, meterRegistry, true);
+    }
+
+    @Autowired
+    public AiProviderRegistry(List<AiProvider> providers,
+                              AiProviderProperties properties,
+                              @Value("${ai.chat.streaming.enabled:true}") boolean streamingEnabled) {
+        this(providers, properties, Metrics.globalRegistry, streamingEnabled);
+    }
+
+    AiProviderRegistry(List<AiProvider> providers,
+                       AiProviderProperties properties,
+                       MeterRegistry meterRegistry,
+                       boolean streamingEnabled) {
         this.providers = new LinkedHashMap<>();
         for (AiProvider provider : providers) {
             this.providers.put(normalize(provider.providerName()), provider);
         }
         this.properties = properties;
         this.meterRegistry = meterRegistry;
+        this.streamingEnabled = streamingEnabled;
+    }
+
+    @PostConstruct
+    public void logProviderStatus() {
+        String primary = properties.getProvider().getPrimary();
+        logger.info("AI Provider: primary={}, fallback={}, streaming={}, timeout={}, streamingTimeout={}",
+                primary,
+                properties.getProvider().getFallback(),
+                streamingEnabled,
+                properties.getProvider().getTimeout(),
+                properties.getProvider().getStreamingTimeout());
+        if ("mock".equalsIgnoreCase(primary)) {
+            logger.warn("Using MOCK AI provider - responses will be fake. Set AI_PROVIDER=ollama for real AI.");
+        }
     }
 
     public AiProvider lookup(String providerName) {

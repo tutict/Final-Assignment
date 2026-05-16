@@ -38,10 +38,10 @@ public class AiProviderProperties {
     }
 
     public static class Provider {
-        private String primary = "mock";
+        private String primary = "ollama";
         private String fallback = "noop";
         private Duration timeout = Duration.ofSeconds(60);
-        private Duration streamingTimeout = Duration.ofSeconds(180);
+        private Duration streamingTimeout = Duration.ofSeconds(60);
         private int retryAttempts = 1;
         private int circuitBreakerFailureThreshold = 3;
         private Duration healthCacheTtl = Duration.ofSeconds(30);
@@ -106,7 +106,7 @@ public class AiProviderProperties {
     public static class Ollama {
         private boolean enabled = true;
         private String baseUrl = "http://localhost:11434";
-        private String chatModel = "qwen3:8b";
+        private String chatModel = "llama3.2";
 
         public boolean isEnabled() {
             return enabled;

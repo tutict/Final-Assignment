@@ -13,6 +13,9 @@ class AppConfig {
   static const wsBaseUrlOverride =
       String.fromEnvironment('WS_BASE_URL', defaultValue: '');
 
+  static const aiBasePath =
+      String.fromEnvironment('AI_BASE_PATH', defaultValue: '/api/ai');
+
   static const apiPort = int.fromEnvironment('API_PORT', defaultValue: 8080);
 
   static const wsPort = int.fromEnvironment('WS_PORT', defaultValue: 8081);

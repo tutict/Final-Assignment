@@ -56,7 +56,9 @@ class AiStreamEvent {
         payloadValue?['fallback'] == true;
   }
 
-  String? get fallbackReason => payloadMap?['reason']?.toString();
+  String? get fallbackReason =>
+      payloadMap?['reason']?.toString() ??
+      payloadMap?['fallback_reason']?.toString();
 
   String? get message {
     final payloadValue = payloadMap;

@@ -7,17 +7,17 @@ ai:
   search:
     timeout-seconds: ${AI_SEARCH_TIMEOUT:30}
   provider:
-    primary: mock
-    fallback: noop
-    timeout: PT60S
-    streaming-timeout: PT180S
+    primary: ${AI_PROVIDER:ollama}
+    fallback: ${AI_FALLBACK_PROVIDER:noop}
+    timeout: ${AI_PROVIDER_TIMEOUT:PT60S}
+    streaming-timeout: ${AI_PROVIDER_STREAMING_TIMEOUT:PT60S}
     retry-attempts: 1
     circuit-breaker-failure-threshold: 3
     health-cache-ttl: PT30S
   ollama:
-    enabled: true
+    enabled: ${OLLAMA_ENABLED:true}
     base-url: ${OLLAMA_URL:http://localhost:11434}
-    chat-model: ${OLLAMA_CHAT_MODEL:qwen3:8b}
+    chat-model: ${OLLAMA_MODEL:${OLLAMA_CHAT_MODEL:llama3.2}}
   openai-compatible:
     enabled: false
     base-url: ""
