@@ -4,6 +4,7 @@ import 'dart:developer' as develop;
 import 'package:fl_chart/fl_chart.dart';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
+import 'package:final_assignment_front/utils/json_parser.dart';
 
 class LineChart extends StatefulWidget {
   const LineChart(
@@ -33,14 +34,21 @@ class _LineChartState extends State<LineChart> {
         setState(() {
           final List<dynamic> responseData = jsonDecode(response.body);
           if (responseData.isNotEmpty) {
-            _dataList = responseData.map((item) {
-              return {
-                'time': DateTime.parse(item['time']),
-                'value1': item['value1'],
-                'value2': item['value2'],
-              };
-            }).toList();
-            _startTime = DateTime.parse(responseData.first['time']);
+            _dataList = responseData
+                .whereType<Map>()
+                .map((item) {
+                  final parsedTime = JsonParser.asDateTime(item['time']);
+                  return {
+                    'time': parsedTime,
+                    'value1': JsonParser.asDouble(item['value1']) ?? 0,
+                    'value2': JsonParser.asDouble(item['value2']) ?? 0,
+                  };
+                })
+                .where((item) => item['time'] != null)
+                .toList();
+            _startTime = _dataList.isNotEmpty
+                ? _dataList.first['time'] as DateTime
+                : DateTime.now();
           }
         });
       } else {

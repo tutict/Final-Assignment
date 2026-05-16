@@ -16,6 +16,7 @@ import 'package:final_assignment_front/shared/dialogs/app_dialog.dart';
 import 'package:final_assignment_front/shared/widgets/index.dart';
 import 'package:final_assignment_front/utils/helpers/app_helpers.dart';
 import 'package:final_assignment_front/utils/workflow_permissions.dart';
+import 'package:final_assignment_front/utils/json_parser.dart';
 import 'package:get/get.dart';
 import 'package:jwt_decoder/jwt_decoder.dart';
 import 'package:uuid/uuid.dart';
@@ -758,8 +759,8 @@ class _AddFinePageState extends State<AddFinePage> {
     _bankController.text = fine.bank ?? '';
     _receiptNumberController.text = fine.receiptNumber ?? '';
     _remarksController.text = fine.remarks ?? '';
-    _dateController.text =
-        fine.fineTime != null ? formatDate(DateTime.parse(fine.fineTime!)) : '';
+    final fineTime = JsonParser.asDateTime(fine.fineTime);
+    _dateController.text = fineTime != null ? formatDate(fineTime) : '';
     _selectedOffenseId = fine.offenseId;
   }
 

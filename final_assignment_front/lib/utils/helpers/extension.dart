@@ -48,6 +48,8 @@ extension PaymentStatusExtension on PaymentStatus {
         return Colors.purple;
       case PaymentStatus.waived:
         return Colors.blueGrey;
+      case PaymentStatus.unknown:
+        return Colors.grey;
     }
   }
 
@@ -71,6 +73,8 @@ extension OffenseProcessStatusExtension on OffenseProcessStatus {
         return Colors.redAccent;
       case OffenseProcessStatus.cancelled:
         return Colors.grey;
+      case OffenseProcessStatus.unknown:
+        return Colors.grey;
     }
   }
 
@@ -86,6 +90,8 @@ extension DeductionStatusExtension on DeductionStatus {
         return Colors.redAccent;
       case DeductionStatus.restored:
         return Colors.green;
+      case DeductionStatus.unknown:
+        return Colors.grey;
     }
   }
 
@@ -122,6 +128,8 @@ extension AppealProcessStatusExtension on AppealProcessStatus {
         return Colors.redAccent;
       case AppealProcessStatus.withdrawn:
         return Colors.deepOrange;
+      case AppealProcessStatus.unknown:
+        return Colors.grey;
     }
   }
 

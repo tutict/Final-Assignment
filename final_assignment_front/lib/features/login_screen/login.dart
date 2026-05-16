@@ -61,6 +61,7 @@ class _LoginScreenState extends State<LoginScreen>
 
   Future<void> _loadTheme() async {
     final prefs = await SharedPreferences.getInstance();
+    if (!mounted) return;
     setState(() {
       _isDarkMode = prefs.getBool('isDarkMode') ?? false;
     });
@@ -68,6 +69,7 @@ class _LoginScreenState extends State<LoginScreen>
 
   Future<void> _toggleTheme() async {
     final prefs = await SharedPreferences.getInstance();
+    if (!mounted) return;
     setState(() {
       _isDarkMode = !_isDarkMode;
     });
@@ -241,103 +243,108 @@ class _LoginScreenState extends State<LoginScreen>
     final TextEditingController newPasswordController = TextEditingController();
     final themeData = _isDarkMode ? ThemeData.dark() : ThemeData.light();
 
-    final bool? passwordConfirmed = await showDialog<bool>(
-      context: context,
-      builder: (context) => Theme(
-        data: themeData,
-        child: AlertDialog(
-          backgroundColor: themeData.colorScheme.surfaceContainer,
-          shape:
-              RoundedRectangleBorder(borderRadius: BorderRadius.circular(16.0)),
-          title: Text(
-            '重置密码',
-            style: themeData.textTheme.titleLarge?.copyWith(
-              color: themeData.colorScheme.onSurface,
-              fontWeight: FontWeight.bold,
-            ),
-          ),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Text(
-                '请输入新密码：',
-                style: themeData.textTheme.bodyMedium
-                    ?.copyWith(color: themeData.colorScheme.onSurfaceVariant),
+    final bool? passwordConfirmed;
+    try {
+      passwordConfirmed = await showDialog<bool>(
+        context: context,
+        builder: (context) => Theme(
+          data: themeData,
+          child: AlertDialog(
+            backgroundColor: themeData.colorScheme.surfaceContainer,
+            shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(16.0)),
+            title: Text(
+              '重置密码',
+              style: themeData.textTheme.titleLarge?.copyWith(
+                color: themeData.colorScheme.onSurface,
+                fontWeight: FontWeight.bold,
               ),
-              TextField(
-                controller: newPasswordController,
-                obscureText: true,
-                decoration: InputDecoration(
-                  hintText: '新密码',
-                  hintStyle: themeData.textTheme.bodyMedium?.copyWith(
-                      color: themeData.colorScheme.onSurfaceVariant
-                          .withValues(alpha: 0.6)),
-                  filled: true,
-                  fillColor: themeData.colorScheme.surfaceContainerLowest,
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(8.0),
-                    borderSide: BorderSide(
-                        color: themeData.colorScheme.outline
-                            .withValues(alpha: 0.3)),
+            ),
+            content: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  '请输入新密码：',
+                  style: themeData.textTheme.bodyMedium
+                      ?.copyWith(color: themeData.colorScheme.onSurfaceVariant),
+                ),
+                TextField(
+                  controller: newPasswordController,
+                  obscureText: true,
+                  decoration: InputDecoration(
+                    hintText: '新密码',
+                    hintStyle: themeData.textTheme.bodyMedium?.copyWith(
+                        color: themeData.colorScheme.onSurfaceVariant
+                            .withValues(alpha: 0.6)),
+                    filled: true,
+                    fillColor: themeData.colorScheme.surfaceContainerLowest,
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(8.0),
+                      borderSide: BorderSide(
+                          color: themeData.colorScheme.outline
+                              .withValues(alpha: 0.3)),
+                    ),
+                    focusedBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(8.0),
+                      borderSide: BorderSide(
+                          color: themeData.colorScheme.primary, width: 2.0),
+                    ),
                   ),
-                  focusedBorder: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(8.0),
-                    borderSide: BorderSide(
-                        color: themeData.colorScheme.primary, width: 2.0),
+                  style: themeData.textTheme.bodyMedium
+                      ?.copyWith(color: themeData.colorScheme.onSurface),
+                ),
+              ],
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(context, false),
+                child: Text(
+                  '取消',
+                  style: themeData.textTheme.labelMedium
+                      ?.copyWith(color: themeData.colorScheme.onSurface),
+                ),
+              ),
+              ElevatedButton(
+                onPressed: () {
+                  if (newPasswordController.text.isEmpty) {
+                    Get.snackbar(
+                      '错误',
+                      '新密码不能为空',
+                      snackPosition: SnackPosition.BOTTOM,
+                      backgroundColor: Colors.red.shade100,
+                    );
+                  } else if (newPasswordController.text.length < 3) {
+                    Get.snackbar(
+                      '错误',
+                      '密码太短',
+                      snackPosition: SnackPosition.BOTTOM,
+                      backgroundColor: Colors.red.shade100,
+                    );
+                  } else {
+                    Navigator.pop(context, true);
+                  }
+                },
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: themeData.colorScheme.primary,
+                  foregroundColor: themeData.colorScheme.onPrimary,
+                  shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(10.0)),
+                ),
+                child: Text(
+                  '确定',
+                  style: themeData.textTheme.labelMedium?.copyWith(
+                    color: themeData.colorScheme.onPrimary,
+                    fontWeight: FontWeight.bold,
                   ),
                 ),
-                style: themeData.textTheme.bodyMedium
-                    ?.copyWith(color: themeData.colorScheme.onSurface),
               ),
             ],
           ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(context, false),
-              child: Text(
-                '取消',
-                style: themeData.textTheme.labelMedium
-                    ?.copyWith(color: themeData.colorScheme.onSurface),
-              ),
-            ),
-            ElevatedButton(
-              onPressed: () {
-                if (newPasswordController.text.isEmpty) {
-                  Get.snackbar(
-                    '错误',
-                    '新密码不能为空',
-                    snackPosition: SnackPosition.BOTTOM,
-                    backgroundColor: Colors.red.shade100,
-                  );
-                } else if (newPasswordController.text.length < 3) {
-                  Get.snackbar(
-                    '错误',
-                    '密码太短',
-                    snackPosition: SnackPosition.BOTTOM,
-                    backgroundColor: Colors.red.shade100,
-                  );
-                } else {
-                  Navigator.pop(context, true);
-                }
-              },
-              style: ElevatedButton.styleFrom(
-                backgroundColor: themeData.colorScheme.primary,
-                foregroundColor: themeData.colorScheme.onPrimary,
-                shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(10.0)),
-              ),
-              child: Text(
-                '确定',
-                style: themeData.textTheme.labelMedium?.copyWith(
-                  color: themeData.colorScheme.onPrimary,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-            ),
-          ],
         ),
-      ),
-    );
+      );
+    } finally {
+      newPasswordController.dispose();
+    }
 
     if (passwordConfirmed != true) return '密码重置已取消';
 

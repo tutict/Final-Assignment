@@ -1,3 +1,5 @@
+import 'package:final_assignment_front/utils/json_parser.dart';
+
 class SystemLogs {
   /* 日志ID，主键，自增 */
   int? logId;
@@ -40,16 +42,14 @@ class SystemLogs {
 
   factory SystemLogs.fromJson(Map<String, dynamic> json) {
     return SystemLogs(
-      logId: json['logId'] as int?,
-      logType: json['logType'] as String?,
-      logContent: json['logContent'] as String?,
-      operationTime: json['operationTime'] != null
-          ? DateTime.parse(json['operationTime'] as String)
-          : null,
-      operationUser: json['operationUser'] as String?,
-      operationIpAddress: json['operationIpAddress'] as String?,
-      remarks: json['remarks'] as String?,
-      idempotencyKey: json['idempotencyKey'] as String?,
+      logId: JsonParser.asInt(json['logId']),
+      logType: JsonParser.asString(json['logType']) ?? 'UNKNOWN',
+      logContent: JsonParser.asString(json['logContent']),
+      operationTime: JsonParser.asDateTime(json['operationTime']),
+      operationUser: JsonParser.asString(json['operationUser']),
+      operationIpAddress: JsonParser.asString(json['operationIpAddress']),
+      remarks: JsonParser.asString(json['remarks']),
+      idempotencyKey: JsonParser.asString(json['idempotencyKey']),
     );
   }
 

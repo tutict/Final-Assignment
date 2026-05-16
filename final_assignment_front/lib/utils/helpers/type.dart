@@ -20,7 +20,8 @@ enum PaymentStatus {
   partial(code: 'Partial', label: '部分支付'),
   paid(code: 'Paid', label: '已支付'),
   overdue(code: 'Overdue', label: '逾期'),
-  waived(code: 'Waived', label: '减免');
+  waived(code: 'Waived', label: '减免'),
+  unknown(code: 'Unknown', label: '未知');
 
   final String code;
   final String label;
@@ -28,7 +29,7 @@ enum PaymentStatus {
   const PaymentStatus({required this.code, required this.label});
 
   static PaymentStatus? fromCode(String? code) =>
-      StringHelper.enumFromCode(values, code, (value) => value.code);
+      StringHelper.enumFromCode(values, code, (value) => value.code) ?? unknown;
 }
 
 // Source: backend OffenseProcessState.code (offense_record.process_status).
@@ -39,7 +40,8 @@ enum OffenseProcessStatus {
   appealing(code: 'Appealing', label: '申诉中'),
   appealApproved(code: 'Appeal_Approved', label: '申诉通过'),
   appealRejected(code: 'Appeal_Rejected', label: '申诉驳回'),
-  cancelled(code: 'Cancelled', label: '已取消');
+  cancelled(code: 'Cancelled', label: '已取消'),
+  unknown(code: 'Unknown', label: '未知');
 
   final String code;
   final String label;
@@ -47,14 +49,15 @@ enum OffenseProcessStatus {
   const OffenseProcessStatus({required this.code, required this.label});
 
   static OffenseProcessStatus? fromCode(String? code) =>
-      StringHelper.enumFromCode(values, code, (value) => value.code);
+      StringHelper.enumFromCode(values, code, (value) => value.code) ?? unknown;
 }
 
 // Source: backend DeductionState.code (deduction_record.status).
 enum DeductionStatus {
   effective(code: 'Effective', label: '生效中'),
   cancelled(code: 'Cancelled', label: '已取消'),
-  restored(code: 'Restored', label: '已恢复');
+  restored(code: 'Restored', label: '已恢复'),
+  unknown(code: 'Unknown', label: '未知');
 
   final String code;
   final String label;
@@ -62,7 +65,7 @@ enum DeductionStatus {
   const DeductionStatus({required this.code, required this.label});
 
   static DeductionStatus? fromCode(String? code) =>
-      StringHelper.enumFromCode(values, code, (value) => value.code);
+      StringHelper.enumFromCode(values, code, (value) => value.code) ?? unknown;
 }
 
 // Source: backend AppealAcceptanceState.code (appeal_record.acceptance_status).
@@ -87,7 +90,8 @@ enum AppealProcessStatus {
   underReview(code: 'Under_Review', label: '审核中'),
   approved(code: 'Approved', label: '已批准'),
   rejected(code: 'Rejected', label: '已驳回'),
-  withdrawn(code: 'Withdrawn', label: '已撤回');
+  withdrawn(code: 'Withdrawn', label: '已撤回'),
+  unknown(code: 'Unknown', label: '未知');
 
   final String code;
   final String label;
@@ -95,7 +99,7 @@ enum AppealProcessStatus {
   const AppealProcessStatus({required this.code, required this.label});
 
   static AppealProcessStatus? fromCode(String? code) =>
-      StringHelper.enumFromCode(values, code, (value) => value.code);
+      StringHelper.enumFromCode(values, code, (value) => value.code) ?? unknown;
 }
 
 enum PaymentEventType {

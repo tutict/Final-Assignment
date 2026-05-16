@@ -12,6 +12,6 @@ class ProgressBinding extends Bindings {
         Get.isPrepared<ProgressController>()) {
       return;
     }
-    Get.lazyPut<ProgressController>(() => ProgressController());
+    Get.lazyPut<ProgressController>(() => ProgressController(), fenix: true);
   }
 }

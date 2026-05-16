@@ -1,3 +1,5 @@
+import 'package:final_assignment_front/utils/json_parser.dart';
+
 class OperationLog {
   final int? logId;
   final String? operationType;
@@ -99,34 +101,28 @@ class OperationLog {
 
   factory OperationLog.fromJson(Map<String, dynamic> json) {
     return OperationLog(
-      logId: json['logId'] as int?,
-      operationType: json['operationType'] as String?,
-      operationModule: json['operationModule'] as String?,
-      operationFunction: json['operationFunction'] as String?,
-      operationContent: json['operationContent'] as String?,
-      operationTime: json['operationTime'] != null
-          ? DateTime.tryParse(json['operationTime'] as String)
-          : null,
-      userId: json['userId'] as int?,
-      username: json['username'] as String?,
-      realName: json['realName'] as String?,
-      requestMethod: json['requestMethod'] as String?,
-      requestUrl: json['requestUrl'] as String?,
-      requestParams: json['requestParams'] as String?,
-      requestIp: json['requestIp'] as String?,
-      operationResult: json['operationResult'] as String?,
-      responseData: json['responseData'] as String?,
-      errorMessage: json['errorMessage'] as String?,
-      executionTime: json['executionTime'] as int?,
-      oldValue: json['oldValue'] as String?,
-      newValue: json['newValue'] as String?,
-      createdAt: json['createdAt'] != null
-          ? DateTime.tryParse(json['createdAt'] as String)
-          : null,
-      deletedAt: json['deletedAt'] != null
-          ? DateTime.tryParse(json['deletedAt'] as String)
-          : null,
-      remarks: json['remarks'] as String?,
+      logId: JsonParser.asInt(json['logId']),
+      operationType: JsonParser.asString(json['operationType']),
+      operationModule: JsonParser.asString(json['operationModule']),
+      operationFunction: JsonParser.asString(json['operationFunction']),
+      operationContent: JsonParser.asString(json['operationContent']),
+      operationTime: JsonParser.asDateTime(json['operationTime']),
+      userId: JsonParser.asInt(json['userId']),
+      username: JsonParser.asString(json['username']),
+      realName: JsonParser.asString(json['realName']),
+      requestMethod: JsonParser.asString(json['requestMethod']),
+      requestUrl: JsonParser.asString(json['requestUrl']),
+      requestParams: JsonParser.asString(json['requestParams']),
+      requestIp: JsonParser.asString(json['requestIp']),
+      operationResult: JsonParser.asString(json['operationResult']),
+      responseData: JsonParser.asString(json['responseData']),
+      errorMessage: JsonParser.asString(json['errorMessage']),
+      executionTime: JsonParser.asInt(json['executionTime']),
+      oldValue: JsonParser.asString(json['oldValue']),
+      newValue: JsonParser.asString(json['newValue']),
+      createdAt: JsonParser.asDateTime(json['createdAt']),
+      deletedAt: JsonParser.asDateTime(json['deletedAt']),
+      remarks: JsonParser.asString(json['remarks']),
     );
   }
 

@@ -1,3 +1,5 @@
+import 'package:final_assignment_front/utils/json_parser.dart';
+
 class ProgressItem {
   final int? id;
   final String title;
@@ -65,20 +67,18 @@ class ProgressItem {
       status = 'Pending'; // Default to Pending if invalid
     }
     return ProgressItem(
-      id: json['id'] as int?,
-      title: json['title'] as String? ?? '',
+      id: JsonParser.asInt(json['id']),
+      title: JsonParser.asString(json['title']) ?? '',
       status: status,
-      submitTime: json['submitTime'] != null
-          ? DateTime.parse(json['submitTime'] as String)
-          : DateTime.now(),
-      details: json['details'] as String?,
-      username: json['username'] as String? ?? '',
-      appealId: json['appealId'] as int?,
-      deductionId: json['deductionId'] as int?,
-      driverId: json['driverId'] as int?,
-      fineId: json['fineId'] as int?,
-      vehicleId: json['vehicleId'] as int?,
-      offenseId: json['offenseId'] as int?,
+      submitTime: JsonParser.asDateTime(json['submitTime']) ?? DateTime.now(),
+      details: JsonParser.asString(json['details']),
+      username: JsonParser.asString(json['username']) ?? '',
+      appealId: JsonParser.asInt(json['appealId']),
+      deductionId: JsonParser.asInt(json['deductionId']),
+      driverId: JsonParser.asInt(json['driverId']),
+      fineId: JsonParser.asInt(json['fineId']),
+      vehicleId: JsonParser.asInt(json['vehicleId']),
+      offenseId: JsonParser.asInt(json['offenseId']),
     );
   }
 
