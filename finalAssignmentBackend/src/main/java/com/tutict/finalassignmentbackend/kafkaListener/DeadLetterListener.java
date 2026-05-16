@@ -31,7 +31,13 @@ public class DeadLetterListener {
             "${kafka.topics.payment.create-dlt:payment_record_create.DLT}",
             "${kafka.topics.payment.update-dlt:payment_record_update.DLT}",
             "${kafka.topics.appeal.create-dlt:appeal_record_create.DLT}",
-            "${kafka.topics.appeal.update-dlt:appeal_record_update.DLT}"
+            "${kafka.topics.appeal.update-dlt:appeal_record_update.DLT}",
+            "${kafka.topics.sys-user.create-dlt:sys_user_create.DLT}",
+            "${kafka.topics.sys-user.update-dlt:sys_user_update.DLT}",
+            "${kafka.topics.sys-settings.create-dlt:sys_settings_create.DLT}",
+            "${kafka.topics.sys-settings.update-dlt:sys_settings_update.DLT}",
+            "${kafka.topics.vehicle.create-dlt:vehicle_information_create.DLT}",
+            "${kafka.topics.vehicle.update-dlt:vehicle_information_update.DLT}"
     }, groupId = "deadLetterMonitorGroup")
     public void onDeadLetter(ConsumerRecord<String, String> record, Acknowledgment ack) {
         log.log(Level.SEVERE,
@@ -60,12 +66,23 @@ public class DeadLetterListener {
                 businessEventPushService.pushAsyncFailure(
                         userId,
                         record.topic().replace(".DLT", ""),
-                        "操作异步处理失败，请刷新页面确认结果"
+                        buildUserFriendlyMessage(record.topic())
                 );
             }
         } catch (Exception ex) {
-            log.log(Level.WARNING, "Failed to extract user id from DLT message", ex);
+            log.log(Level.WARNING, "Failed to parse DLT message for notification", ex);
         }
+    }
+
+    private String buildUserFriendlyMessage(String topic) {
+        return switch (topic) {
+            case "offense_record_create.DLT", "offense_record_update.DLT" -> "违法记录处理失败，请刷新页面确认结果";
+            case "payment_record_create.DLT", "payment_record_update.DLT" -> "支付处理出现异常，请联系客服确认支付状态";
+            case "appeal_record_create.DLT", "appeal_record_update.DLT" -> "申诉处理失败，请重新提交申诉";
+            case "sys_user_create.DLT", "sys_user_update.DLT" -> "用户信息处理失败，请刷新页面确认结果";
+            case "vehicle_information_create.DLT", "vehicle_information_update.DLT" -> "车辆信息处理失败，请刷新页面确认结果";
+            default -> "操作异步处理失败，请刷新页面确认结果";
+        };
     }
 
     private String asString(Object value) {

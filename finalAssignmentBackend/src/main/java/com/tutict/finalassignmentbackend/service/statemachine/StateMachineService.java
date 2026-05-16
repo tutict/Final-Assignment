@@ -10,6 +10,7 @@ import org.springframework.statemachine.config.StateMachineFactory;
 import org.springframework.statemachine.support.DefaultStateMachineContext;
 import org.springframework.stereotype.Service;
 
+import java.time.Duration;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
@@ -48,7 +49,7 @@ public class StateMachineService {
 
             // 将状态机重置到指定状态，确保状态迁移以数据库状态为准
             stateMachine.getStateMachineAccessor().doWithAllRegions(access ->
-                    access.resetStateMachineReactively(buildContext(currentState)).block()
+                    access.resetStateMachineReactively(buildContext(currentState)).block(Duration.ofSeconds(10))
             );
 
             // 发送事件，触发状态流转
@@ -84,7 +85,7 @@ public class StateMachineService {
 
             // 支付场景同样需要将状态机回放到数据库中记录的状态
             stateMachine.getStateMachineAccessor().doWithAllRegions(access ->
-                    access.resetStateMachineReactively(buildContext(currentState)).block()
+                    access.resetStateMachineReactively(buildContext(currentState)).block(Duration.ofSeconds(10))
             );
 
             // 发送事件
@@ -120,7 +121,7 @@ public class StateMachineService {
 
             // 申诉状态较多，统一使用 StateMachine 来校验合法性
             stateMachine.getStateMachineAccessor().doWithAllRegions(access ->
-                    access.resetStateMachineReactively(buildContext(currentState)).block()
+                    access.resetStateMachineReactively(buildContext(currentState)).block(Duration.ofSeconds(10))
             );
 
             // 发送事件
@@ -153,7 +154,7 @@ public class StateMachineService {
         try {
             StateMachine<OffenseProcessState, OffenseProcessEvent> stateMachine = offenseProcessStateMachineFactory.getStateMachine();
             stateMachine.getStateMachineAccessor().doWithAllRegions(access ->
-                    access.resetStateMachineReactively(buildContext(currentState)).block()
+                    access.resetStateMachineReactively(buildContext(currentState)).block(Duration.ofSeconds(10))
             );
 
             return stateMachine.getTransitions().stream()
@@ -178,7 +179,7 @@ public class StateMachineService {
         try {
             StateMachine<PaymentState, PaymentEvent> stateMachine = paymentStateMachineFactory.getStateMachine();
             stateMachine.getStateMachineAccessor().doWithAllRegions(access ->
-                    access.resetStateMachineReactively(buildContext(currentState)).block()
+                    access.resetStateMachineReactively(buildContext(currentState)).block(Duration.ofSeconds(10))
             );
 
             return stateMachine.getTransitions().stream()
@@ -203,7 +204,7 @@ public class StateMachineService {
         try {
             StateMachine<AppealProcessState, AppealProcessEvent> stateMachine = appealProcessStateMachineFactory.getStateMachine();
             stateMachine.getStateMachineAccessor().doWithAllRegions(access ->
-                    access.resetStateMachineReactively(buildContext(currentState)).block()
+                    access.resetStateMachineReactively(buildContext(currentState)).block(Duration.ofSeconds(10))
             );
 
             return stateMachine.getTransitions().stream()

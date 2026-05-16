@@ -3,6 +3,8 @@ package com.tutict.finalassignmentbackend.controller;
 import com.tutict.finalassignmentbackend.entity.AuditLoginLog;
 import com.tutict.finalassignmentbackend.entity.AuditOperationLog;
 import com.tutict.finalassignmentbackend.entity.SysRequestHistory;
+import com.tutict.finalassignmentbackend.dto.response.ApiResponse;
+import com.tutict.finalassignmentbackend.dto.response.LogOverviewResponse;
 import com.tutict.finalassignmentbackend.service.AuditLoginLogService;
 import com.tutict.finalassignmentbackend.service.AuditOperationLogService;
 import com.tutict.finalassignmentbackend.service.SysRequestHistoryService;
@@ -18,9 +20,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
-import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
@@ -47,13 +47,17 @@ public class SystemLogsController {
 
     @GetMapping("/overview")
     @Operation(summary = "获取系统日志概览")
-    public ResponseEntity<Map<String, Object>> overview() {
+    public ResponseEntity<ApiResponse<LogOverviewResponse>> overview() {
         try {
-            Map<String, Object> result = new HashMap<>();
-            result.put("loginLogCount", auditLoginLogService.count());
-            result.put("operationLogCount", auditOperationLogService.count());
-            result.put("requestHistoryCount", sysRequestHistoryService.count());
-            return ResponseEntity.ok(result);
+            LogOverviewResponse result = LogOverviewResponse.builder()
+                    .loginLogCount(auditLoginLogService.count())
+                    .operationLogCount(auditOperationLogService.count())
+                    .requestHistoryCount(sysRequestHistoryService.count())
+                    .recentLoginLogs(auditLoginLogService.findRecent(10))
+                    .recentOperationLogs(auditOperationLogService.findRecent(10))
+                    .recentRequestHistories(sysRequestHistoryService.findRecent(10))
+                    .build();
+            return ResponseEntity.ok(ApiResponse.ok(result));
         } catch (Exception ex) {
             LOG.log(Level.WARNING, "Fetch log overview failed", ex);
             throw new RuntimeException(ex);

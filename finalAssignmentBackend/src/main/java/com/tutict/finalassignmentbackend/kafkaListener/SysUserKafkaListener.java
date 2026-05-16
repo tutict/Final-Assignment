@@ -3,6 +3,7 @@ package com.tutict.finalassignmentbackend.kafkaListener;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.tutict.finalassignmentbackend.entity.SysUser;
 import com.tutict.finalassignmentbackend.service.SysUserService;
+import org.apache.kafka.clients.consumer.ConsumerRecord;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.kafka.annotation.EnableKafka;
 import org.springframework.kafka.annotation.KafkaListener;
@@ -31,34 +32,55 @@ public class SysUserKafkaListener {
 
     // 监听 Kafka 消息
     @KafkaListener(topics = "sys_user_create", groupId = "sysUserGroup", concurrency = "3")
-    public void onSysUserCreateReceived(String message, Acknowledgment ack) {
+    public void onSysUserCreateReceived(ConsumerRecord<String, String> record, Acknowledgment ack) {
         log.log(Level.INFO, "Received Kafka message for create (payload omitted)");
-        processMessage(message, "create");
-        ack.acknowledge();
+        processRecord(record, "create", ack);
     }
 
     // 监听 Kafka 消息
     @KafkaListener(topics = "sys_user_update", groupId = "sysUserGroup", concurrency = "3")
-    public void onSysUserUpdateReceived(String message, Acknowledgment ack) {
+    public void onSysUserUpdateReceived(ConsumerRecord<String, String> record, Acknowledgment ack) {
         log.log(Level.INFO, "Received Kafka message for update (payload omitted)");
-        processMessage(message, "update");
-        ack.acknowledge();
+        processRecord(record, "update", ack);
+    }
+
+    private void processRecord(ConsumerRecord<String, String> record, String action, Acknowledgment ack) {
+        String idempotencyKey = record.key();
+        if (idempotencyKey != null && sysUserService.shouldSkipProcessing(idempotencyKey)) {
+            log.log(Level.INFO, "Skipping duplicate SysUser message: key={0}", idempotencyKey);
+            ack.acknowledge();
+            return;
+        }
+        try {
+            SysUser entity = processMessage(record.value(), action);
+            if (idempotencyKey != null) {
+                sysUserService.markHistorySuccess(idempotencyKey, entity.getUserId());
+            }
+            ack.acknowledge();
+        } catch (Exception e) {
+            if (idempotencyKey != null) {
+                sysUserService.markHistoryFailure(idempotencyKey, e.getMessage());
+            }
+            log.log(Level.SEVERE, "SysUser message processing failed", e);
+            throw e;
+        }
     }
 
     // 统一处理消息并执行业务逻辑
-    private void processMessage(String message, String action) {
+    private SysUser processMessage(String message, String action) {
         try {
             SysUser entity = deserializeMessage(message);
             if ("create".equals(action)) {
                 entity.setUserId(null);
-                sysUserService.createSysUser(entity);
+                entity = sysUserService.createSysUser(entity);
             } else if ("update".equals(action)) {
-                sysUserService.updateSysUser(entity);
+                entity = sysUserService.updateSysUser(entity);
             } else {
                 log.log(Level.WARNING, "Unsupported action: {0}", action);
-                return;
+                return entity;
             }
             log.info(String.format("SysUser %s action processed successfully", action));
+            return entity;
         } catch (Exception e) {
             log.log(Level.SEVERE, String.format("Error processing %s SysUser message (payload omitted)", action), e);
             throw new RuntimeException(String.format("Failed to process %s SysUser message", action), e);

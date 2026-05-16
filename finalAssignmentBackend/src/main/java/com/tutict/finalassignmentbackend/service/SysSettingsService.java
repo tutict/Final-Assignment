@@ -13,7 +13,6 @@ import com.tutict.finalassignmentbackend.repository.SysSettingsSearchRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.cache.annotation.Cacheable;
-import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.transaction.support.TransactionSynchronization;
@@ -37,19 +36,19 @@ public class SysSettingsService {
     private final SysSettingsMapper sysSettingsMapper;
     private final SysRequestHistoryMapper sysRequestHistoryMapper;
     private final SysSettingsSearchRepository sysSettingsSearchRepository;
-    private final KafkaTemplate<String, String> kafkaTemplate;
+    private final KafkaMessageSender kafkaMessageSender;
     private final ObjectMapper objectMapper;
 
     @Autowired
     public SysSettingsService(SysSettingsMapper sysSettingsMapper,
                               SysRequestHistoryMapper sysRequestHistoryMapper,
                               SysSettingsSearchRepository sysSettingsSearchRepository,
-                              KafkaTemplate<String, String> kafkaTemplate,
+                              KafkaMessageSender kafkaMessageSender,
                               ObjectMapper objectMapper) {
         this.sysSettingsMapper = sysSettingsMapper;
         this.sysRequestHistoryMapper = sysRequestHistoryMapper;
         this.sysSettingsSearchRepository = sysSettingsSearchRepository;
-        this.kafkaTemplate = kafkaTemplate;
+        this.kafkaMessageSender = kafkaMessageSender;
         this.objectMapper = objectMapper;
     }
 
@@ -288,7 +287,7 @@ public class SysSettingsService {
     private void sendKafkaMessage(String topic, String idempotencyKey, SysSettings settings) {
         try {
             String payload = objectMapper.writeValueAsString(settings);
-            kafkaTemplate.send(topic, idempotencyKey, payload);
+            kafkaMessageSender.sendAfterCommit(topic, idempotencyKey, payload);
         } catch (Exception ex) {
             LOG.log(Level.SEVERE, "Failed to send SysSettings Kafka message", ex);
             throw new RuntimeException("Failed to send SysSettings event", ex);

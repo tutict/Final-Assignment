@@ -16,6 +16,7 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
 import java.util.Map;
+import java.util.UUID;
 
 @Service
 public class ChatPipeline {
@@ -76,11 +77,27 @@ public class ChatPipeline {
     }
 
     public Flux<ChatStreamEvent> stream(AiChatStreamRequest request) {
+        if (!request.isWebSearchEnabled()) {
+            return streamWithContext(request, List.of());
+        }
+        String messageId = UUID.randomUUID().toString();
+        return Flux.just(ChatStreamEvent.keepalive(request.sessionKey(), messageId))
+                .concatWith(Flux.defer(() -> {
+                    List<RetrievalResult> webResults = webSearch(request.normalizedMessage(), request);
+                    return Flux.just(ChatStreamEvent.keepalive(request.sessionKey(), messageId))
+                            .concatWith(streamWithContext(request, webResults));
+                }));
+    }
+
+    private Flux<ChatStreamEvent> streamWithContext(
+            AiChatStreamRequest request,
+            List<RetrievalResult> webResults
+    ) {
         String userMessage = request.normalizedMessage();
         Map<String, Object> metadata = request.metadata();
         List<RetrievalResult> retrievalResults = new ArrayList<>();
         retrievalResults.addAll(retrieve(userMessage, metadata));
-        retrievalResults.addAll(webSearch(userMessage, request));
+        retrievalResults.addAll(webResults);
         String prompt = promptAssembler.assemble(
                 userMessage,
                 conversationWindow(metadata),

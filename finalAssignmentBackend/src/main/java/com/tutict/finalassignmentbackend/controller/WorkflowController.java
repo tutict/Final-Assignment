@@ -57,8 +57,8 @@ public class WorkflowController {
 
     @PostMapping("/offenses/{offenseId}/events/{event}")
     @Operation(summary = "触发违法记录状态事件")
-    public ResponseEntity<OffenseRecord> triggerOffenseEvent(@PathVariable Long offenseId,
-                                                             @PathVariable OffenseProcessEvent event) {
+    public ResponseEntity<?> triggerOffenseEvent(@PathVariable Long offenseId,
+                                                 @PathVariable OffenseProcessEvent event) {
         OffenseRecord record = offenseRecordService.findById(offenseId);
         if (record == null) {
             return ResponseEntity.notFound().build();
@@ -67,7 +67,7 @@ public class WorkflowController {
         OffenseProcessState newState = stateMachineService.processOffenseState(offenseId, currentState, event);
         if (newState == currentState) {
             LOG.log(Level.WARNING, "Offense {0} event {1} rejected at state {2}", new Object[]{offenseId, event, currentState});
-            return ResponseEntity.status(HttpStatus.CONFLICT).body(record);
+            return workflowConflict();
         }
         OffenseRecord updated = offenseRecordService.updateProcessStatus(offenseId, newState);
         return ResponseEntity.ok(updated);
@@ -90,7 +90,7 @@ public class WorkflowController {
         PaymentState newState = stateMachineService.processPaymentState(paymentId, currentState, event);
         if (newState == currentState) {
             LOG.log(Level.WARNING, "Payment {0} event {1} rejected at state {2}", new Object[]{paymentId, event, currentState});
-            return ResponseEntity.status(HttpStatus.CONFLICT).body(record);
+            return workflowConflict();
         }
         try {
             PaymentRecord updated = paymentRecordService.updatePaymentStatus(paymentId, newState, idempotencyKey);
@@ -98,14 +98,14 @@ public class WorkflowController {
         } catch (PaymentDuplicateRequestException ex) {
             return ResponseEntity.status(HttpStatus.ALREADY_REPORTED).body(ApiResponse.ok(null));
         } catch (PaymentOptimisticLockException ex) {
-            return ResponseEntity.status(HttpStatus.CONFLICT).body(record);
+            return workflowConflict();
         }
     }
 
     @PostMapping("/appeals/{appealId}/events/{event}")
     @Operation(summary = "触发申诉状态事件")
-    public ResponseEntity<AppealRecord> triggerAppealEvent(@PathVariable Long appealId,
-                                                           @PathVariable AppealProcessEvent event) {
+    public ResponseEntity<?> triggerAppealEvent(@PathVariable Long appealId,
+                                                @PathVariable AppealProcessEvent event) {
         AppealRecord record = appealRecordService.getAppealById(appealId);
         if (record == null) {
             return ResponseEntity.notFound().build();
@@ -114,7 +114,7 @@ public class WorkflowController {
         AppealProcessState newState = stateMachineService.processAppealState(appealId, currentState, event);
         if (newState == currentState) {
             LOG.log(Level.WARNING, "Appeal {0} event {1} rejected at state {2}", new Object[]{appealId, event, currentState});
-            return ResponseEntity.status(HttpStatus.CONFLICT).body(record);
+            return workflowConflict();
         }
         AppealRecord updated = appealRecordService.updateProcessStatus(appealId, newState);
         return ResponseEntity.ok(updated);
@@ -123,6 +123,11 @@ public class WorkflowController {
     private OffenseProcessState resolveOffenseState(String code) {
         OffenseProcessState state = OffenseProcessState.fromCode(code);
         return state != null ? state : OffenseProcessState.UNPROCESSED;
+    }
+
+    private ResponseEntity<ApiResponse<Void>> workflowConflict() {
+        return ResponseEntity.status(HttpStatus.CONFLICT)
+                .body(ApiResponse.error("WORKFLOW_CONFLICT", "该记录已被处理，请刷新页面查看最新状态"));
     }
 
     private PaymentState resolvePaymentState(String code) {

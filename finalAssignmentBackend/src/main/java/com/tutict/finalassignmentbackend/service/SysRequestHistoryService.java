@@ -161,6 +161,17 @@ public class SysRequestHistoryService {
         return sysRequestHistoryMapper.selectCount(null);
     }
 
+    @Transactional(readOnly = true)
+    public List<SysRequestHistory> findRecent(int limit) {
+        QueryWrapper<SysRequestHistory> wrapper = new QueryWrapper<>();
+        wrapper.orderByDesc("updated_at");
+        Page<SysRequestHistory> mpPage = new Page<>(1, Math.max(limit, 1));
+        sysRequestHistoryMapper.selectPage(mpPage, wrapper);
+        List<SysRequestHistory> records = mpPage.getRecords();
+        syncBatchToIndexAfterCommit(records);
+        return records;
+    }
+
     @Cacheable(cacheNames = CACHE_NAME, key = "'status:' + #status + ':' + #page + ':' + #size", unless = "#result == null || #result.isEmpty()")
     public List<SysRequestHistory> findByBusinessStatus(String status, int page, int size) {
         if (isBlank(status)) {

@@ -71,7 +71,7 @@ public class VehicleInformationService {
         history.setCreatedAt(LocalDateTime.now());
         sysRequestHistoryMapper.insert(history);
 
-        sendKafkaMessage(action, vehicleInformation);
+        sendKafkaMessage(action, idempotencyKey, vehicleInformation);
 
         history.setBusinessStatus("SUCCESS");
         history.setBusinessId(vehicleInformation.getVehicleId());
@@ -395,13 +395,73 @@ public class VehicleInformationService {
         });
     }
 
-    private void sendKafkaMessage(String action, VehicleInformation vehicleInformation) {
-        String topic = "vehicle_" + action.toLowerCase(Locale.ROOT);
+    private void sendKafkaMessage(String action, String idempotencyKey, VehicleInformation vehicleInformation) {
+        String topic = "vehicle_information_" + action.toLowerCase(Locale.ROOT);
         try {
-            kafkaTemplate.send(topic, vehicleInformation);
+            Runnable sendTask = () -> kafkaTemplate.send(topic, idempotencyKey, vehicleInformation).whenComplete((result, ex) -> {
+                if (ex != null) {
+                    log.log(Level.SEVERE, "Failed to send vehicle Kafka message", ex);
+                } else {
+                    log.log(Level.FINE, "Vehicle Kafka message sent: topic={0}, partition={1}, offset={2}",
+                            new Object[]{
+                                    topic,
+                                    result.getRecordMetadata().partition(),
+                                    result.getRecordMetadata().offset()
+                            });
+                }
+            });
+            if (TransactionSynchronizationManager.isSynchronizationActive()) {
+                TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
+                    @Override
+                    public void afterCommit() {
+                        sendTask.run();
+                    }
+                });
+            } else {
+                sendTask.run();
+            }
         } catch (Exception e) {
             log.log(Level.WARNING, "Failed to send vehicle Kafka message", e);
         }
+    }
+
+    public boolean shouldSkipProcessing(String idempotencyKey) {
+        SysRequestHistory history = sysRequestHistoryMapper.selectByIdempotencyKey(idempotencyKey);
+        return history != null
+                && "SUCCESS".equalsIgnoreCase(history.getBusinessStatus())
+                && "DONE".equalsIgnoreCase(history.getRequestParams());
+    }
+
+    public void markHistorySuccess(String idempotencyKey, Long vehicleId) {
+        SysRequestHistory history = sysRequestHistoryMapper.selectByIdempotencyKey(idempotencyKey);
+        if (history == null) {
+            log.log(Level.WARNING, "Cannot mark success for missing idempotency key {0}", idempotencyKey);
+            return;
+        }
+        history.setBusinessStatus("SUCCESS");
+        history.setBusinessId(vehicleId);
+        history.setRequestParams("DONE");
+        history.setUpdatedAt(LocalDateTime.now());
+        sysRequestHistoryMapper.updateById(history);
+    }
+
+    public void markHistoryFailure(String idempotencyKey, String reason) {
+        SysRequestHistory history = sysRequestHistoryMapper.selectByIdempotencyKey(idempotencyKey);
+        if (history == null) {
+            log.log(Level.WARNING, "Cannot mark failure for missing idempotency key {0}", idempotencyKey);
+            return;
+        }
+        history.setBusinessStatus("FAILED");
+        history.setRequestParams(truncate(reason));
+        history.setUpdatedAt(LocalDateTime.now());
+        sysRequestHistoryMapper.updateById(history);
+    }
+
+    private String truncate(String value) {
+        if (value == null) {
+            return null;
+        }
+        return value.length() <= 255 ? value : value.substring(0, 255);
     }
 
     private void validateVehicle(VehicleInformation vehicleInformation) {

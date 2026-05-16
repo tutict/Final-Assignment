@@ -90,6 +90,19 @@ class AiChatApi {
       }
     }
 
+    void startFirstTokenTimer() {
+      firstTokenTimer?.cancel();
+      firstTokenTimer = Timer(_firstTokenTimeout, () {
+        if (!receivedFirstToken) {
+          addStreamError(const AppException(
+            type: AppErrorType.timeout,
+            message: 'AI response timed out. Please try again later.',
+          ));
+          closeController();
+        }
+      });
+    }
+
     Future<void> start() async {
       if (cancelToken?.isCanceled ?? false) {
         await closeController();
@@ -105,6 +118,10 @@ class AiChatApi {
         (event) {
           if (event.type == AiStreamEventType.token) {
             completeFirstToken();
+          }
+          if (event.type == AiStreamEventType.keepalive &&
+              !receivedFirstToken) {
+            startFirstTokenTimer();
           }
           if (!controller.isClosed) {
             controller.add(event);
@@ -122,15 +139,7 @@ class AiChatApi {
 
     controller = StreamController<AiStreamEvent>(
       onListen: () {
-        firstTokenTimer = Timer(_firstTokenTimeout, () {
-          if (!receivedFirstToken) {
-            addStreamError(const AppException(
-              type: AppErrorType.timeout,
-              message: 'AI response timed out. Please try again later.',
-            ));
-            closeController();
-          }
-        });
+        startFirstTokenTimer();
         overallTimer = Timer(_sseTimeout, () {
           addStreamError(const AppException(
             type: AppErrorType.timeout,

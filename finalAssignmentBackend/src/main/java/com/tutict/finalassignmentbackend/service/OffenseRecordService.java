@@ -340,7 +340,9 @@ public class OffenseRecordService {
 
     @Transactional(readOnly = true)
     @Cacheable(cacheNames = CACHE_NAME, key = "'all'", unless = "#result == null || #result.isEmpty()")
+    @Deprecated
     public List<OffenseRecord> findAll() {
+        log.warning("findAll() called - this method should not be used in production. Use findPage() instead.");
         List<OffenseRecord> fromIndex = StreamSupport.stream(offenseInformationSearchRepository.findAll().spliterator(), false)
                 .map(OffenseRecordDocument::toEntity)
                 .collect(Collectors.toList());
@@ -351,6 +353,20 @@ public class OffenseRecordService {
         logReadRepairGovernance(null, fromDb == null ? 0 : fromDb.size());
         syncBatchToIndexAfterCommit(semanticIntentClassifier.classifyReadRepair(), fromDb);
         return fromDb;
+    }
+
+    @Transactional(readOnly = true)
+    public Page<OffenseRecord> findPage(int page, int size) {
+        validatePagination(page, size);
+        QueryWrapper<OffenseRecord> wrapper = new QueryWrapper<>();
+        wrapper.orderByDesc("offense_time");
+        Page<OffenseRecord> mpPage = new Page<>(page, size);
+        offenseRecordMapper.selectPage(mpPage, wrapper);
+        syncBatchToIndexAfterCommit(
+                semanticIntentClassifier.classifyReadRepair(),
+                mpPage.getRecords()
+        );
+        return mpPage;
     }
 
     @Cacheable(cacheNames = CACHE_NAME, key = "'driver:' + #driverId + ':' + #page + ':' + #size", unless = "#result == null || #result.isEmpty()")

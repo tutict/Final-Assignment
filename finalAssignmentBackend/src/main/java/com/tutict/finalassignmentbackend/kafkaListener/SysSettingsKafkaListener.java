@@ -3,6 +3,7 @@ package com.tutict.finalassignmentbackend.kafkaListener;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.tutict.finalassignmentbackend.entity.SysSettings;
 import com.tutict.finalassignmentbackend.service.SysSettingsService;
+import org.apache.kafka.clients.consumer.ConsumerRecord;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.kafka.annotation.EnableKafka;
 import org.springframework.kafka.annotation.KafkaListener;
@@ -31,34 +32,55 @@ public class SysSettingsKafkaListener {
 
     // 监听 Kafka 消息
     @KafkaListener(topics = "sys_settings_create", groupId = "sysSettingsGroup", concurrency = "3")
-    public void onSysSettingsCreateReceived(String message, Acknowledgment ack) {
+    public void onSysSettingsCreateReceived(ConsumerRecord<String, String> record, Acknowledgment ack) {
         log.log(Level.INFO, "Received Kafka message for create (payload omitted)");
-        processMessage(message, "create");
-        ack.acknowledge();
+        processRecord(record, "create", ack);
     }
 
     // 监听 Kafka 消息
     @KafkaListener(topics = "sys_settings_update", groupId = "sysSettingsGroup", concurrency = "3")
-    public void onSysSettingsUpdateReceived(String message, Acknowledgment ack) {
+    public void onSysSettingsUpdateReceived(ConsumerRecord<String, String> record, Acknowledgment ack) {
         log.log(Level.INFO, "Received Kafka message for update (payload omitted)");
-        processMessage(message, "update");
-        ack.acknowledge();
+        processRecord(record, "update", ack);
+    }
+
+    private void processRecord(ConsumerRecord<String, String> record, String action, Acknowledgment ack) {
+        String idempotencyKey = record.key();
+        if (idempotencyKey != null && sysSettingsService.shouldSkipProcessing(idempotencyKey)) {
+            log.log(Level.INFO, "Skipping duplicate SysSettings message: key={0}", idempotencyKey);
+            ack.acknowledge();
+            return;
+        }
+        try {
+            SysSettings entity = processMessage(record.value(), action);
+            if (idempotencyKey != null) {
+                sysSettingsService.markHistorySuccess(idempotencyKey, entity.getSettingId());
+            }
+            ack.acknowledge();
+        } catch (Exception e) {
+            if (idempotencyKey != null) {
+                sysSettingsService.markHistoryFailure(idempotencyKey, e.getMessage());
+            }
+            log.log(Level.SEVERE, "SysSettings message processing failed", e);
+            throw e;
+        }
     }
 
     // 统一处理消息并执行业务逻辑
-    private void processMessage(String message, String action) {
+    private SysSettings processMessage(String message, String action) {
         try {
             SysSettings entity = deserializeMessage(message);
             if ("create".equals(action)) {
                 entity.setSettingId(null);
-                sysSettingsService.createSysSettings(entity);
+                entity = sysSettingsService.createSysSettings(entity);
             } else if ("update".equals(action)) {
-                sysSettingsService.updateSysSettings(entity);
+                entity = sysSettingsService.updateSysSettings(entity);
             } else {
                 log.log(Level.WARNING, "Unsupported action: {0}", action);
-                return;
+                return entity;
             }
             log.info(String.format("SysSettings %s action processed successfully", action));
+            return entity;
         } catch (Exception e) {
             log.log(Level.SEVERE, String.format("Error processing %s SysSettings message (payload omitted)", action), e);
             throw new RuntimeException(String.format("Failed to process %s SysSettings message", action), e);

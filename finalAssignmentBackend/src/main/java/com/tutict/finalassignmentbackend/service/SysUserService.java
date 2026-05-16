@@ -14,7 +14,6 @@ import com.tutict.finalassignmentbackend.repository.SysUserSearchRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.cache.annotation.Cacheable;
-import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -43,7 +42,7 @@ public class SysUserService {
     private final SysUserMapper sysUserMapper;
     private final SysRequestHistoryMapper sysRequestHistoryMapper;
     private final SysUserSearchRepository sysUserSearchRepository;
-    private final KafkaTemplate<String, String> kafkaTemplate;
+    private final KafkaMessageSender kafkaMessageSender;
     private final ObjectMapper objectMapper;
     private final PasswordEncoder passwordEncoder;
 
@@ -51,13 +50,13 @@ public class SysUserService {
     public SysUserService(SysUserMapper sysUserMapper,
                           SysRequestHistoryMapper sysRequestHistoryMapper,
                           SysUserSearchRepository sysUserSearchRepository,
-                          KafkaTemplate<String, String> kafkaTemplate,
+                          KafkaMessageSender kafkaMessageSender,
                           ObjectMapper objectMapper,
                           PasswordEncoder passwordEncoder) {
         this.sysUserMapper = sysUserMapper;
         this.sysRequestHistoryMapper = sysRequestHistoryMapper;
         this.sysUserSearchRepository = sysUserSearchRepository;
-        this.kafkaTemplate = kafkaTemplate;
+        this.kafkaMessageSender = kafkaMessageSender;
         this.objectMapper = objectMapper;
         this.passwordEncoder = passwordEncoder;
     }
@@ -407,7 +406,7 @@ public class SysUserService {
     private void sendKafkaMessage(String topic, String idempotencyKey, SysUser sysUser) {
         try {
             String payload = objectMapper.writeValueAsString(sysUser);
-            kafkaTemplate.send(topic, idempotencyKey, payload);
+            kafkaMessageSender.sendAfterCommit(topic, idempotencyKey, payload);
         } catch (Exception ex) {
             LOG.log(Level.SEVERE, "Failed to send SysUser Kafka message", ex);
             throw new RuntimeException("Failed to send sys user event", ex);

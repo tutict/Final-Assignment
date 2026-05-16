@@ -1,77 +1,80 @@
 package com.tutict.finalassignmentbackend.config.ai.chat;
 
+import jakarta.annotation.PostConstruct;
+import jakarta.annotation.PreDestroy;
 import org.graalvm.polyglot.Context;
 import org.graalvm.polyglot.Value;
-import org.jetbrains.annotations.NotNull;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Component;
 
-import java.io.File;
+import java.net.URL;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 
 @Component
 public class GraalPyContext {
-    private final Context context;
 
-    public GraalPyContext() {
+    private static final Logger log = LoggerFactory.getLogger(GraalPyContext.class);
+
+    private Context context;
+    private volatile boolean initialized = false;
+
+    @PostConstruct
+    public void init() {
         try {
-            String sitePackagesPath;
-            String executablePath;
-            // Get project root directory
-            String projectRoot = System.getProperty("user.dir");
-            // Get target directory path
-            File targetDir = new File(projectRoot, "finalAssignmentBackend/target");
-            // Get venv directory path
-            File venvDir = new File(targetDir, "classes/org.graalvm.python.vfs/venv");
-            String os = System.getProperty("os.name").toLowerCase();
-
-            // Verify venv directory exists
-            if (!venvDir.exists()) {
-                throw new RuntimeException("venv directory does not exist ( Maybe you didn't run maven install ) : " + venvDir.getAbsolutePath());
+            URL venvUrl = getClass().getClassLoader()
+                    .getResource("org.graalvm.python.vfs/venv");
+            if (venvUrl == null) {
+                log.warn("GraalPy venv not found in classpath. Web search will be disabled. Run 'mvn package' to build the venv.");
+                return;
             }
 
-            if (os.startsWith("windows")) {
-                // Get site-packages path
-                sitePackagesPath = new File(venvDir, "Lib/site-packages").getAbsolutePath();
-
-            } else if (os.startsWith("linux")) {
-                sitePackagesPath = new File(venvDir, "lib/python3.11/site-packages").getAbsolutePath();
-            } else {
-                throw new RuntimeException("Unsupported operating system: " + os);
-            }
-
-            // Get directory containing baidu_crawler.py
-            String pythonPath = getString(projectRoot, sitePackagesPath);
-            if (os.startsWith("windows")) {
-                executablePath = new File(venvDir, "Scripts/graalpy.exe").getAbsolutePath();
-            } else if (os.startsWith("linux")) {
-                executablePath = new File(venvDir, "Scripts/graalpy.sh").getAbsolutePath();
-            } else {
-                throw new RuntimeException("Unsupported operating system: " + os);
-            }
-
-
-            // Configure GraalPy Context
-            context = Context.newBuilder("python")
-                    .option("python.PythonPath", pythonPath)
-                    .option("python.Executable", executablePath)
+            Path venvPath = Paths.get(venvUrl.toURI());
+            Context.Builder builder = Context.newBuilder("python")
                     .allowAllAccess(true)
-                    .build();
+                    .option("python.PythonHome", venvPath.toString());
+
+            URL pythonUrl = getClass().getClassLoader().getResource("python");
+            if (pythonUrl != null) {
+                builder.option("python.PythonPath", Paths.get(pythonUrl.toURI()).toString());
+            }
+
+            context = builder.build();
+            initialized = true;
+            log.info("GraalPyContext initialized successfully");
         } catch (Exception e) {
-            throw new RuntimeException("Failed to initialize GraalPy context: " + e.getMessage(), e);
+            initialized = false;
+            context = null;
+            log.error("GraalPyContext initialization failed, web search disabled: {}", e.getMessage());
         }
     }
 
-    private static @NotNull String getString(String projectRoot, String sitePackagesPath) {
-        File pythonScriptDir = new File(projectRoot, "finalAssignmentBackend/src/main/resources/python/");
-        if (!pythonScriptDir.exists()) {
-            throw new RuntimeException("Python script directory does not exist: " + pythonScriptDir.getAbsolutePath());
+    @PreDestroy
+    public void destroy() {
+        if (context == null) {
+            return;
         }
-        String pythonScriptPath = pythonScriptDir.getAbsolutePath();
+        try {
+            context.close();
+            log.info("GraalPyContext closed");
+        } catch (Exception e) {
+            log.warn("GraalPyContext close failed", e);
+        }
+    }
 
-        // Combine site-packages and script directory paths
-        return sitePackagesPath + File.pathSeparator + pythonScriptPath;
+    public boolean isAvailable() {
+        return initialized && context != null;
+    }
+
+    public Context getContext() {
+        if (!isAvailable()) {
+            throw new IllegalStateException("GraalPy is not available. Web search is disabled.");
+        }
+        return context;
     }
 
     public Value eval(String source) {
-        return context.eval("python", source);
+        return getContext().eval("python", source);
     }
 }
