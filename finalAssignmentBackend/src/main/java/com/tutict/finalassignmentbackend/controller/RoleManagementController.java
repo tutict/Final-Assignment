@@ -178,6 +178,28 @@ public class RoleManagementController {
         return ResponseEntity.ok(sysRoleService.searchByRoleCodePrefix(roleCode, page, size));
     }
 
+    @GetMapping("/name/{roleName}")
+    @Deprecated
+    public ResponseEntity<ApiResponse<Void>> getRoleByNameDeprecated(@PathVariable String roleName) {
+        return ResponseEntity.status(HttpStatus.GONE)
+                .body(ApiResponse.error("GONE", "此接口已废弃，请使用 /api/roles/by-code/{roleCode}"));
+    }
+
+    @DeleteMapping("/name/{roleName}")
+    @Deprecated
+    public ResponseEntity<ApiResponse<Void>> deleteRoleByNameDeprecated(@PathVariable String roleName) {
+        return ResponseEntity.status(HttpStatus.GONE)
+                .body(ApiResponse.error("GONE", "此接口已废弃，请使用 /api/roles/{roleId}"));
+    }
+
+    @GetMapping("/search")
+    @Deprecated
+    public ResponseEntity<ApiResponse<Void>> searchRolesByNameDeprecated(
+            @RequestParam(required = false) String name) {
+        return ResponseEntity.status(HttpStatus.GONE)
+                .body(ApiResponse.error("GONE", "此接口已废弃，请使用 /api/roles/search/name/fuzzy?roleName="));
+    }
+
     @GetMapping("/search/code/fuzzy")
     @Operation(summary = "Search roles by code fuzzy")
     public ResponseEntity<List<SysRole>> searchByCodeFuzzy(@RequestParam String roleCode,

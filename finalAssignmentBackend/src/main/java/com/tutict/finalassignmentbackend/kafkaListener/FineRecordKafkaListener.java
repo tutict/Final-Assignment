@@ -32,7 +32,7 @@ public class FineRecordKafkaListener {
     }
 
     // 监听 Kafka 消息
-    @KafkaListener(topics = "fine_record_create", groupId = "fineRecordGroup", concurrency = "3")
+    @KafkaListener(topics = "${kafka.topics.fine.create:fine_record_create}", groupId = "${kafka.groups.fine:fineRecordGroup}", concurrency = "3")
     public void onFineRecordCreate(@Header(value = KafkaHeaders.RECEIVED_KEY, required = false) byte[] rawKey,
                                    @Payload String message,
                                       Acknowledgment ack) {
@@ -42,7 +42,7 @@ public class FineRecordKafkaListener {
     }
 
     // 监听 Kafka 消息
-    @KafkaListener(topics = "fine_record_update", groupId = "fineRecordGroup", concurrency = "3")
+    @KafkaListener(topics = "${kafka.topics.fine.update:fine_record_update}", groupId = "${kafka.groups.fine:fineRecordGroup}", concurrency = "3")
     public void onFineRecordUpdate(@Header(value = KafkaHeaders.RECEIVED_KEY, required = false) byte[] rawKey,
                                    @Payload String message,
                                       Acknowledgment ack) {

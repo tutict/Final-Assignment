@@ -31,14 +31,14 @@ public class VehicleInformationKafkaListener {
     }
 
     // 监听 Kafka 消息
-    @KafkaListener(topics = "vehicle_information_create", groupId = "vehicleInformationGroup", concurrency = "3")
+    @KafkaListener(topics = "${kafka.topics.vehicle.create:vehicle_information_create}", groupId = "${kafka.groups.vehicle:vehicleInformationGroup}", concurrency = "3")
     public void onVehicleInformationCreateReceived(ConsumerRecord<String, String> record, Acknowledgment ack) {
         log.log(Level.INFO, "Received Kafka message for create (payload omitted)");
         processRecord(record, "create", ack);
     }
 
     // 监听 Kafka 消息
-    @KafkaListener(topics = "vehicle_information_update", groupId = "vehicleInformationGroup", concurrency = "3")
+    @KafkaListener(topics = "${kafka.topics.vehicle.update:vehicle_information_update}", groupId = "${kafka.groups.vehicle:vehicleInformationGroup}", concurrency = "3")
     public void onVehicleInformationUpdateReceived(ConsumerRecord<String, String> record, Acknowledgment ack) {
         log.log(Level.INFO, "Received Kafka message for update (payload omitted)");
         processRecord(record, "update", ack);

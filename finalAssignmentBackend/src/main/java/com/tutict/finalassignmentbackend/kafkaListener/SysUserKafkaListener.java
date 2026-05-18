@@ -31,14 +31,14 @@ public class SysUserKafkaListener {
     }
 
     // 监听 Kafka 消息
-    @KafkaListener(topics = "sys_user_create", groupId = "sysUserGroup", concurrency = "3")
+    @KafkaListener(topics = "${kafka.topics.sys-user.create:sys_user_create}", groupId = "${kafka.groups.sys-user:sysUserGroup}", concurrency = "3")
     public void onSysUserCreateReceived(ConsumerRecord<String, String> record, Acknowledgment ack) {
         log.log(Level.INFO, "Received Kafka message for create (payload omitted)");
         processRecord(record, "create", ack);
     }
 
     // 监听 Kafka 消息
-    @KafkaListener(topics = "sys_user_update", groupId = "sysUserGroup", concurrency = "3")
+    @KafkaListener(topics = "${kafka.topics.sys-user.update:sys_user_update}", groupId = "${kafka.groups.sys-user:sysUserGroup}", concurrency = "3")
     public void onSysUserUpdateReceived(ConsumerRecord<String, String> record, Acknowledgment ack) {
         log.log(Level.INFO, "Received Kafka message for update (payload omitted)");
         processRecord(record, "update", ack);

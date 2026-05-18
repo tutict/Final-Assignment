@@ -32,7 +32,7 @@ public class SysDictKafkaListener {
     }
 
     // 监听 Kafka 消息
-    @KafkaListener(topics = "sys_dict_create", groupId = "sysDictGroup", concurrency = "3")
+    @KafkaListener(topics = "${kafka.topics.sys-dict.create:sys_dict_create}", groupId = "${kafka.groups.sys-dict:sysDictGroup}", concurrency = "3")
     public void onSysDictCreate(@Header(value = KafkaHeaders.RECEIVED_KEY, required = false) byte[] rawKey,
                                 @Payload String message,
                                       Acknowledgment ack) {
@@ -42,7 +42,7 @@ public class SysDictKafkaListener {
     }
 
     // 监听 Kafka 消息
-    @KafkaListener(topics = "sys_dict_update", groupId = "sysDictGroup", concurrency = "3")
+    @KafkaListener(topics = "${kafka.topics.sys-dict.update:sys_dict_update}", groupId = "${kafka.groups.sys-dict:sysDictGroup}", concurrency = "3")
     public void onSysDictUpdate(@Header(value = KafkaHeaders.RECEIVED_KEY, required = false) byte[] rawKey,
                                 @Payload String message,
                                       Acknowledgment ack) {

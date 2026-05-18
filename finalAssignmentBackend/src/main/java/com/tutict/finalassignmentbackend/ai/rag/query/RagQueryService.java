@@ -5,12 +5,14 @@ import com.tutict.finalassignmentbackend.ai.rag.dto.RetrievalResult;
 import com.tutict.finalassignmentbackend.ai.rag.retrieval.AclFilterService;
 import com.tutict.finalassignmentbackend.ai.rag.retrieval.HybridRetriever;
 import com.tutict.finalassignmentbackend.ai.rag.retrieval.RetrievalQuery;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.stereotype.Service;
 
 import java.text.Normalizer;
 import java.util.List;
 
 @Service
+@ConditionalOnProperty(prefix = "rag.retrieval", name = "enabled", havingValue = "true")
 public class RagQueryService {
 
     private final HybridRetriever hybridRetriever;

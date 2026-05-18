@@ -23,7 +23,7 @@ public class AiChatService {
 
     @Autowired
     public AiChatService(ChatPipeline chatPipeline, ObjectProvider<RagQueryService> ragQueryService) {
-        this(chatPipeline, ragQueryService.getIfAvailable());
+        this(chatPipeline, (RagQueryService) null);
     }
 
     AiChatService(ChatPipeline chatPipeline, RagQueryService ragQueryService) {

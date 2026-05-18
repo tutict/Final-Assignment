@@ -18,20 +18,20 @@ import org.junit.jupiter.api.TestMethodOrder;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.web.server.LocalServerPort;
+import org.springframework.context.annotation.Import;
 import org.springframework.test.context.ActiveProfiles;
-import org.springframework.test.context.DynamicPropertyRegistry;
-import org.springframework.test.context.DynamicPropertySource;
-import org.testcontainers.containers.KafkaContainer;
-import org.testcontainers.containers.MySQLContainer;
-import org.testcontainers.junit.jupiter.Container;
-import org.testcontainers.junit.jupiter.Testcontainers;
-import org.testcontainers.utility.DockerImageName;
+import org.springframework.test.context.jdbc.Sql;
 
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
 @ActiveProfiles("test")
-@Testcontainers
 @TestMethodOrder(MethodOrderer.OrderAnnotation.class)
+@Sql(scripts = "/sql/test-seed-data.sql", executionPhase = Sql.ExecutionPhase.BEFORE_TEST_CLASS)
+@Import(TestSearchRepositoryMockConfig.class)
 public abstract class BaseIntegrationTest {
+
+    private static final boolean USE_TESTCONTAINERS = Boolean.parseBoolean(
+        System.getProperty("useTestcontainers",
+            System.getenv().getOrDefault("USE_TESTCONTAINERS", "false")));
 
     @LocalServerPort
     protected int port;
@@ -39,23 +39,12 @@ public abstract class BaseIntegrationTest {
     @Autowired
     protected ObjectMapper objectMapper;
 
-    // -- Testcontainers -------------------------------------------------------
-    @Container
-    static MySQLContainer<?> mysql = new MySQLContainer<>("mysql:8.0")
-        .withDatabaseName("testdb")
-        .withUsername("test")
-        .withPassword("test");
-
-    @Container
-    static KafkaContainer kafka = new KafkaContainer(
-        DockerImageName.parse("confluentinc/cp-kafka:7.5.0"));
-
-    @DynamicPropertySource
-    static void overrideProperties(DynamicPropertyRegistry registry) {
-        registry.add("spring.datasource.url", mysql::getJdbcUrl);
-        registry.add("spring.datasource.username", mysql::getUsername);
-        registry.add("spring.datasource.password", mysql::getPassword);
-        registry.add("spring.kafka.bootstrap-servers", kafka::getBootstrapServers);
+    static {
+        if (USE_TESTCONTAINERS) {
+            System.setProperty("testcontainers.reuse.enable", "true");
+            System.setProperty("ryuk.disabled", "true");
+            System.setProperty("testcontainers.ryuk.disabled", "true");
+        }
     }
 
     // -- REST Assured config --------------------------------------------------

@@ -1,6 +1,7 @@
 package com.tutict.finalassignmentbackend;
 
 import com.tutict.finalassignmentbackend.config.docker.RunDocker;
+import org.mybatis.spring.annotation.MapperScan;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.boot.builder.SpringApplicationBuilder;
 import org.springframework.context.annotation.EnableAspectJAutoProxy;
@@ -8,6 +9,10 @@ import org.springframework.scheduling.annotation.EnableAsync;
 
 @EnableAsync
 @EnableAspectJAutoProxy
+@MapperScan({
+        "com.tutict.finalassignmentbackend.mapper",
+        "com.tutict.finalassignmentbackend.rag.mapper"
+})
 @SpringBootApplication
 public class FinalAssignmentBackendApplication {
 

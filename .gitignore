@@ -98,6 +98,7 @@ fabric.properties
 *.cc
 *.exe
 *.properties
+!finalAssignmentBackend/src/test/resources/testcontainers.properties
 *.lock
 *.bin
 

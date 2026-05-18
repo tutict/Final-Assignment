@@ -5,6 +5,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.tutict.finalassignmentbackend.ai.rag.config.RagChunkIndexMapping;
 import com.tutict.finalassignmentbackend.ai.rag.dto.RetrievalResult;
 import org.springframework.beans.factory.ObjectProvider;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.data.elasticsearch.core.ElasticsearchOperations;
 import org.springframework.data.elasticsearch.core.SearchHit;
 import org.springframework.data.elasticsearch.core.SearchHits;
@@ -18,6 +19,7 @@ import java.util.List;
 import java.util.Map;
 
 @Service
+@ConditionalOnProperty(prefix = "rag.retrieval", name = "enabled", havingValue = "true")
 public class EmbeddingSearchService {
 
     private final EmbeddingProvider embeddingProvider;

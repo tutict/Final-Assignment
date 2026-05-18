@@ -1,7 +1,10 @@
 spring:
+  main:
+    allow-bean-definition-overriding: true
   datasource:
     url: ${TEST_DB_URL:jdbc:tc:mysql:8.0:///testdb}
     driver-class-name: org.testcontainers.jdbc.ContainerDatabaseDriver
+    password: ${DB_PASSWORD:test_password}
   kafka:
     bootstrap-servers: ${TEST_KAFKA_SERVERS:localhost:9092}
   data:
@@ -9,7 +12,6 @@ spring:
       host: localhost
       port: 6379
 
-# AI 测试使用 mock provider，不调用真实 Ollama
 ai:
   provider:
     primary: mock
@@ -17,13 +19,14 @@ ai:
     streaming:
       enabled: true
 
-# 测试用 JWT secret（固定值，方便生成测试 token）
 jwt:
-  secret: test-secret-key-for-integration-tests-minimum-32-chars
+  secret: ${JWT_SECRET:test-secret-key-for-integration-tests-minimum-32-chars}
   access-token-expiration: 3600
   refresh-token-expiration: 86400
 
-# 测试日志
+backend:
+  url: ${BACKEND_URL:http://localhost}
+
 logging:
   level:
     com.tutict.finalassignmentbackend: DEBUG

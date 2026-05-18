@@ -168,6 +168,28 @@ public class PermissionManagementController {
         return ResponseEntity.ok(sysPermissionService.searchByPermissionCodePrefix(permissionCode, page, size));
     }
 
+    @GetMapping("/name/{permissionName}")
+    @Deprecated
+    public ResponseEntity<ApiResponse<Void>> getPermissionByNameDeprecated(@PathVariable String permissionName) {
+        return ResponseEntity.status(HttpStatus.GONE)
+                .body(ApiResponse.error("GONE", "此接口已废弃，请使用 /api/permissions/{permissionId}"));
+    }
+
+    @DeleteMapping("/name/{permissionName}")
+    @Deprecated
+    public ResponseEntity<ApiResponse<Void>> deletePermissionByNameDeprecated(@PathVariable String permissionName) {
+        return ResponseEntity.status(HttpStatus.GONE)
+                .body(ApiResponse.error("GONE", "此接口已废弃"));
+    }
+
+    @GetMapping("/search")
+    @Deprecated
+    public ResponseEntity<ApiResponse<Void>> searchPermissionsDeprecated(
+            @RequestParam(required = false) String name) {
+        return ResponseEntity.status(HttpStatus.GONE)
+                .body(ApiResponse.error("GONE", "此接口已废弃，请使用 /api/permissions/search/name/fuzzy?permissionName="));
+    }
+
     @GetMapping("/search/code/fuzzy")
     @Operation(summary = "Search permissions by code fuzzy")
     public ResponseEntity<List<SysPermission>> searchByCodeFuzzy(@RequestParam String permissionCode,

@@ -1,0 +1,6 @@
+spring:
+  datasource:
+    password: dev_password_local
+
+backend:
+  url: http://localhost:8080

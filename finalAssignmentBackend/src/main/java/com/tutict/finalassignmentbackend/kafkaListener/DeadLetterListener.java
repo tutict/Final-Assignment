@@ -38,7 +38,7 @@ public class DeadLetterListener {
             "${kafka.topics.sys-settings.update-dlt:sys_settings_update.DLT}",
             "${kafka.topics.vehicle.create-dlt:vehicle_information_create.DLT}",
             "${kafka.topics.vehicle.update-dlt:vehicle_information_update.DLT}"
-    }, groupId = "deadLetterMonitorGroup")
+    }, groupId = "${kafka.groups.dead-letter:deadLetterMonitorGroup}")
     public void onDeadLetter(ConsumerRecord<String, String> record, Acknowledgment ack) {
         log.log(Level.SEVERE,
                 "Dead letter received: topic={0}, partition={1}, offset={2}, key={3}",
@@ -76,15 +76,14 @@ public class DeadLetterListener {
 
     private String buildUserFriendlyMessage(String topic) {
         return switch (topic) {
-            case "offense_record_create.DLT", "offense_record_update.DLT" -> "违法记录处理失败，请刷新页面确认结果";
-            case "payment_record_create.DLT", "payment_record_update.DLT" -> "支付处理出现异常，请联系客服确认支付状态";
-            case "appeal_record_create.DLT", "appeal_record_update.DLT" -> "申诉处理失败，请重新提交申诉";
-            case "sys_user_create.DLT", "sys_user_update.DLT" -> "用户信息处理失败，请刷新页面确认结果";
-            case "vehicle_information_create.DLT", "vehicle_information_update.DLT" -> "车辆信息处理失败，请刷新页面确认结果";
-            default -> "操作异步处理失败，请刷新页面确认结果";
+            case "offense_record_create.DLT", "offense_record_update.DLT" -> "Offense async operation failed";
+            case "payment_record_create.DLT", "payment_record_update.DLT" -> "Payment async operation failed";
+            case "appeal_record_create.DLT", "appeal_record_update.DLT" -> "Appeal async operation failed";
+            case "sys_user_create.DLT", "sys_user_update.DLT" -> "User async operation failed";
+            case "vehicle_information_create.DLT", "vehicle_information_update.DLT" -> "Vehicle async operation failed";
+            default -> "Async operation failed";
         };
     }
-
     private String asString(Object value) {
         return value == null ? null : value.toString();
     }

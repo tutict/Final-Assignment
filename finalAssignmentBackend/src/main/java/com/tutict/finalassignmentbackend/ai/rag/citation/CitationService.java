@@ -4,7 +4,6 @@ import com.tutict.finalassignmentbackend.ai.rag.dto.RetrievalResult;
 import org.springframework.stereotype.Service;
 
 import java.util.LinkedHashMap;
-import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 
@@ -30,15 +29,6 @@ public class CitationService {
                 score,
                 metadata(result, source, snippet, score)
         );
-    }
-
-    public List<CitationDto> toCitations(List<RetrievalResult> results) {
-        if (results == null || results.isEmpty()) {
-            return List.of();
-        }
-        return results.stream()
-                .map(this::toCitation)
-                .toList();
     }
 
     private static Map<String, Object> metadata(

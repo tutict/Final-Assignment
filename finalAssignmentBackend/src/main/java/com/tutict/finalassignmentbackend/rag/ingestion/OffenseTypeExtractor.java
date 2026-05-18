@@ -4,6 +4,7 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.tutict.finalassignmentbackend.entity.OffenseTypeDict;
 import com.tutict.finalassignmentbackend.rag.dto.RagSourceDocument;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.stereotype.Component;
 
 import java.time.LocalDateTime;
@@ -14,6 +15,7 @@ import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 @Component
+@ConditionalOnProperty(prefix = "rag", name = "enabled", havingValue = "true")
 public class OffenseTypeExtractor implements RagSourceExtractor<OffenseTypeDict> {
 
     private static final String TABLE = "offense_type_dict";

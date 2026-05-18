@@ -32,7 +32,7 @@ public class SysRolePermissionKafkaListener {
     }
 
     // 监听 Kafka 消息
-    @KafkaListener(topics = "sys_role_permission_create", groupId = "sysRolePermissionGroup", concurrency = "3")
+    @KafkaListener(topics = "${kafka.topics.sys-role-permission.create:sys_role_permission_create}", groupId = "${kafka.groups.sys-role-permission:sysRolePermissionGroup}", concurrency = "3")
     public void onSysRolePermissionCreateReceived(@Header(value = KafkaHeaders.RECEIVED_KEY, required = false) byte[] rawKey,
                                                   @Payload String message,
                                       Acknowledgment ack) {
@@ -42,7 +42,7 @@ public class SysRolePermissionKafkaListener {
     }
 
     // 监听 Kafka 消息
-    @KafkaListener(topics = "sys_role_permission_update", groupId = "sysRolePermissionGroup", concurrency = "3")
+    @KafkaListener(topics = "${kafka.topics.sys-role-permission.update:sys_role_permission_update}", groupId = "${kafka.groups.sys-role-permission:sysRolePermissionGroup}", concurrency = "3")
     public void onSysRolePermissionUpdateReceived(@Header(value = KafkaHeaders.RECEIVED_KEY, required = false) byte[] rawKey,
                                                   @Payload String message,
                                       Acknowledgment ack) {

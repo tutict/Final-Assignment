@@ -2,6 +2,7 @@ package com.tutict.finalassignmentbackend.rag.chunk;
 
 import com.tutict.finalassignmentbackend.rag.config.RagProperties;
 import com.tutict.finalassignmentbackend.rag.dto.RagSourceDocument;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.stereotype.Component;
 
 import java.nio.charset.StandardCharsets;
@@ -13,6 +14,7 @@ import java.util.HexFormat;
 import java.util.List;
 
 @Component
+@ConditionalOnProperty(prefix = "rag", name = "enabled", havingValue = "true")
 public class ChineseTextChunker implements Chunker {
 
     private final int chunkSize;

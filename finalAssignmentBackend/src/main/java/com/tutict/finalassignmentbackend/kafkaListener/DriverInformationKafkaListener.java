@@ -32,7 +32,7 @@ public class DriverInformationKafkaListener {
     }
 
     // 监听 Kafka 消息
-    @KafkaListener(topics = "driver_information_create", groupId = "driverInformationGroup", concurrency = "3")
+    @KafkaListener(topics = "${kafka.topics.driver-information.create:driver_information_create}", groupId = "${kafka.groups.driver-information:driverInformationGroup}", concurrency = "3")
     public void onDriverInformationCreate(@Header(value = KafkaHeaders.RECEIVED_KEY, required = false) byte[] rawKey,
                                           @Payload String message,
                                       Acknowledgment ack) {
@@ -42,7 +42,7 @@ public class DriverInformationKafkaListener {
     }
 
     // 监听 Kafka 消息
-    @KafkaListener(topics = "driver_information_update", groupId = "driverInformationGroup", concurrency = "3")
+    @KafkaListener(topics = "${kafka.topics.driver-information.update:driver_information_update}", groupId = "${kafka.groups.driver-information:driverInformationGroup}", concurrency = "3")
     public void onDriverInformationUpdate(@Header(value = KafkaHeaders.RECEIVED_KEY, required = false) byte[] rawKey,
                                           @Payload String message,
                                       Acknowledgment ack) {

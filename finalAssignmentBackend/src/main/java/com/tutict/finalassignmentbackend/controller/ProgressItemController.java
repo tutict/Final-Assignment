@@ -170,9 +170,9 @@ public class ProgressItemController {
 
     @GetMapping("/status")
     @Operation(summary = "按业务状态分页查询进度")
-    public ResponseEntity<List<SysRequestHistory>> listByStatus(@RequestParam String status,
-                                                                @RequestParam(defaultValue = "1") int page,
-                                                                @RequestParam(defaultValue = "20") int size) {
+    public ResponseEntity<List<SysRequestHistory>> getByStatus(@RequestParam String status,
+                                                               @RequestParam(defaultValue = "0") int page,
+                                                               @RequestParam(defaultValue = "20") int size) {
         try {
             return ResponseEntity.ok(sysRequestHistoryService.findByBusinessStatus(status, page, size));
         } catch (Exception ex) {
@@ -182,6 +182,13 @@ public class ProgressItemController {
             }
             throw new RuntimeException(ex);
         }
+    }
+
+    @GetMapping("/status/{status}")
+    @Deprecated
+    public ResponseEntity<ApiResponse<Void>> getByStatusPathDeprecated(@PathVariable String status) {
+        return ResponseEntity.status(HttpStatus.GONE)
+                .body(ApiResponse.error("GONE", "此接口已废弃，请使用 /api/progress/status?status={status}"));
     }
 
     @GetMapping("/idempotency/{key}")

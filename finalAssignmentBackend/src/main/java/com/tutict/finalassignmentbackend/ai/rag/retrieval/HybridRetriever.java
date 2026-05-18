@@ -3,6 +3,7 @@ package com.tutict.finalassignmentbackend.ai.rag.retrieval;
 import com.tutict.finalassignmentbackend.ai.rag.config.RagRetrievalProperties;
 import com.tutict.finalassignmentbackend.ai.rag.dto.RetrievalResult;
 import com.tutict.finalassignmentbackend.ai.rag.rerank.NoopRerankProvider;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.stereotype.Service;
 
 import java.util.Comparator;
@@ -11,6 +12,7 @@ import java.util.List;
 import java.util.Map;
 
 @Service
+@ConditionalOnProperty(prefix = "rag.retrieval", name = "enabled", havingValue = "true")
 public class HybridRetriever {
 
     private final EmbeddingSearchService embeddingSearchService;

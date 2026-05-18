@@ -32,7 +32,7 @@ public class SysBackupRestoreKafkaListener {
     }
 
     // 监听 Kafka 消息
-    @KafkaListener(topics = "sys_backup_restore_create", groupId = "sysBackupRestoreGroup", concurrency = "3")
+    @KafkaListener(topics = "${kafka.topics.sys-backup-restore.create:sys_backup_restore_create}", groupId = "${kafka.groups.sys-backup-restore:sysBackupRestoreGroup}", concurrency = "3")
     public void onSysBackupRestoreCreateReceived(@Header(value = KafkaHeaders.RECEIVED_KEY, required = false) byte[] rawKey,
                                                  @Payload String message,
                                       Acknowledgment ack) {
@@ -42,7 +42,7 @@ public class SysBackupRestoreKafkaListener {
     }
 
     // 监听 Kafka 消息
-    @KafkaListener(topics = "sys_backup_restore_update", groupId = "sysBackupRestoreGroup", concurrency = "3")
+    @KafkaListener(topics = "${kafka.topics.sys-backup-restore.update:sys_backup_restore_update}", groupId = "${kafka.groups.sys-backup-restore:sysBackupRestoreGroup}", concurrency = "3")
     public void onSysBackupRestoreUpdateReceived(@Header(value = KafkaHeaders.RECEIVED_KEY, required = false) byte[] rawKey,
                                                  @Payload String message,
                                       Acknowledgment ack) {

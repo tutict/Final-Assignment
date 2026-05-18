@@ -159,7 +159,7 @@ class OffenseFineIntegrationTest extends BaseIntegrationTest {
         Long offenseId = createTestOffense(driverId, vehicleId);
 
         authSpec(adminToken)
-            .post("/api/workflow/offenses/{id}/events/{event}", offenseId, "COMPLETE")
+            .post("/api/workflow/offenses/{id}/events/{event}", offenseId, "COMPLETE_PROCESSING")
             .then()
             .statusCode(409)
             .body("success", equalTo(false))

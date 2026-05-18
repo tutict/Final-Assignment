@@ -32,7 +32,7 @@ public class SysPermissionKafkaListener {
     }
 
     // 监听 Kafka 消息
-    @KafkaListener(topics = "sys_permission_create", groupId = "sysPermissionGroup", concurrency = "3")
+    @KafkaListener(topics = "${kafka.topics.sys-permission.create:sys_permission_create}", groupId = "${kafka.groups.sys-permission:sysPermissionGroup}", concurrency = "3")
     public void onSysPermissionCreateReceived(@Header(value = KafkaHeaders.RECEIVED_KEY, required = false) byte[] rawKey,
                                               @Payload String message,
                                       Acknowledgment ack) {
@@ -42,7 +42,7 @@ public class SysPermissionKafkaListener {
     }
 
     // 监听 Kafka 消息
-    @KafkaListener(topics = "sys_permission_update", groupId = "sysPermissionGroup", concurrency = "3")
+    @KafkaListener(topics = "${kafka.topics.sys-permission.update:sys_permission_update}", groupId = "${kafka.groups.sys-permission:sysPermissionGroup}", concurrency = "3")
     public void onSysPermissionUpdateReceived(@Header(value = KafkaHeaders.RECEIVED_KEY, required = false) byte[] rawKey,
                                               @Payload String message,
                                       Acknowledgment ack) {

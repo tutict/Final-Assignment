@@ -32,7 +32,7 @@ public class OffenseTypeDictKafkaListener {
     }
 
     // 监听 Kafka 消息
-    @KafkaListener(topics = "offense_type_dict_create", groupId = "offenseTypeDictGroup", concurrency = "3")
+    @KafkaListener(topics = "${kafka.topics.offense-type-dict.create:offense_type_dict_create}", groupId = "${kafka.groups.offense-type-dict:offenseTypeDictGroup}", concurrency = "3")
     public void onOffenseTypeDictCreate(@Header(value = KafkaHeaders.RECEIVED_KEY, required = false) byte[] rawKey,
                                         @Payload String message,
                                       Acknowledgment ack) {
@@ -42,7 +42,7 @@ public class OffenseTypeDictKafkaListener {
     }
 
     // 监听 Kafka 消息
-    @KafkaListener(topics = "offense_type_dict_update", groupId = "offenseTypeDictGroup", concurrency = "3")
+    @KafkaListener(topics = "${kafka.topics.offense-type-dict.update:offense_type_dict_update}", groupId = "${kafka.groups.offense-type-dict:offenseTypeDictGroup}", concurrency = "3")
     public void onOffenseTypeDictUpdate(@Header(value = KafkaHeaders.RECEIVED_KEY, required = false) byte[] rawKey,
                                         @Payload String message,
                                       Acknowledgment ack) {

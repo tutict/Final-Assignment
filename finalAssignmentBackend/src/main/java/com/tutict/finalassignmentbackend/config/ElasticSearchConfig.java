@@ -87,6 +87,7 @@ import com.tutict.finalassignmentbackend.repository.VehicleInformationSearchRepo
 import jakarta.annotation.PostConstruct;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.Lazy;
+import org.springframework.context.annotation.Profile;
 import org.springframework.data.elasticsearch.repository.ElasticsearchRepository;
 import org.springframework.data.elasticsearch.repository.config.EnableElasticsearchRepositories;
 
@@ -96,6 +97,7 @@ import java.util.logging.Level;
 import java.util.logging.Logger;
 
 @Configuration
+@Profile("!test")
 @EnableElasticsearchRepositories(basePackages = "com.tutict.finalassignmentbackend.repository")
 public class ElasticSearchConfig {
 

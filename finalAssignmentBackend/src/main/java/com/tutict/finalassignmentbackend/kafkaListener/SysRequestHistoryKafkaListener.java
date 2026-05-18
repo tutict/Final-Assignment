@@ -32,7 +32,7 @@ public class SysRequestHistoryKafkaListener {
     }
 
     // 监听 Kafka 消息
-    @KafkaListener(topics = "sys_request_history_create", groupId = "sysRequestHistoryGroup", concurrency = "3")
+    @KafkaListener(topics = "${kafka.topics.sys-request-history.create:sys_request_history_create}", groupId = "${kafka.groups.sys-request-history:sysRequestHistoryGroup}", concurrency = "3")
     public void onSysRequestHistoryCreateReceived(@Header(value = KafkaHeaders.RECEIVED_KEY, required = false) byte[] rawKey,
                                                   @Payload String message,
                                       Acknowledgment ack) {
@@ -42,7 +42,7 @@ public class SysRequestHistoryKafkaListener {
     }
 
     // 监听 Kafka 消息
-    @KafkaListener(topics = "sys_request_history_update", groupId = "sysRequestHistoryGroup", concurrency = "3")
+    @KafkaListener(topics = "${kafka.topics.sys-request-history.update:sys_request_history_update}", groupId = "${kafka.groups.sys-request-history:sysRequestHistoryGroup}", concurrency = "3")
     public void onSysRequestHistoryUpdateReceived(@Header(value = KafkaHeaders.RECEIVED_KEY, required = false) byte[] rawKey,
                                                   @Payload String message,
                                       Acknowledgment ack) {

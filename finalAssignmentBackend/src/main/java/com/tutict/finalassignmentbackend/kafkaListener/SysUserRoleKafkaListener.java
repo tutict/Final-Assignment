@@ -30,7 +30,7 @@ public class SysUserRoleKafkaListener {
     }
 
     // 监听 Kafka 消息
-    @KafkaListener(topics = "sys_user_role_create", groupId = "sysUserRoleGroup", concurrency = "3")
+    @KafkaListener(topics = "${kafka.topics.sys-user-role.create:sys_user_role_create}", groupId = "${kafka.groups.sys-user-role:sysUserRoleGroup}", concurrency = "3")
     public void onSysUserRoleCreateReceived(String message, Acknowledgment ack) {
         log.log(Level.INFO, "Received Kafka message for create (payload omitted)");
         processMessage(message, "create");
@@ -38,7 +38,7 @@ public class SysUserRoleKafkaListener {
     }
 
     // 监听 Kafka 消息
-    @KafkaListener(topics = "sys_user_role_update", groupId = "sysUserRoleGroup", concurrency = "3")
+    @KafkaListener(topics = "${kafka.topics.sys-user-role.update:sys_user_role_update}", groupId = "${kafka.groups.sys-user-role:sysUserRoleGroup}", concurrency = "3")
     public void onSysUserRoleUpdateReceived(String message, Acknowledgment ack) {
         log.log(Level.INFO, "Received Kafka message for update (payload omitted)");
         processMessage(message, "update");

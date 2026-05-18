@@ -62,7 +62,7 @@ cors:
 spring:
   datasource:
     username: ${DB_USERNAME:root}
-    password: ${DB_PASSWORD:root}
+    password: ${DB_PASSWORD}
   kafka:
     producer:
       acks: all
@@ -72,15 +72,47 @@ spring:
         max.in.flight.requests.per.connection: 5
 
 backend:
-  url: ${BACKEND_URL:http://localhost}
+  url: ${BACKEND_URL}
 
 kafka:
+  groups:
+    audit-login-log: ${KAFKA_GROUP_AUDIT_LOGIN_LOG:auditLoginLogGroup}
+    audit-operation-log: ${KAFKA_GROUP_AUDIT_OPERATION_LOG:auditOperationLogGroup}
+    appeal: ${KAFKA_GROUP_APPEAL:appealRecordGroup}
+    appeal-review: ${KAFKA_GROUP_APPEAL_REVIEW:appealReviewGroup}
+    dead-letter: ${KAFKA_GROUP_DEAD_LETTER:deadLetterMonitorGroup}
+    deduction: ${KAFKA_GROUP_DEDUCTION:deductionRecordGroup}
+    driver-information: ${KAFKA_GROUP_DRIVER_INFORMATION:driverInformationGroup}
+    driver-vehicle: ${KAFKA_GROUP_DRIVER_VEHICLE:driverVehicleGroup}
+    fine: ${KAFKA_GROUP_FINE:fineRecordGroup}
+    offense: ${KAFKA_GROUP_OFFENSE:offenseRecordGroup}
+    offense-type-dict: ${KAFKA_GROUP_OFFENSE_TYPE_DICT:offenseTypeDictGroup}
+    payment: ${KAFKA_GROUP_PAYMENT:paymentRecordGroup}
+    sys-backup-restore: ${KAFKA_GROUP_SYS_BACKUP_RESTORE:sysBackupRestoreGroup}
+    sys-dict: ${KAFKA_GROUP_SYS_DICT:sysDictGroup}
+    sys-permission: ${KAFKA_GROUP_SYS_PERMISSION:sysPermissionGroup}
+    sys-request-history: ${KAFKA_GROUP_SYS_REQUEST_HISTORY:sysRequestHistoryGroup}
+    sys-role: ${KAFKA_GROUP_SYS_ROLE:sysRoleGroup}
+    sys-role-permission: ${KAFKA_GROUP_SYS_ROLE_PERMISSION:sysRolePermissionGroup}
+    sys-settings: ${KAFKA_GROUP_SYS_SETTINGS:sysSettingsGroup}
+    sys-user: ${KAFKA_GROUP_SYS_USER:sysUserGroup}
+    sys-user-role: ${KAFKA_GROUP_SYS_USER_ROLE:sysUserRoleGroup}
+    vehicle: ${KAFKA_GROUP_VEHICLE:vehicleInformationGroup}
   topics:
+    audit-login-log:
+      create: ${KAFKA_TOPIC_AUDIT_LOGIN_LOG_CREATE:audit_login_log_create}
+      update: ${KAFKA_TOPIC_AUDIT_LOGIN_LOG_UPDATE:audit_login_log_update}
+    audit-operation-log:
+      create: ${KAFKA_TOPIC_AUDIT_OPERATION_LOG_CREATE:audit_operation_log_create}
+      update: ${KAFKA_TOPIC_AUDIT_OPERATION_LOG_UPDATE:audit_operation_log_update}
     offense:
       create: ${KAFKA_TOPIC_OFFENSE_CREATE:offense_record_create}
       update: ${KAFKA_TOPIC_OFFENSE_UPDATE:offense_record_update}
       create-dlt: ${KAFKA_TOPIC_OFFENSE_CREATE_DLT:offense_record_create.DLT}
       update-dlt: ${KAFKA_TOPIC_OFFENSE_UPDATE_DLT:offense_record_update.DLT}
+    offense-type-dict:
+      create: ${KAFKA_TOPIC_OFFENSE_TYPE_DICT_CREATE:offense_type_dict_create}
+      update: ${KAFKA_TOPIC_OFFENSE_TYPE_DICT_UPDATE:offense_type_dict_update}
     payment:
       create: ${KAFKA_TOPIC_PAYMENT_CREATE:payment_record_create}
       update: ${KAFKA_TOPIC_PAYMENT_UPDATE:payment_record_update}
@@ -91,6 +123,55 @@ kafka:
       update: ${KAFKA_TOPIC_APPEAL_UPDATE:appeal_record_update}
       create-dlt: ${KAFKA_TOPIC_APPEAL_CREATE_DLT:appeal_record_create.DLT}
       update-dlt: ${KAFKA_TOPIC_APPEAL_UPDATE_DLT:appeal_record_update.DLT}
+    appeal-review:
+      create: ${KAFKA_TOPIC_APPEAL_REVIEW_CREATE:appeal_review_create}
+      update: ${KAFKA_TOPIC_APPEAL_REVIEW_UPDATE:appeal_review_update}
+    deduction:
+      create: ${KAFKA_TOPIC_DEDUCTION_CREATE:deduction_record_create}
+      update: ${KAFKA_TOPIC_DEDUCTION_UPDATE:deduction_record_update}
+    driver-information:
+      create: ${KAFKA_TOPIC_DRIVER_INFORMATION_CREATE:driver_information_create}
+      update: ${KAFKA_TOPIC_DRIVER_INFORMATION_UPDATE:driver_information_update}
+    driver-vehicle:
+      create: ${KAFKA_TOPIC_DRIVER_VEHICLE_CREATE:driver_vehicle_create}
+      update: ${KAFKA_TOPIC_DRIVER_VEHICLE_UPDATE:driver_vehicle_update}
+    fine:
+      create: ${KAFKA_TOPIC_FINE_CREATE:fine_record_create}
+      update: ${KAFKA_TOPIC_FINE_UPDATE:fine_record_update}
+    sys-backup-restore:
+      create: ${KAFKA_TOPIC_SYS_BACKUP_RESTORE_CREATE:sys_backup_restore_create}
+      update: ${KAFKA_TOPIC_SYS_BACKUP_RESTORE_UPDATE:sys_backup_restore_update}
+    sys-dict:
+      create: ${KAFKA_TOPIC_SYS_DICT_CREATE:sys_dict_create}
+      update: ${KAFKA_TOPIC_SYS_DICT_UPDATE:sys_dict_update}
+    sys-permission:
+      create: ${KAFKA_TOPIC_SYS_PERMISSION_CREATE:sys_permission_create}
+      update: ${KAFKA_TOPIC_SYS_PERMISSION_UPDATE:sys_permission_update}
+    sys-request-history:
+      create: ${KAFKA_TOPIC_SYS_REQUEST_HISTORY_CREATE:sys_request_history_create}
+      update: ${KAFKA_TOPIC_SYS_REQUEST_HISTORY_UPDATE:sys_request_history_update}
+    sys-role:
+      create: ${KAFKA_TOPIC_SYS_ROLE_CREATE:sys_role_create}
+      update: ${KAFKA_TOPIC_SYS_ROLE_UPDATE:sys_role_update}
+    sys-role-permission:
+      create: ${KAFKA_TOPIC_SYS_ROLE_PERMISSION_CREATE:sys_role_permission_create}
+      update: ${KAFKA_TOPIC_SYS_ROLE_PERMISSION_UPDATE:sys_role_permission_update}
+    sys-settings:
+      create: ${KAFKA_TOPIC_SYS_SETTINGS_CREATE:sys_settings_create}
+      update: ${KAFKA_TOPIC_SYS_SETTINGS_UPDATE:sys_settings_update}
+    sys-user:
+      create: ${KAFKA_TOPIC_SYS_USER_CREATE:sys_user_create}
+      update: ${KAFKA_TOPIC_SYS_USER_UPDATE:sys_user_update}
+      create-dlt: ${KAFKA_TOPIC_SYS_USER_CREATE_DLT:sys_user_create.DLT}
+      update-dlt: ${KAFKA_TOPIC_SYS_USER_UPDATE_DLT:sys_user_update.DLT}
+    sys-user-role:
+      create: ${KAFKA_TOPIC_SYS_USER_ROLE_CREATE:sys_user_role_create}
+      update: ${KAFKA_TOPIC_SYS_USER_ROLE_UPDATE:sys_user_role_update}
+    vehicle:
+      create: ${KAFKA_TOPIC_VEHICLE_CREATE:vehicle_information_create}
+      update: ${KAFKA_TOPIC_VEHICLE_UPDATE:vehicle_information_update}
+      create-dlt: ${KAFKA_TOPIC_VEHICLE_CREATE_DLT:vehicle_information_create.DLT}
+      update-dlt: ${KAFKA_TOPIC_VEHICLE_UPDATE_DLT:vehicle_information_update.DLT}
 
 management:
   endpoints:

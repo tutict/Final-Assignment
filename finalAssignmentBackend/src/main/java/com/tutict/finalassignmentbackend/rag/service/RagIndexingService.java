@@ -9,6 +9,7 @@ import com.tutict.finalassignmentbackend.rag.entity.RagEmbeddingTask;
 import com.tutict.finalassignmentbackend.rag.mapper.RagChunkMapper;
 import com.tutict.finalassignmentbackend.rag.mapper.RagDocumentMapper;
 import com.tutict.finalassignmentbackend.rag.mapper.RagEmbeddingTaskMapper;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -23,6 +24,7 @@ import java.util.Locale;
 import java.util.Set;
 
 @Service
+@ConditionalOnProperty(prefix = "rag", name = "enabled", havingValue = "true")
 public class RagIndexingService {
 
     private final RagDocumentService documentService;
@@ -65,6 +67,7 @@ public class RagIndexingService {
 }
 
 @Service
+@ConditionalOnProperty(prefix = "rag", name = "enabled", havingValue = "true")
 class RagDocumentService {
 
     private static final Set<String> ACL_SCOPES = Set.of("PUBLIC", "ROLE", "USER", "DEPARTMENT");
@@ -123,6 +126,7 @@ class RagDocumentService {
 }
 
 @Service
+@ConditionalOnProperty(prefix = "rag", name = "enabled", havingValue = "true")
 class RagChunkService {
 
     private final RagChunkMapper mapper;
@@ -165,6 +169,7 @@ class RagChunkService {
 }
 
 @Service
+@ConditionalOnProperty(prefix = "rag", name = "enabled", havingValue = "true")
 class RagEmbeddingTaskService {
 
     private static final String DEFAULT_PROVIDER = "unassigned";

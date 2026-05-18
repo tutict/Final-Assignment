@@ -11,11 +11,13 @@ import com.tutict.finalassignmentbackend.rag.ingestion.AppealRecordExtractor;
 import com.tutict.finalassignmentbackend.rag.ingestion.OffenseTypeExtractor;
 import com.tutict.finalassignmentbackend.rag.ingestion.RagSourceExtractor;
 import com.tutict.finalassignmentbackend.rag.service.RagIndexingService;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
 
 @Service
+@ConditionalOnProperty(prefix = "rag", name = "enabled", havingValue = "true")
 public class RagBackfillJob {
 
     private final OffenseTypeDictMapper offenseTypeDictMapper;

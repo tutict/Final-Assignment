@@ -12,6 +12,7 @@ import com.tutict.finalassignmentbackend.ai.provider.AiToken;
 import com.tutict.finalassignmentbackend.ai.provider.NoopAiProvider;
 import com.tutict.finalassignmentbackend.ai.provider.ProviderHealth;
 import com.tutict.finalassignmentbackend.dto.response.ApiResponse;
+import com.tutict.finalassignmentbackend.service.ChatAgent;
 import org.junit.jupiter.api.Test;
 import org.springframework.http.ResponseEntity;
 import org.springframework.http.codec.ServerSentEvent;
@@ -27,6 +28,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.Mockito.mock;
 
 class AiChatControllerStreamingTest {
 
@@ -143,7 +145,7 @@ class AiChatControllerStreamingTest {
         ChatStreamService streamService = service(provider, streamingTimeout, keepAlive);
         AiChatService chatService = new AiChatService(streamService);
         StreamEventWriter writer = new StreamEventWriter(objectMapper);
-        return new AiChatController(chatService, writer, enabled);
+        return new AiChatController(chatService, writer, mock(ChatAgent.class), enabled);
     }
 
     private ChatStreamService service(AiProvider provider, Duration streamingTimeout, Duration keepAlive) {

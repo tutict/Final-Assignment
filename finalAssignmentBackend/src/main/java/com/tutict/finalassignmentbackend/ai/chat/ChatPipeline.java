@@ -8,6 +8,7 @@ import com.tutict.finalassignmentbackend.ai.rag.dto.RetrievalResult;
 import com.tutict.finalassignmentbackend.ai.rag.query.RagQueryRequest;
 import com.tutict.finalassignmentbackend.ai.rag.query.RagQueryService;
 import com.tutict.finalassignmentbackend.service.AIChatSearchService;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.stereotype.Service;
 import reactor.core.publisher.Flux;
@@ -27,6 +28,7 @@ public class ChatPipeline {
     private final RagRetrievalProperties ragRetrievalProperties;
     private final AIChatSearchService aiChatSearchService;
 
+    @Autowired
     public ChatPipeline(
             ChatStreamService chatStreamService,
             PromptAssembler promptAssembler,
@@ -37,7 +39,7 @@ public class ChatPipeline {
         this(
                 chatStreamService,
                 promptAssembler,
-                ragQueryService.getIfAvailable(),
+                ragQueryServiceIfEnabled(ragQueryService, ragRetrievalProperties),
                 ragRetrievalProperties.getIfAvailable(),
                 aiChatSearchService.getIfAvailable()
         );
@@ -303,5 +305,15 @@ public class ChatPipeline {
         RagRetrievalProperties properties = new RagRetrievalProperties();
         properties.setEnabled(false);
         return properties;
+    }
+
+    private static RagQueryService ragQueryServiceIfEnabled(
+            ObjectProvider<RagQueryService> ragQueryService,
+            ObjectProvider<RagRetrievalProperties> ragRetrievalProperties
+    ) {
+        RagRetrievalProperties properties = ragRetrievalProperties.getIfAvailable();
+        return properties != null && properties.isEnabled()
+                ? ragQueryService.getIfAvailable()
+                : null;
     }
 }

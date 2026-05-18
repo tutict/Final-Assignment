@@ -32,7 +32,7 @@ public class AuditOperationLogKafkaListener {
     }
 
     // 监听 Kafka 消息
-    @KafkaListener(topics = "audit_operation_log_create", groupId = "auditOperationLogGroup", concurrency = "3")
+    @KafkaListener(topics = "${kafka.topics.audit-operation-log.create:audit_operation_log_create}", groupId = "${kafka.groups.audit-operation-log:auditOperationLogGroup}", concurrency = "3")
     public void onAuditOperationLogCreateReceived(@Header(value = KafkaHeaders.RECEIVED_KEY, required = false) byte[] rawKey,
                                                   @Payload String message,
                                       Acknowledgment ack) {
@@ -42,7 +42,7 @@ public class AuditOperationLogKafkaListener {
     }
 
     // 监听 Kafka 消息
-    @KafkaListener(topics = "audit_operation_log_update", groupId = "auditOperationLogGroup", concurrency = "3")
+    @KafkaListener(topics = "${kafka.topics.audit-operation-log.update:audit_operation_log_update}", groupId = "${kafka.groups.audit-operation-log:auditOperationLogGroup}", concurrency = "3")
     public void onAuditOperationLogUpdateReceived(@Header(value = KafkaHeaders.RECEIVED_KEY, required = false) byte[] rawKey,
                                                   @Payload String message,
                                       Acknowledgment ack) {

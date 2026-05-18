@@ -172,11 +172,11 @@ class PaymentIntegrationTest extends BaseIntegrationTest {
     @Test
     @Order(8)
     @DisplayName("支付 Workflow 事件触发：返回合法状态")
-    void payment_workflow_event_returns_valid_state() {
+    void payment_workflow_event_triggers_with_correct_enum() {
         Long paymentId = createTestPayment(fineId);
 
         authSpec(adminToken)
-            .post("/api/workflow/payments/{id}/events/{event}", paymentId, "PAY")
+            .post("/api/workflow/payments/{id}/events/{event}", paymentId, "COMPLETE_PAYMENT")
             .then()
             .statusCode(anyOf(is(200), is(201), is(409)));
     }

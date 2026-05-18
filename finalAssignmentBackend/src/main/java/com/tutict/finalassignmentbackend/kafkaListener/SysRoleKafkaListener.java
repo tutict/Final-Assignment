@@ -32,7 +32,7 @@ public class SysRoleKafkaListener {
     }
 
     // 监听 Kafka 消息
-    @KafkaListener(topics = "sys_role_create", groupId = "sysRoleGroup", concurrency = "3")
+    @KafkaListener(topics = "${kafka.topics.sys-role.create:sys_role_create}", groupId = "${kafka.groups.sys-role:sysRoleGroup}", concurrency = "3")
     public void onSysRoleCreateReceived(@Header(value = KafkaHeaders.RECEIVED_KEY, required = false) byte[] rawKey,
                                         @Payload String message,
                                       Acknowledgment ack) {
@@ -42,7 +42,7 @@ public class SysRoleKafkaListener {
     }
 
     // 监听 Kafka 消息
-    @KafkaListener(topics = "sys_role_update", groupId = "sysRoleGroup", concurrency = "3")
+    @KafkaListener(topics = "${kafka.topics.sys-role.update:sys_role_update}", groupId = "${kafka.groups.sys-role:sysRoleGroup}", concurrency = "3")
     public void onSysRoleUpdateReceived(@Header(value = KafkaHeaders.RECEIVED_KEY, required = false) byte[] rawKey,
                                         @Payload String message,
                                       Acknowledgment ack) {

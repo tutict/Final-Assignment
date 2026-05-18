@@ -32,7 +32,7 @@ public class DriverVehicleKafkaListener {
     }
 
     // 监听 Kafka 消息
-    @KafkaListener(topics = "driver_vehicle_create", groupId = "driverVehicleGroup", concurrency = "3")
+    @KafkaListener(topics = "${kafka.topics.driver-vehicle.create:driver_vehicle_create}", groupId = "${kafka.groups.driver-vehicle:driverVehicleGroup}", concurrency = "3")
     public void onDriverVehicleCreateReceived(@Header(value = KafkaHeaders.RECEIVED_KEY, required = false) byte[] rawKey,
                                               @Payload String message,
                                       Acknowledgment ack) {
@@ -42,7 +42,7 @@ public class DriverVehicleKafkaListener {
     }
 
     // 监听 Kafka 消息
-    @KafkaListener(topics = "driver_vehicle_update", groupId = "driverVehicleGroup", concurrency = "3")
+    @KafkaListener(topics = "${kafka.topics.driver-vehicle.update:driver_vehicle_update}", groupId = "${kafka.groups.driver-vehicle:driverVehicleGroup}", concurrency = "3")
     public void onDriverVehicleUpdateReceived(@Header(value = KafkaHeaders.RECEIVED_KEY, required = false) byte[] rawKey,
                                               @Payload String message,
                                       Acknowledgment ack) {

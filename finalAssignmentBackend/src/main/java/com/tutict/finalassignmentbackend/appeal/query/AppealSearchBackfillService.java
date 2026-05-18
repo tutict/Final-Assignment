@@ -2,6 +2,7 @@ package com.tutict.finalassignmentbackend.appeal.query;
 
 import com.tutict.finalassignmentbackend.appeal.infrastructure.search.AppealRecordSearchIndexer;
 import com.tutict.finalassignmentbackend.entity.AppealRecord;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.support.TransactionSynchronization;
 import org.springframework.transaction.support.TransactionSynchronizationManager;
@@ -20,6 +21,7 @@ public class AppealSearchBackfillService {
     private final AppealRecordSearchIndexer searchIndexer;
     private final Executor executor;
 
+    @Autowired
     public AppealSearchBackfillService(AppealRecordSearchIndexer searchIndexer) {
         this(searchIndexer, CompletableFuture.delayedExecutor(0, java.util.concurrent.TimeUnit.MILLISECONDS));
     }

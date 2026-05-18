@@ -32,7 +32,7 @@ public class DeductionRecordKafkaListener {
     }
 
     // 监听 Kafka 消息
-    @KafkaListener(topics = "deduction_record_create", groupId = "deductionRecordGroup", concurrency = "3")
+    @KafkaListener(topics = "${kafka.topics.deduction.create:deduction_record_create}", groupId = "${kafka.groups.deduction:deductionRecordGroup}", concurrency = "3")
     public void onDeductionRecordCreate(@Header(value = KafkaHeaders.RECEIVED_KEY, required = false) byte[] rawKey,
                                         @Payload String message,
                                       Acknowledgment ack) {
@@ -42,7 +42,7 @@ public class DeductionRecordKafkaListener {
     }
 
     // 监听 Kafka 消息
-    @KafkaListener(topics = "deduction_record_update", groupId = "deductionRecordGroup", concurrency = "3")
+    @KafkaListener(topics = "${kafka.topics.deduction.update:deduction_record_update}", groupId = "${kafka.groups.deduction:deductionRecordGroup}", concurrency = "3")
     public void onDeductionRecordUpdate(@Header(value = KafkaHeaders.RECEIVED_KEY, required = false) byte[] rawKey,
                                         @Payload String message,
                                       Acknowledgment ack) {

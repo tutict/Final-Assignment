@@ -237,6 +237,13 @@ public class OffenseRecordService {
         }
     }
 
+    /**
+     * 仅用于治理回归测试的 Kafka 更新合并影子比较。
+     * 生产代码不应调用此方法。
+     *
+     * @deprecated 仅供测试使用，见 OffenseGovernanceHardeningTest
+     */
+    @Deprecated(since = "test-only")
     public void shadowCompareKafkaUpdateMerge(OffenseRecord incoming) {
         if (incoming == null || incoming.getOffenseId() == null) {
             return;

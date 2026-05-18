@@ -31,14 +31,14 @@ public class SysSettingsKafkaListener {
     }
 
     // 监听 Kafka 消息
-    @KafkaListener(topics = "sys_settings_create", groupId = "sysSettingsGroup", concurrency = "3")
+    @KafkaListener(topics = "${kafka.topics.sys-settings.create:sys_settings_create}", groupId = "${kafka.groups.sys-settings:sysSettingsGroup}", concurrency = "3")
     public void onSysSettingsCreateReceived(ConsumerRecord<String, String> record, Acknowledgment ack) {
         log.log(Level.INFO, "Received Kafka message for create (payload omitted)");
         processRecord(record, "create", ack);
     }
 
     // 监听 Kafka 消息
-    @KafkaListener(topics = "sys_settings_update", groupId = "sysSettingsGroup", concurrency = "3")
+    @KafkaListener(topics = "${kafka.topics.sys-settings.update:sys_settings_update}", groupId = "${kafka.groups.sys-settings:sysSettingsGroup}", concurrency = "3")
     public void onSysSettingsUpdateReceived(ConsumerRecord<String, String> record, Acknowledgment ack) {
         log.log(Level.INFO, "Received Kafka message for update (payload omitted)");
         processRecord(record, "update", ack);

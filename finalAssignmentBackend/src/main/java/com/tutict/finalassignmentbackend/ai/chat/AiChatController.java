@@ -1,6 +1,8 @@
 package com.tutict.finalassignmentbackend.ai.chat;
 
 import com.tutict.finalassignmentbackend.dto.response.ApiResponse;
+import com.tutict.finalassignmentbackend.model.ai.ChatActionResponse;
+import com.tutict.finalassignmentbackend.service.ChatAgent;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
@@ -19,15 +21,18 @@ public class AiChatController {
 
     private final AiChatService aiChatService;
     private final StreamEventWriter streamEventWriter;
+    private final ChatAgent chatAgent;
     private final boolean streamingEnabled;
 
     public AiChatController(
             AiChatService aiChatService,
             StreamEventWriter streamEventWriter,
+            ChatAgent chatAgent,
             @Value("${ai.chat.streaming.enabled:true}") boolean streamingEnabled
     ) {
         this.aiChatService = aiChatService;
         this.streamEventWriter = streamEventWriter;
+        this.chatAgent = chatAgent;
         this.streamingEnabled = streamingEnabled;
     }
 
@@ -55,5 +60,14 @@ public class AiChatController {
     ) {
         return ResponseEntity.status(410)
                 .body(ApiResponse.error("GONE", "This endpoint is deprecated. Use POST /api/ai/chat/stream."));
+    }
+
+    @GetMapping(value = "/actions", produces = MediaType.APPLICATION_JSON_VALUE)
+    public ResponseEntity<ApiResponse<ChatActionResponse>> getChatActions(
+            @RequestParam(value = "message", required = false) String message,
+            @RequestParam(value = "massage", required = false) String massage,
+            @RequestParam(value = "webSearch", defaultValue = "false") boolean webSearch
+    ) {
+        return ResponseEntity.ok(ApiResponse.ok(chatAgent.chatWithActions(message, massage, webSearch)));
     }
 }
