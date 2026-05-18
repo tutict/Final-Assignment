@@ -68,12 +68,12 @@ class ProgressCard extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: <Widget>[
                 // 车辆图标和名称
-                Row(
+                const Row(
                   children: <Widget>[
-                    const Icon(Icons.directions_car, size: 44.0),
+                    Icon(Icons.directions_car, size: 44.0),
                     Text(
                       "机动车",
-                      style: const TextStyle(fontWeight: FontWeight.w700),
+                      style: TextStyle(fontWeight: FontWeight.w700),
                     ),
                   ],
                 ),
@@ -81,13 +81,13 @@ class ProgressCard extends StatelessWidget {
                 // 备案机动车信息的按钮
                 ElevatedButton(
                   onPressed: onPressedCheck,
-                  child: Row(
+                  child: const Row(
                     mainAxisAlignment: MainAxisAlignment.center,
                     mainAxisSize: MainAxisSize.min,
                     children: <Widget>[
-                      const Icon(Icons.add, size: 24.0),
-                      const SizedBox(width: 8.0),
-                      Text("备案机动车信息", style: const TextStyle(fontSize: 16.0)),
+                      Icon(Icons.add, size: 24.0),
+                      SizedBox(width: 8.0),
+                      Text("备案机动车信息", style: TextStyle(fontSize: 16.0)),
                     ],
                   ),
                 ),

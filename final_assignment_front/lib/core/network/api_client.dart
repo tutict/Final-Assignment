@@ -549,7 +549,7 @@ class ApiClient {
         final errorMessage = decoded['error'].toString();
         if (errorMessage.contains('No such WsAction')) {
           AppLogger.error('WsAction not found: $errorMessage');
-          throw AppException(
+          throw const AppException(
             type: AppErrorType.businessError,
             message: '功能暂时不可用，请稍后重试',
             statusCode: 400,
@@ -613,7 +613,7 @@ class ApiClient {
       if (_reconnectAttempts >= _maxReconnectAttempts) {
         AppLogger.error('WebSocket max reconnect attempts reached');
         ErrorHandler.showError(
-          AppException(
+          const AppException(
             type: AppErrorType.network,
             message: '实时连接已断开，请刷新页面',
           ),

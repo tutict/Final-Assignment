@@ -1,11 +1,11 @@
 import 'dart:convert';
 import 'dart:developer' as developer;
 
+import 'package:final_assignment_front/core/network/app_exception.dart';
 import 'package:final_assignment_front/features/ai/ai_chat_api.dart';
 import 'package:final_assignment_front/features/ai/ai_stream_event.dart';
 import 'package:final_assignment_front/features/model/chat_action_response.dart';
 import 'package:final_assignment_front/features/model/chat_response.dart';
-import 'package:final_assignment_front/core/network/app_exception.dart';
 import 'package:final_assignment_front/utils/services/api_client.dart';
 import 'package:http/http.dart' as http;
 
@@ -33,26 +33,6 @@ class ChatControllerApi with BaseApiClient {
 
   @override
   final ApiClient apiClient;
-
-  /// 发送单轮 AI 聊天消息并返回清洗后的文本回复。
-  ///
-  /// [message] 用户输入的自然语言消息。
-  ///
-  /// 返回后端 `message` 字段对应的文本；空响应会返回兜底提示。
-  ///
-  /// 抛出 [Exception]：当 HTTP 响应非 2xx、响应结构无效或解析失败时。
-  ///
-  /// 对应接口：GET /api/ai/chat
-  @Deprecated('Use streamChatChunks() instead.')
-  Future<String?> sendChatMessage(String message) async {
-    developer.log(
-      'sendChatMessage is deprecated and disabled. Use streamChatChunks().',
-      name: 'ChatControllerApi',
-    );
-    throw UnimplementedError(
-      'sendChatMessage is deprecated. Use streamChatChunks().',
-    );
-  }
 
   Future<http.Response> _getChatActionsWithHttpInfo(
     String message,

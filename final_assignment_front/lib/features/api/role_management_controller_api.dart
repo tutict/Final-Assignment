@@ -101,13 +101,6 @@ class RoleManagementControllerApi with BaseApiClient {
   }
 
   /// GET /api/roles/name/{roleName} - æ ¹æ®è§è²åç§°è·åè§è²ä¿¡æ¯ (USER å?ADMIN)
-  Future<RoleManagement?> getRoleByName(String roleName) async {
-    if (roleName.isEmpty) {
-      throw AppException.http(400, "Missing required param: roleName");
-    }
-    return getRoleByCode(roleName);
-  }
-
   /// GET /api/roles/search - æ ¹æ®è§è²åç§°æ¨¡ç³å¹é
 // è·åè§è²ä¿¡æ¯ (USER å?ADMIN)
   Future<List<RoleManagement>> searchRoles({String? name}) async {
@@ -165,18 +158,6 @@ class RoleManagementControllerApi with BaseApiClient {
   }
 
   /// DELETE /api/roles/name/{roleName} - æ ¹æ®è§è²åç§°å é¤è§è²è®°å½ (ä»?ADMIN)
-  Future<void> deleteRoleByName(String roleName) async {
-    if (roleName.isEmpty) {
-      throw AppException.http(400, "Missing required param: roleName");
-    }
-    final role = await getRoleByCode(roleName);
-    final roleId = role?.roleId;
-    if (roleId == null) {
-      throw AppException.http(404, 'Role not found for code: $roleName');
-    }
-    await deleteRole(roleId);
-  }
-
   /// è·åå½åç¨æ·è§è² (USER å?ADMIN)
   Future<String> getCurrentUserRole() async {
     final roles = await listRoles();

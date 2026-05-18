@@ -44,7 +44,7 @@ class AppConfig {
       return _withoutTrailingSlash(prodApiBaseUrl);
     }
 
-    final port = apiPort + apiPortOffset;
+    const port = apiPort + apiPortOffset;
 
     if (kIsWeb) {
       final host = Uri.base.host.isEmpty ? 'localhost' : Uri.base.host;

@@ -31,9 +31,9 @@ class _OverviewHeaderState extends State<OverviewHeader> {
             Container(
               // 可以根据设计需求设置一个固定宽度或自动包裹
               constraints: const BoxConstraints(minWidth: 80),
-              child: Text(
+              child: const Text(
                 "当前工作",
-                style: const TextStyle(fontWeight: FontWeight.w600),
+                style: TextStyle(fontWeight: FontWeight.w600),
               ),
             ),
             const SizedBox(width: 8),
@@ -62,9 +62,9 @@ class _OverviewHeaderState extends State<OverviewHeader> {
           crossAxisAlignment: CrossAxisAlignment.start,
           mainAxisSize: MainAxisSize.min,
           children: [
-            Text(
+            const Text(
               "当前工作",
-              style: const TextStyle(fontWeight: FontWeight.w600),
+              style: TextStyle(fontWeight: FontWeight.w600),
             ),
             const SizedBox(height: 10),
             SingleChildScrollView(
