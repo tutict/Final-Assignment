@@ -2,6 +2,9 @@ package com.tutict.finalassignmentbackend.controller;
 
 import com.tutict.finalassignmentbackend.dto.response.ApiResponse;
 
+import com.tutict.finalassignmentbackend.dto.request.DriverCreateRequest;
+import com.tutict.finalassignmentbackend.dto.response.DriverResponse;
+import com.tutict.finalassignmentbackend.dto.response.PageResponse;
 import com.tutict.finalassignmentbackend.dto.response.UserProfileResponse;
 import com.tutict.finalassignmentbackend.entity.DriverInformation;
 import com.tutict.finalassignmentbackend.service.AuthWsService;
@@ -31,6 +34,7 @@ import java.util.Objects;
 import java.util.Set;
 import java.util.logging.Level;
 import java.util.logging.Logger;
+import java.util.stream.Collectors;
 
 @RestController
 @RequestMapping("/api/drivers")
@@ -62,22 +66,23 @@ public class DriverInformationController {
 
     @PostMapping
     @Operation(summary = "创建驾驶员档案")
-    public ResponseEntity<?> create(@Valid @RequestBody DriverInformation request,
+    public ResponseEntity<ApiResponse<DriverResponse>> create(@Valid @RequestBody DriverCreateRequest request,
                                                     @RequestHeader(value = "Idempotency-Key", required = false)
                                                     String idempotencyKey) {
+        DriverInformation driver = request.toEntity();
         boolean useKey = hasKey(idempotencyKey);
         try {
             if (useKey) {
                 if (driverInformationService.shouldSkipProcessing(idempotencyKey)) {
                     return ResponseEntity.status(HttpStatus.ALREADY_REPORTED).body(ApiResponse.ok(null));
                 }
-                driverInformationService.checkAndInsertIdempotency(idempotencyKey, request, "create");
+                driverInformationService.checkAndInsertIdempotency(idempotencyKey, driver, "create");
             }
-            DriverInformation saved = driverInformationService.createDriver(request);
+            DriverInformation saved = driverInformationService.createDriver(driver);
             if (useKey && saved.getDriverId() != null) {
                 driverInformationService.markHistorySuccess(idempotencyKey, saved.getDriverId());
             }
-            return ResponseEntity.status(HttpStatus.CREATED).body(saved);
+            return ResponseEntity.status(HttpStatus.CREATED).body(ApiResponse.ok(DriverResponse.from(saved)));
         } catch (Exception ex) {
             if (useKey) {
                 driverInformationService.markHistoryFailure(idempotencyKey, ex.getMessage());
@@ -164,9 +169,18 @@ public class DriverInformationController {
 
     @GetMapping
     @Operation(summary = "查询全部驾驶员")
-    public ResponseEntity<List<DriverInformation>> list() {
+    public ResponseEntity<ApiResponse<PageResponse<DriverResponse>>> list(@RequestParam(defaultValue = "0") int page,
+                                                                          @RequestParam(defaultValue = "20") int size) {
         try {
-            return ResponseEntity.ok(driverInformationService.getAllDrivers());
+            List<DriverResponse> drivers = driverInformationService.getAllDrivers().stream()
+                    .map(DriverResponse::from)
+                    .collect(Collectors.toList());
+            int normalizedPage = Math.max(page, 0);
+            int normalizedSize = Math.max(size, 1);
+            int from = Math.min(normalizedPage * normalizedSize, drivers.size());
+            int to = Math.min(from + normalizedSize, drivers.size());
+            return ResponseEntity.ok(ApiResponse.ok(PageResponse.of(
+                    drivers.subList(from, to), drivers.size(), normalizedPage, normalizedSize)));
         } catch (Exception ex) {
             LOG.log(Level.WARNING, "List drivers failed", ex);
             if (ex instanceof RuntimeException) {
@@ -215,6 +229,28 @@ public class DriverInformationController {
                                                                 @RequestParam(defaultValue = "20") int size) {
         try {
             return ResponseEntity.ok(driverInformationService.searchByName(keywords, page, size));
+        } catch (Exception ex) {
+            LOG.log(Level.WARNING, "Search driver by name failed", ex);
+            if (ex instanceof RuntimeException) {
+                throw (RuntimeException) ex;
+            }
+            throw new RuntimeException(ex);
+        }
+    }
+
+    @GetMapping("/search")
+    @RolesAllowed({"SUPER_ADMIN", "ADMIN", "TRAFFIC_POLICE", "USER"})
+    @Operation(summary = "Search drivers by name")
+    public ResponseEntity<ApiResponse<List<DriverResponse>>> searchDrivers(@RequestParam(required = false) String name,
+                                                                           @RequestParam(required = false) String keywords,
+                                                                           @RequestParam(defaultValue = "0") int page,
+                                                                           @RequestParam(defaultValue = "20") int size) {
+        try {
+            String searchTerm = name != null ? name : keywords;
+            List<DriverResponse> results = driverInformationService.searchByName(searchTerm, page + 1, size).stream()
+                    .map(DriverResponse::from)
+                    .collect(Collectors.toList());
+            return ResponseEntity.ok(ApiResponse.ok(results));
         } catch (Exception ex) {
             LOG.log(Level.WARNING, "Search driver by name failed", ex);
             if (ex instanceof RuntimeException) {

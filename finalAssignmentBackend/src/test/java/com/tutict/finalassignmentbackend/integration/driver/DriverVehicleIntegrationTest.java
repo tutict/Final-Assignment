@@ -2,15 +2,19 @@ package com.tutict.finalassignmentbackend.integration.driver;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.hamcrest.Matchers.anyOf;
-import static org.hamcrest.Matchers.empty;
 import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.is;
-import static org.hamcrest.Matchers.not;
 import static org.hamcrest.Matchers.notNullValue;
 
+import com.fasterxml.jackson.databind.JsonNode;
 import com.tutict.finalassignmentbackend.integration.BaseIntegrationTest;
 import com.tutict.finalassignmentbackend.integration.TestDataFactory;
-import io.restassured.response.Response;
+import java.net.URI;
+import java.net.URLEncoder;
+import java.net.http.HttpClient;
+import java.net.http.HttpRequest;
+import java.net.http.HttpResponse;
+import java.nio.charset.StandardCharsets;
 import java.util.Map;
 import java.util.stream.Collectors;
 import org.junit.jupiter.api.BeforeEach;
@@ -20,7 +24,7 @@ import org.junit.jupiter.api.Order;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestMethodOrder;
 
-@DisplayName("驾驶员与车辆管理业务流集成测试")
+@DisplayName("Driver and vehicle integration flow")
 @TestMethodOrder(MethodOrderer.OrderAnnotation.class)
 class DriverVehicleIntegrationTest extends BaseIntegrationTest {
 
@@ -33,12 +37,12 @@ class DriverVehicleIntegrationTest extends BaseIntegrationTest {
 
     @Test
     @Order(1)
-    @DisplayName("创建驾驶员：LocalDate 字段使用 yyyy-MM-dd 格式成功")
+    @DisplayName("Create driver accepts yyyy-MM-dd LocalDate fields")
     void create_driver_with_local_date_format_succeeds() {
         authSpec(adminToken)
             .header("Idempotency-Key", newIdempotencyKey())
             .body(Map.of(
-                "name", "李测试",
+                "name", "Driver" + System.currentTimeMillis(),
                 "licenseNumber", "DRV" + System.currentTimeMillis(),
                 "phoneNumber", "13900139000",
                 "birthdate", "1985-05-15",
@@ -55,12 +59,12 @@ class DriverVehicleIntegrationTest extends BaseIntegrationTest {
 
     @Test
     @Order(2)
-    @DisplayName("创建驾驶员：LocalDate 字段传 ISO datetime 格式（含时间）返回 400")
+    @DisplayName("Create driver rejects datetime values in LocalDate fields")
     void create_driver_with_datetime_in_date_field_returns_400() {
         authSpec(adminToken)
             .header("Idempotency-Key", newIdempotencyKey())
             .body(Map.of(
-                "name", "错误格式测试",
+                "name", "InvalidDateDriver",
                 "licenseNumber", "ERR" + System.currentTimeMillis(),
                 "birthdate", "1985-05-15T00:00:00"
             ))
@@ -71,13 +75,13 @@ class DriverVehicleIntegrationTest extends BaseIntegrationTest {
 
     @Test
     @Order(3)
-    @DisplayName("驾驶员列表：支持分页，不返回全量数据")
-    void driver_list_supports_pagination() {
+    @DisplayName("Driver list supports pagination envelope")
+    void driver_list_supports_pagination() throws Exception {
         for (int i = 0; i < 3; i++) {
             authSpec(adminToken)
                 .header("Idempotency-Key", newIdempotencyKey())
                 .body(Map.of(
-                    "name", "分页测试" + i,
+                    "name", "PagedDriver" + i + System.currentTimeMillis(),
                     "licenseNumber", "PAGE" + i + System.currentTimeMillis(),
                     "birthdate", "1990-01-01",
                     "firstLicenseDate", "2010-01-01",
@@ -87,26 +91,16 @@ class DriverVehicleIntegrationTest extends BaseIntegrationTest {
                 .post("/api/drivers");
         }
 
-        Response resp = authSpec(adminToken)
-            .queryParam("page", 0)
-            .queryParam("size", 2)
-            .get("/api/drivers");
-
-        resp.then()
-            .statusCode(200)
-            .body("success", equalTo(true));
-
-        Integer total = resp.path("data.total");
-        assertThat(total)
-            .withFailMessage("后端仍返回全量 List 而非分页结构")
-            .isNotNull();
+        JsonNode body = getJson("/api/drivers?page=0&size=2");
+        assertThat(body.path("success").asBoolean()).isTrue();
+        assertThat(body.path("data").path("total").asInt()).isGreaterThanOrEqualTo(3);
     }
 
     @Test
     @Order(4)
-    @DisplayName("驾驶员搜索：按姓名模糊搜索返回匹配结果")
-    void driver_search_by_name_returns_matches() {
-        String uniqueName = "搜索测试" + System.currentTimeMillis();
+    @DisplayName("Driver search by name returns matches")
+    void driver_search_by_name_returns_matches() throws Exception {
+        String uniqueName = "SearchDriver" + System.currentTimeMillis();
         authSpec(adminToken)
             .header("Idempotency-Key", newIdempotencyKey())
             .body(Map.of(
@@ -119,17 +113,15 @@ class DriverVehicleIntegrationTest extends BaseIntegrationTest {
             ))
             .post("/api/drivers");
 
-        authSpec(adminToken)
-            .queryParam("name", "搜索测试")
-            .get("/api/drivers/search")
-            .then()
-            .statusCode(200)
-            .body("data", not(empty()));
+        JsonNode body = getJson("/api/drivers/search?name="
+            + URLEncoder.encode("SearchDriver", StandardCharsets.UTF_8));
+        assertThat(body.path("success").asBoolean()).isTrue();
+        assertThat(body.path("data")).isNotEmpty();
     }
 
     @Test
     @Order(5)
-    @DisplayName("创建车辆：LocalDate 字段格式正确，关联驾驶员 ID")
+    @DisplayName("Create vehicle echoes associated driver id")
     void create_vehicle_with_driver_association() {
         Long driverId = createTestDriver();
 
@@ -146,10 +138,10 @@ class DriverVehicleIntegrationTest extends BaseIntegrationTest {
 
     @Test
     @Order(6)
-    @DisplayName("车辆自动补全：按车牌前缀返回建议列表")
-    void vehicle_autocomplete_returns_suggestions() {
+    @DisplayName("Vehicle autocomplete returns license plate suggestions")
+    void vehicle_autocomplete_returns_suggestions() throws Exception {
         Long driverId = createTestDriver();
-        String plate = "京A" + System.currentTimeMillis() % 10000;
+        String plate = "PLT" + System.currentTimeMillis() % 10000;
 
         authSpec(adminToken)
             .header("Idempotency-Key", newIdempotencyKey())
@@ -160,19 +152,33 @@ class DriverVehicleIntegrationTest extends BaseIntegrationTest {
                 )))
             .post("/api/vehicles");
 
-        authSpec(adminToken)
-            .queryParam("prefix", plate.substring(0, 3))
-            .get("/api/vehicles/autocomplete")
-            .then()
-            .statusCode(200)
-            .body("$", not(empty()));
+        JsonNode body = getJson("/api/vehicles/autocomplete?prefix="
+            + URLEncoder.encode(plate.substring(0, 3), StandardCharsets.UTF_8));
+        assertThat(body.path("success").asBoolean()).isTrue();
+        assertThat(body.path("data")).isNotEmpty();
     }
 
     private Long createTestDriver() {
-        return authSpec(adminToken)
+        Number id = authSpec(adminToken)
             .header("Idempotency-Key", newIdempotencyKey())
             .body(TestDataFactory.validDriver())
             .post("/api/drivers")
-            .then().extract().path("data.driverId");
+            .then()
+            .extract()
+            .path("data.driverId");
+        return id.longValue();
+    }
+
+    private JsonNode getJson(String pathAndQuery) throws Exception {
+        HttpResponse<String> response = HttpClient.newHttpClient()
+            .send(HttpRequest.newBuilder()
+                    .uri(URI.create("http://localhost:" + port + pathAndQuery))
+                    .header("Authorization", "Bearer " + adminToken)
+                    .header("Accept", "application/json")
+                    .GET()
+                    .build(),
+                HttpResponse.BodyHandlers.ofString());
+        assertThat(response.statusCode()).isEqualTo(200);
+        return objectMapper.readTree(response.body());
     }
 }

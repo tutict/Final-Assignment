@@ -49,15 +49,22 @@ public class VehicleInformationController {
 
     @PostMapping
     @Operation(summary = "创建车辆档案")
-    public ResponseEntity<VehicleInformation> createVehicle(@Valid @RequestBody VehicleInformation request,
+    public ResponseEntity<ApiResponse<Map<String, Object>>> createVehicle(@Valid @RequestBody Map<String, Object> payload,
                                                             @RequestHeader(value = "Idempotency-Key", required = false)
                                                             String idempotencyKey) {
         try {
+            VehicleInformation request = toVehicleInformation(payload);
             if (hasKey(idempotencyKey)) {
                 vehicleInformationService.checkAndInsertIdempotency(idempotencyKey, request, "create");
             }
             VehicleInformation saved = vehicleInformationService.createVehicleInformation(request);
-            return ResponseEntity.status(HttpStatus.CREATED).body(saved);
+            Map<String, Object> response = new java.util.LinkedHashMap<>();
+            response.put("vehicleId", saved.getVehicleId());
+            response.put("licensePlate", saved.getLicensePlate());
+            response.put("vehicleType", saved.getVehicleType());
+            response.put("ownerName", saved.getOwnerName());
+            response.put("driverId", payload.get("driverId"));
+            return ResponseEntity.status(HttpStatus.CREATED).body(ApiResponse.ok(response));
         } catch (Exception ex) {
             LOG.log(Level.SEVERE, "Create vehicle failed", ex);
             if (ex instanceof RuntimeException) {
@@ -442,6 +449,22 @@ public class VehicleInformationController {
         }
     }
 
+    @GetMapping("/autocomplete")
+    @RolesAllowed({"SUPER_ADMIN", "ADMIN", "TRAFFIC_POLICE", "USER"})
+    @Operation(summary = "Autocomplete license plates by prefix")
+    public ResponseEntity<ApiResponse<List<String>>> autocompletePlates(@RequestParam String prefix,
+                                                                        @RequestParam(defaultValue = "10") int limit) {
+        try {
+            return ResponseEntity.ok(ApiResponse.ok(vehicleInformationService.suggestPlates(prefix, limit)));
+        } catch (Exception ex) {
+            LOG.log(Level.WARNING, "Fetch plate autocomplete failed", ex);
+            if (ex instanceof RuntimeException) {
+                throw (RuntimeException) ex;
+            }
+            throw new RuntimeException(ex);
+        }
+    }
+
     @GetMapping("/autocomplete/types")
     @Operation(summary = "获取指定车主的车辆类型补全")
     public ResponseEntity<List<String>> vehicleTypeAutocomplete(@RequestParam String idCard,
@@ -490,6 +513,26 @@ public class VehicleInformationController {
 
     private boolean hasKey(String value) {
         return value != null && !value.isBlank();
+    }
+
+    private VehicleInformation toVehicleInformation(Map<String, Object> payload) {
+        VehicleInformation vehicle = new VehicleInformation();
+        vehicle.setLicensePlate(asString(payload.get("licensePlate")));
+        vehicle.setVehicleType(asString(payload.get("vehicleType")));
+        vehicle.setOwnerName(asString(payload.get("ownerName")));
+        vehicle.setFirstRegistrationDate(parseDate(payload.get("firstRegistrationDate")));
+        vehicle.setRegistrationDate(parseDate(payload.get("registrationDate")));
+        vehicle.setInspectionExpiryDate(parseDate(payload.get("inspectionExpiryDate")));
+        vehicle.setInsuranceExpiryDate(parseDate(payload.get("insuranceExpiryDate")));
+        return vehicle;
+    }
+
+    private String asString(Object value) {
+        return value == null ? null : value.toString();
+    }
+
+    private java.time.LocalDate parseDate(Object value) {
+        return value == null ? null : java.time.LocalDate.parse(value.toString());
     }
 
     private HttpStatus resolveStatus(Exception ex) {

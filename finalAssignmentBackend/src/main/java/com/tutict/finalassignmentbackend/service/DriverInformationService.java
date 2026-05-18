@@ -204,10 +204,16 @@ public class DriverInformationService {
     @Cacheable(cacheNames = CACHE_NAME, key = "'name:' + #query + ':' + #page + ':' + #size")
     @WsAction(service = "DriverInformationService", action = "searchByName")
     public List<DriverInformation> searchByName(String query, int page, int size) {
-        return aggregatedSearch(query, page, size,
+        List<DriverInformation> results = aggregatedSearch(query, page, size,
                 q -> driverInformationSearchRepository.searchByNamePrefix(q, pageable(page, size)),
                 q -> driverInformationSearchRepository.searchByNameFuzzy(q, pageable(page, size)),
                 DriverInformationDocument::getName);
+        if (!results.isEmpty() || query == null || query.trim().isEmpty()) {
+            return results;
+        }
+        QueryWrapper<DriverInformation> wrapper = new QueryWrapper<>();
+        wrapper.like("name", query).last("LIMIT " + Math.max(size, 1));
+        return driverInformationMapper.selectList(wrapper);
     }
 
     private List<DriverInformation> aggregatedSearch(String query,
