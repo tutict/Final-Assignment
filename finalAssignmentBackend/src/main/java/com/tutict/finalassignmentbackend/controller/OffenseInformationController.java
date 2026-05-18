@@ -4,9 +4,11 @@ import com.tutict.finalassignmentbackend.dto.response.ApiResponse;
 
 import com.tutict.finalassignmentbackend.dto.mapper.OffenseRecordRequestMapper;
 import com.tutict.finalassignmentbackend.dto.request.OffenseCreateRequest;
+import com.tutict.finalassignmentbackend.dto.response.OffenseDetailResponse;
 import com.tutict.finalassignmentbackend.dto.response.UserProfileResponse;
 import com.tutict.finalassignmentbackend.entity.OffenseRecord;
 import com.tutict.finalassignmentbackend.service.AuthWsService;
+import com.tutict.finalassignmentbackend.service.OffenseDetailService;
 import com.tutict.finalassignmentbackend.service.OffenseRecordService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
@@ -51,16 +53,19 @@ public class OffenseInformationController {
 
     private final AuthWsService authWsService;
     private final OffenseRecordService offenseRecordService;
+    private final OffenseDetailService offenseDetailService;
 
     @Autowired
     public OffenseInformationController(AuthWsService authWsService,
-                                        OffenseRecordService offenseRecordService) {
+                                        OffenseRecordService offenseRecordService,
+                                        OffenseDetailService offenseDetailService) {
         this.authWsService = authWsService;
         this.offenseRecordService = offenseRecordService;
+        this.offenseDetailService = offenseDetailService;
     }
 
     public OffenseInformationController(OffenseRecordService offenseRecordService) {
-        this(null, offenseRecordService);
+        this(null, offenseRecordService, null);
     }
 
     @PostMapping
@@ -147,6 +152,13 @@ public class OffenseInformationController {
             }
             throw new RuntimeException(ex);
         }
+    }
+
+    @GetMapping("/{offenseId}/details")
+    @RolesAllowed({"SUPER_ADMIN", "ADMIN"})
+    @Operation(summary = "Get offense details")
+    public ResponseEntity<ApiResponse<OffenseDetailResponse>> getDetails(@PathVariable Long offenseId) {
+        return ResponseEntity.ok(ApiResponse.ok(offenseDetailService.getOffenseDetail(offenseId)));
     }
 
     @GetMapping

@@ -205,6 +205,14 @@ public class AppealRecordQueryService {
         );
     }
 
+    public List<AppealRecord> findByCreatedBy(String createdBy, int page, int size) {
+        if (queryPolicy.shouldReturnEmptyForTextFilter(createdBy)) {
+            return List.of();
+        }
+        return toLegacyRecordsFromEntities(
+                dbFallbackReader.findByCreatedBy(createdBy, pageRequest(page, size)));
+    }
+
     private List<AppealRecord> queryWithFallback(
             String operation,
             AppealPageRequest pageRequest,

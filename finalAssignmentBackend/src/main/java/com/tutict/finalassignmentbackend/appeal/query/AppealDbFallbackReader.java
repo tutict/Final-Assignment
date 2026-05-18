@@ -97,6 +97,13 @@ public class AppealDbFallbackReader {
         return selectPage(wrapper, pageRequest);
     }
 
+    public List<AppealRecord> findByCreatedBy(String createdBy, AppealPageRequest pageRequest) {
+        QueryWrapper<AppealRecord> wrapper = new QueryWrapper<>();
+        wrapper.eq("created_by", createdBy)
+                .orderByDesc("appeal_time");
+        return selectPage(wrapper, pageRequest);
+    }
+
     private List<AppealRecord> selectPage(QueryWrapper<AppealRecord> wrapper, AppealPageRequest pageRequest) {
         Page<AppealRecord> mpPage = new Page<>(pageRequest.page(), pageRequest.size());
         appealRecordMapper.selectPage(mpPage, wrapper);

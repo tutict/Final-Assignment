@@ -115,6 +115,11 @@ public class AppealRecordService {
         return queryService.searchByAcceptanceHandler(acceptanceHandler, page, size);
     }
 
+    @Cacheable(cacheNames = CACHE, key = "'createdBy:' + #createdBy + ':' + #page + ':' + #size", unless = "@appealCachePolicy.shouldSkipCache(#result)")
+    public List<AppealRecord> findByCreatedBy(String createdBy, int page, int size) {
+        return queryService.findByCreatedBy(createdBy, page, size);
+    }
+
     public boolean shouldSkipProcessing(String idempotencyKey) {
         return workflowOrchestrator.shouldSkipProcessing(idempotencyKey);
     }

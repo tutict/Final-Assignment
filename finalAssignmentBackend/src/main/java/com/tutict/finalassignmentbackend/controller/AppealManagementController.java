@@ -1,11 +1,13 @@
 package com.tutict.finalassignmentbackend.controller;
 
-import com.tutict.finalassignmentbackend.dto.response.ApiResponse;
-
 import com.tutict.finalassignmentbackend.dto.mapper.AppealRecordRequestMapper;
 import com.tutict.finalassignmentbackend.dto.request.AppealCreateRequest;
+import com.tutict.finalassignmentbackend.dto.response.ApiResponse;
+import com.tutict.finalassignmentbackend.dto.response.AppealResponse;
+import com.tutict.finalassignmentbackend.dto.response.PageResponse;
 import com.tutict.finalassignmentbackend.entity.AppealRecord;
 import com.tutict.finalassignmentbackend.entity.AppealReview;
+import com.tutict.finalassignmentbackend.exception.EntityNotFoundException;
 import com.tutict.finalassignmentbackend.service.AppealRecordService;
 import com.tutict.finalassignmentbackend.service.AppealReviewService;
 import io.swagger.v3.oas.annotations.Operation;
@@ -15,6 +17,7 @@ import jakarta.annotation.security.RolesAllowed;
 import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -33,9 +36,8 @@ import java.util.logging.Logger;
 
 @RestController
 @RequestMapping("/api/appeals")
-@Tag(name = "Appeal Management", description = "违法申诉记录及复核管理接口")
+@Tag(name = "Appeal Management", description = "Appeal management APIs")
 @SecurityRequirement(name = "bearerAuth")
-@RolesAllowed({"SUPER_ADMIN", "ADMIN", "APPEAL_REVIEWER"})
 public class AppealManagementController {
 
     private static final Logger LOG = Logger.getLogger(AppealManagementController.class.getName());
@@ -50,12 +52,16 @@ public class AppealManagementController {
     }
 
     @PostMapping
-    @Operation(summary = "创建申诉记录")
-    public ResponseEntity<?> createAppeal(@Valid @RequestBody AppealCreateRequest request,
-                                                     @RequestHeader(value = "Idempotency-Key", required = false)
-                                                     String idempotencyKey) {
+    @RolesAllowed({"USER", "ADMIN", "APPEAL_REVIEWER", "SUPER_ADMIN"})
+    @Operation(summary = "Create appeal")
+    public ResponseEntity<ApiResponse<AppealResponse>> createAppeal(
+            @Valid @RequestBody AppealCreateRequest request,
+            @RequestHeader(value = "Idempotency-Key", required = false) String idempotencyKey,
+            Authentication authentication) {
         boolean useIdempotency = hasKey(idempotencyKey);
         AppealRecord appealRecord = AppealRecordRequestMapper.toEntity(request);
+        appealRecord.setCreatedBy(authentication.getName());
+        appealRecord.setUpdatedBy(authentication.getName());
         try {
             if (useIdempotency) {
                 if (appealRecordService.shouldSkipProcessing(idempotencyKey)) {
@@ -68,7 +74,7 @@ public class AppealManagementController {
             if (useIdempotency && saved.getAppealId() != null) {
                 appealRecordService.markHistorySuccess(idempotencyKey, saved.getAppealId());
             }
-            return ResponseEntity.status(HttpStatus.CREATED).body(saved);
+            return ResponseEntity.status(HttpStatus.CREATED).body(ApiResponse.ok(AppealResponse.from(saved)));
         } catch (RuntimeException ex) {
             if (useIdempotency) {
                 appealRecordService.markHistoryFailure(idempotencyKey, ex.getMessage());
@@ -78,16 +84,53 @@ public class AppealManagementController {
         }
     }
 
+    @GetMapping("/my")
+    @RolesAllowed({"USER", "ADMIN", "APPEAL_REVIEWER", "SUPER_ADMIN"})
+    @Operation(summary = "List current user's appeals")
+    public ResponseEntity<ApiResponse<PageResponse<AppealResponse>>> getMyAppeals(
+            Authentication authentication,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "20") int size) {
+        List<AppealResponse> content = toResponses(
+                appealRecordService.findByCreatedBy(authentication.getName(), page, size));
+        return ResponseEntity.ok(ApiResponse.ok(PageResponse.of(content, content.size(), page, size)));
+    }
+
+    @GetMapping
+    @RolesAllowed({"ADMIN", "APPEAL_REVIEWER", "SUPER_ADMIN"})
+    @Operation(summary = "List appeals by offense")
+    public ResponseEntity<ApiResponse<List<AppealResponse>>> listAppeals(
+            @RequestParam Long offenseId,
+            @RequestParam(defaultValue = "1") int page,
+            @RequestParam(defaultValue = "20") int size) {
+        return ResponseEntity.ok(ApiResponse.ok(
+                toResponses(appealRecordService.findByOffenseId(offenseId, page, size))));
+    }
+
+    @GetMapping("/{appealId}")
+    @RolesAllowed({"ADMIN", "APPEAL_REVIEWER", "SUPER_ADMIN"})
+    @Operation(summary = "Get appeal by id")
+    public ResponseEntity<ApiResponse<AppealResponse>> getAppeal(@PathVariable Long appealId) {
+        AppealRecord record = appealRecordService.getAppealById(appealId);
+        if (record == null) {
+            throw new EntityNotFoundException("Appeal not found: " + appealId);
+        }
+        return ResponseEntity.ok(ApiResponse.ok(AppealResponse.from(record)));
+    }
+
     @PutMapping("/{appealId}")
-    @Operation(summary = "更新申诉记录")
-    public ResponseEntity<AppealRecord> updateAppeal(@PathVariable Long appealId,
-                                                     @Valid @RequestBody AppealCreateRequest request,
-                                                     @RequestHeader(value = "Idempotency-Key", required = false)
-                                                     String idempotencyKey) {
+    @RolesAllowed({"ADMIN", "APPEAL_REVIEWER", "SUPER_ADMIN"})
+    @Operation(summary = "Update appeal")
+    public ResponseEntity<ApiResponse<AppealResponse>> updateAppeal(
+            @PathVariable Long appealId,
+            @Valid @RequestBody AppealCreateRequest request,
+            @RequestHeader(value = "Idempotency-Key", required = false) String idempotencyKey,
+            Authentication authentication) {
         boolean useIdempotency = hasKey(idempotencyKey);
         AppealRecord appealRecord = AppealRecordRequestMapper.toEntity(request);
+        appealRecord.setAppealId(appealId);
+        appealRecord.setUpdatedBy(authentication.getName());
         try {
-            appealRecord.setAppealId(appealId);
             if (useIdempotency) {
                 appealRecordService.checkAndInsertIdempotency(idempotencyKey, appealRecord, "update");
             }
@@ -95,7 +138,7 @@ public class AppealManagementController {
             if (useIdempotency && updated.getAppealId() != null) {
                 appealRecordService.markHistorySuccess(idempotencyKey, updated.getAppealId());
             }
-            return ResponseEntity.ok(updated);
+            return ResponseEntity.ok(ApiResponse.ok(AppealResponse.from(updated)));
         } catch (RuntimeException ex) {
             if (useIdempotency) {
                 appealRecordService.markHistoryFailure(idempotencyKey, ex.getMessage());
@@ -106,130 +149,120 @@ public class AppealManagementController {
     }
 
     @DeleteMapping("/{appealId}")
-    @Operation(summary = "删除申诉记录")
-    public ResponseEntity<Void> deleteAppeal(@PathVariable Long appealId) {
-        try {
-            appealRecordService.deleteAppeal(appealId);
-            return ResponseEntity.noContent().build();
-        } catch (RuntimeException ex) {
-            LOG.log(Level.WARNING, "Delete appeal failed", ex);
-            throw ex;
-        }
-    }
-
-    @GetMapping("/{appealId}")
-    @Operation(summary = "查询申诉详情")
-    public ResponseEntity<AppealRecord> getAppeal(@PathVariable Long appealId) {
-        try {
-            AppealRecord record = appealRecordService.getAppealById(appealId);
-            if (record == null) {
-                throw new com.tutict.finalassignmentbackend.exception.EntityNotFoundException("Appeal not found: " + appealId);
-            }
-            return ResponseEntity.ok(record);
-        } catch (Exception ex) {
-            LOG.log(Level.WARNING, "Get appeal failed", ex);
-            if (ex instanceof RuntimeException) {
-                throw (RuntimeException) ex;
-            }
-            throw new RuntimeException(ex);
-        }
-    }
-
-    @GetMapping
-    @Operation(summary = "按违法记录分页查询申诉")
-    public ResponseEntity<List<AppealRecord>> listAppeals(@RequestParam Long offenseId,
-                                                          @RequestParam(defaultValue = "1") int page,
-                                                          @RequestParam(defaultValue = "20") int size) {
-        try {
-            return ResponseEntity.ok(appealRecordService.findByOffenseId(offenseId, page, size));
-        } catch (Exception ex) {
-            LOG.log(Level.WARNING, "List appeals failed", ex);
-            if (ex instanceof RuntimeException) {
-                throw (RuntimeException) ex;
-            }
-            throw new RuntimeException(ex);
-        }
+    @RolesAllowed({"ADMIN", "APPEAL_REVIEWER", "SUPER_ADMIN"})
+    @Operation(summary = "Delete appeal")
+    public ResponseEntity<ApiResponse<Void>> deleteAppeal(@PathVariable Long appealId) {
+        appealRecordService.deleteAppeal(appealId);
+        return ResponseEntity.ok(ApiResponse.ok(null));
     }
 
     @GetMapping("/search/number/prefix")
+    @RolesAllowed({"ADMIN", "APPEAL_REVIEWER", "SUPER_ADMIN"})
     @Operation(summary = "Search appeals by number prefix")
-    public ResponseEntity<List<AppealRecord>> searchByNumberPrefix(@RequestParam String appealNumber,
-                                                                   @RequestParam(defaultValue = "1") int page,
-                                                                   @RequestParam(defaultValue = "20") int size) {
-        return ResponseEntity.ok(appealRecordService.searchByAppealNumberPrefix(appealNumber, page, size));
+    public ResponseEntity<ApiResponse<List<AppealResponse>>> searchByNumberPrefix(
+            @RequestParam String appealNumber,
+            @RequestParam(defaultValue = "1") int page,
+            @RequestParam(defaultValue = "20") int size) {
+        return ResponseEntity.ok(ApiResponse.ok(
+                toResponses(appealRecordService.searchByAppealNumberPrefix(appealNumber, page, size))));
     }
 
     @GetMapping("/search/number/fuzzy")
+    @RolesAllowed({"ADMIN", "APPEAL_REVIEWER", "SUPER_ADMIN"})
     @Operation(summary = "Search appeals by number fuzzy")
-    public ResponseEntity<List<AppealRecord>> searchByNumberFuzzy(@RequestParam String appealNumber,
-                                                                  @RequestParam(defaultValue = "1") int page,
-                                                                  @RequestParam(defaultValue = "20") int size) {
-        return ResponseEntity.ok(appealRecordService.searchByAppealNumberFuzzy(appealNumber, page, size));
+    public ResponseEntity<ApiResponse<List<AppealResponse>>> searchByNumberFuzzy(
+            @RequestParam String appealNumber,
+            @RequestParam(defaultValue = "1") int page,
+            @RequestParam(defaultValue = "20") int size) {
+        return ResponseEntity.ok(ApiResponse.ok(
+                toResponses(appealRecordService.searchByAppealNumberFuzzy(appealNumber, page, size))));
     }
 
     @GetMapping("/search/appellant/name/prefix")
+    @RolesAllowed({"ADMIN", "APPEAL_REVIEWER", "SUPER_ADMIN"})
     @Operation(summary = "Search appeals by appellant name prefix")
-    public ResponseEntity<List<AppealRecord>> searchByAppellantNamePrefix(@RequestParam String appellantName,
-                                                                          @RequestParam(defaultValue = "1") int page,
-                                                                          @RequestParam(defaultValue = "20") int size) {
-        return ResponseEntity.ok(appealRecordService.searchByAppellantNamePrefix(appellantName, page, size));
+    public ResponseEntity<ApiResponse<List<AppealResponse>>> searchByAppellantNamePrefix(
+            @RequestParam String appellantName,
+            @RequestParam(defaultValue = "1") int page,
+            @RequestParam(defaultValue = "20") int size) {
+        return ResponseEntity.ok(ApiResponse.ok(
+                toResponses(appealRecordService.searchByAppellantNamePrefix(appellantName, page, size))));
     }
 
     @GetMapping("/search/appellant/name/fuzzy")
+    @RolesAllowed({"ADMIN", "APPEAL_REVIEWER", "SUPER_ADMIN"})
     @Operation(summary = "Search appeals by appellant name fuzzy")
-    public ResponseEntity<List<AppealRecord>> searchByAppellantNameFuzzy(@RequestParam String appellantName,
-                                                                         @RequestParam(defaultValue = "1") int page,
-                                                                         @RequestParam(defaultValue = "20") int size) {
-        return ResponseEntity.ok(appealRecordService.searchByAppellantNameFuzzy(appellantName, page, size));
+    public ResponseEntity<ApiResponse<List<AppealResponse>>> searchByAppellantNameFuzzy(
+            @RequestParam String appellantName,
+            @RequestParam(defaultValue = "1") int page,
+            @RequestParam(defaultValue = "20") int size) {
+        return ResponseEntity.ok(ApiResponse.ok(
+                toResponses(appealRecordService.searchByAppellantNameFuzzy(appellantName, page, size))));
     }
 
     @GetMapping("/search/appellant/id-card")
+    @RolesAllowed({"ADMIN", "APPEAL_REVIEWER", "SUPER_ADMIN"})
     @Operation(summary = "Search appeals by appellant ID card")
-    public ResponseEntity<List<AppealRecord>> searchByAppellantIdCard(@RequestParam String appellantIdCard,
-                                                                      @RequestParam(defaultValue = "1") int page,
-                                                                      @RequestParam(defaultValue = "20") int size) {
-        return ResponseEntity.ok(appealRecordService.searchByAppellantIdCard(appellantIdCard, page, size));
+    public ResponseEntity<ApiResponse<List<AppealResponse>>> searchByAppellantIdCard(
+            @RequestParam String appellantIdCard,
+            @RequestParam(defaultValue = "1") int page,
+            @RequestParam(defaultValue = "20") int size) {
+        return ResponseEntity.ok(ApiResponse.ok(
+                toResponses(appealRecordService.searchByAppellantIdCard(appellantIdCard, page, size))));
     }
 
     @GetMapping("/search/acceptance-status")
+    @RolesAllowed({"ADMIN", "APPEAL_REVIEWER", "SUPER_ADMIN"})
     @Operation(summary = "Search appeals by acceptance status")
-    public ResponseEntity<List<AppealRecord>> searchByAcceptanceStatus(@RequestParam String acceptanceStatus,
-                                                                       @RequestParam(defaultValue = "1") int page,
-                                                                       @RequestParam(defaultValue = "20") int size) {
-        return ResponseEntity.ok(appealRecordService.searchByAcceptanceStatus(acceptanceStatus, page, size));
+    public ResponseEntity<ApiResponse<List<AppealResponse>>> searchByAcceptanceStatus(
+            @RequestParam String acceptanceStatus,
+            @RequestParam(defaultValue = "1") int page,
+            @RequestParam(defaultValue = "20") int size) {
+        return ResponseEntity.ok(ApiResponse.ok(
+                toResponses(appealRecordService.searchByAcceptanceStatus(acceptanceStatus, page, size))));
     }
 
     @GetMapping("/search/process-status")
+    @RolesAllowed({"ADMIN", "APPEAL_REVIEWER", "SUPER_ADMIN"})
     @Operation(summary = "Search appeals by process status")
-    public ResponseEntity<List<AppealRecord>> searchByProcessStatus(@RequestParam String processStatus,
-                                                                    @RequestParam(defaultValue = "1") int page,
-                                                                    @RequestParam(defaultValue = "20") int size) {
-        return ResponseEntity.ok(appealRecordService.searchByProcessStatus(processStatus, page, size));
+    public ResponseEntity<ApiResponse<List<AppealResponse>>> searchByProcessStatus(
+            @RequestParam String processStatus,
+            @RequestParam(defaultValue = "1") int page,
+            @RequestParam(defaultValue = "20") int size) {
+        return ResponseEntity.ok(ApiResponse.ok(
+                toResponses(appealRecordService.searchByProcessStatus(processStatus, page, size))));
     }
 
     @GetMapping("/search/time-range")
+    @RolesAllowed({"ADMIN", "APPEAL_REVIEWER", "SUPER_ADMIN"})
     @Operation(summary = "Search appeals by appeal time range")
-    public ResponseEntity<List<AppealRecord>> searchByTimeRange(@RequestParam String startTime,
-                                                                @RequestParam String endTime,
-                                                                @RequestParam(defaultValue = "1") int page,
-                                                                @RequestParam(defaultValue = "20") int size) {
-        return ResponseEntity.ok(appealRecordService.searchByAppealTimeRange(startTime, endTime, page, size));
+    public ResponseEntity<ApiResponse<List<AppealResponse>>> searchByTimeRange(
+            @RequestParam String startTime,
+            @RequestParam String endTime,
+            @RequestParam(defaultValue = "1") int page,
+            @RequestParam(defaultValue = "20") int size) {
+        return ResponseEntity.ok(ApiResponse.ok(
+                toResponses(appealRecordService.searchByAppealTimeRange(startTime, endTime, page, size))));
     }
 
     @GetMapping("/search/handler")
+    @RolesAllowed({"ADMIN", "APPEAL_REVIEWER", "SUPER_ADMIN"})
     @Operation(summary = "Search appeals by acceptance handler")
-    public ResponseEntity<List<AppealRecord>> searchByHandler(@RequestParam String acceptanceHandler,
-                                                              @RequestParam(defaultValue = "1") int page,
-                                                              @RequestParam(defaultValue = "20") int size) {
-        return ResponseEntity.ok(appealRecordService.searchByAcceptanceHandler(acceptanceHandler, page, size));
+    public ResponseEntity<ApiResponse<List<AppealResponse>>> searchByHandler(
+            @RequestParam String acceptanceHandler,
+            @RequestParam(defaultValue = "1") int page,
+            @RequestParam(defaultValue = "20") int size) {
+        return ResponseEntity.ok(ApiResponse.ok(
+                toResponses(appealRecordService.searchByAcceptanceHandler(acceptanceHandler, page, size))));
     }
 
     @PostMapping("/{appealId}/reviews")
-    @Operation(summary = "创建复核记录")
-    public ResponseEntity<?> createReview(@PathVariable Long appealId,
-                                                     @Valid @RequestBody AppealReview review,
-                                                     @RequestHeader(value = "Idempotency-Key", required = false)
-                                                     String idempotencyKey) {
+    @RolesAllowed({"ADMIN", "APPEAL_REVIEWER", "SUPER_ADMIN"})
+    @Operation(summary = "Create appeal review")
+    public ResponseEntity<ApiResponse<AppealReview>> createReview(
+            @PathVariable Long appealId,
+            @Valid @RequestBody AppealReview review,
+            @RequestHeader(value = "Idempotency-Key", required = false) String idempotencyKey) {
         boolean useIdempotency = hasKey(idempotencyKey);
         try {
             review.setAppealId(appealId);
@@ -244,7 +277,7 @@ public class AppealManagementController {
             if (useIdempotency && saved.getReviewId() != null) {
                 appealReviewService.markHistorySuccess(idempotencyKey, saved.getReviewId());
             }
-            return ResponseEntity.status(HttpStatus.CREATED).body(saved);
+            return ResponseEntity.status(HttpStatus.CREATED).body(ApiResponse.ok(saved));
         } catch (RuntimeException ex) {
             if (useIdempotency) {
                 appealReviewService.markHistoryFailure(idempotencyKey, ex.getMessage());
@@ -255,11 +288,12 @@ public class AppealManagementController {
     }
 
     @PutMapping("/reviews/{reviewId}")
-    @Operation(summary = "更新复核记录")
-    public ResponseEntity<AppealReview> updateReview(@PathVariable Long reviewId,
-                                                     @Valid @RequestBody AppealReview review,
-                                                     @RequestHeader(value = "Idempotency-Key", required = false)
-                                                     String idempotencyKey) {
+    @RolesAllowed({"ADMIN", "APPEAL_REVIEWER", "SUPER_ADMIN"})
+    @Operation(summary = "Update appeal review")
+    public ResponseEntity<ApiResponse<AppealReview>> updateReview(
+            @PathVariable Long reviewId,
+            @Valid @RequestBody AppealReview review,
+            @RequestHeader(value = "Idempotency-Key", required = false) String idempotencyKey) {
         boolean useIdempotency = hasKey(idempotencyKey);
         try {
             review.setReviewId(reviewId);
@@ -270,7 +304,7 @@ public class AppealManagementController {
             if (useIdempotency && updated.getReviewId() != null) {
                 appealReviewService.markHistorySuccess(idempotencyKey, updated.getReviewId());
             }
-            return ResponseEntity.ok(updated);
+            return ResponseEntity.ok(ApiResponse.ok(updated));
         } catch (RuntimeException ex) {
             if (useIdempotency) {
                 appealReviewService.markHistoryFailure(idempotencyKey, ex.getMessage());
@@ -281,99 +315,76 @@ public class AppealManagementController {
     }
 
     @DeleteMapping("/reviews/{reviewId}")
-    @Operation(summary = "删除复核记录")
-    public ResponseEntity<Void> deleteReview(@PathVariable Long reviewId) {
-        try {
-            appealReviewService.deleteReview(reviewId);
-            return ResponseEntity.noContent().build();
-        } catch (Exception ex) {
-            LOG.log(Level.WARNING, "Delete appeal review failed", ex);
-            if (ex instanceof RuntimeException) {
-                throw (RuntimeException) ex;
-            }
-            throw new RuntimeException(ex);
-        }
+    @RolesAllowed({"ADMIN", "APPEAL_REVIEWER", "SUPER_ADMIN"})
+    @Operation(summary = "Delete appeal review")
+    public ResponseEntity<ApiResponse<Void>> deleteReview(@PathVariable Long reviewId) {
+        appealReviewService.deleteReview(reviewId);
+        return ResponseEntity.ok(ApiResponse.ok(null));
     }
 
     @GetMapping("/reviews/{reviewId}")
-    @Operation(summary = "查询复核详情")
-    public ResponseEntity<AppealReview> getReview(@PathVariable Long reviewId) {
-        try {
-            AppealReview review = appealReviewService.findById(reviewId);
-            if (review == null) {
-                throw new com.tutict.finalassignmentbackend.exception.EntityNotFoundException("Appeal review not found: " + reviewId);
-            }
-            return ResponseEntity.ok(review);
-        } catch (Exception ex) {
-            LOG.log(Level.WARNING, "Get appeal review failed", ex);
-            if (ex instanceof RuntimeException) {
-                throw (RuntimeException) ex;
-            }
-            throw new RuntimeException(ex);
+    @RolesAllowed({"ADMIN", "APPEAL_REVIEWER", "SUPER_ADMIN"})
+    @Operation(summary = "Get appeal review")
+    public ResponseEntity<ApiResponse<AppealReview>> getReview(@PathVariable Long reviewId) {
+        AppealReview review = appealReviewService.findById(reviewId);
+        if (review == null) {
+            throw new EntityNotFoundException("Appeal review not found: " + reviewId);
         }
+        return ResponseEntity.ok(ApiResponse.ok(review));
     }
 
     @GetMapping("/reviews")
-    @Operation(summary = "查询全部复核记录")
-    public ResponseEntity<List<AppealReview>> listReviews() {
-        try {
-            return ResponseEntity.ok(appealReviewService.findAll());
-        } catch (Exception ex) {
-            LOG.log(Level.WARNING, "List appeal reviews failed", ex);
-            if (ex instanceof RuntimeException) {
-                throw (RuntimeException) ex;
-            }
-            throw new RuntimeException(ex);
-        }
+    @RolesAllowed({"ADMIN", "APPEAL_REVIEWER", "SUPER_ADMIN"})
+    @Operation(summary = "List appeal reviews")
+    public ResponseEntity<ApiResponse<List<AppealReview>>> listReviews() {
+        return ResponseEntity.ok(ApiResponse.ok(appealReviewService.findAll()));
     }
 
     @GetMapping("/reviews/search/reviewer")
+    @RolesAllowed({"ADMIN", "APPEAL_REVIEWER", "SUPER_ADMIN"})
     @Operation(summary = "Search appeal reviews by reviewer")
-    public ResponseEntity<List<AppealReview>> searchReviewsByReviewer(@RequestParam String reviewer,
-                                                                      @RequestParam(defaultValue = "1") int page,
-                                                                      @RequestParam(defaultValue = "20") int size) {
-        return ResponseEntity.ok(appealReviewService.searchByReviewer(reviewer, page, size));
+    public ResponseEntity<ApiResponse<List<AppealReview>>> searchReviewsByReviewer(
+            @RequestParam String reviewer,
+            @RequestParam(defaultValue = "1") int page,
+            @RequestParam(defaultValue = "20") int size) {
+        return ResponseEntity.ok(ApiResponse.ok(appealReviewService.searchByReviewer(reviewer, page, size)));
     }
 
     @GetMapping("/reviews/search/reviewer-dept")
+    @RolesAllowed({"ADMIN", "APPEAL_REVIEWER", "SUPER_ADMIN"})
     @Operation(summary = "Search appeal reviews by reviewer department")
-    public ResponseEntity<List<AppealReview>> searchReviewsByReviewerDept(@RequestParam String reviewerDept,
-                                                                          @RequestParam(defaultValue = "1") int page,
-                                                                          @RequestParam(defaultValue = "20") int size) {
-        return ResponseEntity.ok(appealReviewService.searchByReviewerDept(reviewerDept, page, size));
+    public ResponseEntity<ApiResponse<List<AppealReview>>> searchReviewsByReviewerDept(
+            @RequestParam String reviewerDept,
+            @RequestParam(defaultValue = "1") int page,
+            @RequestParam(defaultValue = "20") int size) {
+        return ResponseEntity.ok(ApiResponse.ok(appealReviewService.searchByReviewerDept(reviewerDept, page, size)));
     }
 
     @GetMapping("/reviews/search/time-range")
+    @RolesAllowed({"ADMIN", "APPEAL_REVIEWER", "SUPER_ADMIN"})
     @Operation(summary = "Search appeal reviews by review time range")
-    public ResponseEntity<List<AppealReview>> searchReviewsByTimeRange(@RequestParam String startTime,
-                                                                       @RequestParam String endTime,
-                                                                       @RequestParam(defaultValue = "1") int page,
-                                                                       @RequestParam(defaultValue = "20") int size) {
-        return ResponseEntity.ok(appealReviewService.searchByReviewTimeRange(startTime, endTime, page, size));
+    public ResponseEntity<ApiResponse<List<AppealReview>>> searchReviewsByTimeRange(
+            @RequestParam String startTime,
+            @RequestParam String endTime,
+            @RequestParam(defaultValue = "1") int page,
+            @RequestParam(defaultValue = "20") int size) {
+        return ResponseEntity.ok(ApiResponse.ok(
+                appealReviewService.searchByReviewTimeRange(startTime, endTime, page, size)));
     }
 
     @GetMapping("/reviews/count")
-    @Operation(summary = "按复核级别统计数量")
-    public ResponseEntity<Map<String, Object>> countReviews(@RequestParam("level") String reviewLevel) {
-        try {
-            long total = appealReviewService.countByReviewLevel(reviewLevel);
-            return ResponseEntity.ok(Map.of("reviewLevel", reviewLevel, "count", total));
-        } catch (Exception ex) {
-            LOG.log(Level.WARNING, "Count appeal reviews failed", ex);
-            if (ex instanceof RuntimeException) {
-                throw (RuntimeException) ex;
-            }
-            throw new RuntimeException(ex);
-        }
+    @RolesAllowed({"ADMIN", "APPEAL_REVIEWER", "SUPER_ADMIN"})
+    @Operation(summary = "Count appeal reviews")
+    public ResponseEntity<ApiResponse<Map<String, Object>>> countReviews(@RequestParam("level") String reviewLevel) {
+        long total = appealReviewService.countByReviewLevel(reviewLevel);
+        return ResponseEntity.ok(ApiResponse.ok(Map.of("reviewLevel", reviewLevel, "count", total)));
     }
 
     private boolean hasKey(String value) {
         return value != null && !value.isBlank();
     }
 
-    private HttpStatus resolveStatus(Exception ex) {
-        return (ex instanceof IllegalArgumentException || ex instanceof IllegalStateException)
-                ? HttpStatus.BAD_REQUEST
-                : HttpStatus.INTERNAL_SERVER_ERROR;
+    private List<AppealResponse> toResponses(List<AppealRecord> records) {
+        return records == null ? List.of() : records.stream().map(AppealResponse::from).toList();
     }
 }
