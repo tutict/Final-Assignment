@@ -11,9 +11,14 @@ import static org.hamcrest.Matchers.not;
 import static org.hamcrest.Matchers.notNullValue;
 import static org.hamcrest.Matchers.nullValue;
 
+import com.fasterxml.jackson.databind.JsonNode;
 import com.tutict.finalassignmentbackend.integration.BaseIntegrationTest;
 import com.tutict.finalassignmentbackend.integration.TestDataFactory;
 import io.restassured.response.Response;
+import java.net.URI;
+import java.net.http.HttpClient;
+import java.net.http.HttpRequest;
+import java.net.http.HttpResponse;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ExecutorService;
@@ -222,7 +227,7 @@ class OffenseFineIntegrationTest extends BaseIntegrationTest {
     @Test
     @Order(10)
     @DisplayName("违法详情接口：包含关联罚单，不触发 N+1")
-    void offense_detail_includes_fines_without_n_plus_1() {
+    void offense_detail_includes_fines_without_n_plus_1() throws Exception {
         Long offenseId = createTestOffense(driverId, vehicleId);
 
         for (int i = 0; i < 3; i++) {
@@ -233,38 +238,52 @@ class OffenseFineIntegrationTest extends BaseIntegrationTest {
         }
 
         long startMs = System.currentTimeMillis();
-        Response resp = authSpec(adminToken)
-            .get("/api/offenses/{id}/details", offenseId);
+        HttpResponse<String> resp = HttpClient.newHttpClient()
+            .send(HttpRequest.newBuilder()
+                    .uri(URI.create("http://localhost:" + port + "/api/offenses/" + offenseId + "/details"))
+                    .header("Authorization", "Bearer " + adminToken)
+                    .header("Accept", "application/json")
+                    .GET()
+                    .build(),
+                HttpResponse.BodyHandlers.ofString());
         long elapsedMs = System.currentTimeMillis() - startMs;
 
-        resp.then()
-            .statusCode(200)
-            .body("data.fines", hasSize(3));
+        JsonNode body = objectMapper.readTree(resp.body());
+        assertThat(resp.statusCode()).isEqualTo(200);
+        assertThat(body.path("data").path("fines")).hasSize(3);
 
         assertThat(elapsedMs).isLessThan(500L);
     }
 
     private Long createTestOffense(Long driverId, Long vehicleId) {
-        return authSpec(adminToken)
+        Response response = authSpec(adminToken)
             .header("Idempotency-Key", newIdempotencyKey())
             .body(TestDataFactory.validOffense(driverId, vehicleId))
-            .post("/api/offenses")
-            .then().extract().path("data.offenseId");
+            .post("/api/offenses");
+        return extractId(response, "offenseId");
     }
 
     private Long createTestDriver() {
-        return authSpec(adminToken)
+        Response response = authSpec(adminToken)
             .header("Idempotency-Key", newIdempotencyKey())
             .body(TestDataFactory.validDriver())
-            .post("/api/drivers")
-            .then().extract().path("data.driverId");
+            .post("/api/drivers");
+        return extractId(response, "driverId");
     }
 
     private Long createTestVehicle(Long driverId) {
-        return authSpec(adminToken)
+        Response response = authSpec(adminToken)
             .header("Idempotency-Key", newIdempotencyKey())
             .body(TestDataFactory.validVehicle(driverId))
-            .post("/api/vehicles")
-            .then().extract().path("data.vehicleId");
+            .post("/api/vehicles");
+        return extractId(response, "vehicleId");
+    }
+
+    private Long extractId(Response response, String fieldName) {
+        Number wrapped = response.then().extract().path("data." + fieldName);
+        Number bare = response.then().extract().path(fieldName);
+        Number id = wrapped != null ? wrapped : bare;
+        assertThat(id).as(fieldName + " should be present in response").isNotNull();
+        return id.longValue();
     }
 }

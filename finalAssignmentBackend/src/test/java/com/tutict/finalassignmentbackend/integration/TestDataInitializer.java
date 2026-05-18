@@ -10,6 +10,7 @@ import com.tutict.finalassignmentbackend.mapper.SysUserRoleMapper;
 import jakarta.annotation.PostConstruct;
 import java.time.LocalDateTime;
 import org.springframework.boot.sql.init.dependency.DependsOnDatabaseInitialization;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.context.annotation.Profile;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Component;
@@ -17,6 +18,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 @Component
 @Profile("test")
+@ConditionalOnProperty(name = "test.data.initializer.enabled", havingValue = "true")
 @DependsOnDatabaseInitialization
 public class TestDataInitializer {
 

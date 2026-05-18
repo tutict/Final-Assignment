@@ -21,10 +21,20 @@ import com.tutict.finalassignmentbackend.repository.SysSettingsSearchRepository;
 import com.tutict.finalassignmentbackend.repository.SysUserRoleSearchRepository;
 import com.tutict.finalassignmentbackend.repository.SysUserSearchRepository;
 import com.tutict.finalassignmentbackend.repository.VehicleInformationSearchRepository;
+import com.tutict.finalassignmentbackend.service.ChatAgent;
+import org.apache.kafka.clients.producer.RecordMetadata;
 import org.mockito.Mockito;
 import org.springframework.boot.test.context.TestConfiguration;
+import org.springframework.cache.CacheManager;
+import org.springframework.cache.concurrent.ConcurrentMapCacheManager;
 import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.Primary;
+import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.kafka.core.ConsumerFactory;
+import org.springframework.kafka.core.KafkaTemplate;
+import org.springframework.kafka.support.SendResult;
+
+import java.util.concurrent.CompletableFuture;
 
 @TestConfiguration
 public class TestSearchRepositoryMockConfig {
@@ -32,6 +42,38 @@ public class TestSearchRepositoryMockConfig {
     @Bean
     ConsumerFactory<String, String> consumerFactory() {
         return Mockito.mock(ConsumerFactory.class);
+    }
+
+    @Bean
+    ChatAgent chatAgent() {
+        return Mockito.mock(ChatAgent.class);
+    }
+
+    @Bean
+    @Primary
+    CacheManager cacheManager() {
+        return new ConcurrentMapCacheManager();
+    }
+
+    @Bean
+    @Primary
+    RedisTemplate<String, Object> redisTemplate() {
+        return Mockito.mock(RedisTemplate.class);
+    }
+
+    @Bean
+    @Primary
+    @SuppressWarnings({"rawtypes", "unchecked"})
+    KafkaTemplate kafkaTemplate() {
+        KafkaTemplate kafkaTemplate = Mockito.mock(KafkaTemplate.class);
+        SendResult sendResult = Mockito.mock(SendResult.class);
+        RecordMetadata metadata = Mockito.mock(RecordMetadata.class);
+        Mockito.when(metadata.partition()).thenReturn(0);
+        Mockito.when(metadata.offset()).thenReturn(0L);
+        Mockito.when(sendResult.getRecordMetadata()).thenReturn(metadata);
+        Mockito.when(kafkaTemplate.send(Mockito.anyString(), Mockito.any(), Mockito.any()))
+                .thenReturn(CompletableFuture.completedFuture(sendResult));
+        return kafkaTemplate;
     }
 
     @Bean
