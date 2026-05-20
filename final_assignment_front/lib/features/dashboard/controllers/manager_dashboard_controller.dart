@@ -26,6 +26,7 @@ class ManagerDashboardController extends GetxController {
   final isScrollingDown = false.obs;
   final isDesktop = false.obs;
   final isSidebarOpen = false.obs;
+  final isSidebarCollapsed = false.obs;
   final selectedPage = Rx<Widget?>(null);
   final isChatExpanded = false.obs;
   final Rx<Profile?> currentUser = Rx<Profile?>(null);
@@ -144,6 +145,9 @@ class ManagerDashboardController extends GetxController {
       );
 
   void toggleSidebar() => isSidebarOpen.value = !isSidebarOpen.value;
+
+  void toggleSidebarCollapsed() =>
+      isSidebarCollapsed.value = !isSidebarCollapsed.value;
 
   void toggleBodyTheme() {
     final newMode = currentTheme.value == 'Light' ? 'Dark' : 'Light';

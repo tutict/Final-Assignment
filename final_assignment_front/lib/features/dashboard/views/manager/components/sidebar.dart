@@ -1,7 +1,47 @@
 part of '../manager_dashboard_screen.dart';
 
-class _Sidebar extends StatelessWidget {
+class _Sidebar extends StatefulWidget {
   const _Sidebar();
+
+  @override
+  State<_Sidebar> createState() => _SidebarState();
+}
+
+class _SidebarState extends State<_Sidebar> {
+  int _selectedIndex = 0;
+
+  List<SelectionButtonData> get _items => [
+        SelectionButtonData(
+          activeIcon: EvaIcons.grid,
+          icon: EvaIcons.gridOutline,
+          label: '主页',
+          routeName: 'homePage',
+        ),
+        SelectionButtonData(
+          activeIcon: EvaIcons.calendar,
+          icon: EvaIcons.calendarOutline,
+          label: '业务处理',
+          routeName: Routes.managerBusinessProcessing,
+        ),
+        SelectionButtonData(
+          activeIcon: EvaIcons.email,
+          icon: EvaIcons.emailOutline,
+          label: '消息',
+          routeName: Routes.progressManagement,
+        ),
+      ];
+
+  void _select(ManagerDashboardController controller, int index) {
+    final item = _items[index];
+    AppLogger.debug("index : $index | label : ${item.label}");
+    setState(() => _selectedIndex = index);
+
+    if (item.routeName == 'homePage') {
+      controller.exitSidebarContent();
+    } else {
+      controller.navigateToPage(item.routeName);
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -11,72 +51,211 @@ class _Sidebar extends StatelessWidget {
     return Obx(() {
       final ThemeData currentTheme = controller.currentBodyTheme.value;
       final scheme = currentTheme.colorScheme;
-      final Color backgroundColor = scheme.surface.withValues(alpha: 0.98);
-      final Color dividerColor = scheme.outlineVariant.withValues(alpha: 0.55);
-      final TextStyle defaultTextStyle = TextStyle(color: scheme.onSurface);
-      final IconThemeData defaultIconTheme =
-          IconThemeData(color: scheme.onSurface);
+      final dark = currentTheme.brightness == Brightness.dark;
+      final collapsed = !ResponsiveBuilder.isMobile(context) &&
+          controller.isSidebarCollapsed.value;
+      final Color backgroundColor = scheme.surface.withValues(
+        alpha: dark ? 0.88 : 0.98,
+      );
+      final Color dividerColor = scheme.outlineVariant.withValues(
+        alpha: dark ? 0.36 : 0.55,
+      );
 
-      return Container(
+      return AnimatedContainer(
+        duration: const Duration(milliseconds: 220),
+        curve: Curves.easeOutCubic,
         color: backgroundColor,
         child: DefaultTextStyle(
-          style: defaultTextStyle,
+          style: TextStyle(color: scheme.onSurface),
           child: IconTheme(
-            data: defaultIconTheme,
-            child: SingleChildScrollView(
-              controller: ScrollController(),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  const SizedBox(height: kSpacing),
-                  Theme(
-                    data: currentTheme.copyWith(primaryColor: scheme.primary),
-                    child: SelectionButton(
-                      data: [
-                        SelectionButtonData(
-                          activeIcon: EvaIcons.grid,
-                          icon: EvaIcons.gridOutline,
-                          label: "主页",
-                          routeName: "homePage",
-                        ),
-                        SelectionButtonData(
-                          activeIcon: EvaIcons.calendar,
-                          icon: EvaIcons.calendarOutline,
-                          label: "业务处理",
-                          routeName: Routes.managerBusinessProcessing,
-                        ),
-                        SelectionButtonData(
-                          activeIcon: EvaIcons.email,
-                          icon: EvaIcons.emailOutline,
-                          label: "消息",
-                          routeName: Routes.progressManagement,
-                        ),
-                      ],
-                      onSelected: (index, value) {
-                        AppLogger.debug(
-                            "index : $index | label : ${value.label}");
-                        if (value.routeName == "homePage") {
-                          controller.exitSidebarContent();
-                        } else {
-                          controller.navigateToPage(value.routeName);
-                        }
-                      },
+            data: IconThemeData(color: scheme.onSurface),
+            child: Column(
+              children: [
+                _SidebarHandle(
+                  collapsed: collapsed,
+                  onPressed: controller.toggleSidebarCollapsed,
+                ),
+                Divider(height: 1, thickness: 1, color: dividerColor),
+                const SizedBox(height: 12),
+                Expanded(
+                  child: ListView.separated(
+                    padding: EdgeInsets.symmetric(
+                      horizontal: collapsed ? 10 : 14,
+                      vertical: 6,
                     ),
+                    itemCount: _items.length,
+                    separatorBuilder: (_, __) => const SizedBox(height: 8),
+                    itemBuilder: (context, index) {
+                      final item = _items[index];
+                      return _ManagerSidebarItem(
+                        item: item,
+                        collapsed: collapsed,
+                        selected: index == _selectedIndex,
+                        onTap: () => _select(controller, index),
+                      );
+                    },
                   ),
-                  Divider(thickness: 1, color: dividerColor),
-                  Container(
+                ),
+                if (!collapsed) ...[
+                  Divider(height: 1, thickness: 1, color: dividerColor),
+                  Padding(
                     padding: const EdgeInsets.all(kSpacing),
                     child: PoliceCard(
                       backgroundColor: Colors.transparent,
                       onPressed: () {},
                     ),
                   ),
+                ] else ...[
+                  Divider(height: 1, thickness: 1, color: dividerColor),
+                  const SizedBox(height: 12),
+                  Tooltip(
+                    message: '执法为民 公正廉洁',
+                    child: Container(
+                      width: 44,
+                      height: 44,
+                      decoration: BoxDecoration(
+                        color: scheme.surfaceContainerHighest.withValues(
+                          alpha: dark ? 0.36 : 0.62,
+                        ),
+                        borderRadius: BorderRadius.circular(8),
+                        border: Border.all(color: dividerColor),
+                      ),
+                      child: Icon(
+                        Icons.verified_user_outlined,
+                        color: scheme.primary,
+                        size: 22,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 16),
                 ],
-              ),
+              ],
             ),
           ),
         ),
       );
     });
+  }
+}
+
+class _SidebarHandle extends StatelessWidget {
+  const _SidebarHandle({
+    required this.collapsed,
+    required this.onPressed,
+  });
+
+  final bool collapsed;
+  final VoidCallback onPressed;
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+
+    return SizedBox(
+      height: 64,
+      child: Padding(
+        padding: EdgeInsets.symmetric(horizontal: collapsed ? 10 : 14),
+        child: Row(
+          mainAxisAlignment:
+              collapsed ? MainAxisAlignment.center : MainAxisAlignment.end,
+          children: [
+            Tooltip(
+              message: collapsed ? '展开侧边栏' : '折叠侧边栏',
+              child: IconButton(
+                onPressed: onPressed,
+                icon: Icon(
+                  collapsed
+                      ? Icons.keyboard_double_arrow_right_rounded
+                      : Icons.keyboard_double_arrow_left_rounded,
+                  color: scheme.onSurfaceVariant,
+                ),
+                splashRadius: 24,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _ManagerSidebarItem extends StatelessWidget {
+  const _ManagerSidebarItem({
+    required this.item,
+    required this.collapsed,
+    required this.selected,
+    required this.onTap,
+  });
+
+  final SelectionButtonData item;
+  final bool collapsed;
+  final bool selected;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final scheme = theme.colorScheme;
+    final dark = theme.brightness == Brightness.dark;
+    final foreground = selected ? scheme.primary : scheme.onSurfaceVariant;
+    final background = selected
+        ? scheme.primaryContainer.withValues(alpha: dark ? 0.36 : 0.58)
+        : Colors.transparent;
+    final borderColor = selected
+        ? scheme.primary.withValues(alpha: dark ? 0.52 : 0.42)
+        : Colors.transparent;
+
+    final content = AnimatedContainer(
+      duration: const Duration(milliseconds: 180),
+      curve: Curves.easeOutCubic,
+      height: 56,
+      padding: EdgeInsets.symmetric(horizontal: collapsed ? 0 : 16),
+      decoration: BoxDecoration(
+        color: background,
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: borderColor, width: 1.2),
+      ),
+      child: Row(
+        mainAxisAlignment:
+            collapsed ? MainAxisAlignment.center : MainAxisAlignment.start,
+        children: [
+          Icon(
+            selected ? item.activeIcon : item.icon,
+            color: foreground,
+            size: 24,
+          ),
+          if (!collapsed) ...[
+            const SizedBox(width: 14),
+            Expanded(
+              child: Text(
+                item.label,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: theme.textTheme.titleSmall?.copyWith(
+                  color: foreground,
+                  fontWeight: selected ? FontWeight.w800 : FontWeight.w600,
+                  letterSpacing: 0,
+                ),
+              ),
+            ),
+          ],
+        ],
+      ),
+    );
+
+    return Tooltip(
+      message: collapsed ? item.label : '',
+      waitDuration: const Duration(milliseconds: 350),
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          onTap: onTap,
+          borderRadius: BorderRadius.circular(8),
+          splashColor: scheme.primary.withValues(alpha: 0.10),
+          highlightColor: scheme.primary.withValues(alpha: 0.06),
+          child: content,
+        ),
+      ),
+    );
   }
 }

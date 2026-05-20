@@ -34,123 +34,125 @@ class UserDashboard extends GetView<UserDashboardController> with FloatingBase {
     final double screenHeight = MediaQuery.of(context).size.height;
     const double kHeaderTotalHeight = 112;
 
-    return Scaffold(
-      appBar: PreferredSize(
-        preferredSize: const Size.fromHeight(kHeaderTotalHeight),
-        child: Obx(
-          () => Theme(
-            data: controller.currentBodyTheme.value,
-            child: _buildHeaderSection(context, screenWidth),
+    return Obx(() {
+      final themeData = controller.currentBodyTheme.value;
+
+      return Theme(
+        data: themeData,
+        child: Scaffold(
+          backgroundColor: themeData.scaffoldBackgroundColor,
+          appBar: PreferredSize(
+            preferredSize: const Size.fromHeight(kHeaderTotalHeight),
+            child: Builder(
+              builder: (context) => _buildHeaderSection(context, screenWidth),
+            ),
           ),
-        ),
-      ),
-      body: Obx(
-        () => Theme(
-          data: controller.currentBodyTheme.value,
-          child: Material(
-            color: Colors.transparent,
-            child: DashboardBackdrop(
-              child: ResponsiveBuilder(
-                mobileBuilder: (context, constraints) {
-                  return Stack(
-                    children: [
-                      SingleChildScrollView(
-                        child: _buildLayout(context),
-                      ),
-                      Obx(() => _buildSidebar(context)),
-                    ],
-                  );
-                },
-                tabletBuilder: (context, constraints) {
-                  final theme = Theme.of(context);
-                  return Row(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Container(
-                        width: screenWidth * 0.3,
-                        height: screenHeight,
-                        decoration: BoxDecoration(
-                          color:
-                              theme.colorScheme.surface.withValues(alpha: 0.96),
-                          border: Border(
-                            right: BorderSide(
-                              color: theme.colorScheme.outlineVariant
-                                  .withValues(alpha: 0.55),
-                            ),
-                          ),
-                        ),
-                        child:
-                            UserSidebar(data: controller.getSelectedProject()),
-                      ),
-                      SizedBox(
-                        width: screenWidth * 0.7,
-                        child: SingleChildScrollView(
+          body: Builder(
+            builder: (context) => Material(
+              color: themeData.scaffoldBackgroundColor,
+              child: DashboardBackdrop(
+                child: ResponsiveBuilder(
+                  mobileBuilder: (context, constraints) {
+                    return Stack(
+                      children: [
+                        SingleChildScrollView(
                           child: _buildLayout(context),
                         ),
-                      ),
-                    ],
-                  );
-                },
-                desktopBuilder: (context, constraints) {
-                  final theme = Theme.of(context);
-                  return Row(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Container(
-                        width: screenWidth * 0.2,
-                        height: screenHeight,
-                        decoration: BoxDecoration(
-                          color:
-                              theme.colorScheme.surface.withValues(alpha: 0.96),
-                          border: Border(
-                            right: BorderSide(
-                              color: theme.colorScheme.outlineVariant
-                                  .withValues(alpha: 0.55),
-                            ),
-                          ),
-                        ),
-                        child:
-                            UserSidebar(data: controller.getSelectedProject()),
-                      ),
-                      Expanded(
-                        child: SingleChildScrollView(
-                          child: _buildLayout(context, isDesktop: true),
-                        ),
-                      ),
-                      Obx(
-                        () => AnimatedContainer(
-                          duration: const Duration(milliseconds: 260),
-                          curve: Curves.easeOutCubic,
-                          width: controller.isChatExpanded.value
-                              ? (screenWidth * 0.3 > 150
-                                  ? screenWidth * 0.3
-                                  : 150)
-                              : 0,
+                        Obx(() => _buildSidebar(context)),
+                      ],
+                    );
+                  },
+                  tabletBuilder: (context, constraints) {
+                    final theme = Theme.of(context);
+                    return Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Container(
+                          width: screenWidth * 0.3,
                           height: screenHeight,
                           decoration: BoxDecoration(
                             color: theme.colorScheme.surface
                                 .withValues(alpha: 0.96),
                             border: Border(
-                              left: BorderSide(
+                              right: BorderSide(
                                 color: theme.colorScheme.outlineVariant
                                     .withValues(alpha: 0.55),
                               ),
                             ),
                           ),
-                          child: controller.isChatExpanded.value
-                              ? _buildSideContent(context)
-                              : null,
+                          child: UserSidebar(
+                              data: controller.getSelectedProject()),
                         ),
-                      ),
-                    ],
-                  );
-                },
+                        SizedBox(
+                          width: screenWidth * 0.7,
+                          child: SingleChildScrollView(
+                            child: _buildLayout(context),
+                          ),
+                        ),
+                      ],
+                    );
+                  },
+                  desktopBuilder: (context, constraints) {
+                    final theme = Theme.of(context);
+                    return Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Container(
+                          width: screenWidth * 0.2,
+                          height: screenHeight,
+                          decoration: BoxDecoration(
+                            color: theme.colorScheme.surface
+                                .withValues(alpha: 0.96),
+                            border: Border(
+                              right: BorderSide(
+                                color: theme.colorScheme.outlineVariant
+                                    .withValues(alpha: 0.55),
+                              ),
+                            ),
+                          ),
+                          child: UserSidebar(
+                              data: controller.getSelectedProject()),
+                        ),
+                        Expanded(
+                          child: SingleChildScrollView(
+                            child: _buildLayout(context, isDesktop: true),
+                          ),
+                        ),
+                        Obx(
+                          () => AnimatedContainer(
+                            duration: const Duration(milliseconds: 260),
+                            curve: Curves.easeOutCubic,
+                            width: controller.isChatExpanded.value
+                                ? (screenWidth * 0.3 > 150
+                                    ? screenWidth * 0.3
+                                    : 150)
+                                : 0,
+                            height: screenHeight,
+                            decoration: BoxDecoration(
+                              color: theme.colorScheme.surface
+                                  .withValues(alpha: 0.96),
+                              border: Border(
+                                left: BorderSide(
+                                  color: theme.colorScheme.outlineVariant
+                                      .withValues(alpha: 0.55),
+                                ),
+                              ),
+                            ),
+                            child: controller.isChatExpanded.value
+                                ? _buildSideContent(context)
+                                : null,
+                          ),
+                        ),
+                      ],
+                    );
+                  },
+                ),
               ),
             ),
           ),
         ),
-      ),
-    );
+      );
+    });
   }
 
   Widget _buildSideContent(BuildContext context) {

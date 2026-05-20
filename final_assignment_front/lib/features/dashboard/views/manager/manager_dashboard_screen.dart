@@ -44,115 +44,130 @@ class DashboardScreen extends GetView<ManagerDashboardController> {
     controller.pageResolver ??= resolveDashboardPage;
     final double screenWidth = MediaQuery.of(context).size.width;
     final double screenHeight = MediaQuery.of(context).size.height;
+    final double expandedSidebarWidth =
+        (screenWidth * 0.2).clamp(260.0, 320.0).toDouble();
     const double kHeaderTotalHeight = 112;
 
-    return Scaffold(
-      appBar: PreferredSize(
-        preferredSize: const Size.fromHeight(kHeaderTotalHeight),
-        child: Obx(
-          () => Theme(
-            data: controller.currentBodyTheme.value,
-            child: _buildHeaderSection(context, screenWidth),
+    return Obx(() {
+      final themeData = controller.currentBodyTheme.value;
+
+      return Theme(
+        data: themeData,
+        child: Scaffold(
+          backgroundColor: themeData.scaffoldBackgroundColor,
+          appBar: PreferredSize(
+            preferredSize: const Size.fromHeight(kHeaderTotalHeight),
+            child: Builder(
+              builder: (context) => _buildHeaderSection(context, screenWidth),
+            ),
           ),
-        ),
-      ),
-      body: Obx(
-        () => Theme(
-          data: controller.currentBodyTheme.value,
-          child: Material(
-            color: Colors.transparent,
-            child: ResponsiveBuilder(
-              mobileBuilder: (context, constraints) {
-                return DashboardBackdrop(
-                  child: Stack(
-                    children: [
-                      SingleChildScrollView(
-                        child: _buildLayout(context),
-                      ),
-                      Obx(() => _buildSidebar(context)),
-                    ],
-                  ),
-                );
-              },
-              tabletBuilder: (context, constraints) {
-                return DashboardBackdrop(
-                  child: Row(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      SizedBox(
-                        width: screenWidth * 0.3,
-                        child: const _Sidebar(),
-                      ),
-                      SizedBox(
-                        width: screenWidth * 0.7,
-                        child: SingleChildScrollView(
+          body: Builder(
+            builder: (context) => Material(
+              color: themeData.scaffoldBackgroundColor,
+              child: ResponsiveBuilder(
+                mobileBuilder: (context, constraints) {
+                  return DashboardBackdrop(
+                    child: Stack(
+                      children: [
+                        SingleChildScrollView(
                           child: _buildLayout(context),
                         ),
-                      ),
-                    ],
-                  ),
-                );
-              },
-              desktopBuilder: (context, constraints) {
-                final theme = Theme.of(context);
-                return DashboardBackdrop(
-                  child: Row(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Container(
-                        width: screenWidth * 0.2,
-                        height: screenHeight,
-                        decoration: BoxDecoration(
-                          color:
-                              theme.colorScheme.surface.withValues(alpha: 0.96),
-                          border: Border(
-                            right: BorderSide(
-                              color: theme.colorScheme.outlineVariant
-                                  .withValues(alpha: 0.55),
-                            ),
+                        Obx(() => _buildSidebar(context)),
+                      ],
+                    ),
+                  );
+                },
+                tabletBuilder: (context, constraints) {
+                  return DashboardBackdrop(
+                    child: Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Obx(
+                          () => AnimatedContainer(
+                            duration: const Duration(milliseconds: 220),
+                            curve: Curves.easeOutCubic,
+                            width: controller.isSidebarCollapsed.value
+                                ? 76.0
+                                : screenWidth * 0.3,
+                            child: const _Sidebar(),
                           ),
                         ),
-                        child: const _Sidebar(),
-                      ),
-                      Expanded(
-                        child: SingleChildScrollView(
-                          child: _buildLayout(context, isDesktop: true),
+                        Expanded(
+                          child: SingleChildScrollView(
+                            child: _buildLayout(context),
+                          ),
                         ),
-                      ),
-                      Obx(
-                        () => AnimatedContainer(
-                          duration: const Duration(milliseconds: 260),
-                          curve: Curves.easeOutCubic,
-                          width: controller.isChatExpanded.value
-                              ? (screenWidth * 0.3 > 150
-                                  ? screenWidth * 0.3
-                                  : 150)
-                              : 0,
-                          height: screenHeight,
-                          decoration: BoxDecoration(
-                            color: theme.colorScheme.surface
-                                .withValues(alpha: 0.96),
-                            border: Border(
-                              left: BorderSide(
-                                color: theme.colorScheme.outlineVariant
-                                    .withValues(alpha: 0.55),
+                      ],
+                    ),
+                  );
+                },
+                desktopBuilder: (context, constraints) {
+                  final theme = Theme.of(context);
+                  return DashboardBackdrop(
+                    child: Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Obx(
+                          () => AnimatedContainer(
+                            duration: const Duration(milliseconds: 220),
+                            curve: Curves.easeOutCubic,
+                            width: controller.isSidebarCollapsed.value
+                                ? 76.0
+                                : expandedSidebarWidth,
+                            height: screenHeight,
+                            decoration: BoxDecoration(
+                              color: theme.colorScheme.surface
+                                  .withValues(alpha: 0.96),
+                              border: Border(
+                                right: BorderSide(
+                                  color: theme.colorScheme.outlineVariant
+                                      .withValues(alpha: 0.55),
+                                ),
                               ),
                             ),
+                            child: const _Sidebar(),
                           ),
-                          child: controller.isChatExpanded.value
-                              ? _buildSideContent(context)
-                              : null,
                         ),
-                      ),
-                    ],
-                  ),
-                );
-              },
+                        Expanded(
+                          child: SingleChildScrollView(
+                            child: _buildLayout(context, isDesktop: true),
+                          ),
+                        ),
+                        Obx(
+                          () => AnimatedContainer(
+                            duration: const Duration(milliseconds: 260),
+                            curve: Curves.easeOutCubic,
+                            width: controller.isChatExpanded.value
+                                ? (screenWidth * 0.3 > 150
+                                    ? screenWidth * 0.3
+                                    : 150)
+                                : 0,
+                            height: screenHeight,
+                            decoration: BoxDecoration(
+                              color: theme.colorScheme.surface
+                                  .withValues(alpha: 0.96),
+                              border: Border(
+                                left: BorderSide(
+                                  color: theme.colorScheme.outlineVariant
+                                      .withValues(alpha: 0.55),
+                                ),
+                              ),
+                            ),
+                            child: controller.isChatExpanded.value
+                                ? _buildSideContent(context)
+                                : null,
+                          ),
+                        ),
+                      ],
+                    ),
+                  );
+                },
+              ),
             ),
           ),
         ),
-      ),
-    );
+      );
+    });
   }
 
   Widget _buildSideContent(BuildContext context) {
