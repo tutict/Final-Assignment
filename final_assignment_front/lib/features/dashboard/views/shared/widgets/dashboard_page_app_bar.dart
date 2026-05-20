@@ -1,17 +1,17 @@
 import 'package:flutter/material.dart';
 
 class DashboardPageBarAction {
-  final IconData icon;
-  final VoidCallback onPressed;
-  final String? tooltip;
-  final Color? color;
-
   const DashboardPageBarAction({
     required this.icon,
     required this.onPressed,
     this.tooltip,
     this.color,
   });
+
+  final IconData icon;
+  final VoidCallback onPressed;
+  final String? tooltip;
+  final Color? color;
 }
 
 class DashboardPageAppBar extends StatelessWidget
@@ -26,7 +26,7 @@ class DashboardPageAppBar extends StatelessWidget
     this.onThemeToggle,
     this.automaticallyImplyLeading = true,
     this.bottom,
-    this.elevation = 2,
+    this.elevation = 0,
     this.centerTitle,
   });
 
@@ -44,7 +44,13 @@ class DashboardPageAppBar extends StatelessWidget
   @override
   Widget build(BuildContext context) {
     final colorScheme = theme.colorScheme;
-    final iconColor = colorScheme.onPrimaryContainer;
+    final dark = theme.brightness == Brightness.dark;
+    final iconColor = colorScheme.onSurfaceVariant;
+    final backgroundColor =
+        theme.scaffoldBackgroundColor.withValues(alpha: dark ? 0.96 : 0.98);
+    final borderColor = colorScheme.outlineVariant.withValues(
+      alpha: dark ? 0.34 : 0.48,
+    );
 
     final actionWidgets = <Widget>[
       for (final action in actions)
@@ -56,7 +62,7 @@ class DashboardPageAppBar extends StatelessWidget
       if (onRefresh != null)
         IconButton(
           icon: Icon(Icons.refresh, color: iconColor),
-          tooltip: '刷新列表',
+          tooltip: '刷新',
           onPressed: onRefresh,
         ),
       if (onThemeToggle != null)
@@ -75,19 +81,31 @@ class DashboardPageAppBar extends StatelessWidget
     return AppBar(
       leading: leading,
       automaticallyImplyLeading: automaticallyImplyLeading,
+      titleSpacing: leading == null ? 16 : 0,
       title: Text(
         title,
-        style: theme.textTheme.headlineSmall?.copyWith(
-          fontWeight: FontWeight.bold,
-          color: colorScheme.onPrimaryContainer,
+        maxLines: 1,
+        overflow: TextOverflow.ellipsis,
+        style: theme.textTheme.titleLarge?.copyWith(
+          fontWeight: FontWeight.w800,
+          color: colorScheme.onSurface,
+          letterSpacing: 0,
         ),
       ),
-      centerTitle: centerTitle,
-      backgroundColor: colorScheme.primaryContainer,
-      foregroundColor: colorScheme.onPrimaryContainer,
+      centerTitle: centerTitle ?? true,
+      backgroundColor: backgroundColor,
+      foregroundColor: colorScheme.onSurface,
       elevation: elevation,
+      scrolledUnderElevation: 0,
+      surfaceTintColor: Colors.transparent,
+      shadowColor: Colors.transparent,
+      iconTheme: IconThemeData(color: iconColor),
+      actionsIconTheme: IconThemeData(color: iconColor),
       actions: actionWidgets,
       bottom: bottom,
+      shape: Border(
+        bottom: BorderSide(color: borderColor),
+      ),
     );
   }
 

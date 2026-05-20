@@ -319,47 +319,28 @@ class _DeductionManagementState extends State<DeductionManagementPage> {
   }
 
   Widget _buildNoDataWidget(ThemeData themeData) {
-    return Center(
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Text(
-            _errorMessage.isNotEmpty ? _errorMessage : '暂无扣分记录',
-            style: themeData.textTheme.titleMedium?.copyWith(
-              color: themeData.colorScheme.error,
-              fontWeight: FontWeight.w500,
-            ),
-          ),
-          if (_errorMessage.contains('未授权'))
-            Padding(
-              padding: const EdgeInsets.only(top: 16.0),
-              child: ElevatedButton(
-                onPressed: () => NavigationHelper.offAllNamed(Routes.login),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: themeData.colorScheme.primary,
-                  foregroundColor: themeData.colorScheme.onPrimary,
-                  shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12.0)),
-                ),
-                child: const Text('重新登录'),
-              ),
-            ),
-          if (_errorMessage.isNotEmpty && !_errorMessage.contains('未授权'))
-            Padding(
-              padding: const EdgeInsets.only(top: 16.0),
-              child: ElevatedButton(
-                onPressed: () => _loadDeductions(reset: true),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: themeData.colorScheme.primary,
-                  foregroundColor: themeData.colorScheme.onPrimary,
-                  shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12.0)),
-                ),
-                child: const Text('重试'),
-              ),
-            ),
-        ],
-      ),
+    final message = _errorMessage.trim();
+    if (message.isEmpty) {
+      return const EmptyStateView(
+        message: '暂无扣分记录',
+        icon: Icons.fact_check_outlined,
+      );
+    }
+
+    final lowerMessage = message.toLowerCase();
+    final accessDenied = lowerMessage.contains('forbidden') ||
+        lowerMessage.contains('401') ||
+        lowerMessage.contains('403') ||
+        message.contains('未授权') ||
+        message.contains('登录') ||
+        message.contains('权限');
+
+    return ErrorStateView(
+      message: message,
+      onRetry: accessDenied
+          ? () => NavigationHelper.offAllNamed(Routes.login)
+          : () => _loadDeductions(reset: true),
+      actionLabel: accessDenied ? '重新登录' : '重试',
     );
   }
 
@@ -388,7 +369,6 @@ class _DeductionManagementState extends State<DeductionManagementPage> {
             tooltip: '刷新列表',
           ),
         ],
-        onThemeToggle: controller.toggleBodyTheme,
         body: RefreshIndicator(
           onRefresh: () => _loadDeductions(reset: true),
           color: themeData.colorScheme.primary,

@@ -5,9 +5,7 @@ import 'dart:developer' as developer;
 import 'package:final_assignment_front/config/routes/app_routes.dart';
 import 'package:final_assignment_front/core/config/app_config.dart';
 import 'package:final_assignment_front/core/auth/user_profile_service.dart';
-import 'package:final_assignment_front/core/network/app_exception.dart';
 import 'package:final_assignment_front/core/utils/app_logger.dart';
-import 'package:final_assignment_front/shared/utils/error_handler.dart';
 import 'package:final_assignment_front/utils/services/auth_token_store.dart';
 import 'package:get/get.dart';
 import 'package:http/http.dart' as http;
@@ -208,14 +206,7 @@ class AuthService extends GetxService {
 
   Future<void> handleForbidden({String? source, String? message}) async {
     developer.log(
-      'Forbidden${source == null ? '' : ' from $source'}',
-    );
-    ErrorHandler.showError(
-      AppException(
-        type: AppErrorType.forbidden,
-        message: message ?? '您没有权限执行此操作',
-        statusCode: 403,
-      ),
+      'Forbidden${source == null ? '' : ' from $source'}: ${message ?? 'access denied'}',
     );
   }
 

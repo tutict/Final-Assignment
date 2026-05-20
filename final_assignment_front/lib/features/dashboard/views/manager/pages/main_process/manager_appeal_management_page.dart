@@ -558,7 +558,6 @@ class _AppealManagementAdminState extends State<ManagerAppealManagementPage> {
             tooltip: '刷新列表',
           ),
         ],
-        onThemeToggle: controller.toggleBodyTheme,
         body: Padding(
           padding: const EdgeInsets.all(16.0),
           child: Column(

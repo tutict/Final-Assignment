@@ -469,7 +469,6 @@ class _VehicleListState extends State<VehicleList> {
             ),
           ],
         ],
-        onThemeToggle: controller.toggleBodyTheme,
         body: RefreshIndicator(
           onRefresh: () => _refreshVehicleList(),
           color: themeData.colorScheme.primary,

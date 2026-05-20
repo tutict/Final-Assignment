@@ -514,7 +514,6 @@ class _OffenseListPageState extends State<OffenseList> {
             ),
           ],
         ],
-        onThemeToggle: controller.toggleBodyTheme,
         body: RefreshIndicator(
           onRefresh: () => _refreshOffenses(),
           color: themeData.colorScheme.primary,

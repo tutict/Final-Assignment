@@ -517,7 +517,6 @@ class _FineListState extends State<FineListPage> {
             ),
           ],
         ],
-        onThemeToggle: controller.toggleBodyTheme,
         body: RefreshIndicator(
           onRefresh: () => _refreshFines(),
           color: themeData.colorScheme.primary,

@@ -82,7 +82,7 @@ class DashboardPageTemplate extends StatelessWidget {
     return Theme(
       data: theme,
       child: Scaffold(
-        backgroundColor: backgroundColor ?? theme.colorScheme.surface,
+        backgroundColor: backgroundColor ?? theme.scaffoldBackgroundColor,
         appBar: pageAppBar,
         floatingActionButton: floatingActionButton,
         body: content,

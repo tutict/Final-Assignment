@@ -48,12 +48,12 @@ class SearchFilterBar extends StatelessWidget {
     this.firstDate,
     this.lastDate,
     this.wrapInCard = false,
-    this.cardElevation = 4,
-    this.cardBorderRadius = 16,
+    this.cardElevation = 0,
+    this.cardBorderRadius = 8,
     this.cardColor,
-    this.cardPadding = const EdgeInsets.all(12),
+    this.cardPadding = const EdgeInsets.all(14),
     this.padding = const EdgeInsets.symmetric(vertical: 8),
-    this.inputBorderRadius = 12,
+    this.inputBorderRadius = 8,
     this.inputBorderless = false,
     this.fillColor,
   });
@@ -95,6 +95,7 @@ class SearchFilterBar extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final dark = theme.brightness == Brightness.dark;
     final hasDateRange = startDate != null && endDate != null;
     final content = Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -127,28 +128,46 @@ class SearchFilterBar extends StatelessWidget {
             ),
             if (searchTypes != null && searchTypes!.isNotEmpty) ...[
               const SizedBox(width: 8),
-              DropdownButton<String>(
-                value: selectedSearchType,
-                onChanged: (value) {
-                  if (value != null) onTypeChanged?.call(value);
-                },
-                items: searchTypes!
-                    .map(
-                      (option) => DropdownMenuItem<String>(
-                        value: option.value,
-                        child: Text(
-                          option.label,
-                          style: TextStyle(
-                            color: theme.colorScheme.onSurface,
+              Container(
+                height: 48,
+                padding: const EdgeInsets.symmetric(horizontal: 12),
+                decoration: BoxDecoration(
+                  color: theme.colorScheme.surfaceContainerHighest.withValues(
+                    alpha: dark ? 0.22 : 0.52,
+                  ),
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(
+                    color: theme.colorScheme.outlineVariant.withValues(
+                      alpha: dark ? 0.34 : 0.48,
+                    ),
+                  ),
+                ),
+                child: DropdownButtonHideUnderline(
+                  child: DropdownButton<String>(
+                    value: selectedSearchType,
+                    onChanged: (value) {
+                      if (value != null) onTypeChanged?.call(value);
+                    },
+                    items: searchTypes!
+                        .map(
+                          (option) => DropdownMenuItem<String>(
+                            value: option.value,
+                            child: Text(
+                              option.label,
+                              style: TextStyle(
+                                color: theme.colorScheme.onSurface,
+                                fontWeight: FontWeight.w700,
+                              ),
+                            ),
                           ),
-                        ),
-                      ),
-                    )
-                    .toList(),
-                dropdownColor: theme.colorScheme.surfaceContainer,
-                icon: Icon(
-                  Icons.arrow_drop_down,
-                  color: theme.colorScheme.primary,
+                        )
+                        .toList(),
+                    dropdownColor: theme.colorScheme.surfaceContainerHigh,
+                    icon: Icon(
+                      Icons.arrow_drop_down,
+                      color: theme.colorScheme.primary,
+                    ),
+                  ),
                 ),
               ),
             ],
@@ -181,11 +200,25 @@ class SearchFilterBar extends StatelessWidget {
       return padded;
     }
 
-    return Card(
-      elevation: cardElevation,
-      color: cardColor ?? theme.colorScheme.surfaceContainerLowest,
-      shape: RoundedRectangleBorder(
+    return Container(
+      decoration: BoxDecoration(
+        color: cardColor ??
+            theme.colorScheme.surface.withValues(alpha: dark ? 0.78 : 0.96),
         borderRadius: BorderRadius.circular(cardBorderRadius),
+        border: Border.all(
+          color: theme.colorScheme.outlineVariant.withValues(
+            alpha: dark ? 0.34 : 0.48,
+          ),
+        ),
+        boxShadow: cardElevation <= 0
+            ? null
+            : [
+                BoxShadow(
+                  color: theme.shadowColor.withValues(alpha: 0.08),
+                  blurRadius: cardElevation * 4,
+                  offset: const Offset(0, 8),
+                ),
+              ],
       ),
       child: padded,
     );
@@ -334,6 +367,7 @@ class _SearchAutocompleteField extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final dark = theme.brightness == Brightness.dark;
 
     return Autocomplete<String>(
       optionsBuilder: (textEditingValue) async {
@@ -408,9 +442,9 @@ class _SearchAutocompleteField extends StatelessWidget {
                       ),
                 filled: true,
                 fillColor: fillColor ??
-                    (inputBorderless
-                        ? theme.colorScheme.surfaceContainer
-                        : theme.colorScheme.surfaceContainerLowest),
+                    theme.colorScheme.surfaceContainerHighest.withValues(
+                      alpha: dark ? 0.22 : 0.52,
+                    ),
                 contentPadding: EdgeInsets.symmetric(
                   vertical: inputBorderless ? 14 : 12,
                   horizontal: 16,

@@ -156,7 +156,6 @@ class _DriverListPageState extends State<DriverListPage> {
             tooltip: '添加司机',
           ),
         ],
-        onThemeToggle: controller.toggleBodyTheme,
         body: Column(
           children: [
             Padding(
@@ -453,7 +452,6 @@ class _AddDriverPageState extends State<AddDriverPage> {
         pageType: DashboardPageType.manager,
         bodyIsScrollable: true,
         padding: EdgeInsets.zero,
-        onThemeToggle: controller.toggleBodyTheme,
         body: Padding(
           padding: const EdgeInsets.all(16.0),
           child: _isLoading
@@ -856,7 +854,6 @@ class _EditDriverPageState extends State<EditDriverPage> {
         pageType: DashboardPageType.manager,
         bodyIsScrollable: true,
         padding: EdgeInsets.zero,
-        onThemeToggle: controller.toggleBodyTheme,
         body: Padding(
           padding: const EdgeInsets.all(16.0),
           child: _isLoading
@@ -1214,7 +1211,6 @@ class _DriverDetailPageState extends State<DriverDetailPage> {
             color: themeData.colorScheme.error,
           ),
         ],
-        onThemeToggle: controller.toggleBodyTheme,
         body: Padding(
           padding: const EdgeInsets.all(16.0),
           child: _isLoading
