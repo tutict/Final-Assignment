@@ -119,7 +119,6 @@ public class SysRoleService {
     }
 
     @Transactional(readOnly = true)
-    @Cacheable(cacheNames = CACHE_NAME, key = "#roleId", unless = "#result == null")
     public SysRole findById(Integer roleId) {
         requirePositive(roleId);
         return sysRoleSearchRepository.findById(roleId)

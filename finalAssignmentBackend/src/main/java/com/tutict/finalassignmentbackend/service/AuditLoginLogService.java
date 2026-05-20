@@ -396,8 +396,15 @@ public class AuditLoginLogService {
         if (loginLog == null) {
             throw new IllegalArgumentException("Audit login log must not be null");
         }
+        if (isBlank(loginLog.getUsername())) {
+            loginLog.setUsername("unknown");
+        }
         if (loginLog.getLoginTime() == null) {
             loginLog.setLoginTime(LocalDateTime.now());
+        }
+        loginLog.setLoginResult(normalizeLoginResult(loginLog.getLoginResult()));
+        if (isBlank(loginLog.getLoginIp())) {
+            loginLog.setLoginIp("0.0.0.0");
         }
     }
 
@@ -427,6 +434,18 @@ public class AuditLoginLogService {
 
     private boolean isBlank(String value) {
         return value == null || value.trim().isEmpty();
+    }
+
+    private String normalizeLoginResult(String value) {
+        if (isBlank(value)) {
+            return "Failed";
+        }
+        String normalized = value.trim().toLowerCase();
+        return switch (normalized) {
+            case "success", "succeeded" -> "Success";
+            case "locked" -> "Locked";
+            default -> "Failed";
+        };
     }
 
     private String truncate(String value) {

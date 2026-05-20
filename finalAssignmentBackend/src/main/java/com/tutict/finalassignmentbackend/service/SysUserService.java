@@ -296,7 +296,6 @@ public class SysUserService {
     }
 
     @Transactional(readOnly = true)
-    @Cacheable(cacheNames = CACHE_NAME, key = "'username:' + #username", unless = "#result == null")
     public SysUser findByUsername(String username) {
         if (isBlank(username)) {
             return null;
@@ -417,34 +416,48 @@ public class SysUserService {
         if (sysUser == null) {
             return;
         }
-        TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
-            @Override
-            public void afterCommit() {
-                SysUserDocument doc = SysUserDocument.fromEntity(sysUser);
-                if (doc != null) {
-                    sysUserSearchRepository.save(doc);
-                }
+        Runnable sync = () -> {
+            SysUserDocument doc = SysUserDocument.fromEntity(sysUser);
+            if (doc != null) {
+                sysUserSearchRepository.save(doc);
             }
-        });
+        };
+        if (TransactionSynchronizationManager.isSynchronizationActive()) {
+            TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
+                @Override
+                public void afterCommit() {
+                    sync.run();
+                }
+            });
+        } else {
+            sync.run();
+        }
     }
 
     private void syncBatchToIndexAfterCommit(List<SysUser> records) {
         if (records == null || records.isEmpty()) {
             return;
         }
-        TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
-            @Override
-            public void afterCommit() {
-                List<SysUserDocument> documents = records.stream()
-                        .filter(Objects::nonNull)
-                        .map(SysUserDocument::fromEntity)
-                        .filter(Objects::nonNull)
-                        .collect(Collectors.toList());
-                if (!documents.isEmpty()) {
-                    sysUserSearchRepository.saveAll(documents);
-                }
+        Runnable sync = () -> {
+            List<SysUserDocument> documents = records.stream()
+                    .filter(Objects::nonNull)
+                    .map(SysUserDocument::fromEntity)
+                    .filter(Objects::nonNull)
+                    .collect(Collectors.toList());
+            if (!documents.isEmpty()) {
+                sysUserSearchRepository.saveAll(documents);
             }
-        });
+        };
+        if (TransactionSynchronizationManager.isSynchronizationActive()) {
+            TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
+                @Override
+                public void afterCommit() {
+                    sync.run();
+                }
+            });
+        } else {
+            sync.run();
+        }
     }
 
     private void validateSysUser(SysUser sysUser) {

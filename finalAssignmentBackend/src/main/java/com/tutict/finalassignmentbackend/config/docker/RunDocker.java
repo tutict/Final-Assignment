@@ -37,9 +37,22 @@ public class RunDocker implements ApplicationContextInitializer<ConfigurableAppl
             log.log(Level.INFO, "Dev services are disabled. Skipping Redis, Redpanda, and Elasticsearch Testcontainers startup.");
             return;
         }
-        startRedis(applicationContext);
-        startRedpanda(applicationContext);
-        startElasticsearch(applicationContext);
+        ConfigurableEnvironment environment = applicationContext.getEnvironment();
+        if (Boolean.parseBoolean(environment.getProperty("app.docker.startup-script.enabled", "false"))) {
+            log.log(Level.INFO, "Script-managed Docker startup is enabled. Skipping Testcontainers dev service startup.");
+            return;
+        }
+        if (isDevServiceEnabled(environment, "redis", true)) {
+            startRedis(applicationContext);
+        }
+        if (isDevServiceEnabled(environment, "redpanda", false)) {
+            startRedpanda(applicationContext);
+        } else {
+            log.log(Level.INFO, "Redpanda dev service is disabled. Kafka listeners should stay disabled for local startup.");
+        }
+        if (isDevServiceEnabled(environment, "elasticsearch", true)) {
+            startElasticsearch(applicationContext);
+        }
         // startManticoreSearch(applicationContext);
         registerShutdownHook();
     }
@@ -49,6 +62,11 @@ public class RunDocker implements ApplicationContextInitializer<ConfigurableAppl
                 .anyMatch(profile -> "dev".equalsIgnoreCase(profile));
         boolean enabled = Boolean.parseBoolean(environment.getProperty("app.dev-services.enabled", "false"));
         return devProfileActive && enabled;
+    }
+
+    private boolean isDevServiceEnabled(ConfigurableEnvironment environment, String serviceName, boolean defaultValue) {
+        String key = "app.dev-services." + serviceName + ".enabled";
+        return Boolean.parseBoolean(environment.getProperty(key, Boolean.toString(defaultValue)));
     }
 
     private void startRedis(ConfigurableApplicationContext applicationContext) {

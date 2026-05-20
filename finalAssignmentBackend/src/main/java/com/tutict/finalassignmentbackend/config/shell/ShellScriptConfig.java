@@ -2,26 +2,20 @@ package com.tutict.finalassignmentbackend.config.shell;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.beans.factory.annotation.Value;
-import org.springframework.beans.factory.config.BeanFactoryPostProcessor;
-import org.springframework.boot.CommandLineRunner;
-import org.springframework.context.annotation.Bean;
+import org.springframework.context.ApplicationContextInitializer;
+import org.springframework.context.ConfigurableApplicationContext;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.Profile;
 import org.springframework.core.env.Environment;
 
-import java.io.BufferedReader;
-import java.io.FileWriter;
 import java.io.IOException;
-import java.io.InputStreamReader;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.util.ArrayList;
+import java.nio.file.StandardOpenOption;
+import java.util.Arrays;
 import java.util.List;
 import java.util.Locale;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 
 @Configuration
@@ -29,441 +23,465 @@ import java.util.concurrent.TimeUnit;
 public class ShellScriptConfig {
 
     private static final Logger logger = LoggerFactory.getLogger(ShellScriptConfig.class);
-    private static final String LOG_FILE = "startup_script.log";
     private static final int MAX_RETRIES = 3;
-    private static final long TIMEOUT_MINUTES = 5;
-    private static final long DOCKER_DESKTOP_STARTUP_TIMEOUT_SECONDS = 180;
+    private static final long SCRIPT_TIMEOUT_MINUTES = 5;
+    private static final int DOCKER_READY_TIMEOUT_SECONDS = 180;
+    private static final int OLLAMA_READY_TIMEOUT_SECONDS = 60;
 
-    @Value("${app.docker.startup-script.enabled:false}")
-    private boolean dockerStartupScriptEnabled;
+    public ShellScriptConfig() {
+    }
 
-    @Value("${app.docker.desktop.path:C:\\Program Files\\Docker\\Docker\\Docker Desktop.exe}")
-    private String dockerDesktopPath;
+    public static ApplicationContextInitializer<ConfigurableApplicationContext> startupScriptBootstrap() {
+        return applicationContext -> {
+            Environment environment = applicationContext.getEnvironment();
+            if (!isDevProfileActive(environment)) {
+                return;
+            }
 
-    @Value("${app.ollama.startup-script.enabled:false}")
-    private boolean ollamaStartupScriptEnabled;
+            boolean dockerEnabled = isEnabled(environment, "app.docker.startup-script.enabled");
+            boolean ollamaEnabled = isEnabled(environment, "app.ollama.startup-script.enabled");
+            if (!dockerEnabled && !ollamaEnabled) {
+                logger.info("Local startup scripts are disabled.");
+                return;
+            }
 
-    @Bean
-    public CommandLineRunner runStartupScripts() {
-        return _ -> {
-            ExecutorService executor = Executors.newSingleThreadExecutor();
+            Platform platform = Platform.detect();
+            Path startupDir = startupDirectory(environment);
             try {
-                if (ollamaStartupScriptEnabled) {
-                    startOllama(executor);
+                Files.createDirectories(startupDir);
+                Path logFile = startupDir.resolve("startup_script.log");
+
+                if (dockerEnabled) {
+                    Path dockerScript = writeDockerScript(platform, startupDir, environment);
+                    executeScriptWithRetry(dockerScript, platform, logFile);
+                    logger.info("Local Docker environment startup completed by script: {}", dockerScript);
                 }
-            } finally {
-                executor.shutdown();
+
+                if (ollamaEnabled) {
+                    Path ollamaScript = writeOllamaScript(platform, startupDir, environment);
+                    executeScriptWithRetry(ollamaScript, platform, logFile);
+                    logger.info("Ollama startup completed by script: {}", ollamaScript);
+                }
+            } catch (IOException e) {
+                throw new IllegalStateException("Failed to prepare local startup scripts in " + startupDir, e);
             }
         };
     }
 
-    @Bean
-    public static BeanFactoryPostProcessor dockerDesktopStartupBootstrap(Environment environment) {
-        return beanFactory -> {
-            boolean enabled = Boolean.parseBoolean(
-                environment.getProperty("app.docker.startup-script.enabled", "false"));
-            if (!enabled || !isDevProfileActive(environment)) {
-                return;
-            }
+    private static Path writeDockerScript(Platform platform, Path startupDir, Environment environment) throws IOException {
+        Path composeFile = startupDir.resolve("docker-compose.yml");
+        Files.writeString(composeFile, dockerComposeContent(environment), StandardCharsets.UTF_8);
 
-            String os = System.getProperty("os.name").toLowerCase(Locale.ROOT);
-            if (!os.startsWith("windows")) {
-                logger.info("Docker startup script is intended for Windows Docker Desktop. Current OS: {}", os);
-                return;
-            }
+        Path script = switch (platform) {
+            case WINDOWS -> startupDir.resolve("start-local-docker.cmd");
+            case MACOS -> startupDir.resolve("start-local-docker-macos.sh");
+            case LINUX -> startupDir.resolve("start-local-docker-linux.sh");
+        };
 
-            String desktopPath = environment.getProperty(
+        String scriptContent = switch (platform) {
+            case WINDOWS -> windowsDockerScript(composeFile, environment);
+            case MACOS -> macosDockerScript(composeFile, environment);
+            case LINUX -> linuxDockerScript(composeFile);
+        };
+        writeScript(script, scriptContent, platform);
+        logger.info("Docker compose file written to {}", composeFile);
+        logger.info("Docker startup script written to {}", script);
+        return script;
+    }
+
+    private static Path writeOllamaScript(Platform platform, Path startupDir, Environment environment) throws IOException {
+        Path script = switch (platform) {
+            case WINDOWS -> startupDir.resolve("start-ollama.cmd");
+            case MACOS -> startupDir.resolve("start-ollama-macos.sh");
+            case LINUX -> startupDir.resolve("start-ollama-linux.sh");
+        };
+
+        String scriptContent = switch (platform) {
+            case WINDOWS -> windowsOllamaScript(environment);
+            case MACOS, LINUX -> unixOllamaScript();
+        };
+        writeScript(script, scriptContent, platform);
+        logger.info("Ollama startup script written to {}", script);
+        return script;
+    }
+
+    private static void writeScript(Path script, String content, Platform platform) throws IOException {
+        Files.writeString(script, content, StandardCharsets.UTF_8);
+        if (!platform.isWindows()) {
+            script.toFile().setExecutable(true, true);
+        }
+    }
+
+    private static String windowsDockerScript(Path composeFile, Environment environment) {
+        String dockerDesktopPath = environment.getProperty(
                 "app.docker.desktop.path",
                 "C:\\Program Files\\Docker\\Docker\\Docker Desktop.exe");
-
-            try {
-                ensureDockerDesktopReady(desktopPath);
-                Path script = writeDockerStartupScript(desktopPath);
-                executeScriptOnce(script.toString(), os);
-                logger.info("Docker Desktop startup bootstrap completed: {}", script);
-            } catch (IOException e) {
-                throw new IllegalStateException("Failed to prepare Docker startup script", e);
-            }
-        };
-    }
-
-    private void startDockerDesktopServices(ExecutorService executor) throws IOException {
-        String os = System.getProperty("os.name").toLowerCase(Locale.ROOT);
-        if (!os.startsWith("windows")) {
-            logger.info("Docker startup script is intended for Windows Docker Desktop. Current OS: {}", os);
-            return;
-        }
-
-        ensureDockerDesktopReady();
-        Path script = writeDockerStartupScript(dockerDesktopPath);
-        executeScriptWithRetry(script.toString(), os, executor);
-        logger.info("Docker Desktop startup script executed: {}", script);
-    }
-
-    private static Path writeDockerStartupScript(String dockerDesktopPath) throws IOException {
-        Path dockerDir = Path.of(System.getProperty("user.dir"), "target", "dev-docker");
-        Files.createDirectories(dockerDir);
-
-        Path composeFile = dockerDir.resolve("docker-compose.yml");
-        Path scriptFile = dockerDir.resolve("start-dev-docker.cmd");
-
-        Files.writeString(composeFile, dockerComposeContent(), StandardCharsets.UTF_8);
-        Files.writeString(scriptFile, windowsDockerStartupScript(composeFile, dockerDesktopPath), StandardCharsets.UTF_8);
-
-        logger.info("Docker compose file written to {}", composeFile);
-        logger.info("Docker startup script written to {}", scriptFile);
-        return scriptFile;
-    }
-
-    private static String windowsDockerStartupScript(Path composeFile, String dockerDesktopPath) {
         return """
-            @echo off
-            setlocal
-            docker info >nul 2>&1
-            if errorlevel 1 (
-              echo Docker Desktop is not running. Starting Docker Desktop...
-              if not exist "%s" (
-                echo Docker Desktop executable not found.
-                exit /b 1
-              )
-              start "" "%s"
-              for /l %%%%i in (1,1,%d) do (
+                @echo off
+                setlocal EnableExtensions
+                set "DOCKER_DESKTOP_PATH=__DOCKER_DESKTOP_PATH__"
+                set "COMPOSE_FILE=__COMPOSE_FILE__"
+
+                where docker >nul 2>&1
+                if errorlevel 1 (
+                  echo Docker CLI was not found in PATH.
+                  exit /b 1
+                )
+
                 docker info >nul 2>&1
-                if not errorlevel 1 goto docker_ready
-                timeout /t 1 /nobreak >nul
-              )
-              echo Docker Desktop daemon did not become ready in time.
-              exit /b 1
-            )
-            :docker_ready
-            docker compose -f "%s" up -d --wait --wait-timeout 120
-            endlocal
-            """.formatted(
-                dockerDesktopPath,
-                dockerDesktopPath,
-                DOCKER_DESKTOP_STARTUP_TIMEOUT_SECONDS,
-                composeFile.toAbsolutePath());
+                if errorlevel 1 (
+                  echo Docker daemon is not ready. Starting Docker Desktop...
+                  if not exist "%DOCKER_DESKTOP_PATH%" (
+                    echo Docker Desktop executable not found: %DOCKER_DESKTOP_PATH%
+                    exit /b 1
+                  )
+                  start "" "%DOCKER_DESKTOP_PATH%"
+                )
+
+                for /l %%i in (1,1,__DOCKER_TIMEOUT__) do (
+                  docker info >nul 2>&1
+                  if not errorlevel 1 goto docker_ready
+                  timeout /t 1 /nobreak >nul
+                )
+                echo Docker daemon did not become ready in time.
+                exit /b 1
+
+                :docker_ready
+                docker compose -f "%COMPOSE_FILE%" up -d --wait --wait-timeout __DOCKER_TIMEOUT__
+                endlocal
+                """.replace("__DOCKER_DESKTOP_PATH__", dockerDesktopPath)
+                .replace("__COMPOSE_FILE__", composeFile.toAbsolutePath().toString())
+                .replace("__DOCKER_TIMEOUT__", Integer.toString(DOCKER_READY_TIMEOUT_SECONDS));
     }
 
-    private static String dockerComposeContent() {
+    private static String macosDockerScript(Path composeFile, Environment environment) {
+        String dockerAppName = environment.getProperty("app.docker.desktop.macos-app-name", "Docker");
+        return unixDockerScript(composeFile, """
+                if ! docker info >/dev/null 2>&1; then
+                  echo "Docker daemon is not ready. Starting Docker Desktop for macOS..."
+                  open -a "__DOCKER_APP_NAME__" || true
+                fi
+                """.replace("__DOCKER_APP_NAME__", dockerAppName));
+    }
+
+    private static String linuxDockerScript(Path composeFile) {
+        return unixDockerScript(composeFile, """
+                if ! docker info >/dev/null 2>&1; then
+                  echo "Docker daemon is not ready. Attempting to start Docker on Linux..."
+                  if command -v systemctl >/dev/null 2>&1; then
+                    systemctl --user start docker-desktop >/dev/null 2>&1 || true
+                    sudo -n systemctl start docker >/dev/null 2>&1 || true
+                  fi
+                  if command -v service >/dev/null 2>&1; then
+                    sudo -n service docker start >/dev/null 2>&1 || true
+                  fi
+                fi
+                """);
+    }
+
+    private static String unixDockerScript(Path composeFile, String startDockerBlock) {
         return """
-            services:
-              mysql:
-                image: mysql:8.0
-                container_name: final-assignment-mysql
-                environment:
-                  MYSQL_ROOT_PASSWORD: root
-                  MYSQL_DATABASE: traffic
-                  MYSQL_USER: test
-                  MYSQL_PASSWORD: test
-                ports:
-                  - "3306:3306"
-                healthcheck:
-                  test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-uroot", "-proot"]
-                  interval: 10s
-                  timeout: 5s
-                  retries: 10
+                #!/usr/bin/env sh
+                set -eu
+                COMPOSE_FILE="__COMPOSE_FILE__"
 
-              redis:
-                image: redis:7
-                container_name: final-assignment-redis
-                ports:
-                  - "6379:6379"
-                healthcheck:
-                  test: ["CMD", "redis-cli", "ping"]
-                  interval: 10s
-                  timeout: 5s
-                  retries: 10
+                if ! command -v docker >/dev/null 2>&1; then
+                  echo "Docker CLI was not found in PATH."
+                  exit 1
+                fi
 
-              redpanda:
-                image: redpandadata/redpanda:v24.1.2
-                container_name: final-assignment-redpanda
-                command:
-                  - redpanda
-                  - start
-                  - --overprovisioned
-                  - --smp
-                  - "1"
-                  - --memory
-                  - 1G
-                  - --reserve-memory
-                  - 0M
-                  - --node-id
-                  - "0"
-                  - --check=false
-                  - --kafka-addr
-                  - PLAINTEXT://0.0.0.0:9092
-                  - --advertise-kafka-addr
-                  - PLAINTEXT://localhost:9092
-                ports:
-                  - "9092:9092"
-                  - "9644:9644"
-                healthcheck:
-                  test: ["CMD-SHELL", "rpk cluster health | grep -E 'Healthy:.+true'"]
-                  interval: 10s
-                  timeout: 5s
-                  retries: 12
+                __START_DOCKER_BLOCK__
 
-              elasticsearch:
-                image: docker.elastic.co/elasticsearch/elasticsearch:8.17.3
-                container_name: final-assignment-elasticsearch
-                environment:
-                  discovery.type: single-node
-                  xpack.security.enabled: "false"
-                  ES_JAVA_OPTS: -Xms512m -Xmx512m
-                ports:
-                  - "9200:9200"
-                healthcheck:
-                  test: ["CMD-SHELL", "curl -fsS http://localhost:9200/_cluster/health || exit 1"]
-                  interval: 15s
-                  timeout: 10s
-                  retries: 12
+                WAIT_SECONDS=0
+                until docker info >/dev/null 2>&1; do
+                  if [ "$WAIT_SECONDS" -ge "__DOCKER_TIMEOUT__" ]; then
+                    echo "Docker daemon did not become ready in time."
+                    exit 1
+                  fi
+                  sleep 2
+                  WAIT_SECONDS=$((WAIT_SECONDS + 2))
+                done
 
-              manticore:
-                image: manticoresearch/manticore:dev
-                container_name: final-assignment-manticore
-                environment:
-                  EXTRA: "1"
-                ports:
-                  - "9306:9306"
-                  - "9308:9308"
-
-            volumes:
-              mysql-data:
-              redis-data:
-            """;
+                docker compose -f "$COMPOSE_FILE" up -d --wait --wait-timeout __DOCKER_TIMEOUT__
+                """.replace("__COMPOSE_FILE__", composeFile.toAbsolutePath().toString())
+                .replace("__START_DOCKER_BLOCK__", startDockerBlock)
+                .replace("__DOCKER_TIMEOUT__", Integer.toString(DOCKER_READY_TIMEOUT_SECONDS));
     }
 
-    private void ensureDockerDesktopReady() {
-        ensureDockerDesktopReady(dockerDesktopPath);
+    private static String windowsOllamaScript(Environment environment) {
+        String ollamaExecutable = environment.getProperty("app.ollama.executable", "ollama");
+        return """
+                @echo off
+                setlocal EnableExtensions
+                set "OLLAMA_EXE=__OLLAMA_EXE__"
+
+                if exist "%OLLAMA_EXE%" goto ollama_found
+                where "%OLLAMA_EXE%" >nul 2>&1
+                if errorlevel 1 (
+                  echo Ollama executable was not found in PATH: %OLLAMA_EXE%
+                  exit /b 1
+                )
+                :ollama_found
+
+                powershell -NoProfile -ExecutionPolicy Bypass -Command "try { Invoke-WebRequest -UseBasicParsing http://127.0.0.1:11434/api/tags -TimeoutSec 2 | Out-Null; exit 0 } catch { exit 1 }"
+                if not errorlevel 1 (
+                  echo Ollama is already reachable.
+                  exit /b 0
+                )
+
+                echo Starting Ollama service...
+                start "" /B "%OLLAMA_EXE%" serve
+
+                for /l %%i in (1,1,__OLLAMA_TIMEOUT__) do (
+                  powershell -NoProfile -ExecutionPolicy Bypass -Command "try { Invoke-WebRequest -UseBasicParsing http://127.0.0.1:11434/api/tags -TimeoutSec 2 | Out-Null; exit 0 } catch { exit 1 }"
+                  if not errorlevel 1 goto ollama_ready
+                  timeout /t 1 /nobreak >nul
+                )
+                echo Ollama did not become reachable in time.
+                exit /b 1
+
+                :ollama_ready
+                echo Ollama is ready.
+                endlocal
+                """.replace("__OLLAMA_EXE__", ollamaExecutable)
+                .replace("__OLLAMA_TIMEOUT__", Integer.toString(OLLAMA_READY_TIMEOUT_SECONDS));
     }
 
-    private static void ensureDockerDesktopReady(String dockerDesktopPath) {
-        if (isDockerDaemonAvailable()) {
-            logger.info("Docker Desktop daemon is already available.");
-            return;
-        }
+    private static String unixOllamaScript() {
+        return """
+                #!/usr/bin/env sh
+                set -eu
 
-        startDockerDesktop(dockerDesktopPath);
-        waitForDockerDaemon();
+                if ! command -v ollama >/dev/null 2>&1; then
+                  echo "Ollama executable was not found in PATH."
+                  exit 1
+                fi
+
+                if command -v curl >/dev/null 2>&1 && curl -fsS http://127.0.0.1:11434/api/tags >/dev/null 2>&1; then
+                  echo "Ollama is already reachable."
+                  exit 0
+                fi
+
+                echo "Starting Ollama service..."
+                nohup ollama serve >/tmp/final-assignment-ollama.log 2>&1 &
+
+                WAIT_SECONDS=0
+                while true; do
+                  if command -v curl >/dev/null 2>&1; then
+                    curl -fsS http://127.0.0.1:11434/api/tags >/dev/null 2>&1 && break
+                  else
+                    ollama list >/dev/null 2>&1 && break
+                  fi
+                  if [ "$WAIT_SECONDS" -ge "__OLLAMA_TIMEOUT__" ]; then
+                    echo "Ollama did not become reachable in time."
+                    exit 1
+                  fi
+                  sleep 2
+                  WAIT_SECONDS=$((WAIT_SECONDS + 2))
+                done
+
+                echo "Ollama is ready."
+                """.replace("__OLLAMA_TIMEOUT__", Integer.toString(OLLAMA_READY_TIMEOUT_SECONDS));
     }
 
-    private static boolean isDockerDaemonAvailable() {
-        try {
-            Process process = new ProcessBuilder("docker", "info").start();
-            boolean finished = process.waitFor(30, TimeUnit.SECONDS);
-            return finished && process.exitValue() == 0;
-        } catch (IOException e) {
-            throw new IllegalStateException("Docker CLI was not found. Please install or start Docker Desktop.", e);
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-            throw new IllegalStateException("Interrupted while checking Docker CLI", e);
-        }
+    private static String dockerComposeContent(Environment environment) {
+        String redisImage = environment.getProperty("app.docker.images.redis", "redis:7");
+        String redpandaImage = environment.getProperty("app.docker.images.redpanda", "redpandadata/redpanda:v24.1.2");
+        String elasticsearchImage = environment.getProperty(
+                "app.docker.images.elasticsearch",
+                "docker.elastic.co/elasticsearch/elasticsearch:8.17.3");
+        String manticoreImage = environment.getProperty("app.docker.images.manticore", "manticoresearch/manticore:dev");
+
+        return """
+                services:
+                  redis:
+                    image: __REDIS_IMAGE__
+                    container_name: final-assignment-redis
+                    ports:
+                      - "6379:6379"
+                    volumes:
+                      - redis-data:/data
+                    healthcheck:
+                      test: ["CMD", "redis-cli", "ping"]
+                      interval: 10s
+                      timeout: 5s
+                      retries: 10
+
+                  redpanda:
+                    image: __REDPANDA_IMAGE__
+                    container_name: final-assignment-redpanda
+                    command:
+                      - redpanda
+                      - start
+                      - --overprovisioned
+                      - --smp
+                      - "1"
+                      - --memory
+                      - 1G
+                      - --reserve-memory
+                      - 0M
+                      - --node-id
+                      - "0"
+                      - --check=false
+                      - --kafka-addr
+                      - PLAINTEXT://0.0.0.0:9092
+                      - --advertise-kafka-addr
+                      - PLAINTEXT://localhost:9092
+                    ports:
+                      - "9092:9092"
+                      - "9644:9644"
+                    volumes:
+                      - redpanda-data:/var/lib/redpanda/data
+                    healthcheck:
+                      test: ["CMD-SHELL", "rpk cluster health | grep -E 'Healthy:.+true'"]
+                      interval: 10s
+                      timeout: 5s
+                      retries: 12
+
+                  elasticsearch:
+                    image: __ELASTICSEARCH_IMAGE__
+                    container_name: final-assignment-elasticsearch
+                    environment:
+                      discovery.type: single-node
+                      xpack.security.enabled: "false"
+                      ES_JAVA_OPTS: -Xms512m -Xmx512m
+                    ports:
+                      - "9200:9200"
+                    volumes:
+                      - elasticsearch-data:/usr/share/elasticsearch/data
+                    healthcheck:
+                      test: ["CMD-SHELL", "curl -fsS http://localhost:9200/_cluster/health || exit 1"]
+                      interval: 15s
+                      timeout: 10s
+                      retries: 12
+
+                  manticore:
+                    image: __MANTICORE_IMAGE__
+                    container_name: final-assignment-manticore
+                    environment:
+                      EXTRA: "1"
+                    ports:
+                      - "9306:9306"
+                      - "9308:9308"
+                    volumes:
+                      - manticore-data:/var/lib/manticore
+
+                volumes:
+                  redis-data:
+                  redpanda-data:
+                  elasticsearch-data:
+                  manticore-data:
+                """.replace("__REDIS_IMAGE__", redisImage)
+                .replace("__REDPANDA_IMAGE__", redpandaImage)
+                .replace("__ELASTICSEARCH_IMAGE__", elasticsearchImage)
+                .replace("__MANTICORE_IMAGE__", manticoreImage);
     }
 
-    private static void startDockerDesktop(String dockerDesktopPath) {
-        Path executable = Path.of(dockerDesktopPath);
-        if (!Files.exists(executable)) {
-            throw new IllegalStateException("Docker Desktop executable not found: " + executable);
-        }
-
-        try {
-            logger.info("Starting Docker Desktop: {}", executable);
-            new ProcessBuilder(executable.toString()).start();
-        } catch (IOException e) {
-            throw new IllegalStateException("Failed to start Docker Desktop: " + executable, e);
-        }
-    }
-
-    private static void waitForDockerDaemon() {
-        long deadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(DOCKER_DESKTOP_STARTUP_TIMEOUT_SECONDS);
-        while (System.nanoTime() < deadline) {
-            if (isDockerDaemonAvailable()) {
-                logger.info("Docker Desktop daemon is ready.");
-                return;
-            }
+    private static void executeScriptWithRetry(Path script, Platform platform, Path logFile) {
+        int attempt = 1;
+        while (attempt <= MAX_RETRIES) {
             try {
-                TimeUnit.SECONDS.sleep(2);
-            } catch (InterruptedException e) {
-                Thread.currentThread().interrupt();
-                throw new IllegalStateException("Interrupted while waiting for Docker Desktop daemon", e);
-            }
-        }
-        throw new IllegalStateException(
-            "Docker Desktop daemon did not become ready within "
-                + DOCKER_DESKTOP_STARTUP_TIMEOUT_SECONDS + " seconds");
-    }
-
-    private static boolean isDevProfileActive(Environment environment) {
-        for (String profile : environment.getActiveProfiles()) {
-            if ("dev".equalsIgnoreCase(profile)) {
-                return true;
-            }
-        }
-        return false;
-    }
-
-    private static void executeScriptOnce(String scriptPath, String os) {
-        try {
-            ProcessBuilder builder = new ProcessBuilder(commandForOs(os, scriptPath));
-            builder.redirectErrorStream(true);
-            Process process = builder.start();
-            captureOutputToLog(process, scriptPath);
-
-            if (!process.waitFor(TIMEOUT_MINUTES, TimeUnit.MINUTES)) {
-                process.destroy();
-                throw new IllegalStateException("Script execution timed out after " + TIMEOUT_MINUTES + " minutes");
-            }
-            int exitCode = process.exitValue();
-            if (exitCode != 0) {
-                throw new IllegalStateException("Script failed with exit code: " + exitCode);
-            }
-        } catch (IOException e) {
-            throw new IllegalStateException("Failed to execute script: " + scriptPath, e);
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-            throw new IllegalStateException("Interrupted while executing script: " + scriptPath, e);
-        }
-    }
-
-    private void startOllama(ExecutorService executor) {
-        String os = System.getProperty("os.name").toLowerCase(Locale.ROOT);
-        String path = System.getProperty("user.dir");
-        String powerShell = path + "/finalAssignmentTools/use_deepseek/run.bat";
-        String shell = path + "/finalAssignmentTools/use_deepseek/run.sh";
-        String scriptPath;
-
-        if (os.startsWith("windows")) {
-            scriptPath = powerShell;
-        } else if (os.startsWith("linux") || os.startsWith("mac")) {
-            scriptPath = shell;
-        } else {
-            throw new IllegalStateException("Unsupported operating system: " + os);
-        }
-
-        if (!Files.exists(Path.of(scriptPath))) {
-            throw new IllegalStateException("Script file not found: " + scriptPath);
-        }
-
-        if (isOllamaRunning()) {
-            logger.info("Ollama is already running. Skipping script execution.");
-            return;
-        }
-
-        executeScriptWithRetry(scriptPath, os, executor);
-        logger.info("Ollama script scheduled successfully.");
-    }
-
-    private boolean isOllamaRunning() {
-        try {
-            ProcessBuilder pb;
-            if (System.getProperty("os.name").toLowerCase(Locale.ROOT).startsWith("windows")) {
-                pb = new ProcessBuilder("tasklist");
-            } else {
-                pb = new ProcessBuilder("ps", "aux");
-            }
-            Process process = pb.start();
-            try (BufferedReader reader = new BufferedReader(new InputStreamReader(process.getInputStream()))) {
-                String line;
-                while ((line = reader.readLine()) != null) {
-                    if (line.toLowerCase(Locale.ROOT).contains("ollama")) {
-                        return true;
-                    }
-                }
-            }
-            process.waitFor();
-        } catch (IOException | InterruptedException e) {
-            Thread.currentThread().interrupt();
-            logger.warn("Failed to check Ollama process status", e);
-        }
-        return false;
-    }
-
-    private void executeScriptWithRetry(String scriptPath, String os, ExecutorService executor) {
-        int attempt = 0;
-        boolean success = false;
-
-        while (attempt < MAX_RETRIES && !success) {
-            attempt++;
-            logger.info("Attempt {} of {} to execute script: {}", attempt, MAX_RETRIES, scriptPath);
-
-            try {
-                ProcessBuilder builder = new ProcessBuilder(commandFor(os, scriptPath));
+                appendLogHeader(logFile, script, attempt);
+                ProcessBuilder builder = new ProcessBuilder(commandFor(platform, script));
                 builder.redirectErrorStream(true);
+                builder.redirectOutput(ProcessBuilder.Redirect.appendTo(logFile.toFile()));
 
+                logger.info("Executing startup script attempt {}/{}: {}", attempt, MAX_RETRIES, script);
                 Process process = builder.start();
-                executor.submit(() -> captureOutput(process, scriptPath));
-
-                if (!process.waitFor(TIMEOUT_MINUTES, TimeUnit.MINUTES)) {
-                    process.destroy();
-                    throw new IllegalStateException("Script execution timed out after " + TIMEOUT_MINUTES + " minutes");
+                if (!process.waitFor(SCRIPT_TIMEOUT_MINUTES, TimeUnit.MINUTES)) {
+                    process.destroyForcibly();
+                    throw new IllegalStateException(
+                            "Script execution timed out after " + SCRIPT_TIMEOUT_MINUTES + " minutes: " + script);
                 }
 
                 int exitCode = process.exitValue();
                 if (exitCode == 0) {
-                    logger.info("Script executed successfully: {}", scriptPath);
-                    success = true;
-                } else if (attempt == MAX_RETRIES) {
-                    throw new IllegalStateException("Script failed after " + MAX_RETRIES + " attempts with exit code: " + exitCode);
-                } else {
-                    logger.error("Script failed with exit code {}: {}", exitCode, scriptPath);
+                    logger.info("Startup script succeeded: {}", script);
+                    return;
                 }
-            } catch (IOException | InterruptedException e) {
-                if (e instanceof InterruptedException) {
-                    Thread.currentThread().interrupt();
-                }
-                logger.error("Failed to execute script on attempt {}: {}", attempt, scriptPath, e);
+                throw new IllegalStateException("Script failed with exit code " + exitCode + ": " + script);
+            } catch (IOException e) {
                 if (attempt == MAX_RETRIES) {
-                    throw new IllegalStateException("Failed to execute script after " + MAX_RETRIES + " attempts", e);
+                    throw new IllegalStateException("Failed to execute startup script: " + script, e);
                 }
+                logger.warn("Startup script failed on attempt {}/{}: {}", attempt, MAX_RETRIES, script, e);
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+                throw new IllegalStateException("Interrupted while executing startup script: " + script, e);
+            } catch (RuntimeException e) {
+                if (attempt == MAX_RETRIES) {
+                    throw e;
+                }
+                logger.warn("Startup script failed on attempt {}/{}: {}", attempt, MAX_RETRIES, script, e);
             }
 
-            if (!success) {
-                sleepBeforeRetry();
-            }
+            sleepBeforeRetry();
+            attempt++;
         }
     }
 
-    private List<String> commandFor(String os, String scriptPath) {
-        return commandForOs(os, scriptPath);
+    private static void appendLogHeader(Path logFile, Path script, int attempt) throws IOException {
+        String header = System.lineSeparator()
+                + "===== " + script.getFileName() + " attempt " + attempt + " ====="
+                + System.lineSeparator();
+        Files.writeString(logFile, header, StandardCharsets.UTF_8,
+                StandardOpenOption.CREATE, StandardOpenOption.APPEND);
     }
 
-    private static List<String> commandForOs(String os, String scriptPath) {
-        List<String> command = new ArrayList<>();
-        if (os.startsWith("windows")) {
-            command.add("cmd.exe");
-            command.add("/c");
-        } else {
-            command.add("sh");
+    private static List<String> commandFor(Platform platform, Path script) {
+        if (platform.isWindows()) {
+            return List.of("cmd.exe", "/c", script.toAbsolutePath().toString());
         }
-        command.add(scriptPath);
-        return command;
+        return List.of("sh", script.toAbsolutePath().toString());
     }
 
-    private void sleepBeforeRetry() {
+    private static void sleepBeforeRetry() {
         try {
-            Thread.sleep(5000);
-        } catch (InterruptedException ie) {
+            TimeUnit.SECONDS.sleep(5);
+        } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
-            logger.warn("Interrupted during retry delay", ie);
+            throw new IllegalStateException("Interrupted while waiting to retry startup script", e);
         }
     }
 
-    private void captureOutput(Process process, String scriptPath) {
-        captureOutputToLog(process, scriptPath);
+    private static boolean isEnabled(Environment environment, String propertyName) {
+        return Boolean.parseBoolean(environment.getProperty(propertyName, "false"));
     }
 
-    private static void captureOutputToLog(Process process, String scriptPath) {
-        try (BufferedReader reader = new BufferedReader(new InputStreamReader(process.getInputStream()));
-             FileWriter writer = new FileWriter(LOG_FILE, true)) {
-            String line;
-            while ((line = reader.readLine()) != null) {
-                logger.info("[Script Output] {}: {}", scriptPath, line);
-                writer.write(line + System.lineSeparator());
-                writer.flush();
+    private static boolean isDevProfileActive(Environment environment) {
+        return Arrays.stream(environment.getActiveProfiles())
+                .anyMatch(profile -> "dev".equalsIgnoreCase(profile));
+    }
+
+    private static Path startupDirectory(Environment environment) {
+        String configured = environment.getProperty("app.startup-script.output-dir");
+        if (configured != null && !configured.isBlank()) {
+            return Path.of(configured).toAbsolutePath();
+        }
+        return Path.of(System.getProperty("user.dir"), "target", "dev-startup").toAbsolutePath();
+    }
+
+    private enum Platform {
+        WINDOWS,
+        LINUX,
+        MACOS;
+
+        static Platform detect() {
+            String osName = System.getProperty("os.name").toLowerCase(Locale.ROOT);
+            if (osName.startsWith("windows")) {
+                return WINDOWS;
             }
-        } catch (IOException e) {
-            logger.error("Failed to capture script output: {}", scriptPath, e);
+            if (osName.startsWith("mac") || osName.contains("darwin")) {
+                return MACOS;
+            }
+            if (osName.startsWith("linux")) {
+                return LINUX;
+            }
+            throw new IllegalStateException("Unsupported operating system for local startup scripts: " + osName);
+        }
+
+        boolean isWindows() {
+            return this == WINDOWS;
         }
     }
 }

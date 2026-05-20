@@ -139,7 +139,7 @@ public class AuthController {
                         LOG.log(Level.WARNING, "Register failed for username: {0}, error: {1}",
                                 new Object[]{registerRequest.getUsername(), ex.getClass().getSimpleName()});
                         return ResponseEntity.status(HttpStatus.CONFLICT)
-                                .body(Map.of("error", "Registration failed"));
+                                .body(Map.of("error", registerErrorMessage(ex)));
                     }
                 }, VIRTUAL_THREAD_EXECUTOR)
                 .exceptionally(throwable -> {
@@ -148,6 +148,20 @@ public class AuthController {
                     return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
                             .body(Map.of("error", "Internal server error"));
                 });
+    }
+
+    private String registerErrorMessage(Exception ex) {
+        String message = ex.getMessage();
+        if (message == null || message.isBlank()) {
+            return "Registration failed";
+        }
+        if (message.contains("Username already exists")) {
+            return "Username already exists";
+        }
+        if (message.contains("Register request duplicated")) {
+            return "Register request duplicated";
+        }
+        return "Registration failed";
     }
 
     @PostMapping("/refresh")

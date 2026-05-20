@@ -655,6 +655,21 @@ CREATE TABLE `sys_role_permission` (
 -- ============================================================================
 
 -- 7.1 登录日志表
+-- 6.6 refresh token table
+DROP TABLE IF EXISTS `refresh_tokens`;
+CREATE TABLE `refresh_tokens` (
+    `id` BIGINT NOT NULL AUTO_INCREMENT,
+    `token` VARCHAR(255) NOT NULL,
+    `user_id` BIGINT UNSIGNED NOT NULL,
+    `expires_at` DATETIME NOT NULL,
+    `revoked` BOOLEAN NOT NULL DEFAULT FALSE,
+    `created_at` DATETIME NOT NULL,
+    PRIMARY KEY (`id`),
+    KEY `idx_refresh_tokens_user_revoked` (`user_id`, `revoked`),
+    KEY `idx_refresh_tokens_expires_at` (`expires_at`),
+    CONSTRAINT `fk_refresh_tokens_user` FOREIGN KEY (`user_id`) REFERENCES `sys_user` (`user_id`) ON DELETE CASCADE ON UPDATE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='refresh token table';
+
 DROP TABLE IF EXISTS `audit_login_log`;
 CREATE TABLE `audit_login_log` (
     `log_id` BIGINT UNSIGNED NOT NULL AUTO_INCREMENT COMMENT '日志ID',
@@ -1086,7 +1101,7 @@ INSERT INTO `sys_dict` (`dict_type`, `dict_code`, `dict_label`, `dict_value`, `d
 
 -- 10.3 初始化超级管理员
 INSERT INTO `sys_user` (`username`, `password`, `real_name`, `gender`, `contact_number`, `email`, `department`, `position`, `status`) VALUES
-('admin', '$2a$10$N.ZOnHkGqe.MvV57Ym2/Pe4wxJPxlhHiJ8QALj3T5xJrJzKKLX5Ke', '系统管理员', 'Male', '13800138000', 'admin@system.com', '信息中心', '系统管理员', 'Active');
+('admin', '$2a$12$EJ1TJIbDPpCvcNQgc4yJn.lG9VcvQCxTA6gtSqudiNiuwDUOAPHrC', '系统管理员', 'Male', '13800138000', 'admin@system.com', '信息中心', '系统管理员', 'Active');
 -- 注：密码为 admin123，实际使用时应使用 BCrypt 加密
 
 -- 10.4 初始化角色

@@ -132,7 +132,6 @@ public class SysUserRoleService {
     }
 
     @Transactional(readOnly = true)
-    @Cacheable(cacheNames = CACHE_NAME, key = "'user:' + #userId + ':' + #page + ':' + #size", unless = "#result == null || #result.isEmpty()")
     public List<SysUserRole> findByUserId(Long userId, int page, int size) {
         requirePositive(userId, "User ID");
         validatePagination(page, size);

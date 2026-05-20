@@ -7,15 +7,18 @@ import com.tutict.finalassignmentbackend.dto.response.TokenResponse;
 import com.tutict.finalassignmentbackend.dto.response.UserProfileResponse;
 import com.tutict.finalassignmentbackend.entity.AuditLoginLog;
 import com.tutict.finalassignmentbackend.entity.DriverInformation;
+import com.tutict.finalassignmentbackend.entity.SysRequestHistory;
 import com.tutict.finalassignmentbackend.entity.SysRole;
 import com.tutict.finalassignmentbackend.entity.SysUser;
 import com.tutict.finalassignmentbackend.entity.SysUserRole;
 import com.tutict.finalassignmentbackend.enums.DataScope;
 import com.tutict.finalassignmentbackend.enums.RoleType;
 import com.tutict.finalassignmentbackend.exception.EntityNotFoundException;
+import com.tutict.finalassignmentbackend.mapper.SysRequestHistoryMapper;
 import lombok.Data;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.cache.annotation.CacheEvict;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
@@ -47,6 +50,7 @@ public class AuthWsService {
     private final SysUserService sysUserService;
     private final SysRoleService sysRoleService;
     private final SysUserRoleService sysUserRoleService;
+    private final SysRequestHistoryMapper sysRequestHistoryMapper;
     private final PasswordEncoder passwordEncoder;
     private final RefreshTokenService refreshTokenService;
     private final TokenBlacklistService tokenBlacklistService;
@@ -58,6 +62,7 @@ public class AuthWsService {
                          SysUserService sysUserService,
                          SysRoleService sysRoleService,
                          SysUserRoleService sysUserRoleService,
+                         SysRequestHistoryMapper sysRequestHistoryMapper,
                          PasswordEncoder passwordEncoder,
                          RefreshTokenService refreshTokenService,
                          TokenBlacklistService tokenBlacklistService,
@@ -67,6 +72,7 @@ public class AuthWsService {
         this.sysUserService = sysUserService;
         this.sysRoleService = sysRoleService;
         this.sysUserRoleService = sysUserRoleService;
+        this.sysRequestHistoryMapper = sysRequestHistoryMapper;
         this.passwordEncoder = passwordEncoder;
         this.refreshTokenService = refreshTokenService;
         this.tokenBlacklistService = tokenBlacklistService;
@@ -199,20 +205,26 @@ public class AuthWsService {
         validateRegisterRequest(registerRequest);
         logger.info(() -> String.format("Registering user: %s", registerRequest.getUsername()));
 
-        if (sysUserService.isUsernameExists(registerRequest.getUsername())) {
-            throw new RuntimeException("Username already exists: " + registerRequest.getUsername());
-        }
-
+        SysRequestHistory registerHistory = null;
         String idempotencyKey = registerRequest.getIdempotencyKey();
         if (StringUtils.hasText(idempotencyKey)) {
-            SysUser probe = new SysUser();
-            probe.setUsername(registerRequest.getUsername());
-            try {
-                sysUserService.checkAndInsertIdempotency(idempotencyKey, probe, "create");
-            } catch (RuntimeException e) {
-                logger.log(Level.WARNING, "Duplicate register request detected, key={0}", idempotencyKey);
-                throw new RuntimeException("Register request duplicated", e);
+            SysRequestHistory existing = sysRequestHistoryMapper.selectByIdempotencyKey(idempotencyKey);
+            if (existing != null) {
+                return replayRegisterRequest(registerRequest, existing);
             }
+            try {
+                registerHistory = createRegisterHistory(registerRequest);
+            } catch (DataIntegrityViolationException e) {
+                SysRequestHistory racingRequest = sysRequestHistoryMapper.selectByIdempotencyKey(idempotencyKey);
+                if (racingRequest != null) {
+                    return replayRegisterRequest(registerRequest, racingRequest);
+                }
+                throw e;
+            }
+        }
+
+        if (sysUserService.isUsernameExists(registerRequest.getUsername())) {
+            throw new RuntimeException("Username already exists: " + registerRequest.getUsername());
         }
 
         SysUser newUser = new SysUser();
@@ -231,6 +243,7 @@ public class AuthWsService {
 
         SysRole role = resolveOrCreateRole(PUBLIC_REGISTER_ROLE);
         assignRole(savedUser, role);
+        markRegisterHistorySuccess(registerHistory, savedUser.getUserId());
 
         logger.info(() -> String.format("User registered successfully: %s", registerRequest.getUsername()));
         return "CREATED";
@@ -245,6 +258,57 @@ public class AuthWsService {
             logger.warning("No users found in the system");
         }
         return users;
+    }
+
+    private SysRequestHistory createRegisterHistory(RegisterRequest registerRequest) {
+        SysRequestHistory history = new SysRequestHistory();
+        history.setIdempotencyKey(registerRequest.getIdempotencyKey());
+        history.setRequestMethod("POST");
+        history.setRequestUrl("/api/auth/register");
+        history.setRequestParams("username=" + truncate(registerRequest.getUsername(), 240));
+        history.setBusinessType("AUTH_REGISTER");
+        history.setBusinessStatus("PROCESSING");
+        history.setCreatedAt(LocalDateTime.now());
+        history.setUpdatedAt(LocalDateTime.now());
+        sysRequestHistoryMapper.insert(history);
+        return history;
+    }
+
+    private String replayRegisterRequest(RegisterRequest registerRequest, SysRequestHistory history) {
+        if (!isRegisterHistory(history)) {
+            logger.log(Level.WARNING, "Idempotency key belongs to another operation, key={0}",
+                    registerRequest.getIdempotencyKey());
+            throw new RuntimeException("Register request duplicated");
+        }
+        SysUser existingUser = sysUserService.findByUsername(registerRequest.getUsername());
+        if (existingUser != null && authenticateUser(existingUser, registerRequest.getPassword())) {
+            SysRole role = resolveOrCreateRole(PUBLIC_REGISTER_ROLE);
+            ensureRole(existingUser, role);
+            markRegisterHistorySuccess(history, existingUser.getUserId());
+            logger.info(() -> String.format(
+                    "Replayed idempotent register success for user=%s, key=%s",
+                    registerRequest.getUsername(), registerRequest.getIdempotencyKey()));
+            return "CREATED";
+        }
+        logger.log(Level.WARNING, "Duplicate register request detected, key={0}", registerRequest.getIdempotencyKey());
+        throw new RuntimeException("Register request duplicated");
+    }
+
+    private boolean isRegisterHistory(SysRequestHistory history) {
+        return history != null
+                && "AUTH_REGISTER".equalsIgnoreCase(history.getBusinessType())
+                && "/api/auth/register".equals(history.getRequestUrl());
+    }
+
+    private void markRegisterHistorySuccess(SysRequestHistory history, Long userId) {
+        if (history == null) {
+            return;
+        }
+        history.setBusinessStatus("SUCCESS");
+        history.setBusinessId(userId);
+        history.setRequestParams("DONE");
+        history.setUpdatedAt(LocalDateTime.now());
+        sysRequestHistoryMapper.updateById(history);
     }
 
     private RoleAggregation requireRoles(SysUser user, String usernameForLog) {
@@ -348,12 +412,22 @@ public class AuthWsService {
         sysUserRoleService.createRelation(relation);
     }
 
+    private void ensureRole(SysUser user, SysRole role) {
+        List<SysUserRole> relations = sysUserRoleService.findByUserIdAndRoleId(
+                user.getUserId(), role.getRoleId(), 1, 1);
+        if (!relations.isEmpty()) {
+            return;
+        }
+        assignRole(user, role);
+    }
+
     private void recordFailedLogin(String username, String reason) {
         AuditLoginLog loginLog = new AuditLoginLog();
         loginLog.setUsername(username);
         loginLog.setLoginTime(LocalDateTime.now());
-        loginLog.setLoginResult("FAILED");
+        loginLog.setLoginResult("Failed");
         loginLog.setFailureReason(reason);
+        loginLog.setLoginIp("0.0.0.0");
         auditLoginLogService.createAuditLoginLog(loginLog);
     }
 
@@ -451,6 +525,13 @@ public class AuthWsService {
             case DEPARTMENT_AND_SUB -> 4;
             case ALL -> 5;
         };
+    }
+
+    private String truncate(String value, int maxLength) {
+        if (value == null || value.length() <= maxLength) {
+            return value;
+        }
+        return value.substring(0, maxLength);
     }
 
     private static class RoleAggregation {

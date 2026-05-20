@@ -1,6 +1,34 @@
 spring:
   datasource:
     password: dev_password_local
+  kafka:
+    listener:
+      auto-startup: false
+  ai:
+    ollama:
+      init:
+        pull-model-strategy: never
 
 backend:
   url: http://localhost:8080
+
+app:
+  dev-services:
+    redpanda:
+      enabled: false
+  docker:
+    startup-script:
+      enabled: true
+  ollama:
+    startup-script:
+      enabled: true
+  elasticsearch:
+    fallback:
+      enabled: true
+    sync:
+      enabled: false
+
+management:
+  health:
+    elasticsearch:
+      enabled: false

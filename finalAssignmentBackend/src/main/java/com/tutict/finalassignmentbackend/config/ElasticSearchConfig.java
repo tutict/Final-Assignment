@@ -85,6 +85,7 @@ import com.tutict.finalassignmentbackend.repository.SysUserRoleSearchRepository;
 import com.tutict.finalassignmentbackend.repository.SysUserSearchRepository;
 import com.tutict.finalassignmentbackend.repository.VehicleInformationSearchRepository;
 import jakarta.annotation.PostConstruct;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.Lazy;
 import org.springframework.context.annotation.Profile;
@@ -102,6 +103,8 @@ import java.util.logging.Logger;
 public class ElasticSearchConfig {
 
     private static final Logger LOG = Logger.getLogger(ElasticSearchConfig.class.getName());
+    @Value("${app.elasticsearch.sync.enabled:true}")
+    private boolean syncEnabled;
     private final VehicleInformationMapper vehicleInformationMapper;
     private final DriverInformationMapper driverInformationMapper;
     private final DriverVehicleMapper driverVehicleMapper;
@@ -235,6 +238,10 @@ public class ElasticSearchConfig {
 
     @PostConstruct
     public void syncDatabaseToElasticsearch() {
+        if (!syncEnabled) {
+            LOG.log(Level.INFO, "Database to Elasticsearch startup sync is disabled.");
+            return;
+        }
         LOG.log(Level.INFO, "开始执行数据库 -> Elasticsearch 全量同步任务");
 
         syncEntities("vehicle_information",
