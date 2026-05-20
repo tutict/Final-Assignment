@@ -20,7 +20,6 @@ import 'package:final_assignment_front/shared/utils/navigation_helper.dart';
 /// UserDashboardController 管理用户主页的主线控制器，包含主要的进入流程、数据处理和界面的控制。
 
 class UserDashboardController extends GetxController {
-  final scaffoldKey = GlobalKey<ScaffoldState>();
   final caseCardDataList = <CaseCardData>[].obs;
   var selectedStyle = 'Basic'.obs;
   final currentTheme = 'Light'.obs;
@@ -42,6 +41,8 @@ class UserDashboardController extends GetxController {
   final offenseApi = OffenseInformationControllerApi();
   final roleApi = RoleManagementControllerApi();
   Widget? Function(String routeName)? pageResolver;
+  Future<void>? _loadUserFuture;
+  bool _authRedirectScheduled = false;
 
   @override
   void onInit() {
@@ -61,50 +62,69 @@ class UserDashboardController extends GetxController {
   Future<void> _loadTheme() async {
     final prefs = await SharedPreferences.getInstance();
     final storedTheme = prefs.getString('userTheme_${selectedStyle.value}');
-    if (storedTheme != null) {
+    final sharedDarkMode = prefs.getBool('isDarkMode');
+    if (sharedDarkMode != null) {
+      currentTheme.value = sharedDarkMode ? 'Dark' : 'Light';
+    } else if (storedTheme != null) {
       currentTheme.value = storedTheme;
-      _applyTheme();
     } else {
       final brightness =
           WidgetsBinding.instance.platformDispatcher.platformBrightness;
       currentTheme.value = brightness == Brightness.dark ? 'Dark' : 'Light';
-      _applyTheme();
-      await prefs.setString(
-          'userTheme_${selectedStyle.value}', currentTheme.value);
     }
+    _applyTheme();
+    await prefs.setBool('isDarkMode', currentTheme.value == 'Dark');
+    await prefs.setString(
+        'userTheme_${selectedStyle.value}', currentTheme.value);
   }
 
-  Future<void> _loadUserFromPrefs() async {
+  Future<void> _loadUserFromPrefs() {
+    final pendingLoad = _loadUserFuture;
+    if (pendingLoad != null) return pendingLoad;
+
+    final load = _loadUserFromPrefsInternal();
+    _loadUserFuture = load.whenComplete(() => _loadUserFuture = null);
+    return _loadUserFuture!;
+  }
+
+  Future<void> _loadUserFromPrefsInternal() async {
     isLoading.value = true;
     try {
       final prefs = await SharedPreferences.getInstance();
-      final jwtToken = prefs.getString('jwtToken');
-      final userName = prefs.getString('userName');
-      final userEmail = prefs.getString('userEmail');
+      final jwtToken =
+          prefs.getString('jwtToken') ?? prefs.getString('jwt_token');
+      final userName = prefs.getString('userName') ??
+          prefs.getString('username') ??
+          prefs.getString('displayName');
+      final userEmail = prefs.getString('userEmail') ??
+          prefs.getString('email') ??
+          (userName != null && userName.contains('@') ? userName : null);
       final userRole = prefs.getString('userRole');
 
       developer.log(
           'Loading user from prefs: jwtToken=$jwtToken, userName=$userName, userEmail=$userEmail, userRole=$userRole');
 
-      if (jwtToken != null && userName != null && userEmail != null) {
+      if (jwtToken != null && jwtToken.isNotEmpty && userName != null) {
+        _authRedirectScheduled = false;
+        final resolvedEmail = userEmail ?? userName;
         currentUser.value = Profile(
           photo: const AssetImage(ImageRasterPath.avatar1),
           name: userName,
-          email: userEmail,
+          email: resolvedEmail,
         );
         currentDriverName.value = userName;
-        currentEmail.value = userEmail;
+        currentEmail.value = resolvedEmail;
+        await prefs.setString('userEmail', resolvedEmail);
+        await prefs.setString('email', resolvedEmail);
         await offenseApi.initializeWithJwt();
         await roleApi.initializeWithJwt();
         await _loadUserProfile();
       } else {
-        _showErrorSnackBar('请先登录以访问管理功能');
-        _redirectToLogin();
+        _redirectToLogin(message: '请先登录以访问管理功能');
       }
     } catch (e) {
       developer.log('Error loading user from prefs: $e');
-      _showErrorSnackBar('加载用户信息失败: $e');
-      _redirectToLogin();
+      _redirectToLogin(message: '加载用户信息失败: $e');
     } finally {
       isLoading.value = false;
     }
@@ -119,7 +139,20 @@ class UserDashboardController extends GetxController {
       final profile = await Get.find<UserProfileService>().getProfile();
       final driverId = profile.driverId;
       if (driverId == null) {
-        throw Exception('您的账户尚未关联司机档案，请联系管理员');
+        final resolvedName = profile.displayName ?? profile.username;
+        final resolvedEmail = profile.email ??
+            (currentEmail.value.isNotEmpty
+                ? currentEmail.value
+                : profile.username);
+        updateCurrentUser(resolvedName, resolvedEmail);
+        await prefs.setString('userName', resolvedName);
+        await prefs.setString('userEmail', resolvedEmail);
+        await prefs.setString('authUserId', profile.authUserId.toString());
+        await prefs.setString('userId', profile.authUserId.toString());
+        developer.log(
+          'User has no linked driver profile yet; using account profile only.',
+        );
+        return;
       }
 
       final driverApi = DriverInformationControllerApi();
@@ -158,7 +191,12 @@ class UserDashboardController extends GetxController {
     await _loadUserFromPrefs();
   }
 
-  void _redirectToLogin() {
+  void _redirectToLogin({String? message}) {
+    if (_authRedirectScheduled) return;
+    _authRedirectScheduled = true;
+    if (message != null) {
+      _showErrorSnackBar(message);
+    }
     NavigationHelper.offAllNamed(Routes.login);
   }
 
@@ -289,6 +327,7 @@ class UserDashboardController extends GetxController {
 
   void _persistThemeSelection() {
     SharedPreferences.getInstance().then((prefs) {
+      prefs.setBool('isDarkMode', currentTheme.value == 'Dark');
       prefs.setString('userTheme_${selectedStyle.value}', currentTheme.value);
     });
   }
@@ -297,9 +336,7 @@ class UserDashboardController extends GetxController {
     exitSidebarContent();
   }
 
-  void openDrawer() => isDesktop.value
-      ? isSidebarOpen.value = true
-      : scaffoldKey.currentState?.openDrawer();
+  void openDrawer() => isSidebarOpen.value = true;
 
   void closeSidebar() => isDesktop.value ? isSidebarOpen.value = false : null;
 

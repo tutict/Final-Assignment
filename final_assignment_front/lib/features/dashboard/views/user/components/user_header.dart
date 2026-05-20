@@ -7,104 +7,71 @@ class UserHeader extends StatelessWidget {
   Widget build(BuildContext context) {
     return LayoutBuilder(
       builder: (context, constraints) {
+        final theme = Theme.of(context);
+        final scheme = theme.colorScheme;
+        final dark = theme.brightness == Brightness.dark;
         final double maxWidth = constraints.maxWidth;
-
-        // TodayText 宽度占屏幕宽度的 25%
-        final double todayTextWidth = maxWidth * 0.25;
-        final double clampedTodayTextWidth =
-            (todayTextWidth - 38.0).clamp(80.0, 262.0);
-
-        // 动态调整字体大小
-        final double locationFontSize =
-            (10.0 + (maxWidth - 300) / 100).clamp(10.0, 14.0);
-        final double dateFontSize =
-            (8.0 + (maxWidth - 300) / 100).clamp(8.0, 10.0);
+        final bool showBrandText = maxWidth >= 520;
+        final double brandWidth = showBrandText ? 300 : 48;
 
         return SizedBox(
           width: maxWidth,
-          height: 50.0, // 保持高度，与优化后的搜索栏匹配
+          height: 50.0,
           child: Row(
             crossAxisAlignment: CrossAxisAlignment.center,
             children: [
               SizedBox(
-                width: clampedTodayTextWidth,
-                child: TodayText(
-                  locationStyle: TextStyle(
-                    fontSize: locationFontSize,
-                    fontWeight: FontWeight.bold,
-                    color: Colors.blue[900],
-                  ),
-                  dateStyle: TextStyle(
-                    fontSize: dateFontSize,
-                    color: Colors.grey[900],
-                  ),
-                ),
+                width: brandWidth,
+                child: _UserHeaderBrand(showText: showBrandText),
               ),
-              const SizedBox(width: 105.0), // 保持间距
+              const SizedBox(width: 16),
               Expanded(
                 child: Container(
                   decoration: BoxDecoration(
-                    borderRadius: BorderRadius.circular(12), // 与搜索栏一致
-                    gradient: LinearGradient(
-                      colors: [
-                        Colors.white.withValues(alpha: 0.98),
-                        Colors.grey.shade100.withValues(alpha: 0.9),
-                      ],
-                      begin: Alignment.topLeft,
-                      end: Alignment.bottomRight,
+                    color: scheme.surfaceContainerHighest
+                        .withValues(alpha: dark ? 0.36 : 0.64),
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(
+                      color: scheme.outlineVariant.withValues(alpha: 0.55),
                     ),
-                    boxShadow: [
-                      BoxShadow(
-                        color: Colors.black.withValues(alpha: 0.1),
-                        offset: const Offset(0, 6),
-                        blurRadius: 12,
-                        spreadRadius: 1,
-                      ),
-                    ],
                   ),
                   child: TextField(
                     decoration: InputDecoration(
                       filled: true,
                       fillColor: Colors.transparent,
                       border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(12),
+                        borderRadius: BorderRadius.circular(8),
                         borderSide: BorderSide.none,
                       ),
                       enabledBorder: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(12),
-                        borderSide: BorderSide(
-                          color: Colors.grey.withValues(alpha: 0.4),
-                          width: 1.2,
-                        ),
+                        borderRadius: BorderRadius.circular(8),
+                        borderSide: BorderSide.none,
                       ),
                       focusedBorder: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(12),
+                        borderRadius: BorderRadius.circular(8),
                         borderSide: BorderSide(
-                          color: Theme.of(context)
-                              .colorScheme
-                              .primary
-                              .withValues(alpha: 0.8),
-                          width: 2,
+                          color: scheme.primary.withValues(alpha: 0.78),
+                          width: 1.4,
                         ),
                       ),
                       prefixIcon: Icon(
                         EvaIcons.search,
-                        color: Colors.grey.shade700,
+                        color: scheme.onSurfaceVariant,
                         size: 24,
                       ),
                       hintText: "请输入...",
                       hintStyle: TextStyle(
-                        color: Colors.grey.shade600,
+                        color: scheme.onSurfaceVariant,
                         fontSize: 16,
                         fontWeight: FontWeight.w400,
                       ),
                       contentPadding: const EdgeInsets.only(
                         left: 20.0,
                         right: 20.0,
-                        top: 18.0, // 提示文字稍微下移
-                        bottom: 14.0,
+                        top: 10.0,
+                        bottom: 10.0,
                       ),
-                      isDense: false,
+                      isDense: true,
                       alignLabelWithHint: true,
                     ),
                     textAlignVertical: const TextAlignVertical(y: -0.2),
@@ -112,11 +79,11 @@ class UserHeader extends StatelessWidget {
                       FocusScope.of(context).unfocus();
                     },
                     textInputAction: TextInputAction.search,
-                    style: const TextStyle(
-                      color: Colors.black87,
+                    style: TextStyle(
+                      color: scheme.onSurface,
                       fontSize: 17,
                       fontWeight: FontWeight.w400,
-                      letterSpacing: 0.2,
+                      letterSpacing: 0,
                     ),
                   ),
                 ),
@@ -125,6 +92,73 @@ class UserHeader extends StatelessWidget {
           ),
         );
       },
+    );
+  }
+}
+
+class _UserHeaderBrand extends StatelessWidget {
+  const _UserHeaderBrand({required this.showText});
+
+  final bool showText;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final scheme = theme.colorScheme;
+
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Container(
+          width: 40,
+          height: 40,
+          padding: const EdgeInsets.all(7),
+          decoration: BoxDecoration(
+            color: scheme.primaryContainer.withValues(alpha: 0.8),
+            borderRadius: BorderRadius.circular(8),
+            border: Border.all(
+              color: scheme.outlineVariant.withValues(alpha: 0.45),
+            ),
+          ),
+          child: const Image(
+            image: AssetImage(ImageRasterPath.logo4),
+            fit: BoxFit.contain,
+          ),
+        ),
+        if (showText) ...[
+          const SizedBox(width: 10),
+          Flexible(
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  '交通违法行为处理管理系统',
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: theme.textTheme.titleSmall?.copyWith(
+                    color: scheme.onSurface,
+                    fontSize: 14,
+                    fontWeight: FontWeight.w800,
+                    letterSpacing: 0,
+                  ),
+                ),
+                Text(
+                  '驾驶员端',
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: theme.textTheme.labelSmall?.copyWith(
+                    color: scheme.onSurfaceVariant,
+                    fontSize: 11,
+                    fontWeight: FontWeight.w500,
+                    letterSpacing: 0,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ],
     );
   }
 }

@@ -17,7 +17,6 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:final_assignment_front/shared/utils/navigation_helper.dart';
 
 class ManagerDashboardController extends GetxController {
-  final scaffoldKey = GlobalKey<ScaffoldState>();
   final caseCardDataList = <CaseCardData>[].obs;
   var selectedStyle = 'Basic'.obs;
   final currentTheme = 'Light'.obs;
@@ -53,17 +52,20 @@ class ManagerDashboardController extends GetxController {
     final prefs = await SharedPreferences.getInstance();
     final themeKey = 'dashboardTheme_${selectedStyle.value}';
     final storedTheme = prefs.getString(themeKey);
-    if (storedTheme != null) {
+    final sharedDarkMode = prefs.getBool('isDarkMode');
+    if (sharedDarkMode != null) {
+      currentTheme.value = sharedDarkMode ? 'Dark' : 'Light';
+    } else if (storedTheme != null) {
       currentTheme.value = storedTheme;
-      _applyTheme();
     } else {
       final systemBrightness =
           WidgetsBinding.instance.platformDispatcher.platformBrightness;
       currentTheme.value =
           systemBrightness == Brightness.dark ? 'Dark' : 'Light';
-      _applyTheme();
-      await prefs.setString(themeKey, currentTheme.value);
     }
+    _applyTheme();
+    await prefs.setBool('isDarkMode', currentTheme.value == 'Dark');
+    await prefs.setString(themeKey, currentTheme.value);
   }
 
   void loadAdminData() {
@@ -213,6 +215,7 @@ class ManagerDashboardController extends GetxController {
 
   void _persistThemeSelection() {
     SharedPreferences.getInstance().then((prefs) {
+      prefs.setBool('isDarkMode', currentTheme.value == 'Dark');
       prefs.setString(
           'dashboardTheme_${selectedStyle.value}', currentTheme.value);
     });
@@ -222,9 +225,7 @@ class ManagerDashboardController extends GetxController {
     exitSidebarContent();
   }
 
-  void openDrawer() => isDesktop.value
-      ? isSidebarOpen.value = true
-      : scaffoldKey.currentState?.openDrawer();
+  void openDrawer() => isSidebarOpen.value = true;
 
   void closeSidebar() => isDesktop.value ? isSidebarOpen.value = false : null;
 

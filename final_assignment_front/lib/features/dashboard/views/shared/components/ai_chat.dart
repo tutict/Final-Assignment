@@ -1,4 +1,3 @@
-import 'dart:ui';
 import 'package:final_assignment_front/constants/app_constants.dart';
 import 'package:final_assignment_front/features/dashboard/bindings/chat_binding.dart';
 import 'package:flutter/material.dart';
@@ -90,138 +89,118 @@ class _AiChatState extends State<AiChat> with SingleTickerProviderStateMixin {
           // Fixed Top Component: Search Results
           Obx(() => Visibility(
                 visible: controller.searchResults.isNotEmpty,
-                child: ClipRRect(
-                  borderRadius: BorderRadius.circular(16),
-                  clipBehavior: Clip.hardEdge,
-                  child: BackdropFilter(
-                    filter: ImageFilter.blur(sigmaX: 12, sigmaY: 12),
-                    child: AnimatedContainer(
-                      duration: const Duration(milliseconds: 300),
-                      curve: Curves.easeInOutCubic,
-                      height: isSearchResultsExpanded.value ? 160 : 48,
-                      margin: const EdgeInsets.symmetric(
-                          horizontal: 8, vertical: 8),
-                      decoration: BoxDecoration(
-                        color: Theme.of(context)
-                            .colorScheme
-                            .surface
-                            .withValues(alpha: 0.3),
-                        borderRadius: BorderRadius.circular(16),
-                        border: Border.all(
-                          color: Theme.of(context)
-                              .colorScheme
-                              .outline
-                              .withValues(alpha: 0.2),
-                          width: 1,
-                        ),
-                        boxShadow: [
-                          BoxShadow(
-                            color: Colors.black.withValues(alpha: 0.15),
-                            blurRadius: 10,
-                            offset: const Offset(0, 4),
-                          ),
-                        ],
-                      ),
-                      child: Column(
-                        children: [
-                          // Fixed Title
-                          GestureDetector(
-                            onTap: toggleSearchResults,
-                            child: Container(
-                              padding: const EdgeInsets.symmetric(
-                                  horizontal: 12, vertical: 12),
-                              decoration: BoxDecoration(
-                                border: Border(
-                                  bottom: BorderSide(
-                                    color: Theme.of(context)
-                                        .colorScheme
-                                        .outline
-                                        .withValues(alpha: 0.2),
-                                    width: 1,
-                                  ),
-                                ),
-                              ),
-                              child: Row(
-                                mainAxisAlignment:
-                                    MainAxisAlignment.spaceBetween,
-                                children: [
-                                  Text(
-                                    '搜索结果',
-                                    style: TextStyle(
-                                      fontSize: 16,
-                                      fontWeight: FontWeight.w600,
-                                      color: Theme.of(context)
-                                          .colorScheme
-                                          .primary
-                                          .withValues(alpha: 0.9),
-                                      letterSpacing: 0.5,
-                                    ),
-                                  ),
-                                  Obx(() => Icon(
-                                        isSearchResultsExpanded.value
-                                            ? Icons.expand_less
-                                            : Icons.expand_more,
-                                        size: 20,
-                                        color: Theme.of(context)
-                                            .colorScheme
-                                            .primary
-                                            .withValues(alpha: 0.9),
-                                      )),
-                                ],
+                child: AnimatedContainer(
+                  duration: const Duration(milliseconds: 220),
+                  curve: Curves.easeOutCubic,
+                  height: isSearchResultsExpanded.value ? 160 : 48,
+                  margin:
+                      const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+                  decoration: BoxDecoration(
+                    color: Theme.of(context)
+                        .colorScheme
+                        .surfaceContainerHighest
+                        .withValues(alpha: 0.72),
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(
+                      color: Theme.of(context)
+                          .colorScheme
+                          .outlineVariant
+                          .withValues(alpha: 0.45),
+                      width: 1,
+                    ),
+                  ),
+                  child: Column(
+                    children: [
+                      GestureDetector(
+                        onTap: toggleSearchResults,
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 12, vertical: 12),
+                          decoration: BoxDecoration(
+                            border: Border(
+                              bottom: BorderSide(
+                                color: Theme.of(context)
+                                    .colorScheme
+                                    .outlineVariant
+                                    .withValues(alpha: 0.35),
+                                width: 1,
                               ),
                             ),
                           ),
-                          // Scrollable Content with Venetian Blind Animation
-                          Obx(() => isSearchResultsExpanded.value
-                              ? SlideTransition(
-                                  position: _searchSlideAnimation,
-                                  child: SizedBox(
-                                    height: 112, // 160px - 48px title
-                                    child: ScrollConfiguration(
-                                      behavior: const ScrollBehavior()
-                                          .copyWith(scrollbars: true),
-                                      child: RawScrollbar(
-                                        thumbColor: Theme.of(context)
-                                            .colorScheme
-                                            .primary
-                                            .withValues(alpha: 0.7),
-                                        thickness: 3,
-                                        radius: const Radius.circular(2),
-                                        child: SingleChildScrollView(
-                                          child: Column(
-                                            children: controller.searchResults
-                                                .map((result) => ListTile(
-                                                      contentPadding:
-                                                          const EdgeInsets
-                                                              .symmetric(
-                                                              horizontal: 12,
-                                                              vertical: 2),
-                                                      title: SelectableText(
-                                                        result,
-                                                        style: TextStyle(
-                                                          fontSize: 14,
-                                                          color:
-                                                              Theme.of(context)
-                                                                  .colorScheme
-                                                                  .onSurface
-                                                                  .withValues(
-                                                                      alpha:
-                                                                          0.85),
-                                                          letterSpacing: 0.2,
-                                                        ),
-                                                      ),
-                                                    ))
-                                                .toList(),
-                                          ),
-                                        ),
+                          child: Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              Text(
+                                '搜索结果',
+                                style: TextStyle(
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.w600,
+                                  color: Theme.of(context)
+                                      .colorScheme
+                                      .primary
+                                      .withValues(alpha: 0.9),
+                                  letterSpacing: 0,
+                                ),
+                              ),
+                              Obx(() => Icon(
+                                    isSearchResultsExpanded.value
+                                        ? Icons.expand_less
+                                        : Icons.expand_more,
+                                    size: 20,
+                                    color:
+                                        Theme.of(context).colorScheme.primary,
+                                  )),
+                            ],
+                          ),
+                        ),
+                      ),
+                      Obx(() => isSearchResultsExpanded.value
+                          ? SlideTransition(
+                              position: _searchSlideAnimation,
+                              child: SizedBox(
+                                height: 112,
+                                child: ScrollConfiguration(
+                                  behavior: const ScrollBehavior()
+                                      .copyWith(scrollbars: true),
+                                  child: RawScrollbar(
+                                    thumbColor: Theme.of(context)
+                                        .colorScheme
+                                        .primary
+                                        .withValues(alpha: 0.7),
+                                    thickness: 3,
+                                    radius: const Radius.circular(2),
+                                    child: SingleChildScrollView(
+                                      child: Column(
+                                        children: controller.searchResults
+                                            .map((result) => ListTile(
+                                                  contentPadding:
+                                                      const EdgeInsets
+                                                          .symmetric(
+                                                    horizontal: 12,
+                                                    vertical: 2,
+                                                  ),
+                                                  title: SelectableText(
+                                                    result,
+                                                    style: TextStyle(
+                                                      fontSize: 14,
+                                                      color: Theme.of(context)
+                                                          .colorScheme
+                                                          .onSurface
+                                                          .withValues(
+                                                              alpha: 0.85),
+                                                      letterSpacing: 0,
+                                                    ),
+                                                  ),
+                                                ))
+                                            .toList(),
                                       ),
                                     ),
                                   ),
-                                )
-                              : const SizedBox.shrink()),
-                        ],
-                      ),
-                    ),
+                                ),
+                              ),
+                            )
+                          : const SizedBox.shrink()),
+                    ],
                   ),
                 ),
               )),
@@ -259,7 +238,7 @@ class _AiChatState extends State<AiChat> with SingleTickerProviderStateMixin {
                                       .colorScheme
                                       .surfaceContainer
                                       .withValues(alpha: 0.9),
-                                  borderRadius: BorderRadius.circular(16),
+                                  borderRadius: BorderRadius.circular(8),
                                   boxShadow: [
                                     BoxShadow(
                                       color:
@@ -304,7 +283,7 @@ class _AiChatState extends State<AiChat> with SingleTickerProviderStateMixin {
                                             .colorScheme
                                             .onSurface
                                             .withValues(alpha: 0.7),
-                                        letterSpacing: 0.2,
+                                        letterSpacing: 0,
                                       ),
                                     ),
                                   ],
@@ -363,7 +342,7 @@ class _AiChatState extends State<AiChat> with SingleTickerProviderStateMixin {
                                                   .withValues(alpha: 0.7),
                                             ],
                                 ),
-                                borderRadius: BorderRadius.circular(16),
+                                borderRadius: BorderRadius.circular(8),
                                 boxShadow: [
                                   BoxShadow(
                                     color: Colors.black.withValues(alpha: 0.1),
@@ -403,7 +382,7 @@ class _AiChatState extends State<AiChat> with SingleTickerProviderStateMixin {
                                             .colorScheme
                                             .onSurface
                                             .withValues(alpha: 0.7),
-                                        letterSpacing: 0.2,
+                                        letterSpacing: 0,
                                       ),
                                     ),
                                   if (msg.thinkContent.isNotEmpty &&
@@ -437,7 +416,7 @@ class _AiChatState extends State<AiChat> with SingleTickerProviderStateMixin {
                                                     .colorScheme
                                                     .onSurface
                                                     .withValues(alpha: 0.85),
-                                        letterSpacing: 0.2,
+                                        letterSpacing: 0,
                                       ),
                                     ),
                                 ],
@@ -489,7 +468,7 @@ class _AiChatState extends State<AiChat> with SingleTickerProviderStateMixin {
                                       .withValues(alpha: 0.1),
                                 ],
                               ),
-                              borderRadius: BorderRadius.circular(12),
+                              borderRadius: BorderRadius.circular(8),
                               boxShadow: [
                                 BoxShadow(
                                   color: Colors.black.withValues(alpha: 0.15),
@@ -532,7 +511,7 @@ class _AiChatState extends State<AiChat> with SingleTickerProviderStateMixin {
                                         .colorScheme
                                         .primary
                                         .withValues(alpha: 0.9),
-                                    letterSpacing: 0.5,
+                                    letterSpacing: 0,
                                   ),
                                 ),
                               ],
@@ -569,10 +548,10 @@ class _AiChatState extends State<AiChat> with SingleTickerProviderStateMixin {
                                     .colorScheme
                                     .onSurface
                                     .withValues(alpha: 0.6),
-                                letterSpacing: 0.2,
+                                letterSpacing: 0,
                               ),
                               border: OutlineInputBorder(
-                                borderRadius: BorderRadius.circular(12),
+                                borderRadius: BorderRadius.circular(8),
                                 borderSide: BorderSide(
                                   color: Theme.of(context)
                                       .colorScheme
@@ -582,7 +561,7 @@ class _AiChatState extends State<AiChat> with SingleTickerProviderStateMixin {
                                 ),
                               ),
                               enabledBorder: OutlineInputBorder(
-                                borderRadius: BorderRadius.circular(12),
+                                borderRadius: BorderRadius.circular(8),
                                 borderSide: BorderSide(
                                   color: Theme.of(context)
                                       .colorScheme
@@ -592,7 +571,7 @@ class _AiChatState extends State<AiChat> with SingleTickerProviderStateMixin {
                                 ),
                               ),
                               focusedBorder: OutlineInputBorder(
-                                borderRadius: BorderRadius.circular(12),
+                                borderRadius: BorderRadius.circular(8),
                                 borderSide: BorderSide(
                                   color: Theme.of(context)
                                       .colorScheme
@@ -620,7 +599,7 @@ class _AiChatState extends State<AiChat> with SingleTickerProviderStateMixin {
                                   .colorScheme
                                   .onSurface
                                   .withValues(alpha: 0.85),
-                              letterSpacing: 0.2,
+                              letterSpacing: 0,
                             ),
                             onSubmitted: (_) {
                               controller.sendMessage();
@@ -657,7 +636,7 @@ class _AiChatState extends State<AiChat> with SingleTickerProviderStateMixin {
                                               .withValues(alpha: 0.1),
                                         ],
                                 ),
-                                borderRadius: BorderRadius.circular(10),
+                                borderRadius: BorderRadius.circular(8),
                                 border: Border.all(
                                   color: controller.webSearchEnabled.value
                                       ? Theme.of(context)
@@ -732,7 +711,7 @@ class _AiChatState extends State<AiChat> with SingleTickerProviderStateMixin {
                                     .primary
                                     .withValues(alpha: 0.15),
                                 shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(10),
+                                  borderRadius: BorderRadius.circular(8),
                                 ),
                                 elevation: 2,
                                 shadowColor:

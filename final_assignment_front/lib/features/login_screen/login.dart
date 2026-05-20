@@ -2,6 +2,7 @@
 import 'dart:convert';
 
 import 'package:final_assignment_front/config/routes/app_routes.dart';
+import 'package:final_assignment_front/config/themes/app_theme.dart';
 import 'package:final_assignment_front/core/auth/user_profile_service.dart';
 import 'package:final_assignment_front/core/network/app_exception.dart';
 import 'package:final_assignment_front/core/utils/app_logger.dart';
@@ -117,6 +118,7 @@ class _LoginScreenState extends State<LoginScreen> {
     Map<String, dynamic> result,
     SharedPreferences prefs,
     String accessToken,
+    String username,
   ) async {
     await AuthTokenStore.instance.setJwtToken(accessToken);
 
@@ -135,6 +137,17 @@ class _LoginScreenState extends State<LoginScreen> {
         (userData is Map ? userData['authUserId'] ?? userData['userId'] : null);
     final driverId =
         data['driverId'] ?? (userData is Map ? userData['driverId'] : null);
+    final resolvedUsername = _stringValue(data['username'] ??
+            (userData is Map ? userData['username'] : null)) ??
+        username;
+    final resolvedEmail = _stringValue(
+            data['email'] ?? (userData is Map ? userData['email'] : null)) ??
+        (resolvedUsername.contains('@') ? resolvedUsername : username);
+
+    await prefs.setString('username', resolvedUsername);
+    await prefs.setString('userName', resolvedUsername);
+    await prefs.setString('email', resolvedEmail);
+    await prefs.setString('userEmail', resolvedEmail);
 
     if (authUserId != null) {
       final value = authUserId.toString();
@@ -147,7 +160,11 @@ class _LoginScreenState extends State<LoginScreen> {
       await prefs.setString('driverId', value);
       await prefs.setString('driver_id', value);
     }
-    await Get.find<UserProfileService>().persistFromLoginResponse(data);
+    await Get.find<UserProfileService>().persistFromLoginResponse({
+      ...data,
+      'username': resolvedUsername,
+      'email': resolvedEmail,
+    });
   }
 
   Future<String?> _authUser(String username, String password) async {
@@ -162,7 +179,7 @@ class _LoginScreenState extends State<LoginScreen> {
         final decodedJwt = _decodeJwt(accessToken);
         _userRole = determineRole(decodedJwt['roles'] ?? 'USER');
         final prefs = await SharedPreferences.getInstance();
-        await _saveLoginTokens(result, prefs, accessToken);
+        await _saveLoginTokens(result, prefs, accessToken, username);
         await prefs.setString('userRole', _userRole!);
         await prefs.setString('userName', username);
 
@@ -210,7 +227,7 @@ class _LoginScreenState extends State<LoginScreen> {
           final decodedJwt = _decodeJwt(accessToken);
           _userRole = determineRole(decodedJwt['roles'] ?? 'USER');
           final prefs = await SharedPreferences.getInstance();
-          await _saveLoginTokens(loginResult, prefs, accessToken);
+          await _saveLoginTokens(loginResult, prefs, accessToken, username);
           await prefs.setString('userRole', _userRole!);
           await prefs.setString('userName', username);
 
@@ -421,24 +438,10 @@ class _LoginScreenState extends State<LoginScreen> {
   }
 
   ThemeData _buildTheme() {
-    final brightness = _isDarkMode ? Brightness.dark : Brightness.light;
-    final scheme = ColorScheme.fromSeed(
-      seedColor: const Color(0xFF0F766E),
-      brightness: brightness,
-    );
-    final isDark = brightness == Brightness.dark;
-    return ThemeData(
-      useMaterial3: true,
-      brightness: brightness,
-      colorScheme: scheme,
-      scaffoldBackgroundColor:
-          isDark ? const Color(0xFF0B1117) : const Color(0xFFF4F7FA),
-      fontFamilyFallback: const [
-        'Microsoft YaHei UI',
-        'Microsoft YaHei',
-        'PingFang SC',
-        'Noto Sans CJK SC',
-      ],
+    final baseTheme = _isDarkMode ? AppTheme.basicDark : AppTheme.basicLight;
+    final scheme = baseTheme.colorScheme;
+    final isDark = baseTheme.brightness == Brightness.dark;
+    return baseTheme.copyWith(
       inputDecorationTheme: InputDecorationTheme(
         filled: true,
         fillColor: isDark

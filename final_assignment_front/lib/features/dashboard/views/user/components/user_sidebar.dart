@@ -15,14 +15,12 @@ class UserSidebar extends StatelessWidget {
 
     return Obx(() {
       final ThemeData currentTheme = controller.currentBodyTheme.value;
-      final bool isLight = currentTheme.brightness == Brightness.light;
-      final Color backgroundColor =
-          isLight ? Colors.white : currentTheme.cardColor;
-      final Color dividerColor = isLight ? Colors.grey[500]! : Colors.white24;
-      final TextStyle defaultTextStyle =
-          TextStyle(color: isLight ? Colors.black87 : Colors.white);
+      final scheme = currentTheme.colorScheme;
+      final Color backgroundColor = scheme.surface.withValues(alpha: 0.98);
+      final Color dividerColor = scheme.outlineVariant.withValues(alpha: 0.55);
+      final TextStyle defaultTextStyle = TextStyle(color: scheme.onSurface);
       final IconThemeData defaultIconTheme =
-          IconThemeData(color: isLight ? Colors.black87 : Colors.white);
+          IconThemeData(color: scheme.onSurface);
 
       return Container(
         color: backgroundColor,
@@ -41,9 +39,7 @@ class UserSidebar extends StatelessWidget {
                   ),
                   Divider(thickness: 1, color: dividerColor),
                   Theme(
-                    data: isLight
-                        ? Theme.of(context)
-                        : Theme.of(context).copyWith(primaryColor: Colors.blue),
+                    data: currentTheme.copyWith(primaryColor: scheme.primary),
                     child: SelectionButton(
                       data: [
                         SelectionButtonData(
@@ -80,10 +76,8 @@ class UserSidebar extends StatelessWidget {
                   Container(
                     padding: const EdgeInsets.all(kSpacing),
                     child: PostCard(
-                      backgroundColor: isLight
-                          ? Colors.grey[100]!.withAlpha((0.4 * 255).toInt())
-                          : currentTheme.canvasColor
-                              .withAlpha((0.4 * 255).toInt()),
+                      backgroundColor: scheme.surfaceContainerHighest
+                          .withValues(alpha: 0.42),
                       onPressed: () {},
                     ),
                   ),

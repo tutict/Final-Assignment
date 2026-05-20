@@ -1,5 +1,3 @@
-import 'dart:math';
-import 'dart:ui';
 import 'package:eva_icons_flutter/eva_icons_flutter.dart';
 import 'package:final_assignment_front/config/routes/app_routes.dart';
 import 'package:final_assignment_front/constants/app_constants.dart';
@@ -8,12 +6,12 @@ import 'package:final_assignment_front/features/dashboard/models/profile.dart';
 import 'package:final_assignment_front/features/dashboard/views/shared/components/ai_chat.dart';
 import 'package:final_assignment_front/features/dashboard/views/shared/components/notification_bar.dart';
 import 'package:final_assignment_front/features/dashboard/views/shared/components/profile_tile.dart';
+import 'package:final_assignment_front/features/dashboard/views/shared/widgets/dashboard_chrome.dart';
 import 'package:final_assignment_front/shared_components/floating_window.dart';
 import 'package:final_assignment_front/shared_components/post_card.dart';
 import 'package:final_assignment_front/shared_components/project_card.dart';
 import 'package:final_assignment_front/shared_components/responsive_builder.dart';
 import 'package:final_assignment_front/shared_components/selection_button.dart';
-import 'package:final_assignment_front/shared_components/today_text.dart';
 import 'package:final_assignment_front/shared_components/user_screen_swiper.dart';
 import 'package:final_assignment_front/shared_components/user_news_card.dart';
 import 'package:final_assignment_front/utils/navigation/page_resolver.dart';
@@ -34,135 +32,120 @@ class UserDashboard extends GetView<UserDashboardController> with FloatingBase {
     controller.pageResolver ??= resolveDashboardPage;
     final double screenWidth = MediaQuery.of(context).size.width;
     final double screenHeight = MediaQuery.of(context).size.height;
-    const double kHeaderTotalHeight = 32 + 50 + 15 + 1;
+    const double kHeaderTotalHeight = 112;
 
     return Scaffold(
-      key: controller.scaffoldKey,
       appBar: PreferredSize(
         preferredSize: const Size.fromHeight(kHeaderTotalHeight),
-        child: _buildHeaderSection(context, screenWidth),
+        child: Obx(
+          () => Theme(
+            data: controller.currentBodyTheme.value,
+            child: _buildHeaderSection(context, screenWidth),
+          ),
+        ),
       ),
       body: Obx(
         () => Theme(
           data: controller.currentBodyTheme.value,
           child: Material(
-            child: Stack(
-              children: [
-                // Particle Background
-                ParticleSystemWidget(
-                  particleColor: controller
-                      .currentBodyTheme.value.colorScheme.primary
-                      .withValues(alpha: 0.2),
-                  lineColor: controller
-                      .currentBodyTheme.value.colorScheme.primary
-                      .withValues(alpha: 0.15),
-                ),
-                // Main Content
-                ResponsiveBuilder(
-                  mobileBuilder: (context, constraints) {
-                    return Stack(
-                      children: [
-                        SingleChildScrollView(
+            color: Colors.transparent,
+            child: DashboardBackdrop(
+              child: ResponsiveBuilder(
+                mobileBuilder: (context, constraints) {
+                  return Stack(
+                    children: [
+                      SingleChildScrollView(
+                        child: _buildLayout(context),
+                      ),
+                      Obx(() => _buildSidebar(context)),
+                    ],
+                  );
+                },
+                tabletBuilder: (context, constraints) {
+                  final theme = Theme.of(context);
+                  return Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Container(
+                        width: screenWidth * 0.3,
+                        height: screenHeight,
+                        decoration: BoxDecoration(
+                          color:
+                              theme.colorScheme.surface.withValues(alpha: 0.96),
+                          border: Border(
+                            right: BorderSide(
+                              color: theme.colorScheme.outlineVariant
+                                  .withValues(alpha: 0.55),
+                            ),
+                          ),
+                        ),
+                        child:
+                            UserSidebar(data: controller.getSelectedProject()),
+                      ),
+                      SizedBox(
+                        width: screenWidth * 0.7,
+                        child: SingleChildScrollView(
                           child: _buildLayout(context),
                         ),
-                        Obx(() => _buildSidebar(context)),
-                      ],
-                    );
-                  },
-                  tabletBuilder: (context, constraints) {
-                    return Row(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        SizedBox(
-                          width: screenWidth * 0.3,
-                          child: UserSidebar(
-                              data: controller.getSelectedProject()),
-                        ),
-                        SizedBox(
-                          width: screenWidth * 0.7,
-                          child: SingleChildScrollView(
-                            child: _buildLayout(context),
+                      ),
+                    ],
+                  );
+                },
+                desktopBuilder: (context, constraints) {
+                  final theme = Theme.of(context);
+                  return Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Container(
+                        width: screenWidth * 0.2,
+                        height: screenHeight,
+                        decoration: BoxDecoration(
+                          color:
+                              theme.colorScheme.surface.withValues(alpha: 0.96),
+                          border: Border(
+                            right: BorderSide(
+                              color: theme.colorScheme.outlineVariant
+                                  .withValues(alpha: 0.55),
+                            ),
                           ),
                         ),
-                      ],
-                    );
-                  },
-                  desktopBuilder: (context, constraints) {
-                    return Row(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Container(
-                          width: screenWidth * 0.2,
+                        child:
+                            UserSidebar(data: controller.getSelectedProject()),
+                      ),
+                      Expanded(
+                        child: SingleChildScrollView(
+                          child: _buildLayout(context, isDesktop: true),
+                        ),
+                      ),
+                      Obx(
+                        () => AnimatedContainer(
+                          duration: const Duration(milliseconds: 260),
+                          curve: Curves.easeOutCubic,
+                          width: controller.isChatExpanded.value
+                              ? (screenWidth * 0.3 > 150
+                                  ? screenWidth * 0.3
+                                  : 150)
+                              : 0,
                           height: screenHeight,
                           decoration: BoxDecoration(
-                            color: Theme.of(context).cardColor,
+                            color: theme.colorScheme.surface
+                                .withValues(alpha: 0.96),
                             border: Border(
-                                right: BorderSide(color: Colors.grey.shade300)),
-                            boxShadow: [
-                              BoxShadow(
-                                color: Colors.black.withValues(alpha: 0.1),
-                                blurRadius: 12,
-                                offset: const Offset(2, 0),
+                              left: BorderSide(
+                                color: theme.colorScheme.outlineVariant
+                                    .withValues(alpha: 0.55),
                               ),
-                            ],
-                          ),
-                          child: UserSidebar(
-                              data: controller.getSelectedProject()),
-                        ),
-                        Expanded(
-                          child: Container(
-                            decoration: BoxDecoration(
-                              color: Theme.of(context).scaffoldBackgroundColor,
-                              border: Border(
-                                  right:
-                                      BorderSide(color: Colors.grey.shade300)),
-                            ),
-                            child: SingleChildScrollView(
-                              child: _buildLayout(context),
                             ),
                           ),
+                          child: controller.isChatExpanded.value
+                              ? _buildSideContent(context)
+                              : null,
                         ),
-                        Obx(
-                          () => TweenAnimationBuilder<double>(
-                            tween: Tween(
-                              begin: controller.isChatExpanded.value ? 0 : 150,
-                              end: controller.isChatExpanded.value
-                                  ? (screenWidth * 0.3 > 150
-                                      ? screenWidth * 0.3
-                                      : 150)
-                                  : 0,
-                            ),
-                            duration: const Duration(milliseconds: 500),
-                            curve: Curves.easeInOutCubic,
-                            builder: (context, width, child) {
-                              return Container(
-                                width: width,
-                                height: screenHeight,
-                                decoration: BoxDecoration(
-                                  color: Theme.of(context)
-                                      .cardColor
-                                      .withValues(alpha: 0.95),
-                                  boxShadow: [
-                                    BoxShadow(
-                                      color:
-                                          Colors.black.withValues(alpha: 0.1),
-                                      blurRadius: 12,
-                                      offset: const Offset(-2, 0),
-                                    ),
-                                  ],
-                                ),
-                                child: width >= 150
-                                    ? _buildSideContent(context)
-                                    : null,
-                              );
-                            },
-                          ),
-                        ),
-                      ],
-                    );
-                  },
-                ),
-              ],
+                      ),
+                    ],
+                  );
+                },
+              ),
             ),
           ),
         ),
@@ -171,68 +154,76 @@ class UserDashboard extends GetView<UserDashboardController> with FloatingBase {
   }
 
   Widget _buildSideContent(BuildContext context) {
-    return Container(
-      color: Theme.of(context).scaffoldBackgroundColor,
-      child: const AiChat(),
-    );
+    return const AiChat();
   }
 
   Widget _buildLayout(BuildContext context, {bool isDesktop = false}) {
-    return SingleChildScrollView(
-      child: Padding(
-        padding: const EdgeInsets.symmetric(
-            horizontal: kSpacing, vertical: kSpacing / 4),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            SizedBox(height: kSpacing * (kIsWeb || isDesktop ? 0.5 : 0.75)),
-            Obx(() {
-              if (controller.driverLicenseNumber.value.isEmpty ||
-                  controller.idCardNumber.value.isEmpty) {
-                return NotificationBar(
-                  data: const NotificationBarData(
-                    message: "请及时完善身份证号和驾驶证号",
-                    icon: EvaIcons.alertCircleOutline,
-                    actionText: "去输入",
-                    routeName: '/personalInfo',
-                  ),
-                  onPressedAction: navigateToPersonalInfo,
-                );
-              }
-              return const SizedBox.shrink();
-            }),
-            const SizedBox(height: kSpacing),
-            const Divider(),
-            Obx(() {
-              final pageContent = controller.selectedPage.value;
-              if (pageContent != null) {
-                return Container(
-                  width: double.infinity,
-                  decoration: BoxDecoration(
-                    borderRadius: BorderRadius.circular(kBorderRadius),
-                    boxShadow: [
-                      BoxShadow(
-                        color: Colors.black.withValues(alpha: 0.15),
-                        blurRadius: 10,
-                        offset: const Offset(0, 4),
-                      ),
-                    ],
-                  ),
-                  child: _buildUserScreenSidebarTools(context),
-                );
-              } else {
-                return Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    _buildProfileSection(context),
-                    _buildUserScreenSwiper(context),
-                    const SizedBox(height: kSpacing),
-                    _buildUserToolsCard(context),
-                  ],
-                );
-              }
-            }),
-          ],
+    return Padding(
+      padding: const EdgeInsets.symmetric(
+        horizontal: kSpacing,
+        vertical: kSpacing / 4,
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          SizedBox(height: kSpacing * (kIsWeb || isDesktop ? 0.5 : 0.75)),
+          Obx(() {
+            if (controller.driverLicenseNumber.value.isEmpty ||
+                controller.idCardNumber.value.isEmpty) {
+              return NotificationBar(
+                data: const NotificationBarData(
+                  message: "请及时完善身份证号和驾驶证号",
+                  icon: EvaIcons.alertCircleOutline,
+                  actionText: "去输入",
+                  routeName: '/personalInfo',
+                ),
+                onPressedAction: navigateToPersonalInfo,
+              );
+            }
+            return const SizedBox.shrink();
+          }),
+          const SizedBox(height: kSpacing),
+          Obx(() {
+            final pageContent = controller.selectedPage.value;
+            if (pageContent != null) {
+              return DashboardPanel(
+                padding: EdgeInsets.zero,
+                height: MediaQuery.of(context).size.height * 0.82,
+                child: _buildUserScreenSidebarTools(context),
+              );
+            }
+            return Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                _buildUserOverview(context),
+                const SizedBox(height: kSpacing),
+                _buildProfileSection(context),
+                _buildUserScreenSwiper(context),
+                const SizedBox(height: kSpacing),
+                _buildUserToolsCard(context),
+              ],
+            );
+          }),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildUserOverview(BuildContext context) {
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
+
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: kSpacing),
+      child: DashboardSectionHeader(
+        title: '个人工作台',
+        subtitle: '查看违法通知、办事进度和常用办理入口。',
+        trailing: IconButton.filledTonal(
+          onPressed: controller.toggleBodyTheme,
+          icon: Icon(
+            isDark ? Icons.light_mode_rounded : Icons.dark_mode_rounded,
+          ),
+          tooltip: isDark ? '切换到亮色模式' : '切换到暗色模式',
         ),
       ),
     );
@@ -249,79 +240,40 @@ class UserDashboard extends GetView<UserDashboardController> with FloatingBase {
   }
 
   Widget _buildUserScreenSidebarTools(BuildContext context) {
-    return ClipRRect(
-      borderRadius: BorderRadius.circular(16),
-      child: BackdropFilter(
-        filter: ImageFilter.blur(sigmaX: 12, sigmaY: 12),
-        child: Container(
-          width: double.infinity,
-          height: MediaQuery.of(context).size.height * 0.8,
-          padding: const EdgeInsets.all(12.0),
-          child: Obx(() {
-            final pageContent = controller.selectedPage.value;
-            return pageContent ?? const Center(child: Text('请选择一个页面'));
-          }),
-        ),
+    return Padding(
+      padding: const EdgeInsets.all(12),
+      child: Obx(
+        () =>
+            controller.selectedPage.value ??
+            const Center(child: Text('请选择一个页面')),
       ),
     );
   }
 
   Widget _buildUserToolsCard(BuildContext context) {
-    return SizedBox(
+    return DashboardPanel(
       height: MediaQuery.of(context).size.height * 0.5,
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
-        child: Container(
-          decoration: BoxDecoration(
-            gradient: LinearGradient(
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
-              colors: [
-                Theme.of(context).colorScheme.primary.withValues(alpha: 0.15),
-                Theme.of(context).colorScheme.surface.withValues(alpha: 0.95),
-              ],
-            ),
-            borderRadius: BorderRadius.circular(24.0),
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black.withValues(alpha: 0.12),
-                blurRadius: 12,
-                offset: const Offset(0, 6),
-              ),
-            ],
-          ),
-          child: TweenAnimationBuilder<double>(
-            tween: Tween(begin: 0.0, end: 1.0),
-            duration: const Duration(milliseconds: 1000),
-            curve: Curves.easeOutCubic,
-            builder: (context, opacity, child) {
-              return Opacity(
-                opacity: opacity,
-                child: child,
-              );
-            },
-            child: UserNewsCard(
-              onPressed: () {
-                controller.navigateToPage(Routes.latestOffenseNewsPage);
-              },
-              onPressedSecond: () {
-                controller.navigateToPage(Routes.finePaymentNoticePage);
-              },
-              onPressedThird: () {
-                controller.navigateToPage(Routes.accidentQuickGuidePage);
-              },
-              onPressedFourth: () {
-                controller.navigateToPage(Routes.accidentProgressPage);
-              },
-              onPressedFifth: () {
-                controller.navigateToPage(Routes.accidentEvidencePage);
-              },
-              onPressedSixth: () {
-                controller.navigateToPage(Routes.accidentVideoQuickPage);
-              },
-            ),
-          ),
-        ),
+      margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      padding: EdgeInsets.zero,
+      child: UserNewsCard(
+        onPressed: () {
+          controller.navigateToPage(Routes.latestOffenseNewsPage);
+        },
+        onPressedSecond: () {
+          controller.navigateToPage(Routes.finePaymentNoticePage);
+        },
+        onPressedThird: () {
+          controller.navigateToPage(Routes.accidentQuickGuidePage);
+        },
+        onPressedFourth: () {
+          controller.navigateToPage(Routes.accidentProgressPage);
+        },
+        onPressedFifth: () {
+          controller.navigateToPage(Routes.accidentEvidencePage);
+        },
+        onPressedSixth: () {
+          controller.navigateToPage(Routes.accidentVideoQuickPage);
+        },
       ),
     );
   }
@@ -329,20 +281,20 @@ class UserDashboard extends GetView<UserDashboardController> with FloatingBase {
   Widget _buildSidebar(BuildContext context) {
     final bool isDesktop = ResponsiveBuilder.isDesktop(context);
     final bool showSidebar = isDesktop || controller.isSidebarOpen.value;
+    final scheme = Theme.of(context).colorScheme;
+
     return AnimatedContainer(
-      duration: const Duration(milliseconds: 400),
-      curve: Curves.easeInOutCubic,
+      duration: const Duration(milliseconds: 260),
+      curve: Curves.easeOutCubic,
       width: showSidebar ? 300 : 0,
       height: double.infinity,
       decoration: BoxDecoration(
-        color: Theme.of(context).cardColor.withValues(alpha: 0.95),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.1),
-            blurRadius: 12,
-            offset: const Offset(2, 0),
+        color: scheme.surface.withValues(alpha: 0.98),
+        border: Border(
+          right: BorderSide(
+            color: scheme.outlineVariant.withValues(alpha: 0.55),
           ),
-        ],
+        ),
       ),
       child: showSidebar
           ? Padding(
@@ -369,15 +321,17 @@ class UserDashboard extends GetView<UserDashboardController> with FloatingBase {
   }
 
   Widget _buildHeaderSection(BuildContext context, double screenWidth) {
+    final theme = Theme.of(context);
+    final scheme = theme.colorScheme;
+
     return Container(
-      decoration: const BoxDecoration(
-        gradient: LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: [
-            Color(0xFF0288D1), // Deep Blue
-            Color(0xFF4FC3F7), // Light Blue
-          ],
+      decoration: BoxDecoration(
+        color: scheme.surface.withValues(
+            alpha: theme.brightness == Brightness.dark ? 0.95 : 0.98),
+        border: Border(
+          bottom: BorderSide(
+            color: scheme.outlineVariant.withValues(alpha: 0.45),
+          ),
         ),
       ),
       child: Column(
@@ -385,20 +339,27 @@ class UserDashboard extends GetView<UserDashboardController> with FloatingBase {
         children: [
           const SizedBox(height: 32),
           _buildHeader(
+            context: context,
             onPressedMenu: () => controller.openDrawer(),
             screenWidth: screenWidth,
           ),
           const SizedBox(height: 15),
-          const Divider(height: 1, thickness: 1, color: Colors.white24),
+          Divider(
+            height: 1,
+            thickness: 1,
+            color: scheme.outlineVariant.withValues(alpha: 0.45),
+          ),
         ],
       ),
     );
   }
 
   Widget _buildHeader({
+    required BuildContext context,
     Function()? onPressedMenu,
     required double screenWidth,
   }) {
+    final scheme = Theme.of(context).colorScheme;
     const double horizontalPadding = kSpacing / 2;
     final double availableWidth = screenWidth - 2 * horizontalPadding;
     const double mobileBreakpoint = 600.0;
@@ -419,7 +380,7 @@ class UserDashboard extends GetView<UserDashboardController> with FloatingBase {
             if (screenWidth < mobileBreakpoint && onPressedMenu != null)
               IconButton(
                 onPressed: () => controller.toggleSidebar(),
-                icon: const Icon(Icons.menu, color: Colors.white),
+                icon: Icon(Icons.menu, color: scheme.onSurfaceVariant),
                 tooltip: "菜单",
               ),
             ConstrainedBox(
@@ -429,13 +390,16 @@ class UserDashboard extends GetView<UserDashboardController> with FloatingBase {
             ),
             IconButton(
               onPressed: () => controller.toggleChat(),
-              icon: const Icon(Icons.chat_bubble_outline, color: Colors.white),
+              icon: Icon(
+                Icons.chat_bubble_outline,
+                color: scheme.onSurfaceVariant,
+              ),
               tooltip: "AIChat",
             ),
             const SizedBox(width: 4),
             IconButton(
               onPressed: () => controller.toggleBodyTheme(),
-              icon: const Icon(Icons.brightness_6, color: Colors.white),
+              icon: Icon(Icons.brightness_6, color: scheme.onSurfaceVariant),
               tooltip: "切换明暗主题",
             ),
           ],
@@ -448,191 +412,4 @@ class UserDashboard extends GetView<UserDashboardController> with FloatingBase {
     developer.log('NotificationBar tapped, navigating to /personalInfo');
     controller.navigateToPage(Routes.personalMain);
   }
-}
-
-// Particle System Widget to manage lifecycle
-class ParticleSystemWidget extends StatefulWidget {
-  final Color particleColor;
-  final Color lineColor;
-
-  const ParticleSystemWidget({
-    super.key,
-    required this.particleColor,
-    required this.lineColor,
-  });
-
-  @override
-  State<ParticleSystemWidget> createState() => _ParticleSystemWidgetState();
-}
-
-class _ParticleSystemWidgetState extends State<ParticleSystemWidget>
-    with SingleTickerProviderStateMixin {
-  @override
-  Widget build(BuildContext context) {
-    return ConnectedParticleSystem(
-      particleColor: widget.particleColor,
-      lineColor: widget.lineColor,
-      vsync: this,
-    );
-  }
-}
-
-// Custom Particle System with Connected Lines
-class ConnectedParticleSystem extends StatefulWidget {
-  final Color particleColor;
-  final Color lineColor;
-  final TickerProvider vsync;
-
-  const ConnectedParticleSystem({
-    super.key,
-    required this.particleColor,
-    required this.lineColor,
-    required this.vsync,
-  });
-
-  static const double maxDistance = 120.0;
-
-  @override
-  State<ConnectedParticleSystem> createState() =>
-      _ConnectedParticleSystemState();
-}
-
-class _ConnectedParticleSystemState extends State<ConnectedParticleSystem> {
-  AnimationController? _controller;
-  late List<Particle> _particles;
-  final Random _random = Random();
-  static const int particleCount = 40;
-
-  @override
-  void initState() {
-    super.initState();
-    // Initialize particles
-    _particles = List.generate(particleCount, (_) => Particle(_random));
-    // Delay controller initialization to ensure widget is mounted
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (mounted) {
-        _controller = AnimationController(
-          vsync: widget.vsync,
-          duration: const Duration(seconds: 10),
-        )..addListener(_updateParticles);
-        if (mounted) {
-          _controller?.repeat();
-        }
-      }
-    });
-  }
-
-  void _updateParticles() {
-    if (mounted) {
-      for (var particle in _particles) {
-        particle.update();
-      }
-      setState(() {});
-    }
-  }
-
-  @override
-  void dispose() {
-    _controller?.stop();
-    _controller?.dispose();
-    _controller = null;
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return CustomPaint(
-      painter: ParticlePainter(
-        particles: _particles,
-        particleColor: widget.particleColor,
-        lineColor: widget.lineColor,
-      ),
-      size: Size.infinite,
-    );
-  }
-}
-
-class Particle {
-  Offset position;
-  Offset velocity;
-  double radius;
-  final Random random;
-  Size? canvasSize;
-
-  Particle(this.random)
-      : position = Offset(
-          random.nextDouble() * 1000,
-          random.nextDouble() * 1000,
-        ),
-        velocity = Offset(
-          (random.nextDouble() - 0.5) * 1.5,
-          (random.nextDouble() - 0.5) * 1.5,
-        ),
-        radius = random.nextDouble() * 2 + 1.5;
-
-  void update() {
-    position += velocity;
-    final width = canvasSize?.width ?? 1000;
-    final height = canvasSize?.height ?? 1000;
-
-    // Rebound off borders
-    if (position.dx <= radius || position.dx >= width - radius) {
-      velocity = Offset(-velocity.dx * 0.9, velocity.dy);
-      position = Offset(
-        position.dx.clamp(radius, width - radius),
-        position.dy,
-      );
-    }
-    if (position.dy <= radius || position.dy >= height - radius) {
-      velocity = Offset(velocity.dx, -velocity.dy * 0.9);
-      position = Offset(
-        position.dx,
-        position.dy.clamp(radius, height - radius),
-      );
-    }
-  }
-}
-
-class ParticlePainter extends CustomPainter {
-  final List<Particle> particles;
-  final Color particleColor;
-  final Color lineColor;
-
-  ParticlePainter({
-    required this.particles,
-    required this.particleColor,
-    required this.lineColor,
-  });
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    for (var particle in particles) {
-      particle.canvasSize = size;
-    }
-
-    // Draw lines with dynamic opacity
-    for (int i = 0; i < particles.length; i++) {
-      for (int j = i + 1; j < particles.length; j++) {
-        final p1 = particles[i];
-        final p2 = particles[j];
-        final distance = (p1.position - p2.position).distance;
-        if (distance < ConnectedParticleSystem.maxDistance) {
-          final opacity = 1 - (distance / ConnectedParticleSystem.maxDistance);
-          final linePaint = Paint()
-            ..color = lineColor.withValues(alpha: opacity * lineColor.a)
-            ..strokeWidth = 0.8;
-          canvas.drawLine(p1.position, p2.position, linePaint);
-        }
-      }
-    }
-
-    // Draw particles
-    final particlePaint = Paint()..color = particleColor;
-    for (var particle in particles) {
-      canvas.drawCircle(particle.position, particle.radius, particlePaint);
-    }
-  }
-
-  @override
-  bool shouldRepaint(covariant CustomPainter oldDelegate) => true;
 }

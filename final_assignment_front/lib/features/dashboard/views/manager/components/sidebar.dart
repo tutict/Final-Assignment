@@ -1,11 +1,7 @@
 part of '../manager_dashboard_screen.dart';
 
 class _Sidebar extends StatelessWidget {
-  const _Sidebar({
-    required this.data,
-  });
-
-  final ProjectCardData data;
+  const _Sidebar();
 
   @override
   Widget build(BuildContext context) {
@@ -14,14 +10,12 @@ class _Sidebar extends StatelessWidget {
 
     return Obx(() {
       final ThemeData currentTheme = controller.currentBodyTheme.value;
-      final bool isLight = currentTheme.brightness == Brightness.light;
-      final Color backgroundColor =
-          isLight ? Colors.white : currentTheme.cardColor;
-      final Color dividerColor = isLight ? Colors.grey[500]! : Colors.white24;
-      final TextStyle defaultTextStyle =
-          TextStyle(color: isLight ? Colors.black87 : Colors.white);
+      final scheme = currentTheme.colorScheme;
+      final Color backgroundColor = scheme.surface.withValues(alpha: 0.98);
+      final Color dividerColor = scheme.outlineVariant.withValues(alpha: 0.55);
+      final TextStyle defaultTextStyle = TextStyle(color: scheme.onSurface);
       final IconThemeData defaultIconTheme =
-          IconThemeData(color: isLight ? Colors.black87 : Colors.white);
+          IconThemeData(color: scheme.onSurface);
 
       return Container(
         color: backgroundColor,
@@ -34,15 +28,9 @@ class _Sidebar extends StatelessWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  Padding(
-                    padding: const EdgeInsets.all(kSpacing),
-                    child: ProjectCard(data: data),
-                  ),
-                  Divider(thickness: 1, color: dividerColor),
+                  const SizedBox(height: kSpacing),
                   Theme(
-                    data: isLight
-                        ? Theme.of(context)
-                        : Theme.of(context).copyWith(primaryColor: Colors.blue),
+                    data: currentTheme.copyWith(primaryColor: scheme.primary),
                     child: SelectionButton(
                       data: [
                         SelectionButtonData(

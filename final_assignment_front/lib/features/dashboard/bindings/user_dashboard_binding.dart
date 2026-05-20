@@ -9,6 +9,12 @@ class UserDashboardBinding extends Bindings {
   /// 所需的控制器被正确实例化并注入到应用的依赖注入容器中。
   @override
   void dependencies() {
-    Get.lazyPut(() => UserDashboardController());
+    if (!Get.isRegistered<UserDashboardController>() &&
+        !Get.isPrepared<UserDashboardController>()) {
+      Get.lazyPut<UserDashboardController>(
+        () => UserDashboardController(),
+        fenix: true,
+      );
+    }
   }
 }
