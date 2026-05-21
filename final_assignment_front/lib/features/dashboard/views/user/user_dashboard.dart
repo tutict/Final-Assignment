@@ -7,6 +7,7 @@ import 'package:final_assignment_front/features/dashboard/views/shared/component
 import 'package:final_assignment_front/features/dashboard/views/shared/components/notification_bar.dart';
 import 'package:final_assignment_front/features/dashboard/views/shared/components/profile_tile.dart';
 import 'package:final_assignment_front/features/dashboard/views/shared/widgets/dashboard_chrome.dart';
+import 'package:final_assignment_front/features/dashboard/views/shared/widgets/dashboard_top_bar_actions.dart';
 import 'package:final_assignment_front/shared_components/floating_window.dart';
 import 'package:final_assignment_front/shared_components/post_card.dart';
 import 'package:final_assignment_front/shared_components/responsive_builder.dart';
@@ -18,6 +19,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'dart:developer' as developer;
+import 'dart:math' as math;
 
 part 'components/user_header.dart';
 
@@ -60,41 +62,47 @@ class UserDashboard extends GetView<UserDashboardController> with FloatingBase {
                           child: _buildLayout(context),
                         ),
                         Obx(() => _buildSidebar(context)),
+                        _buildResponsiveChatDrawer(context, screenWidth),
                       ],
                     );
                   },
                   tabletBuilder: (context, constraints) {
                     final theme = Theme.of(context);
-                    return Row(
-                      crossAxisAlignment: CrossAxisAlignment.start,
+                    return Stack(
                       children: [
-                        Obx(
-                          () => AnimatedContainer(
-                            duration: const Duration(milliseconds: 220),
-                            curve: Curves.easeOutCubic,
-                            width: controller.isSidebarCollapsed.value
-                                ? 76.0
-                                : screenWidth * 0.3,
-                            height: screenHeight,
-                            decoration: BoxDecoration(
-                              color: theme.colorScheme.surface
-                                  .withValues(alpha: 0.96),
-                              border: Border(
-                                right: BorderSide(
-                                  color: theme.colorScheme.outlineVariant
-                                      .withValues(alpha: 0.55),
+                        Row(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Obx(
+                              () => AnimatedContainer(
+                                duration: const Duration(milliseconds: 220),
+                                curve: Curves.easeOutCubic,
+                                width: controller.isSidebarCollapsed.value
+                                    ? 76.0
+                                    : screenWidth * 0.3,
+                                height: screenHeight,
+                                decoration: BoxDecoration(
+                                  color: theme.colorScheme.surface
+                                      .withValues(alpha: 0.96),
+                                  border: Border(
+                                    right: BorderSide(
+                                      color: theme.colorScheme.outlineVariant
+                                          .withValues(alpha: 0.55),
+                                    ),
+                                  ),
                                 ),
+                                child: const UserSidebar(),
                               ),
                             ),
-                            child: const UserSidebar(),
-                          ),
+                            SizedBox(
+                              width: screenWidth * 0.7,
+                              child: SingleChildScrollView(
+                                child: _buildLayout(context),
+                              ),
+                            ),
+                          ],
                         ),
-                        SizedBox(
-                          width: screenWidth * 0.7,
-                          child: SingleChildScrollView(
-                            child: _buildLayout(context),
-                          ),
-                        ),
+                        _buildResponsiveChatDrawer(context, screenWidth),
                       ],
                     );
                   },
@@ -168,6 +176,130 @@ class UserDashboard extends GetView<UserDashboardController> with FloatingBase {
 
   Widget _buildSideContent(BuildContext context) {
     return const AiChat();
+  }
+
+  Widget _buildResponsiveChatDrawer(BuildContext context, double screenWidth) {
+    final theme = Theme.of(context);
+    final scheme = theme.colorScheme;
+    final dark = theme.brightness == Brightness.dark;
+    final availableWidth = math.max(260.0, screenWidth - 24);
+    final targetWidth =
+        screenWidth < 700 ? screenWidth * 0.92 : screenWidth * 0.46;
+    final drawerWidth = math.min(targetWidth, math.min(420.0, availableWidth));
+
+    return Obx(() {
+      final expanded = controller.isChatExpanded.value;
+
+      return IgnorePointer(
+        ignoring: !expanded,
+        child: AnimatedOpacity(
+          duration: const Duration(milliseconds: 180),
+          curve: Curves.easeOutCubic,
+          opacity: expanded ? 1 : 0,
+          child: Stack(
+            children: [
+              Positioned.fill(
+                child: GestureDetector(
+                  onTap: controller.toggleChat,
+                  child: Container(
+                    color: Colors.black.withValues(alpha: dark ? 0.34 : 0.18),
+                  ),
+                ),
+              ),
+              AnimatedPositioned(
+                duration: const Duration(milliseconds: 260),
+                curve: Curves.easeOutCubic,
+                top: 12,
+                right: expanded ? 12 : -drawerWidth - 12,
+                bottom: 12,
+                width: drawerWidth,
+                child: Material(
+                  color: Colors.transparent,
+                  child: DecoratedBox(
+                    decoration: BoxDecoration(
+                      color:
+                          scheme.surface.withValues(alpha: dark ? 0.98 : 0.99),
+                      borderRadius: BorderRadius.circular(8),
+                      border: Border.all(
+                        color: scheme.outlineVariant.withValues(
+                          alpha: dark ? 0.42 : 0.58,
+                        ),
+                      ),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black
+                              .withValues(alpha: dark ? 0.36 : 0.18),
+                          blurRadius: 30,
+                          offset: const Offset(-10, 18),
+                        ),
+                      ],
+                    ),
+                    child: ClipRRect(
+                      borderRadius: BorderRadius.circular(8),
+                      child: Column(
+                        children: [
+                          Padding(
+                            padding: const EdgeInsets.fromLTRB(12, 10, 8, 10),
+                            child: Row(
+                              children: [
+                                Container(
+                                  width: 34,
+                                  height: 34,
+                                  decoration: BoxDecoration(
+                                    color: scheme.primary.withValues(
+                                      alpha: dark ? 0.22 : 0.12,
+                                    ),
+                                    borderRadius: BorderRadius.circular(8),
+                                  ),
+                                  child: Icon(
+                                    Icons.auto_awesome,
+                                    color: scheme.primary,
+                                    size: 19,
+                                  ),
+                                ),
+                                const SizedBox(width: 10),
+                                Expanded(
+                                  child: Text(
+                                    'AI 助手',
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                    style:
+                                        theme.textTheme.titleMedium?.copyWith(
+                                      color: scheme.onSurface,
+                                      fontWeight: FontWeight.w900,
+                                      letterSpacing: 0,
+                                    ),
+                                  ),
+                                ),
+                                IconButton(
+                                  onPressed: controller.toggleChat,
+                                  icon: Icon(
+                                    Icons.close,
+                                    color: scheme.onSurfaceVariant,
+                                  ),
+                                  tooltip: '关闭 AI 助手',
+                                ),
+                              ],
+                            ),
+                          ),
+                          Divider(
+                            height: 1,
+                            color: scheme.outlineVariant.withValues(
+                              alpha: dark ? 0.36 : 0.55,
+                            ),
+                          ),
+                          const Expanded(child: AiChat()),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      );
+    });
   }
 
   Widget _buildLayout(BuildContext context, {bool isDesktop = false}) {
@@ -367,11 +499,10 @@ class UserDashboard extends GetView<UserDashboardController> with FloatingBase {
     final double availableWidth = screenWidth - 2 * horizontalPadding;
     const double mobileBreakpoint = 600.0;
     final double menuIconWidth = onPressedMenu != null ? 48.0 : 0.0;
-    const double iconWidth = 48.0;
-    const double iconSpacing = 4.0;
-    const double iconsTotalWidth = iconWidth * 2 + iconSpacing;
-    final double headerContentAvailableWidth =
-        availableWidth - menuIconWidth - iconsTotalWidth;
+    final double headerContentAvailableWidth = math.max(
+      0,
+      availableWidth - menuIconWidth - DashboardTopBarActions.totalWidth,
+    );
 
     return SizedBox(
       height: 50,
@@ -391,19 +522,12 @@ class UserDashboard extends GetView<UserDashboardController> with FloatingBase {
                   BoxConstraints(maxWidth: headerContentAvailableWidth),
               child: const UserHeader(),
             ),
-            IconButton(
-              onPressed: () => controller.toggleChat(),
-              icon: Icon(
-                Icons.chat_bubble_outline,
-                color: scheme.onSurfaceVariant,
+            Obx(
+              () => DashboardTopBarActions(
+                chatActive: controller.isChatExpanded.value,
+                onChatPressed: controller.toggleChat,
+                onThemePressed: controller.toggleBodyTheme,
               ),
-              tooltip: "AIChat",
-            ),
-            const SizedBox(width: 4),
-            IconButton(
-              onPressed: () => controller.toggleBodyTheme(),
-              icon: Icon(Icons.brightness_6, color: scheme.onSurfaceVariant),
-              tooltip: "切换明暗主题",
             ),
           ],
         ),
