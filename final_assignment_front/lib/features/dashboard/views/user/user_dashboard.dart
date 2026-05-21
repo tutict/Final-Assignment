@@ -9,7 +9,6 @@ import 'package:final_assignment_front/features/dashboard/views/shared/component
 import 'package:final_assignment_front/features/dashboard/views/shared/widgets/dashboard_chrome.dart';
 import 'package:final_assignment_front/shared_components/floating_window.dart';
 import 'package:final_assignment_front/shared_components/post_card.dart';
-import 'package:final_assignment_front/shared_components/project_card.dart';
 import 'package:final_assignment_front/shared_components/responsive_builder.dart';
 import 'package:final_assignment_front/shared_components/selection_button.dart';
 import 'package:final_assignment_front/shared_components/user_screen_swiper.dart';
@@ -32,6 +31,8 @@ class UserDashboard extends GetView<UserDashboardController> with FloatingBase {
     controller.pageResolver ??= resolveDashboardPage;
     final double screenWidth = MediaQuery.of(context).size.width;
     final double screenHeight = MediaQuery.of(context).size.height;
+    final double expandedSidebarWidth =
+        (screenWidth * 0.2).clamp(260.0, 320.0).toDouble();
     const double kHeaderTotalHeight = 112;
 
     return Obx(() {
@@ -67,21 +68,26 @@ class UserDashboard extends GetView<UserDashboardController> with FloatingBase {
                     return Row(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Container(
-                          width: screenWidth * 0.3,
-                          height: screenHeight,
-                          decoration: BoxDecoration(
-                            color: theme.colorScheme.surface
-                                .withValues(alpha: 0.96),
-                            border: Border(
-                              right: BorderSide(
-                                color: theme.colorScheme.outlineVariant
-                                    .withValues(alpha: 0.55),
+                        Obx(
+                          () => AnimatedContainer(
+                            duration: const Duration(milliseconds: 220),
+                            curve: Curves.easeOutCubic,
+                            width: controller.isSidebarCollapsed.value
+                                ? 76.0
+                                : screenWidth * 0.3,
+                            height: screenHeight,
+                            decoration: BoxDecoration(
+                              color: theme.colorScheme.surface
+                                  .withValues(alpha: 0.96),
+                              border: Border(
+                                right: BorderSide(
+                                  color: theme.colorScheme.outlineVariant
+                                      .withValues(alpha: 0.55),
+                                ),
                               ),
                             ),
+                            child: const UserSidebar(),
                           ),
-                          child: UserSidebar(
-                              data: controller.getSelectedProject()),
                         ),
                         SizedBox(
                           width: screenWidth * 0.7,
@@ -97,21 +103,26 @@ class UserDashboard extends GetView<UserDashboardController> with FloatingBase {
                     return Row(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Container(
-                          width: screenWidth * 0.2,
-                          height: screenHeight,
-                          decoration: BoxDecoration(
-                            color: theme.colorScheme.surface
-                                .withValues(alpha: 0.96),
-                            border: Border(
-                              right: BorderSide(
-                                color: theme.colorScheme.outlineVariant
-                                    .withValues(alpha: 0.55),
+                        Obx(
+                          () => AnimatedContainer(
+                            duration: const Duration(milliseconds: 220),
+                            curve: Curves.easeOutCubic,
+                            width: controller.isSidebarCollapsed.value
+                                ? 76.0
+                                : expandedSidebarWidth,
+                            height: screenHeight,
+                            decoration: BoxDecoration(
+                              color: theme.colorScheme.surface
+                                  .withValues(alpha: 0.96),
+                              border: Border(
+                                right: BorderSide(
+                                  color: theme.colorScheme.outlineVariant
+                                      .withValues(alpha: 0.55),
+                                ),
                               ),
                             ),
+                            child: const UserSidebar(),
                           ),
-                          child: UserSidebar(
-                              data: controller.getSelectedProject()),
                         ),
                         Expanded(
                           child: SingleChildScrollView(
@@ -212,32 +223,19 @@ class UserDashboard extends GetView<UserDashboardController> with FloatingBase {
   }
 
   Widget _buildUserOverview(BuildContext context) {
-    final theme = Theme.of(context);
-    final isDark = theme.brightness == Brightness.dark;
-
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: kSpacing),
+    return const Padding(
+      padding: EdgeInsets.symmetric(horizontal: kSpacing),
       child: DashboardSectionHeader(
         title: '个人工作台',
         subtitle: '查看违法通知、办事进度和常用办理入口。',
-        trailing: IconButton.filledTonal(
-          onPressed: controller.toggleBodyTheme,
-          icon: Icon(
-            isDark ? Icons.light_mode_rounded : Icons.dark_mode_rounded,
-          ),
-          tooltip: isDark ? '切换到亮色模式' : '切换到暗色模式',
-        ),
       ),
     );
   }
 
   Widget _buildUserScreenSwiper(BuildContext context) {
-    return SizedBox(
-      height: MediaQuery.of(context).size.height * 0.55,
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: kSpacing),
-        child: UserScreenSwiper(onPressed: () {}),
-      ),
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: kSpacing),
+      child: UserScreenSwiper(onPressed: () {}),
     );
   }
 
@@ -299,10 +297,9 @@ class UserDashboard extends GetView<UserDashboardController> with FloatingBase {
         ),
       ),
       child: showSidebar
-          ? Padding(
-              padding:
-                  const EdgeInsets.fromLTRB(16.0, kSpacing * 2, 16.0, kSpacing),
-              child: UserSidebar(data: controller.getSelectedProject()),
+          ? const Padding(
+              padding: EdgeInsets.fromLTRB(16.0, kSpacing * 2, 16.0, kSpacing),
+              child: UserSidebar(),
             )
           : null,
     );

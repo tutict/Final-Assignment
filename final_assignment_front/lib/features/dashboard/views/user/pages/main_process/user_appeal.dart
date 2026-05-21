@@ -23,6 +23,7 @@ import 'package:get/get.dart';
 import 'package:jwt_decoder/jwt_decoder.dart';
 import 'package:final_assignment_front/features/dashboard/controllers/user_dashboard_screen_controller.dart';
 import 'package:final_assignment_front/features/dashboard/views/shared/widgets/dashboard_page_template.dart';
+import 'package:final_assignment_front/features/dashboard/views/user/pages/main_process/user_business_page_chrome.dart';
 import 'dart:developer' as developer;
 import 'package:final_assignment_front/shared/utils/navigation_helper.dart';
 import 'package:final_assignment_front/utils/services/auth_token_store.dart';
@@ -118,11 +119,10 @@ class _UserAppealPageState extends State<UserAppealPage> {
         updatedAt: change.updatedAt,
       );
     });
-    Get.snackbar(
-      '申诉状态更新',
-      '您的申诉已更新为 ${getAppealProcessStatusLabel(change.newStatus)}',
-      snackPosition: SnackPosition.BOTTOM,
-      duration: const Duration(seconds: 3),
+    showUserBusinessToast(
+      context,
+      title: '申诉状态更新',
+      message: '您的申诉已更新为 ${getAppealProcessStatusLabel(change.newStatus)}',
     );
   }
 
@@ -732,13 +732,7 @@ class _UserAppealPageState extends State<UserAppealPage> {
 
   void _showSnackBar(String message, {bool isError = false}) {
     if (!mounted) return;
-    Get.snackbar(
-      isError ? '错误' : '提示',
-      message,
-      snackPosition: SnackPosition.BOTTOM,
-      backgroundColor: isError ? Colors.red.shade100 : Colors.green.shade100,
-      duration: const Duration(seconds: 3),
-    );
+    showUserBusinessToast(context, message: message, isError: isError);
   }
 
   Widget _buildSearchBar(ThemeData themeData) {
@@ -746,7 +740,7 @@ class _UserAppealPageState extends State<UserAppealPage> {
       controller: _searchController,
       wrapInCard: true,
       cardElevation: 2,
-      cardBorderRadius: 12,
+      cardBorderRadius: 8,
       cardColor: themeData.colorScheme.surfaceContainer,
       cardPadding: const EdgeInsets.all(8),
       inputBorderRadius: 8,
@@ -784,14 +778,35 @@ class _UserAppealPageState extends State<UserAppealPage> {
       if (!_isUser) {
         return DashboardPageTemplate(
           theme: themeData,
-          title: '用户申诉管理',
-          pageType: DashboardPageType.custom,
-          body: Center(
-            child: Text(
-              _errorMessage,
-              style: themeData.textTheme.bodyLarge?.copyWith(
-                color: themeData.colorScheme.error,
-              ),
+          title: '用户申诉',
+          pageType: DashboardPageType.user,
+          bodyIsScrollable: true,
+          padding: EdgeInsets.zero,
+          body: Padding(
+            padding: const EdgeInsets.all(16),
+            child: Column(
+              children: [
+                const UserBusinessPageHeader(
+                  title: '用户申诉',
+                  subtitle: '提交申诉材料，跟进审核状态和处理反馈。',
+                  icon: Icons.gavel_rounded,
+                  badge: '材料提交',
+                  accentColor: Color(0xFFE5A33A),
+                ),
+                const SizedBox(height: 16),
+                Expanded(
+                  child: UserBusinessStatusPanel(
+                    message: _errorMessage,
+                    kind: UserBusinessStatusKind.error,
+                    actionLabel: userBusinessMessageNeedsLogin(_errorMessage)
+                        ? '重新登录'
+                        : null,
+                    onAction: userBusinessMessageNeedsLogin(_errorMessage)
+                        ? () => NavigationHelper.offAllNamed(Routes.login)
+                        : null,
+                  ),
+                ),
+              ],
             ),
           ),
         );
@@ -799,22 +814,29 @@ class _UserAppealPageState extends State<UserAppealPage> {
 
       return DashboardPageTemplate(
         theme: themeData,
-        title: '用户申诉管理',
+        title: '用户申诉',
         pageType: DashboardPageType.user,
-        onThemeToggle: controller?.toggleBodyTheme,
         bodyIsScrollable: true,
         padding: EdgeInsets.zero,
-        floatingActionButton: FloatingActionButton(
-          onPressed: _showSubmitAppealDialog,
-          backgroundColor: themeData.colorScheme.primary,
-          foregroundColor: themeData.colorScheme.onPrimary,
-          tooltip: '提交申诉',
-          child: const Icon(Icons.add),
-        ),
+        actions: [
+          DashboardPageBarAction(
+            icon: Icons.add,
+            tooltip: '提交申诉',
+            onPressed: _showSubmitAppealDialog,
+          ),
+        ],
         body: Padding(
           padding: const EdgeInsets.all(16.0),
           child: Column(
             children: [
+              UserBusinessPageHeader(
+                title: '用户申诉',
+                subtitle: '提交申诉材料，跟进审核状态和处理反馈。',
+                icon: Icons.gavel_rounded,
+                badge: '${_appeals.length} 条申诉',
+                accentColor: const Color(0xFFE5A33A),
+              ),
+              const SizedBox(height: 12),
               _buildSearchBar(themeData),
               const SizedBox(height: 16),
               Expanded(
@@ -827,24 +849,27 @@ class _UserAppealPageState extends State<UserAppealPage> {
                       )
                     : _errorMessage.isNotEmpty
                         ? Center(
-                            child: Text(
-                              _errorMessage,
-                              style: themeData.textTheme.bodyLarge?.copyWith(
-                                color: themeData.colorScheme.error,
-                              ),
+                            child: UserBusinessStatusPanel(
+                              message: _errorMessage,
+                              kind: UserBusinessStatusKind.error,
                             ),
                           )
                         : _appeals.isEmpty
                             ? Center(
-                                child: Text(
-                                  _currentDriverName != null
+                                child: UserBusinessStatusPanel(
+                                  message: _currentDriverName != null
                                       ? '暂无与申诉人 $_currentDriverName 匹配的申诉记录'
                                       : '未找到驾驶员信息，请重新登录',
-                                  style:
-                                      themeData.textTheme.bodyLarge?.copyWith(
-                                    color:
-                                        themeData.colorScheme.onSurfaceVariant,
-                                  ),
+                                  kind: _currentDriverName != null
+                                      ? UserBusinessStatusKind.empty
+                                      : UserBusinessStatusKind.error,
+                                  actionLabel: _currentDriverName == null
+                                      ? '重新登录'
+                                      : null,
+                                  onAction: _currentDriverName == null
+                                      ? () => NavigationHelper.offAllNamed(
+                                          Routes.login)
+                                      : null,
                                 ),
                               )
                             : CupertinoScrollbar(
@@ -855,48 +880,31 @@ class _UserAppealPageState extends State<UserAppealPage> {
                                   color: themeData.colorScheme.primary,
                                   child: ListView.builder(
                                     controller: _scrollController,
+                                    padding: EdgeInsets.zero,
                                     itemCount: _appeals.length,
                                     itemBuilder: (context, index) {
                                       final appeal = _appeals[index];
-                                      return Card(
-                                        elevation: 3,
-                                        color: themeData
-                                            .colorScheme.surfaceContainer,
-                                        shape: RoundedRectangleBorder(
-                                            borderRadius:
-                                                BorderRadius.circular(12.0)),
-                                        margin: const EdgeInsets.symmetric(
-                                            vertical: 6.0),
-                                        child: ListTile(
-                                          title: Text(
-                                            '申诉人: ${appeal.appellantName ?? "未知"} (ID: ${appeal.appealId ?? "无"})',
-                                            style: themeData.textTheme.bodyLarge
-                                                ?.copyWith(
-                                              color: themeData
-                                                  .colorScheme.onSurface,
-                                              fontWeight: FontWeight.w600,
+                                      return UserBusinessRecordCard(
+                                        icon: Icons.gavel_rounded,
+                                        title: appeal.appellantName ?? '未知申诉人',
+                                        badge: getAppealProcessStatusLabel(
+                                            appeal.processStatus),
+                                        accentColor: const Color(0xFFE5A33A),
+                                        details: [
+                                          '申诉编号：${appeal.appealId ?? '无'}',
+                                          '申诉原因：${appeal.appealReason ?? '无'}',
+                                          '申诉时间：${formatDateTime(appeal.appealTime)}',
+                                        ],
+                                        onTap: () {
+                                          Navigator.push(
+                                            context,
+                                            MaterialPageRoute(
+                                              builder: (context) =>
+                                                  UserAppealDetailPage(
+                                                      appeal: appeal),
                                             ),
-                                          ),
-                                          subtitle: Text(
-                                            '原因: ${appeal.appealReason ?? "无"}\n状态: ${getAppealProcessStatusLabel(appeal.processStatus)}\n时间: ${formatDateTime(appeal.appealTime)}',
-                                            style: themeData
-                                                .textTheme.bodyMedium
-                                                ?.copyWith(
-                                              color: themeData
-                                                  .colorScheme.onSurfaceVariant,
-                                            ),
-                                          ),
-                                          onTap: () {
-                                            Navigator.push(
-                                              context,
-                                              MaterialPageRoute(
-                                                builder: (context) =>
-                                                    UserAppealDetailPage(
-                                                        appeal: appeal),
-                                              ),
-                                            );
-                                          },
-                                        ),
+                                          );
+                                        },
                                       );
                                     },
                                   ),
@@ -1057,11 +1065,10 @@ class _UserAppealDetailPageState extends State<UserAppealDetailPage> {
             ElevatedButton(
               onPressed: () async {
                 if (titleController.text.isEmpty) {
-                  Get.snackbar(
-                    '错误',
-                    '标题不能为空',
-                    snackPosition: SnackPosition.BOTTOM,
-                    backgroundColor: Colors.red.shade100,
+                  showUserBusinessToast(
+                    context,
+                    message: '标题不能为空',
+                    isError: true,
                   );
                   return;
                 }
@@ -1100,7 +1107,6 @@ class _UserAppealDetailPageState extends State<UserAppealDetailPage> {
         theme: themeData,
         title: '申诉详情',
         pageType: DashboardPageType.user,
-        onThemeToggle: controller?.toggleBodyTheme,
         onRefresh: _fetchProgress,
         bodyIsScrollable: true,
         padding: EdgeInsets.zero,

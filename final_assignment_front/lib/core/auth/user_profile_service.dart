@@ -131,7 +131,12 @@ class UserProfileService extends GetxService {
     }
 
     try {
-      return UserProfile.fromStorage(values);
+      final profile = UserProfile.fromStorage(values);
+      if (_looksCorruptedText(profile.displayName) ||
+          _looksCorruptedText(profile.driverName)) {
+        return null;
+      }
+      return profile;
     } catch (error, stackTrace) {
       AppLogger.error(
         'Failed to load user profile from storage',
@@ -140,6 +145,22 @@ class UserProfileService extends GetxService {
       );
       return null;
     }
+  }
+
+  bool _looksCorruptedText(String? value) {
+    final compact = value?.replaceAll(RegExp(r'\s+'), '') ?? '';
+    if (compact.isEmpty) return false;
+    if (compact.contains('\uFFFD')) return true;
+
+    final questionMarks = '?'.allMatches(compact).length;
+    if (questionMarks >= 3 && questionMarks / compact.length > 0.45) {
+      return true;
+    }
+
+    const mojibakeMarkers = ['Ã', 'Â', 'ä', 'å', 'æ', 'ç', 'è', 'é'];
+    final markerCount =
+        mojibakeMarkers.where((marker) => compact.contains(marker)).length;
+    return markerCount >= 2 && !compact.contains('@');
   }
 
   Future<void> _persist(UserProfile profile) async {

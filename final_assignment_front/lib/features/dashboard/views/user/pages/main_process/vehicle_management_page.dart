@@ -9,6 +9,7 @@ import 'package:final_assignment_front/features/model/driver_information.dart';
 import 'package:final_assignment_front/features/model/user_management.dart';
 import 'package:final_assignment_front/features/dashboard/controllers/user_dashboard_screen_controller.dart';
 import 'package:final_assignment_front/features/dashboard/views/shared/widgets/dashboard_page_template.dart';
+import 'package:final_assignment_front/features/dashboard/views/user/pages/main_process/user_business_page_chrome.dart';
 import 'package:final_assignment_front/shared/dialogs/app_dialog.dart';
 import 'package:final_assignment_front/shared/widgets/index.dart';
 import 'package:get/get.dart';
@@ -317,18 +318,18 @@ class _VehicleManagementState extends State<VehicleManagementPage> {
 
   void _showSnackBar(String message, {bool isError = false}) {
     if (!mounted) return;
-    Get.snackbar(
-      isError ? '错误' : '提示',
-      message,
-      snackPosition: SnackPosition.BOTTOM,
-      backgroundColor: isError ? Colors.red.shade100 : Colors.green.shade100,
-      duration: const Duration(seconds: 3),
-    );
+    showUserBusinessToast(context, message: message, isError: isError);
   }
 
   Widget _buildSearchField(ThemeData themeData) {
     return SearchFilterBar(
       controller: _searchController,
+      wrapInCard: true,
+      cardElevation: 2,
+      cardBorderRadius: 8,
+      cardColor: themeData.colorScheme.surfaceContainer,
+      cardPadding: const EdgeInsets.all(8),
+      inputBorderRadius: 8,
       fillColor: themeData.colorScheme.surfaceContainerLowest,
       searchTypes: const [
         SearchFilterOption(
@@ -366,9 +367,8 @@ class _VehicleManagementState extends State<VehicleManagementPage> {
       final themeData = controller.currentBodyTheme.value;
       return DashboardPageTemplate(
         theme: themeData,
-        title: '车辆管理',
+        title: '车辆登记',
         pageType: DashboardPageType.user,
-        onThemeToggle: controller.toggleBodyTheme,
         bodyIsScrollable: true,
         padding: EdgeInsets.zero,
         actions: [
@@ -383,19 +383,20 @@ class _VehicleManagementState extends State<VehicleManagementPage> {
             onPressed: _createVehicle,
           ),
         ],
-        floatingActionButton: FloatingActionButton(
-          onPressed: _createVehicle,
-          backgroundColor: themeData.colorScheme.primary,
-          foregroundColor: themeData.colorScheme.onPrimary,
-          tooltip: '添加新车辆',
-          child: const Icon(Icons.add),
-        ),
         body: RefreshIndicator(
           onRefresh: _refreshVehicles,
           child: Padding(
             padding: const EdgeInsets.all(16.0),
             child: Column(
               children: [
+                UserBusinessPageHeader(
+                  title: '车辆登记',
+                  subtitle: '维护车牌、车辆类型、车主和车辆状态等资料。',
+                  icon: Icons.directions_car_filled_rounded,
+                  badge: '${_filteredVehicleList.length} 辆车辆',
+                  accentColor: const Color(0xFF7C8CF8),
+                ),
+                const SizedBox(height: 12),
                 _buildSearchField(themeData),
                 const SizedBox(height: 12),
                 Expanded(
@@ -416,35 +417,21 @@ class _VehicleManagementState extends State<VehicleManagementPage> {
                         : _errorMessage.isNotEmpty &&
                                 _filteredVehicleList.isEmpty
                             ? Center(
-                                child: Column(
-                                  mainAxisAlignment: MainAxisAlignment.center,
-                                  children: [
-                                    Text(
-                                      _errorMessage,
-                                      style: themeData.textTheme.titleMedium
-                                          ?.copyWith(
-                                              color:
-                                                  themeData.colorScheme.error,
-                                              fontWeight: FontWeight.w500),
-                                      textAlign: TextAlign.center,
-                                    ),
-                                    if (_errorMessage.contains('未授权'))
-                                      Padding(
-                                        padding:
-                                            const EdgeInsets.only(top: 16.0),
-                                        child: ElevatedButton(
-                                          onPressed: () =>
-                                              Navigator.pushReplacementNamed(
-                                                  context, '/login'),
-                                          style: ElevatedButton.styleFrom(
-                                              backgroundColor:
-                                                  themeData.colorScheme.primary,
-                                              foregroundColor: themeData
-                                                  .colorScheme.onPrimary),
-                                          child: const Text('重新登录'),
-                                        ),
-                                      ),
-                                  ],
+                                child: UserBusinessStatusPanel(
+                                  message: _errorMessage,
+                                  kind: _errorMessage.contains('暂无') ||
+                                          _errorMessage.contains('未找到')
+                                      ? UserBusinessStatusKind.empty
+                                      : UserBusinessStatusKind.error,
+                                  actionLabel: userBusinessMessageNeedsLogin(
+                                          _errorMessage)
+                                      ? '重新登录'
+                                      : null,
+                                  onAction: userBusinessMessageNeedsLogin(
+                                          _errorMessage)
+                                      ? () => Navigator.pushReplacementNamed(
+                                          context, '/login')
+                                      : null,
                                 ),
                               )
                             : ListView.builder(
@@ -457,82 +444,39 @@ class _VehicleManagementState extends State<VehicleManagementPage> {
                                         padding: EdgeInsets.all(8.0));
                                   }
                                   final vehicle = _filteredVehicleList[index];
-                                  return Card(
-                                    margin: const EdgeInsets.symmetric(
-                                        vertical: 8.0),
-                                    elevation: 3,
-                                    color:
-                                        themeData.colorScheme.surfaceContainer,
-                                    shape: RoundedRectangleBorder(
-                                        borderRadius:
-                                            BorderRadius.circular(16.0)),
-                                    child: ListTile(
-                                      contentPadding:
-                                          const EdgeInsets.symmetric(
-                                              horizontal: 16.0, vertical: 12.0),
-                                      title: Text(
-                                        '车牌号: ${vehicle.licensePlate ?? '未知车牌'}',
-                                        style: themeData.textTheme.titleMedium
-                                            ?.copyWith(
-                                                color: themeData
-                                                    .colorScheme.onSurface,
-                                                fontWeight: FontWeight.w600),
-                                      ),
-                                      subtitle: Column(
-                                        crossAxisAlignment:
-                                            CrossAxisAlignment.start,
-                                        children: [
-                                          const SizedBox(height: 4),
-                                          Text(
-                                              '类型: ${vehicle.vehicleType ?? '未知类型'}',
-                                              style: themeData
-                                                  .textTheme.bodyMedium
-                                                  ?.copyWith(
-                                                      color: themeData
-                                                          .colorScheme
-                                                          .onSurfaceVariant)),
-                                          Text(
-                                              '车主: ${vehicle.ownerName ?? '未知车主'}',
-                                              style: themeData
-                                                  .textTheme.bodyMedium
-                                                  ?.copyWith(
-                                                      color: themeData
-                                                          .colorScheme
-                                                          .onSurfaceVariant)),
-                                          Text(
-                                              '状态: ${vehicle.currentStatus ?? '无'}',
-                                              style: themeData
-                                                  .textTheme.bodyMedium
-                                                  ?.copyWith(
-                                                      color: themeData
-                                                          .colorScheme
-                                                          .onSurfaceVariant)),
-                                        ],
-                                      ),
-                                      trailing: Row(
-                                        mainAxisSize: MainAxisSize.min,
-                                        children: [
-                                          IconButton(
-                                            icon: const Icon(Icons.edit),
-                                            color:
-                                                themeData.colorScheme.primary,
-                                            onPressed: () =>
-                                                _goToDetailPage(vehicle),
-                                            tooltip: '编辑',
-                                          ),
-                                          IconButton(
-                                            icon: Icon(Icons.delete,
-                                                color: themeData
-                                                    .colorScheme.error),
-                                            onPressed: () => _deleteVehicle(
-                                                vehicle.vehicleId ?? 0,
-                                                vehicle.licensePlate ?? ''),
-                                            tooltip: '删除',
-                                          ),
-                                        ],
-                                      ),
-                                      onTap: () => _goToDetailPage(vehicle),
+                                  return UserBusinessRecordCard(
+                                    icon: Icons.directions_car_filled_rounded,
+                                    title: vehicle.licensePlate ?? '未知车牌',
+                                    badge: vehicle.currentStatus ?? '无状态',
+                                    accentColor: const Color(0xFF7C8CF8),
+                                    details: [
+                                      '车辆类型：${vehicle.vehicleType ?? '未知类型'}',
+                                      '车主：${vehicle.ownerName ?? '未知车主'}',
+                                      '首次登记：${formatDate(vehicle.firstRegistrationDate)}',
+                                    ],
+                                    trailing: Row(
+                                      mainAxisSize: MainAxisSize.min,
+                                      children: [
+                                        IconButton(
+                                          icon: const Icon(Icons.edit_rounded),
+                                          color: themeData.colorScheme.primary,
+                                          onPressed: () =>
+                                              _goToDetailPage(vehicle),
+                                          tooltip: '编辑',
+                                        ),
+                                        IconButton(
+                                          icon: Icon(
+                                              Icons.delete_outline_rounded,
+                                              color:
+                                                  themeData.colorScheme.error),
+                                          onPressed: () => _deleteVehicle(
+                                              vehicle.vehicleId ?? 0,
+                                              vehicle.licensePlate ?? ''),
+                                          tooltip: '删除',
+                                        ),
+                                      ],
                                     ),
+                                    onTap: () => _goToDetailPage(vehicle),
                                   );
                                 },
                               ),
@@ -731,13 +675,7 @@ class _AddVehiclePageState extends State<AddVehiclePage> {
 
   void _showSnackBar(String message, {bool isError = false}) {
     if (!mounted) return;
-    Get.snackbar(
-      isError ? '错误' : '提示',
-      message,
-      snackPosition: SnackPosition.BOTTOM,
-      backgroundColor: isError ? Colors.red.shade100 : Colors.green.shade100,
-      duration: const Duration(seconds: 3),
-    );
+    showUserBusinessToast(context, message: message, isError: isError);
   }
 
   Future<void> _pickDate() async {
@@ -847,7 +785,6 @@ class _AddVehiclePageState extends State<AddVehiclePage> {
       theme: themeData,
       title: '添加新车辆',
       pageType: hideAppBar ? DashboardPageType.custom : DashboardPageType.user,
-      onThemeToggle: hideAppBar ? null : controller?.toggleBodyTheme,
       bodyIsScrollable: true,
       padding: EdgeInsets.zero,
       body: Padding(
@@ -1119,13 +1056,7 @@ class _EditVehiclePageState extends State<EditVehiclePage> {
 
   void _showSnackBar(String message, {bool isError = false}) {
     if (!mounted) return;
-    Get.snackbar(
-      isError ? '错误' : '提示',
-      message,
-      snackPosition: SnackPosition.BOTTOM,
-      backgroundColor: isError ? Colors.red.shade100 : Colors.green.shade100,
-      duration: const Duration(seconds: 3),
-    );
+    showUserBusinessToast(context, message: message, isError: isError);
   }
 
   Future<void> _pickDate() async {
@@ -1235,7 +1166,6 @@ class _EditVehiclePageState extends State<EditVehiclePage> {
       theme: themeData,
       title: '编辑车辆信息',
       pageType: DashboardPageType.user,
-      onThemeToggle: controller?.toggleBodyTheme,
       bodyIsScrollable: true,
       padding: EdgeInsets.zero,
       body: Padding(
@@ -1433,13 +1363,7 @@ class _VehicleDetailPageState extends State<VehicleDetailPage> {
 
   void _showSnackBar(String message, {bool isError = false}) {
     if (!mounted) return;
-    Get.snackbar(
-      isError ? '错误' : '提示',
-      message,
-      snackPosition: SnackPosition.BOTTOM,
-      backgroundColor: isError ? Colors.red.shade100 : Colors.green.shade100,
-      duration: const Duration(seconds: 3),
-    );
+    showUserBusinessToast(context, message: message, isError: isError);
   }
 
   Widget _buildDetailRow(String label, String value, ThemeData themeData) {
@@ -1541,7 +1465,6 @@ class _VehicleDetailPageState extends State<VehicleDetailPage> {
       theme: themeData,
       title: '车辆详情',
       pageType: DashboardPageType.user,
-      onThemeToggle: controller?.toggleBodyTheme,
       actions: actions,
       bodyIsScrollable: true,
       padding: EdgeInsets.zero,

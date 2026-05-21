@@ -7,6 +7,7 @@ import 'package:final_assignment_front/core/auth/user_profile_service.dart';
 import 'package:final_assignment_front/features/api/offense_information_controller_api.dart';
 import 'package:final_assignment_front/features/dashboard/controllers/user_dashboard_screen_controller.dart';
 import 'package:final_assignment_front/features/dashboard/views/shared/widgets/dashboard_page_template.dart';
+import 'package:final_assignment_front/features/dashboard/views/user/pages/main_process/user_business_page_chrome.dart';
 import 'package:final_assignment_front/features/model/offense_information.dart';
 import 'package:final_assignment_front/shared/widgets/index.dart';
 import 'package:final_assignment_front/core/network/app_exception.dart';
@@ -314,7 +315,7 @@ class _UserOffenseListPageState extends State<UserOffenseListPage> {
       controller: _searchController,
       wrapInCard: true,
       cardElevation: 2,
-      cardBorderRadius: 12,
+      cardBorderRadius: 8,
       cardColor: themeData.colorScheme.surfaceContainer,
       cardPadding: const EdgeInsets.all(8),
       inputBorderRadius: 8,
@@ -357,29 +358,31 @@ class _UserOffenseListPageState extends State<UserOffenseListPage> {
       if (!_isUser) {
         return DashboardPageTemplate(
           theme: themeData,
-          title: '我的违法记录',
-          pageType: DashboardPageType.custom,
-          body: Center(
+          title: '违法详情',
+          pageType: DashboardPageType.user,
+          bodyIsScrollable: true,
+          padding: EdgeInsets.zero,
+          body: Padding(
+            padding: const EdgeInsets.all(16),
             child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                Text(
-                  _errorMessage,
-                  style: themeData.textTheme.titleMedium?.copyWith(
-                    color: themeData.colorScheme.error,
-                    fontWeight: FontWeight.w500,
-                  ),
-                  textAlign: TextAlign.center,
+                const UserBusinessPageHeader(
+                  title: '违法详情',
+                  subtitle: '按违法类型、代码和时间范围查询个人违法记录。',
+                  icon: Icons.info_rounded,
+                  badge: '待处理',
                 ),
-                Padding(
-                  padding: const EdgeInsets.only(top: 16.0),
-                  child: ElevatedButton(
-                    onPressed: () => NavigationHelper.offAllNamed(Routes.login),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: themeData.colorScheme.primary,
-                      foregroundColor: themeData.colorScheme.onPrimary,
-                    ),
-                    child: const Text('重新登录'),
+                const SizedBox(height: 16),
+                Expanded(
+                  child: UserBusinessStatusPanel(
+                    message: _errorMessage,
+                    kind: UserBusinessStatusKind.error,
+                    actionLabel: userBusinessMessageNeedsLogin(_errorMessage)
+                        ? '重新登录'
+                        : null,
+                    onAction: userBusinessMessageNeedsLogin(_errorMessage)
+                        ? () => NavigationHelper.offAllNamed(Routes.login)
+                        : null,
                   ),
                 ),
               ],
@@ -390,9 +393,8 @@ class _UserOffenseListPageState extends State<UserOffenseListPage> {
 
       return DashboardPageTemplate(
         theme: themeData,
-        title: '我的违法记录',
+        title: '违法详情',
         pageType: DashboardPageType.user,
-        onThemeToggle: dashboardController?.toggleBodyTheme,
         bodyIsScrollable: true,
         padding: EdgeInsets.zero,
         body: RefreshIndicator(
@@ -403,6 +405,13 @@ class _UserOffenseListPageState extends State<UserOffenseListPage> {
             padding: const EdgeInsets.all(16.0),
             child: Column(
               children: [
+                UserBusinessPageHeader(
+                  title: '违法详情',
+                  subtitle: '按违法类型、代码和时间范围查询个人违法记录。',
+                  icon: Icons.info_rounded,
+                  badge: '${_filteredOffenses.length} 条记录',
+                ),
+                const SizedBox(height: 12),
                 _buildSearchBar(themeData),
                 const SizedBox(height: 12),
                 Expanded(
@@ -424,37 +433,21 @@ class _UserOffenseListPageState extends State<UserOffenseListPage> {
                           )
                         : _errorMessage.isNotEmpty && _filteredOffenses.isEmpty
                             ? Center(
-                                child: Column(
-                                  mainAxisAlignment: MainAxisAlignment.center,
-                                  children: [
-                                    Text(
-                                      _errorMessage,
-                                      style: themeData.textTheme.titleMedium
-                                          ?.copyWith(
-                                        color: themeData.colorScheme.error,
-                                        fontWeight: FontWeight.w500,
-                                      ),
-                                      textAlign: TextAlign.center,
-                                    ),
-                                    if (_errorMessage.contains('未授权') ||
-                                        _errorMessage.contains('登录'))
-                                      Padding(
-                                        padding:
-                                            const EdgeInsets.only(top: 16.0),
-                                        child: ElevatedButton(
-                                          onPressed: () =>
-                                              NavigationHelper.offAllNamed(
-                                                  Routes.login),
-                                          style: ElevatedButton.styleFrom(
-                                            backgroundColor:
-                                                themeData.colorScheme.primary,
-                                            foregroundColor:
-                                                themeData.colorScheme.onPrimary,
-                                          ),
-                                          child: const Text('重新登录'),
-                                        ),
-                                      ),
-                                  ],
+                                child: UserBusinessStatusPanel(
+                                  message: _errorMessage,
+                                  kind: _errorMessage.contains('暂无') ||
+                                          _errorMessage.contains('未找到')
+                                      ? UserBusinessStatusKind.empty
+                                      : UserBusinessStatusKind.error,
+                                  actionLabel: userBusinessMessageNeedsLogin(
+                                          _errorMessage)
+                                      ? '重新登录'
+                                      : null,
+                                  onAction: userBusinessMessageNeedsLogin(
+                                          _errorMessage)
+                                      ? () => NavigationHelper.offAllNamed(
+                                          Routes.login)
+                                      : null,
                                 ),
                               )
                             : CupertinoScrollbar(
@@ -474,71 +467,16 @@ class _UserOffenseListPageState extends State<UserOffenseListPage> {
                                       );
                                     }
                                     final offense = _filteredOffenses[index];
-                                    return Card(
-                                      margin: const EdgeInsets.symmetric(
-                                          vertical: 8.0),
-                                      elevation: 3,
-                                      color: themeData
-                                          .colorScheme.surfaceContainer,
-                                      shape: RoundedRectangleBorder(
-                                          borderRadius:
-                                              BorderRadius.circular(16.0)),
-                                      child: ListTile(
-                                        contentPadding:
-                                            const EdgeInsets.symmetric(
-                                                horizontal: 16.0,
-                                                vertical: 12.0),
-                                        title: Text(
-                                          '违法类型: ${offense.offenseType ?? '未知'}',
-                                          style: themeData.textTheme.titleMedium
-                                              ?.copyWith(
-                                            color:
-                                                themeData.colorScheme.onSurface,
-                                            fontWeight: FontWeight.w600,
-                                          ),
-                                        ),
-                                        subtitle: Column(
-                                          crossAxisAlignment:
-                                              CrossAxisAlignment.start,
-                                          children: [
-                                            const SizedBox(height: 4),
-                                            Text(
-                                              '车牌号: ${offense.licensePlate ?? '无'}',
-                                              style: themeData
-                                                  .textTheme.bodyMedium
-                                                  ?.copyWith(
-                                                color: themeData.colorScheme
-                                                    .onSurfaceVariant,
-                                              ),
-                                            ),
-                                            Text(
-                                              '扣分: ${offense.deductedPoints ?? 0} 分',
-                                              style: themeData
-                                                  .textTheme.bodyMedium
-                                                  ?.copyWith(
-                                                color: themeData.colorScheme
-                                                    .onSurfaceVariant,
-                                              ),
-                                            ),
-                                            Text(
-                                              '时间: ${formatDateTime(offense.offenseTime)}',
-                                              style: themeData
-                                                  .textTheme.bodyMedium
-                                                  ?.copyWith(
-                                                color: themeData.colorScheme
-                                                    .onSurfaceVariant,
-                                              ),
-                                            ),
-                                          ],
-                                        ),
-                                        trailing: Icon(
-                                          Icons.arrow_forward_ios,
-                                          color: themeData
-                                              .colorScheme.onSurfaceVariant,
-                                          size: 18,
-                                        ),
-                                        onTap: () => _goToDetailPage(offense),
-                                      ),
+                                    return UserBusinessRecordCard(
+                                      icon: Icons.info_outline_rounded,
+                                      title: offense.offenseType ?? '未知违法类型',
+                                      badge: '${offense.deductedPoints ?? 0} 分',
+                                      details: [
+                                        '车牌号：${offense.licensePlate ?? '无'}',
+                                        '违法代码：${offense.offenseCode ?? '无'}',
+                                        '违法时间：${formatDateTime(offense.offenseTime)}',
+                                      ],
+                                      onTap: () => _goToDetailPage(offense),
                                     );
                                   },
                                 ),
@@ -599,7 +537,6 @@ class UserOffenseDetailPage extends StatelessWidget {
         theme: themeData,
         title: '违法详情',
         pageType: DashboardPageType.user,
-        onThemeToggle: dashboardController?.toggleBodyTheme,
         body: Card(
           elevation: 3,
           color: themeData.colorScheme.surfaceContainer,

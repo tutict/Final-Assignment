@@ -29,6 +29,7 @@ class UserDashboardController extends GetxController {
   final isScrollingDown = false.obs;
   final isDesktop = false.obs;
   final isSidebarOpen = false.obs;
+  final isSidebarCollapsed = false.obs;
   final selectedPage = Rx<Widget?>(null);
   final isChatExpanded = false.obs;
   final Rx<Profile?> currentUser = Rx<Profile?>(null);
@@ -93,18 +94,21 @@ class UserDashboardController extends GetxController {
       final prefs = await SharedPreferences.getInstance();
       final jwtToken =
           prefs.getString('jwtToken') ?? prefs.getString('jwt_token');
-      final userName = prefs.getString('userName') ??
-          prefs.getString('username') ??
-          prefs.getString('displayName');
+      final userName = _readableName(
+        prefs.getString('userName') ??
+            prefs.getString('username') ??
+            prefs.getString('displayName'),
+        fallback: prefs.getString('email') ?? prefs.getString('userEmail'),
+      );
       final userEmail = prefs.getString('userEmail') ??
           prefs.getString('email') ??
-          (userName != null && userName.contains('@') ? userName : null);
+          (userName.contains('@') ? userName : null);
       final userRole = prefs.getString('userRole');
 
       developer.log(
           'Loading user from prefs: jwtToken=$jwtToken, userName=$userName, userEmail=$userEmail, userRole=$userRole');
 
-      if (jwtToken != null && jwtToken.isNotEmpty && userName != null) {
+      if (jwtToken != null && jwtToken.isNotEmpty && userName.isNotEmpty) {
         _authRedirectScheduled = false;
         final resolvedEmail = userEmail ?? userName;
         currentUser.value = Profile(
@@ -139,7 +143,10 @@ class UserDashboardController extends GetxController {
       final profile = await Get.find<UserProfileService>().getProfile();
       final driverId = profile.driverId;
       if (driverId == null) {
-        final resolvedName = profile.displayName ?? profile.username;
+        final resolvedName = _readableName(
+          profile.displayName,
+          fallback: profile.username,
+        );
         final resolvedEmail = profile.email ??
             (currentEmail.value.isNotEmpty
                 ? currentEmail.value
@@ -158,10 +165,10 @@ class UserDashboardController extends GetxController {
       final driverApi = DriverInformationControllerApi();
       await driverApi.initializeWithJwt();
       final driver = await driverApi.getDriver(driverId: driverId);
-      final resolvedName = driver?.name ??
-          profile.driverName ??
-          profile.displayName ??
-          profile.username;
+      final resolvedName = _readableName(
+        driver?.name ?? profile.driverName ?? profile.displayName,
+        fallback: profile.username,
+      );
       final resolvedEmail = profile.email ?? currentEmail.value;
 
       updateCurrentUser(
@@ -220,17 +227,18 @@ class UserDashboardController extends GetxController {
   }
 
   void updateCurrentUser(String name, String email) {
-    currentDriverName.value = name;
+    final resolvedName = _readableName(name, fallback: email);
+    currentDriverName.value = resolvedName;
     currentEmail.value = email;
     currentUser.value = Profile(
       photo:
           currentUser.value?.photo ?? const AssetImage(ImageRasterPath.avatar1),
-      name: name,
+      name: resolvedName,
       email: email,
     );
-    developer
-        .log('UserDashboardController updated - Name: $name, Email: $email');
-    _saveUserToPrefs(name, email);
+    developer.log(
+        'UserDashboardController updated - Name: $resolvedName, Email: $email');
+    _saveUserToPrefs(resolvedName, email);
   }
 
   Future<void> _saveUserToPrefs(String name, String email) async {
@@ -249,6 +257,10 @@ class UserDashboardController extends GetxController {
 
   void toggleSidebar() {
     isSidebarOpen.value = !isSidebarOpen.value;
+  }
+
+  void toggleSidebarCollapsed() {
+    isSidebarCollapsed.value = !isSidebarCollapsed.value;
   }
 
   void toggleBodyTheme() {
@@ -371,6 +383,34 @@ class UserDashboardController extends GetxController {
         projectName: "交通违法行为处理管理系统",
         releaseTime: DateTime.now(),
       );
+
+  String _readableName(String? value, {String? fallback}) {
+    final name = value?.trim() ?? '';
+    final fallbackName = fallback?.trim() ?? '';
+    if (name.isNotEmpty && !_looksCorruptedName(name)) {
+      return name;
+    }
+    if (fallbackName.isNotEmpty && !_looksCorruptedName(fallbackName)) {
+      return fallbackName;
+    }
+    return fallbackName.isNotEmpty ? fallbackName : 'Driver';
+  }
+
+  bool _looksCorruptedName(String value) {
+    final compact = value.replaceAll(RegExp(r'\s+'), '');
+    if (compact.isEmpty) return true;
+    if (compact.contains('\uFFFD')) return true;
+
+    final questionMarks = '?'.allMatches(compact).length;
+    if (questionMarks >= 3 && questionMarks / compact.length > 0.45) {
+      return true;
+    }
+
+    const mojibakeMarkers = ['Ã', 'Â', 'ä', 'å', 'æ', 'ç', 'è', 'é'];
+    final markerCount =
+        mojibakeMarkers.where((marker) => compact.contains(marker)).length;
+    return markerCount >= 2 && !compact.contains('@');
+  }
 
   List<ProjectCardData> getActiveProject() => [];
 

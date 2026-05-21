@@ -9,6 +9,7 @@ import 'package:final_assignment_front/features/api/driver_information_controlle
 import 'package:final_assignment_front/features/api/user_management_controller_api.dart';
 import 'package:final_assignment_front/features/dashboard/controllers/user_dashboard_screen_controller.dart';
 import 'package:final_assignment_front/features/dashboard/views/shared/widgets/dashboard_page_template.dart';
+import 'package:final_assignment_front/features/dashboard/views/user/pages/main_process/user_business_page_chrome.dart';
 import 'package:final_assignment_front/features/model/fine_information.dart';
 import 'package:final_assignment_front/utils/helpers/app_helpers.dart';
 import 'package:final_assignment_front/utils/workflow_permissions.dart';
@@ -30,7 +31,8 @@ class FineInformationPage extends StatefulWidget {
 
 class _FineInformationPageState extends State<FineInformationPage> {
   late FineInformationControllerApi fineApi;
-  late Future<List<FineInformation>> _finesFuture;
+  Future<List<FineInformation>> _finesFuture =
+      Future<List<FineInformation>>.value(const <FineInformation>[]);
   final UserDashboardController controller =
       Get.find<UserDashboardController>();
   final DriverInformationControllerApi driverApi =
@@ -271,13 +273,7 @@ class _FineInformationPageState extends State<FineInformationPage> {
 
   void _showSnackBar(String message, {bool isError = false}) {
     if (!mounted) return;
-    Get.snackbar(
-      isError ? '错误' : '提示',
-      message,
-      snackPosition: SnackPosition.BOTTOM,
-      backgroundColor: isError ? Colors.red.shade100 : Colors.green.shade100,
-      duration: const Duration(seconds: 3),
-    );
+    showUserBusinessToast(context, message: message, isError: isError);
   }
 
   Future<void> _refreshFines() async {
@@ -404,10 +400,10 @@ class _FineInformationPageState extends State<FineInformationPage> {
 
     return DashboardPageTemplate(
       theme: themeData,
-      title: '交通违法罚款记录',
+      title: '罚款缴纳',
       pageType: DashboardPageType.user,
-      onThemeToggle: controller.toggleBodyTheme,
       bodyIsScrollable: true,
+      padding: EdgeInsets.zero,
       actions: [
         DashboardPageBarAction(
           icon: Icons.refresh,
@@ -415,24 +411,40 @@ class _FineInformationPageState extends State<FineInformationPage> {
           tooltip: '刷新罚款记录',
         ),
       ],
-      isLoading: _isLoading,
-      errorMessage: _errorMessage.isNotEmpty ? _errorMessage : null,
-      floatingActionButton: FloatingActionButton(
-        onPressed: _refreshFines,
-        backgroundColor: themeData.colorScheme.primary,
-        foregroundColor: themeData.colorScheme.onPrimary,
-        tooltip: '刷新罚款记录',
-        child: const Icon(Icons.refresh),
-      ),
       body: Column(
         children: [
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 16, 16, 4),
+            child: UserBusinessPageHeader(
+              title: '罚款缴纳',
+              subtitle: '核对个人罚款记录、缴款状态和线上付款码。',
+              icon: Icons.credit_card_rounded,
+              badge: _currentDriverName ?? '驾驶员',
+              accentColor: const Color(0xFF25A7A0),
+            ),
+          ),
           Expanded(
             child: FutureBuilder<List<FineInformation>>(
               future: _finesFuture,
               builder: (context, snapshot) {
                 developer.log(
                     'FutureBuilder state: ${snapshot.connectionState}, data: ${snapshot.data}, error: ${snapshot.error}');
-                if (snapshot.connectionState == ConnectionState.waiting) {
+                if (_errorMessage.isNotEmpty) {
+                  return Center(
+                    child: UserBusinessStatusPanel(
+                      message: _errorMessage,
+                      kind: UserBusinessStatusKind.error,
+                      actionLabel: userBusinessMessageNeedsLogin(_errorMessage)
+                          ? '重新登录'
+                          : null,
+                      onAction: userBusinessMessageNeedsLogin(_errorMessage)
+                          ? () => NavigationHelper.offAllNamed(Routes.login)
+                          : null,
+                    ),
+                  );
+                }
+                if (_isLoading ||
+                    snapshot.connectionState == ConnectionState.waiting) {
                   return Center(
                     child: CircularProgressIndicator(
                       valueColor: AlwaysStoppedAnimation<Color>(
@@ -441,22 +453,24 @@ class _FineInformationPageState extends State<FineInformationPage> {
                   );
                 } else if (snapshot.hasError) {
                   return Center(
-                    child: Text(
-                      '加载罚款信息失败: ${snapshot.error}',
-                      style: themeData.textTheme.bodyLarge?.copyWith(
-                        color: themeData.colorScheme.onSurface,
-                      ),
+                    child: UserBusinessStatusPanel(
+                      message: '加载罚款信息失败: ${snapshot.error}',
+                      kind: UserBusinessStatusKind.error,
                     ),
                   );
                 } else if (!snapshot.hasData || snapshot.data!.isEmpty) {
                   return Center(
-                    child: Text(
-                      _currentDriverName != null
+                    child: UserBusinessStatusPanel(
+                      message: _currentDriverName != null
                           ? '暂无与驾驶员 $_currentDriverName 匹配的罚款记录'
                           : '未找到驾驶员信息，请重新登录',
-                      style: themeData.textTheme.bodyLarge?.copyWith(
-                        color: themeData.colorScheme.onSurface,
-                      ),
+                      kind: _currentDriverName != null
+                          ? UserBusinessStatusKind.empty
+                          : UserBusinessStatusKind.error,
+                      actionLabel: _currentDriverName == null ? '重新登录' : null,
+                      onAction: _currentDriverName == null
+                          ? () => NavigationHelper.offAllNamed(Routes.login)
+                          : null,
                     ),
                   );
                 } else {
@@ -464,6 +478,7 @@ class _FineInformationPageState extends State<FineInformationPage> {
                   return RefreshIndicator(
                     onRefresh: _refreshFines,
                     child: ListView.builder(
+                      padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
                       itemCount: fines.length,
                       itemBuilder: (context, index) {
                         final record = fines[index];
@@ -472,38 +487,23 @@ class _FineInformationPageState extends State<FineInformationPage> {
                         final date = record.fineTime ?? '未知';
                         final status = _paymentStatusOf(record);
                         final statusLabel = _paymentStatusLabel(status);
-                        return Card(
-                          elevation: 2,
-                          margin: const EdgeInsets.symmetric(vertical: 8.0),
-                          color: themeData.colorScheme.surfaceContainer,
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(12.0),
-                          ),
-                          child: ListTile(
-                            title: Text(
-                              '罚款金额: \$${amount.toStringAsFixed(2)}',
-                              style: themeData.textTheme.bodyLarge?.copyWith(
-                                color: themeData.colorScheme.onSurface,
-                              ),
-                            ),
-                            subtitle: Text(
-                              '缴款人: $payee\n时间: $date\n状态: $statusLabel',
-                              style: themeData.textTheme.bodyMedium?.copyWith(
-                                color: themeData.colorScheme.onSurfaceVariant,
-                              ),
-                            ),
-                            trailing: Icon(
-                              _isPaid(status)
-                                  ? Icons.check_circle
-                                  : Icons.payment,
-                              color: _isPaid(status)
-                                  ? Colors.green
-                                  : themeData.colorScheme.onSurfaceVariant,
-                            ),
-                            onTap: () {
-                              _showFineDetailsDialog(record);
-                            },
-                          ),
+                        return UserBusinessRecordCard(
+                          icon: _isPaid(status)
+                              ? Icons.check_circle_outline_rounded
+                              : Icons.payment_rounded,
+                          title: '罚款金额：¥${amount.toStringAsFixed(2)}',
+                          badge: statusLabel,
+                          accentColor: _isPaid(status)
+                              ? const Color(0xFF2E7D32)
+                              : const Color(0xFF25A7A0),
+                          details: [
+                            '缴款人：$payee',
+                            '罚款时间：$date',
+                            '票据编号：${record.receiptNumber ?? '未生成'}',
+                          ],
+                          onTap: () {
+                            _showFineDetailsDialog(record);
+                          },
                         );
                       },
                     ),
