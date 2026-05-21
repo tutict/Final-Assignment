@@ -4,145 +4,78 @@ import 'package:flutter/material.dart';
 class LatestOffenseNewsPage extends StatelessWidget {
   const LatestOffenseNewsPage({super.key});
 
+  static const _accentColor = Color(0xFF2F80ED);
+
   @override
   Widget build(BuildContext context) {
     return NewsPageLayout(
       title: '最新交通违法新闻',
-      accentColor: Colors.blueAccent,
-      contentBuilder: (context, theme) => Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          _buildSectionTitle(context, '头条新闻'),
-          _buildNewsCard(
-            context,
-            '2025年新交规实施',
-            '自2025年1月1日起，超速10%以上将面临更高罚款和扣分，旨在提升道路安全。',
-            '2025-02-27',
-          ),
-          _buildSectionTitle(context, '近期动态'),
-          _buildNewsCard(
-            context,
-            '酒驾专项整治启动',
-            '全国范围内开展为期三个月的酒驾整治行动，已查处3000余起违法行为。',
-            '2025-02-25',
-          ),
-          _buildNewsCard(
-            context,
-            '智能监控升级',
-            '新增1000个智能摄像头，覆盖主要城市，自动识别闯红灯和超速行为。',
-            '2025-02-20',
-          ),
-          _buildSectionTitle(context, '专家建议'),
-          _buildContentCard(
-            context,
-            '遵守交通法规',
-            '专家呼吁司机严格遵守新规，避免不必要的罚款和安全隐患。',
-          ),
-        ],
-      ),
+      subtitle: '聚合近期治理动态、规则调整和安全提醒。',
+      badge: '3 条动态',
+      icon: Icons.article_outlined,
+      accentColor: _accentColor,
+      contentBuilder: (context, theme) => const _LatestOffenseNewsContent(),
     );
   }
+}
 
-  Widget _buildSectionTitle(BuildContext context, String title) {
-    final theme = Theme.of(context);
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 8.0),
-      child: Text(
-        title,
-        style: TextStyle(
-          fontSize: 20,
-          fontWeight: FontWeight.bold,
-          color: theme.colorScheme.onSurface,
-        ),
-      ),
-    );
-  }
+class _LatestOffenseNewsContent extends StatelessWidget {
+  const _LatestOffenseNewsContent();
 
-  Widget _buildNewsCard(
-    BuildContext context,
-    String title,
-    String description,
-    String date,
-  ) {
-    final theme = Theme.of(context);
-    final colorScheme = theme.colorScheme;
-    return Card(
-      elevation: 4,
-      margin: const EdgeInsets.symmetric(vertical: 8.0),
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-      child: Padding(
-        padding: const EdgeInsets.all(16.0),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              title,
-              style: theme.textTheme.titleMedium?.copyWith(
-                fontWeight: FontWeight.bold,
-                color: colorScheme.onSurface,
-              ),
-            ),
-            const SizedBox(height: 8),
-            Text(
-              description,
-              style: theme.textTheme.bodyMedium?.copyWith(
-                color: colorScheme.onSurfaceVariant,
-              ),
-            ),
-            const SizedBox(height: 12),
-            Row(
-              children: [
-                Icon(Icons.calendar_today,
-                    size: 16, color: colorScheme.primary),
-                const SizedBox(width: 4),
-                Text(
-                  date,
-                  style: theme.textTheme.bodySmall?.copyWith(
-                    color: colorScheme.onSurfaceVariant,
-                  ),
-                ),
-              ],
-            ),
-          ],
-        ),
-      ),
-    );
-  }
+  static const _accentColor = LatestOffenseNewsPage._accentColor;
 
-  Widget _buildContentCard(
-    BuildContext context,
-    String title,
-    String description,
-  ) {
-    final theme = Theme.of(context);
-    final colorScheme = theme.colorScheme;
-    return Card(
-      color: colorScheme.surfaceContainerHighest,
-      elevation: 2,
-      margin: const EdgeInsets.symmetric(vertical: 8.0),
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-      child: Padding(
-        padding: const EdgeInsets.all(16.0),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              title,
-              style: theme.textTheme.titleMedium?.copyWith(
-                fontWeight: FontWeight.bold,
-                color: colorScheme.onSurface,
-              ),
-            ),
-            const SizedBox(height: 8),
-            Text(
-              description,
-              style: theme.textTheme.bodyMedium?.copyWith(
-                color: colorScheme.onSurfaceVariant,
-              ),
-            ),
-          ],
+  @override
+  Widget build(BuildContext context) {
+    return const Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        NewsSummaryPanel(
+          title: '交通违法治理动态',
+          description: '按发布时间整理新规、专项整治和智能监管信息，帮助驾驶员快速了解近期变化。',
+          icon: Icons.campaign_outlined,
+          accentColor: _accentColor,
+          chips: ['交规更新', '专项整治', '智能监管'],
         ),
-      ),
+        NewsSectionTitle(
+          title: '头条新闻',
+          subtitle: '优先关注影响面较大的规则变化',
+        ),
+        NewsFeaturedArticle(
+          title: '2025 年新交规实施',
+          description: '超速、闯红灯、酒驾等高风险违法行为的处理要求进一步细化，系统将同步展示处罚依据和办理入口。',
+          meta: '2025-02-27',
+          icon: Icons.gavel_rounded,
+          accentColor: _accentColor,
+        ),
+        NewsSectionTitle(
+          title: '近期动态',
+          subtitle: '持续更新与办理流程相关的信息',
+        ),
+        NewsInfoTile(
+          title: '酒驾专项整治启动',
+          description: '多地开展夜间重点路段抽查，驾驶员可在违法详情中查看检测时间、地点和处理状态。',
+          meta: '2025-02-25',
+          icon: Icons.local_police_outlined,
+          accentColor: _accentColor,
+        ),
+        NewsInfoTile(
+          title: '智能监控设备升级',
+          description: '新增设备覆盖主干道路和重点路口，违法记录会同步关联抓拍图片、地点和审核状态。',
+          meta: '2025-02-20',
+          icon: Icons.videocam_outlined,
+          accentColor: _accentColor,
+        ),
+        NewsSectionTitle(
+          title: '办理建议',
+          subtitle: '减少重复提交和线下往返',
+        ),
+        NewsInfoTile(
+          title: '及时核对违法记录',
+          description: '收到违法提醒后先核对车辆、驾驶人和发生时间，确认无误后再进入处理或申诉流程。',
+          icon: Icons.fact_check_outlined,
+          accentColor: _accentColor,
+        ),
+      ],
     );
   }
 }

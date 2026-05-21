@@ -103,8 +103,17 @@ class _UserSidebarState extends State<UserSidebar> {
                   Padding(
                     padding: const EdgeInsets.all(kSpacing),
                     child: PostCard(
-                      backgroundColor: scheme.surfaceContainerHighest
-                          .withValues(alpha: dark ? 0.34 : 0.42),
+                      backgroundColor: Color.lerp(
+                        scheme.surface,
+                        scheme.primaryContainer,
+                        dark ? 0.22 : 0.34,
+                      ),
+                      foregroundColor: scheme.onSurface,
+                      mutedForegroundColor: scheme.onSurfaceVariant,
+                      accentColor: scheme.primary,
+                      borderColor: scheme.outlineVariant.withValues(
+                        alpha: dark ? 0.36 : 0.46,
+                      ),
                       onPressed: () {},
                     ),
                   )

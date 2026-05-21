@@ -251,8 +251,12 @@ class UserDashboard extends GetView<UserDashboardController> with FloatingBase {
   }
 
   Widget _buildUserToolsCard(BuildContext context) {
+    final height = (MediaQuery.of(context).size.height * 0.58)
+        .clamp(470.0, 560.0)
+        .toDouble();
+
     return DashboardPanel(
-      height: MediaQuery.of(context).size.height * 0.5,
+      height: height,
       margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
       padding: EdgeInsets.zero,
       child: UserNewsCard(
