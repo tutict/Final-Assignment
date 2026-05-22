@@ -159,6 +159,15 @@ class ManagerDashboardController extends GetxController {
     });
   }
 
+  Future<void> setDashboardTheme(String style, String mode) async {
+    selectedStyle.value = style;
+    currentTheme.value = mode;
+    _applyTheme();
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool('isDarkMode', mode == 'Dark');
+    await prefs.setString('dashboardTheme_$style', mode);
+  }
+
   void toggleChat() => isChatExpanded.value = !isChatExpanded.value;
 
   void _applyTheme() {

@@ -6,18 +6,29 @@ class DashboardTopBarActions extends StatelessWidget {
     required this.onChatPressed,
     required this.onThemePressed,
     this.chatActive = false,
+    this.compact = false,
   });
 
   static const double buttonExtent = 44;
   static const double spacing = 10;
   static const double totalWidth = buttonExtent * 2 + spacing;
+  static const double compactButtonExtent = 40;
+  static const double compactSpacing = 6;
+  static const double compactTotalWidth =
+      compactButtonExtent * 2 + compactSpacing;
 
   final VoidCallback onChatPressed;
   final VoidCallback onThemePressed;
   final bool chatActive;
+  final bool compact;
 
   @override
   Widget build(BuildContext context) {
+    final actionExtent =
+        compact ? compactButtonExtent : DashboardTopBarActions.buttonExtent;
+    final actionSpacing =
+        compact ? compactSpacing : DashboardTopBarActions.spacing;
+
     return Row(
       mainAxisSize: MainAxisSize.min,
       children: [
@@ -26,12 +37,14 @@ class DashboardTopBarActions extends StatelessWidget {
           tooltip: 'AI 助手',
           selected: chatActive,
           onPressed: onChatPressed,
+          dimension: actionExtent,
         ),
-        const SizedBox(width: spacing),
+        SizedBox(width: actionSpacing),
         _TopBarActionButton(
           icon: Icons.brightness_6,
           tooltip: '切换明暗主题',
           onPressed: onThemePressed,
+          dimension: actionExtent,
         ),
       ],
     );
@@ -43,12 +56,14 @@ class _TopBarActionButton extends StatelessWidget {
     required this.icon,
     required this.tooltip,
     required this.onPressed,
+    required this.dimension,
     this.selected = false,
   });
 
   final IconData icon;
   final String tooltip;
   final VoidCallback onPressed;
+  final double dimension;
   final bool selected;
 
   @override
@@ -71,7 +86,7 @@ class _TopBarActionButton extends StatelessWidget {
       message: tooltip,
       waitDuration: const Duration(milliseconds: 350),
       child: SizedBox.square(
-        dimension: DashboardTopBarActions.buttonExtent,
+        dimension: dimension,
         child: Material(
           color: Colors.transparent,
           borderRadius: BorderRadius.circular(8),
@@ -88,7 +103,8 @@ class _TopBarActionButton extends StatelessWidget {
               focusColor: overlay,
               splashColor: scheme.primary.withValues(alpha: 0.14),
               child: Center(
-                child: Icon(icon, size: 24, color: foreground),
+                child: Icon(icon,
+                    size: dimension <= 40 ? 22 : 24, color: foreground),
               ),
             ),
           ),

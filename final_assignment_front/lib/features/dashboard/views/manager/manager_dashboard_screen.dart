@@ -12,6 +12,7 @@ import 'package:final_assignment_front/features/dashboard/views/shared/component
 import 'package:final_assignment_front/features/dashboard/views/shared/components/profile_tile.dart';
 import 'package:final_assignment_front/features/dashboard/views/shared/widgets/dashboard_chrome.dart';
 import 'package:final_assignment_front/features/dashboard/views/shared/widgets/dashboard_top_bar_actions.dart';
+import 'package:final_assignment_front/features/dashboard/views/shared/widgets/sidebar_settings_button.dart';
 import 'package:final_assignment_front/features/dashboard/views/manager/pages/offense_screen.dart';
 import 'package:final_assignment_front/shared_components/offense_card.dart';
 import 'package:final_assignment_front/shared_components/list_profil_image.dart';
@@ -97,11 +98,7 @@ class DashboardScreen extends GetView<ManagerDashboardController> {
                                 child: const _Sidebar(),
                               ),
                             ),
-                            Expanded(
-                              child: SingleChildScrollView(
-                                child: _buildLayout(context),
-                              ),
-                            ),
+                            Expanded(child: _buildScrollableLayout(context)),
                           ],
                         ),
                         _buildResponsiveChatDrawer(context, screenWidth),
@@ -137,8 +134,9 @@ class DashboardScreen extends GetView<ManagerDashboardController> {
                           ),
                         ),
                         Expanded(
-                          child: SingleChildScrollView(
-                            child: _buildLayout(context, isDesktop: true),
+                          child: _buildScrollableLayout(
+                            context,
+                            isDesktop: true,
                           ),
                         ),
                         Obx(
@@ -343,6 +341,22 @@ class DashboardScreen extends GetView<ManagerDashboardController> {
           }),
         ],
       ),
+    );
+  }
+
+  Widget _buildScrollableLayout(
+    BuildContext context, {
+    bool isDesktop = false,
+  }) {
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        return SingleChildScrollView(
+          child: ConstrainedBox(
+            constraints: BoxConstraints(minWidth: constraints.maxWidth),
+            child: _buildLayout(context, isDesktop: isDesktop),
+          ),
+        );
+      },
     );
   }
 
@@ -908,41 +922,58 @@ class DashboardScreen extends GetView<ManagerDashboardController> {
   }) {
     final scheme = Theme.of(context).colorScheme;
     const double horizontalPadding = kSpacing / 2;
-    final double availableWidth = screenWidth - 2 * horizontalPadding;
     const double mobileBreakpoint = 600.0;
-    final double menuIconWidth = onPressedMenu != null ? 48.0 : 0.0;
-    final double headerContentAvailableWidth = math.max(
-      0,
-      availableWidth - menuIconWidth - DashboardTopBarActions.totalWidth,
-    );
 
     return SizedBox(
       height: 50,
-      child: Container(
-        width: availableWidth,
-        padding: const EdgeInsets.symmetric(horizontal: horizontalPadding),
-        child: Row(
-          children: [
-            if (screenWidth < mobileBreakpoint && onPressedMenu != null)
-              IconButton(
-                onPressed: () => controller.toggleSidebar(),
-                icon: Icon(Icons.menu, color: scheme.onSurfaceVariant),
-                tooltip: "菜单",
-              ),
-            ConstrainedBox(
-              constraints:
-                  BoxConstraints(maxWidth: headerContentAvailableWidth),
-              child: const _Header(),
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          final double containerWidth =
+              constraints.hasBoundedWidth ? constraints.maxWidth : screenWidth;
+          final double contentWidth =
+              math.max(0, containerWidth - 2 * horizontalPadding);
+          final bool showMenu =
+              screenWidth < mobileBreakpoint && onPressedMenu != null;
+          final bool compactActions = contentWidth < 360;
+          final double menuIconWidth = showMenu ? 48.0 : 0.0;
+          final double actionsWidth = compactActions
+              ? DashboardTopBarActions.compactTotalWidth
+              : DashboardTopBarActions.totalWidth;
+          final double headerContentWidth = math.max(
+            0,
+            contentWidth - menuIconWidth - actionsWidth,
+          );
+
+          return Container(
+            width: double.infinity,
+            padding: const EdgeInsets.symmetric(horizontal: horizontalPadding),
+            child: Row(
+              children: [
+                if (showMenu)
+                  IconButton(
+                    onPressed: () => controller.toggleSidebar(),
+                    icon: Icon(Icons.menu, color: scheme.onSurfaceVariant),
+                    tooltip: "菜单",
+                  ),
+                if (headerContentWidth >= 72)
+                  SizedBox(
+                    width: headerContentWidth,
+                    child: const _Header(),
+                  )
+                else
+                  const Spacer(),
+                Obx(
+                  () => DashboardTopBarActions(
+                    chatActive: controller.isChatExpanded.value,
+                    onChatPressed: controller.toggleChat,
+                    onThemePressed: controller.toggleBodyTheme,
+                    compact: compactActions,
+                  ),
+                ),
+              ],
             ),
-            Obx(
-              () => DashboardTopBarActions(
-                chatActive: controller.isChatExpanded.value,
-                onChatPressed: controller.toggleChat,
-                onThemePressed: controller.toggleBodyTheme,
-              ),
-            ),
-          ],
-        ),
+          );
+        },
       ),
     );
   }

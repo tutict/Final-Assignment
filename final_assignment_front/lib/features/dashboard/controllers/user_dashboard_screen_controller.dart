@@ -273,6 +273,15 @@ class UserDashboardController extends GetxController {
     });
   }
 
+  Future<void> setDashboardTheme(String style, String mode) async {
+    selectedStyle.value = style;
+    currentTheme.value = mode;
+    _applyTheme();
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool('isDarkMode', mode == 'Dark');
+    await prefs.setString('userTheme_$style', mode);
+  }
+
   void toggleChat() {
     isChatExpanded.value = !isChatExpanded.value;
   }

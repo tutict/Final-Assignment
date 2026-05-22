@@ -239,74 +239,102 @@ class _FeaturedGuideItem extends StatelessWidget {
               color: item.accent.withValues(alpha: dark ? 0.42 : 0.32),
             ),
           ),
-          child: Row(
-            children: [
-              Container(
-                width: 52,
-                height: 52,
+          child: LayoutBuilder(
+            builder: (context, constraints) {
+              final compact = constraints.maxWidth < 430;
+              final iconBox = Container(
+                width: compact ? 46 : 52,
+                height: compact ? 46 : 52,
                 decoration: BoxDecoration(
                   color: item.accent.withValues(alpha: dark ? 0.24 : 0.14),
                   borderRadius: BorderRadius.circular(8),
                 ),
                 child: Icon(item.icon, color: item.accent, size: 26),
-              ),
-              const SizedBox(width: 14),
-              Expanded(
-                child: Column(
+              );
+              final textBlock = Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      Text(
+                        item.category,
+                        style: theme.textTheme.labelMedium?.copyWith(
+                          color: item.accent,
+                          fontWeight: FontWeight.w800,
+                          letterSpacing: 0,
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Container(
+                          height: 1,
+                          color: scheme.outlineVariant.withValues(
+                            alpha: dark ? 0.32 : 0.42,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    item.title,
+                    maxLines: compact ? 2 : 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: theme.textTheme.titleMedium?.copyWith(
+                      color: scheme.onSurface,
+                      fontWeight: FontWeight.w900,
+                      letterSpacing: 0,
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    item.description,
+                    maxLines: compact ? 3 : 2,
+                    overflow: TextOverflow.ellipsis,
+                    style: theme.textTheme.bodySmall?.copyWith(
+                      color: scheme.onSurfaceVariant,
+                      height: 1.35,
+                      letterSpacing: 0,
+                    ),
+                  ),
+                ],
+              );
+              final actionBadge = _GuideActionBadge(
+                label: item.actionText,
+                accent: item.accent,
+              );
+
+              if (compact) {
+                return Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text(
-                          item.category,
-                          style: theme.textTheme.labelMedium?.copyWith(
-                            color: item.accent,
-                            fontWeight: FontWeight.w800,
-                            letterSpacing: 0,
-                          ),
-                        ),
-                        const SizedBox(width: 8),
-                        Expanded(
-                          child: Container(
-                            height: 1,
-                            color: scheme.outlineVariant.withValues(
-                              alpha: dark ? 0.32 : 0.42,
-                            ),
-                          ),
-                        ),
+                        iconBox,
+                        const SizedBox(width: 12),
+                        Expanded(child: textBlock),
                       ],
                     ),
-                    const SizedBox(height: 8),
-                    Text(
-                      item.title,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: theme.textTheme.titleMedium?.copyWith(
-                        color: scheme.onSurface,
-                        fontWeight: FontWeight.w900,
-                        letterSpacing: 0,
-                      ),
-                    ),
-                    const SizedBox(height: 4),
-                    Text(
-                      item.description,
-                      maxLines: 2,
-                      overflow: TextOverflow.ellipsis,
-                      style: theme.textTheme.bodySmall?.copyWith(
-                        color: scheme.onSurfaceVariant,
-                        height: 1.35,
-                        letterSpacing: 0,
-                      ),
+                    const SizedBox(height: 12),
+                    Align(
+                      alignment: Alignment.centerRight,
+                      child: actionBadge,
                     ),
                   ],
-                ),
-              ),
-              const SizedBox(width: 12),
-              _GuideActionBadge(
-                label: item.actionText,
-                accent: item.accent,
-              ),
-            ],
+                );
+              }
+
+              return Row(
+                children: [
+                  iconBox,
+                  const SizedBox(width: 14),
+                  Expanded(child: textBlock),
+                  const SizedBox(width: 12),
+                  actionBadge,
+                ],
+              );
+            },
           ),
         ),
       ),

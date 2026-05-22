@@ -98,6 +98,20 @@ class _UserSidebarState extends State<UserSidebar> {
                     },
                   ),
                 ),
+                Padding(
+                  padding: EdgeInsets.fromLTRB(
+                    collapsed ? 16 : 14,
+                    0,
+                    collapsed ? 16 : 14,
+                    12,
+                  ),
+                  child: SidebarSettingsButton(
+                    collapsed: collapsed,
+                    selectedStyle: controller.selectedStyle.value,
+                    themeMode: controller.currentTheme.value,
+                    onThemeSelected: controller.setDashboardTheme,
+                  ),
+                ),
                 Divider(height: 1, thickness: 1, color: dividerColor),
                 if (!collapsed)
                   Padding(

@@ -1,0 +1,80 @@
+name: final-assignment-dev
+
+services:
+  redis:
+    image: ${REDIS_IMAGE:-redis:7}
+    container_name: final-assignment-redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis-data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  redpanda:
+    image: ${REDPANDA_IMAGE:-redpandadata/redpanda:v24.1.2}
+    container_name: final-assignment-redpanda
+    command:
+      - redpanda
+      - start
+      - --overprovisioned
+      - --smp
+      - "1"
+      - --memory
+      - 1G
+      - --reserve-memory
+      - 0M
+      - --node-id
+      - "0"
+      - --check=false
+      - --kafka-addr
+      - PLAINTEXT://0.0.0.0:9092
+      - --advertise-kafka-addr
+      - PLAINTEXT://localhost:9092
+    ports:
+      - "9092:9092"
+      - "9644:9644"
+    volumes:
+      - redpanda-data:/var/lib/redpanda/data
+    healthcheck:
+      test: ["CMD-SHELL", "rpk cluster health | grep -E 'Healthy:.+true'"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+
+  elasticsearch:
+    image: ${ELASTICSEARCH_IMAGE:-docker.elastic.co/elasticsearch/elasticsearch:8.17.3}
+    container_name: final-assignment-elasticsearch
+    environment:
+      discovery.type: single-node
+      xpack.security.enabled: "false"
+      ES_JAVA_OPTS: -Xms512m -Xmx512m
+    ports:
+      - "9200:9200"
+    volumes:
+      - elasticsearch-data:/usr/share/elasticsearch/data
+    healthcheck:
+      test: ["CMD-SHELL", "curl -fsS http://localhost:9200/_cluster/health || exit 1"]
+      interval: 15s
+      timeout: 10s
+      retries: 12
+
+  manticore:
+    image: ${MANTICORE_IMAGE:-manticoresearch/manticore:dev}
+    container_name: final-assignment-manticore
+    environment:
+      EXTRA: "1"
+    ports:
+      - "9306:9306"
+      - "9308:9308"
+    volumes:
+      - manticore-data:/var/lib/manticore
+
+volumes:
+  redis-data:
+  redpanda-data:
+  elasticsearch-data:
+  manticore-data:

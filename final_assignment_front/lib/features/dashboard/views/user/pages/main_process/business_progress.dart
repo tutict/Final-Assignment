@@ -80,8 +80,9 @@ class _BusinessProgressPageState extends State<BusinessProgressPage> {
                           builder: (context, constraints) {
                             final width = constraints.maxWidth;
                             final crossAxisCount = width >= 520 ? 2 : 1;
-                            final aspectRatio =
-                                crossAxisCount == 1 ? 4.25 : 2.0;
+                            final double? tileExtent = crossAxisCount == 1
+                                ? (width < 340 ? 104 : 98)
+                                : null;
 
                             return Column(
                               children: [
@@ -94,7 +95,8 @@ class _BusinessProgressPageState extends State<BusinessProgressPage> {
                                       crossAxisCount: crossAxisCount,
                                       crossAxisSpacing: 12,
                                       mainAxisSpacing: 12,
-                                      childAspectRatio: aspectRatio,
+                                      childAspectRatio: 2.0,
+                                      mainAxisExtent: tileExtent,
                                     ),
                                     itemBuilder: (context, index) {
                                       final option = businessOptions[index];
