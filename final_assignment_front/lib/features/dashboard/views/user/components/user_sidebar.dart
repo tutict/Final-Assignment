@@ -21,6 +21,12 @@ class _UserSidebarState extends State<UserSidebar> {
           routeName: 'homePage',
         ),
         SelectionButtonData(
+          activeIcon: EvaIcons.personDone,
+          icon: EvaIcons.personDoneOutline,
+          label: '个人资料',
+          routeName: Routes.personalMain,
+        ),
+        SelectionButtonData(
           activeIcon: EvaIcons.calendar,
           icon: EvaIcons.calendarOutline,
           label: '业务办理',
