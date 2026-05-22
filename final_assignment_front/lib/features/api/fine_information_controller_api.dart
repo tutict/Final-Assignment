@@ -121,6 +121,27 @@ class FineInformationControllerApi with BaseApiClient {
     return parseListResponse(response, FineInformation.fromJson);
   }
 
+  Future<List<FineInformation>> listFinesByDriver({
+    required int driverId,
+    int page = 1,
+    int size = 20,
+  }) async {
+    final response = await apiClient.invokeAPI(
+      '/api/fines/driver/$driverId',
+      'GET',
+      [
+        QueryParam('page', '$page'),
+        QueryParam('size', '$size'),
+      ],
+      null,
+      await _getHeaders(),
+      const {},
+      null,
+      const ['bearerAuth'],
+    );
+    return parseListResponse(response, FineInformation.fromJson);
+  }
+
   /// PUT /api/fines/{fineId} - æ´æ°ç½æ¬¾ (ä»
 // ç®¡çå)
   Future<FineInformation> updateFine({

@@ -95,6 +95,7 @@ public class DriverVehicleService {
         validateBinding(binding);
         enforcePrimaryConstraints(binding);
         driverVehicleMapper.insert(binding);
+        syncVehicleDriverId(binding);
         syncToIndexAfterCommit(binding);
         return binding;
     }
@@ -109,6 +110,7 @@ public class DriverVehicleService {
         if (rows == 0) {
             throw new IllegalStateException("Driver-vehicle binding not found for id=" + binding.getId());
         }
+        syncVehicleDriverId(binding);
         syncToIndexAfterCommit(binding);
         return binding;
     }
@@ -347,6 +349,21 @@ public class DriverVehicleService {
             driverVehicleMapper.updateById(existing);
             syncToIndexAfterCommit(existing);
         }
+    }
+
+    private void syncVehicleDriverId(DriverVehicle binding) {
+        if (binding == null || binding.getVehicleId() == null || binding.getDriverId() == null) {
+            return;
+        }
+        VehicleInformation vehicle = vehicleInformationMapper.selectById(binding.getVehicleId());
+        if (vehicle == null || Objects.equals(vehicle.getDriverId(), binding.getDriverId())) {
+            return;
+        }
+        if (vehicle.getDriverId() != null && !Boolean.TRUE.equals(binding.getIsPrimary())) {
+            return;
+        }
+        vehicle.setDriverId(binding.getDriverId());
+        vehicleInformationMapper.updateById(vehicle);
     }
 
     private void validatePagination(int page, int size) {

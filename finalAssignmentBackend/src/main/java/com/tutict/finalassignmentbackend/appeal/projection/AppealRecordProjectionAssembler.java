@@ -18,6 +18,7 @@ public class AppealRecordProjectionAssembler {
         return new AppealRecordSearchProjection(
                 document.getAppealId(),
                 document.getOffenseId(),
+                document.getDriverId(),
                 document.getAppealNumber(),
                 document.getAppellantName(),
                 document.getAppellantIdCard(),

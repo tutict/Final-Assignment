@@ -21,6 +21,9 @@ public class PaymentRecordRequest {
     @Positive(message = "fineId must be greater than zero")
     private Long fineId;
 
+    @Positive(message = "driverId must be greater than zero")
+    private Long driverId;
+
     @Size(max = 64, message = "paymentNumber must not exceed 64 characters")
     private String paymentNumber;
 

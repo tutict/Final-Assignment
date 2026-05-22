@@ -5,9 +5,11 @@ import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.tutict.finalassignmentbackend.config.websocket.WsAction;
 import com.tutict.finalassignmentbackend.entity.FineRecord;
+import com.tutict.finalassignmentbackend.entity.OffenseRecord;
 import com.tutict.finalassignmentbackend.entity.SysRequestHistory;
 import com.tutict.finalassignmentbackend.entity.elastic.FineRecordDocument;
 import com.tutict.finalassignmentbackend.mapper.FineRecordMapper;
+import com.tutict.finalassignmentbackend.mapper.OffenseRecordMapper;
 import com.tutict.finalassignmentbackend.mapper.SysRequestHistoryMapper;
 import com.tutict.finalassignmentbackend.repository.FineRecordSearchRepository;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -36,6 +38,7 @@ public class FineRecordService {
     private static final String CACHE_NAME = "fineRecordCache";
 
     private final FineRecordMapper fineRecordMapper;
+    private final OffenseRecordMapper offenseRecordMapper;
     private final SysRequestHistoryMapper sysRequestHistoryMapper;
     private final FineRecordSearchRepository fineRecordSearchRepository;
     private final KafkaTemplate<String, String> kafkaTemplate;
@@ -43,11 +46,13 @@ public class FineRecordService {
 
     @Autowired
     public FineRecordService(FineRecordMapper fineRecordMapper,
+                             OffenseRecordMapper offenseRecordMapper,
                              SysRequestHistoryMapper sysRequestHistoryMapper,
                              FineRecordSearchRepository fineRecordSearchRepository,
                              KafkaTemplate<String, String> kafkaTemplate,
                              ObjectMapper objectMapper) {
         this.fineRecordMapper = fineRecordMapper;
+        this.offenseRecordMapper = offenseRecordMapper;
         this.sysRequestHistoryMapper = sysRequestHistoryMapper;
         this.fineRecordSearchRepository = fineRecordSearchRepository;
         this.kafkaTemplate = kafkaTemplate;
@@ -156,6 +161,20 @@ public class FineRecordService {
         }
         QueryWrapper<FineRecord> wrapper = new QueryWrapper<>();
         wrapper.eq("offense_id", offenseId)
+                .orderByDesc("fine_date");
+        return fetchFromDatabase(wrapper, page, size);
+    }
+
+    @Cacheable(cacheNames = CACHE_NAME, key = "'driver:' + #driverId + ':' + #page + ':' + #size", unless = "#result == null || #result.isEmpty()")
+    public List<FineRecord> findByDriverId(Long driverId, int page, int size) {
+        requirePositive(driverId, "Driver ID");
+        validatePagination(page, size);
+        List<FineRecord> index = mapHits(fineRecordSearchRepository.findByDriverId(driverId, pageable(page, size)));
+        if (!index.isEmpty()) {
+            return index;
+        }
+        QueryWrapper<FineRecord> wrapper = new QueryWrapper<>();
+        wrapper.eq("driver_id", driverId)
                 .orderByDesc("fine_date");
         return fetchFromDatabase(wrapper, page, size);
     }
@@ -331,6 +350,12 @@ public class FineRecordService {
         }
         if (fineRecord.getPaymentStatus() == null || fineRecord.getPaymentStatus().isBlank()) {
             fineRecord.setPaymentStatus("Unpaid");
+        }
+        if (fineRecord.getDriverId() == null && fineRecord.getOffenseId() != null) {
+            OffenseRecord offense = offenseRecordMapper.selectById(fineRecord.getOffenseId());
+            if (offense != null) {
+                fineRecord.setDriverId(offense.getDriverId());
+            }
         }
     }
 

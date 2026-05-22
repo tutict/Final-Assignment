@@ -35,6 +35,12 @@ public class FineRecord implements Serializable {
     private Long offenseId;
 
     /**
+     * 驾驶员 ID
+     */
+    @TableField("driver_id")
+    private Long driverId;
+
+    /**
      * 罚款编号 (决定书编号)
      */
     @TableField("fine_number")

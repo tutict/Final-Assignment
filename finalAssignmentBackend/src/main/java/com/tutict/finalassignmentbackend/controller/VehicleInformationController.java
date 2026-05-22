@@ -2,8 +2,10 @@ package com.tutict.finalassignmentbackend.controller;
 
 import com.tutict.finalassignmentbackend.dto.response.ApiResponse;
 
+import com.tutict.finalassignmentbackend.dto.response.UserProfileResponse;
 import com.tutict.finalassignmentbackend.entity.DriverVehicle;
 import com.tutict.finalassignmentbackend.entity.VehicleInformation;
+import com.tutict.finalassignmentbackend.service.AuthWsService;
 import com.tutict.finalassignmentbackend.service.DriverVehicleService;
 import com.tutict.finalassignmentbackend.service.VehicleInformationService;
 import io.swagger.v3.oas.annotations.Operation;
@@ -13,6 +15,7 @@ import jakarta.annotation.security.RolesAllowed;
 import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -26,6 +29,8 @@ import org.springframework.web.bind.annotation.RestController;
 
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
+import java.util.Set;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
@@ -37,33 +42,50 @@ import java.util.logging.Logger;
 public class VehicleInformationController {
 
     private static final Logger LOG = Logger.getLogger(VehicleInformationController.class.getName());
+    private static final Set<String> ELEVATED_AUTHORITIES = Set.of(
+            "ROLE_SUPER_ADMIN",
+            "ROLE_ADMIN",
+            "ROLE_TRAFFIC_POLICE"
+    );
 
+    private final AuthWsService authWsService;
     private final VehicleInformationService vehicleInformationService;
     private final DriverVehicleService driverVehicleService;
 
-    public VehicleInformationController(VehicleInformationService vehicleInformationService,
+    public VehicleInformationController(AuthWsService authWsService,
+                                        VehicleInformationService vehicleInformationService,
                                         DriverVehicleService driverVehicleService) {
+        this.authWsService = authWsService;
         this.vehicleInformationService = vehicleInformationService;
         this.driverVehicleService = driverVehicleService;
     }
 
     @PostMapping
+    @RolesAllowed({"SUPER_ADMIN", "ADMIN", "TRAFFIC_POLICE", "USER"})
     @Operation(summary = "创建车辆档案")
     public ResponseEntity<ApiResponse<Map<String, Object>>> createVehicle(@Valid @RequestBody Map<String, Object> payload,
                                                             @RequestHeader(value = "Idempotency-Key", required = false)
-                                                            String idempotencyKey) {
+                                                            String idempotencyKey,
+                                                            Authentication authentication) {
         try {
             VehicleInformation request = toVehicleInformation(payload);
+            Long driverId = resolveRequestedDriverId(authentication, asLong(payload.get("driverId")));
+            if (isRegularUser(authentication) && driverId == null) {
+                return ResponseEntity.status(HttpStatus.FORBIDDEN)
+                        .body(ApiResponse.error("DRIVER_PROFILE_NOT_LINKED", "Driver profile is not linked"));
+            }
+            request.setDriverId(driverId);
             if (hasKey(idempotencyKey)) {
                 vehicleInformationService.checkAndInsertIdempotency(idempotencyKey, request, "create");
             }
             VehicleInformation saved = vehicleInformationService.createVehicleInformation(request);
+            bindVehicleToDriver(saved, driverId);
             Map<String, Object> response = new java.util.LinkedHashMap<>();
             response.put("vehicleId", saved.getVehicleId());
             response.put("licensePlate", saved.getLicensePlate());
             response.put("vehicleType", saved.getVehicleType());
             response.put("ownerName", saved.getOwnerName());
-            response.put("driverId", payload.get("driverId"));
+            response.put("driverId", saved.getDriverId());
             return ResponseEntity.status(HttpStatus.CREATED).body(ApiResponse.ok(response));
         } catch (Exception ex) {
             LOG.log(Level.SEVERE, "Create vehicle failed", ex);
@@ -75,13 +97,23 @@ public class VehicleInformationController {
     }
 
     @PutMapping("/{vehicleId}")
+    @RolesAllowed({"SUPER_ADMIN", "ADMIN", "TRAFFIC_POLICE", "USER"})
     @Operation(summary = "更新车辆档案")
     public ResponseEntity<VehicleInformation> updateVehicle(@PathVariable Long vehicleId,
                                                             @Valid @RequestBody VehicleInformation request,
                                                             @RequestHeader(value = "Idempotency-Key", required = false)
-                                                            String idempotencyKey) {
+                                                            String idempotencyKey,
+                                                            Authentication authentication) {
         try {
+            VehicleInformation existing = vehicleInformationService.getVehicleInformationById(vehicleId);
+            if (existing == null) {
+                throw new com.tutict.finalassignmentbackend.exception.EntityNotFoundException("Vehicle not found: " + vehicleId);
+            }
+            if (!canAccessDriver(authentication, existing.getDriverId())) {
+                return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
+            }
             request.setVehicleId(vehicleId);
+            request.setDriverId(existing.getDriverId());
             if (hasKey(idempotencyKey)) {
                 vehicleInformationService.checkAndInsertIdempotency(idempotencyKey, request, "update");
             }
@@ -97,9 +129,18 @@ public class VehicleInformationController {
     }
 
     @DeleteMapping("/{vehicleId}")
+    @RolesAllowed({"SUPER_ADMIN", "ADMIN", "TRAFFIC_POLICE", "USER"})
     @Operation(summary = "删除车辆档案")
-    public ResponseEntity<Void> deleteVehicle(@PathVariable Long vehicleId) {
+    public ResponseEntity<Void> deleteVehicle(@PathVariable Long vehicleId,
+                                              Authentication authentication) {
         try {
+            VehicleInformation existing = vehicleInformationService.getVehicleInformationById(vehicleId);
+            if (existing == null) {
+                throw new com.tutict.finalassignmentbackend.exception.EntityNotFoundException("Vehicle not found: " + vehicleId);
+            }
+            if (!canAccessDriver(authentication, existing.getDriverId())) {
+                return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
+            }
             vehicleInformationService.deleteVehicleInformation(vehicleId);
             return ResponseEntity.noContent().build();
         } catch (Exception ex) {
@@ -388,6 +429,20 @@ public class VehicleInformationController {
         }
     }
 
+    @GetMapping("/drivers/{driverId}/records")
+    @RolesAllowed({"SUPER_ADMIN", "ADMIN", "TRAFFIC_POLICE", "USER"})
+    @Operation(summary = "按驾驶员查询车辆档案")
+    public ResponseEntity<List<VehicleInformation>> listVehicleRecordsByDriver(
+            @PathVariable Long driverId,
+            @RequestParam(defaultValue = "1") int page,
+            @RequestParam(defaultValue = "20") int size,
+            Authentication authentication) {
+        if (!canAccessDriver(authentication, driverId)) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
+        }
+        return ResponseEntity.ok(vehicleInformationService.getVehicleInformationByDriverId(driverId, page, size));
+    }
+
     @GetMapping("/drivers/{driverId}/vehicles/primary")
     @Operation(summary = "查询驾驶员的主绑定车辆")
     public ResponseEntity<List<DriverVehicle>> primaryBinding(@PathVariable Long driverId) {
@@ -517,18 +572,100 @@ public class VehicleInformationController {
 
     private VehicleInformation toVehicleInformation(Map<String, Object> payload) {
         VehicleInformation vehicle = new VehicleInformation();
+        vehicle.setDriverId(asLong(payload.get("driverId")));
         vehicle.setLicensePlate(asString(payload.get("licensePlate")));
+        vehicle.setPlateColor(asString(payload.get("plateColor")));
         vehicle.setVehicleType(asString(payload.get("vehicleType")));
+        vehicle.setBrand(asString(payload.get("brand")));
+        vehicle.setModel(asString(payload.get("model")));
+        vehicle.setVehicleColor(asString(payload.get("vehicleColor")));
+        vehicle.setEngineNumber(asString(payload.get("engineNumber")));
+        vehicle.setFrameNumber(asString(payload.get("frameNumber")));
         vehicle.setOwnerName(asString(payload.get("ownerName")));
+        vehicle.setOwnerIdCard(asString(firstPresent(payload, "ownerIdCard", "idCardNumber")));
+        vehicle.setOwnerContact(asString(firstPresent(payload, "ownerContact", "contactNumber")));
+        vehicle.setOwnerAddress(asString(payload.get("ownerAddress")));
         vehicle.setFirstRegistrationDate(parseDate(payload.get("firstRegistrationDate")));
         vehicle.setRegistrationDate(parseDate(payload.get("registrationDate")));
+        vehicle.setIssuingAuthority(asString(payload.get("issuingAuthority")));
+        vehicle.setStatus(asString(firstPresent(payload, "status", "currentStatus")));
         vehicle.setInspectionExpiryDate(parseDate(payload.get("inspectionExpiryDate")));
         vehicle.setInsuranceExpiryDate(parseDate(payload.get("insuranceExpiryDate")));
+        vehicle.setCreatedBy(asString(payload.get("createdBy")));
+        vehicle.setUpdatedBy(asString(payload.get("updatedBy")));
+        vehicle.setRemarks(asString(payload.get("remarks")));
         return vehicle;
+    }
+
+    private Long resolveRequestedDriverId(Authentication authentication, Long requestedDriverId) {
+        if (isElevated(authentication)) {
+            return requestedDriverId;
+        }
+        UserProfileResponse profile = authWsService.getCurrentUserProfile(authentication.getName());
+        return profile.getDriverId();
+    }
+
+    private void bindVehicleToDriver(VehicleInformation vehicle, Long driverId) {
+        if (vehicle == null || vehicle.getVehicleId() == null || driverId == null) {
+            return;
+        }
+        DriverVehicle relation = new DriverVehicle();
+        relation.setVehicleId(vehicle.getVehicleId());
+        relation.setDriverId(driverId);
+        relation.setRelationship("Owner");
+        relation.setIsPrimary(false);
+        relation.setStatus("Active");
+        driverVehicleService.createBinding(relation);
+    }
+
+    private boolean canAccessDriver(Authentication authentication, Long driverId) {
+        if (authentication == null) {
+            return false;
+        }
+        if (isElevated(authentication)) {
+            return true;
+        }
+        if (driverId == null) {
+            return false;
+        }
+        UserProfileResponse profile = authWsService.getCurrentUserProfile(authentication.getName());
+        return Objects.equals(profile.getDriverId(), driverId);
+    }
+
+    private boolean isRegularUser(Authentication authentication) {
+        return authentication != null
+                && !isElevated(authentication)
+                && authentication.getAuthorities().stream()
+                .anyMatch(authority -> "ROLE_USER".equals(authority.getAuthority()));
+    }
+
+    private boolean isElevated(Authentication authentication) {
+        return authentication != null
+                && authentication.getAuthorities().stream()
+                .anyMatch(authority -> ELEVATED_AUTHORITIES.contains(authority.getAuthority()));
+    }
+
+    private Object firstPresent(Map<String, Object> payload, String firstKey, String secondKey) {
+        Object first = payload.get(firstKey);
+        return first != null ? first : payload.get(secondKey);
     }
 
     private String asString(Object value) {
         return value == null ? null : value.toString();
+    }
+
+    private Long asLong(Object value) {
+        if (value == null) {
+            return null;
+        }
+        if (value instanceof Number number) {
+            return number.longValue();
+        }
+        try {
+            return Long.parseLong(value.toString());
+        } catch (NumberFormatException ex) {
+            return null;
+        }
     }
 
     private java.time.LocalDate parseDate(Object value) {

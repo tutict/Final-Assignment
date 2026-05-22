@@ -17,6 +17,7 @@ public class AppealReadAssembler {
         return normalize(new AppealReadModel(
                 entity.getAppealId(),
                 entity.getOffenseId(),
+                entity.getDriverId(),
                 entity.getAppealNumber(),
                 entity.getAppellantName(),
                 entity.getAppellantIdCard(),
@@ -52,6 +53,7 @@ public class AppealReadAssembler {
         return normalize(new AppealReadModel(
                 projection.appealId(),
                 projection.offenseId(),
+                projection.driverId(),
                 projection.appealNumber(),
                 projection.appellantName(),
                 projection.appellantIdCard(),
@@ -87,6 +89,7 @@ public class AppealReadAssembler {
         return new AppealReadModel(
                 model.appealId(),
                 model.offenseId(),
+                model.driverId(),
                 normalizeText(model.appealNumber()),
                 normalizeText(model.appellantName()),
                 normalizeText(model.appellantIdCard()),
@@ -124,6 +127,7 @@ public class AppealReadAssembler {
                 normalized.sourceKey(),
                 normalized.appealId(),
                 normalized.offenseId(),
+                normalized.driverId(),
                 normalized.appealNumber(),
                 normalized.appellantName(),
                 normalized.appealType(),
@@ -158,6 +162,7 @@ public class AppealReadAssembler {
         return new AppealRecordSearchProjection(
                 normalized.appealId(),
                 normalized.offenseId(),
+                normalized.driverId(),
                 normalized.appealNumber(),
                 normalized.appellantName(),
                 normalized.appellantIdCard(),
@@ -216,6 +221,7 @@ public class AppealReadAssembler {
         AppealRecord entity = new AppealRecord();
         entity.setAppealId(normalized.appealId());
         entity.setOffenseId(normalized.offenseId());
+        entity.setDriverId(normalized.driverId());
         entity.setAppealNumber(normalized.appealNumber());
         entity.setAppellantName(normalized.appellantName());
         entity.setAppellantIdCard(normalized.appellantIdCard());

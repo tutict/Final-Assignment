@@ -12,6 +12,7 @@ public class AppealResponse {
 
     private Long appealId;
     private Long offenseId;
+    private Long driverId;
     private String appealNumber;
     private String appellantName;
     private String idCard;
@@ -31,6 +32,7 @@ public class AppealResponse {
         return AppealResponse.builder()
                 .appealId(record.getAppealId())
                 .offenseId(record.getOffenseId())
+                .driverId(record.getDriverId())
                 .appealNumber(record.getAppealNumber())
                 .appellantName(record.getAppellantName())
                 .idCard(record.getAppellantIdCard())

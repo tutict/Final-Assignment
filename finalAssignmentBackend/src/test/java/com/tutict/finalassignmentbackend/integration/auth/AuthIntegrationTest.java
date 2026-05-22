@@ -156,6 +156,22 @@ class AuthIntegrationTest extends BaseIntegrationTest {
 
     @Test
     @Order(8)
+    @DisplayName("Regular user profile is linked to an independent driver profile")
+    void regular_user_profile_links_to_driver_profile() {
+        String userToken = loginAsUser();
+
+        authSpec(userToken)
+            .get("/api/auth/me")
+            .then()
+            .statusCode(200)
+            .body("success", equalTo(true))
+            .body("data.authUserId", notNullValue())
+            .body("data.driverId", notNullValue())
+            .body("data.driverName", notNullValue());
+    }
+
+    @Test
+    @Order(9)
     @DisplayName("未认证请求受保护接口返回 401（ApiResponse 格式）")
     void unauthenticated_request_returns_401_in_api_response_format() {
         baseSpec()
@@ -167,7 +183,7 @@ class AuthIntegrationTest extends BaseIntegrationTest {
     }
 
     @Test
-    @Order(9)
+    @Order(10)
     @DisplayName("普通用户访问管理员接口返回 403（不跳登录）")
     void regular_user_access_admin_endpoint_returns_403_not_redirect() {
         String userToken = loginAsUser();
@@ -183,7 +199,7 @@ class AuthIntegrationTest extends BaseIntegrationTest {
     }
 
     @Test
-    @Order(10)
+    @Order(11)
     @DisplayName("并发 Refresh：多个并发请求只成功一次，不踢用户下线")
     void concurrent_refresh_does_not_kick_user_offline() throws Exception {
         String refreshToken = baseSpec()

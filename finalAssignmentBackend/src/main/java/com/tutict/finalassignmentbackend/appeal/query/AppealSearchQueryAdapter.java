@@ -41,6 +41,10 @@ public class AppealSearchQueryAdapter {
         return mapHits(appealRecordSearchRepository.findByOffenseId(offenseId, pageable(pageRequest)));
     }
 
+    public List<AppealReadModel> findByDriverId(Long driverId, AppealPageRequest pageRequest) {
+        return mapHits(appealRecordSearchRepository.findByDriverId(driverId, pageable(pageRequest)));
+    }
+
     public List<AppealReadModel> searchByAppealNumberPrefix(String appealNumber, AppealPageRequest pageRequest) {
         return mapHits(appealRecordSearchRepository.searchByAppealNumberPrefix(appealNumber, pageable(pageRequest)));
     }

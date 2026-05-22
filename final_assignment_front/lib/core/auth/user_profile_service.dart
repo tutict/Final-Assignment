@@ -13,7 +13,7 @@ class UserProfileService extends GetxService {
   UserProfileService({ApiClient? apiClient})
       : _apiClient = apiClient ?? ApiClient();
 
-  static const _profileCacheVersion = '2';
+  static const _profileCacheVersion = '3';
 
   final ApiClient _apiClient;
   UserProfile? _cachedProfile;
@@ -50,7 +50,7 @@ class UserProfileService extends GetxService {
       return;
     }
 
-    final profile = UserProfile.fromJson({
+    final profile = _normalizeProfile(UserProfile.fromJson({
       'authUserId': authUserId,
       'username':
           data['username'] ?? (userData is Map ? userData['username'] : null),
@@ -61,7 +61,7 @@ class UserProfileService extends GetxService {
       'driverId':
           data['driverId'] ?? (userData is Map ? userData['driverId'] : null),
       'driverName': data['driverName'],
-    });
+    }));
 
     _cachedProfile = profile;
     await _persist(profile);
@@ -95,7 +95,7 @@ class UserProfileService extends GetxService {
         : jsonDecode(response.body) as Map<String, dynamic>;
     final data = _unwrapPayload(body);
 
-    _cachedProfile = UserProfile.fromJson(data);
+    _cachedProfile = _normalizeProfile(UserProfile.fromJson(data));
     await _persist(_cachedProfile!);
     return _cachedProfile!;
   }
@@ -161,6 +161,31 @@ class UserProfileService extends GetxService {
     final markerCount =
         mojibakeMarkers.where((marker) => compact.contains(marker)).length;
     return markerCount >= 2 && !compact.contains('@');
+  }
+
+  UserProfile _normalizeProfile(UserProfile profile) {
+    final displayName = _looksCorruptedText(profile.displayName)
+        ? profile.username
+        : profile.displayName;
+    final driverName = _looksCorruptedText(profile.driverName)
+        ? displayName ?? profile.username
+        : profile.driverName;
+
+    if (displayName == profile.displayName &&
+        driverName == profile.driverName) {
+      return profile;
+    }
+
+    return UserProfile(
+      authUserId: profile.authUserId,
+      username: profile.username,
+      displayName: displayName,
+      email: profile.email,
+      phoneNumber: profile.phoneNumber,
+      roles: profile.roles,
+      driverId: profile.driverId,
+      driverName: driverName,
+    );
   }
 
   Future<void> _persist(UserProfile profile) async {

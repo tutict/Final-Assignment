@@ -12,6 +12,7 @@ public class PaymentRecordResponse {
 
     private Long paymentId;
     private Long fineId;
+    private Long driverId;
     private String paymentNumber;
     private BigDecimal paymentAmount;
     private String paymentMethod;

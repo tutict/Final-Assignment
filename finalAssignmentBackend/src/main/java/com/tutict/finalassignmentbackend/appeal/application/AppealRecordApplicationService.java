@@ -15,8 +15,10 @@ import com.tutict.finalassignmentbackend.appeal.infrastructure.messaging.Transac
 import com.tutict.finalassignmentbackend.appeal.infrastructure.search.AppealRecordSearchIndexer;
 import com.tutict.finalassignmentbackend.config.statemachine.states.AppealProcessState;
 import com.tutict.finalassignmentbackend.entity.AppealRecord;
+import com.tutict.finalassignmentbackend.entity.OffenseRecord;
 import com.tutict.finalassignmentbackend.exception.BusinessException;
 import com.tutict.finalassignmentbackend.mapper.AppealRecordMapper;
+import com.tutict.finalassignmentbackend.mapper.OffenseRecordMapper;
 import com.tutict.finalassignmentbackend.service.events.AppealStatusChangedEvent;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.ApplicationEventPublisher;
@@ -37,6 +39,7 @@ public class AppealRecordApplicationService {
             AppealCallerMetadata.system("AppealRecordApplicationService.applyKafkaEvent");
 
     private final AppealRecordMapper appealRecordMapper;
+    private final OffenseRecordMapper offenseRecordMapper;
     private final AppealRecordDomainService domainService;
     private final AppealRecordSearchIndexer searchIndexer;
     private final TransactionalDomainEventPublisher eventPublisher;
@@ -50,6 +53,7 @@ public class AppealRecordApplicationService {
     @Autowired
     public AppealRecordApplicationService(
             AppealRecordMapper appealRecordMapper,
+            OffenseRecordMapper offenseRecordMapper,
             AppealRecordDomainService domainService,
             AppealRecordSearchIndexer searchIndexer,
             TransactionalDomainEventPublisher eventPublisher,
@@ -60,6 +64,7 @@ public class AppealRecordApplicationService {
             ApplicationEventPublisher applicationEventPublisher
     ) {
         this.appealRecordMapper = appealRecordMapper;
+        this.offenseRecordMapper = offenseRecordMapper;
         this.domainService = domainService;
         this.searchIndexer = searchIndexer;
         this.eventPublisher = eventPublisher;
@@ -68,6 +73,32 @@ public class AppealRecordApplicationService {
         this.workflowDecisionPolicy = workflowDecisionPolicy;
         this.updateMergeCoordinator = updateMergeCoordinator;
         this.applicationEventPublisher = applicationEventPublisher;
+    }
+
+    public AppealRecordApplicationService(
+            AppealRecordMapper appealRecordMapper,
+            OffenseRecordMapper offenseRecordMapper,
+            AppealRecordDomainService domainService,
+            AppealRecordSearchIndexer searchIndexer,
+            TransactionalDomainEventPublisher eventPublisher,
+            AppealCachePolicy cachePolicy,
+            AppealIdempotencyService idempotencyService,
+            AppealWorkflowDecisionPolicy workflowDecisionPolicy,
+            AppealUpdateMergeCoordinator updateMergeCoordinator
+    ) {
+        this(
+                appealRecordMapper,
+                offenseRecordMapper,
+                domainService,
+                searchIndexer,
+                eventPublisher,
+                cachePolicy,
+                idempotencyService,
+                workflowDecisionPolicy,
+                updateMergeCoordinator,
+                event -> {
+                }
+        );
     }
 
     public AppealRecordApplicationService(
@@ -82,15 +113,14 @@ public class AppealRecordApplicationService {
     ) {
         this(
                 appealRecordMapper,
+                null,
                 domainService,
                 searchIndexer,
                 eventPublisher,
                 cachePolicy,
                 idempotencyService,
                 workflowDecisionPolicy,
-                updateMergeCoordinator,
-                event -> {
-                }
+                updateMergeCoordinator
         );
     }
 
@@ -110,6 +140,7 @@ public class AppealRecordApplicationService {
 
     @Transactional
     public AppealRecord createAppeal(AppealRecord appealRecord) {
+        fillDriverIdFromOffense(appealRecord);
         domainService.validateAppeal(appealRecord);
         appealRecordMapper.insert(appealRecord);
         searchIndexer.indexAfterCommit(appealRecord);
@@ -120,6 +151,7 @@ public class AppealRecordApplicationService {
     @Transactional
     public AppealRecord updateAppeal(AppealRecord appealRecord) {
         domainService.validateAppealId(appealRecord);
+        fillDriverIdFromOffense(appealRecord);
         AppealRecord existing = appealRecordMapper.selectById(appealRecord.getAppealId());
         if (workflowDecisionPolicy.isMissingAppeal(existing)) {
             throw new IllegalStateException("Appeal not found: " + appealRecord.getAppealId());
@@ -148,12 +180,14 @@ public class AppealRecordApplicationService {
     public AppealRecord applyKafkaEvent(AppealRecord appealRecord, String action) {
         Objects.requireNonNull(appealRecord, "Appeal record cannot be null");
         if ("create".equalsIgnoreCase(action)) {
+            fillDriverIdFromOffense(appealRecord);
             return createAppeal(appealRecord);
         }
         if (!"update".equalsIgnoreCase(action)) {
             throw new IllegalArgumentException("Unsupported appeal Kafka action: " + action);
         }
         domainService.validateAppealId(appealRecord.getAppealId());
+        fillDriverIdFromOffense(appealRecord);
         AppealRecord existing = appealRecordMapper.selectById(appealRecord.getAppealId());
         if (workflowDecisionPolicy.isMissingAppeal(existing)) {
             throw new IllegalStateException("Appeal not found: " + appealRecord.getAppealId());
@@ -291,6 +325,26 @@ public class AppealRecordApplicationService {
                 updated.getProcessStatus(),
                 updated.getUpdatedAt()
         ));
+    }
+
+    private void fillDriverIdFromOffense(AppealRecord appealRecord) {
+        if (appealRecord == null || appealRecord.getOffenseId() == null) {
+            return;
+        }
+        if (offenseRecordMapper == null) {
+            return;
+        }
+        OffenseRecord offense = offenseRecordMapper.selectById(appealRecord.getOffenseId());
+        if (offense != null) {
+            if (appealRecord.getDriverId() != null
+                    && offense.getDriverId() != null
+                    && !Objects.equals(appealRecord.getDriverId(), offense.getDriverId())) {
+                throw new IllegalArgumentException("Appeal driver does not match offense owner");
+            }
+            if (offense.getDriverId() != null) {
+                appealRecord.setDriverId(offense.getDriverId());
+            }
+        }
     }
 
     private String firstNonBlank(String... values) {

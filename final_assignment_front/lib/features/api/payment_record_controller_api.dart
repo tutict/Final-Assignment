@@ -64,6 +64,28 @@ class PaymentRecordControllerApi with BaseApiClient {
     );
   }
 
+  Future<PaymentRecordModel> createPaymentForDriver({
+    required int driverId,
+    required PaymentRecordModel paymentRecord,
+    String? idempotencyKey,
+  }) async {
+    final response = await apiClient.invokeAPI(
+      '/api/payments/driver/$driverId',
+      'POST',
+      const [],
+      paymentRecord.copyWith(driverId: driverId).toJson(),
+      await _getHeaders(idempotencyKey: idempotencyKey),
+      const {},
+      'application/json',
+      ['bearerAuth'],
+    );
+    _ensureSuccess(response);
+    return unwrapApiResponse(
+      jsonDecode(_decodeBodyBytes(response)) as Map<String, dynamic>,
+      (data) => PaymentRecordModel.fromJson(data as Map<String, dynamic>),
+    );
+  }
+
   /// PUT /api/payments/{paymentId}
   Future<PaymentRecordModel> updatePayment({
     required int paymentId,
@@ -150,6 +172,28 @@ class PaymentRecordControllerApi with BaseApiClient {
   }) async {
     final response = await apiClient.invokeAPI(
       '/api/payments/fine/$fineId',
+      'GET',
+      [
+        QueryParam('page', '$page'),
+        QueryParam('size', '$size'),
+      ],
+      null,
+      await _getHeaders(),
+      const {},
+      null,
+      ['bearerAuth'],
+    );
+    _ensureSuccess(response);
+    return _parseList(response);
+  }
+
+  Future<List<PaymentRecordModel>> listPaymentsByDriver({
+    required int driverId,
+    int page = 1,
+    int size = 20,
+  }) async {
+    final response = await apiClient.invokeAPI(
+      '/api/payments/driver/$driverId',
       'GET',
       [
         QueryParam('page', '$page'),

@@ -2,6 +2,7 @@ import 'package:final_assignment_front/utils/date_formatter.dart';
 
 class DriverInformation {
   final int? driverId;
+  final int? authUserId;
   final String? name;
   final String? idCardNumber;
   final String? gender;
@@ -29,6 +30,7 @@ class DriverInformation {
 
   const DriverInformation({
     this.driverId,
+    this.authUserId,
     this.name,
     this.idCardNumber,
     this.gender,
@@ -57,6 +59,7 @@ class DriverInformation {
 
   DriverInformation copyWith({
     int? driverId,
+    int? authUserId,
     String? name,
     String? idCardNumber,
     String? gender,
@@ -84,6 +87,7 @@ class DriverInformation {
   }) {
     return DriverInformation(
       driverId: driverId ?? this.driverId,
+      authUserId: authUserId ?? this.authUserId,
       name: name ?? this.name,
       idCardNumber: idCardNumber ?? this.idCardNumber,
       gender: gender ?? this.gender,
@@ -116,6 +120,7 @@ class DriverInformation {
     final type = json['licenseType'] ?? json['allowedVehicleType'];
     return DriverInformation(
       driverId: json['driverId'],
+      authUserId: json['authUserId'],
       name: json['name'],
       idCardNumber: _stripQuotes(json['idCardNumber']),
       gender: json['gender'],
@@ -146,6 +151,7 @@ class DriverInformation {
   Map<String, dynamic> toJson() {
     return {
       'driverId': driverId,
+      'authUserId': authUserId,
       'name': name,
       'idCardNumber': idCardNumber,
       'gender': gender,

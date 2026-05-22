@@ -27,6 +27,9 @@ public class DriverInformationDocument implements Serializable {
     @Field(type = FieldType.Long)
     private Long driverId;
 
+    @Field(type = FieldType.Long)
+    private Long authUserId;
+
     @MultiField(
             mainField = @Field(type = FieldType.Text, analyzer = "ik_max_word", searchAnalyzer = "ik_max_word"),
             otherFields = {
@@ -177,6 +180,7 @@ public class DriverInformationDocument implements Serializable {
         }
         DriverInformationDocument doc = new DriverInformationDocument();
         doc.setDriverId(entity.getDriverId());
+        doc.setAuthUserId(entity.getAuthUserId());
         doc.setName(entity.getName());
         doc.setIdCardNumber(entity.getIdCardNumber());
         doc.setGender(entity.getGender());
@@ -205,6 +209,7 @@ public class DriverInformationDocument implements Serializable {
     public DriverInformation toEntity() {
         DriverInformation entity = new DriverInformation();
         entity.setDriverId(this.driverId);
+        entity.setAuthUserId(this.authUserId);
         entity.setName(this.name);
         entity.setIdCardNumber(this.idCardNumber);
         entity.setGender(this.gender);

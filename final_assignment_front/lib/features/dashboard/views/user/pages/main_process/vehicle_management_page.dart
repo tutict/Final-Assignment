@@ -1,5 +1,6 @@
 // ignore_for_file: use_build_context_synchronously
 import 'package:final_assignment_front/core/utils/app_logger.dart';
+import 'package:final_assignment_front/core/auth/user_profile_service.dart';
 import 'package:flutter/material.dart';
 import 'package:final_assignment_front/features/api/vehicle_information_controller_api.dart';
 import 'package:final_assignment_front/features/api/driver_information_controller_api.dart';
@@ -59,6 +60,7 @@ class _VehicleManagementState extends State<VehicleManagementPage> {
   List<VehicleInformation> _filteredVehicleList = [];
   bool _isLoading = true;
   String _errorMessage = '';
+  int? _currentDriverId;
   String? _currentDriverName;
   String? _currentDriverIdCardNumber;
   bool _hasMore = true;
@@ -91,10 +93,13 @@ class _VehicleManagementState extends State<VehicleManagementPage> {
       await driverApi.initializeWithJwt();
       await userApi.initializeWithJwt();
 
-      final user = await _fetchUserManagement();
-      final userId = user?.userId;
-      final driverInfo =
-          userId != null ? await driverApi.getDriver(driverId: userId) : null;
+      final profile = await Get.find<UserProfileService>().getProfile();
+      final driverId = profile.driverId;
+      if (driverId == null) {
+        throw Exception('您的账户尚未关联司机档案');
+      }
+      final driverInfo = await driverApi.getDriver(driverId: driverId);
+      _currentDriverId = driverId;
       _currentDriverName = driverInfo?.name ?? username;
       _currentDriverIdCardNumber = driverInfo?.idCardNumber;
       AppLogger.debug(
@@ -115,22 +120,6 @@ class _VehicleManagementState extends State<VehicleManagementPage> {
     }
   }
 
-  Future<UserManagement?> _fetchUserManagement() async {
-    try {
-      final prefs = await SharedPreferences.getInstance();
-      final storedUsername = prefs.getString('userName');
-      if (storedUsername == null || storedUsername.isEmpty) {
-        AppLogger.debug('Username not found in local storage');
-        return null;
-      }
-      await userApi.initializeWithJwt();
-      return await userApi.searchUsersByUsername(username: storedUsername);
-    } catch (e) {
-      AppLogger.error('Failed to fetch UserManagement: $e');
-      return null;
-    }
-  }
-
   @override
   void dispose() {
     _searchController.dispose();
@@ -138,7 +127,7 @@ class _VehicleManagementState extends State<VehicleManagementPage> {
   }
 
   Future<void> _fetchUserVehicles({bool reset = false, String? query}) async {
-    if (_currentDriverIdCardNumber == null) {
+    if (_currentDriverId == null) {
       setState(() {
         _errorMessage = '缺少身份证号码，无法获取车辆信息';
         _isLoading = false;
@@ -163,8 +152,8 @@ class _VehicleManagementState extends State<VehicleManagementPage> {
         'Fetching vehicles with query: $searchQuery, searchType: $_searchType');
 
     try {
-      final vehicles = await vehicleApi.searchVehiclesByOwner(
-        idCard: _currentDriverIdCardNumber!,
+      final vehicles = await vehicleApi.listVehicleRecordsByDriver(
+        driverId: _currentDriverId!,
       );
 
       AppLogger.debug(
@@ -517,6 +506,7 @@ class _AddVehiclePageState extends State<AddVehiclePage> {
   final _vehicleColorController = TextEditingController();
   final _firstRegistrationDateController = TextEditingController();
   final _currentStatusController = TextEditingController();
+  int? _driverId;
   bool _isLoading = false;
 
   final UserDashboardController? controller =
@@ -553,9 +543,11 @@ class _AddVehiclePageState extends State<AddVehiclePage> {
 
   Future<void> _preFillForm(String username) async {
     final user = await _fetchUserManagement();
-    final userId = user?.userId;
+    final profile = await Get.find<UserProfileService>().getProfile();
+    final driverId = profile.driverId;
     final driverInfo =
-        userId != null ? await driverApi.getDriver(driverId: userId) : null;
+        driverId != null ? await driverApi.getDriver(driverId: driverId) : null;
+    _driverId = driverId;
 
     AppLogger.debug('Fetched UserManagement: ${user?.toJson()}');
     AppLogger.debug('Fetched DriverInformation: ${driverInfo?.toString()}');
@@ -630,6 +622,7 @@ class _AddVehiclePageState extends State<AddVehiclePage> {
     try {
       final vehicle = VehicleInformation(
         vehicleId: null,
+        driverId: _driverId,
         licensePlate: licensePlate,
         vehicleType: _vehicleTypeController.text.trim(),
         ownerName: _ownerNameController.text.trim(),
@@ -903,6 +896,7 @@ class _EditVehiclePageState extends State<EditVehiclePage> {
   final _vehicleColorController = TextEditingController();
   final _firstRegistrationDateController = TextEditingController();
   final _currentStatusController = TextEditingController();
+  int? _driverId;
   bool _isLoading = false;
 
   final UserDashboardController? controller =
@@ -938,10 +932,11 @@ class _EditVehiclePageState extends State<EditVehiclePage> {
     final username = decodedToken['sub'] ?? '';
     if (username.isEmpty) throw Exception('JWT 中未找到用户名');
 
-    final user = await _fetchUserManagement();
-    final userId = user?.userId;
+    final profile = await Get.find<UserProfileService>().getProfile();
+    final driverId = profile.driverId;
     final driverInfo =
-        userId != null ? await driverApi.getDriver(driverId: userId) : null;
+        driverId != null ? await driverApi.getDriver(driverId: driverId) : null;
+    _driverId = driverId;
     if (driverInfo == null || driverInfo.name == null) {
       throw Exception('无法获取驾驶员信息或姓名');
     }
@@ -960,22 +955,6 @@ class _EditVehiclePageState extends State<EditVehiclePage> {
           formatDate(widget.vehicle.firstRegistrationDate);
       _currentStatusController.text = widget.vehicle.currentStatus ?? '';
     });
-  }
-
-  Future<UserManagement?> _fetchUserManagement() async {
-    try {
-      final prefs = await SharedPreferences.getInstance();
-      final storedUsername = prefs.getString('userName');
-      if (storedUsername == null || storedUsername.isEmpty) {
-        AppLogger.debug('Username missing when fetching user info');
-        return null;
-      }
-      await userApi.initializeWithJwt();
-      return await userApi.searchUsersByUsername(username: storedUsername);
-    } catch (e) {
-      AppLogger.error('Failed to fetch UserManagement: $e');
-      return null;
-    }
   }
 
   @override
@@ -1013,6 +992,7 @@ class _EditVehiclePageState extends State<EditVehiclePage> {
     try {
       final vehicle = VehicleInformation(
         vehicleId: widget.vehicle.vehicleId,
+        driverId: widget.vehicle.driverId ?? _driverId,
         licensePlate: newLicensePlate,
         vehicleType: _vehicleTypeController.text.trim(),
         ownerName: _ownerNameController.text.trim(),
@@ -1291,10 +1271,10 @@ class _VehicleDetailPageState extends State<VehicleDetailPage> {
 
       await vehicleApi.initializeWithJwt();
       await userApi.initializeWithJwt();
-      final user = await _fetchUserManagement();
-      final userId = user?.userId;
+      final profile = await Get.find<UserProfileService>().getProfile();
+      final driverId = profile.driverId;
       final driverInfo =
-          userId != null ? await _fetchDriverInformation(userId) : null;
+          driverId != null ? await _fetchDriverInformation(driverId) : null;
       _currentDriverIdCardNumber = driverInfo?.idCardNumber;
       await _checkUserRole();
     } catch (e) {
@@ -1304,27 +1284,11 @@ class _VehicleDetailPageState extends State<VehicleDetailPage> {
     }
   }
 
-  Future<UserManagement?> _fetchUserManagement() async {
-    try {
-      final prefs = await SharedPreferences.getInstance();
-      final storedUsername = prefs.getString('userName');
-      if (storedUsername == null || storedUsername.isEmpty) {
-        AppLogger.debug('Username missing when fetching user info');
-        return null;
-      }
-      await userApi.initializeWithJwt();
-      return await userApi.searchUsersByUsername(username: storedUsername);
-    } catch (e) {
-      AppLogger.error('Failed to fetch UserManagement: $e');
-      return null;
-    }
-  }
-
-  Future<DriverInformation?> _fetchDriverInformation(int userId) async {
+  Future<DriverInformation?> _fetchDriverInformation(int driverId) async {
     try {
       final driverApi = DriverInformationControllerApi();
       await driverApi.initializeWithJwt();
-      return await driverApi.getDriver(driverId: userId);
+      return await driverApi.getDriver(driverId: driverId);
     } catch (e) {
       AppLogger.error('Failed to fetch DriverInformation: $e');
       return null;

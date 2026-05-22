@@ -5,11 +5,13 @@ import com.tutict.finalassignmentbackend.dto.request.AppealCreateRequest;
 import com.tutict.finalassignmentbackend.dto.response.ApiResponse;
 import com.tutict.finalassignmentbackend.dto.response.AppealResponse;
 import com.tutict.finalassignmentbackend.dto.response.PageResponse;
+import com.tutict.finalassignmentbackend.dto.response.UserProfileResponse;
 import com.tutict.finalassignmentbackend.entity.AppealRecord;
 import com.tutict.finalassignmentbackend.entity.AppealReview;
 import com.tutict.finalassignmentbackend.exception.EntityNotFoundException;
 import com.tutict.finalassignmentbackend.service.AppealRecordService;
 import com.tutict.finalassignmentbackend.service.AppealReviewService;
+import com.tutict.finalassignmentbackend.service.AuthWsService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -31,6 +33,8 @@ import org.springframework.web.bind.annotation.RestController;
 
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
+import java.util.Set;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
@@ -41,12 +45,20 @@ import java.util.logging.Logger;
 public class AppealManagementController {
 
     private static final Logger LOG = Logger.getLogger(AppealManagementController.class.getName());
+    private static final Set<String> ELEVATED_AUTHORITIES = Set.of(
+            "ROLE_SUPER_ADMIN",
+            "ROLE_ADMIN",
+            "ROLE_APPEAL_REVIEWER"
+    );
 
+    private final AuthWsService authWsService;
     private final AppealRecordService appealRecordService;
     private final AppealReviewService appealReviewService;
 
-    public AppealManagementController(AppealRecordService appealRecordService,
+    public AppealManagementController(AuthWsService authWsService,
+                                      AppealRecordService appealRecordService,
                                       AppealReviewService appealReviewService) {
+        this.authWsService = authWsService;
         this.appealRecordService = appealRecordService;
         this.appealReviewService = appealReviewService;
     }
@@ -62,6 +74,14 @@ public class AppealManagementController {
         AppealRecord appealRecord = AppealRecordRequestMapper.toEntity(request);
         appealRecord.setCreatedBy(authentication.getName());
         appealRecord.setUpdatedBy(authentication.getName());
+        UserProfileResponse profile = authWsService.getCurrentUserProfile(authentication.getName());
+        if (isRegularUser(authentication)) {
+            if (profile.getDriverId() == null) {
+                return ResponseEntity.status(HttpStatus.FORBIDDEN)
+                        .body(ApiResponse.error("DRIVER_PROFILE_NOT_LINKED", "Driver profile is not linked"));
+            }
+            appealRecord.setDriverId(profile.getDriverId());
+        }
         try {
             if (useIdempotency) {
                 if (appealRecordService.shouldSkipProcessing(idempotencyKey)) {
@@ -91,8 +111,11 @@ public class AppealManagementController {
             Authentication authentication,
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "20") int size) {
-        List<AppealResponse> content = toResponses(
-                appealRecordService.findByCreatedBy(authentication.getName(), page, size));
+        UserProfileResponse profile = authWsService.getCurrentUserProfile(authentication.getName());
+        List<AppealRecord> records = profile.getDriverId() != null
+                ? appealRecordService.findByDriverId(profile.getDriverId(), page, size)
+                : appealRecordService.findByCreatedBy(authentication.getName(), page, size);
+        List<AppealResponse> content = toResponses(records);
         return ResponseEntity.ok(ApiResponse.ok(PageResponse.of(content, content.size(), page, size)));
     }
 
@@ -382,6 +405,32 @@ public class AppealManagementController {
 
     private boolean hasKey(String value) {
         return value != null && !value.isBlank();
+    }
+
+    private boolean isRegularUser(Authentication authentication) {
+        if (authentication == null) {
+            return false;
+        }
+        boolean elevated = authentication.getAuthorities().stream()
+                .anyMatch(authority -> ELEVATED_AUTHORITIES.contains(authority.getAuthority()));
+        if (elevated) {
+            return false;
+        }
+        return authentication.getAuthorities().stream()
+                .anyMatch(authority -> "ROLE_USER".equals(authority.getAuthority()));
+    }
+
+    private boolean canAccessDriver(Authentication authentication, Long driverId) {
+        if (authentication == null || driverId == null) {
+            return false;
+        }
+        boolean elevated = authentication.getAuthorities().stream()
+                .anyMatch(authority -> ELEVATED_AUTHORITIES.contains(authority.getAuthority()));
+        if (elevated) {
+            return true;
+        }
+        UserProfileResponse profile = authWsService.getCurrentUserProfile(authentication.getName());
+        return Objects.equals(profile.getDriverId(), driverId);
     }
 
     private List<AppealResponse> toResponses(List<AppealRecord> records) {

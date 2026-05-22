@@ -34,6 +34,7 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Set;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import java.util.stream.Collectors;
@@ -44,6 +45,14 @@ public class AuthWsService {
     private static final Logger logger = Logger.getLogger(AuthWsService.class.getName());
     private static final int MAX_ROLE_PAGE_SIZE = 100;
     private static final String PUBLIC_REGISTER_ROLE = "USER";
+    private static final Set<String> DRIVER_PROFILE_ROLES = Set.of("USER");
+    private static final Set<String> STAFF_ROLES = Set.of(
+            "SUPER_ADMIN",
+            "ADMIN",
+            "TRAFFIC_POLICE",
+            "FINANCE",
+            "APPEAL_REVIEWER"
+    );
 
     private final TokenProvider tokenProvider;
     private final AuditLoginLogService auditLoginLogService;
@@ -95,7 +104,7 @@ public class AuthWsService {
             String jwtToken = issueAccessToken(user, aggregation, rolesString);
             String refreshToken = refreshTokenService.createRefreshToken(user.getUserId());
             String dataScopeCode = aggregation.getDataScope().getCode();
-            DriverInformation driver = driverInformationService.findLinkedDriver(user);
+            DriverInformation driver = resolveDriverForUser(user, aggregation);
 
             boolean systemRole = tokenProvider.hasSystemRole(jwtToken);
             boolean businessRole = tokenProvider.hasBusinessRole(jwtToken);
@@ -132,7 +141,7 @@ public class AuthWsService {
         throw new BadCredentialsException("Invalid username or password.");
     }
 
-    @Transactional(readOnly = true)
+    @Transactional
     public UserProfileResponse getCurrentUserProfile(String username) {
         if (!StringUtils.hasText(username)) {
             throw new EntityNotFoundException("User not found");
@@ -144,7 +153,7 @@ public class AuthWsService {
         }
 
         RoleAggregation aggregation = aggregateRoles(user.getUserId());
-        DriverInformation driver = driverInformationService.findLinkedDriver(user);
+        DriverInformation driver = resolveDriverForUser(user, aggregation);
 
         return UserProfileResponse.builder()
                 .authUserId(user.getUserId())
@@ -243,6 +252,7 @@ public class AuthWsService {
 
         SysRole role = resolveOrCreateRole(PUBLIC_REGISTER_ROLE);
         assignRole(savedUser, role);
+        driverInformationService.findOrCreateLinkedDriver(savedUser);
         markRegisterHistorySuccess(registerHistory, savedUser.getUserId());
 
         logger.info(() -> String.format("User registered successfully: %s", registerRequest.getUsername()));
@@ -284,6 +294,7 @@ public class AuthWsService {
         if (existingUser != null && authenticateUser(existingUser, registerRequest.getPassword())) {
             SysRole role = resolveOrCreateRole(PUBLIC_REGISTER_ROLE);
             ensureRole(existingUser, role);
+            driverInformationService.findOrCreateLinkedDriver(existingUser);
             markRegisterHistorySuccess(history, existingUser.getUserId());
             logger.info(() -> String.format(
                     "Replayed idempotent register success for user=%s, key=%s",
@@ -319,6 +330,26 @@ public class AuthWsService {
             throw new RuntimeException("No roles assigned to user.");
         }
         return aggregation;
+    }
+
+    private DriverInformation resolveDriverForUser(SysUser user, RoleAggregation aggregation) {
+        if (!shouldOwnDriverProfile(aggregation)) {
+            return null;
+        }
+        return driverInformationService.findOrCreateLinkedDriver(user);
+    }
+
+    private boolean shouldOwnDriverProfile(RoleAggregation aggregation) {
+        if (aggregation == null) {
+            return false;
+        }
+        List<String> roleCodes = aggregation.getRoleCodes();
+        if (roleCodes == null || roleCodes.isEmpty()) {
+            return false;
+        }
+        boolean userRole = roleCodes.stream().anyMatch(DRIVER_PROFILE_ROLES::contains);
+        boolean staffRole = roleCodes.stream().anyMatch(STAFF_ROLES::contains);
+        return userRole && !staffRole;
     }
 
     private String issueAccessToken(SysUser user, RoleAggregation aggregation, String rolesString) {

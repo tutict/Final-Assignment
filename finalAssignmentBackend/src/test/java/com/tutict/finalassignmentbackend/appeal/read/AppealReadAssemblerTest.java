@@ -85,6 +85,7 @@ class AppealReadAssemblerTest {
         return new AppealRecordSearchProjection(
                 10L,
                 20L,
+                30L,
                 " AP-10 ",
                 " Alice ",
                 "ID-10",
@@ -117,6 +118,7 @@ class AppealReadAssemblerTest {
         AppealRecord entity = new AppealRecord();
         entity.setAppealId(10L);
         entity.setOffenseId(20L);
+        entity.setDriverId(30L);
         entity.setAppealNumber("AP-10");
         entity.setAppellantName("Alice");
         entity.setAppellantIdCard("ID-10");

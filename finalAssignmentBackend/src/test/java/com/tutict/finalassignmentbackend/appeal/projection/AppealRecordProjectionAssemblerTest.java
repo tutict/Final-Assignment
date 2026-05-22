@@ -123,6 +123,7 @@ class AppealRecordProjectionAssemblerTest {
         return new AppealRecordSearchProjection(
                 12L,
                 22L,
+                32L,
                 " AP-12 ",
                 " Bob ",
                 " ID-12 ",

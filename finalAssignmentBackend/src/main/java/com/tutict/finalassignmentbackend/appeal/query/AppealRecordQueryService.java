@@ -77,6 +77,17 @@ public class AppealRecordQueryService {
         );
     }
 
+    public List<AppealRecord> findByDriverId(Long driverId, int page, int size) {
+        AppealPageRequest pageRequest = pageRequest(page, size);
+        return queryWithFallback(
+                "findByDriverId",
+                pageRequest,
+                () -> searchQueryAdapter.findByDriverId(driverId, pageRequest),
+                () -> dbFallbackReader.findByDriverId(driverId, pageRequest),
+                queryPolicy.defaultVisibility()
+        );
+    }
+
     public List<AppealRecord> searchByAppealNumberPrefix(String appealNumber, int page, int size) {
         if (queryPolicy.shouldReturnEmptyForTextFilter(appealNumber)) {
             return List.of();

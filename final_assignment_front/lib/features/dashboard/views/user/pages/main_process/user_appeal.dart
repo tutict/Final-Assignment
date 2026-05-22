@@ -61,6 +61,7 @@ class _UserAppealPageState extends State<UserAppealPage> {
   String _errorMessage = '';
   late ScrollController _scrollController;
   List<dynamic> _offenseCache = [];
+  int? _currentDriverId;
   String? _currentDriverName;
   StreamSubscription<AppealStatusChange>? _appealStatusSubscription;
 
@@ -145,6 +146,14 @@ class _UserAppealPageState extends State<UserAppealPage> {
       await driverApi.initializeWithJwt();
       await offenseApi.initializeWithJwt();
       await userApi.initializeWithJwt();
+      if (!Get.isRegistered<UserProfileService>()) {
+        throw Exception('UserProfileService is not registered');
+      }
+      final profile = await Get.find<UserProfileService>().getProfile();
+      _currentDriverId = profile.driverId;
+      if (_currentDriverId == null) {
+        throw Exception('Driver profile is not linked');
+      }
 
       _currentDriverName = prefs.getString('driverName');
       if (_currentDriverName == null) {
@@ -220,6 +229,7 @@ class _UserAppealPageState extends State<UserAppealPage> {
       }
       final profile = await Get.find<UserProfileService>().getProfile();
       final driverId = profile.driverId;
+      _currentDriverId = driverId;
       if (driverId == null) {
         setState(() {
           _errorMessage = '您的账户尚未关联司机档案，请联系管理员';
@@ -258,11 +268,15 @@ class _UserAppealPageState extends State<UserAppealPage> {
 
   Future<void> _checkUserOffenses() async {
     try {
+      final driverId = _currentDriverId;
+      if (driverId == null) {
+        throw Exception('Driver profile is not linked');
+      }
       if (_currentDriverName == null) {
         throw Exception('未找到驾驶员姓名');
       }
-      final offenses = await offenseApi.listOffensesByDriverName(
-        query: _currentDriverName!,
+      final offenses = await offenseApi.listOffensesByDriver(
+        driverId: driverId,
         page: 1,
         size: 20,
       );
@@ -280,11 +294,15 @@ class _UserAppealPageState extends State<UserAppealPage> {
 
   Future<List<dynamic>> _fetchUserOffenses() async {
     try {
+      final driverId = _currentDriverId;
+      if (driverId == null) {
+        throw Exception('Driver profile is not linked');
+      }
       if (_currentDriverName == null) {
         throw Exception('未找到驾驶员姓名');
       }
-      _offenseCache = await offenseApi.listOffensesByDriverName(
-        query: _currentDriverName!,
+      _offenseCache = await offenseApi.listOffensesByDriver(
+        driverId: driverId,
         page: 1,
         size: 20,
       );
@@ -296,6 +314,7 @@ class _UserAppealPageState extends State<UserAppealPage> {
     }
   }
 
+  // ignore: unused_element
   Future<UserManagement?> _fetchUserManagement() async {
     try {
       await userApi.initializeWithJwt();
@@ -311,9 +330,9 @@ class _UserAppealPageState extends State<UserAppealPage> {
     }
   }
 
-  Future<DriverInformation?> _fetchDriverInformation(int userId) async {
+  Future<DriverInformation?> _fetchDriverInformation(int driverId) async {
     try {
-      return await driverApi.getDriver(driverId: userId);
+      return await driverApi.getDriver(driverId: driverId);
     } catch (e) {
       developer.log('获取驾驶员信息失败: $e');
       return null;
@@ -336,9 +355,11 @@ class _UserAppealPageState extends State<UserAppealPage> {
         _searchController.clear();
       }
 
+      final List<AppealRecordModel> fetched =
+          await appealApi.listMyAppeals(page: 0, size: 50);
       final offenseIds =
           _offenseCache.map((o) => o['offenseId']).whereType<int>().toSet();
-      if (offenseIds.isEmpty) {
+      if (offenseIds.isEmpty && fetched.isEmpty) {
         setState(() {
           _appeals = [];
           _isLoading = false;
@@ -346,17 +367,6 @@ class _UserAppealPageState extends State<UserAppealPage> {
         });
         return;
       }
-      final List<AppealRecordModel> fetched = [];
-      for (final id in offenseIds) {
-        try {
-          final records =
-              await appealApi.listAppeals(offenseId: id, page: 1, size: 50);
-          fetched.addAll(records);
-        } catch (e) {
-          developer.log('Failed to fetch appeals for offense $id: $e');
-        }
-      }
-
       final searchText = _searchController.text.trim().toLowerCase();
       final filtered = fetched.where((appeal) {
         final matchesName = appeal.appellantName == null ||
@@ -418,14 +428,15 @@ class _UserAppealPageState extends State<UserAppealPage> {
   void _showSubmitAppealDialog() async {
     final TextEditingController nameController =
         TextEditingController(text: _currentDriverName ?? '');
-    final user = await _fetchUserManagement();
-    final int? userId = user?.userId;
+    final profile = await Get.find<UserProfileService>().getProfile();
+    final int? driverId = profile.driverId ?? _currentDriverId;
+    _currentDriverId = driverId;
     final driverInfo =
-        userId != null ? await _fetchDriverInformation(userId) : null;
+        driverId != null ? await _fetchDriverInformation(driverId) : null;
     final TextEditingController idCardController =
         TextEditingController(text: driverInfo?.idCardNumber ?? '');
     final TextEditingController contactController = TextEditingController(
-        text: driverInfo?.contactNumber ?? user?.contactNumber ?? '');
+        text: driverInfo?.contactNumber ?? profile.phoneNumber ?? '');
     final TextEditingController reasonController = TextEditingController();
     final formKey = GlobalKey<FormState>();
     int? selectedOffenseId;
@@ -671,6 +682,7 @@ class _UserAppealPageState extends State<UserAppealPage> {
 
                                     final newAppeal = AppealRecordModel(
                                       offenseId: selectedOffenseId,
+                                      driverId: driverId,
                                       appellantName: name,
                                       appellantIdCard: idCard,
                                       appellantContact: contact,

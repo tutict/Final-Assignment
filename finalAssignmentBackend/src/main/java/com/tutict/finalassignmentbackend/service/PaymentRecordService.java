@@ -3,11 +3,13 @@ package com.tutict.finalassignmentbackend.service;
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.tutict.finalassignmentbackend.config.statemachine.states.PaymentState;
+import com.tutict.finalassignmentbackend.entity.FineRecord;
 import com.tutict.finalassignmentbackend.config.websocket.WsAction;
 import com.tutict.finalassignmentbackend.entity.PaymentRecord;
 import com.tutict.finalassignmentbackend.entity.SysRequestHistory;
 import com.tutict.finalassignmentbackend.entity.elastic.PaymentRecordDocument;
 import com.tutict.finalassignmentbackend.exception.EntityNotFoundException;
+import com.tutict.finalassignmentbackend.mapper.FineRecordMapper;
 import com.tutict.finalassignmentbackend.mapper.PaymentRecordMapper;
 import com.tutict.finalassignmentbackend.mapper.SysRequestHistoryMapper;
 import com.tutict.finalassignmentbackend.payment.governance.PaymentGovernanceClassifier;
@@ -43,6 +45,7 @@ public class PaymentRecordService {
     private static final String CACHE_NAME = "paymentRecordCache";
 
     private final PaymentRecordMapper paymentRecordMapper;
+    private final FineRecordMapper fineRecordMapper;
     private final SysRequestHistoryMapper sysRequestHistoryMapper;
     private final PaymentRecordSearchRepository paymentRecordSearchRepository;
     private final ApplicationEventPublisher applicationEventPublisher;
@@ -50,10 +53,12 @@ public class PaymentRecordService {
 
     @Autowired
     public PaymentRecordService(PaymentRecordMapper paymentRecordMapper,
+                                FineRecordMapper fineRecordMapper,
                                 SysRequestHistoryMapper sysRequestHistoryMapper,
                                 PaymentRecordSearchRepository paymentRecordSearchRepository,
                                 ApplicationEventPublisher applicationEventPublisher) {
         this.paymentRecordMapper = paymentRecordMapper;
+        this.fineRecordMapper = fineRecordMapper;
         this.sysRequestHistoryMapper = sysRequestHistoryMapper;
         this.paymentRecordSearchRepository = paymentRecordSearchRepository;
         this.applicationEventPublisher = applicationEventPublisher;
@@ -257,6 +262,20 @@ public class PaymentRecordService {
         }
         QueryWrapper<PaymentRecord> wrapper = new QueryWrapper<>();
         wrapper.eq("fine_id", fineId)
+                .orderByDesc("payment_time");
+        return fetchFromDatabase(wrapper, page, size);
+    }
+
+    @Cacheable(cacheNames = CACHE_NAME, key = "'driver:' + #driverId + ':' + #page + ':' + #size", unless = "#result == null || #result.isEmpty()")
+    public List<PaymentRecord> findByDriverId(Long driverId, int page, int size) {
+        requirePositive(driverId, "Driver ID");
+        validatePagination(page, size);
+        List<PaymentRecord> index = mapHits(paymentRecordSearchRepository.findByDriverId(driverId, pageable(page, size)));
+        if (!index.isEmpty()) {
+            return index;
+        }
+        QueryWrapper<PaymentRecord> wrapper = new QueryWrapper<>();
+        wrapper.eq("driver_id", driverId)
                 .orderByDesc("payment_time");
         return fetchFromDatabase(wrapper, page, size);
     }
@@ -496,6 +515,16 @@ public class PaymentRecordService {
         }
         if (paymentRecord.getPaymentStatus() == null || paymentRecord.getPaymentStatus().isBlank()) {
             paymentRecord.setPaymentStatus("Pending");
+        }
+        if (paymentRecord.getFineId() != null) {
+            FineRecord fine = fineRecordMapper.selectById(paymentRecord.getFineId());
+            if (fine != null) {
+                if (paymentRecord.getDriverId() == null) {
+                    paymentRecord.setDriverId(fine.getDriverId());
+                } else if (fine.getDriverId() != null && !Objects.equals(paymentRecord.getDriverId(), fine.getDriverId())) {
+                    throw new IllegalArgumentException("Payment driver does not match fine owner");
+                }
+            }
         }
     }
 

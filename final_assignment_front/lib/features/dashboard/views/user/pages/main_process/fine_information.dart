@@ -40,6 +40,7 @@ class _FineInformationPageState extends State<FineInformationPage> {
   final UserManagementControllerApi userApi = UserManagementControllerApi();
   bool _isLoading = true;
   String _errorMessage = '';
+  int? _currentDriverId;
   String? _currentDriverName;
   final Map<String, Widget> _qrCodes = {};
   StreamSubscription<PaymentStatusChange>? _paymentStatusSubscription;
@@ -125,6 +126,11 @@ class _FineInformationPageState extends State<FineInformationPage> {
           throw Exception('登录已过期，请重新登录');
         }
       }
+      if (!Get.isRegistered<UserProfileService>()) {
+        throw Exception('UserProfileService is not registered');
+      }
+      final profile = await Get.find<UserProfileService>().getProfile();
+      _currentDriverId = profile.driverId;
       _currentDriverName = prefs.getString('driverName');
       if (_currentDriverName == null && jwtToken != null) {
         _currentDriverName = await _fetchDriverName();
@@ -197,6 +203,7 @@ class _FineInformationPageState extends State<FineInformationPage> {
       }
       final profile = await Get.find<UserProfileService>().getProfile();
       final driverId = profile.driverId;
+      _currentDriverId = driverId;
       if (driverId == null) {
         setState(() {
           _errorMessage = '您的账户尚未关联司机档案，请联系管理员';
@@ -222,12 +229,17 @@ class _FineInformationPageState extends State<FineInformationPage> {
 
   Future<List<FineInformation>> _loadUserFines() async {
     try {
-      final allFines = await fineApi.listFines();
-      developer.log('All Fines: $allFines');
-      final filteredFines =
-          allFines.where((fine) => fine.payee == _currentDriverName).toList();
-      developer.log('Filtered Fines for $_currentDriverName: $filteredFines');
-      return filteredFines;
+      final driverId = _currentDriverId;
+      if (driverId == null) {
+        throw Exception('Driver profile is not linked');
+      }
+      final fines = await fineApi.listFinesByDriver(
+        driverId: driverId,
+        page: 1,
+        size: 50,
+      );
+      developer.log('Loaded fines for driver $driverId: $fines');
+      return fines;
     } catch (e) {
       developer.log('Error loading fines: $e');
       setState(() {

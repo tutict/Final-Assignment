@@ -6,12 +6,14 @@ import com.tutict.finalassignmentbackend.dto.mapper.PaymentRecordResponseMapper;
 import com.tutict.finalassignmentbackend.dto.request.PaymentRecordRequest;
 import com.tutict.finalassignmentbackend.dto.response.ApiResponse;
 import com.tutict.finalassignmentbackend.dto.response.PaymentRecordResponse;
+import com.tutict.finalassignmentbackend.dto.response.UserProfileResponse;
 import com.tutict.finalassignmentbackend.entity.PaymentRecord;
 import com.tutict.finalassignmentbackend.payment.governance.PaymentGovernanceClassifier;
 import com.tutict.finalassignmentbackend.payment.governance.PaymentGovernanceLogFactory;
 import com.tutict.finalassignmentbackend.payment.governance.PaymentGovernanceSource;
 import com.tutict.finalassignmentbackend.payment.exception.PaymentDuplicateRequestException;
 import com.tutict.finalassignmentbackend.payment.exception.PaymentOptimisticLockException;
+import com.tutict.finalassignmentbackend.service.AuthWsService;
 import com.tutict.finalassignmentbackend.service.PaymentRecordService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
@@ -20,6 +22,7 @@ import jakarta.annotation.security.RolesAllowed;
 import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -32,6 +35,8 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import java.util.List;
+import java.util.Objects;
+import java.util.Set;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
@@ -43,11 +48,18 @@ import java.util.logging.Logger;
 public class PaymentRecordController {
 
     private static final Logger LOG = Logger.getLogger(PaymentRecordController.class.getName());
+    private static final Set<String> ELEVATED_AUTHORITIES = Set.of(
+            "ROLE_SUPER_ADMIN",
+            "ROLE_ADMIN",
+            "ROLE_FINANCE"
+    );
 
+    private final AuthWsService authWsService;
     private final PaymentRecordService paymentRecordService;
     private final PaymentGovernanceClassifier paymentGovernanceClassifier;
 
-    public PaymentRecordController(PaymentRecordService paymentRecordService) {
+    public PaymentRecordController(AuthWsService authWsService, PaymentRecordService paymentRecordService) {
+        this.authWsService = authWsService;
         this.paymentRecordService = paymentRecordService;
         this.paymentGovernanceClassifier = new PaymentGovernanceClassifier();
     }
@@ -187,6 +199,37 @@ public class PaymentRecordController {
         return ResponseEntity.ok(ApiResponse.ok(toPaymentResponses(paymentRecordService.findByFineId(fineId, page, size))));
     }
 
+    @GetMapping("/driver/{driverId}")
+    @RolesAllowed({"SUPER_ADMIN", "ADMIN", "FINANCE", "USER"})
+    @Operation(summary = "按驾驶员查询支付记录")
+    public ResponseEntity<ApiResponse<List<PaymentRecordResponse>>> findByDriver(
+            @PathVariable Long driverId,
+            @RequestParam(defaultValue = "1") int page,
+            @RequestParam(defaultValue = "20") int size,
+            Authentication authentication) {
+        if (!canAccessDriver(authentication, driverId)) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN)
+                    .body(ApiResponse.error("FORBIDDEN", "Forbidden"));
+        }
+        return ResponseEntity.ok(ApiResponse.ok(toPaymentResponses(paymentRecordService.findByDriverId(driverId, page, size))));
+    }
+
+    @PostMapping("/driver/{driverId}")
+    @RolesAllowed({"SUPER_ADMIN", "ADMIN", "FINANCE", "USER"})
+    @Operation(summary = "为当前驾驶员创建支付记录")
+    public ResponseEntity<ApiResponse<PaymentRecordResponse>> createDriverPayment(
+            @PathVariable Long driverId,
+            @Valid @RequestBody PaymentRecordRequest request,
+            @RequestHeader(value = "Idempotency-Key", required = false) String idempotencyKey,
+            Authentication authentication) {
+        if (!canAccessDriver(authentication, driverId)) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN)
+                    .body(ApiResponse.error("FORBIDDEN", "Forbidden"));
+        }
+        request.setDriverId(driverId);
+        return createPayment(request, idempotencyKey);
+    }
+
     @GetMapping("/search/payer")
     @Operation(summary = "按缴款人身份证搜索支付记录")
     public ResponseEntity<ApiResponse<List<PaymentRecordResponse>>> searchByPayer(@RequestParam("idCard") String idCard,
@@ -277,6 +320,24 @@ public class PaymentRecordController {
 
     private boolean hasKey(String value) {
         return value != null && !value.isBlank();
+    }
+
+    private boolean canAccessDriver(Authentication authentication, Long driverId) {
+        if (authentication == null || driverId == null) {
+            return false;
+        }
+        boolean elevated = authentication.getAuthorities().stream()
+                .anyMatch(authority -> ELEVATED_AUTHORITIES.contains(authority.getAuthority()));
+        if (elevated) {
+            return true;
+        }
+        boolean regularUser = authentication.getAuthorities().stream()
+                .anyMatch(authority -> "ROLE_USER".equals(authority.getAuthority()));
+        if (!regularUser) {
+            return false;
+        }
+        UserProfileResponse profile = authWsService.getCurrentUserProfile(authentication.getName());
+        return Objects.equals(profile.getDriverId(), driverId);
     }
 
     private void logPaymentGovernance(String payload) {

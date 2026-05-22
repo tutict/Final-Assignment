@@ -2,7 +2,9 @@ package com.tutict.finalassignmentbackend.controller;
 
 import com.tutict.finalassignmentbackend.dto.response.ApiResponse;
 
+import com.tutict.finalassignmentbackend.dto.response.UserProfileResponse;
 import com.tutict.finalassignmentbackend.entity.FineRecord;
+import com.tutict.finalassignmentbackend.service.AuthWsService;
 import com.tutict.finalassignmentbackend.service.FineRecordService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
@@ -11,6 +13,7 @@ import jakarta.annotation.security.RolesAllowed;
 import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -23,6 +26,8 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import java.util.List;
+import java.util.Objects;
+import java.util.Set;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
@@ -34,10 +39,18 @@ import java.util.logging.Logger;
 public class FineInformationController {
 
     private static final Logger LOG = Logger.getLogger(FineInformationController.class.getName());
+    private static final Set<String> ELEVATED_AUTHORITIES = Set.of(
+            "ROLE_SUPER_ADMIN",
+            "ROLE_ADMIN",
+            "ROLE_TRAFFIC_POLICE",
+            "ROLE_FINANCE"
+    );
 
+    private final AuthWsService authWsService;
     private final FineRecordService fineRecordService;
 
-    public FineInformationController(FineRecordService fineRecordService) {
+    public FineInformationController(AuthWsService authWsService, FineRecordService fineRecordService) {
+        this.authWsService = authWsService;
         this.fineRecordService = fineRecordService;
     }
 
@@ -163,6 +176,19 @@ public class FineInformationController {
         }
     }
 
+    @GetMapping("/driver/{driverId}")
+    @RolesAllowed({"SUPER_ADMIN", "ADMIN", "TRAFFIC_POLICE", "FINANCE", "USER"})
+    @Operation(summary = "按驾驶员查询罚款记录")
+    public ResponseEntity<List<FineRecord>> byDriver(@PathVariable Long driverId,
+                                                     @RequestParam(defaultValue = "1") int page,
+                                                     @RequestParam(defaultValue = "20") int size,
+                                                     Authentication authentication) {
+        if (!canAccessDriver(authentication, driverId)) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
+        }
+        return ResponseEntity.ok(fineRecordService.findByDriverId(driverId, page, size));
+    }
+
     @GetMapping("/search/handler")
     @Operation(summary = "按处理人搜索罚款记录")
     public ResponseEntity<List<FineRecord>> searchByHandler(@RequestParam String handler,
@@ -218,6 +244,24 @@ public class FineInformationController {
 
     private boolean hasKey(String value) {
         return value != null && !value.isBlank();
+    }
+
+    private boolean canAccessDriver(Authentication authentication, Long driverId) {
+        if (authentication == null || driverId == null) {
+            return false;
+        }
+        boolean elevated = authentication.getAuthorities().stream()
+                .anyMatch(authority -> ELEVATED_AUTHORITIES.contains(authority.getAuthority()));
+        if (elevated) {
+            return true;
+        }
+        boolean regularUser = authentication.getAuthorities().stream()
+                .anyMatch(authority -> "ROLE_USER".equals(authority.getAuthority()));
+        if (!regularUser) {
+            return false;
+        }
+        UserProfileResponse profile = authWsService.getCurrentUserProfile(authentication.getName());
+        return Objects.equals(profile.getDriverId(), driverId);
     }
 
     private HttpStatus resolveStatus(Exception ex) {

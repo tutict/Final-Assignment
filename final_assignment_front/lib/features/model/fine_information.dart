@@ -7,6 +7,7 @@
 class FineInformation {
   final int? fineId;
   final int? offenseId;
+  final int? driverId;
   final String? fineNumber;
 
   /// 基础罚款金额。
@@ -72,6 +73,7 @@ class FineInformation {
   const FineInformation({
     this.fineId,
     this.offenseId,
+    this.driverId,
     this.fineNumber,
     this.fineAmount,
     this.lateFee,
@@ -102,6 +104,7 @@ class FineInformation {
   FineInformation copyWith({
     int? fineId,
     int? offenseId,
+    int? driverId,
     String? fineNumber,
     double? fineAmount,
     double? lateFee,
@@ -131,6 +134,7 @@ class FineInformation {
     return FineInformation(
       fineId: fineId ?? this.fineId,
       offenseId: offenseId ?? this.offenseId,
+      driverId: driverId ?? this.driverId,
       fineNumber: fineNumber ?? this.fineNumber,
       fineAmount: fineAmount ?? this.fineAmount,
       lateFee: lateFee ?? this.lateFee,
@@ -163,6 +167,7 @@ class FineInformation {
     return FineInformation(
       fineId: json['fineId'],
       offenseId: json['offenseId'],
+      driverId: json['driverId'],
       fineNumber: json['fineNumber'],
       fineAmount: _toDouble(json['fineAmount']),
       lateFee: _toDouble(json['lateFee']),
@@ -195,6 +200,7 @@ class FineInformation {
     return {
       'fineId': fineId,
       'offenseId': offenseId,
+      'driverId': driverId,
       'fineNumber': fineNumber,
       'fineAmount': fineAmount,
       'lateFee': lateFee,

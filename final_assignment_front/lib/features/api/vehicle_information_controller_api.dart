@@ -114,7 +114,32 @@ class VehicleInformationControllerApi with BaseApiClient {
       const ['bearerAuth'],
     );
     if (r.statusCode >= 400) throw AppException.http(r.statusCode, _decode(r));
-    return VehicleInformation.fromJson(jsonDecode(_decode(r)));
+    final payload = unwrapPayload(jsonDecode(_decode(r)));
+    return VehicleInformation.fromJson(payload as Map<String, dynamic>);
+  }
+
+  Future<List<VehicleInformation>> listVehicleRecordsByDriver({
+    required int driverId,
+    int page = 1,
+    int size = 20,
+  }) async {
+    final r = await apiClient.invokeAPI(
+      '/api/vehicles/drivers/$driverId/records',
+      'GET',
+      [
+        QueryParam('page', '$page'),
+        QueryParam('size', '$size'),
+      ],
+      null,
+      await _headers(),
+      const {},
+      null,
+      const ['bearerAuth'],
+    );
+    if (r.statusCode >= 400) throw AppException.http(r.statusCode, _decode(r));
+    if (r.body.isEmpty) return [];
+    final List<dynamic> data = jsonDecode(_decode(r));
+    return data.map((e) => VehicleInformation.fromJson(e)).toList();
   }
 
   // PUT /api/vehicles/{vehicleId}

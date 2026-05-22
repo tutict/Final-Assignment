@@ -3,6 +3,7 @@ import 'package:final_assignment_front/utils/date_formatter.dart';
 class PaymentRecordModel {
   final int? paymentId;
   final int? fineId;
+  final int? driverId;
   final String? paymentNumber;
   final double? paymentAmount;
   final String? paymentMethod;
@@ -29,6 +30,7 @@ class PaymentRecordModel {
   const PaymentRecordModel({
     this.paymentId,
     this.fineId,
+    this.driverId,
     this.paymentNumber,
     this.paymentAmount,
     this.paymentMethod,
@@ -56,6 +58,7 @@ class PaymentRecordModel {
   PaymentRecordModel copyWith({
     int? paymentId,
     int? fineId,
+    int? driverId,
     String? paymentNumber,
     double? paymentAmount,
     String? paymentMethod,
@@ -82,6 +85,7 @@ class PaymentRecordModel {
     return PaymentRecordModel(
       paymentId: paymentId ?? this.paymentId,
       fineId: fineId ?? this.fineId,
+      driverId: driverId ?? this.driverId,
       paymentNumber: paymentNumber ?? this.paymentNumber,
       paymentAmount: paymentAmount ?? this.paymentAmount,
       paymentMethod: paymentMethod ?? this.paymentMethod,
@@ -111,6 +115,7 @@ class PaymentRecordModel {
     return PaymentRecordModel(
       paymentId: json['paymentId'],
       fineId: json['fineId'],
+      driverId: json['driverId'],
       paymentNumber: json['paymentNumber'],
       paymentAmount: _toDouble(json['paymentAmount']),
       paymentMethod: json['paymentMethod'],
@@ -140,6 +145,7 @@ class PaymentRecordModel {
     return {
       'paymentId': paymentId,
       'fineId': fineId,
+      'driverId': driverId,
       'paymentNumber': paymentNumber,
       'paymentAmount': paymentAmount,
       'paymentMethod': paymentMethod,

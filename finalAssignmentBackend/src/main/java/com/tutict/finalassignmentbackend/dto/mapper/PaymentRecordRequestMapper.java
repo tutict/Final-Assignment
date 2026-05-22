@@ -14,6 +14,7 @@ public final class PaymentRecordRequestMapper {
         }
         PaymentRecord record = new PaymentRecord();
         record.setFineId(request.getFineId());
+        record.setDriverId(request.getDriverId());
         record.setPaymentNumber(request.getPaymentNumber());
         record.setPaymentAmount(request.getPaymentAmount());
         record.setPaymentMethod(request.getPaymentMethod());

@@ -27,6 +27,9 @@ public class VehicleInformationDocument implements Serializable {
     @Field(type = FieldType.Long)
     private Long vehicleId;
 
+    @Field(type = FieldType.Long)
+    private Long driverId;
+
     @MultiField(
             mainField = @Field(type = FieldType.Text, analyzer = "ik_max_word", searchAnalyzer = "ik_max_word"),
             otherFields = {
@@ -207,6 +210,7 @@ public class VehicleInformationDocument implements Serializable {
         }
         VehicleInformationDocument doc = new VehicleInformationDocument();
         doc.setVehicleId(entity.getVehicleId());
+        doc.setDriverId(entity.getDriverId());
         doc.setLicensePlate(entity.getLicensePlate());
         doc.setPlateColor(entity.getPlateColor());
         doc.setVehicleType(entity.getVehicleType());
@@ -237,6 +241,7 @@ public class VehicleInformationDocument implements Serializable {
     public VehicleInformation toEntity() {
         VehicleInformation entity = new VehicleInformation();
         entity.setVehicleId(this.vehicleId);
+        entity.setDriverId(this.driverId);
         entity.setLicensePlate(this.licensePlate);
         entity.setPlateColor(this.plateColor);
         entity.setVehicleType(this.vehicleType);

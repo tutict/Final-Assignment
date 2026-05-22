@@ -14,6 +14,7 @@ public final class AppealRecordRequestMapper {
         }
         AppealRecord record = new AppealRecord();
         record.setOffenseId(request.getOffenseId());
+        record.setDriverId(request.getDriverId());
         record.setAppellantName(request.getAppellantName());
         record.setAppellantIdCard(request.getIdCard());
         record.setAppellantContact(request.getContact());

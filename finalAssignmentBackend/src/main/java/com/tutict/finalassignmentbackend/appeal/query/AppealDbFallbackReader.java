@@ -30,6 +30,13 @@ public class AppealDbFallbackReader {
         return selectPage(wrapper, pageRequest);
     }
 
+    public List<AppealRecord> findByDriverId(Long driverId, AppealPageRequest pageRequest) {
+        QueryWrapper<AppealRecord> wrapper = new QueryWrapper<>();
+        wrapper.eq("driver_id", driverId)
+                .orderByDesc("appeal_time");
+        return selectPage(wrapper, pageRequest);
+    }
+
     public List<AppealRecord> searchByAppealNumberPrefix(String appealNumber, AppealPageRequest pageRequest) {
         QueryWrapper<AppealRecord> wrapper = new QueryWrapper<>();
         wrapper.likeRight("appeal_number", appealNumber)

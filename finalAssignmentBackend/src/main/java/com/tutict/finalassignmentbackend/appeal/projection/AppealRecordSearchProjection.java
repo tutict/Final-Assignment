@@ -5,6 +5,7 @@ import java.time.LocalDateTime;
 public record AppealRecordSearchProjection(
         Long appealId,
         Long offenseId,
+        Long driverId,
         String appealNumber,
         String appellantName,
         String appellantIdCard,

@@ -15,6 +15,7 @@ public final class PaymentRecordResponseMapper {
         return PaymentRecordResponse.builder()
                 .paymentId(record.getPaymentId())
                 .fineId(record.getFineId())
+                .driverId(record.getDriverId())
                 .paymentNumber(record.getPaymentNumber())
                 .paymentAmount(record.getPaymentAmount())
                 .paymentMethod(record.getPaymentMethod())

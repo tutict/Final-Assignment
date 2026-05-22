@@ -41,7 +41,17 @@ class AppealManagementControllerApi with BaseApiClient {
 
   List<AppealRecordModel> _parseAppealList(String body) {
     if (body.isEmpty) return [];
-    final List<dynamic> raw = jsonDecode(body) as List<dynamic>;
+    final payload = unwrapPayload(jsonDecode(body));
+    final List<dynamic> raw = switch (payload) {
+      List<dynamic> value => value,
+      Map<String, dynamic> value when value['content'] is List<dynamic> =>
+        value['content'] as List<dynamic>,
+      Map<String, dynamic> value when value['items'] is List<dynamic> =>
+        value['items'] as List<dynamic>,
+      Map<String, dynamic> value when value['records'] is List<dynamic> =>
+        value['records'] as List<dynamic>,
+      _ => const <dynamic>[],
+    };
     return raw
         .map((item) => AppealRecordModel.fromJson(item as Map<String, dynamic>))
         .toList();
@@ -72,7 +82,8 @@ class AppealManagementControllerApi with BaseApiClient {
     );
     _ensureSuccess(response);
     final body = _decodeBodyBytes(response);
-    return AppealRecordModel.fromJson(jsonDecode(body) as Map<String, dynamic>);
+    return AppealRecordModel.fromJson(
+        unwrapPayload(jsonDecode(body)) as Map<String, dynamic>);
   }
 
   /// PUT /api/appeals/{appealId}
@@ -93,7 +104,8 @@ class AppealManagementControllerApi with BaseApiClient {
     );
     _ensureSuccess(response);
     final body = _decodeBodyBytes(response);
-    return AppealRecordModel.fromJson(jsonDecode(body) as Map<String, dynamic>);
+    return AppealRecordModel.fromJson(
+        unwrapPayload(jsonDecode(body)) as Map<String, dynamic>);
   }
 
   /// DELETE /api/appeals/{appealId}
@@ -134,7 +146,29 @@ class AppealManagementControllerApi with BaseApiClient {
       return null;
     }
     return AppealRecordModel.fromJson(
-        jsonDecode(_decodeBodyBytes(response)) as Map<String, dynamic>);
+        unwrapPayload(jsonDecode(_decodeBodyBytes(response)))
+            as Map<String, dynamic>);
+  }
+
+  Future<List<AppealRecordModel>> listMyAppeals({
+    int page = 0,
+    int size = 20,
+  }) async {
+    final response = await apiClient.invokeAPI(
+      '/api/appeals/my',
+      'GET',
+      [
+        QueryParam('page', '$page'),
+        QueryParam('size', '$size'),
+      ],
+      null,
+      await _getHeaders(),
+      const {},
+      null,
+      ['bearerAuth'],
+    );
+    _ensureSuccess(response);
+    return _parseAppealList(_decodeBodyBytes(response));
   }
 
   /// GET /api/appeals?offenseId=...&page=...&size=...

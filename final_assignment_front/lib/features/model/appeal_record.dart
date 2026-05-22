@@ -3,6 +3,7 @@ import 'package:final_assignment_front/utils/date_formatter.dart';
 class AppealRecordModel {
   final int? appealId;
   final int? offenseId;
+  final int? driverId;
   final String? appealNumber;
   final String? appellantName;
   final String? appellantIdCard;
@@ -28,6 +29,7 @@ class AppealRecordModel {
   const AppealRecordModel({
     this.appealId,
     this.offenseId,
+    this.driverId,
     this.appealNumber,
     this.appellantName,
     this.appellantIdCard,
@@ -55,10 +57,11 @@ class AppealRecordModel {
     return AppealRecordModel(
       appealId: json['appealId'],
       offenseId: json['offenseId'],
+      driverId: json['driverId'],
       appealNumber: json['appealNumber'],
       appellantName: json['appellantName'],
-      appellantIdCard: json['appellantIdCard'],
-      appellantContact: json['appellantContact'],
+      appellantIdCard: json['appellantIdCard'] ?? json['idCard'],
+      appellantContact: json['appellantContact'] ?? json['contact'],
       appellantEmail: json['appellantEmail'],
       appellantAddress: json['appellantAddress'],
       appealType: json['appealType'],
@@ -92,10 +95,13 @@ class AppealRecordModel {
   Map<String, dynamic> toJson() => {
         'appealId': appealId,
         'offenseId': offenseId,
+        'driverId': driverId,
         'appealNumber': appealNumber,
         'appellantName': appellantName,
         'appellantIdCard': appellantIdCard,
+        'idCard': appellantIdCard,
         'appellantContact': appellantContact,
+        'contact': appellantContact,
         'appellantEmail': appellantEmail,
         'appellantAddress': appellantAddress,
         'appealType': appealType,
@@ -120,6 +126,7 @@ class AppealRecordModel {
   AppealRecordModel copyWith({
     int? appealId,
     int? offenseId,
+    int? driverId,
     String? appealNumber,
     String? appellantName,
     String? appellantIdCard,
@@ -145,6 +152,7 @@ class AppealRecordModel {
     return AppealRecordModel(
       appealId: appealId ?? this.appealId,
       offenseId: offenseId ?? this.offenseId,
+      driverId: driverId ?? this.driverId,
       appealNumber: appealNumber ?? this.appealNumber,
       appellantName: appellantName ?? this.appellantName,
       appellantIdCard: appellantIdCard ?? this.appellantIdCard,

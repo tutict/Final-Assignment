@@ -70,6 +70,11 @@ public class AppealRecordService {
         return queryService.findByOffenseId(offenseId, page, size);
     }
 
+    @Cacheable(cacheNames = CACHE, key = "'driver:' + #driverId + ':' + #page + ':' + #size", unless = "@appealCachePolicy.shouldSkipCache(#result)")
+    public List<AppealRecord> findByDriverId(Long driverId, int page, int size) {
+        return queryService.findByDriverId(driverId, page, size);
+    }
+
     @Cacheable(cacheNames = CACHE, key = "'appealNumberPrefix:' + #appealNumber + ':' + #page + ':' + #size", unless = "@appealCachePolicy.shouldSkipCache(#result)")
     public List<AppealRecord> searchByAppealNumberPrefix(String appealNumber, int page, int size) {
         return queryService.searchByAppealNumberPrefix(appealNumber, page, size);

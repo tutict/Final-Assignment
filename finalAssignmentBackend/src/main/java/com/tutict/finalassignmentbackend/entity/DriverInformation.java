@@ -28,6 +28,12 @@ public class DriverInformation implements Serializable {
     private Long driverId;
 
     /**
+     * Linked authentication account ID. Nullable for legacy/admin-created driver records.
+     */
+    @TableField("auth_user_id")
+    private Long authUserId;
+
+    /**
      * 姓名
      */
     @TableField("name")

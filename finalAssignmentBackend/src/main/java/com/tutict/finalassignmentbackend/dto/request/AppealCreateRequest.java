@@ -14,6 +14,8 @@ public class AppealCreateRequest {
     @NotNull(message = "违法记录 ID 不能为空")
     private Long offenseId;
 
+    private Long driverId;
+
     @NotBlank(message = "申诉人姓名不能为空")
     private String appellantName;
 

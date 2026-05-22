@@ -11,6 +11,7 @@ import java.time.LocalDate;
 public class DriverResponse {
 
     private Long driverId;
+    private Long authUserId;
     private String name;
     private String licenseNumber;
     private String phoneNumber;
@@ -25,6 +26,7 @@ public class DriverResponse {
         }
         return DriverResponse.builder()
                 .driverId(driver.getDriverId())
+                .authUserId(driver.getAuthUserId())
                 .name(driver.getName())
                 .licenseNumber(driver.getDriverLicenseNumber())
                 .phoneNumber(driver.getContactNumber())

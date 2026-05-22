@@ -10,6 +10,7 @@ import 'package:final_assignment_front/utils/date_formatter.dart';
 
 class VehicleInformation {
   final int? vehicleId;
+  final int? driverId;
   final String? licensePlate;
   final String? plateColor;
   final String? vehicleType;
@@ -47,6 +48,7 @@ class VehicleInformation {
 
   const VehicleInformation({
     this.vehicleId,
+    this.driverId,
     this.licensePlate,
     this.plateColor,
     this.vehicleType,
@@ -87,6 +89,7 @@ class VehicleInformation {
 
   VehicleInformation copyWith({
     int? vehicleId,
+    int? driverId,
     String? licensePlate,
     String? plateColor,
     String? vehicleType,
@@ -115,6 +118,7 @@ class VehicleInformation {
   }) {
     return VehicleInformation(
       vehicleId: vehicleId ?? this.vehicleId,
+      driverId: driverId ?? this.driverId,
       licensePlate: licensePlate ?? this.licensePlate,
       plateColor: plateColor ?? this.plateColor,
       vehicleType: vehicleType ?? this.vehicleType,
@@ -147,6 +151,7 @@ class VehicleInformation {
   factory VehicleInformation.fromJson(Map<String, dynamic> json) {
     return VehicleInformation(
       vehicleId: json['vehicleId'],
+      driverId: json['driverId'],
       licensePlate: json['licensePlate'],
       plateColor: json['plateColor'],
       vehicleType: json['vehicleType'],
@@ -178,6 +183,7 @@ class VehicleInformation {
   Map<String, dynamic> toJson() {
     return {
       'vehicleId': vehicleId,
+      'driverId': driverId,
       'licensePlate': licensePlate,
       'plateColor': plateColor,
       'vehicleType': vehicleType,

@@ -84,6 +84,7 @@ CREATE TABLE IF NOT EXISTS sys_request_history (
 
 CREATE TABLE IF NOT EXISTS driver_information (
     driver_id BIGINT PRIMARY KEY AUTO_INCREMENT,
+    auth_user_id BIGINT NULL,
     name VARCHAR(100) NULL,
     id_card_number VARCHAR(32) NULL,
     gender VARCHAR(32) NULL,
@@ -105,11 +106,13 @@ CREATE TABLE IF NOT EXISTS driver_information (
     created_by VARCHAR(100) NULL,
     updated_by VARCHAR(100) NULL,
     deleted_at DATETIME NULL,
-    remarks VARCHAR(500) NULL
+    remarks VARCHAR(500) NULL,
+    UNIQUE KEY uk_driver_information_auth_user (auth_user_id)
 );
 
 CREATE TABLE IF NOT EXISTS vehicle_information (
     vehicle_id BIGINT PRIMARY KEY AUTO_INCREMENT,
+    driver_id BIGINT NULL,
     license_plate VARCHAR(64) NULL,
     plate_color VARCHAR(32) NULL,
     vehicle_type VARCHAR(64) NULL,
@@ -128,6 +131,23 @@ CREATE TABLE IF NOT EXISTS vehicle_information (
     status VARCHAR(32) NULL,
     inspection_expiry_date DATE NULL,
     insurance_expiry_date DATE NULL,
+    created_at DATETIME NULL,
+    updated_at DATETIME NULL,
+    created_by VARCHAR(100) NULL,
+    updated_by VARCHAR(100) NULL,
+    deleted_at DATETIME NULL,
+    remarks VARCHAR(500) NULL
+);
+
+CREATE TABLE IF NOT EXISTS driver_vehicle (
+    id BIGINT PRIMARY KEY AUTO_INCREMENT,
+    driver_id BIGINT NULL,
+    vehicle_id BIGINT NULL,
+    relationship VARCHAR(64) NULL,
+    is_primary BOOLEAN NULL,
+    bind_date DATE NULL,
+    unbind_date DATE NULL,
+    status VARCHAR(32) NULL,
     created_at DATETIME NULL,
     updated_at DATETIME NULL,
     created_by VARCHAR(100) NULL,
@@ -172,6 +192,7 @@ CREATE TABLE IF NOT EXISTS offense_record (
 CREATE TABLE IF NOT EXISTS fine_record (
     fine_id BIGINT PRIMARY KEY AUTO_INCREMENT,
     offense_id BIGINT NULL,
+    driver_id BIGINT NULL,
     fine_number VARCHAR(64) NULL,
     fine_amount DECIMAL(12, 2) NULL,
     late_fee DECIMAL(12, 2) NULL,
@@ -192,9 +213,39 @@ CREATE TABLE IF NOT EXISTS fine_record (
     remarks VARCHAR(500) NULL
 );
 
+CREATE TABLE IF NOT EXISTS payment_record (
+    payment_id BIGINT PRIMARY KEY AUTO_INCREMENT,
+    fine_id BIGINT NULL,
+    driver_id BIGINT NULL,
+    payment_number VARCHAR(64) NULL,
+    payment_amount DECIMAL(12, 2) NULL,
+    payment_method VARCHAR(64) NULL,
+    payment_time DATETIME NULL,
+    payment_channel VARCHAR(64) NULL,
+    payer_name VARCHAR(100) NULL,
+    payer_id_card VARCHAR(32) NULL,
+    payer_contact VARCHAR(32) NULL,
+    bank_name VARCHAR(100) NULL,
+    bank_account VARCHAR(64) NULL,
+    transaction_id VARCHAR(128) NULL,
+    receipt_number VARCHAR(128) NULL,
+    receipt_url VARCHAR(500) NULL,
+    payment_status VARCHAR(64) NULL,
+    version INT NULL,
+    refund_amount DECIMAL(12, 2) NULL,
+    refund_time DATETIME NULL,
+    created_at DATETIME NULL,
+    updated_at DATETIME NULL,
+    created_by VARCHAR(100) NULL,
+    updated_by VARCHAR(100) NULL,
+    deleted_at DATETIME NULL,
+    remarks VARCHAR(500) NULL
+);
+
 CREATE TABLE IF NOT EXISTS appeal_record (
     appeal_id BIGINT PRIMARY KEY AUTO_INCREMENT,
     offense_id BIGINT NULL,
+    driver_id BIGINT NULL,
     appeal_number VARCHAR(64) NULL,
     appellant_name VARCHAR(100) NULL,
     appellant_id_card VARCHAR(32) NULL,

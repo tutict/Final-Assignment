@@ -6,6 +6,7 @@ public record AppealSearchView(
         String sourceKey,
         Long appealId,
         Long offenseId,
+        Long driverId,
         String appealNumber,
         String appellantName,
         String appealType,

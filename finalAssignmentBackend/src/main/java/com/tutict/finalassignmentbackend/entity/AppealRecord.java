@@ -33,6 +33,12 @@ public class AppealRecord implements Serializable {
     private Long offenseId;
 
     /**
+     * 驾驶员 ID
+     */
+    @TableField("driver_id")
+    private Long driverId;
+
+    /**
      * 申诉编号
      */
     @TableField("appeal_number")

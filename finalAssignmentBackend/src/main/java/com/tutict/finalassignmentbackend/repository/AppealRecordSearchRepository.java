@@ -30,6 +30,17 @@ public interface AppealRecordSearchRepository extends ElasticsearchRepository<Ap
 
     @Query("""
             {
+              "term": {
+                "driverId": {
+                  "value": ?0
+                }
+              }
+            }
+            """)
+    SearchHits<AppealRecordDocument> findByDriverId(Long driverId, Pageable pageable);
+
+    @Query("""
+            {
               "match_phrase_prefix": {
                 "appealNumber": {
                   "query": "?0"
