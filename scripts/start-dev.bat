@@ -98,9 +98,9 @@ if errorlevel 1 (
 echo Starting Flutter app...
 if /i "%FLUTTER_DETACHED%"=="true" (
   if "%FLUTTER_DEVICE%"=="" (
-    start "Final Assignment Flutter" /D "%FLUTTER_DIR%" "%FLUTTER_CMD%" run "--dart-define=APP_ENV=%APP_ENV%" "--dart-define=API_BASE_URL=%API_BASE_URL%" "--dart-define=WS_BASE_URL=%WS_BASE_URL%" %FLUTTER_ARGS%
+    start "Final Assignment Flutter" /D "%FLUTTER_DIR%" cmd /k call "%FLUTTER_CMD%" run "--dart-define=APP_ENV=%APP_ENV%" "--dart-define=API_BASE_URL=%API_BASE_URL%" "--dart-define=WS_BASE_URL=%WS_BASE_URL%" %FLUTTER_ARGS%
   ) else (
-    start "Final Assignment Flutter" /D "%FLUTTER_DIR%" "%FLUTTER_CMD%" run -d "%FLUTTER_DEVICE%" "--dart-define=APP_ENV=%APP_ENV%" "--dart-define=API_BASE_URL=%API_BASE_URL%" "--dart-define=WS_BASE_URL=%WS_BASE_URL%" %FLUTTER_ARGS%
+    start "Final Assignment Flutter" /D "%FLUTTER_DIR%" cmd /k call "%FLUTTER_CMD%" run -d "%FLUTTER_DEVICE%" "--dart-define=APP_ENV=%APP_ENV%" "--dart-define=API_BASE_URL=%API_BASE_URL%" "--dart-define=WS_BASE_URL=%WS_BASE_URL%" %FLUTTER_ARGS%
   )
   set "FLUTTER_EXIT=0"
 ) else (
