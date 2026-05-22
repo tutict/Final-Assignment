@@ -92,10 +92,17 @@ class UserDashboard extends GetView<UserDashboardController> with FloatingBase {
                                     ),
                                   ),
                                 ),
-                                child: const UserSidebar(),
+                                clipBehavior: Clip.hardEdge,
+                                child: const RepaintBoundary(
+                                  child: UserSidebar(),
+                                ),
                               ),
                             ),
-                            Expanded(child: _buildScrollableLayout(context)),
+                            Expanded(
+                              child: RepaintBoundary(
+                                child: _buildScrollableLayout(context),
+                              ),
+                            ),
                           ],
                         ),
                         _buildResponsiveChatDrawer(context, screenWidth),
@@ -125,13 +132,18 @@ class UserDashboard extends GetView<UserDashboardController> with FloatingBase {
                                 ),
                               ),
                             ),
-                            child: const UserSidebar(),
+                            clipBehavior: Clip.hardEdge,
+                            child: const RepaintBoundary(
+                              child: UserSidebar(),
+                            ),
                           ),
                         ),
                         Expanded(
-                          child: _buildScrollableLayout(
-                            context,
-                            isDesktop: true,
+                          child: RepaintBoundary(
+                            child: _buildScrollableLayout(
+                              context,
+                              isDesktop: true,
+                            ),
                           ),
                         ),
                         Obx(
@@ -378,9 +390,11 @@ class UserDashboard extends GetView<UserDashboardController> with FloatingBase {
   }
 
   Widget _buildUserScreenSwiper(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: kSpacing),
-      child: UserScreenSwiper(onPressed: () {}),
+    return RepaintBoundary(
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: kSpacing),
+        child: UserScreenSwiper(onPressed: () {}),
+      ),
     );
   }
 
@@ -400,29 +414,31 @@ class UserDashboard extends GetView<UserDashboardController> with FloatingBase {
         .clamp(470.0, 560.0)
         .toDouble();
 
-    return DashboardPanel(
-      height: height,
-      margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-      padding: EdgeInsets.zero,
-      child: UserNewsCard(
-        onPressed: () {
-          controller.navigateToPage(Routes.latestOffenseNewsPage);
-        },
-        onPressedSecond: () {
-          controller.navigateToPage(Routes.finePaymentNoticePage);
-        },
-        onPressedThird: () {
-          controller.navigateToPage(Routes.accidentQuickGuidePage);
-        },
-        onPressedFourth: () {
-          controller.navigateToPage(Routes.accidentProgressPage);
-        },
-        onPressedFifth: () {
-          controller.navigateToPage(Routes.accidentEvidencePage);
-        },
-        onPressedSixth: () {
-          controller.navigateToPage(Routes.accidentVideoQuickPage);
-        },
+    return RepaintBoundary(
+      child: DashboardPanel(
+        height: height,
+        margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+        padding: EdgeInsets.zero,
+        child: UserNewsCard(
+          onPressed: () {
+            controller.navigateToPage(Routes.latestOffenseNewsPage);
+          },
+          onPressedSecond: () {
+            controller.navigateToPage(Routes.finePaymentNoticePage);
+          },
+          onPressedThird: () {
+            controller.navigateToPage(Routes.accidentQuickGuidePage);
+          },
+          onPressedFourth: () {
+            controller.navigateToPage(Routes.accidentProgressPage);
+          },
+          onPressedFifth: () {
+            controller.navigateToPage(Routes.accidentEvidencePage);
+          },
+          onPressedSixth: () {
+            controller.navigateToPage(Routes.accidentVideoQuickPage);
+          },
+        ),
       ),
     );
   }
@@ -445,10 +461,13 @@ class UserDashboard extends GetView<UserDashboardController> with FloatingBase {
           ),
         ),
       ),
+      clipBehavior: Clip.hardEdge,
       child: showSidebar
           ? const Padding(
               padding: EdgeInsets.fromLTRB(16.0, kSpacing * 2, 16.0, kSpacing),
-              child: UserSidebar(),
+              child: RepaintBoundary(
+                child: UserSidebar(),
+              ),
             )
           : null,
     );

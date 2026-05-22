@@ -4,7 +4,6 @@ import 'package:final_assignment_front/features/api/appeal_management_controller
 import 'package:final_assignment_front/features/model/appeal_record.dart';
 import 'package:final_assignment_front/features/model/progress_item.dart';
 import 'package:final_assignment_front/shared/controllers/base_list_controller.dart';
-import 'package:final_assignment_front/shared/utils/error_handler.dart';
 import 'package:final_assignment_front/core/network/app_exception.dart';
 import 'package:final_assignment_front/utils/services/api_client.dart';
 import 'package:final_assignment_front/utils/ui/ui_utils.dart';
@@ -21,6 +20,9 @@ class ProgressController extends BaseListController<ProgressItem> {
   final RxList<AppealRecordModel> appeals = <AppealRecordModel>[].obs;
   final RxList<String> statusCategories =
       ['Pending', 'Processing', 'Completed', 'Archived'].obs;
+  final Rxn<String> selectedStatus = Rxn<String>();
+  final Rxn<DateTime> selectedStartDate = Rxn<DateTime>();
+  final Rxn<DateTime> selectedEndDate = Rxn<DateTime>();
   final RxBool _isAdmin = false.obs;
 
   void _showSnackbar(String title, String message, {bool isError = false}) {
@@ -43,7 +45,9 @@ class ProgressController extends BaseListController<ProgressItem> {
   Future<void> fetchData() async {
     await _loadUserRole();
     await fetchProgress();
-    await fetchAppeals();
+    if (isAdmin) {
+      await fetchAppeals();
+    }
   }
 
   bool get isAdmin => _isAdmin.value;
@@ -95,8 +99,8 @@ class ProgressController extends BaseListController<ProgressItem> {
           .map((json) =>
               AppealRecordModel.fromJson(json as Map<String, dynamic>))
           .toList();
-    } catch (e) {
-      errorMessage.value = ErrorHandler.extractMessage(e, fallback: '进度数据加载失败');
+    } catch (_) {
+      appeals.clear();
     }
   }
 
@@ -123,7 +127,7 @@ class ProgressController extends BaseListController<ProgressItem> {
         final List<dynamic> data = jsonDecode(response.body);
         progressItems.value =
             data.map((json) => ProgressItem.fromJson(json)).toList();
-        filteredItems.value = progressItems;
+        _applyActiveFilters();
       } else {
         throw AppException.http(
             response.statusCode, 'Failed to fetch progress');
@@ -303,8 +307,10 @@ class ProgressController extends BaseListController<ProgressItem> {
   }
 
   void filterByStatus(String status) {
-    filteredItems.value =
-        progressItems.where((item) => item.status == status).toList();
+    selectedStatus.value = status;
+    selectedStartDate.value = null;
+    selectedEndDate.value = null;
+    _applyActiveFilters();
   }
 
   Future<void> fetchProgressByTimeRange(DateTime start, DateTime end) async {
@@ -316,7 +322,7 @@ class ProgressController extends BaseListController<ProgressItem> {
       }
 
       final response = await apiClient.invokeAPI(
-        '/api/progress?start=${start.toIso8601String()}&end=${end.toIso8601String()}',
+        '/api/progress/timeRange?startTime=${start.toIso8601String()}&endTime=${end.toIso8601String()}',
         'GET',
         [],
         null,
@@ -328,6 +334,9 @@ class ProgressController extends BaseListController<ProgressItem> {
 
       if (response.statusCode == 200) {
         final List<dynamic> data = jsonDecode(response.body);
+        selectedStatus.value = null;
+        selectedStartDate.value = start;
+        selectedEndDate.value = end;
         filteredItems.value =
             data.map((json) => ProgressItem.fromJson(json)).toList();
       } else {
@@ -338,7 +347,36 @@ class ProgressController extends BaseListController<ProgressItem> {
   }
 
   void clearTimeRangeFilter() {
-    filteredItems.value = progressItems;
+    clearFilters();
+  }
+
+  void clearFilters() {
+    selectedStatus.value = null;
+    selectedStartDate.value = null;
+    selectedEndDate.value = null;
+    filteredItems.value = progressItems.toList();
+  }
+
+  void _applyActiveFilters() {
+    Iterable<ProgressItem> nextItems = progressItems;
+    final status = selectedStatus.value;
+    final start = selectedStartDate.value;
+    final end = selectedEndDate.value;
+
+    if (status != null && status.isNotEmpty) {
+      nextItems = nextItems.where((item) => item.status == status);
+    }
+
+    if (start != null && end != null) {
+      final inclusiveEnd = end.add(const Duration(days: 1));
+      nextItems = nextItems.where(
+        (item) =>
+            !item.submitTime.isBefore(start) &&
+            item.submitTime.isBefore(inclusiveEnd),
+      );
+    }
+
+    filteredItems.value = nextItems.toList();
   }
 
   @override

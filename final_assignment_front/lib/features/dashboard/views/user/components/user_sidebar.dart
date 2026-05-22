@@ -9,6 +9,9 @@ class UserSidebar extends StatefulWidget {
 
 class _UserSidebarState extends State<UserSidebar> {
   int _selectedIndex = 0;
+  bool _showExpandedContent = true;
+  int _sidebarTransitionToken = 0;
+  Worker? _sidebarCollapseWorker;
 
   List<SelectionButtonData> get _items => [
         SelectionButtonData(
@@ -46,6 +49,42 @@ class _UserSidebarState extends State<UserSidebar> {
   }
 
   @override
+  void initState() {
+    super.initState();
+    final controller = Get.find<UserDashboardController>();
+    _showExpandedContent = !controller.isSidebarCollapsed.value;
+    _sidebarCollapseWorker = ever<bool>(
+      controller.isSidebarCollapsed,
+      _syncExpandedContent,
+    );
+  }
+
+  @override
+  void dispose() {
+    _sidebarCollapseWorker?.dispose();
+    super.dispose();
+  }
+
+  void _syncExpandedContent(bool collapsed) {
+    final token = ++_sidebarTransitionToken;
+
+    if (collapsed) {
+      if (_showExpandedContent && mounted) {
+        setState(() => _showExpandedContent = false);
+      }
+      return;
+    }
+
+    Future<void>.delayed(const Duration(milliseconds: 240), () {
+      if (!mounted || token != _sidebarTransitionToken) return;
+      final controller = Get.find<UserDashboardController>();
+      if (!controller.isSidebarCollapsed.value && !_showExpandedContent) {
+        setState(() => _showExpandedContent = true);
+      }
+    });
+  }
+
+  @override
   Widget build(BuildContext context) {
     final UserDashboardController controller =
         Get.find<UserDashboardController>();
@@ -63,101 +102,114 @@ class _UserSidebarState extends State<UserSidebar> {
         alpha: dark ? 0.36 : 0.55,
       );
 
-      return AnimatedContainer(
-        duration: const Duration(milliseconds: 220),
-        curve: Curves.easeOutCubic,
-        color: backgroundColor,
-        child: DefaultTextStyle(
-          style: TextStyle(color: scheme.onSurface),
-          child: IconTheme(
-            data: IconThemeData(color: scheme.onSurface),
-            child: Column(
-              children: [
-                _UserSidebarHandle(
-                  collapsed: collapsed,
-                  onPressed: controller.toggleSidebarCollapsed,
-                ),
-                Divider(height: 1, thickness: 1, color: dividerColor),
-                const SizedBox(height: 12),
-                Expanded(
-                  child: ListView.separated(
-                    padding: EdgeInsets.symmetric(
-                      horizontal: collapsed ? 10 : 14,
-                      vertical: 6,
-                    ),
-                    itemCount: _items.length,
-                    separatorBuilder: (_, __) => const SizedBox(height: 8),
-                    itemBuilder: (context, index) {
-                      final item = _items[index];
-                      return _UserSidebarItem(
-                        item: item,
+      return LayoutBuilder(
+        builder: (context, constraints) {
+          final sidebarWidth =
+              constraints.hasBoundedWidth ? constraints.maxWidth : 0.0;
+          final effectiveCollapsed =
+              collapsed || !_showExpandedContent || sidebarWidth < 180;
+          final showExpandedFooter = !effectiveCollapsed &&
+              _showExpandedContent &&
+              sidebarWidth >= 220;
+
+          return ClipRect(
+            child: ColoredBox(
+              color: backgroundColor,
+              child: DefaultTextStyle(
+                style: TextStyle(color: scheme.onSurface),
+                child: IconTheme(
+                  data: IconThemeData(color: scheme.onSurface),
+                  child: Column(
+                    children: [
+                      _UserSidebarHandle(
                         collapsed: collapsed,
-                        selected: index == _selectedIndex,
-                        onTap: () => _select(controller, index),
-                      );
-                    },
-                  ),
-                ),
-                Padding(
-                  padding: EdgeInsets.fromLTRB(
-                    collapsed ? 16 : 14,
-                    0,
-                    collapsed ? 16 : 14,
-                    12,
-                  ),
-                  child: SidebarSettingsButton(
-                    collapsed: collapsed,
-                    selectedStyle: controller.selectedStyle.value,
-                    themeMode: controller.currentTheme.value,
-                    onThemeSelected: controller.setDashboardTheme,
-                  ),
-                ),
-                Divider(height: 1, thickness: 1, color: dividerColor),
-                if (!collapsed)
-                  Padding(
-                    padding: const EdgeInsets.all(kSpacing),
-                    child: PostCard(
-                      backgroundColor: Color.lerp(
-                        scheme.surface,
-                        scheme.primaryContainer,
-                        dark ? 0.22 : 0.34,
+                        onPressed: controller.toggleSidebarCollapsed,
                       ),
-                      foregroundColor: scheme.onSurface,
-                      mutedForegroundColor: scheme.onSurfaceVariant,
-                      accentColor: scheme.primary,
-                      borderColor: scheme.outlineVariant.withValues(
-                        alpha: dark ? 0.36 : 0.46,
-                      ),
-                      onPressed: () {},
-                    ),
-                  )
-                else ...[
-                  const SizedBox(height: 12),
-                  Tooltip(
-                    message: '交通安全时时不忘',
-                    child: Container(
-                      width: 44,
-                      height: 44,
-                      decoration: BoxDecoration(
-                        color: scheme.surfaceContainerHighest.withValues(
-                          alpha: dark ? 0.36 : 0.62,
+                      Divider(height: 1, thickness: 1, color: dividerColor),
+                      const SizedBox(height: 12),
+                      Expanded(
+                        child: ListView.separated(
+                          padding: EdgeInsets.symmetric(
+                            horizontal: effectiveCollapsed ? 10 : 14,
+                            vertical: 6,
+                          ),
+                          itemCount: _items.length,
+                          separatorBuilder: (_, __) =>
+                              const SizedBox(height: 8),
+                          itemBuilder: (context, index) {
+                            final item = _items[index];
+                            return _UserSidebarItem(
+                              item: item,
+                              collapsed: effectiveCollapsed,
+                              selected: index == _selectedIndex,
+                              onTap: () => _select(controller, index),
+                            );
+                          },
                         ),
-                        borderRadius: BorderRadius.circular(8),
-                        border: Border.all(color: dividerColor),
                       ),
-                      child: Icon(
-                        Icons.shield_outlined,
-                        color: scheme.primary,
-                        size: 22,
+                      Padding(
+                        padding: EdgeInsets.fromLTRB(
+                          effectiveCollapsed ? 16 : 14,
+                          0,
+                          effectiveCollapsed ? 16 : 14,
+                          12,
+                        ),
+                        child: SidebarSettingsButton(
+                          collapsed: effectiveCollapsed,
+                          selectedStyle: controller.selectedStyle.value,
+                          themeMode: controller.currentTheme.value,
+                          onThemeSelected: controller.setDashboardTheme,
+                        ),
                       ),
-                    ),
+                      Divider(height: 1, thickness: 1, color: dividerColor),
+                      if (showExpandedFooter)
+                        Padding(
+                          padding: const EdgeInsets.all(kSpacing),
+                          child: PostCard(
+                            backgroundColor: Color.lerp(
+                              scheme.surface,
+                              scheme.primaryContainer,
+                              dark ? 0.22 : 0.34,
+                            ),
+                            foregroundColor: scheme.onSurface,
+                            mutedForegroundColor: scheme.onSurfaceVariant,
+                            accentColor: scheme.primary,
+                            borderColor: scheme.outlineVariant.withValues(
+                              alpha: dark ? 0.36 : 0.46,
+                            ),
+                            onPressed: () {},
+                          ),
+                        )
+                      else ...[
+                        const SizedBox(height: 12),
+                        Tooltip(
+                          message: '交通安全时时不忘',
+                          child: Container(
+                            width: 44,
+                            height: 44,
+                            decoration: BoxDecoration(
+                              color: scheme.surfaceContainerHighest.withValues(
+                                alpha: dark ? 0.36 : 0.62,
+                              ),
+                              borderRadius: BorderRadius.circular(8),
+                              border: Border.all(color: dividerColor),
+                            ),
+                            child: Icon(
+                              Icons.shield_outlined,
+                              color: scheme.primary,
+                              size: 22,
+                            ),
+                          ),
+                        ),
+                        const SizedBox(height: 16),
+                      ],
+                    ],
                   ),
-                  const SizedBox(height: 16),
-                ],
-              ],
+                ),
+              ),
             ),
-          ),
-        ),
+          );
+        },
       );
     });
   }

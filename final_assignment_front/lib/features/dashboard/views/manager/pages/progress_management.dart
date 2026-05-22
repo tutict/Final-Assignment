@@ -1,463 +1,111 @@
 import 'package:final_assignment_front/config/routes/app_routes.dart';
 import 'package:final_assignment_front/features/dashboard/bindings/progress_binding.dart';
-import 'package:final_assignment_front/features/dashboard/controllers/progress_controller.dart';
 import 'package:final_assignment_front/features/dashboard/controllers/manager_dashboard_controller.dart';
+import 'package:final_assignment_front/features/dashboard/controllers/progress_controller.dart';
+import 'package:final_assignment_front/features/dashboard/views/shared/components/progress_message_page.dart';
 import 'package:final_assignment_front/features/dashboard/views/shared/widgets/dashboard_page_template.dart';
 import 'package:final_assignment_front/features/model/appeal_record.dart';
+import 'package:final_assignment_front/features/model/progress_item.dart';
 import 'package:final_assignment_front/shared/dialogs/app_dialog.dart';
-import 'package:final_assignment_front/shared/widgets/index.dart';
+import 'package:final_assignment_front/shared/utils/navigation_helper.dart';
 import 'package:final_assignment_front/utils/ui/ui_utils.dart' as ui;
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
-import 'package:intl/intl.dart';
-import 'package:final_assignment_front/shared/utils/navigation_helper.dart';
 
 class ProgressManagementPage extends StatelessWidget {
   const ProgressManagementPage({super.key});
 
   @override
   Widget build(BuildContext context) {
-    final ManagerDashboardController dashboardController =
-        Get.find<ManagerDashboardController>();
+    final dashboardController = Get.find<ManagerDashboardController>();
+
     ProgressBinding.registerDependencies();
-    final ProgressController progressController =
-        Get.find<ProgressController>();
+    final progressController = Get.find<ProgressController>();
 
     return Obx(() {
       final themeData = dashboardController.currentBodyTheme.value;
-      final actions = <DashboardPageBarAction>[];
-      if (progressController.isAdmin) {
-        actions.add(
-          DashboardPageBarAction(
-            icon: Icons.add,
-            tooltip: '创建进度',
-            onPressed: () => _showCreateProgressDialog(
-                context, progressController, themeData),
-          ),
-        );
-      }
+      final isAdmin = progressController.isAdmin;
+
       return DashboardPageTemplate(
         theme: themeData,
         title: '进度管理',
         pageType: DashboardPageType.manager,
+        onRefresh: progressController.fetchProgress,
         bodyIsScrollable: true,
         padding: EdgeInsets.zero,
-        actions: actions,
-        body: Padding(
-          padding: const EdgeInsets.all(16.0),
-          child: Column(
-            children: [
-// 筛选控件
-              _buildFilterControls(context, progressController, themeData),
-              const SizedBox(height: 16),
-// 进度列表
-              Expanded(
-                child: progressController.isLoading.value
-                    ? const LoadingView()
-                    : progressController.errorMessage.isNotEmpty
-                        ? ErrorStateView(
-                            message: progressController.errorMessage.value,
-                          )
-                        : !progressController.isAdmin
-                            ? const PermissionDeniedView(
-                                hint: '权限不足：仅管理员可访问',
-                              )
-                            : progressController.filteredItems.isEmpty
-                                ? const EmptyStateView(
-                                    message: '暂无进度记录',
-                                    icon: Icons.timeline_outlined,
-                                  )
-                                : ListView.builder(
-                                    itemCount:
-                                        progressController.filteredItems.length,
-                                    itemBuilder: (context, index) {
-                                      final item = progressController
-                                          .filteredItems[index];
-                                      return Card(
-                                        elevation: 3,
-                                        color: themeData
-                                            .colorScheme.surfaceContainer,
-                                        shape: RoundedRectangleBorder(
-                                          borderRadius:
-                                              BorderRadius.circular(16),
-                                        ),
-                                        margin: const EdgeInsets.symmetric(
-                                            vertical: 8),
-                                        child: ListTile(
-                                          contentPadding:
-                                              const EdgeInsets.symmetric(
-                                                  horizontal: 16, vertical: 12),
-                                          leading: CircleAvatar(
-                                            backgroundColor: _getStatusColor(
-                                                item.status, themeData),
-                                            radius: 24,
-                                            child: Text(
-                                              item.title.isNotEmpty
-                                                  ? item.title[0].toUpperCase()
-                                                  : '?',
-                                              style: themeData
-                                                  .textTheme.titleMedium
-                                                  ?.copyWith(
-                                                color: Colors.white,
-                                                fontWeight: FontWeight.bold,
-                                              ),
-                                            ),
-                                          ),
-                                          title: Text(
-                                            item.title,
-                                            style: themeData
-                                                .textTheme.titleMedium
-                                                ?.copyWith(
-                                              color: themeData
-                                                  .colorScheme.onSurface,
-                                              fontWeight: FontWeight.w600,
-                                            ),
-                                          ),
-                                          subtitle: Column(
-                                            crossAxisAlignment:
-                                                CrossAxisAlignment.start,
-                                            children: [
-                                              const SizedBox(height: 4),
-                                              Text(
-                                                '状态: ${_translateStatus(item.status)}',
-                                                style: themeData
-                                                    .textTheme.bodyMedium
-                                                    ?.copyWith(
-                                                  color: _getStatusColor(
-                                                      item.status, themeData),
-                                                  fontWeight: FontWeight.w500,
-                                                ),
-                                              ),
-                                              Text(
-                                                '提交时间: ${DateFormat('yyyy-MM-dd HH:mm').format(item.submitTime)}',
-                                                style: themeData
-                                                    .textTheme.bodyMedium
-                                                    ?.copyWith(
-                                                  color: themeData.colorScheme
-                                                      .onSurfaceVariant,
-                                                ),
-                                              ),
-                                              Text(
-                                                progressController
-                                                    .getBusinessContext(item),
-                                                style: themeData
-                                                    .textTheme.bodySmall
-                                                    ?.copyWith(
-                                                  color: themeData.colorScheme
-                                                      .onSurfaceVariant
-                                                      .withValues(alpha: 0.8),
-                                                ),
-                                              ),
-                                            ],
-                                          ),
-                                          trailing: progressController.isAdmin
-                                              ? PopupMenuButton<String>(
-                                                  icon: Icon(
-                                                    Icons.more_vert,
-                                                    color: themeData.colorScheme
-                                                        .onSurfaceVariant,
-                                                  ),
-                                                  onSelected: (value) {
-                                                    if (value == 'edit') {
-                                                      NavigationHelper.toNamed(
-                                                              Routes
-                                                                  .progressDetailPage,
-                                                              arguments: item)
-                                                          .then((result) {
-                                                        if (result == true) {
-                                                          progressController
-                                                              .fetchProgress();
-                                                        }
-                                                      });
-                                                    } else if (value ==
-                                                        'delete') {
-                                                      _showDeleteConfirmationDialog(
-                                                          context,
-                                                          item.id!,
-                                                          progressController,
-                                                          themeData);
-                                                    } else if (value.startsWith(
-                                                        'update_')) {
-                                                      final newStatus =
-                                                          value.split('_')[1];
-                                                      progressController
-                                                          .updateProgressStatus(
-                                                              item.id!,
-                                                              newStatus);
-                                                    }
-                                                  },
-                                                  itemBuilder: (context) => [
-                                                    PopupMenuItem(
-                                                      value: 'edit',
-                                                      child: Text(
-                                                        '查看/编辑',
-                                                        style: themeData
-                                                            .textTheme
-                                                            .bodyMedium
-                                                            ?.copyWith(
-                                                          color: themeData
-                                                              .colorScheme
-                                                              .onSurface,
-                                                        ),
-                                                      ),
-                                                    ),
-                                                    PopupMenuItem(
-                                                      value: 'delete',
-                                                      child: Text(
-                                                        '删除',
-                                                        style: themeData
-                                                            .textTheme
-                                                            .bodyMedium
-                                                            ?.copyWith(
-                                                          color: themeData
-                                                              .colorScheme
-                                                              .error,
-                                                        ),
-                                                      ),
-                                                    ),
-                                                    PopupMenuItem(
-                                                      value: 'update_Pending',
-                                                      child: Text(
-                                                        '设为待处理',
-                                                        style: themeData
-                                                            .textTheme
-                                                            .bodyMedium
-                                                            ?.copyWith(
-                                                          color: themeData
-                                                              .colorScheme
-                                                              .onSurface,
-                                                        ),
-                                                      ),
-                                                    ),
-                                                    PopupMenuItem(
-                                                      value:
-                                                          'update_Processing',
-                                                      child: Text(
-                                                        '设为处理中',
-                                                        style: themeData
-                                                            .textTheme
-                                                            .bodyMedium
-                                                            ?.copyWith(
-                                                          color: themeData
-                                                              .colorScheme
-                                                              .onSurface,
-                                                        ),
-                                                      ),
-                                                    ),
-                                                    PopupMenuItem(
-                                                      value: 'update_Completed',
-                                                      child: Text(
-                                                        '设为已完成',
-                                                        style: themeData
-                                                            .textTheme
-                                                            .bodyMedium
-                                                            ?.copyWith(
-                                                          color: themeData
-                                                              .colorScheme
-                                                              .onSurface,
-                                                        ),
-                                                      ),
-                                                    ),
-                                                    PopupMenuItem(
-                                                      value: 'update_Archived',
-                                                      child: Text(
-                                                        '设为已归档',
-                                                        style: themeData
-                                                            .textTheme
-                                                            .bodyMedium
-                                                            ?.copyWith(
-                                                          color: themeData
-                                                              .colorScheme
-                                                              .onSurface,
-                                                        ),
-                                                      ),
-                                                    ),
-                                                  ],
-                                                )
-                                              : null,
-                                          onTap: () => NavigationHelper.toNamed(
-                                                  Routes.progressDetailPage,
-                                                  arguments: item)
-                                               .then((result) {
-                                            if (result == true) {
-                                              progressController
-                                                  .fetchProgress();
-                                            }
-                                          }),
-                                        ),
-                                      );
-                                    },
-                                  ),
-              ),
-            ],
-          ),
+        body: ProgressMessagePageBody(
+          title: '进度管理',
+          subtitle: '集中查看用户提交进度、关联业务和处理状态。',
+          roleLabel: '管理员端',
+          items: progressController.filteredItems.toList(growable: false),
+          totalCount: progressController.progressItems.length,
+          statusCategories:
+              progressController.statusCategories.toList(growable: false),
+          selectedStatus: progressController.selectedStatus.value,
+          selectedStartDate: progressController.selectedStartDate.value,
+          selectedEndDate: progressController.selectedEndDate.value,
+          isLoading: progressController.isLoading.value,
+          errorMessage: progressController.errorMessage.value,
+          hasAccess: isAdmin,
+          permissionHint: '权限不足：仅管理员可访问进度管理',
+          emptyMessage: '暂无进度记录',
+          onRetry: progressController.fetchProgress,
+          onCreate: isAdmin
+              ? () => _showCreateProgressDialog(
+                    context,
+                    progressController,
+                    themeData,
+                  )
+              : null,
+          onOpen: (item) => _openProgressDetail(item, progressController),
+          onDelete: isAdmin
+              ? (item) => _showDeleteConfirmationDialog(
+                    context,
+                    progressController,
+                    item,
+                  )
+              : null,
+          onStatusChange: isAdmin
+              ? (item, status) => _updateProgressStatus(
+                    context,
+                    progressController,
+                    item,
+                    status,
+                    themeData,
+                  )
+              : null,
+          businessContextBuilder: progressController.getBusinessContext,
+          onStatusSelected: progressController.filterByStatus,
+          onDateRangePressed: () =>
+              _showDateRangePicker(progressController, themeData),
+          onClearFilters: () async {
+            progressController.clearFilters();
+            await progressController.fetchProgress();
+          },
         ),
       );
     });
   }
 
-  void _showCreateProgressDialog(BuildContext context,
-      ProgressController controller, ThemeData themeData) {
-    final titleController = TextEditingController();
-    final detailsController = TextEditingController();
-    AppealRecordModel? selectedAppeal;
-    ui.AppDialog.showCustomDialog(
-      context: context,
-      theme: themeData,
-      title: '创建进度',
-      content: StatefulBuilder(
-        builder: (ctx, setState) => SingleChildScrollView(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              TextField(
-                controller: titleController,
-                decoration: InputDecoration(
-                  labelText: '标题',
-                  border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(8)),
-                ),
-              ),
-              const SizedBox(height: 16),
-              TextField(
-                controller: detailsController,
-                decoration: InputDecoration(
-                  labelText: '详情（可选）',
-                  border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(8)),
-                ),
-                maxLines: 3,
-              ),
-              const SizedBox(height: 16),
-              Obx(
-                () => DropdownButtonFormField<AppealRecordModel>(
-                  decoration: InputDecoration(
-                    labelText: '关联申诉（可选）',
-                    border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(8)),
-                  ),
-                  initialValue: selectedAppeal,
-                  items: controller.appeals.map((appeal) {
-                    return DropdownMenuItem(
-                      value: appeal,
-                      child: Text(
-                          '申诉: ${appeal.appellantName} (ID: ${appeal.appealId})'),
-                    );
-                  }).toList(),
-                  onChanged: (value) => setState(() => selectedAppeal = value),
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
-      actions: [
-        TextButton(
-          onPressed: () => Navigator.of(context).pop(),
-          child: Text(
-            '取消',
-            style: themeData.textTheme.labelLarge?.copyWith(
-              color: themeData.colorScheme.onSurfaceVariant,
-              fontWeight: FontWeight.w600,
-            ),
-          ),
-        ),
-        ElevatedButton(
-          onPressed: () {
-            final title = titleController.text.trim();
-            if (title.isEmpty) {
-              ui.AppSnackbar.showError(
-                context,
-                message: '标题不能为空',
-                theme: themeData,
-              );
-              return;
-            }
-            controller.submitProgress(
-              title,
-              detailsController.text.isNotEmpty ? detailsController.text : null,
-              appealId: selectedAppeal?.appealId,
-            );
-            Navigator.of(context).pop();
-          },
-          style: ElevatedButton.styleFrom(
-            backgroundColor: themeData.colorScheme.primary,
-            foregroundColor: themeData.colorScheme.onPrimary,
-            shape:
-                RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-          ),
-          child: const Text('提交'),
-        ),
-      ],
-    ).whenComplete(() {
-      titleController.dispose();
-      detailsController.dispose();
+  void _openProgressDetail(
+    ProgressItem item,
+    ProgressController progressController,
+  ) {
+    NavigationHelper.toNamed(Routes.progressDetailPage, arguments: item)
+        .then((result) {
+      if (result == true) {
+        progressController.fetchProgress();
+      }
     });
   }
 
-  Widget _buildFilterControls(BuildContext context,
-      ProgressController controller, ThemeData themeData) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Wrap(
-          spacing: 8,
-          runSpacing: 8,
-          children: controller.statusCategories.map((status) {
-            return Obx(() => FilterChip(
-                  label: Text(_translateStatus(status)),
-                  selected: controller.filteredItems
-                      .any((item) => item.status == status),
-                  onSelected: (selected) {
-                    controller.filterByStatus(status);
-                  },
-                  selectedColor: themeData.colorScheme.primaryContainer,
-                  checkmarkColor: themeData.colorScheme.onPrimaryContainer,
-                  labelStyle: themeData.textTheme.bodyMedium?.copyWith(
-                    color: themeData.colorScheme.onSurface,
-                  ),
-                ));
-          }).toList(),
-        ),
-        const SizedBox(height: 12),
-        Row(
-          children: [
-            Expanded(
-              child: OutlinedButton.icon(
-                icon: Icon(Icons.date_range,
-                    color: themeData.colorScheme.primary),
-                label: Text(
-                  '选择时间范围',
-                  style: themeData.textTheme.bodyMedium
-                      ?.copyWith(color: themeData.colorScheme.primary),
-                ),
-                onPressed: () => _showDateRangePicker(controller, themeData),
-                style: OutlinedButton.styleFrom(
-                  side: BorderSide(color: themeData.colorScheme.outline),
-                  shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12)),
-                ),
-              ),
-            ),
-            const SizedBox(width: 8),
-            IconButton(
-              icon: Icon(Icons.clear, color: themeData.colorScheme.error),
-              onPressed: () {
-                controller.clearTimeRangeFilter();
-                controller.fetchProgress();
-              },
-              tooltip: '清除筛选',
-            ),
-          ],
-        ),
-      ],
-    );
-  }
-
   void _showDateRangePicker(
-      ProgressController controller, ThemeData themeData) async {
-    final initialStartDate = DateTime.now().subtract(const Duration(days: 7));
-    final initialEndDate = DateTime.now();
+    ProgressController controller,
+    ThemeData themeData,
+  ) async {
+    final initialStartDate = controller.selectedStartDate.value ??
+        DateTime.now().subtract(const Duration(days: 7));
+    final initialEndDate = controller.selectedEndDate.value ?? DateTime.now();
 
     final pickedRange = await showDateRangePicker(
       context: Get.context!,
@@ -488,52 +136,149 @@ class ProgressManagementPage extends StatelessWidget {
 
     if (pickedRange != null) {
       await controller.fetchProgressByTimeRange(
-          pickedRange.start, pickedRange.end);
+        pickedRange.start,
+        pickedRange.end,
+      );
     }
   }
 
+  void _showCreateProgressDialog(
+    BuildContext context,
+    ProgressController controller,
+    ThemeData themeData,
+  ) {
+    final titleController = TextEditingController();
+    final detailsController = TextEditingController();
+    AppealRecordModel? selectedAppeal;
+
+    ui.AppDialog.showCustomDialog<void>(
+      context: context,
+      theme: themeData,
+      title: '创建进度',
+      content: StatefulBuilder(
+        builder: (ctx, setState) {
+          return SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                TextField(
+                  controller: titleController,
+                  decoration: const InputDecoration(
+                    labelText: '标题',
+                    prefixIcon: Icon(Icons.subject_rounded),
+                  ),
+                  textInputAction: TextInputAction.next,
+                ),
+                const SizedBox(height: 14),
+                TextField(
+                  controller: detailsController,
+                  decoration: const InputDecoration(
+                    labelText: '详情（可选）',
+                    prefixIcon: Icon(Icons.notes_rounded),
+                  ),
+                  maxLines: 4,
+                ),
+                const SizedBox(height: 14),
+                Obx(
+                  () => DropdownButtonFormField<AppealRecordModel>(
+                    decoration: const InputDecoration(
+                      labelText: '关联申诉（可选）',
+                      prefixIcon: Icon(Icons.link_rounded),
+                    ),
+                    initialValue: selectedAppeal,
+                    isExpanded: true,
+                    items: controller.appeals.map((appeal) {
+                      return DropdownMenuItem(
+                        value: appeal,
+                        child: Text(
+                          '申诉：${appeal.appellantName}（ID：${appeal.appealId}）',
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      );
+                    }).toList(),
+                    onChanged: (value) =>
+                        setState(() => selectedAppeal = value),
+                  ),
+                ),
+              ],
+            ),
+          );
+        },
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.of(context).pop(),
+          child: const Text('取消'),
+        ),
+        FilledButton(
+          onPressed: () {
+            final title = titleController.text.trim();
+            final details = detailsController.text.trim();
+            if (title.isEmpty) {
+              ui.AppSnackbar.showError(
+                context,
+                message: '标题不能为空',
+                theme: themeData,
+              );
+              return;
+            }
+
+            controller.submitProgress(
+              title,
+              details.isEmpty ? null : details,
+              appealId: selectedAppeal?.appealId,
+            );
+            Navigator.of(context).pop();
+          },
+          child: const Text('提交'),
+        ),
+      ],
+    ).whenComplete(() {
+      titleController.dispose();
+      detailsController.dispose();
+    });
+  }
+
+  Future<void> _updateProgressStatus(
+    BuildContext context,
+    ProgressController controller,
+    ProgressItem item,
+    String status,
+    ThemeData themeData,
+  ) async {
+    if (item.id == null) {
+      ui.AppSnackbar.showError(
+        context,
+        message: '无法更新：进度ID为空',
+        theme: themeData,
+      );
+      return;
+    }
+    await controller.updateProgressStatus(item.id!, status);
+  }
+
   Future<void> _showDeleteConfirmationDialog(
-      BuildContext context,
-      int progressId,
-      ProgressController controller,
-      ThemeData themeData) async {
+    BuildContext context,
+    ProgressController controller,
+    ProgressItem item,
+  ) async {
+    if (item.id == null) {
+      ui.AppSnackbar.showError(
+        context,
+        message: '无法删除：进度ID为空',
+        theme: Theme.of(context),
+      );
+      return;
+    }
+
     final confirmed = await AppDialog.showConfirmDelete(
       context,
       itemName: '该进度记录',
       extraWarning: '此操作不可撤销。',
     );
     if (confirmed == true) {
-      await controller.deleteProgress(progressId);
-    }
-  }
-
-  String _translateStatus(String? status) {
-    switch (status) {
-      case 'Pending':
-        return '待处理';
-      case 'Processing':
-        return '处理中';
-      case 'Completed':
-        return '已完成';
-      case 'Archived':
-        return '已归档';
-      default:
-        return '未知';
-    }
-  }
-
-  Color _getStatusColor(String? status, ThemeData themeData) {
-    switch (status) {
-      case 'Pending':
-        return themeData.colorScheme.secondary;
-      case 'Processing':
-        return themeData.colorScheme.primary;
-      case 'Completed':
-        return themeData.colorScheme.tertiary;
-      case 'Archived':
-        return themeData.colorScheme.outline;
-      default:
-        return themeData.colorScheme.outlineVariant;
+      await controller.deleteProgress(item.id!);
     }
   }
 }
