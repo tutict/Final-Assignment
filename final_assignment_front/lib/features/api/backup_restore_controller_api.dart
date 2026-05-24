@@ -1,9 +1,5 @@
-import 'package:final_assignment_front/core/utils/app_logger.dart';
-
 import 'package:final_assignment_front/features/model/backup_restore.dart';
 import 'package:final_assignment_front/utils/services/api_client.dart';
-import 'package:http/http.dart' as http;
-import 'package:final_assignment_front/utils/services/auth_token_store.dart';
 
 final ApiClient defaultApiClient = ApiClient();
 
@@ -14,303 +10,169 @@ class BackupRestoreControllerApi with BaseApiClient {
   BackupRestoreControllerApi([ApiClient? apiClient])
       : apiClient = apiClient ?? defaultApiClient;
 
-  Future<void> initializeWithJwt() async {
-    final jwtToken = (await AuthTokenStore.instance.getJwtToken());
-    if (jwtToken == null || jwtToken.isEmpty) {
-      throw Exception('Not authenticated. Please log in again.');
-    }
-    apiClient.setJwtToken(jwtToken);
-    AppLogger.debug(
-        'Initialized BackupRestoreControllerApi with token: $jwtToken');
-  }
+  Future<void> initializeWithJwt() => initializeClientWithJwt();
 
-  Future<Map<String, String>> _getHeaders({String? idempotencyKey}) async {
-    return getHeaders(idempotencyKey: idempotencyKey);
-  }
-
-  void _ensureSuccess(http.Response response) {
-    ensureSuccess(response);
-  }
-
-  List<BackupRestore> _parseList(http.Response response) {
-    if (response.body.isEmpty) return [];
-    return parseListResponse(response, BackupRestore.fromJson);
-  }
-
-  /// POST /api/system/backup
   Future<BackupRestore> createBackup({
     required BackupRestore backupRestore,
     String? idempotencyKey,
-  }) async {
-    final response = await apiClient.invokeAPI(
-      '/api/system/backup',
+  }) {
+    return requestObject(
       'POST',
-      const [],
-      backupRestore.toJson(),
-      await _getHeaders(idempotencyKey: idempotencyKey),
-      const {},
-      'application/json',
-      ['bearerAuth'],
+      '/api/system/backup',
+      BackupRestore.fromJson,
+      body: backupRestore.toJson(),
+      contentType: 'application/json',
+      idempotencyKey: idempotencyKey,
     );
-    _ensureSuccess(response);
-    return parseResponse(response, BackupRestore.fromJson);
   }
 
-  /// PUT /api/system/backup/{backupId}
   Future<BackupRestore> updateBackup({
     required int backupId,
     required BackupRestore backupRestore,
     String? idempotencyKey,
-  }) async {
-    final response = await apiClient.invokeAPI(
-      '/api/system/backup/$backupId',
+  }) {
+    return requestObject(
       'PUT',
-      const [],
-      backupRestore.toJson(),
-      await _getHeaders(idempotencyKey: idempotencyKey),
-      const {},
-      'application/json',
-      ['bearerAuth'],
-    );
-    _ensureSuccess(response);
-    return parseResponse(response, BackupRestore.fromJson);
-  }
-
-  /// DELETE /api/system/backup/{backupId}
-  Future<void> deleteBackup({required int backupId}) async {
-    final response = await apiClient.invokeAPI(
       '/api/system/backup/$backupId',
-      'DELETE',
-      const [],
-      null,
-      await _getHeaders(),
-      const {},
-      null,
-      ['bearerAuth'],
-    );
-    _ensureSuccess(response);
-  }
-
-  /// GET /api/system/backup/{backupId}
-  Future<BackupRestore?> getBackup({required int backupId}) async {
-    final response = await apiClient.invokeAPI(
-      '/api/system/backup/$backupId',
-      'GET',
-      const [],
-      null,
-      await _getHeaders(),
-      const {},
-      null,
-      ['bearerAuth'],
-      passThroughStatusCodes: const {404},
-    );
-    if (response.statusCode == 404) {
-      return null;
-    }
-    _ensureSuccess(response);
-    if (response.body.isEmpty) {
-      return null;
-    }
-    return parseNullableResponse(
-      response,
       BackupRestore.fromJson,
-      nullStatusCodes: const {},
+      body: backupRestore.toJson(),
+      contentType: 'application/json',
+      idempotencyKey: idempotencyKey,
     );
   }
 
-  /// GET /api/system/backup?status=...
-  Future<List<BackupRestore>> listBackups({String? status}) async {
-    final queryParams = <QueryParam>[];
-    if (status != null && status.trim().isNotEmpty) {
-      queryParams.add(QueryParam('status', status.trim()));
-    }
-    final response = await apiClient.invokeAPI(
-      '/api/system/backup',
+  Future<void> deleteBackup({required int backupId}) {
+    return requestVoid('DELETE', '/api/system/backup/$backupId');
+  }
+
+  Future<BackupRestore?> getBackup({required int backupId}) {
+    return requestNullableObject(
       'GET',
-      queryParams,
-      null,
-      await _getHeaders(),
-      const {},
-      null,
-      ['bearerAuth'],
+      '/api/system/backup/$backupId',
+      BackupRestore.fromJson,
+    );
+  }
+
+  Future<List<BackupRestore>> listBackups({String? status}) {
+    final trimmedStatus = status?.trim();
+    return requestList(
+      'GET',
+      '/api/system/backup',
+      BackupRestore.fromJson,
+      queryParams: queryParamsFromMap({
+        'status': trimmedStatus?.isEmpty == true ? null : trimmedStatus,
+      }),
+      emptyStatusCodes: const {204, 404},
       passThroughStatusCodes: const {404},
     );
-    if (response.statusCode == 404) {
-      return [];
-    }
-    _ensureSuccess(response);
-    return _parseList(response);
   }
 
-  /// GET /api/system/backup/search/type
   Future<List<BackupRestore>> searchBackupsByType({
     required String backupType,
     int page = 1,
     int size = 20,
-  }) async {
-    final response = await apiClient.invokeAPI(
-      '/api/system/backup/search/type',
-      'GET',
-      [
-        QueryParam('backupType', backupType),
-        QueryParam('page', '$page'),
-        QueryParam('size', '$size'),
-      ],
-      null,
-      await _getHeaders(),
-      const {},
-      null,
-      ['bearerAuth'],
-    );
-    _ensureSuccess(response);
-    return _parseList(response);
+  }) {
+    requireNotBlank(backupType, 'backupType');
+    return _search('/api/system/backup/search/type', {
+      'backupType': backupType,
+      'page': page,
+      'size': size,
+    });
   }
 
-  /// GET /api/system/backup/search/file-name
   Future<List<BackupRestore>> searchBackupsByFileName({
     required String backupFileName,
     int page = 1,
     int size = 20,
-  }) async {
-    final response = await apiClient.invokeAPI(
-      '/api/system/backup/search/file-name',
-      'GET',
-      [
-        QueryParam('backupFileName', backupFileName),
-        QueryParam('page', '$page'),
-        QueryParam('size', '$size'),
-      ],
-      null,
-      await _getHeaders(),
-      const {},
-      null,
-      ['bearerAuth'],
-    );
-    _ensureSuccess(response);
-    return _parseList(response);
+  }) {
+    requireNotBlank(backupFileName, 'backupFileName');
+    return _search('/api/system/backup/search/file-name', {
+      'backupFileName': backupFileName,
+      'page': page,
+      'size': size,
+    });
   }
 
-  /// GET /api/system/backup/search/handler
   Future<List<BackupRestore>> searchBackupsByHandler({
     required String backupHandler,
     int page = 1,
     int size = 20,
-  }) async {
-    final response = await apiClient.invokeAPI(
-      '/api/system/backup/search/handler',
-      'GET',
-      [
-        QueryParam('backupHandler', backupHandler),
-        QueryParam('page', '$page'),
-        QueryParam('size', '$size'),
-      ],
-      null,
-      await _getHeaders(),
-      const {},
-      null,
-      ['bearerAuth'],
-    );
-    _ensureSuccess(response);
-    return _parseList(response);
+  }) {
+    requireNotBlank(backupHandler, 'backupHandler');
+    return _search('/api/system/backup/search/handler', {
+      'backupHandler': backupHandler,
+      'page': page,
+      'size': size,
+    });
   }
 
-  /// GET /api/system/backup/search/restore-status
   Future<List<BackupRestore>> searchBackupsByRestoreStatus({
     required String restoreStatus,
     int page = 1,
     int size = 20,
-  }) async {
-    final response = await apiClient.invokeAPI(
-      '/api/system/backup/search/restore-status',
-      'GET',
-      [
-        QueryParam('restoreStatus', restoreStatus),
-        QueryParam('page', '$page'),
-        QueryParam('size', '$size'),
-      ],
-      null,
-      await _getHeaders(),
-      const {},
-      null,
-      ['bearerAuth'],
-    );
-    _ensureSuccess(response);
-    return _parseList(response);
+  }) {
+    requireNotBlank(restoreStatus, 'restoreStatus');
+    return _search('/api/system/backup/search/restore-status', {
+      'restoreStatus': restoreStatus,
+      'page': page,
+      'size': size,
+    });
   }
 
-  /// GET /api/system/backup/search/status
   Future<List<BackupRestore>> searchBackupsByStatus({
     required String status,
     int page = 1,
     int size = 20,
-  }) async {
-    final response = await apiClient.invokeAPI(
-      '/api/system/backup/search/status',
-      'GET',
-      [
-        QueryParam('status', status),
-        QueryParam('page', '$page'),
-        QueryParam('size', '$size'),
-      ],
-      null,
-      await _getHeaders(),
-      const {},
-      null,
-      ['bearerAuth'],
-    );
-    _ensureSuccess(response);
-    return _parseList(response);
+  }) {
+    requireNotBlank(status, 'status');
+    return _search('/api/system/backup/search/status', {
+      'status': status,
+      'page': page,
+      'size': size,
+    });
   }
 
-  /// GET /api/system/backup/search/backup-time-range
   Future<List<BackupRestore>> searchBackupsByBackupTimeRange({
     required String startTime,
     required String endTime,
     int page = 1,
     int size = 20,
-  }) async {
-    final response = await apiClient.invokeAPI(
-      '/api/system/backup/search/backup-time-range',
-      'GET',
-      [
-        QueryParam('startTime', startTime),
-        QueryParam('endTime', endTime),
-        QueryParam('page', '$page'),
-        QueryParam('size', '$size'),
-      ],
-      null,
-      await _getHeaders(),
-      const {},
-      null,
-      ['bearerAuth'],
-    );
-    _ensureSuccess(response);
-    return _parseList(response);
+  }) {
+    requireNotBlank(startTime, 'startTime');
+    requireNotBlank(endTime, 'endTime');
+    return _search('/api/system/backup/search/backup-time-range', {
+      'startTime': startTime,
+      'endTime': endTime,
+      'page': page,
+      'size': size,
+    });
   }
 
-  /// GET /api/system/backup/search/restore-time-range
   Future<List<BackupRestore>> searchBackupsByRestoreTimeRange({
     required String startTime,
     required String endTime,
     int page = 1,
     int size = 20,
-  }) async {
-    final response = await apiClient.invokeAPI(
-      '/api/system/backup/search/restore-time-range',
+  }) {
+    requireNotBlank(startTime, 'startTime');
+    requireNotBlank(endTime, 'endTime');
+    return _search('/api/system/backup/search/restore-time-range', {
+      'startTime': startTime,
+      'endTime': endTime,
+      'page': page,
+      'size': size,
+    });
+  }
+
+  Future<List<BackupRestore>> _search(
+    String path,
+    Map<String, Object?> params,
+  ) {
+    return requestList(
       'GET',
-      [
-        QueryParam('startTime', startTime),
-        QueryParam('endTime', endTime),
-        QueryParam('page', '$page'),
-        QueryParam('size', '$size'),
-      ],
-      null,
-      await _getHeaders(),
-      const {},
-      null,
-      ['bearerAuth'],
+      path,
+      BackupRestore.fromJson,
+      queryParams: queryParamsFromMap(params),
     );
-    _ensureSuccess(response);
-    return _parseList(response);
   }
 }

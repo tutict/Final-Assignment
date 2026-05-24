@@ -57,16 +57,18 @@ mixin BaseApiClient {
     String? contentType = defaultContentType,
     String? idempotencyKey,
     bool generateIdempotencyKey = false,
+    bool includeAuthHeader = true,
   }) async {
     final token = await AuthTokenStore.instance.getJwtToken();
-    if (token != null && token.isNotEmpty) {
+    if (includeAuthHeader && token != null && token.isNotEmpty) {
       apiClient.setJwtToken(token);
     }
 
     final headers = <String, String>{
       if (contentType != null && contentType.isNotEmpty)
         'Content-Type': contentType,
-      if (token != null && token.isNotEmpty) 'Authorization': 'Bearer $token',
+      if (includeAuthHeader && token != null && token.isNotEmpty)
+        'Authorization': 'Bearer $token',
     };
 
     final resolvedKey = resolveIdempotencyKey(
@@ -94,6 +96,378 @@ mixin BaseApiClient {
   }
 
   List<QueryParam> idempotencyParams([String? idempotencyKey]) => const [];
+
+  void requireNotBlank(String value, String name) {
+    if (value.trim().isEmpty) {
+      throw AppException.http(400, 'Missing required param: $name');
+    }
+  }
+
+  List<QueryParam> queryParamsFromMap(Map<String, Object?> params) {
+    return params.entries
+        .where((entry) => entry.value != null)
+        .map((entry) => QueryParam(entry.key, entry.value.toString()))
+        .toList();
+  }
+
+  List<QueryParam> pageParams(int page, int size) {
+    return [
+      QueryParam('page', '$page'),
+      QueryParam('size', '$size'),
+    ];
+  }
+
+  Future<http.Response> request(
+    String method,
+    String path, {
+    Iterable<QueryParam> queryParams = const [],
+    Object? body,
+    Map<String, String> headers = const {},
+    Map<String, String> formParams = const {},
+    String? contentType,
+    String? idempotencyKey,
+    bool generateIdempotencyKey = false,
+    bool includeAuthHeader = true,
+    List<String> authNames = const ['bearerAuth'],
+    Set<int> passThroughStatusCodes = const {},
+  }) async {
+    final headerParams = await getHeaders(
+      contentType: contentType,
+      idempotencyKey: idempotencyKey,
+      generateIdempotencyKey: generateIdempotencyKey,
+      includeAuthHeader: includeAuthHeader,
+    );
+    headerParams.addAll(headers);
+    return apiClient.invokeAPI(
+      path,
+      method,
+      queryParams,
+      body,
+      headerParams,
+      formParams,
+      contentType,
+      authNames,
+      passThroughStatusCodes: passThroughStatusCodes,
+    );
+  }
+
+  Future<T> requestObject<T>(
+    String method,
+    String path,
+    T Function(Map<String, dynamic> json) fromJson, {
+    Iterable<QueryParam> queryParams = const [],
+    Object? body,
+    Map<String, String> headers = const {},
+    String? contentType,
+    String? idempotencyKey,
+    Set<int>? successStatusCodes,
+    Map<int, String> statusMessages = const {},
+  }) async {
+    final response = await request(
+      method,
+      path,
+      queryParams: queryParams,
+      body: body,
+      headers: headers,
+      contentType: contentType,
+      idempotencyKey: idempotencyKey,
+    );
+    return parseResponse(
+      response,
+      fromJson,
+      successStatusCodes: successStatusCodes,
+      statusMessages: statusMessages,
+    );
+  }
+
+  Future<T?> requestNullableObject<T>(
+    String method,
+    String path,
+    T Function(Map<String, dynamic> json) fromJson, {
+    Iterable<QueryParam> queryParams = const [],
+    Object? body,
+    Map<String, String> headers = const {},
+    String? contentType,
+    String? idempotencyKey,
+    Set<int> nullStatusCodes = const {404},
+    Set<int>? successStatusCodes,
+    Map<int, String> statusMessages = const {},
+  }) async {
+    final response = await request(
+      method,
+      path,
+      queryParams: queryParams,
+      body: body,
+      headers: headers,
+      contentType: contentType,
+      idempotencyKey: idempotencyKey,
+      passThroughStatusCodes: nullStatusCodes,
+    );
+    return parseNullableResponse(
+      response,
+      fromJson,
+      nullStatusCodes: nullStatusCodes,
+      successStatusCodes: successStatusCodes,
+      statusMessages: statusMessages,
+    );
+  }
+
+  Future<List<T>> requestList<T>(
+    String method,
+    String path,
+    T Function(Map<String, dynamic> json) fromJson, {
+    Iterable<QueryParam> queryParams = const [],
+    Object? body,
+    Map<String, String> headers = const {},
+    String? contentType,
+    String? idempotencyKey,
+    Set<int> emptyStatusCodes = const {204},
+    Set<int> passThroughStatusCodes = const {},
+    Set<int>? successStatusCodes,
+    Map<int, String> statusMessages = const {},
+  }) async {
+    final response = await request(
+      method,
+      path,
+      queryParams: queryParams,
+      body: body,
+      headers: headers,
+      contentType: contentType,
+      idempotencyKey: idempotencyKey,
+      passThroughStatusCodes: passThroughStatusCodes,
+    );
+    return parseListResponse(
+      response,
+      fromJson,
+      emptyStatusCodes: emptyStatusCodes,
+      successStatusCodes: successStatusCodes,
+      statusMessages: statusMessages,
+    );
+  }
+
+  Future<List<T>> requestValueList<T>(
+    String method,
+    String path,
+    T Function(dynamic value) fromValue, {
+    Iterable<QueryParam> queryParams = const [],
+    Object? body,
+    Map<String, String> headers = const {},
+    String? contentType,
+    String? idempotencyKey,
+    Set<int> emptyStatusCodes = const {204},
+    Set<int> passThroughStatusCodes = const {},
+    Set<int>? successStatusCodes,
+    Map<int, String> statusMessages = const {},
+  }) async {
+    final response = await request(
+      method,
+      path,
+      queryParams: queryParams,
+      body: body,
+      headers: headers,
+      contentType: contentType,
+      idempotencyKey: idempotencyKey,
+      passThroughStatusCodes: passThroughStatusCodes,
+    );
+    return parseValueListResponse(
+      response,
+      fromValue,
+      emptyStatusCodes: emptyStatusCodes,
+      successStatusCodes: successStatusCodes,
+      statusMessages: statusMessages,
+    );
+  }
+
+  Future<Map<String, dynamic>> requestMap(
+    String method,
+    String path, {
+    Iterable<QueryParam> queryParams = const [],
+    Object? body,
+    Map<String, String> headers = const {},
+    String? contentType,
+    String? idempotencyKey,
+    Set<int>? successStatusCodes,
+    Map<int, String> statusMessages = const {},
+  }) async {
+    final response = await request(
+      method,
+      path,
+      queryParams: queryParams,
+      body: body,
+      headers: headers,
+      contentType: contentType,
+      idempotencyKey: idempotencyKey,
+    );
+    return parseMapResponse(
+      response,
+      successStatusCodes: successStatusCodes,
+      statusMessages: statusMessages,
+    );
+  }
+
+  Future<void> requestVoid(
+    String method,
+    String path, {
+    Iterable<QueryParam> queryParams = const [],
+    Object? body,
+    Map<String, String> headers = const {},
+    String? contentType,
+    String? idempotencyKey,
+    Set<int>? successStatusCodes,
+    Map<int, String> statusMessages = const {},
+  }) async {
+    final response = await request(
+      method,
+      path,
+      queryParams: queryParams,
+      body: body,
+      headers: headers,
+      contentType: contentType,
+      idempotencyKey: idempotencyKey,
+    );
+    ensureSuccess(
+      response,
+      successStatusCodes: successStatusCodes,
+      statusMessages: statusMessages,
+    );
+  }
+
+  Future<T?> requestValue<T>(
+    String method,
+    String path,
+    String targetType, {
+    Iterable<QueryParam> queryParams = const [],
+    Object? body,
+    Map<String, String> headers = const {},
+    String? contentType,
+    String? idempotencyKey,
+    Set<int> nullStatusCodes = const {404},
+    Set<int>? successStatusCodes,
+    Map<int, String> statusMessages = const {},
+  }) async {
+    final response = await request(
+      method,
+      path,
+      queryParams: queryParams,
+      body: body,
+      headers: headers,
+      contentType: contentType,
+      idempotencyKey: idempotencyKey,
+      passThroughStatusCodes: nullStatusCodes,
+    );
+    if (nullStatusCodes.contains(response.statusCode)) {
+      return null;
+    }
+    ensureSuccess(
+      response,
+      successStatusCodes: successStatusCodes,
+      statusMessages: statusMessages,
+    );
+    final bodyText = decodeBodyBytes(response).trim();
+    if (bodyText.isEmpty) {
+      return null;
+    }
+    final payload = unwrapPayload(_decodeValueBody(bodyText));
+    if (payload == null) {
+      return null;
+    }
+    if (payload is T) {
+      return payload;
+    }
+    return apiClient.deserialize(jsonEncode(payload), targetType) as T?;
+  }
+
+  Future<dynamic> sendWs({
+    required String service,
+    required String action,
+    List<Object?> args = const [],
+  }) async {
+    final respMap =
+        await sendWsRaw(service: service, action: action, args: args);
+    if (respMap.containsKey('error')) {
+      throw AppException.http(400, respMap['error']);
+    }
+    return respMap['result'];
+  }
+
+  Future<Map<String, dynamic>> sendWsRaw({
+    required String service,
+    required String action,
+    List<Object?> args = const [],
+  }) {
+    return apiClient.sendWsMessage({
+      'service': service,
+      'action': action,
+      'args': args,
+    });
+  }
+
+  Future<T?> sendWsObject<T>({
+    required String service,
+    required String action,
+    required T Function(Map<String, dynamic> json) fromJson,
+    List<Object?> args = const [],
+  }) async {
+    final result = await sendWs(service: service, action: action, args: args);
+    if (result == null) {
+      return null;
+    }
+    if (result is Map<String, dynamic>) {
+      return fromJson(result);
+    }
+    if (result is Map) {
+      return fromJson(Map<String, dynamic>.from(result));
+    }
+    throw AppException.http(
+      400,
+      'Expected WebSocket object result, got ${result.runtimeType}',
+    );
+  }
+
+  Future<List<T>> sendWsList<T>({
+    required String service,
+    required String action,
+    required T Function(Map<String, dynamic> json) fromJson,
+    List<Object?> args = const [],
+  }) async {
+    final result = await sendWs(service: service, action: action, args: args);
+    if (result == null) {
+      return <T>[];
+    }
+    if (result is! List) {
+      throw AppException.http(
+        400,
+        'Expected WebSocket list result, got ${result.runtimeType}',
+      );
+    }
+    return result.map((item) {
+      if (item is Map<String, dynamic>) {
+        return fromJson(item);
+      }
+      if (item is Map) {
+        return fromJson(Map<String, dynamic>.from(item));
+      }
+      throw AppException.http(
+        400,
+        'Expected WebSocket list item object, got ${item.runtimeType}',
+      );
+    }).toList();
+  }
+
+  Future<List<Object>?> sendWsObjectList({
+    required String service,
+    required String action,
+    List<Object?> args = const [],
+  }) async {
+    final result = await sendWs(service: service, action: action, args: args);
+    if (result == null) {
+      return null;
+    }
+    if (result is List) {
+      return result.cast<Object>();
+    }
+    return null;
+  }
 
   /// Unwraps `ApiResponse<T>` and returns the response data.
   T unwrapApiResponse<T>(
@@ -321,6 +695,51 @@ mixin BaseApiClient {
     }).toList();
   }
 
+  List<T> parseValueListResponse<T>(
+    http.Response response,
+    T Function(dynamic value) fromValue, {
+    Set<int> emptyStatusCodes = const {204},
+    Set<int>? successStatusCodes,
+    Map<int, String> statusMessages = const {},
+  }) {
+    if (emptyStatusCodes.contains(response.statusCode)) {
+      return <T>[];
+    }
+    ensureSuccess(
+      response,
+      successStatusCodes: successStatusCodes,
+      statusMessages: statusMessages,
+    );
+    final payload = unwrapPayload(decodeJsonBody(response));
+    if (payload == null) {
+      return <T>[];
+    }
+
+    final list = switch (payload) {
+      List<dynamic> value => value,
+      Map<String, dynamic> value when value['items'] is List<dynamic> =>
+        value['items'] as List<dynamic>,
+      Map<String, dynamic> value when value['records'] is List<dynamic> =>
+        value['records'] as List<dynamic>,
+      Map<String, dynamic> value when value['content'] is List<dynamic> =>
+        value['content'] as List<dynamic>,
+      Map value when value['items'] is List<dynamic> =>
+        value['items'] as List<dynamic>,
+      Map value when value['records'] is List<dynamic> =>
+        value['records'] as List<dynamic>,
+      Map value when value['content'] is List<dynamic> =>
+        value['content'] as List<dynamic>,
+      _ => throw AppException(
+          type: AppErrorType.businessError,
+          message: 'Expected JSON list response, got ${payload.runtimeType}',
+          statusCode: response.statusCode,
+          originalError: response,
+        ),
+    };
+
+    return list.map(fromValue).toList();
+  }
+
   Map<String, dynamic> parseMapResponse(
     http.Response response, {
     Set<int>? successStatusCodes,
@@ -426,6 +845,14 @@ mixin BaseApiClient {
       return decodeJsonBody(response);
     } catch (_) {
       return null;
+    }
+  }
+
+  dynamic _decodeValueBody(String body) {
+    try {
+      return jsonDecode(body);
+    } catch (_) {
+      return body;
     }
   }
 

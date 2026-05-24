@@ -1,10 +1,5 @@
-import 'package:final_assignment_front/core/utils/app_logger.dart';
-import 'dart:convert';
-
 import 'package:final_assignment_front/features/model/payment_record.dart';
 import 'package:final_assignment_front/utils/services/api_client.dart';
-import 'package:http/http.dart' as http;
-import 'package:final_assignment_front/utils/services/auth_token_store.dart';
 
 final ApiClient defaultApiClient = ApiClient();
 
@@ -15,52 +10,19 @@ class PaymentRecordControllerApi with BaseApiClient {
   PaymentRecordControllerApi([ApiClient? apiClient])
       : apiClient = apiClient ?? defaultApiClient;
 
-  Future<void> initializeWithJwt() async {
-    final jwtToken = (await AuthTokenStore.instance.getJwtToken());
-    if (jwtToken == null || jwtToken.isEmpty) {
-      throw Exception('JWT token not found in SharedPreferences');
-    }
-    apiClient.setJwtToken(jwtToken);
-    AppLogger.debug(
-        'Initialized PaymentRecordControllerApi with token: $jwtToken');
-  }
+  Future<void> initializeWithJwt() => initializeClientWithJwt();
 
-  String _decodeBodyBytes(http.Response response) {
-    return decodeBodyBytes(response);
-  }
-
-  Future<Map<String, String>> _getHeaders({String? idempotencyKey}) async {
-    return getHeaders(idempotencyKey: idempotencyKey);
-  }
-
-  void _ensureSuccess(http.Response response) {
-    ensureSuccess(response);
-  }
-
-  List<PaymentRecordModel> _parseList(http.Response response) {
-    if (response.body.isEmpty) return [];
-    return parseListResponse(response, PaymentRecordModel.fromJson);
-  }
-
-  /// POST /api/payments
   Future<PaymentRecordModel> createPayment({
     required PaymentRecordModel paymentRecord,
     String? idempotencyKey,
-  }) async {
-    final response = await apiClient.invokeAPI(
-      '/api/payments',
+  }) {
+    return requestObject(
       'POST',
-      const [],
-      paymentRecord.toJson(),
-      await _getHeaders(idempotencyKey: idempotencyKey),
-      const {},
-      'application/json',
-      ['bearerAuth'],
-    );
-    _ensureSuccess(response);
-    return unwrapApiResponse(
-      jsonDecode(_decodeBodyBytes(response)) as Map<String, dynamic>,
-      (data) => PaymentRecordModel.fromJson(data as Map<String, dynamic>),
+      '/api/payments',
+      PaymentRecordModel.fromJson,
+      body: paymentRecord.toJson(),
+      contentType: 'application/json',
+      idempotencyKey: idempotencyKey,
     );
   }
 
@@ -68,363 +30,213 @@ class PaymentRecordControllerApi with BaseApiClient {
     required int driverId,
     required PaymentRecordModel paymentRecord,
     String? idempotencyKey,
-  }) async {
-    final response = await apiClient.invokeAPI(
-      '/api/payments/driver/$driverId',
+  }) {
+    return requestObject(
       'POST',
-      const [],
-      paymentRecord.copyWith(driverId: driverId).toJson(),
-      await _getHeaders(idempotencyKey: idempotencyKey),
-      const {},
-      'application/json',
-      ['bearerAuth'],
-    );
-    _ensureSuccess(response);
-    return unwrapApiResponse(
-      jsonDecode(_decodeBodyBytes(response)) as Map<String, dynamic>,
-      (data) => PaymentRecordModel.fromJson(data as Map<String, dynamic>),
+      '/api/payments/driver/$driverId',
+      PaymentRecordModel.fromJson,
+      body: paymentRecord.copyWith(driverId: driverId).toJson(),
+      contentType: 'application/json',
+      idempotencyKey: idempotencyKey,
     );
   }
 
-  /// PUT /api/payments/{paymentId}
   Future<PaymentRecordModel> updatePayment({
     required int paymentId,
     required PaymentRecordModel paymentRecord,
     String? idempotencyKey,
-  }) async {
-    final response = await apiClient.invokeAPI(
-      '/api/payments/$paymentId',
+  }) {
+    return requestObject(
       'PUT',
-      const [],
-      paymentRecord.toJson(),
-      await _getHeaders(idempotencyKey: idempotencyKey),
-      const {},
-      'application/json',
-      ['bearerAuth'],
-    );
-    _ensureSuccess(response);
-    return unwrapApiResponse(
-      jsonDecode(_decodeBodyBytes(response)) as Map<String, dynamic>,
-      (data) => PaymentRecordModel.fromJson(data as Map<String, dynamic>),
-    );
-  }
-
-  /// DELETE /api/payments/{paymentId}
-  Future<void> deletePayment({required int paymentId}) async {
-    final response = await apiClient.invokeAPI(
       '/api/payments/$paymentId',
-      'DELETE',
-      const [],
-      null,
-      await _getHeaders(),
-      const {},
-      null,
-      ['bearerAuth'],
+      PaymentRecordModel.fromJson,
+      body: paymentRecord.toJson(),
+      contentType: 'application/json',
+      idempotencyKey: idempotencyKey,
     );
-    _ensureSuccess(response);
   }
 
-  /// GET /api/payments/{paymentId}
+  Future<void> deletePayment({required int paymentId}) {
+    return requestVoid('DELETE', '/api/payments/$paymentId');
+  }
+
   Future<PaymentRecordModel?> getPayment({
     required int paymentId,
-  }) async {
-    final response = await apiClient.invokeAPI(
+  }) {
+    return requestNullableObject(
+      'GET',
       '/api/payments/$paymentId',
-      'GET',
-      const [],
-      null,
-      await _getHeaders(),
-      const {},
-      null,
-      ['bearerAuth'],
-      passThroughStatusCodes: const {404},
-    );
-    if (response.statusCode == 404) return null;
-    _ensureSuccess(response);
-    if (response.body.isEmpty) return null;
-    return unwrapApiResponse(
-      jsonDecode(_decodeBodyBytes(response)) as Map<String, dynamic>,
-      (data) => PaymentRecordModel.fromJson(data as Map<String, dynamic>),
+      PaymentRecordModel.fromJson,
     );
   }
 
-  /// GET /api/payments
-  Future<List<PaymentRecordModel>> listPayments() async {
-    final response = await apiClient.invokeAPI(
+  Future<List<PaymentRecordModel>> listPayments() {
+    return requestList(
+      'GET',
       '/api/payments',
-      'GET',
-      const [],
-      null,
-      await _getHeaders(),
-      const {},
-      null,
-      ['bearerAuth'],
+      PaymentRecordModel.fromJson,
     );
-    _ensureSuccess(response);
-    return _parseList(response);
   }
 
-  /// GET /api/payments/fine/{fineId}?page=&size=
   Future<List<PaymentRecordModel>> listPaymentsByFine({
     required int fineId,
     int page = 1,
     int size = 20,
-  }) async {
-    final response = await apiClient.invokeAPI(
-      '/api/payments/fine/$fineId',
-      'GET',
-      [
-        QueryParam('page', '$page'),
-        QueryParam('size', '$size'),
-      ],
-      null,
-      await _getHeaders(),
-      const {},
-      null,
-      ['bearerAuth'],
-    );
-    _ensureSuccess(response);
-    return _parseList(response);
+  }) {
+    return _list('/api/payments/fine/$fineId', page: page, size: size);
   }
 
   Future<List<PaymentRecordModel>> listPaymentsByDriver({
     required int driverId,
     int page = 1,
     int size = 20,
-  }) async {
-    final response = await apiClient.invokeAPI(
-      '/api/payments/driver/$driverId',
-      'GET',
-      [
-        QueryParam('page', '$page'),
-        QueryParam('size', '$size'),
-      ],
-      null,
-      await _getHeaders(),
-      const {},
-      null,
-      ['bearerAuth'],
-    );
-    _ensureSuccess(response);
-    return _parseList(response);
+  }) {
+    return _list('/api/payments/driver/$driverId', page: page, size: size);
   }
 
-  /// GET /api/payments/search/payer?idCard=&page=&size=
   Future<List<PaymentRecordModel>> searchPaymentsByPayer({
     required String idCard,
     int page = 1,
     int size = 20,
-  }) async {
-    final response = await apiClient.invokeAPI(
-      '/api/payments/search/payer',
-      'GET',
-      [
-        QueryParam('idCard', idCard),
-        QueryParam('page', '$page'),
-        QueryParam('size', '$size'),
-      ],
-      null,
-      await _getHeaders(),
-      const {},
-      null,
-      ['bearerAuth'],
-    );
-    _ensureSuccess(response);
-    return _parseList(response);
+  }) {
+    requireNotBlank(idCard, 'idCard');
+    return _search('/api/payments/search/payer', {
+      'idCard': idCard,
+      'page': page,
+      'size': size,
+    });
   }
 
-  /// GET /api/payments/search/status?status=&page=&size=
   Future<List<PaymentRecordModel>> searchPaymentsByStatus({
     required String status,
     int page = 1,
     int size = 20,
-  }) async {
-    final response = await apiClient.invokeAPI(
-      '/api/payments/search/status',
-      'GET',
-      [
-        QueryParam('status', status),
-        QueryParam('page', '$page'),
-        QueryParam('size', '$size'),
-      ],
-      null,
-      await _getHeaders(),
-      const {},
-      null,
-      ['bearerAuth'],
-    );
-    _ensureSuccess(response);
-    return _parseList(response);
+  }) {
+    requireNotBlank(status, 'status');
+    return _search('/api/payments/search/status', {
+      'status': status,
+      'page': page,
+      'size': size,
+    });
   }
 
-  /// GET /api/payments/search/transaction?transactionId=&page=&size=
   Future<List<PaymentRecordModel>> searchPaymentsByTransaction({
     required String transactionId,
     int page = 1,
     int size = 20,
-  }) async {
-    final response = await apiClient.invokeAPI(
-      '/api/payments/search/transaction',
-      'GET',
-      [
-        QueryParam('transactionId', transactionId),
-        QueryParam('page', '$page'),
-        QueryParam('size', '$size'),
-      ],
-      null,
-      await _getHeaders(),
-      const {},
-      null,
-      ['bearerAuth'],
-    );
-    _ensureSuccess(response);
-    return _parseList(response);
+  }) {
+    requireNotBlank(transactionId, 'transactionId');
+    return _search('/api/payments/search/transaction', {
+      'transactionId': transactionId,
+      'page': page,
+      'size': size,
+    });
   }
 
-  /// GET /api/payments/search/payment-number?paymentNumber=&page=&size=
   Future<List<PaymentRecordModel>> searchPaymentsByPaymentNumber({
     required String paymentNumber,
     int page = 1,
     int size = 20,
-  }) async {
-    final response = await apiClient.invokeAPI(
-      '/api/payments/search/payment-number',
-      'GET',
-      [
-        QueryParam('paymentNumber', paymentNumber),
-        QueryParam('page', '$page'),
-        QueryParam('size', '$size'),
-      ],
-      null,
-      await _getHeaders(),
-      const {},
-      null,
-      ['bearerAuth'],
-    );
-    _ensureSuccess(response);
-    return _parseList(response);
+  }) {
+    requireNotBlank(paymentNumber, 'paymentNumber');
+    return _search('/api/payments/search/payment-number', {
+      'paymentNumber': paymentNumber,
+      'page': page,
+      'size': size,
+    });
   }
 
-  /// GET /api/payments/search/payer-name?payerName=&page=&size=
   Future<List<PaymentRecordModel>> searchPaymentsByPayerName({
     required String payerName,
     int page = 1,
     int size = 20,
-  }) async {
-    final response = await apiClient.invokeAPI(
-      '/api/payments/search/payer-name',
-      'GET',
-      [
-        QueryParam('payerName', payerName),
-        QueryParam('page', '$page'),
-        QueryParam('size', '$size'),
-      ],
-      null,
-      await _getHeaders(),
-      const {},
-      null,
-      ['bearerAuth'],
-    );
-    _ensureSuccess(response);
-    return _parseList(response);
+  }) {
+    requireNotBlank(payerName, 'payerName');
+    return _search('/api/payments/search/payer-name', {
+      'payerName': payerName,
+      'page': page,
+      'size': size,
+    });
   }
 
-  /// GET /api/payments/search/payment-method?paymentMethod=&page=&size=
   Future<List<PaymentRecordModel>> searchPaymentsByPaymentMethod({
     required String paymentMethod,
     int page = 1,
     int size = 20,
-  }) async {
-    final response = await apiClient.invokeAPI(
-      '/api/payments/search/payment-method',
-      'GET',
-      [
-        QueryParam('paymentMethod', paymentMethod),
-        QueryParam('page', '$page'),
-        QueryParam('size', '$size'),
-      ],
-      null,
-      await _getHeaders(),
-      const {},
-      null,
-      ['bearerAuth'],
-    );
-    _ensureSuccess(response);
-    return _parseList(response);
+  }) {
+    requireNotBlank(paymentMethod, 'paymentMethod');
+    return _search('/api/payments/search/payment-method', {
+      'paymentMethod': paymentMethod,
+      'page': page,
+      'size': size,
+    });
   }
 
-  /// GET /api/payments/search/payment-channel?paymentChannel=&page=&size=
   Future<List<PaymentRecordModel>> searchPaymentsByPaymentChannel({
     required String paymentChannel,
     int page = 1,
     int size = 20,
-  }) async {
-    final response = await apiClient.invokeAPI(
-      '/api/payments/search/payment-channel',
-      'GET',
-      [
-        QueryParam('paymentChannel', paymentChannel),
-        QueryParam('page', '$page'),
-        QueryParam('size', '$size'),
-      ],
-      null,
-      await _getHeaders(),
-      const {},
-      null,
-      ['bearerAuth'],
-    );
-    _ensureSuccess(response);
-    return _parseList(response);
+  }) {
+    requireNotBlank(paymentChannel, 'paymentChannel');
+    return _search('/api/payments/search/payment-channel', {
+      'paymentChannel': paymentChannel,
+      'page': page,
+      'size': size,
+    });
   }
 
-  /// GET /api/payments/search/time-range?startTime=&endTime=&page=&size=
   Future<List<PaymentRecordModel>> searchPaymentsByTimeRange({
     required String startTime,
     required String endTime,
     int page = 1,
     int size = 20,
-  }) async {
-    final response = await apiClient.invokeAPI(
-      '/api/payments/search/time-range',
-      'GET',
-      [
-        QueryParam('startTime', startTime),
-        QueryParam('endTime', endTime),
-        QueryParam('page', '$page'),
-        QueryParam('size', '$size'),
-      ],
-      null,
-      await _getHeaders(),
-      const {},
-      null,
-      ['bearerAuth'],
-    );
-    _ensureSuccess(response);
-    return _parseList(response);
+  }) {
+    requireNotBlank(startTime, 'startTime');
+    requireNotBlank(endTime, 'endTime');
+    return _search('/api/payments/search/time-range', {
+      'startTime': startTime,
+      'endTime': endTime,
+      'page': page,
+      'size': size,
+    });
   }
 
-  /// PUT /api/payments/{paymentId}/status/{state}
   Future<void> updatePaymentStatus(
     int id,
     String state, {
     required String idempotencyKey,
-  }) async {
+  }) {
+    requireNotBlank(idempotencyKey, 'idempotencyKey');
     final upperState = state.toUpperCase();
-    final response = await apiClient.invokeAPI(
-      '/api/payments/$id/status/$upperState',
+    return requestVoid(
       'PUT',
-      const [],
-      null,
-      await _getHeaders(idempotencyKey: idempotencyKey),
-      const {},
-      null,
-      ['bearerAuth'],
+      '/api/payments/$id/status/$upperState',
+      idempotencyKey: idempotencyKey,
     );
-    _ensureSuccess(response);
-    if (response.body.isEmpty) return;
-    unwrapApiResponse(
-      jsonDecode(_decodeBodyBytes(response)) as Map<String, dynamic>,
-      (_) => null,
+  }
+
+  Future<List<PaymentRecordModel>> _list(
+    String path, {
+    required int page,
+    required int size,
+  }) {
+    return requestList(
+      'GET',
+      path,
+      PaymentRecordModel.fromJson,
+      queryParams: pageParams(page, size),
+    );
+  }
+
+  Future<List<PaymentRecordModel>> _search(
+    String path,
+    Map<String, Object?> params,
+  ) {
+    return requestList(
+      'GET',
+      path,
+      PaymentRecordModel.fromJson,
+      queryParams: queryParamsFromMap(params),
     );
   }
 }

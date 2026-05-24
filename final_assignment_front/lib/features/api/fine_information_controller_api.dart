@@ -1,10 +1,6 @@
-import 'package:final_assignment_front/core/utils/app_logger.dart';
-import 'dart:convert';
-import 'package:final_assignment_front/features/model/fine_information.dart';
 import 'package:final_assignment_front/core/network/app_exception.dart';
+import 'package:final_assignment_front/features/model/fine_information.dart';
 import 'package:final_assignment_front/utils/services/api_client.dart';
-import 'package:http/http.dart' as http;
-import 'package:final_assignment_front/utils/services/auth_token_store.dart';
 
 final ApiClient defaultApiClient = ApiClient();
 
@@ -15,534 +11,312 @@ class FineInformationControllerApi with BaseApiClient {
   FineInformationControllerApi([ApiClient? apiClient])
       : apiClient = apiClient ?? defaultApiClient;
 
-  /// ä»?SharedPreferences ä¸­è¯»å?jwtToken å¹¶è®¾ç½®å° ApiClient ä¸?
-  Future<void> initializeWithJwt() async {
-    final jwtToken = (await AuthTokenStore.instance.getJwtToken());
-    if (jwtToken == null) {
-      throw Exception('Not authenticated. Please log in again.');
-    }
-    apiClient.setJwtToken(jwtToken);
-    AppLogger.debug(
-        'Initialized FineInformationControllerApi with token: $jwtToken');
-  }
+  Future<void> initializeWithJwt() => initializeClientWithJwt();
 
-  /// è§£ç ååºä½å­èå°å­ç¬¦ä¸²ï¼ä½¿ç¨ UTF-8 è§£ç 
-  String _decodeBodyBytes(http.Response response) {
-    return decodeBodyBytes(response);
-  }
-
-  /// è·åå¸¦æ JWT çè¯·æ±å¤´
-  Future<Map<String, String>> _getHeaders({String? idempotencyKey}) async {
-    return getHeaders(idempotencyKey: idempotencyKey);
-  }
-
-  /// æ·»å  idempotencyKey ä½ä¸ºæ¥è¯¢åæ°
-  void _setIdempotencyHeader(
-      Map<String, String> headerParams, String idempotencyKey) {
-    headerParams['Idempotency-Key'] = idempotencyKey;
-  }
-
-  // HTTP Methods
-
-  /// POST /api/fines - åå»ºç½æ¬¾ (ä»
-// ç®¡çå)
   Future<void> createFine({
     required FineInformation fineInformation,
     required String idempotencyKey,
-  }) async {
-    const path = '/api/fines';
-    final headerParams = await _getHeaders(idempotencyKey: idempotencyKey);
-    _setIdempotencyHeader(headerParams, idempotencyKey);
-    await apiClient.invokeAPI(
-      path,
+  }) {
+    requireNotBlank(idempotencyKey, 'idempotencyKey');
+    return requestVoid(
       'POST',
-      [],
-      fineInformation.toJson(),
-      headerParams,
-      {},
-      'application/json',
-      ['bearerAuth'],
+      '/api/fines',
+      body: fineInformation.toJson(),
+      contentType: 'application/json',
+      idempotencyKey: idempotencyKey,
     );
   }
 
-  /// GET /api/fines/{fineId} - è·åç½æ¬¾ä¿¡æ¯ (ç¨æ·åç®¡çå)
-  Future<FineInformation?> getFine({
-    required int fineId,
-  }) async {
-    final path = '/api/fines/$fineId';
-    final headerParams = await _getHeaders();
-    final response = await apiClient.invokeAPI(
-      path,
+  Future<FineInformation?> getFine({required int fineId}) {
+    return requestNullableObject(
       'GET',
-      [],
-      null,
-      headerParams,
-      {},
-      null,
-      ['bearerAuth'],
-      passThroughStatusCodes: const {404},
-    );
-    if (response.statusCode == 404) {
-      return null; // Not found, return null
-    }
-    if (response.body.isEmpty) return null;
-    final data = apiClient.deserialize(
-        _decodeBodyBytes(response), 'Map<String, dynamic>');
-    return FineInformation.fromJson(data);
-  }
-
-  /// GET /api/fines - è·åææç½æ¬?(ç¨æ·åç®¡çå)
-  Future<http.Response> _apiFinesGet({
-    Map<String, dynamic>? params,
-  }) async {
-    const path = '/api/fines';
-    final queryParams = params?.entries
-            .where((entry) => entry.value != null)
-            .map((entry) => QueryParam(entry.key, entry.value.toString()))
-            .toList() ??
-        <QueryParam>[];
-    final headerParams = await _getHeaders();
-    return apiClient.invokeAPI(
-      path,
-      'GET',
-      queryParams,
-      null,
-      headerParams,
-      {},
-      null,
-      ['bearerAuth'],
+      '/api/fines/$fineId',
+      FineInformation.fromJson,
     );
   }
 
   Future<List<FineInformation>> listFines({
     Map<String, dynamic>? params,
-  }) async {
-    final response = await _apiFinesGet(params: params);
-    return parseListResponse(response, FineInformation.fromJson);
+  }) {
+    return requestList(
+      'GET',
+      '/api/fines',
+      FineInformation.fromJson,
+      queryParams: queryParamsFromMap(params ?? const {}),
+    );
   }
 
   Future<List<FineInformation>> listFinesByDriver({
     required int driverId,
     int page = 1,
     int size = 20,
-  }) async {
-    final response = await apiClient.invokeAPI(
-      '/api/fines/driver/$driverId',
-      'GET',
-      [
-        QueryParam('page', '$page'),
-        QueryParam('size', '$size'),
-      ],
-      null,
-      await _getHeaders(),
-      const {},
-      null,
-      const ['bearerAuth'],
-    );
-    return parseListResponse(response, FineInformation.fromJson);
+  }) {
+    return _list('/api/fines/driver/$driverId', page: page, size: size);
   }
 
-  /// PUT /api/fines/{fineId} - æ´æ°ç½æ¬¾ (ä»
-// ç®¡çå)
   Future<FineInformation> updateFine({
     required int fineId,
     required FineInformation fineInformation,
     required String idempotencyKey,
-  }) async {
-    final path = '/api/fines/$fineId';
-    final headerParams = await _getHeaders(idempotencyKey: idempotencyKey);
-    _setIdempotencyHeader(headerParams, idempotencyKey);
-    final response = await apiClient.invokeAPI(
-      path,
+  }) {
+    requireNotBlank(idempotencyKey, 'idempotencyKey');
+    return requestObject(
       'PUT',
-      [],
-      fineInformation.toJson(),
-      headerParams,
-      {},
-      'application/json',
-      ['bearerAuth'],
-    );
-    final data = apiClient.deserialize(
-        _decodeBodyBytes(response), 'Map<String, dynamic>');
-    return FineInformation.fromJson(data);
-  }
-
-  /// DELETE /api/fines/{fineId} - å é¤ç½æ¬¾ (ä»
-// ç®¡çå)
-  Future<void> deleteFine({
-    required int fineId,
-  }) async {
-    final path = '/api/fines/$fineId';
-    final headerParams = await _getHeaders();
-    await apiClient.invokeAPI(
-      path,
-      'DELETE',
-      [],
-      null,
-      headerParams,
-      {},
-      null,
-      ['bearerAuth'],
+      '/api/fines/$fineId',
+      FineInformation.fromJson,
+      body: fineInformation.toJson(),
+      contentType: 'application/json',
+      idempotencyKey: idempotencyKey,
     );
   }
 
-  /// GET /api/fines/payee/{payee} - æ ¹æ®ç¼´æ¬¾äººè·åç½æ¬?(ç¨æ·åç®¡çå)
+  Future<void> deleteFine({required int fineId}) {
+    return requestVoid('DELETE', '/api/fines/$fineId');
+  }
+
   Future<List<FineInformation>> listFinesByPayee({
     required String payee,
-  }) async {
-    if (payee.isEmpty) {
-      throw AppException.http(400, "Missing required param: payee");
-    }
-    final path = '/api/fines/payee/${Uri.encodeComponent(payee)}';
-    final headerParams = await _getHeaders();
-    final response = await apiClient.invokeAPI(
-      path,
+  }) {
+    requireNotBlank(payee, 'payee');
+    return requestList(
       'GET',
-      [],
-      null,
-      headerParams,
-      {},
-      null,
-      ['bearerAuth'],
+      '/api/fines/payee/${Uri.encodeComponent(payee)}',
+      FineInformation.fromJson,
     );
-    if (response.body.isEmpty) return [];
-    final List<dynamic> jsonList = jsonDecode(_decodeBodyBytes(response));
-    return jsonList.map((json) => FineInformation.fromJson(json)).toList();
   }
 
-  /// GET /api/fines/search/date-range - æ ¹æ®æ¶é´èå´è·åç½æ¬¾ (ç¨æ·åç®¡çå)
   Future<List<FineInformation>> searchFinesByTimeRange({
-    String startDate = '1970-01-01', // Default matches backend
-    String endDate = '2100-01-01', // Default matches backend
-  }) async {
-    const path = '/api/fines/search/date-range';
-    final queryParams = [
-      QueryParam('startDate', startDate),
-      QueryParam('endDate', endDate),
-    ];
-    final headerParams = await _getHeaders();
-    final response = await apiClient.invokeAPI(
-      path,
-      'GET',
-      queryParams,
-      null,
-      headerParams,
-      {},
-      null,
-      ['bearerAuth'],
-    );
-    if (response.body.isEmpty) return [];
-    final List<dynamic> jsonList = jsonDecode(_decodeBodyBytes(response));
-    return jsonList.map((json) => FineInformation.fromJson(json)).toList();
+    String startDate = '1970-01-01',
+    String endDate = '2100-01-01',
+  }) {
+    return _search('/api/fines/search/date-range', {
+      'startDate': startDate,
+      'endDate': endDate,
+    });
   }
 
-  /// GET /api/fines/receiptNumber/{receiptNumber} - æ ¹æ®æ¶æ®ç¼å·è·åç½æ¬¾ (ç¨æ·åç®¡çå)
   Future<FineInformation?> getFineByReceiptNumber({
     required String receiptNumber,
-  }) async {
-    if (receiptNumber.isEmpty) {
-      throw AppException.http(400, "Missing required param: receiptNumber");
-    }
-    final path =
-        '/api/fines/receiptNumber/${Uri.encodeComponent(receiptNumber)}';
-    final headerParams = await _getHeaders();
-    final response = await apiClient.invokeAPI(
-      path,
+  }) {
+    requireNotBlank(receiptNumber, 'receiptNumber');
+    return requestNullableObject(
       'GET',
-      [],
-      null,
-      headerParams,
-      {},
-      null,
-      ['bearerAuth'],
-      passThroughStatusCodes: const {404},
+      '/api/fines/receiptNumber/${Uri.encodeComponent(receiptNumber)}',
+      FineInformation.fromJson,
     );
-    if (response.statusCode == 404) {
-      return null; // Not found, return null
-    }
-    if (response.body.isEmpty) return null;
-    final data = apiClient.deserialize(
-        _decodeBodyBytes(response), 'Map<String, dynamic>');
-    return FineInformation.fromJson(data);
   }
 
-  /// GET /api/fines/offense/{offenseId} - æè¿æ³è®°å½åé¡µæ¥è¯¢ç½æ¬?
   Future<List<FineInformation>> listFinesByOffense({
     required int offenseId,
     int page = 1,
     int size = 20,
-  }) async {
-    final path = '/api/fines/offense/$offenseId';
-    final headerParams = await _getHeaders();
-    final response = await apiClient.invokeAPI(
-      path,
-      'GET',
-      [QueryParam('page', '$page'), QueryParam('size', '$size')],
-      null,
-      headerParams,
-      {},
-      null,
-      ['bearerAuth'],
-    );
-    if (response.body.isEmpty) return [];
-    final List<dynamic> jsonList = jsonDecode(_decodeBodyBytes(response));
-    return jsonList.map((json) => FineInformation.fromJson(json)).toList();
+  }) {
+    return _list('/api/fines/offense/$offenseId', page: page, size: size);
   }
 
-  /// GET /api/fines/search/handler - æå¤çäººæç´¢ç½æ¬¾è®°å½
   Future<List<FineInformation>> searchFinesByHandler({
     required String handler,
-    String mode = 'prefix', // or 'fuzzy'
+    String mode = 'prefix',
     int page = 1,
     int size = 20,
-  }) async {
-    const path = '/api/fines/search/handler';
-    final headerParams = await _getHeaders();
-    final response = await apiClient.invokeAPI(
-      path,
-      'GET',
-      [
-        QueryParam('handler', handler),
-        QueryParam('mode', mode),
-        QueryParam('page', '$page'),
-        QueryParam('size', '$size'),
-      ],
-      null,
-      headerParams,
-      {},
-      null,
-      ['bearerAuth'],
-    );
-    if (response.body.isEmpty) return [];
-    final List<dynamic> jsonList = jsonDecode(_decodeBodyBytes(response));
-    return jsonList.map((json) => FineInformation.fromJson(json)).toList();
+  }) {
+    requireNotBlank(handler, 'handler');
+    return _search('/api/fines/search/handler', {
+      'handler': handler,
+      'mode': mode,
+      'page': page,
+      'size': size,
+    });
   }
 
-  /// GET /api/fines/search/status - ææ¯ä»ç¶ææç´¢ç½æ¬¾è®°å½?
   Future<List<FineInformation>> searchFinesByStatus({
     required String status,
     int page = 1,
     int size = 20,
-  }) async {
-    const path = '/api/fines/search/status';
-    final headerParams = await _getHeaders();
-    final response = await apiClient.invokeAPI(
-      path,
-      'GET',
-      [
-        QueryParam('status', status),
-        QueryParam('page', '$page'),
-        QueryParam('size', '$size'),
-      ],
-      null,
-      headerParams,
-      {},
-      null,
-      ['bearerAuth'],
-    );
-    if (response.body.isEmpty) return [];
-    final List<dynamic> jsonList = jsonDecode(_decodeBodyBytes(response));
-    return jsonList.map((json) => FineInformation.fromJson(json)).toList();
+  }) {
+    requireNotBlank(status, 'status');
+    return _search('/api/fines/search/status', {
+      'status': status,
+      'page': page,
+      'size': size,
+    });
   }
 
-  /// GET /api/fines/by-time-range - æç´¢ç½æ¬¾ææ¶é´èå?(ç¨æ·åç®¡çå)
   Future<List<FineInformation>> listFinesByTimeRange({
     required String startTime,
     required String endTime,
     int maxSuggestions = 10,
-  }) async {
-    if (startTime.isEmpty || endTime.isEmpty) {
-      throw AppException.http(
-          400, "Missing required params: startTime or endTime");
-    }
-    const path = '/api/fines/by-time-range';
-    final queryParams = [
-      QueryParam('startTime', startTime),
-      QueryParam('endTime', endTime),
-      QueryParam('maxSuggestions', maxSuggestions.toString()),
-    ];
-    final headerParams = await _getHeaders();
-    final response = await apiClient.invokeAPI(
-      path,
-      'GET',
-      queryParams,
-      null,
-      headerParams,
-      {},
-      null,
-      ['bearerAuth'],
-    );
-    if (response.body.isEmpty) return [];
-    final List<dynamic> jsonList = jsonDecode(_decodeBodyBytes(response));
-    return jsonList.map((json) => FineInformation.fromJson(json)).toList();
+  }) {
+    requireNotBlank(startTime, 'startTime');
+    requireNotBlank(endTime, 'endTime');
+    return _search('/api/fines/by-time-range', {
+      'startTime': startTime,
+      'endTime': endTime,
+      'maxSuggestions': maxSuggestions,
+    });
   }
 
-  // WebSocket Methods (Aligned with HTTP Endpoints)
-
-  /// POST /api/fines (WebSocket)
   Future<void> eventbusFinesPost({
     required FineInformation fineInformation,
     required String idempotencyKey,
   }) async {
-    final msg = {
-      "service": "FineRecordService",
-      "action": "checkAndInsertIdempotency",
-      "args": [idempotencyKey, fineInformation.toJson(), "create"]
-    };
-    final respMap = await apiClient.sendWsMessage(msg);
-    if (respMap.containsKey("error")) {
-      throw AppException.http(400, respMap["error"]);
-    }
+    final respMap = await sendWsRaw(
+      service: 'FineRecordService',
+      action: 'checkAndInsertIdempotency',
+      args: [idempotencyKey, fineInformation.toJson(), 'create'],
+    );
+    _throwWsError(respMap);
   }
 
-  /// GET /api/fines/{fineId} (WebSocket)
   Future<FineInformation?> eventbusFinesFineIdGet({
     required int fineId,
   }) async {
-    final msg = {
-      "service": "FineRecordService",
-      "action": "getFineById",
-      "args": [fineId]
-    };
-    final respMap = await apiClient.sendWsMessage(msg);
-    if (respMap.containsKey("error")) {
-      if (respMap["error"].toString().contains("not found")) {
-        return null; // Not found, return null
-      }
-      throw AppException.http(400, respMap["error"]);
-    }
-    if (respMap["result"] == null) return null;
-    return FineInformation.fromJson(respMap["result"] as Map<String, dynamic>);
+    final respMap = await sendWsRaw(
+      service: 'FineRecordService',
+      action: 'getFineById',
+      args: [fineId],
+    );
+    if (_isWsNotFound(respMap)) return null;
+    _throwWsError(respMap);
+    return _fineFromWsResult(respMap);
   }
 
-  /// GET /api/fines (WebSocket)
   Future<List<FineInformation>> eventbusFinesGet() async {
-    final msg = {
-      "service": "FineRecordService",
-      "action": "getAllFines",
-      "args": []
-    };
-    final respMap = await apiClient.sendWsMessage(msg);
-    if (respMap.containsKey("error")) {
-      throw AppException.http(400, respMap["error"]);
-    }
-    if (respMap["result"] is List) {
-      return (respMap["result"] as List)
-          .map((json) => FineInformation.fromJson(json as Map<String, dynamic>))
-          .toList();
-    }
-    return [];
+    final respMap = await sendWsRaw(
+      service: 'FineRecordService',
+      action: 'getAllFines',
+    );
+    _throwWsError(respMap);
+    return _fineListFromWsResult(respMap);
   }
 
-  /// PUT /api/fines/{fineId} (WebSocket)
   Future<FineInformation?> eventbusFinesFineIdPut({
     required int fineId,
     required FineInformation fineInformation,
     required String idempotencyKey,
   }) async {
-    final msg = {
-      "service": "FineRecordService",
-      "action": "checkAndInsertIdempotency",
-      "args": [idempotencyKey, fineInformation.toJson(), "update"]
-    };
-    final respMap = await apiClient.sendWsMessage(msg);
-    if (respMap.containsKey("error")) {
-      if (respMap["error"].toString().contains("not found")) {
-        throw AppException.http(404, "Fine not found with ID: $fineId");
-      }
-      throw AppException.http(400, respMap["error"]);
+    final respMap = await sendWsRaw(
+      service: 'FineRecordService',
+      action: 'checkAndInsertIdempotency',
+      args: [idempotencyKey, fineInformation.toJson(), 'update'],
+    );
+    if (_isWsNotFound(respMap)) {
+      throw AppException.http(404, 'Fine not found with ID: $fineId');
     }
-    if (respMap["result"] == null) return null;
-    return FineInformation.fromJson(respMap["result"] as Map<String, dynamic>);
+    _throwWsError(respMap);
+    return _fineFromWsResult(respMap);
   }
 
-  /// DELETE /api/fines/{fineId} (WebSocket)
   Future<void> eventbusFinesFineIdDelete({
     required int fineId,
   }) async {
-    final msg = {
-      "service": "FineRecordService",
-      "action": "deleteFine",
-      "args": [fineId]
-    };
-    final respMap = await apiClient.sendWsMessage(msg);
-    if (respMap.containsKey("error")) {
-      if (respMap["error"].toString().contains("not found")) {
-        throw AppException.http(404, "Fine not found with ID: $fineId");
-      } else if (respMap["error"].toString().contains("Unauthorized")) {
-        throw AppException.http(
-            403, "Unauthorized: Only ADMIN can delete fines");
-      }
-      throw AppException.http(400, respMap["error"]);
+    final respMap = await sendWsRaw(
+      service: 'FineRecordService',
+      action: 'deleteFine',
+      args: [fineId],
+    );
+    if (_isWsNotFound(respMap)) {
+      throw AppException.http(404, 'Fine not found with ID: $fineId');
     }
+    if (_wsError(respMap).contains('Unauthorized')) {
+      throw AppException.http(403, 'Unauthorized: Only ADMIN can delete fines');
+    }
+    _throwWsError(respMap);
   }
 
-  /// GET /api/fines/payee/{payee} (WebSocket)
   Future<List<FineInformation>> eventbusFinesPayeePayeeGet({
     required String payee,
   }) async {
-    if (payee.isEmpty) {
-      throw AppException.http(400, "Missing required param: payee");
-    }
-    final msg = {
-      "service": "FineRecordService",
-      "action": "getFinesByPayee",
-      "args": [payee]
-    };
-    final respMap = await apiClient.sendWsMessage(msg);
-    if (respMap.containsKey("error")) {
-      throw AppException.http(400, respMap["error"]);
-    }
-    if (respMap["result"] is List) {
-      return (respMap["result"] as List)
-          .map((json) => FineInformation.fromJson(json as Map<String, dynamic>))
-          .toList();
-    }
-    return [];
+    requireNotBlank(payee, 'payee');
+    final respMap = await sendWsRaw(
+      service: 'FineRecordService',
+      action: 'getFinesByPayee',
+      args: [payee],
+    );
+    _throwWsError(respMap);
+    return _fineListFromWsResult(respMap);
   }
 
-  /// GET /api/fines/receiptNumber/{receiptNumber} (WebSocket)
   Future<FineInformation?> eventbusFinesReceiptNumberReceiptNumberGet({
     required String receiptNumber,
   }) async {
-    if (receiptNumber.isEmpty) {
-      throw AppException.http(400, "Missing required param: receiptNumber");
-    }
-    final msg = {
-      "service": "FineRecordService",
-      "action": "getFineByReceiptNumber",
-      "args": [receiptNumber]
-    };
-    final respMap = await apiClient.sendWsMessage(msg);
-    if (respMap.containsKey("error")) {
-      if (respMap["error"].toString().contains("not found")) {
-        return null; // Not found, return null
-      }
-      throw AppException.http(400, respMap["error"]);
-    }
-    if (respMap["result"] == null) return null;
-    return FineInformation.fromJson(respMap["result"] as Map<String, dynamic>);
+    requireNotBlank(receiptNumber, 'receiptNumber');
+    final respMap = await sendWsRaw(
+      service: 'FineRecordService',
+      action: 'getFineByReceiptNumber',
+      args: [receiptNumber],
+    );
+    if (_isWsNotFound(respMap)) return null;
+    _throwWsError(respMap);
+    return _fineFromWsResult(respMap);
   }
 
-  /// GET /api/fines/timeRange (WebSocket)
   Future<List<FineInformation>> eventbusFinesTimeRangeGet({
     String startTime = '1970-01-01',
     String endTime = '2100-01-01',
   }) async {
-    final msg = {
-      "service": "FineRecordService",
-      "action": "getFinesByTimeRange",
-      "args": [startTime, endTime]
-    };
-    final respMap = await apiClient.sendWsMessage(msg);
-    if (respMap.containsKey("error")) {
-      throw AppException.http(400, respMap["error"]);
+    final respMap = await sendWsRaw(
+      service: 'FineRecordService',
+      action: 'getFinesByTimeRange',
+      args: [startTime, endTime],
+    );
+    _throwWsError(respMap);
+    return _fineListFromWsResult(respMap);
+  }
+
+  Future<List<FineInformation>> _list(
+    String path, {
+    required int page,
+    required int size,
+  }) {
+    return requestList(
+      'GET',
+      path,
+      FineInformation.fromJson,
+      queryParams: pageParams(page, size),
+    );
+  }
+
+  Future<List<FineInformation>> _search(
+    String path,
+    Map<String, Object?> params,
+  ) {
+    return requestList(
+      'GET',
+      path,
+      FineInformation.fromJson,
+      queryParams: queryParamsFromMap(params),
+    );
+  }
+
+  FineInformation? _fineFromWsResult(Map<String, dynamic> response) {
+    final result = response['result'];
+    if (result == null) return null;
+    return FineInformation.fromJson(Map<String, dynamic>.from(result as Map));
+  }
+
+  List<FineInformation> _fineListFromWsResult(Map<String, dynamic> response) {
+    final result = response['result'];
+    if (result is! List) return [];
+    return result
+        .map((json) => FineInformation.fromJson(
+              Map<String, dynamic>.from(json as Map),
+            ))
+        .toList();
+  }
+
+  bool _isWsNotFound(Map<String, dynamic> response) {
+    return _wsError(response).toLowerCase().contains('not found');
+  }
+
+  String _wsError(Map<String, dynamic> response) {
+    return response['error']?.toString() ?? '';
+  }
+
+  void _throwWsError(Map<String, dynamic> response) {
+    final error = _wsError(response);
+    if (error.isNotEmpty) {
+      throw AppException.http(400, error);
     }
-    if (respMap["result"] is List) {
-      return (respMap["result"] as List)
-          .map((json) => FineInformation.fromJson(json as Map<String, dynamic>))
-          .toList();
-    }
-    return [];
   }
 }

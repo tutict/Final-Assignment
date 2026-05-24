@@ -1,422 +1,270 @@
-import 'package:final_assignment_front/core/utils/app_logger.dart';
-import 'dart:convert';
-import 'package:final_assignment_front/features/model/driver_information.dart';
 import 'package:final_assignment_front/core/network/app_exception.dart';
+import 'package:final_assignment_front/features/model/driver_information.dart';
 import 'package:final_assignment_front/utils/services/api_client.dart';
-import 'package:http/http.dart' as http;
-import 'package:final_assignment_front/utils/services/auth_token_store.dart';
 
-/// å®ä¹ä¸ä¸ªå
-// ¨å±ç?defaultApiClient
 final ApiClient defaultApiClient = ApiClient();
 
 class DriverInformationControllerApi with BaseApiClient {
   @override
   final ApiClient apiClient;
 
-  /// æé å½æ°ï¼å¯ä¼ å
-// ?ApiClientï¼å¦åä½¿ç¨å
-// ¨å±é»è®¤å®ä¾
   DriverInformationControllerApi([ApiClient? apiClient])
       : apiClient = apiClient ?? defaultApiClient;
 
-  /// ä»?SharedPreferences ä¸­è¯»å?jwtToken å¹¶è®¾ç½®å° ApiClient ä¸?
-  Future<void> initializeWithJwt() async {
-    final jwtToken = (await AuthTokenStore.instance.getJwtToken());
-    if (jwtToken == null) {
-      throw Exception('Not authenticated. Please log in again.');
-    }
-    apiClient.setJwtToken(jwtToken);
-    AppLogger.debug(
-        'Initialized DriverInformationControllerApi with token: $jwtToken');
-  }
+  Future<void> initializeWithJwt() => initializeClientWithJwt();
 
-  /// è§£ç ååºä½å­èå°å­ç¬¦ä¸²ï¼ä½¿ç¨ UTF-8 è§£ç 
-  String _decodeBodyBytes(http.Response response) {
-    return decodeBodyBytes(response);
-  }
-
-  /// è·åå¸¦æ JWT çè¯·æ±å¤´
-  Future<Map<String, String>> _getHeaders({String? idempotencyKey}) async {
-    return getHeaders(idempotencyKey: idempotencyKey);
-  }
-
-  /// æ·»å  idempotencyKey ä½ä¸ºæ¥è¯¢åæ°
-  void _setIdempotencyHeader(
-      Map<String, String> headerParams, String idempotencyKey) {
-    headerParams['Idempotency-Key'] = idempotencyKey;
-  }
-
-  // HTTP Methods
-
-  /// POST /api/drivers - åå»ºå¸æºä¿¡æ¯
   Future<void> createDriver({
     required DriverInformation driverInformation,
     required String idempotencyKey,
-  }) async {
-    const path = '/api/drivers';
-    final headerParams = await _getHeaders(idempotencyKey: idempotencyKey);
-    _setIdempotencyHeader(headerParams, idempotencyKey);
-    await apiClient.invokeAPI(
-      path,
+  }) {
+    requireNotBlank(idempotencyKey, 'idempotencyKey');
+    return requestVoid(
       'POST',
-      [],
-      driverInformation.toJson(),
-      headerParams,
-      {},
-      'application/json',
-      ['bearerAuth'],
+      '/api/drivers',
+      body: driverInformation.toJson(),
+      contentType: 'application/json',
+      idempotencyKey: idempotencyKey,
     );
   }
 
-  /// GET /api/drivers/{driverId} - æ ¹æ®IDè·åå¸æºä¿¡æ¯
   Future<DriverInformation?> getDriver({
     required int driverId,
-  }) async {
-    final path = '/api/drivers/$driverId';
-    final headerParams = await _getHeaders();
-    final response = await apiClient.invokeAPI(
-      path,
+  }) {
+    return requestNullableObject(
       'GET',
-      [],
-      null,
-      headerParams,
-      {},
-      null,
-      ['bearerAuth'],
-      passThroughStatusCodes: const {404},
+      '/api/drivers/$driverId',
+      DriverInformation.fromJson,
     );
-    if (response.statusCode == 404) {
-      return null; // Not found, return null
-    }
-    if (response.body.isEmpty) return null;
-    final data = apiClient.deserialize(
-        _decodeBodyBytes(response), 'Map<String, dynamic>');
-    return DriverInformation.fromJson(data);
   }
 
-  /// GET /api/drivers - è·åææå¸æºä¿¡æ?
-  Future<List<DriverInformation>> listDrivers() async {
-    const path = '/api/drivers';
-    final headerParams = await _getHeaders();
-    final response = await apiClient.invokeAPI(
-      path,
-      'GET',
-      [],
-      null,
-      headerParams,
-      {},
-      null,
-      ['bearerAuth'],
-    );
-    if (response.body.isEmpty) return [];
-    final List<dynamic> jsonList = jsonDecode(_decodeBodyBytes(response));
-    return jsonList.map((json) => DriverInformation.fromJson(json)).toList();
+  Future<List<DriverInformation>> listDrivers() {
+    return requestList('GET', '/api/drivers', DriverInformation.fromJson);
   }
 
-  /// PUT /api/drivers/{driverId}/name - æ´æ°å¸æºå§å
   Future<void> updateDriverName({
     required int driverId,
     required String name,
     required String idempotencyKey,
-  }) async {
-    final path = '/api/drivers/$driverId/name';
-    final headerParams = await _getHeaders(idempotencyKey: idempotencyKey);
-    _setIdempotencyHeader(headerParams, idempotencyKey);
-    await apiClient.invokeAPI(
-      path,
-      'PUT',
-      [],
-      jsonEncode(name),
-      // String directly encoded as JSON
-      headerParams,
-      {},
-      'application/json',
-      ['bearerAuth'],
-    );
+  }) {
+    requireNotBlank(idempotencyKey, 'idempotencyKey');
+    return _updateStringField(driverId, 'name', name, idempotencyKey);
   }
 
-  /// PUT /api/drivers/{driverId}/contactNumber - æ´æ°å¸æºèç³»çµè¯
   Future<void> updateDriverContactNumber({
     required int driverId,
     required String contactNumber,
     required String idempotencyKey,
-  }) async {
-    final path = '/api/drivers/$driverId/contactNumber';
-    final headerParams = await _getHeaders(idempotencyKey: idempotencyKey);
-    _setIdempotencyHeader(headerParams, idempotencyKey);
-    await apiClient.invokeAPI(
-      path,
-      'PUT',
-      [],
-      jsonEncode(contactNumber),
-      // String directly encoded as JSON
-      headerParams,
-      {},
-      'application/json',
-      ['bearerAuth'],
+  }) {
+    requireNotBlank(idempotencyKey, 'idempotencyKey');
+    return _updateStringField(
+      driverId,
+      'contactNumber',
+      contactNumber,
+      idempotencyKey,
     );
   }
 
-  /// PUT /api/drivers/{driverId}/idCardNumber - æ´æ°å¸æºèº«ä»½è¯å·ç ?
   Future<void> updateDriverIdCardNumber({
     required int driverId,
     required String idCardNumber,
     required String idempotencyKey,
-  }) async {
-    final path = '/api/drivers/$driverId/idCardNumber';
-    final headerParams = await _getHeaders(idempotencyKey: idempotencyKey);
-    _setIdempotencyHeader(headerParams, idempotencyKey);
-    await apiClient.invokeAPI(
-      path,
-      'PUT',
-      [],
-      jsonEncode(idCardNumber),
-      // String directly encoded as JSON
-      headerParams,
-      {},
-      'application/json',
-      ['bearerAuth'],
+  }) {
+    requireNotBlank(idempotencyKey, 'idempotencyKey');
+    return _updateStringField(
+      driverId,
+      'idCardNumber',
+      idCardNumber,
+      idempotencyKey,
     );
   }
 
-  /// PUT /api/drivers/{driverId} - æ´æ°å¸æºå®æ´ä¿¡æ¯
   Future<void> updateDriver({
     required int driverId,
     required DriverInformation driverInformation,
     required String idempotencyKey,
-  }) async {
-    final path = '/api/drivers/$driverId';
-    final headerParams = await _getHeaders(idempotencyKey: idempotencyKey);
-    _setIdempotencyHeader(headerParams, idempotencyKey);
-    await apiClient.invokeAPI(
-      path,
+  }) {
+    requireNotBlank(idempotencyKey, 'idempotencyKey');
+    return requestVoid(
       'PUT',
-      [],
-      driverInformation.toJson(),
-      headerParams,
-      {},
-      'application/json',
-      ['bearerAuth'],
+      '/api/drivers/$driverId',
+      body: driverInformation.toJson(),
+      contentType: 'application/json',
+      idempotencyKey: idempotencyKey,
     );
   }
 
-  /// DELETE /api/drivers/{driverId} - å é¤å¸æºä¿¡æ¯ (ä»
-// ç®¡çå)
   Future<void> deleteDriver({
     required int driverId,
-  }) async {
-    final path = '/api/drivers/$driverId';
-    final headerParams = await _getHeaders();
-    await apiClient.invokeAPI(
-      path,
-      'DELETE',
-      [],
-      null,
-      headerParams,
-      {},
-      null,
-      ['bearerAuth'],
-    );
+  }) {
+    return requestVoid('DELETE', '/api/drivers/$driverId');
   }
 
-  /// GET /api/drivers/by-id-card - æç´¢å¸æºä¿¡æ¯æèº«ä»½è¯å·ç 
   Future<List<DriverInformation>> listDriversByIdCard({
     required String query,
     int page = 1,
     int size = 10,
-  }) async {
-    if (query.isEmpty) {
-      throw AppException.http(400, "Missing required param: query");
-    }
-    const path = '/api/drivers/search/id-card';
-    final queryParams = [
-      QueryParam('keywords', query),
-      QueryParam('page', page.toString()),
-      QueryParam('size', size.toString()),
-    ];
-    final headerParams = await _getHeaders();
-    final response = await apiClient.invokeAPI(
-      path,
-      'GET',
-      queryParams,
-      null,
-      headerParams,
-      {},
-      null,
-      ['bearerAuth'],
-    );
-    if (response.body.isEmpty) return [];
-    final List<dynamic> jsonList = jsonDecode(_decodeBodyBytes(response));
-    return jsonList.map((json) => DriverInformation.fromJson(json)).toList();
+  }) {
+    return _search('/api/drivers/search/id-card', query, page, size);
   }
 
-  /// GET /api/drivers/by-license-number - æç´¢å¸æºä¿¡æ¯æé©¾é©¶è¯å?
   Future<List<DriverInformation>> listDriversByLicenseNumber({
     required String query,
     int page = 1,
     int size = 10,
-  }) async {
-    if (query.isEmpty) {
-      throw AppException.http(400, "Missing required param: query");
-    }
-    const path = '/api/drivers/search/license';
-    final queryParams = [
-      QueryParam('keywords', query),
-      QueryParam('page', page.toString()),
-      QueryParam('size', size.toString()),
-    ];
-    final headerParams = await _getHeaders();
-    final response = await apiClient.invokeAPI(
-      path,
-      'GET',
-      queryParams,
-      null,
-      headerParams,
-      {},
-      null,
-      ['bearerAuth'],
-    );
-    if (response.body.isEmpty) return [];
-    final List<dynamic> jsonList = jsonDecode(_decodeBodyBytes(response));
-    return jsonList.map((json) => DriverInformation.fromJson(json)).toList();
+  }) {
+    return _search('/api/drivers/search/license', query, page, size);
   }
 
-  /// GET /api/drivers/by-name - æç´¢å¸æºä¿¡æ¯æå§å?
   Future<List<DriverInformation>> listDriversByName({
     required String query,
     int page = 1,
     int size = 10,
-  }) async {
-    if (query.isEmpty) {
-      throw AppException.http(400, "Missing required param: query");
-    }
-    const path = '/api/drivers/search/name';
-    final queryParams = [
-      QueryParam('keywords', query),
-      QueryParam('page', page.toString()),
-      QueryParam('size', size.toString()),
-    ];
-    final headerParams = await _getHeaders();
-    final response = await apiClient.invokeAPI(
-      path,
-      'GET',
-      queryParams,
-      null,
-      headerParams,
-      {},
-      null,
-      ['bearerAuth'],
-    );
-    if (response.body.isEmpty) return [];
-    final List<dynamic> jsonList = jsonDecode(_decodeBodyBytes(response));
-    return jsonList.map((json) => DriverInformation.fromJson(json)).toList();
+  }) {
+    return _search('/api/drivers/search/name', query, page, size);
   }
 
-  // WebSocket Methods (Aligned with HTTP Endpoints)
-
-  /// POST /api/drivers (WebSocket)
   Future<void> eventbusDriversPost({
     required DriverInformation driverInformation,
     required String idempotencyKey,
   }) async {
-    final msg = {
-      "service": "DriverInformationService",
-      "action": "checkAndInsertIdempotency",
-      "args": [idempotencyKey, driverInformation.toJson(), "create"]
-    };
-    final respMap = await apiClient.sendWsMessage(msg);
-    if (respMap.containsKey("error")) {
-      if (respMap["error"].toString().contains("Duplicate request")) {
-        throw AppException.http(409,
-            "Duplicate request detected with idempotencyKey: $idempotencyKey");
-      }
-      throw AppException.http(400, respMap["error"]);
-    }
+    final respMap = await sendWsRaw(
+      service: 'DriverInformationService',
+      action: 'checkAndInsertIdempotency',
+      args: [idempotencyKey, driverInformation.toJson(), 'create'],
+    );
+    _throwWsError(respMap, idempotencyKey: idempotencyKey);
   }
 
-  /// GET /api/drivers/{driverId} (WebSocket)
   Future<DriverInformation?> eventbusDriversDriverIdGet({
     required int driverId,
   }) async {
-    final msg = {
-      "service": "DriverInformationService",
-      "action": "getDriverById",
-      "args": [driverId]
-    };
-    final respMap = await apiClient.sendWsMessage(msg);
-    if (respMap.containsKey("error")) {
-      if (respMap["error"].toString().contains("not found")) {
-        return null; // Not found, return null
-      }
-      throw AppException.http(400, respMap["error"]);
-    }
-    if (respMap["result"] == null) return null;
-    return DriverInformation.fromJson(
-        respMap["result"] as Map<String, dynamic>);
+    final respMap = await sendWsRaw(
+      service: 'DriverInformationService',
+      action: 'getDriverById',
+      args: [driverId],
+    );
+    if (_isWsNotFound(respMap)) return null;
+    _throwWsError(respMap);
+    return _driverFromWsResult(respMap);
   }
 
-  /// GET /api/drivers (WebSocket)
   Future<List<DriverInformation>> eventbusDriversGet() async {
-    final msg = {
-      "service": "DriverInformationService",
-      "action": "getAllDrivers",
-      "args": []
-    };
-    final respMap = await apiClient.sendWsMessage(msg);
-    if (respMap.containsKey("error")) {
-      throw AppException.http(400, respMap["error"]);
-    }
-    if (respMap["result"] is List) {
-      return (respMap["result"] as List)
-          .map((json) =>
-              DriverInformation.fromJson(json as Map<String, dynamic>))
-          .toList();
-    }
-    return [];
+    final respMap = await sendWsRaw(
+      service: 'DriverInformationService',
+      action: 'getAllDrivers',
+    );
+    _throwWsError(respMap);
+    return _driverListFromWsResult(respMap);
   }
 
-  /// PUT /api/drivers/{driverId} (WebSocket)
   Future<void> eventbusDriversDriverIdPut({
     required int driverId,
     required DriverInformation driverInformation,
     required String idempotencyKey,
   }) async {
-    final msg = {
-      "service": "DriverInformationService",
-      "action": "checkAndInsertIdempotency",
-      "args": [idempotencyKey, driverInformation.toJson(), "update"]
-    };
-    final respMap = await apiClient.sendWsMessage(msg);
-    if (respMap.containsKey("error")) {
-      if (respMap["error"].toString().contains("not found")) {
-        throw AppException.http(404, "Driver not found with ID: $driverId");
-      } else if (respMap["error"].toString().contains("Duplicate request")) {
-        throw AppException.http(409,
-            "Duplicate request detected with idempotencyKey: $idempotencyKey");
-      }
-      throw AppException.http(400, respMap["error"]);
+    final respMap = await sendWsRaw(
+      service: 'DriverInformationService',
+      action: 'checkAndInsertIdempotency',
+      args: [idempotencyKey, driverInformation.toJson(), 'update'],
+    );
+    if (_isWsNotFound(respMap)) {
+      throw AppException.http(404, 'Driver not found with ID: $driverId');
     }
+    _throwWsError(respMap, idempotencyKey: idempotencyKey);
   }
 
-  /// DELETE /api/drivers/{driverId} (WebSocket)
   Future<void> eventbusDriversDriverIdDelete({
     required int driverId,
   }) async {
-    final msg = {
-      "service": "DriverInformationService",
-      "action": "deleteDriver",
-      "args": [driverId]
-    };
-    final respMap = await apiClient.sendWsMessage(msg);
-    if (respMap.containsKey("error")) {
-      if (respMap["error"].toString().contains("not found")) {
-        throw AppException.http(404, "Driver not found with ID: $driverId");
-      } else if (respMap["error"].toString().contains("Unauthorized")) {
-        throw AppException.http(
-            403, "Unauthorized: Only ADMIN can delete drivers");
-      }
-      throw AppException.http(400, respMap["error"]);
+    final respMap = await sendWsRaw(
+      service: 'DriverInformationService',
+      action: 'deleteDriver',
+      args: [driverId],
+    );
+    if (_isWsNotFound(respMap)) {
+      throw AppException.http(404, 'Driver not found with ID: $driverId');
     }
+    if (_wsError(respMap).contains('Unauthorized')) {
+      throw AppException.http(
+        403,
+        'Unauthorized: Only ADMIN can delete drivers',
+      );
+    }
+    _throwWsError(respMap);
+  }
+
+  Future<void> _updateStringField(
+    int driverId,
+    String field,
+    String value,
+    String idempotencyKey,
+  ) {
+    return requestVoid(
+      'PUT',
+      '/api/drivers/$driverId/$field',
+      body: value,
+      contentType: 'application/json',
+      idempotencyKey: idempotencyKey,
+    );
+  }
+
+  Future<List<DriverInformation>> _search(
+    String path,
+    String query,
+    int page,
+    int size,
+  ) {
+    requireNotBlank(query, 'query');
+    return requestList(
+      'GET',
+      path,
+      DriverInformation.fromJson,
+      queryParams: queryParamsFromMap({
+        'keywords': query,
+        'page': page,
+        'size': size,
+      }),
+    );
+  }
+
+  DriverInformation? _driverFromWsResult(Map<String, dynamic> response) {
+    final result = response['result'];
+    if (result == null) return null;
+    return DriverInformation.fromJson(Map<String, dynamic>.from(result as Map));
+  }
+
+  List<DriverInformation> _driverListFromWsResult(
+    Map<String, dynamic> response,
+  ) {
+    final result = response['result'];
+    if (result is! List) return [];
+    return result
+        .map((json) => DriverInformation.fromJson(
+              Map<String, dynamic>.from(json as Map),
+            ))
+        .toList();
+  }
+
+  bool _isWsNotFound(Map<String, dynamic> response) {
+    return _wsError(response).toLowerCase().contains('not found');
+  }
+
+  String _wsError(Map<String, dynamic> response) {
+    return response['error']?.toString() ?? '';
+  }
+
+  void _throwWsError(
+    Map<String, dynamic> response, {
+    String? idempotencyKey,
+  }) {
+    final error = _wsError(response);
+    if (error.isEmpty) return;
+    if (error.contains('Duplicate request')) {
+      throw AppException.http(
+        409,
+        'Duplicate request detected with idempotencyKey: $idempotencyKey',
+      );
+    }
+    throw AppException.http(400, error);
   }
 }

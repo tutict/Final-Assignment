@@ -1,341 +1,180 @@
-import 'dart:convert';
 import 'package:final_assignment_front/features/model/operation_log.dart';
-import 'package:final_assignment_front/core/network/app_exception.dart';
 import 'package:final_assignment_front/utils/services/api_client.dart';
-import 'package:http/http.dart' as http;
-import 'package:final_assignment_front/utils/services/auth_token_store.dart';
 
 class OperationLogControllerApi with BaseApiClient {
+  OperationLogControllerApi([ApiClient? apiClient])
+      : _apiClient = apiClient ?? ApiClient();
+
   final ApiClient _apiClient;
-  OperationLogControllerApi() : _apiClient = ApiClient();
 
   @override
   ApiClient get apiClient => _apiClient;
 
-  Future<void> initializeWithJwt() async {
-    final jwtToken = (await AuthTokenStore.instance.getJwtToken());
-    if (jwtToken == null) {
-      throw Exception('JWT token not found in SharedPreferences');
-    }
-    _apiClient.setJwtToken(jwtToken);
+  Future<void> initializeWithJwt() => initializeClientWithJwt();
+
+  Future<List<OperationLog>> listOperationLogs() {
+    return requestList('GET', '/api/logs/operation', OperationLog.fromJson);
   }
 
-  String _decode(http.Response r) => decodeBodyBytes(r);
-
-  // GET /api/logs/operation
-  Future<List<OperationLog>> listOperationLogs() async {
-    final r = await _apiClient.invokeAPI(
-      '/api/logs/operation',
+  Future<OperationLog?> getOperationLog({required int logId}) {
+    return requestNullableObject(
       'GET',
-      const [],
-      null,
-      {},
-      {},
-      null,
-      const ['bearerAuth'],
-    );
-    if (r.statusCode >= 400) throw AppException.http(r.statusCode, _decode(r));
-    if (r.body.isEmpty) return [];
-    final List<dynamic> data = jsonDecode(_decode(r));
-    return data
-        .map((e) => OperationLog.fromJson(e as Map<String, dynamic>))
-        .toList();
-  }
-
-  // GET /api/logs/operation/{logId}
-  Future<OperationLog?> getOperationLog({required int logId}) async {
-    final r = await _apiClient.invokeAPI(
       '/api/logs/operation/$logId',
-      'GET',
-      const [],
-      null,
-      {},
-      {},
-      null,
-      const ['bearerAuth'],
-      passThroughStatusCodes: const {404},
+      OperationLog.fromJson,
     );
-    if (r.statusCode == 404) return null;
-    if (r.statusCode >= 400) throw AppException.http(r.statusCode, _decode(r));
-    return OperationLog.fromJson(jsonDecode(_decode(r)));
   }
 
-  // POST /api/logs/operation
   Future<OperationLog> createOperationLog({
     required OperationLog operationLog,
     required String idempotencyKey,
-  }) async {
-    final r = await _apiClient.invokeAPI(
-      '/api/logs/operation',
+  }) {
+    requireNotBlank(idempotencyKey, 'idempotencyKey');
+    return requestObject(
       'POST',
-      const [],
-      operationLog.toJson(),
-      await getHeaders(idempotencyKey: idempotencyKey),
-      {},
-      'application/json',
-      const ['bearerAuth'],
+      '/api/logs/operation',
+      OperationLog.fromJson,
+      body: operationLog.toJson(),
+      contentType: 'application/json',
+      idempotencyKey: idempotencyKey,
     );
-    if (r.statusCode >= 400) throw AppException.http(r.statusCode, _decode(r));
-    return OperationLog.fromJson(jsonDecode(_decode(r)));
   }
 
-  // PUT /api/logs/operation/{logId}
   Future<OperationLog> updateOperationLog({
     required int logId,
     required OperationLog operationLog,
     required String idempotencyKey,
-  }) async {
-    final r = await _apiClient.invokeAPI(
-      '/api/logs/operation/$logId',
+  }) {
+    requireNotBlank(idempotencyKey, 'idempotencyKey');
+    return requestObject(
       'PUT',
-      const [],
-      operationLog.toJson(),
-      await getHeaders(idempotencyKey: idempotencyKey),
-      {},
-      'application/json',
-      const ['bearerAuth'],
-    );
-    if (r.statusCode >= 400) throw AppException.http(r.statusCode, _decode(r));
-    return OperationLog.fromJson(jsonDecode(_decode(r)));
-  }
-
-  // DELETE /api/logs/operation/{logId}
-  Future<void> deleteOperationLog({required int logId}) async {
-    final r = await _apiClient.invokeAPI(
       '/api/logs/operation/$logId',
-      'DELETE',
-      const [],
-      null,
-      {},
-      {},
-      null,
-      const ['bearerAuth'],
+      OperationLog.fromJson,
+      body: operationLog.toJson(),
+      contentType: 'application/json',
+      idempotencyKey: idempotencyKey,
     );
-    if (r.statusCode != 204) throw AppException.http(r.statusCode, _decode(r));
   }
 
-  // GET /api/logs/operation/search/module?module=&page=&size=
+  Future<void> deleteOperationLog({required int logId}) {
+    return requestVoid('DELETE', '/api/logs/operation/$logId');
+  }
+
   Future<List<OperationLog>> searchOperationLogsByModule({
     required String module,
     int page = 1,
     int size = 20,
-  }) async {
-    final r = await _apiClient.invokeAPI(
-      '/api/logs/operation/search/module',
-      'GET',
-      [
-        QueryParam('module', module),
-        QueryParam('page', '$page'),
-        QueryParam('size', '$size'),
-      ],
-      null,
-      {},
-      {},
-      null,
-      const ['bearerAuth'],
-    );
-    if (r.statusCode >= 400) throw AppException.http(r.statusCode, _decode(r));
-    if (r.body.isEmpty) return [];
-    final List<dynamic> data = jsonDecode(_decode(r));
-    return data
-        .map((e) => OperationLog.fromJson(e as Map<String, dynamic>))
-        .toList();
+  }) {
+    requireNotBlank(module, 'module');
+    return _search('/api/logs/operation/search/module', {
+      'module': module,
+      'page': page,
+      'size': size,
+    });
   }
 
-  // GET /api/logs/operation/search/type?type=&page=&size=
   Future<List<OperationLog>> searchOperationLogsByType({
     required String type,
     int page = 1,
     int size = 20,
-  }) async {
-    final r = await _apiClient.invokeAPI(
-      '/api/logs/operation/search/type',
-      'GET',
-      [
-        QueryParam('type', type),
-        QueryParam('page', '$page'),
-        QueryParam('size', '$size'),
-      ],
-      null,
-      {},
-      {},
-      null,
-      const ['bearerAuth'],
-    );
-    if (r.statusCode >= 400) throw AppException.http(r.statusCode, _decode(r));
-    if (r.body.isEmpty) return [];
-    final List<dynamic> data = jsonDecode(_decode(r));
-    return data
-        .map((e) => OperationLog.fromJson(e as Map<String, dynamic>))
-        .toList();
+  }) {
+    requireNotBlank(type, 'type');
+    return _search('/api/logs/operation/search/type', {
+      'type': type,
+      'page': page,
+      'size': size,
+    });
   }
 
-  // GET /api/logs/operation/search/user/{userId}?page=&size=
   Future<List<OperationLog>> searchOperationLogsByUser({
     required int userId,
     int page = 1,
     int size = 20,
-  }) async {
-    final r = await _apiClient.invokeAPI(
-      '/api/logs/operation/search/user/$userId',
+  }) {
+    return requestList(
       'GET',
-      [
-        QueryParam('page', '$page'),
-        QueryParam('size', '$size'),
-      ],
-      null,
-      {},
-      {},
-      null,
-      const ['bearerAuth'],
+      '/api/logs/operation/search/user/$userId',
+      OperationLog.fromJson,
+      queryParams: pageParams(page, size),
     );
-    if (r.statusCode >= 400) throw AppException.http(r.statusCode, _decode(r));
-    if (r.body.isEmpty) return [];
-    final List<dynamic> data = jsonDecode(_decode(r));
-    return data
-        .map((e) => OperationLog.fromJson(e as Map<String, dynamic>))
-        .toList();
   }
 
-  // GET /api/logs/operation/search/time-range?startTime=&endTime=&page=&size=
   Future<List<OperationLog>> searchOperationLogsByTimeRange({
     required String startTime,
     required String endTime,
     int page = 1,
     int size = 20,
-  }) async {
-    final r = await _apiClient.invokeAPI(
-      '/api/logs/operation/search/time-range',
-      'GET',
-      [
-        QueryParam('startTime', startTime),
-        QueryParam('endTime', endTime),
-        QueryParam('page', '$page'),
-        QueryParam('size', '$size'),
-      ],
-      null,
-      {},
-      {},
-      null,
-      const ['bearerAuth'],
-    );
-    if (r.statusCode >= 400) throw AppException.http(r.statusCode, _decode(r));
-    if (r.body.isEmpty) return [];
-    final List<dynamic> data = jsonDecode(_decode(r));
-    return data
-        .map((e) => OperationLog.fromJson(e as Map<String, dynamic>))
-        .toList();
+  }) {
+    requireNotBlank(startTime, 'startTime');
+    requireNotBlank(endTime, 'endTime');
+    return _search('/api/logs/operation/search/time-range', {
+      'startTime': startTime,
+      'endTime': endTime,
+      'page': page,
+      'size': size,
+    });
   }
 
-  // GET /api/logs/operation/search/username?username=&page=&size=
   Future<List<OperationLog>> searchOperationLogsByUsername({
     required String username,
     int page = 1,
     int size = 20,
-  }) async {
-    final r = await _apiClient.invokeAPI(
-      '/api/logs/operation/search/username',
-      'GET',
-      [
-        QueryParam('username', username),
-        QueryParam('page', '$page'),
-        QueryParam('size', '$size'),
-      ],
-      null,
-      {},
-      {},
-      null,
-      const ['bearerAuth'],
-    );
-    if (r.statusCode >= 400) throw AppException.http(r.statusCode, _decode(r));
-    if (r.body.isEmpty) return [];
-    final List<dynamic> data = jsonDecode(_decode(r));
-    return data
-        .map((e) => OperationLog.fromJson(e as Map<String, dynamic>))
-        .toList();
+  }) {
+    requireNotBlank(username, 'username');
+    return _search('/api/logs/operation/search/username', {
+      'username': username,
+      'page': page,
+      'size': size,
+    });
   }
 
-  // GET /api/logs/operation/search/request-url?requestUrl=&page=&size=
   Future<List<OperationLog>> searchOperationLogsByRequestUrl({
     required String requestUrl,
     int page = 1,
     int size = 20,
-  }) async {
-    final r = await _apiClient.invokeAPI(
-      '/api/logs/operation/search/request-url',
-      'GET',
-      [
-        QueryParam('requestUrl', requestUrl),
-        QueryParam('page', '$page'),
-        QueryParam('size', '$size'),
-      ],
-      null,
-      {},
-      {},
-      null,
-      const ['bearerAuth'],
-    );
-    if (r.statusCode >= 400) throw AppException.http(r.statusCode, _decode(r));
-    if (r.body.isEmpty) return [];
-    final List<dynamic> data = jsonDecode(_decode(r));
-    return data
-        .map((e) => OperationLog.fromJson(e as Map<String, dynamic>))
-        .toList();
+  }) {
+    requireNotBlank(requestUrl, 'requestUrl');
+    return _search('/api/logs/operation/search/request-url', {
+      'requestUrl': requestUrl,
+      'page': page,
+      'size': size,
+    });
   }
 
-  // GET /api/logs/operation/search/request-method?requestMethod=&page=&size=
   Future<List<OperationLog>> searchOperationLogsByRequestMethod({
     required String requestMethod,
     int page = 1,
     int size = 20,
-  }) async {
-    final r = await _apiClient.invokeAPI(
-      '/api/logs/operation/search/request-method',
-      'GET',
-      [
-        QueryParam('requestMethod', requestMethod),
-        QueryParam('page', '$page'),
-        QueryParam('size', '$size'),
-      ],
-      null,
-      {},
-      {},
-      null,
-      const ['bearerAuth'],
-    );
-    if (r.statusCode >= 400) throw AppException.http(r.statusCode, _decode(r));
-    if (r.body.isEmpty) return [];
-    final List<dynamic> data = jsonDecode(_decode(r));
-    return data
-        .map((e) => OperationLog.fromJson(e as Map<String, dynamic>))
-        .toList();
+  }) {
+    requireNotBlank(requestMethod, 'requestMethod');
+    return _search('/api/logs/operation/search/request-method', {
+      'requestMethod': requestMethod,
+      'page': page,
+      'size': size,
+    });
   }
 
-  // GET /api/logs/operation/search/result?operationResult=&page=&size=
   Future<List<OperationLog>> searchOperationLogsByResult({
     required String operationResult,
     int page = 1,
     int size = 20,
-  }) async {
-    final r = await _apiClient.invokeAPI(
-      '/api/logs/operation/search/result',
+  }) {
+    requireNotBlank(operationResult, 'operationResult');
+    return _search('/api/logs/operation/search/result', {
+      'operationResult': operationResult,
+      'page': page,
+      'size': size,
+    });
+  }
+
+  Future<List<OperationLog>> _search(
+    String path,
+    Map<String, Object?> params,
+  ) {
+    return requestList(
       'GET',
-      [
-        QueryParam('operationResult', operationResult),
-        QueryParam('page', '$page'),
-        QueryParam('size', '$size'),
-      ],
-      null,
-      {},
-      {},
-      null,
-      const ['bearerAuth'],
+      path,
+      OperationLog.fromJson,
+      queryParams: queryParamsFromMap(params),
     );
-    if (r.statusCode >= 400) throw AppException.http(r.statusCode, _decode(r));
-    if (r.body.isEmpty) return [];
-    final List<dynamic> data = jsonDecode(_decode(r));
-    return data
-        .map((e) => OperationLog.fromJson(e as Map<String, dynamic>))
-        .toList();
   }
 }

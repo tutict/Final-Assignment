@@ -1,10 +1,5 @@
-import 'package:final_assignment_front/core/utils/app_logger.dart';
-import 'dart:convert';
-
 import 'package:final_assignment_front/features/model/offense_type_dict.dart';
 import 'package:final_assignment_front/utils/services/api_client.dart';
-import 'package:http/http.dart' as http;
-import 'package:final_assignment_front/utils/services/auth_token_store.dart';
 
 final ApiClient defaultApiClient = ApiClient();
 
@@ -15,350 +10,187 @@ class OffenseTypeControllerApi with BaseApiClient {
   OffenseTypeControllerApi([ApiClient? apiClient])
       : apiClient = apiClient ?? defaultApiClient;
 
-  Future<void> initializeWithJwt() async {
-    final jwtToken = (await AuthTokenStore.instance.getJwtToken());
-    if (jwtToken == null || jwtToken.isEmpty) {
-      throw Exception('JWT token not found in SharedPreferences');
-    }
-    apiClient.setJwtToken(jwtToken);
-    AppLogger.debug(
-        'Initialized OffenseTypeControllerApi with token: $jwtToken');
-  }
+  Future<void> initializeWithJwt() => initializeClientWithJwt();
 
-  String _decodeBodyBytes(http.Response response) {
-    return decodeBodyBytes(response);
-  }
-
-  Future<Map<String, String>> _getHeaders({String? idempotencyKey}) async {
-    return getHeaders(idempotencyKey: idempotencyKey);
-  }
-
-  void _ensureSuccess(http.Response response) {
-    ensureSuccess(response);
-  }
-
-  List<OffenseTypeDictModel> _parseList(String body) {
-    if (body.isEmpty) return [];
-    final List<dynamic> jsonList = jsonDecode(body) as List<dynamic>;
-    return jsonList
-        .map((item) =>
-            OffenseTypeDictModel.fromJson(item as Map<String, dynamic>))
-        .toList();
-  }
-
-  /// POST /api/offense-types
   Future<OffenseTypeDictModel> createOffenseType({
     required OffenseTypeDictModel offenseType,
     String? idempotencyKey,
-  }) async {
-    final response = await apiClient.invokeAPI(
-      '/api/offense-types',
+  }) {
+    return requestObject(
       'POST',
-      const [],
-      offenseType.toJson(),
-      await _getHeaders(idempotencyKey: idempotencyKey),
-      const {},
-      'application/json',
-      ['bearerAuth'],
+      '/api/offense-types',
+      OffenseTypeDictModel.fromJson,
+      body: offenseType.toJson(),
+      contentType: 'application/json',
+      idempotencyKey: idempotencyKey,
     );
-    _ensureSuccess(response);
-    return OffenseTypeDictModel.fromJson(
-        jsonDecode(_decodeBodyBytes(response)) as Map<String, dynamic>);
   }
 
-  /// PUT /api/offense-types/{typeId}
   Future<OffenseTypeDictModel> updateOffenseType({
     required int typeId,
     required OffenseTypeDictModel offenseType,
     String? idempotencyKey,
-  }) async {
-    final response = await apiClient.invokeAPI(
-      '/api/offense-types/$typeId',
+  }) {
+    return requestObject(
       'PUT',
-      const [],
-      offenseType.toJson(),
-      await _getHeaders(idempotencyKey: idempotencyKey),
-      const {},
-      'application/json',
-      ['bearerAuth'],
-    );
-    _ensureSuccess(response);
-    return OffenseTypeDictModel.fromJson(
-        jsonDecode(_decodeBodyBytes(response)) as Map<String, dynamic>);
-  }
-
-  /// DELETE /api/offense-types/{typeId}
-  Future<void> deleteOffenseType({required int typeId}) async {
-    final response = await apiClient.invokeAPI(
       '/api/offense-types/$typeId',
-      'DELETE',
-      const [],
-      null,
-      await _getHeaders(),
-      const {},
-      null,
-      ['bearerAuth'],
+      OffenseTypeDictModel.fromJson,
+      body: offenseType.toJson(),
+      contentType: 'application/json',
+      idempotencyKey: idempotencyKey,
     );
-    if (response.statusCode != 204 && response.statusCode != 200) {
-      _ensureSuccess(response);
-    }
   }
 
-  /// GET /api/offense-types/{typeId}
+  Future<void> deleteOffenseType({required int typeId}) {
+    return requestVoid('DELETE', '/api/offense-types/$typeId');
+  }
+
   Future<OffenseTypeDictModel?> getOffenseType({
     required int typeId,
-  }) async {
-    final response = await apiClient.invokeAPI(
+  }) {
+    return requestNullableObject(
+      'GET',
       '/api/offense-types/$typeId',
-      'GET',
-      const [],
-      null,
-      await _getHeaders(),
-      const {},
-      null,
-      ['bearerAuth'],
-      passThroughStatusCodes: const {404},
+      OffenseTypeDictModel.fromJson,
     );
-    if (response.statusCode == 404) return null;
-    _ensureSuccess(response);
-    if (response.body.isEmpty) return null;
-    return OffenseTypeDictModel.fromJson(
-        jsonDecode(_decodeBodyBytes(response)) as Map<String, dynamic>);
   }
 
-  /// GET /api/offense-types
-  Future<List<OffenseTypeDictModel>> listOffenseTypes() async {
-    final response = await apiClient.invokeAPI(
+  Future<List<OffenseTypeDictModel>> listOffenseTypes() {
+    return requestList(
+      'GET',
       '/api/offense-types',
-      'GET',
-      const [],
-      null,
-      await _getHeaders(),
-      const {},
-      null,
-      ['bearerAuth'],
+      OffenseTypeDictModel.fromJson,
     );
-    _ensureSuccess(response);
-    return _parseList(_decodeBodyBytes(response));
   }
 
-  /// GET /api/offense-types/search/code/prefix
   Future<List<OffenseTypeDictModel>> searchOffenseTypesByCodePrefix({
     required String offenseCode,
     int page = 1,
     int size = 20,
-  }) async {
-    final response = await apiClient.invokeAPI(
-      '/api/offense-types/search/code/prefix',
-      'GET',
-      [
-        QueryParam('offenseCode', offenseCode),
-        QueryParam('page', '$page'),
-        QueryParam('size', '$size'),
-      ],
-      null,
-      await _getHeaders(),
-      const {},
-      null,
-      ['bearerAuth'],
-    );
-    _ensureSuccess(response);
-    return _parseList(_decodeBodyBytes(response));
+  }) {
+    requireNotBlank(offenseCode, 'offenseCode');
+    return _search('/api/offense-types/search/code/prefix', {
+      'offenseCode': offenseCode,
+      'page': page,
+      'size': size,
+    });
   }
 
-  /// GET /api/offense-types/search/code/fuzzy
   Future<List<OffenseTypeDictModel>> searchOffenseTypesByCodeFuzzy({
     required String offenseCode,
     int page = 1,
     int size = 20,
-  }) async {
-    final response = await apiClient.invokeAPI(
-      '/api/offense-types/search/code/fuzzy',
-      'GET',
-      [
-        QueryParam('offenseCode', offenseCode),
-        QueryParam('page', '$page'),
-        QueryParam('size', '$size'),
-      ],
-      null,
-      await _getHeaders(),
-      const {},
-      null,
-      ['bearerAuth'],
-    );
-    _ensureSuccess(response);
-    return _parseList(_decodeBodyBytes(response));
+  }) {
+    requireNotBlank(offenseCode, 'offenseCode');
+    return _search('/api/offense-types/search/code/fuzzy', {
+      'offenseCode': offenseCode,
+      'page': page,
+      'size': size,
+    });
   }
 
-  /// GET /api/offense-types/search/name/prefix
   Future<List<OffenseTypeDictModel>> searchOffenseTypesByNamePrefix({
     required String offenseName,
     int page = 1,
     int size = 20,
-  }) async {
-    final response = await apiClient.invokeAPI(
-      '/api/offense-types/search/name/prefix',
-      'GET',
-      [
-        QueryParam('offenseName', offenseName),
-        QueryParam('page', '$page'),
-        QueryParam('size', '$size'),
-      ],
-      null,
-      await _getHeaders(),
-      const {},
-      null,
-      ['bearerAuth'],
-    );
-    _ensureSuccess(response);
-    return _parseList(_decodeBodyBytes(response));
+  }) {
+    requireNotBlank(offenseName, 'offenseName');
+    return _search('/api/offense-types/search/name/prefix', {
+      'offenseName': offenseName,
+      'page': page,
+      'size': size,
+    });
   }
 
-  /// GET /api/offense-types/search/name/fuzzy
   Future<List<OffenseTypeDictModel>> searchOffenseTypesByNameFuzzy({
     required String offenseName,
     int page = 1,
     int size = 20,
-  }) async {
-    final response = await apiClient.invokeAPI(
-      '/api/offense-types/search/name/fuzzy',
-      'GET',
-      [
-        QueryParam('offenseName', offenseName),
-        QueryParam('page', '$page'),
-        QueryParam('size', '$size'),
-      ],
-      null,
-      await _getHeaders(),
-      const {},
-      null,
-      ['bearerAuth'],
-    );
-    _ensureSuccess(response);
-    return _parseList(_decodeBodyBytes(response));
+  }) {
+    requireNotBlank(offenseName, 'offenseName');
+    return _search('/api/offense-types/search/name/fuzzy', {
+      'offenseName': offenseName,
+      'page': page,
+      'size': size,
+    });
   }
 
-  /// GET /api/offense-types/search/category
   Future<List<OffenseTypeDictModel>> searchOffenseTypesByCategory({
     required String category,
     int page = 1,
     int size = 20,
-  }) async {
-    final response = await apiClient.invokeAPI(
-      '/api/offense-types/search/category',
-      'GET',
-      [
-        QueryParam('category', category),
-        QueryParam('page', '$page'),
-        QueryParam('size', '$size'),
-      ],
-      null,
-      await _getHeaders(),
-      const {},
-      null,
-      ['bearerAuth'],
-    );
-    _ensureSuccess(response);
-    return _parseList(_decodeBodyBytes(response));
+  }) {
+    requireNotBlank(category, 'category');
+    return _search('/api/offense-types/search/category', {
+      'category': category,
+      'page': page,
+      'size': size,
+    });
   }
 
-  /// GET /api/offense-types/search/severity
   Future<List<OffenseTypeDictModel>> searchOffenseTypesBySeverity({
     required String severityLevel,
     int page = 1,
     int size = 20,
-  }) async {
-    final response = await apiClient.invokeAPI(
-      '/api/offense-types/search/severity',
-      'GET',
-      [
-        QueryParam('severityLevel', severityLevel),
-        QueryParam('page', '$page'),
-        QueryParam('size', '$size'),
-      ],
-      null,
-      await _getHeaders(),
-      const {},
-      null,
-      ['bearerAuth'],
-    );
-    _ensureSuccess(response);
-    return _parseList(_decodeBodyBytes(response));
+  }) {
+    requireNotBlank(severityLevel, 'severityLevel');
+    return _search('/api/offense-types/search/severity', {
+      'severityLevel': severityLevel,
+      'page': page,
+      'size': size,
+    });
   }
 
-  /// GET /api/offense-types/search/status
   Future<List<OffenseTypeDictModel>> searchOffenseTypesByStatus({
     required String status,
     int page = 1,
     int size = 20,
-  }) async {
-    final response = await apiClient.invokeAPI(
-      '/api/offense-types/search/status',
-      'GET',
-      [
-        QueryParam('status', status),
-        QueryParam('page', '$page'),
-        QueryParam('size', '$size'),
-      ],
-      null,
-      await _getHeaders(),
-      const {},
-      null,
-      ['bearerAuth'],
-    );
-    _ensureSuccess(response);
-    return _parseList(_decodeBodyBytes(response));
+  }) {
+    requireNotBlank(status, 'status');
+    return _search('/api/offense-types/search/status', {
+      'status': status,
+      'page': page,
+      'size': size,
+    });
   }
 
-  /// GET /api/offense-types/search/fine-range
   Future<List<OffenseTypeDictModel>> searchOffenseTypesByFineRange({
     required double minAmount,
     required double maxAmount,
     int page = 1,
     int size = 20,
-  }) async {
-    final response = await apiClient.invokeAPI(
-      '/api/offense-types/search/fine-range',
-      'GET',
-      [
-        QueryParam('minAmount', '$minAmount'),
-        QueryParam('maxAmount', '$maxAmount'),
-        QueryParam('page', '$page'),
-        QueryParam('size', '$size'),
-      ],
-      null,
-      await _getHeaders(),
-      const {},
-      null,
-      ['bearerAuth'],
-    );
-    _ensureSuccess(response);
-    return _parseList(_decodeBodyBytes(response));
+  }) {
+    return _search('/api/offense-types/search/fine-range', {
+      'minAmount': minAmount,
+      'maxAmount': maxAmount,
+      'page': page,
+      'size': size,
+    });
   }
 
-  /// GET /api/offense-types/search/points-range
   Future<List<OffenseTypeDictModel>> searchOffenseTypesByPointsRange({
     required int minPoints,
     required int maxPoints,
     int page = 1,
     int size = 20,
-  }) async {
-    final response = await apiClient.invokeAPI(
-      '/api/offense-types/search/points-range',
+  }) {
+    return _search('/api/offense-types/search/points-range', {
+      'minPoints': minPoints,
+      'maxPoints': maxPoints,
+      'page': page,
+      'size': size,
+    });
+  }
+
+  Future<List<OffenseTypeDictModel>> _search(
+    String path,
+    Map<String, Object?> params,
+  ) {
+    return requestList(
       'GET',
-      [
-        QueryParam('minPoints', '$minPoints'),
-        QueryParam('maxPoints', '$maxPoints'),
-        QueryParam('page', '$page'),
-        QueryParam('size', '$size'),
-      ],
-      null,
-      await _getHeaders(),
-      const {},
-      null,
-      ['bearerAuth'],
+      path,
+      OffenseTypeDictModel.fromJson,
+      queryParams: queryParamsFromMap(params),
     );
-    _ensureSuccess(response);
-    return _parseList(_decodeBodyBytes(response));
   }
 }

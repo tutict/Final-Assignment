@@ -1,9 +1,4 @@
-import 'dart:convert';
-
-import 'package:final_assignment_front/core/network/app_exception.dart';
 import 'package:final_assignment_front/utils/services/api_client.dart';
-import 'package:final_assignment_front/utils/services/auth_token_store.dart';
-import 'package:http/http.dart' as http;
 
 class RagManagementControllerApi with BaseApiClient {
   RagManagementControllerApi() : _apiClient = ApiClient();
@@ -13,53 +8,29 @@ class RagManagementControllerApi with BaseApiClient {
   @override
   ApiClient get apiClient => _apiClient;
 
-  Future<void> initializeWithJwt() async {
-    final jwtToken = await AuthTokenStore.instance.getJwtToken();
-    if (jwtToken == null) {
-      throw Exception('JWT token not found in SharedPreferences');
-    }
-    _apiClient.setJwtToken(jwtToken);
-  }
+  Future<void> initializeWithJwt() => initializeClientWithJwt();
 
-  Future<RagOverview> getOverview() async {
-    final response = await _apiClient.invokeAPI(
-      '/api/rag/admin/overview',
+  Future<RagOverview> getOverview() {
+    return requestObject(
       'GET',
-      const [],
-      null,
-      {},
-      {},
-      null,
-      const ['bearerAuth'],
+      '/api/rag/admin/overview',
+      RagOverview.fromJson,
     );
-    final data = _decodeEnvelope(response);
-    return RagOverview.fromJson(data as Map<String, dynamic>);
   }
 
   Future<List<RagDocumentDto>> listDocuments({
     String? query,
     int limit = 50,
-  }) async {
-    final response = await _apiClient.invokeAPI(
-      '/api/rag/admin/documents',
+  }) {
+    return requestList(
       'GET',
-      [
-        if (query != null && query.trim().isNotEmpty)
-          QueryParam('query', query.trim()),
-        QueryParam('limit', '$limit'),
-      ],
-      null,
-      {},
-      {},
-      null,
-      const ['bearerAuth'],
+      '/api/rag/admin/documents',
+      RagDocumentDto.fromJson,
+      queryParams: queryParamsFromMap({
+        'query': query?.trim().isEmpty == true ? null : query?.trim(),
+        'limit': limit,
+      }),
     );
-    final data = _decodeEnvelope(response);
-    if (data is! List) return const [];
-    return data
-        .whereType<Map<String, dynamic>>()
-        .map(RagDocumentDto.fromJson)
-        .toList(growable: false);
   }
 
   Future<RagIndexResult> createManualDocument({
@@ -70,12 +41,12 @@ class RagManagementControllerApi with BaseApiClient {
     String aclScope = 'PUBLIC',
     String route = '',
     String metadataJson = '{}',
-  }) async {
-    final response = await _apiClient.invokeAPI(
-      '/api/rag/admin/documents/manual',
+  }) {
+    return requestObject(
       'POST',
-      const [],
-      {
+      '/api/rag/admin/documents/manual',
+      RagIndexResult.fromJson,
+      body: {
         if (sourceId != null && sourceId.trim().isNotEmpty)
           'sourceId': sourceId.trim(),
         if (sourceVersion != null && sourceVersion.trim().isNotEmpty)
@@ -87,65 +58,23 @@ class RagManagementControllerApi with BaseApiClient {
         'metadataJson':
             metadataJson.trim().isEmpty ? '{}' : metadataJson.trim(),
       },
-      {},
-      {},
-      'application/json',
-      const ['bearerAuth'],
+      contentType: BaseApiClient.defaultContentType,
     );
-    final data = _decodeEnvelope(response);
-    return RagIndexResult.fromJson(data as Map<String, dynamic>);
   }
 
-  Future<void> runBackfill({int page = 1, int size = 200}) async {
-    final response = await _apiClient.invokeAPI(
-      '/api/rag/admin/backfill',
+  Future<void> runBackfill({int page = 1, int size = 200}) {
+    return requestVoid(
       'POST',
-      [
-        QueryParam('page', '$page'),
-        QueryParam('size', '$size'),
-      ],
-      null,
-      {},
-      {},
-      null,
-      const ['bearerAuth'],
+      '/api/rag/admin/backfill',
+      queryParams: pageParams(page, size),
     );
-    _decodeEnvelope(response);
   }
 
-  Future<void> deleteDocument(String documentId) async {
-    final response = await _apiClient.invokeAPI(
-      '/api/rag/admin/documents/$documentId',
+  Future<void> deleteDocument(String documentId) {
+    return requestVoid(
       'DELETE',
-      const [],
-      null,
-      {},
-      {},
-      null,
-      const ['bearerAuth'],
+      '/api/rag/admin/documents/$documentId',
     );
-    _decodeEnvelope(response);
-  }
-
-  String _decode(http.Response response) => decodeBodyBytes(response);
-
-  dynamic _decodeEnvelope(http.Response response) {
-    if (response.statusCode >= 400) {
-      throw AppException.http(response.statusCode, _decode(response));
-    }
-    if (response.body.isEmpty) return null;
-    final decoded = jsonDecode(_decode(response));
-    if (decoded is Map<String, dynamic> && decoded.containsKey('success')) {
-      if (decoded['success'] == false) {
-        throw AppException.http(
-          response.statusCode,
-          (decoded['message'] ?? decoded['errorCode'] ?? 'Request failed')
-              .toString(),
-        );
-      }
-      return decoded['data'];
-    }
-    return decoded;
   }
 }
 

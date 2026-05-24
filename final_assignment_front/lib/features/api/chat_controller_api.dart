@@ -1,4 +1,3 @@
-import 'dart:convert';
 import 'dart:developer' as developer;
 
 import 'package:final_assignment_front/core/network/app_exception.dart';
@@ -7,7 +6,6 @@ import 'package:final_assignment_front/features/ai/ai_stream_event.dart';
 import 'package:final_assignment_front/features/model/chat_action_response.dart';
 import 'package:final_assignment_front/features/model/chat_response.dart';
 import 'package:final_assignment_front/utils/services/api_client.dart';
-import 'package:http/http.dart' as http;
 
 final ApiClient defaultApiClient = ApiClient();
 
@@ -34,28 +32,6 @@ class ChatControllerApi with BaseApiClient {
   @override
   final ApiClient apiClient;
 
-  Future<http.Response> _getChatActionsWithHttpInfo(
-    String message,
-    bool webSearch,
-  ) async {
-    final queryParams = [
-      QueryParam('message', message),
-      QueryParam('webSearch', webSearch.toString()),
-    ];
-    final headerParams = await getHeaders();
-
-    return apiClient.invokeAPI(
-      '/api/ai/chat/actions',
-      'GET',
-      queryParams,
-      '',
-      headerParams,
-      {},
-      null,
-      [],
-    );
-  }
-
   /// 获取 AI 对话的结构化动作建议。
   ///
   /// [message] 用户输入的自然语言消息。
@@ -71,20 +47,16 @@ class ChatControllerApi with BaseApiClient {
     bool webSearch,
   ) async {
     try {
-      final response = await _getChatActionsWithHttpInfo(
-        message,
-        webSearch,
+      return requestNullableObject<ChatActionResponse>(
+        'GET',
+        '/api/ai/chat/actions',
+        ChatActionResponse.fromJson,
+        queryParams: queryParamsFromMap({
+          'message': message,
+          'webSearch': webSearch,
+        }),
+        nullStatusCodes: const {204, 404},
       );
-      final decodedBody = utf8.decode(response.bodyBytes, allowMalformed: true);
-      if (decodedBody.isEmpty) {
-        return null;
-      }
-
-      final jsonResponse = jsonDecode(decodedBody);
-      if (jsonResponse is Map<String, dynamic>) {
-        return ChatActionResponse.fromJson(jsonResponse);
-      }
-      return null;
     } catch (error) {
       developer.log(
         'Error in getChatActions: $error',
@@ -225,19 +197,10 @@ class ChatControllerApi with BaseApiClient {
   ///
   /// 对应实时动作：AiService.getChatResponse
   Future<ChatResponse?> eventbusAiChatGet() async {
-    final msg = {
-      'service': 'AiService',
-      'action': 'getChatResponse',
-      'args': [],
-    };
-    final respMap = await apiClient.sendWsMessage(msg);
-    if (respMap.containsKey('error')) {
-      throw AppException.http(400, respMap['error']);
-    }
-    if (respMap['result'] != null) {
-      final resultMap = respMap['result'] as Map<String, dynamic>;
-      return ChatResponse.fromJson(resultMap);
-    }
-    return null;
+    return sendWsObject<ChatResponse>(
+      service: 'AiService',
+      action: 'getChatResponse',
+      fromJson: ChatResponse.fromJson,
+    );
   }
 }

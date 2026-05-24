@@ -1,259 +1,158 @@
-import 'package:final_assignment_front/core/utils/app_logger.dart';
-import 'dart:convert';
 import 'package:final_assignment_front/features/model/deduction_record.dart';
-import 'package:final_assignment_front/core/network/app_exception.dart';
 import 'package:final_assignment_front/utils/services/api_client.dart';
-import 'package:http/http.dart' as http;
-import 'package:final_assignment_front/utils/services/auth_token_store.dart';
 
 final ApiClient defaultApiClient = ApiClient();
 
 class DeductionInformationControllerApi with BaseApiClient {
   @override
   final ApiClient apiClient;
+
   DeductionInformationControllerApi([ApiClient? client])
       : apiClient = client ?? defaultApiClient;
 
-  Future<void> initializeWithJwt() async {
-    final jwtToken = (await AuthTokenStore.instance.getJwtToken());
-    if (jwtToken == null) {
-      throw Exception('Not logged in, please login again.');
-    }
-    apiClient.setJwtToken(jwtToken);
-    AppLogger.debug(
-        'Initialized DeductionInformationControllerApi with token: $jwtToken');
-  }
+  Future<void> initializeWithJwt() => initializeClientWithJwt();
 
-  String _decode(http.Response r) => decodeBodyBytes(r);
-
-  Future<Map<String, String>> _headers({String? idempotencyKey}) async {
-    return getHeaders(idempotencyKey: idempotencyKey);
-  }
-
-  List<QueryParam> _idem(String key) => const [];
-
-  // POST /api/deductions
   Future<DeductionRecordModel> createDeduction({
     required DeductionRecordModel body,
     required String idempotencyKey,
-  }) async {
-    if (idempotencyKey.isEmpty) {
-      throw AppException.http(400, 'Missing required param: idempotencyKey');
-    }
-    final r = await apiClient.invokeAPI(
-      '/api/deductions',
+  }) {
+    requireNotBlank(idempotencyKey, 'idempotencyKey');
+    return requestObject(
       'POST',
-      _idem(idempotencyKey),
-      body.toJson(),
-      await _headers(idempotencyKey: idempotencyKey),
-      const {},
-      'application/json',
-      const ['bearerAuth'],
+      '/api/deductions',
+      DeductionRecordModel.fromJson,
+      body: body.toJson(),
+      contentType: 'application/json',
+      idempotencyKey: idempotencyKey,
     );
-    if (r.statusCode >= 400) throw AppException.http(r.statusCode, _decode(r));
-    return DeductionRecordModel.fromJson(jsonDecode(_decode(r)));
   }
 
-  // GET /api/deductions/{deductionId}
   Future<DeductionRecordModel?> getDeduction({
     required int deductionId,
-  }) async {
-    final r = await apiClient.invokeAPI(
+  }) {
+    return requestNullableObject(
+      'GET',
       '/api/deductions/$deductionId',
-      'GET',
-      const [],
-      null,
-      await _headers(),
-      const {},
-      null,
-      const ['bearerAuth'],
-      passThroughStatusCodes: const {404},
+      DeductionRecordModel.fromJson,
     );
-    if (r.statusCode == 404) return null;
-    if (r.statusCode >= 400) throw AppException.http(r.statusCode, _decode(r));
-    if (r.body.isEmpty) return null;
-    return DeductionRecordModel.fromJson(jsonDecode(_decode(r)));
   }
 
-  // GET /api/deductions
-  Future<List<DeductionRecordModel>> listDeductions() async {
-    final r = await apiClient.invokeAPI(
+  Future<List<DeductionRecordModel>> listDeductions() {
+    return requestList(
+      'GET',
       '/api/deductions',
-      'GET',
-      const [],
-      null,
-      await _headers(),
-      const {},
-      null,
-      const ['bearerAuth'],
+      DeductionRecordModel.fromJson,
     );
-    if (r.statusCode >= 400) throw AppException.http(r.statusCode, _decode(r));
-    if (r.body.isEmpty) return [];
-    final List<dynamic> data = jsonDecode(_decode(r));
-    return data.map((e) => DeductionRecordModel.fromJson(e)).toList();
   }
 
-  // PUT /api/deductions/{deductionId}
   Future<DeductionRecordModel> updateDeduction({
     required int deductionId,
     required DeductionRecordModel body,
     required String idempotencyKey,
-  }) async {
-    if (idempotencyKey.isEmpty) {
-      throw AppException.http(400, 'Missing required param: idempotencyKey');
-    }
-    final r = await apiClient.invokeAPI(
-      '/api/deductions/$deductionId',
+  }) {
+    requireNotBlank(idempotencyKey, 'idempotencyKey');
+    return requestObject(
       'PUT',
-      _idem(idempotencyKey),
-      body.toJson(),
-      await _headers(idempotencyKey: idempotencyKey),
-      const {},
-      'application/json',
-      const ['bearerAuth'],
-    );
-    if (r.statusCode >= 400) throw AppException.http(r.statusCode, _decode(r));
-    return DeductionRecordModel.fromJson(jsonDecode(_decode(r)));
-  }
-
-  // DELETE /api/deductions/{deductionId}
-  Future<void> deleteDeduction({required int deductionId}) async {
-    final r = await apiClient.invokeAPI(
       '/api/deductions/$deductionId',
-      'DELETE',
-      const [],
-      null,
-      await _headers(),
-      const {},
-      null,
-      const ['bearerAuth'],
+      DeductionRecordModel.fromJson,
+      body: body.toJson(),
+      contentType: 'application/json',
+      idempotencyKey: idempotencyKey,
     );
-    if (r.statusCode != 204) throw AppException.http(r.statusCode, _decode(r));
   }
 
-  // GET /api/deductions/driver/{driverId}?page=&size=
+  Future<void> deleteDeduction({required int deductionId}) {
+    return requestVoid('DELETE', '/api/deductions/$deductionId');
+  }
+
   Future<List<DeductionRecordModel>> listDeductionsByDriver({
     required int driverId,
     int page = 1,
     int size = 20,
-  }) async {
-    final r = await apiClient.invokeAPI(
-      '/api/deductions/driver/$driverId',
+  }) {
+    return requestList(
       'GET',
-      [QueryParam('page', '$page'), QueryParam('size', '$size')],
-      null,
-      await _headers(),
-      const {},
-      null,
-      const ['bearerAuth'],
+      '/api/deductions/driver/$driverId',
+      DeductionRecordModel.fromJson,
+      queryParams: pageParams(page, size),
     );
-    if (r.statusCode >= 400) throw AppException.http(r.statusCode, _decode(r));
-    if (r.body.isEmpty) return [];
-    final List<dynamic> data = jsonDecode(_decode(r));
-    return data.map((e) => DeductionRecordModel.fromJson(e)).toList();
   }
 
-  // GET /api/deductions/offense/{offenseId}?page=&size=
   Future<List<DeductionRecordModel>> listDeductionsByOffense({
     required int offenseId,
     int page = 1,
     int size = 20,
-  }) async {
-    final r = await apiClient.invokeAPI(
-      '/api/deductions/offense/$offenseId',
+  }) {
+    return requestList(
       'GET',
-      [QueryParam('page', '$page'), QueryParam('size', '$size')],
-      null,
-      await _headers(),
-      const {},
-      null,
-      const ['bearerAuth'],
+      '/api/deductions/offense/$offenseId',
+      DeductionRecordModel.fromJson,
+      queryParams: pageParams(page, size),
     );
-    if (r.statusCode >= 400) throw AppException.http(r.statusCode, _decode(r));
-    if (r.body.isEmpty) return [];
-    final List<dynamic> data = jsonDecode(_decode(r));
-    return data.map((e) => DeductionRecordModel.fromJson(e)).toList();
   }
 
-  // GET /api/deductions/search/handler?handler=&mode=&page=&size=
   Future<List<DeductionRecordModel>> searchDeductionsByHandler({
     required String handler,
     String mode = 'prefix',
     int page = 1,
     int size = 20,
-  }) async {
-    final r = await apiClient.invokeAPI(
+  }) {
+    requireNotBlank(handler, 'handler');
+    return _search(
       '/api/deductions/search/handler',
-      'GET',
-      [
-        QueryParam('handler', handler),
-        QueryParam('mode', mode),
-        QueryParam('page', '$page'),
-        QueryParam('size', '$size'),
-      ],
-      null,
-      await _headers(),
-      const {},
-      null,
-      const ['bearerAuth'],
+      {
+        'handler': handler,
+        'mode': mode,
+        'page': page,
+        'size': size,
+      },
     );
-    if (r.statusCode >= 400) throw AppException.http(r.statusCode, _decode(r));
-    if (r.body.isEmpty) return [];
-    final List<dynamic> data = jsonDecode(_decode(r));
-    return data.map((e) => DeductionRecordModel.fromJson(e)).toList();
   }
 
-  // GET /api/deductions/search/status?status=&page=&size=
   Future<List<DeductionRecordModel>> searchDeductionsByStatus({
     required String status,
     int page = 1,
     int size = 20,
-  }) async {
-    final r = await apiClient.invokeAPI(
+  }) {
+    requireNotBlank(status, 'status');
+    return _search(
       '/api/deductions/search/status',
-      'GET',
-      [
-        QueryParam('status', status),
-        QueryParam('page', '$page'),
-        QueryParam('size', '$size'),
-      ],
-      null,
-      await _headers(),
-      const {},
-      null,
-      const ['bearerAuth'],
+      {
+        'status': status,
+        'page': page,
+        'size': size,
+      },
     );
-    if (r.statusCode >= 400) throw AppException.http(r.statusCode, _decode(r));
-    if (r.body.isEmpty) return [];
-    final List<dynamic> data = jsonDecode(_decode(r));
-    return data.map((e) => DeductionRecordModel.fromJson(e)).toList();
   }
 
-  // GET /api/deductions/search/time-range?startTime=&endTime=&page=&size=
   Future<List<DeductionRecordModel>> searchDeductionsByTimeRange({
     required String startTime,
     required String endTime,
     int page = 1,
     int size = 20,
-  }) async {
-    final r = await apiClient.invokeAPI(
+  }) {
+    requireNotBlank(startTime, 'startTime');
+    requireNotBlank(endTime, 'endTime');
+    return _search(
       '/api/deductions/search/time-range',
-      'GET',
-      [
-        QueryParam('startTime', startTime),
-        QueryParam('endTime', endTime),
-        QueryParam('page', '$page'),
-        QueryParam('size', '$size'),
-      ],
-      null,
-      await _headers(),
-      const {},
-      null,
-      const ['bearerAuth'],
+      {
+        'startTime': startTime,
+        'endTime': endTime,
+        'page': page,
+        'size': size,
+      },
     );
-    if (r.statusCode >= 400) throw AppException.http(r.statusCode, _decode(r));
-    if (r.body.isEmpty) return [];
-    final List<dynamic> data = jsonDecode(_decode(r));
-    return data.map((e) => DeductionRecordModel.fromJson(e)).toList();
+  }
+
+  Future<List<DeductionRecordModel>> _search(
+    String path,
+    Map<String, Object?> params,
+  ) {
+    return requestList(
+      'GET',
+      path,
+      DeductionRecordModel.fromJson,
+      queryParams: queryParamsFromMap(params),
+    );
   }
 }
