@@ -13,19 +13,27 @@ class _SidebarState extends State<_Sidebar> {
   int _sidebarTransitionToken = 0;
   Worker? _sidebarCollapseWorker;
 
-  List<SelectionButtonData> get _items => [
+  List<SelectionButtonData> _items(ManagerDashboardController controller) => [
         SelectionButtonData(
           activeIcon: EvaIcons.grid,
           icon: EvaIcons.gridOutline,
           label: '\u4e3b\u9875',
           routeName: 'homePage',
         ),
-        SelectionButtonData(
-          activeIcon: EvaIcons.calendar,
-          icon: EvaIcons.calendarOutline,
-          label: '\u4e1a\u52a1\u5904\u7406',
-          routeName: Routes.managerBusinessProcessing,
-        ),
+        if (controller.isSuperAdmin)
+          SelectionButtonData(
+            activeIcon: Icons.security_rounded,
+            icon: Icons.security_outlined,
+            label: '系统治理',
+            routeName: Routes.systemGovernance,
+          )
+        else
+          SelectionButtonData(
+            activeIcon: EvaIcons.calendar,
+            icon: EvaIcons.calendarOutline,
+            label: '\u4e1a\u52a1\u5904\u7406',
+            routeName: Routes.managerBusinessProcessing,
+          ),
         SelectionButtonData(
           activeIcon: EvaIcons.email,
           icon: EvaIcons.emailOutline,
@@ -71,7 +79,7 @@ class _SidebarState extends State<_Sidebar> {
   }
 
   void _select(ManagerDashboardController controller, int index) {
-    final item = _items[index];
+    final item = _items(controller)[index];
     AppLogger.debug('index : $index | label : ${item.label}');
     setState(() => _selectedIndex = index);
 
@@ -131,11 +139,11 @@ class _SidebarState extends State<_Sidebar> {
                             horizontal: effectiveCollapsed ? 10 : 14,
                             vertical: 6,
                           ),
-                          itemCount: _items.length,
+                          itemCount: _items(controller).length,
                           separatorBuilder: (_, __) =>
                               const SizedBox(height: 8),
                           itemBuilder: (context, index) {
-                            final item = _items[index];
+                            final item = _items(controller)[index];
                             return _ManagerSidebarItem(
                               item: item,
                               collapsed: effectiveCollapsed,

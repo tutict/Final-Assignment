@@ -5,6 +5,8 @@ import 'package:final_assignment_front/features/dashboard/views/manager/pages/lo
 import 'package:final_assignment_front/features/dashboard/views/manager/pages/manager_personal_page.dart';
 import 'package:final_assignment_front/features/dashboard/views/manager/pages/manager_setting_page.dart';
 import 'package:final_assignment_front/features/dashboard/views/manager/pages/sidebar_management/log_management.dart';
+import 'package:final_assignment_front/features/dashboard/views/manager/pages/sidebar_management/rag_management_page.dart';
+import 'package:final_assignment_front/features/dashboard/views/manager/pages/sidebar_management/system_governance.dart';
 import 'package:final_assignment_front/features/dashboard/views/manager/pages/sidebar_management/user_management_page.dart';
 import 'package:final_assignment_front/features/dashboard/views/shared/components/ai_chat.dart';
 import 'package:final_assignment_front/features/dashboard/views/shared/components/change_themes.dart';
@@ -49,6 +51,16 @@ class AdminPages {
     GetPage(
       name: RoutePaths.logManagement,
       page: () => const LogManagement(),
+      binding: DashboardBinding(),
+    ),
+    GetPage(
+      name: RoutePaths.systemGovernance,
+      page: () => const SystemGovernancePage(),
+      binding: DashboardBinding(),
+    ),
+    GetPage(
+      name: RoutePaths.ragManagement,
+      page: () => const RagManagementPage(),
       binding: DashboardBinding(),
     ),
     GetPage(

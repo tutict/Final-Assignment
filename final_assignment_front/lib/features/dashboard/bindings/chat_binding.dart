@@ -18,7 +18,7 @@ class AiChatBinding extends Bindings {
 
   static void _syncUserRole() {
     SharedPreferences.getInstance().then((prefs) {
-      final role = prefs.getString('userRole');
+      final role = prefs.getString('roles') ?? prefs.getString('userRole');
       if (role == null || role.isEmpty) {
         return;
       }

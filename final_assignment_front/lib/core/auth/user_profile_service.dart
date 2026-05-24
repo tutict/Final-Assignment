@@ -1,5 +1,6 @@
 import 'dart:convert';
 
+import 'package:final_assignment_front/core/auth/role_utils.dart';
 import 'package:final_assignment_front/core/auth/user_profile.dart';
 import 'package:final_assignment_front/core/utils/app_logger.dart';
 import 'package:final_assignment_front/config/routes/app_routes.dart';
@@ -199,9 +200,7 @@ class UserProfileService extends GetxService {
     await prefs.setString('userName', profile.username);
     await prefs.setString('roles', jsonEncode(profile.roles));
 
-    if (profile.roles.isNotEmpty) {
-      await prefs.setString('userRole', profile.roles.first);
-    }
+    await prefs.setString('userRole', RoleUtils.preferredRole(profile.roles));
     if (profile.displayName != null) {
       await prefs.setString('displayName', profile.displayName!);
     } else {

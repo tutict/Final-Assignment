@@ -127,6 +127,12 @@ class Routes {
   // 日志管理页面路由
   static const logManagement = RoutePaths.logManagement;
 
+  // 超级管理员系统治理页面路由
+  static const systemGovernance = RoutePaths.systemGovernance;
+
+  // RAG 资料管理页面路由
+  static const ragManagement = RoutePaths.ragManagement;
+
   // 用户管理页面路由
   static const userManagementPage = RoutePaths.userManagementPage;
 
@@ -276,6 +282,12 @@ class RoutePaths {
 
   //  日志管理页面路由
   static const logManagement = '/admin/logManagement';
+
+  // 超级管理员系统治理页面路由
+  static const systemGovernance = '/admin/systemGovernance';
+
+  // RAG 资料管理页面路由
+  static const ragManagement = '/admin/ragManagement';
 
   // 用户管理页面路由
   static const userManagementPage = '/admin/userManagementPage';

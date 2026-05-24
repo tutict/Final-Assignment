@@ -55,6 +55,8 @@ class _AiChatState extends State<AiChat> {
               () => controller.messages.isEmpty
                   ? _AssistantEmptyState(
                       accentColor: scheme.primary,
+                      isAdmin: controller.isAdminRole,
+                      isSuperAdmin: controller.isSuperAdminRole,
                     )
                   : _MessageList(
                       controller: controller,
@@ -355,15 +357,137 @@ class _MessageBubble extends StatelessWidget {
 class _AssistantEmptyState extends StatelessWidget {
   const _AssistantEmptyState({
     required this.accentColor,
+    required this.isAdmin,
+    required this.isSuperAdmin,
   });
 
   final Color accentColor;
+  final bool isAdmin;
+  final bool isSuperAdmin;
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final scheme = theme.colorScheme;
     final dark = theme.brightness == Brightness.dark;
+
+    if (isSuperAdmin) {
+      return SingleChildScrollView(
+        padding: const EdgeInsets.fromLTRB(18, 34, 18, 20),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Container(
+              width: 54,
+              height: 54,
+              decoration: BoxDecoration(
+                color: accentColor.withValues(alpha: dark ? 0.22 : 0.12),
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: Icon(
+                Icons.security_rounded,
+                color: accentColor,
+                size: 27,
+              ),
+            ),
+            const SizedBox(height: 18),
+            Text(
+              '超级管理员智能助手',
+              style: theme.textTheme.headlineSmall?.copyWith(
+                color: scheme.onSurface,
+                fontWeight: FontWeight.w900,
+                letterSpacing: 0,
+              ),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              '辅助审查操作日志、定位异常链路、整理 RAG 资料录入和系统治理事项。',
+              style: theme.textTheme.bodyMedium?.copyWith(
+                color: scheme.onSurfaceVariant,
+                height: 1.42,
+                letterSpacing: 0,
+              ),
+            ),
+            const SizedBox(height: 18),
+            const Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              children: [
+                _CapabilityChip(label: '日志审查', icon: Icons.manage_search),
+                _CapabilityChip(label: 'RAG 资料', icon: Icons.library_books),
+                _CapabilityChip(label: '异常链路', icon: Icons.route_outlined),
+                _CapabilityChip(label: '系统治理', icon: Icons.settings_suggest),
+              ],
+            ),
+          ],
+        ),
+      );
+    }
+
+    if (isAdmin) {
+      return SingleChildScrollView(
+        padding: const EdgeInsets.fromLTRB(18, 34, 18, 20),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Container(
+              width: 54,
+              height: 54,
+              decoration: BoxDecoration(
+                color: accentColor.withValues(alpha: dark ? 0.22 : 0.12),
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: Icon(
+                Icons.admin_panel_settings_outlined,
+                color: accentColor,
+                size: 27,
+              ),
+            ),
+            const SizedBox(height: 18),
+            Text(
+              '\u7ba1\u7406\u4e1a\u52a1\u667a\u80fd\u52a9\u624b',
+              style: theme.textTheme.headlineSmall?.copyWith(
+                color: scheme.onSurface,
+                fontWeight: FontWeight.w900,
+                letterSpacing: 0,
+              ),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              '\u534f\u52a9\u5b9a\u4f4d\u5f85\u529e\u3001\u7edf\u8ba1\u5904\u7406\u8fdb\u5ea6\u3001\u68b3\u7406\u7533\u8bc9\u5ba1\u6838\u548c\u6570\u636e\u7ba1\u7406\u53e3\u5f84\u3002',
+              style: theme.textTheme.bodyMedium?.copyWith(
+                color: scheme.onSurfaceVariant,
+                height: 1.42,
+                letterSpacing: 0,
+              ),
+            ),
+            const SizedBox(height: 18),
+            const Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              children: [
+                _CapabilityChip(
+                  label: '\u5f85\u529e\u5b9a\u4f4d',
+                  icon: Icons.manage_search_outlined,
+                ),
+                _CapabilityChip(
+                  label: '\u7533\u8bc9\u5ba1\u6838',
+                  icon: Icons.fact_check_outlined,
+                ),
+                _CapabilityChip(
+                  label: '\u6570\u636e\u7edf\u8ba1',
+                  icon: Icons.query_stats_rounded,
+                ),
+                _CapabilityChip(
+                  label: '\u4e1a\u52a1\u7ba1\u7406',
+                  icon: Icons.admin_panel_settings_outlined,
+                ),
+              ],
+            ),
+          ],
+        ),
+      );
+    }
 
     return SingleChildScrollView(
       padding: const EdgeInsets.fromLTRB(18, 34, 18, 20),
@@ -510,7 +634,7 @@ class _ComposerSurface extends StatelessWidget {
                     constraints: BoxConstraints(maxHeight: promptMaxHeight),
                     child: SingleChildScrollView(
                       physics: const ClampingScrollPhysics(),
-                      child: controller.userRole.value == 'ADMIN'
+                      child: controller.canUseManagerPrompts
                           ? ManagerPredefinedQuestions(
                               onQuestionTap: onPromptTap,
                             )

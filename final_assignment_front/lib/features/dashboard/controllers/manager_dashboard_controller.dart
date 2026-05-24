@@ -1,4 +1,5 @@
 import 'package:final_assignment_front/core/utils/app_logger.dart';
+import 'package:final_assignment_front/core/auth/role_utils.dart';
 import 'package:final_assignment_front/config/routes/app_routes.dart';
 import 'package:final_assignment_front/config/themes/app_theme.dart';
 import 'package:final_assignment_front/constants/app_constants.dart';
@@ -33,6 +34,7 @@ class ManagerDashboardController extends GetxController {
   late Rx<Future<List<OffenseInformation>>> offensesFuture;
   final RxString currentDriverName = ''.obs;
   final RxString currentEmail = ''.obs;
+  final RxString currentRole = 'USER'.obs;
   final RxString errorMessage = ''.obs;
   final RxBool _refreshPersonalPage = false.obs;
   final offenseApi = OffenseInformationControllerApi();
@@ -78,12 +80,13 @@ class ManagerDashboardController extends GetxController {
     final jwtToken = prefs.getString('jwtToken');
     final userName = prefs.getString('userName');
     final userEmail = prefs.getString('userEmail');
-    final userRole = prefs.getString('userRole');
+    final userRole = prefs.getString('roles') ?? prefs.getString('userRole');
 
     if (jwtToken != null &&
         userName != null &&
         userEmail != null &&
-        userRole != null) {
+        userRole != null &&
+        RoleUtils.canAccessAdminDashboard(userRole)) {
       currentUser.value = Profile(
         photo: const AssetImage(ImageRasterPath.avatar1),
         name: userName,
@@ -91,6 +94,7 @@ class ManagerDashboardController extends GetxController {
       );
       currentDriverName.value = userName;
       currentEmail.value = userEmail;
+      currentRole.value = RoleUtils.preferredRole(userRole);
       await offenseApi.initializeWithJwt();
       await roleApi.initializeWithJwt();
     } else {
@@ -104,9 +108,11 @@ class ManagerDashboardController extends GetxController {
 
   Future<void> _validateTokenAndRole() async {
     try {
-      final role = await roleApi.getCurrentUserRole();
-      if (role != 'ADMIN') {
-        throw Exception('Admin role is required');
+      final prefs = await SharedPreferences.getInstance();
+      final roleSource =
+          prefs.getString('roles') ?? prefs.getString('userRole');
+      if (!RoleUtils.canAccessAdminDashboard(roleSource)) {
+        throw Exception('Manager role is required');
       }
     } catch (e) {
       ErrorHandler.showError(e, fallbackMessage: '令牌验证失败，请重新登录');
@@ -126,7 +132,7 @@ class ManagerDashboardController extends GetxController {
     );
     AppLogger.debug(
         'ManagerDashboardController updated - Name: $name, Email: $email');
-    _saveUserToPrefs(name, email, 'ADMIN');
+    _saveUserToPrefs(name, email, currentRole.value);
   }
 
   Future<void> _saveUserToPrefs(String name, String email, String role) async {
@@ -143,6 +149,12 @@ class ManagerDashboardController extends GetxController {
         name: "Guest",
         email: "guest@example.com",
       );
+
+  bool get isSuperAdmin => RoleUtils.isSuperAdminRole(currentRole.value);
+
+  bool get isBusinessAdmin => RoleUtils.isAdminRole(currentRole.value);
+
+  String get roleDisplayName => isSuperAdmin ? '超级管理员端' : '管理端';
 
   void toggleSidebar() => isSidebarOpen.value = !isSidebarOpen.value;
 

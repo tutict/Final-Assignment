@@ -3,6 +3,7 @@ import 'dart:convert';
 
 import 'package:final_assignment_front/config/routes/app_routes.dart';
 import 'package:final_assignment_front/config/themes/app_theme.dart';
+import 'package:final_assignment_front/core/auth/role_utils.dart';
 import 'package:final_assignment_front/core/auth/user_profile_service.dart';
 import 'package:final_assignment_front/core/network/app_exception.dart';
 import 'package:final_assignment_front/core/utils/app_logger.dart';
@@ -100,12 +101,7 @@ class _LoginScreenState extends State<LoginScreen> {
   }
 
   static String determineRole(Object? rolesFromJwt) {
-    final roles = rolesFromJwt is List
-        ? rolesFromJwt.map((role) => role.toString())
-        : rolesFromJwt?.toString().split(',') ?? const ['USER'];
-    return roles
-        .map((role) => role.replaceFirst('ROLE_', '').trim().toUpperCase())
-        .firstWhere((role) => role.isNotEmpty, orElse: () => 'USER');
+    return RoleUtils.preferredRole(rolesFromJwt);
   }
 
   String? _stringValue(Object? value) {
@@ -418,7 +414,9 @@ class _LoginScreenState extends State<LoginScreen> {
 
   void _navigateAfterAuth() {
     NavigationHelper.offAllNamed(
-      _userRole == 'ADMIN' ? Routes.dashboard : Routes.userDashboard,
+      RoleUtils.canAccessAdminDashboard(_userRole)
+          ? Routes.dashboard
+          : Routes.userDashboard,
     );
   }
 

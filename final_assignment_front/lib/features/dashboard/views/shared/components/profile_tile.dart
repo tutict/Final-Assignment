@@ -52,7 +52,7 @@ class ProfilTile extends StatelessWidget {
         displayEmail = controller.currentEmail.value.isNotEmpty
             ? controller.currentEmail.value
             : data.email;
-        displayPost = '交通管理员端';
+        displayPost = controller.roleDisplayName;
       } else {
         displayName = data.name;
         displayEmail = data.email;
@@ -74,7 +74,9 @@ class ProfilTile extends StatelessWidget {
             ),
           ],
         ),
-        child: ListTile(
+        child: Material(
+          color: Colors.transparent,
+          child: ListTile(
           contentPadding:
               const EdgeInsets.symmetric(horizontal: 20.0, vertical: 16.0),
           leading: GestureDetector(
@@ -148,6 +150,7 @@ class ProfilTile extends StatelessWidget {
           onTap: () {
             AppLogger.debug("Profile tile tapped for $displayName");
           },
+          ),
         ),
       );
     });

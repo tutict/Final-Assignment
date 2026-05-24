@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:final_assignment_front/core/auth/role_utils.dart';
 import 'package:final_assignment_front/core/utils/app_logger.dart';
 import 'package:final_assignment_front/features/ai/ai_chat_api.dart';
 import 'package:final_assignment_front/features/api/chat_controller_api.dart';
@@ -44,6 +45,13 @@ class ChatController extends GetxController {
   String? _sessionKey;
   bool _contextLimitHintShown = false;
 
+  bool get isAdminRole => RoleUtils.isAdminRole(userRole.value);
+
+  bool get isSuperAdminRole => RoleUtils.isSuperAdminRole(userRole.value);
+
+  bool get canUseManagerPrompts =>
+      RoleUtils.canAccessAdminDashboard(userRole.value);
+
   String get loadingText {
     return switch (loadingState.value) {
       ChatLoadingState.idle => '',
@@ -54,8 +62,8 @@ class ChatController extends GetxController {
   }
 
   void setUserRole(String role) {
-    userRole.value = role.toUpperCase();
-    AppLogger.debug('ChatController: User role set to $role');
+    userRole.value = RoleUtils.preferredRole(role);
+    AppLogger.debug('ChatController: User role set to ${userRole.value}');
   }
 
   void toggleWebSearch(bool enable) {

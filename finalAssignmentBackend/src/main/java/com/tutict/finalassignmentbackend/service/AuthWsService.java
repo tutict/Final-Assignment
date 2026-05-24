@@ -179,7 +179,7 @@ public class AuthWsService {
         }
 
         RoleAggregation aggregation = requireRoles(user, user.getUsername());
-        String accessToken = issueAccessToken(user, aggregation, String.join(",", aggregation.getRoleNames()));
+        String accessToken = issueAccessToken(user, aggregation, String.join(",", aggregation.getRoleCodes()));
         String newRefreshToken = refreshTokenService.rotateRefreshToken(userId, request.getRefreshToken());
 
         return TokenResponse.builder()
@@ -418,7 +418,7 @@ public class AuthWsService {
     }
 
     private SysRole resolveOrCreateRole(String requestedRole) {
-        String roleCode = StringUtils.hasText(requestedRole) ? requestedRole : "USER";
+        String roleCode = normalizeRoleCode(StringUtils.hasText(requestedRole) ? requestedRole : "USER");
         SysRole role = sysRoleService.findByRoleCode(roleCode);
         if (role != null) {
             return role;
@@ -516,7 +516,18 @@ public class AuthWsService {
             return null;
         }
         String code = StringUtils.hasText(role.getRoleCode()) ? role.getRoleCode() : role.getRoleName();
-        return StringUtils.hasText(code) ? code.trim().toUpperCase(Locale.ROOT) : null;
+        return StringUtils.hasText(code) ? normalizeRoleCode(code) : null;
+    }
+
+    private static String normalizeRoleCode(String roleCode) {
+        if (!StringUtils.hasText(roleCode)) {
+            return null;
+        }
+        String normalized = roleCode.trim().toUpperCase(Locale.ROOT);
+        if (normalized.startsWith("ROLE_")) {
+            return normalized.substring("ROLE_".length());
+        }
+        return normalized;
     }
 
     private String resolveRoleType(SysRole role) {

@@ -143,15 +143,19 @@ class _HeaderBrand extends StatelessWidget {
                     letterSpacing: 0,
                   ),
                 ),
-                Text(
-                  '管理端',
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: theme.textTheme.labelSmall?.copyWith(
-                    color: scheme.onSurfaceVariant,
-                    fontSize: 11,
-                    fontWeight: FontWeight.w500,
-                    letterSpacing: 0,
+                Obx(
+                  () => Text(
+                    Get.isRegistered<ManagerDashboardController>()
+                        ? Get.find<ManagerDashboardController>().roleDisplayName
+                        : '管理端',
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: theme.textTheme.labelSmall?.copyWith(
+                      color: scheme.onSurfaceVariant,
+                      fontSize: 11,
+                      fontWeight: FontWeight.w500,
+                      letterSpacing: 0,
+                    ),
                   ),
                 ),
               ],

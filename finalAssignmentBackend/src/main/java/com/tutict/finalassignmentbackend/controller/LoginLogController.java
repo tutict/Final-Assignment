@@ -30,7 +30,7 @@ import java.util.logging.Logger;
 @RequestMapping("/api/logs/login")
 @Tag(name = "Login Audit", description = "系统登录日志管理接口")
 @SecurityRequirement(name = "bearerAuth")
-@RolesAllowed({"SUPER_ADMIN", "ADMIN"})
+@RolesAllowed({"SUPER_ADMIN"})
 public class LoginLogController {
 
     private static final Logger LOG = Logger.getLogger(LoginLogController.class.getName());

@@ -347,9 +347,20 @@ public class TokenProvider {
             return List.of();
         }
         return Arrays.stream(roleCodes.split(","))
-                .map(code -> code.trim().toUpperCase(Locale.ROOT))
+                .map(this::normalizeRoleCode)
                 .filter(code -> !code.isEmpty())
                 .collect(Collectors.toList());
+    }
+
+    private String normalizeRoleCode(String roleCode) {
+        if (roleCode == null) {
+            return "";
+        }
+        String normalized = roleCode.trim().toUpperCase(Locale.ROOT);
+        if (normalized.startsWith("ROLE_")) {
+            return normalized.substring("ROLE_".length());
+        }
+        return normalized;
     }
 
     private boolean isRoleDefined(String roleCode) {

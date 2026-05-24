@@ -25,12 +25,12 @@ ai:
     chat-model: ""
 
 rag:
-  enabled: false
+  enabled: ${RAG_ENABLED:true}
   chunk:
     size: 500
     overlap: 100
   indexing:
-    enabled: false
+    enabled: ${RAG_INDEXING_ENABLED:true}
     batch-size: 200
   embedding:
     enabled: false

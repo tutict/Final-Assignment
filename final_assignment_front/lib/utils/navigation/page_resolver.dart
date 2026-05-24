@@ -2,6 +2,8 @@ import 'package:final_assignment_front/core/utils/app_logger.dart';
 import 'package:final_assignment_front/config/routes/app_routes.dart';
 import 'package:final_assignment_front/features/dashboard/views/manager/pages/progress_management.dart';
 import 'package:final_assignment_front/features/dashboard/views/manager/pages/sidebar_management/manager_business_processing.dart';
+import 'package:final_assignment_front/features/dashboard/views/manager/pages/sidebar_management/rag_management_page.dart';
+import 'package:final_assignment_front/features/dashboard/views/manager/pages/sidebar_management/system_governance.dart';
 import 'package:final_assignment_front/features/dashboard/views/user/pages/main_process/business_progress.dart';
 import 'package:final_assignment_front/features/dashboard/views/user/pages/main_process/online_processing_progress.dart';
 import 'package:final_assignment_front/features/dashboard/views/user/pages/main_process/user_offense_list_page.dart';
@@ -35,6 +37,10 @@ Widget? resolveDashboardPage(String routeName) {
       return const MainScan();
     case Routes.managerBusinessProcessing:
       return const ManagerBusinessProcessing();
+    case Routes.systemGovernance:
+      return const SystemGovernancePage();
+    case Routes.ragManagement:
+      return const RagManagementPage();
     case Routes.accidentEvidencePage:
       return const AccidentEvidencePage();
     case Routes.accidentVideoQuickPage:
