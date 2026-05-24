@@ -210,31 +210,25 @@ class AppealIntegrationTest extends BaseIntegrationTest {
     }
 
     private Long createTestAppeal(Long offenseId) {
-        return authSpec(userToken)
+        return extractLong(authSpec(userToken)
             .header("Idempotency-Key", newIdempotencyKey())
             .body(TestDataFactory.validAppeal(offenseId))
-            .post("/api/appeals")
-            .then().extract().path("data.appealId");
+            .post("/api/appeals"), "data.appealId");
     }
 
     private Long createPrerequisiteOffense() {
         String adminTok = loginAsAdmin();
-        Long driverId = authSpec(adminTok)
-            .header("Idempotency-Key", newIdempotencyKey())
-            .body(TestDataFactory.validDriver())
-            .post("/api/drivers")
-            .then().extract().path("data.driverId");
+        Long driverId = extractLong(authSpec(userToken)
+            .get("/api/auth/me"), "data.driverId");
 
-        Long vehicleId = authSpec(adminTok)
+        Long vehicleId = extractLong(authSpec(adminTok)
             .header("Idempotency-Key", newIdempotencyKey())
             .body(TestDataFactory.validVehicle(driverId))
-            .post("/api/vehicles")
-            .then().extract().path("data.vehicleId");
+            .post("/api/vehicles"), "data.vehicleId");
 
-        return authSpec(adminTok)
+        return extractLong(authSpec(adminTok)
             .header("Idempotency-Key", newIdempotencyKey())
             .body(TestDataFactory.validOffense(driverId, vehicleId))
-            .post("/api/offenses")
-            .then().extract().path("data.offenseId");
+            .post("/api/offenses"), "data.offenseId");
     }
 }

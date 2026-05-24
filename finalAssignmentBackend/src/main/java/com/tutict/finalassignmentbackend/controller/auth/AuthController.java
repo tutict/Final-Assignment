@@ -94,7 +94,10 @@ public class AuthController {
                 LOG.log(Level.SEVERE, "Login failed for username: {0}, error: {1}",
                         new Object[]{loginRequest.getUsername(), ex.getClass().getSimpleName()});
                 return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
-                        .body(Map.of("error", "Invalid credentials"));
+                        .body(Map.of(
+                                "success", false,
+                                "errorCode", "UNAUTHORIZED",
+                                "message", "Invalid credentials"));
             }
         }, VIRTUAL_THREAD_EXECUTOR);
     }

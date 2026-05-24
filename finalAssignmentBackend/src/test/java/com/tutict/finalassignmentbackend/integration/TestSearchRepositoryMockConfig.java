@@ -30,11 +30,15 @@ import org.springframework.cache.concurrent.ConcurrentMapCacheManager;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Primary;
 import org.springframework.data.redis.core.RedisTemplate;
+import org.springframework.data.redis.core.ValueOperations;
 import org.springframework.kafka.core.ConsumerFactory;
 import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.kafka.support.SendResult;
 
+import java.util.Set;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.TimeUnit;
 
 @TestConfiguration
 public class TestSearchRepositoryMockConfig {
@@ -57,8 +61,24 @@ public class TestSearchRepositoryMockConfig {
 
     @Bean
     @Primary
+    @SuppressWarnings("unchecked")
     RedisTemplate<String, Object> redisTemplate() {
-        return Mockito.mock(RedisTemplate.class);
+        RedisTemplate<String, Object> redisTemplate = Mockito.mock(RedisTemplate.class);
+        ValueOperations<String, Object> valueOperations = Mockito.mock(ValueOperations.class);
+        Set<String> keys = ConcurrentHashMap.newKeySet();
+
+        Mockito.when(redisTemplate.opsForValue()).thenReturn(valueOperations);
+        Mockito.doAnswer(invocation -> {
+            keys.add(invocation.getArgument(0));
+            return null;
+        }).when(valueOperations).set(
+                Mockito.anyString(),
+                Mockito.any(),
+                Mockito.anyLong(),
+                Mockito.any(TimeUnit.class));
+        Mockito.when(redisTemplate.hasKey(Mockito.anyString()))
+                .thenAnswer(invocation -> keys.contains(invocation.getArgument(0)));
+        return redisTemplate;
     }
 
     @Bean

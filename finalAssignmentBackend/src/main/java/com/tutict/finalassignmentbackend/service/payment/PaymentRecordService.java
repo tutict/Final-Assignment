@@ -183,6 +183,9 @@ public class PaymentRecordService {
                 existing,
                 newState == null ? null : newState.getCode()
         ));
+        if (newState != null && Objects.equals(existing.getPaymentStatus(), newState.getCode())) {
+            throw new PaymentOptimisticLockException("Payment status is already " + newState.getCode());
+        }
         existing.setPaymentStatus(newState != null ? newState.getCode() : existing.getPaymentStatus());
         existing.setUpdatedAt(LocalDateTime.now());
         int updated = paymentRecordMapper.updateById(existing);
@@ -509,6 +512,9 @@ public class PaymentRecordService {
         Objects.requireNonNull(paymentRecord, "PaymentRecord must not be null");
         if (paymentRecord.getFineId() == null) {
             throw new IllegalArgumentException("Fine ID must not be null");
+        }
+        if (paymentRecord.getVersion() == null) {
+            paymentRecord.setVersion(0);
         }
         if (paymentRecord.getPaymentTime() == null) {
             paymentRecord.setPaymentTime(LocalDateTime.now());

@@ -57,7 +57,7 @@ public class FineInformationController {
 
     @PostMapping
     @Operation(summary = "创建罚款记录")
-    public ResponseEntity<?> create(@Valid @RequestBody FineRecord request,
+    public ResponseEntity<ApiResponse<FineRecord>> create(@Valid @RequestBody FineRecord request,
                                              @RequestHeader(value = "Idempotency-Key", required = false)
                                              String idempotencyKey) {
         boolean useKey = hasKey(idempotencyKey);
@@ -72,7 +72,7 @@ public class FineInformationController {
             if (useKey && saved.getFineId() != null) {
                 fineRecordService.markHistorySuccess(idempotencyKey, saved.getFineId());
             }
-            return ResponseEntity.status(HttpStatus.CREATED).body(saved);
+            return ResponseEntity.status(HttpStatus.CREATED).body(ApiResponse.ok(saved));
         } catch (Exception ex) {
             if (useKey) {
                 fineRecordService.markHistoryFailure(idempotencyKey, ex.getMessage());
@@ -87,7 +87,7 @@ public class FineInformationController {
 
     @PutMapping("/{fineId}")
     @Operation(summary = "更新罚款记录")
-    public ResponseEntity<FineRecord> update(@PathVariable Long fineId,
+    public ResponseEntity<ApiResponse<FineRecord>> update(@PathVariable Long fineId,
                                              @Valid @RequestBody FineRecord request,
                                              @RequestHeader(value = "Idempotency-Key", required = false)
                                              String idempotencyKey) {
@@ -101,7 +101,7 @@ public class FineInformationController {
             if (useKey && updated.getFineId() != null) {
                 fineRecordService.markHistorySuccess(idempotencyKey, updated.getFineId());
             }
-            return ResponseEntity.ok(updated);
+            return ResponseEntity.ok(ApiResponse.ok(updated));
         } catch (Exception ex) {
             if (useKey) {
                 fineRecordService.markHistoryFailure(idempotencyKey, ex.getMessage());
@@ -131,13 +131,13 @@ public class FineInformationController {
 
     @GetMapping("/{fineId}")
     @Operation(summary = "查询罚款详情")
-    public ResponseEntity<FineRecord> get(@PathVariable Long fineId) {
+    public ResponseEntity<ApiResponse<FineRecord>> get(@PathVariable Long fineId) {
         try {
             FineRecord record = fineRecordService.findById(fineId);
             if (record == null) {
                 throw new com.tutict.finalassignmentbackend.exception.EntityNotFoundException("Fine not found: " + fineId);
             }
-            return ResponseEntity.ok(record);
+            return ResponseEntity.ok(ApiResponse.ok(record));
         } catch (Exception ex) {
             LOG.log(Level.WARNING, "Get fine failed", ex);
             if (ex instanceof RuntimeException) {
@@ -149,9 +149,9 @@ public class FineInformationController {
 
     @GetMapping
     @Operation(summary = "查询全部罚款记录")
-    public ResponseEntity<List<FineRecord>> list() {
+    public ResponseEntity<ApiResponse<List<FineRecord>>> list() {
         try {
-            return ResponseEntity.ok(fineRecordService.findAll());
+            return ResponseEntity.ok(ApiResponse.ok(fineRecordService.findAll()));
         } catch (Exception ex) {
             LOG.log(Level.WARNING, "List fines failed", ex);
             if (ex instanceof RuntimeException) {
@@ -163,11 +163,11 @@ public class FineInformationController {
 
     @GetMapping("/offense/{offenseId}")
     @Operation(summary = "按违法记录分页查询罚款")
-    public ResponseEntity<List<FineRecord>> byOffense(@PathVariable Long offenseId,
+    public ResponseEntity<ApiResponse<List<FineRecord>>> byOffense(@PathVariable Long offenseId,
                                                       @RequestParam(defaultValue = "1") int page,
                                                       @RequestParam(defaultValue = "20") int size) {
         try {
-            return ResponseEntity.ok(fineRecordService.findByOffenseId(offenseId, page, size));
+            return ResponseEntity.ok(ApiResponse.ok(fineRecordService.findByOffenseId(offenseId, page, size)));
         } catch (Exception ex) {
             LOG.log(Level.WARNING, "List fines by offense failed", ex);
             if (ex instanceof RuntimeException) {
@@ -180,19 +180,20 @@ public class FineInformationController {
     @GetMapping("/driver/{driverId}")
     @RolesAllowed({"SUPER_ADMIN", "ADMIN", "TRAFFIC_POLICE", "FINANCE", "USER"})
     @Operation(summary = "按驾驶员查询罚款记录")
-    public ResponseEntity<List<FineRecord>> byDriver(@PathVariable Long driverId,
+    public ResponseEntity<ApiResponse<List<FineRecord>>> byDriver(@PathVariable Long driverId,
                                                      @RequestParam(defaultValue = "1") int page,
                                                      @RequestParam(defaultValue = "20") int size,
                                                      Authentication authentication) {
         if (!canAccessDriver(authentication, driverId)) {
-            return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
+            return ResponseEntity.status(HttpStatus.FORBIDDEN)
+                    .body(ApiResponse.error("FORBIDDEN", "Forbidden"));
         }
-        return ResponseEntity.ok(fineRecordService.findByDriverId(driverId, page, size));
+        return ResponseEntity.ok(ApiResponse.ok(fineRecordService.findByDriverId(driverId, page, size)));
     }
 
     @GetMapping("/search/handler")
     @Operation(summary = "按处理人搜索罚款记录")
-    public ResponseEntity<List<FineRecord>> searchByHandler(@RequestParam String handler,
+    public ResponseEntity<ApiResponse<List<FineRecord>>> searchByHandler(@RequestParam String handler,
                                                             @RequestParam(defaultValue = "prefix") String mode,
                                                             @RequestParam(defaultValue = "1") int page,
                                                             @RequestParam(defaultValue = "20") int size) {
@@ -200,7 +201,7 @@ public class FineInformationController {
             List<FineRecord> result = "fuzzy".equalsIgnoreCase(mode)
                     ? fineRecordService.searchByHandlerFuzzy(handler, page, size)
                     : fineRecordService.searchByHandlerPrefix(handler, page, size);
-            return ResponseEntity.ok(result);
+            return ResponseEntity.ok(ApiResponse.ok(result));
         } catch (Exception ex) {
             LOG.log(Level.WARNING, "Search fine by handler failed", ex);
             if (ex instanceof RuntimeException) {
@@ -212,11 +213,11 @@ public class FineInformationController {
 
     @GetMapping("/search/status")
     @Operation(summary = "按支付状态搜索罚款")
-    public ResponseEntity<List<FineRecord>> searchByPaymentStatus(@RequestParam String status,
+    public ResponseEntity<ApiResponse<List<FineRecord>>> searchByPaymentStatus(@RequestParam String status,
                                                                   @RequestParam(defaultValue = "1") int page,
                                                                   @RequestParam(defaultValue = "20") int size) {
         try {
-            return ResponseEntity.ok(fineRecordService.searchByPaymentStatus(status, page, size));
+            return ResponseEntity.ok(ApiResponse.ok(fineRecordService.searchByPaymentStatus(status, page, size)));
         } catch (Exception ex) {
             LOG.log(Level.WARNING, "Search fine by status failed", ex);
             if (ex instanceof RuntimeException) {
@@ -228,12 +229,12 @@ public class FineInformationController {
 
     @GetMapping("/search/date-range")
     @Operation(summary = "按开具日期搜索罚款")
-    public ResponseEntity<List<FineRecord>> searchByDateRange(@RequestParam String startDate,
+    public ResponseEntity<ApiResponse<List<FineRecord>>> searchByDateRange(@RequestParam String startDate,
                                                               @RequestParam String endDate,
                                                               @RequestParam(defaultValue = "1") int page,
                                                               @RequestParam(defaultValue = "20") int size) {
         try {
-            return ResponseEntity.ok(fineRecordService.searchByFineDateRange(startDate, endDate, page, size));
+            return ResponseEntity.ok(ApiResponse.ok(fineRecordService.searchByFineDateRange(startDate, endDate, page, size)));
         } catch (Exception ex) {
             LOG.log(Level.WARNING, "Search fine by date range failed", ex);
             if (ex instanceof RuntimeException) {

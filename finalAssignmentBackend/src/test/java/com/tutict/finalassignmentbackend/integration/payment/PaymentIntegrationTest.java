@@ -176,6 +176,7 @@ class PaymentIntegrationTest extends BaseIntegrationTest {
         Long paymentId = createTestPayment(fineId);
 
         authSpec(adminToken)
+            .header("Idempotency-Key", newIdempotencyKey())
             .post("/api/workflow/payments/{id}/events/{event}", paymentId, "COMPLETE_PAYMENT")
             .then()
             .statusCode(anyOf(is(200), is(201), is(409)));
@@ -196,36 +197,31 @@ class PaymentIntegrationTest extends BaseIntegrationTest {
     }
 
     private Long createTestPayment(Long fineId) {
-        return authSpec(adminToken)
+        return extractLong(authSpec(adminToken)
             .header("Idempotency-Key", newIdempotencyKey())
             .body(TestDataFactory.validPayment(fineId))
-            .post("/api/payments")
-            .then().extract().path("data.paymentId");
+            .post("/api/payments"), "data.paymentId");
     }
 
     private Long createPrerequisiteOffense() {
-        Long driverId = authSpec(adminToken)
+        Long driverId = extractLong(authSpec(adminToken)
             .header("Idempotency-Key", newIdempotencyKey())
             .body(TestDataFactory.validDriver())
-            .post("/api/drivers")
-            .then().extract().path("data.driverId");
-        Long vehicleId = authSpec(adminToken)
+            .post("/api/drivers"), "data.driverId");
+        Long vehicleId = extractLong(authSpec(adminToken)
             .header("Idempotency-Key", newIdempotencyKey())
             .body(TestDataFactory.validVehicle(driverId))
-            .post("/api/vehicles")
-            .then().extract().path("data.vehicleId");
-        return authSpec(adminToken)
+            .post("/api/vehicles"), "data.vehicleId");
+        return extractLong(authSpec(adminToken)
             .header("Idempotency-Key", newIdempotencyKey())
             .body(TestDataFactory.validOffense(driverId, vehicleId))
-            .post("/api/offenses")
-            .then().extract().path("data.offenseId");
+            .post("/api/offenses"), "data.offenseId");
     }
 
     private Long createPrerequisiteFine(Long offenseId) {
-        return authSpec(adminToken)
+        return extractLong(authSpec(adminToken)
             .header("Idempotency-Key", newIdempotencyKey())
             .body(TestDataFactory.validFine(offenseId))
-            .post("/api/fines")
-            .then().extract().path("data.fineId");
+            .post("/api/fines"), "data.fineId");
     }
 }

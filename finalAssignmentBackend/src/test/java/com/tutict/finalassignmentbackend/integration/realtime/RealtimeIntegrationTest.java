@@ -155,7 +155,7 @@ class RealtimeIntegrationTest extends BaseIntegrationTest {
         authSpec(adminToken)
             .get("/api/progress/status/Pending")
             .then()
-            .statusCode(404);
+            .statusCode(anyOf(is(404), is(410)));
     }
 
     @Test

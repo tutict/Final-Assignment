@@ -99,6 +99,18 @@ public abstract class BaseIntegrationTest {
             .body("errorCode", equalTo(expectedErrorCode));
     }
 
+    protected Long extractLong(Response response, String path) {
+        Number value = response.then().extract().path(path);
+        if (value == null && path.startsWith("data.")) {
+            value = response.then().extract().path(path.substring("data.".length()));
+        }
+        if (value == null) {
+            throw new AssertionError("Expected numeric response path '" + path
+                + "' in status " + response.statusCode() + ": " + response.asString());
+        }
+        return value.longValue();
+    }
+
     // -- Kafka async wait helper ---------------------------------------------
     protected void waitForKafkaConsumer(Duration timeout) {
         await().atMost(timeout).pollInterval(Duration.ofMillis(200))

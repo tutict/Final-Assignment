@@ -19,6 +19,8 @@
         <maven.compiler.parameters>true</maven.compiler.parameters>
         <lombok.version>1.18.46</lombok.version>
         <jmh.version>1.37</jmh.version>
+        <rest-assured.version>5.5.2</rest-assured.version>
+        <groovy.version>4.0.26</groovy.version>
     </properties>
     <dependencies>
         <dependency>
@@ -150,13 +152,13 @@
         <dependency>
             <groupId>io.rest-assured</groupId>
             <artifactId>rest-assured</artifactId>
-            <version>5.4.0</version>
+            <version>${rest-assured.version}</version>
             <scope>test</scope>
         </dependency>
         <dependency>
             <groupId>io.rest-assured</groupId>
             <artifactId>spring-mock-mvc</artifactId>
-            <version>5.4.0</version>
+            <version>${rest-assured.version}</version>
             <scope>test</scope>
         </dependency>
         <dependency>
@@ -406,7 +408,7 @@
                     <environmentVariables>
                         <TESTCONTAINERS_REUSE_ENABLE>true</TESTCONTAINERS_REUSE_ENABLE>
                     </environmentVariables>
-                    <forkCount>2</forkCount>
+                    <forkCount>1</forkCount>
                     <reuseForks>true</reuseForks>
                 </configuration>
             </plugin>

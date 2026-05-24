@@ -19,9 +19,11 @@ import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.core.AuthenticationException;
 import org.springframework.validation.BindException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
+import org.springframework.web.bind.MissingRequestHeaderException;
 import org.springframework.web.bind.MissingServletRequestParameterException;
 import org.springframework.web.bind.annotation.ControllerAdvice;
 import org.springframework.web.bind.annotation.ExceptionHandler;
+import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
 
 import java.util.List;
 import java.util.logging.Level;
@@ -119,6 +121,22 @@ public class GlobalExceptionHandler {
                 .body(ApiResponse.error(
                         "MISSING_PARAMETER",
                         "缺少必要请求参数: " + ex.getParameterName()));
+    }
+
+    @ExceptionHandler(MissingRequestHeaderException.class)
+    public ResponseEntity<ApiResponse<Void>> handleMissingRequestHeaderException(
+            MissingRequestHeaderException ex) {
+        logger.log(Level.WARNING, "Missing request header: {0}", ex.getHeaderName());
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                .body(ApiResponse.error("MISSING_HEADER", "Missing required header: " + ex.getHeaderName()));
+    }
+
+    @ExceptionHandler(MethodArgumentTypeMismatchException.class)
+    public ResponseEntity<ApiResponse<Void>> handleMethodArgumentTypeMismatchException(
+            MethodArgumentTypeMismatchException ex) {
+        logger.log(Level.WARNING, "Argument type mismatch: {0}", ex.getMessage());
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                .body(ApiResponse.error("INVALID_ARGUMENT", "Invalid request argument: " + ex.getName()));
     }
 
     @ExceptionHandler(HttpMessageNotReadableException.class)

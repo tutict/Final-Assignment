@@ -6,6 +6,7 @@ import com.tutict.finalassignmentbackend.dto.response.ApiResponse;
 import com.tutict.finalassignmentbackend.dto.mapper.OffenseRecordRequestMapper;
 import com.tutict.finalassignmentbackend.dto.request.OffenseCreateRequest;
 import com.tutict.finalassignmentbackend.dto.response.OffenseDetailResponse;
+import com.tutict.finalassignmentbackend.dto.response.PageResponse;
 import com.tutict.finalassignmentbackend.dto.response.UserProfileResponse;
 import com.tutict.finalassignmentbackend.entity.offense.OffenseRecord;
 import com.tutict.finalassignmentbackend.service.auth.AuthWsService;
@@ -71,7 +72,7 @@ public class OffenseInformationController {
 
     @PostMapping
     @Operation(summary = "创建违法记录")
-    public ResponseEntity<?> create(@Valid @RequestBody OffenseCreateRequest request,
+    public ResponseEntity<ApiResponse<OffenseRecord>> create(@Valid @RequestBody OffenseCreateRequest request,
                                                 @RequestHeader(value = "Idempotency-Key", required = false)
                                                 String idempotencyKey) {
         boolean useKey = hasKey(idempotencyKey);
@@ -88,7 +89,7 @@ public class OffenseInformationController {
                 offenseRecordService.markHistorySuccess(idempotencyKey, saved.getOffenseId());
                 offenseRecordService.publishCreateKafkaAfterCommit(idempotencyKey, saved);
             }
-            return ResponseEntity.status(HttpStatus.CREATED).body(saved);
+            return ResponseEntity.status(HttpStatus.CREATED).body(ApiResponse.ok(saved));
         } catch (RuntimeException ex) {
             if (useKey) {
                 offenseRecordService.markHistoryFailure(idempotencyKey, ex.getMessage());
@@ -100,7 +101,7 @@ public class OffenseInformationController {
 
     @PutMapping("/{offenseId}")
     @Operation(summary = "更新违法记录")
-    public ResponseEntity<OffenseRecord> update(@PathVariable Long offenseId,
+    public ResponseEntity<ApiResponse<OffenseRecord>> update(@PathVariable Long offenseId,
                                                 @Valid @RequestBody OffenseCreateRequest request,
                                                 @RequestHeader(value = "Idempotency-Key", required = false)
                                                 String idempotencyKey) {
@@ -115,7 +116,7 @@ public class OffenseInformationController {
             if (useKey && updated.getOffenseId() != null) {
                 offenseRecordService.markHistorySuccess(idempotencyKey, updated.getOffenseId());
             }
-            return ResponseEntity.ok(updated);
+            return ResponseEntity.ok(ApiResponse.ok(updated));
         } catch (RuntimeException ex) {
             if (useKey) {
                 offenseRecordService.markHistoryFailure(idempotencyKey, ex.getMessage());
@@ -139,13 +140,13 @@ public class OffenseInformationController {
 
     @GetMapping("/{offenseId}")
     @Operation(summary = "查询违法详情")
-    public ResponseEntity<OffenseRecord> get(@PathVariable Long offenseId) {
+    public ResponseEntity<ApiResponse<OffenseRecord>> get(@PathVariable Long offenseId) {
         try {
             OffenseRecord record = offenseRecordService.findById(offenseId);
             if (record == null) {
                 throw new com.tutict.finalassignmentbackend.exception.EntityNotFoundException("Offense not found: " + offenseId);
             }
-            return ResponseEntity.ok(record);
+            return ResponseEntity.ok(ApiResponse.ok(record));
         } catch (Exception ex) {
             LOG.log(Level.WARNING, "Get offense failed", ex);
             if (ex instanceof RuntimeException) {
@@ -164,9 +165,16 @@ public class OffenseInformationController {
 
     @GetMapping
     @Operation(summary = "查询全部违法记录")
-    public ResponseEntity<List<OffenseRecord>> list() {
+    public ResponseEntity<ApiResponse<PageResponse<OffenseRecord>>> list(@RequestParam(defaultValue = "0") int page,
+                                                                         @RequestParam(defaultValue = "20") int size) {
         try {
-            return ResponseEntity.ok(offenseRecordService.findAll());
+            List<OffenseRecord> records = offenseRecordService.findAll();
+            int normalizedPage = Math.max(page, 0);
+            int normalizedSize = Math.max(size, 1);
+            int from = Math.min(normalizedPage * normalizedSize, records.size());
+            int to = Math.min(from + normalizedSize, records.size());
+            return ResponseEntity.ok(ApiResponse.ok(PageResponse.of(
+                    records.subList(from, to), records.size(), normalizedPage, normalizedSize)));
         } catch (Exception ex) {
             LOG.log(Level.WARNING, "List offenses failed", ex);
             if (ex instanceof RuntimeException) {
@@ -179,7 +187,7 @@ public class OffenseInformationController {
     @GetMapping("/driver/{driverId}")
     @RolesAllowed({"SUPER_ADMIN", "ADMIN", "TRAFFIC_POLICE", "APPEAL_REVIEWER", "USER"})
     @Operation(summary = "按驾驶证分页查询违法")
-    public ResponseEntity<List<OffenseRecord>> byDriver(@PathVariable Long driverId,
+    public ResponseEntity<ApiResponse<List<OffenseRecord>>> byDriver(@PathVariable Long driverId,
                                                         @RequestParam(defaultValue = "1") int page,
                                                         @RequestParam(defaultValue = "20") int size,
                                                         Authentication authentication) {
@@ -187,7 +195,7 @@ public class OffenseInformationController {
             if (!canAccessDriver(authentication, driverId)) {
                 throw new org.springframework.security.access.AccessDeniedException("Forbidden");
             }
-            return ResponseEntity.ok(offenseRecordService.findByDriverId(driverId, page, size));
+            return ResponseEntity.ok(ApiResponse.ok(offenseRecordService.findByDriverId(driverId, page, size)));
         } catch (Exception ex) {
             LOG.log(Level.WARNING, "List offenses by driver failed", ex);
             if (ex instanceof RuntimeException) {
@@ -199,11 +207,11 @@ public class OffenseInformationController {
 
     @GetMapping("/vehicle/{vehicleId}")
     @Operation(summary = "按车辆分页查询违法")
-    public ResponseEntity<List<OffenseRecord>> byVehicle(@PathVariable Long vehicleId,
+    public ResponseEntity<ApiResponse<List<OffenseRecord>>> byVehicle(@PathVariable Long vehicleId,
                                                          @RequestParam(defaultValue = "1") int page,
                                                          @RequestParam(defaultValue = "20") int size) {
         try {
-            return ResponseEntity.ok(offenseRecordService.findByVehicleId(vehicleId, page, size));
+            return ResponseEntity.ok(ApiResponse.ok(offenseRecordService.findByVehicleId(vehicleId, page, size)));
         } catch (Exception ex) {
             LOG.log(Level.WARNING, "List offenses by vehicle failed", ex);
             if (ex instanceof RuntimeException) {
@@ -215,11 +223,11 @@ public class OffenseInformationController {
 
     @GetMapping("/search/code")
     @Operation(summary = "按违法代码搜索")
-    public ResponseEntity<List<OffenseRecord>> searchByCode(@RequestParam String offenseCode,
+    public ResponseEntity<ApiResponse<List<OffenseRecord>>> searchByCode(@RequestParam String offenseCode,
                                                             @RequestParam(defaultValue = "1") int page,
                                                             @RequestParam(defaultValue = "20") int size) {
         try {
-            return ResponseEntity.ok(offenseRecordService.searchByOffenseCode(offenseCode, page, size));
+            return ResponseEntity.ok(ApiResponse.ok(offenseRecordService.searchByOffenseCode(offenseCode, page, size)));
         } catch (Exception ex) {
             LOG.log(Level.WARNING, "Search offense by code failed", ex);
             if (ex instanceof RuntimeException) {
@@ -231,11 +239,11 @@ public class OffenseInformationController {
 
     @GetMapping("/search/status")
     @Operation(summary = "按处理状态搜索")
-    public ResponseEntity<List<OffenseRecord>> searchByStatus(@RequestParam String status,
+    public ResponseEntity<ApiResponse<List<OffenseRecord>>> searchByStatus(@RequestParam String status,
                                                               @RequestParam(defaultValue = "1") int page,
                                                               @RequestParam(defaultValue = "20") int size) {
         try {
-            return ResponseEntity.ok(offenseRecordService.searchByProcessStatus(status, page, size));
+            return ResponseEntity.ok(ApiResponse.ok(offenseRecordService.searchByProcessStatus(status, page, size)));
         } catch (Exception ex) {
             LOG.log(Level.WARNING, "Search offense by status failed", ex);
             if (ex instanceof RuntimeException) {
@@ -247,12 +255,12 @@ public class OffenseInformationController {
 
     @GetMapping("/search/time-range")
     @Operation(summary = "按违法时间范围搜索")
-    public ResponseEntity<List<OffenseRecord>> searchByTimeRange(@RequestParam String startTime,
+    public ResponseEntity<ApiResponse<List<OffenseRecord>>> searchByTimeRange(@RequestParam String startTime,
                                                                  @RequestParam String endTime,
                                                                  @RequestParam(defaultValue = "1") int page,
                                                                  @RequestParam(defaultValue = "20") int size) {
         try {
-            return ResponseEntity.ok(offenseRecordService.searchByOffenseTimeRange(startTime, endTime, page, size));
+            return ResponseEntity.ok(ApiResponse.ok(offenseRecordService.searchByOffenseTimeRange(startTime, endTime, page, size)));
         } catch (Exception ex) {
             LOG.log(Level.WARNING, "Search offense by time range failed", ex);
             if (ex instanceof RuntimeException) {
@@ -264,11 +272,11 @@ public class OffenseInformationController {
 
     @GetMapping("/search/number")
     @Operation(summary = "按违法编号搜索")
-    public ResponseEntity<List<OffenseRecord>> searchByNumber(@RequestParam String offenseNumber,
+    public ResponseEntity<ApiResponse<List<OffenseRecord>>> searchByNumber(@RequestParam String offenseNumber,
                                                               @RequestParam(defaultValue = "1") int page,
                                                               @RequestParam(defaultValue = "20") int size) {
         try {
-            return ResponseEntity.ok(offenseRecordService.searchByOffenseNumber(offenseNumber, page, size));
+            return ResponseEntity.ok(ApiResponse.ok(offenseRecordService.searchByOffenseNumber(offenseNumber, page, size)));
         } catch (Exception ex) {
             LOG.log(Level.WARNING, "Search offense by number failed", ex);
             if (ex instanceof RuntimeException) {
@@ -280,11 +288,11 @@ public class OffenseInformationController {
 
     @GetMapping("/search/location")
     @Operation(summary = "Search offenses by location")
-    public ResponseEntity<List<OffenseRecord>> searchByLocation(@RequestParam String offenseLocation,
+    public ResponseEntity<ApiResponse<List<OffenseRecord>>> searchByLocation(@RequestParam String offenseLocation,
                                                                  @RequestParam(defaultValue = "1") int page,
                                                                  @RequestParam(defaultValue = "20") int size) {
         try {
-            return ResponseEntity.ok(offenseRecordService.searchByOffenseLocation(offenseLocation, page, size));
+            return ResponseEntity.ok(ApiResponse.ok(offenseRecordService.searchByOffenseLocation(offenseLocation, page, size)));
         } catch (Exception ex) {
             LOG.log(Level.WARNING, "Search offense by location failed", ex);
             if (ex instanceof RuntimeException) {
@@ -296,11 +304,11 @@ public class OffenseInformationController {
 
     @GetMapping("/search/province")
     @Operation(summary = "Search offenses by province")
-    public ResponseEntity<List<OffenseRecord>> searchByProvince(@RequestParam String offenseProvince,
+    public ResponseEntity<ApiResponse<List<OffenseRecord>>> searchByProvince(@RequestParam String offenseProvince,
                                                                  @RequestParam(defaultValue = "1") int page,
                                                                  @RequestParam(defaultValue = "20") int size) {
         try {
-            return ResponseEntity.ok(offenseRecordService.searchByOffenseProvince(offenseProvince, page, size));
+            return ResponseEntity.ok(ApiResponse.ok(offenseRecordService.searchByOffenseProvince(offenseProvince, page, size)));
         } catch (Exception ex) {
             LOG.log(Level.WARNING, "Search offense by province failed", ex);
             if (ex instanceof RuntimeException) {
@@ -312,11 +320,11 @@ public class OffenseInformationController {
 
     @GetMapping("/search/city")
     @Operation(summary = "Search offenses by city")
-    public ResponseEntity<List<OffenseRecord>> searchByCity(@RequestParam String offenseCity,
+    public ResponseEntity<ApiResponse<List<OffenseRecord>>> searchByCity(@RequestParam String offenseCity,
                                                             @RequestParam(defaultValue = "1") int page,
                                                             @RequestParam(defaultValue = "20") int size) {
         try {
-            return ResponseEntity.ok(offenseRecordService.searchByOffenseCity(offenseCity, page, size));
+            return ResponseEntity.ok(ApiResponse.ok(offenseRecordService.searchByOffenseCity(offenseCity, page, size)));
         } catch (Exception ex) {
             LOG.log(Level.WARNING, "Search offense by city failed", ex);
             if (ex instanceof RuntimeException) {
@@ -328,11 +336,11 @@ public class OffenseInformationController {
 
     @GetMapping("/search/notification")
     @Operation(summary = "Search offenses by notification status")
-    public ResponseEntity<List<OffenseRecord>> searchByNotification(@RequestParam String notificationStatus,
+    public ResponseEntity<ApiResponse<List<OffenseRecord>>> searchByNotification(@RequestParam String notificationStatus,
                                                                     @RequestParam(defaultValue = "1") int page,
                                                                     @RequestParam(defaultValue = "20") int size) {
         try {
-            return ResponseEntity.ok(offenseRecordService.searchByNotificationStatus(notificationStatus, page, size));
+            return ResponseEntity.ok(ApiResponse.ok(offenseRecordService.searchByNotificationStatus(notificationStatus, page, size)));
         } catch (Exception ex) {
             LOG.log(Level.WARNING, "Search offense by notification status failed", ex);
             if (ex instanceof RuntimeException) {
@@ -344,11 +352,11 @@ public class OffenseInformationController {
 
     @GetMapping("/search/agency")
     @Operation(summary = "Search offenses by enforcement agency")
-    public ResponseEntity<List<OffenseRecord>> searchByAgency(@RequestParam String enforcementAgency,
+    public ResponseEntity<ApiResponse<List<OffenseRecord>>> searchByAgency(@RequestParam String enforcementAgency,
                                                               @RequestParam(defaultValue = "1") int page,
                                                               @RequestParam(defaultValue = "20") int size) {
         try {
-            return ResponseEntity.ok(offenseRecordService.searchByEnforcementAgency(enforcementAgency, page, size));
+            return ResponseEntity.ok(ApiResponse.ok(offenseRecordService.searchByEnforcementAgency(enforcementAgency, page, size)));
         } catch (Exception ex) {
             LOG.log(Level.WARNING, "Search offense by enforcement agency failed", ex);
             if (ex instanceof RuntimeException) {
@@ -360,12 +368,12 @@ public class OffenseInformationController {
 
     @GetMapping("/search/fine-range")
     @Operation(summary = "Search offenses by fine amount range")
-    public ResponseEntity<List<OffenseRecord>> searchByFineRange(@RequestParam double minAmount,
+    public ResponseEntity<ApiResponse<List<OffenseRecord>>> searchByFineRange(@RequestParam double minAmount,
                                                                  @RequestParam double maxAmount,
                                                                  @RequestParam(defaultValue = "1") int page,
                                                                  @RequestParam(defaultValue = "20") int size) {
         try {
-            return ResponseEntity.ok(offenseRecordService.searchByFineAmountRange(minAmount, maxAmount, page, size));
+            return ResponseEntity.ok(ApiResponse.ok(offenseRecordService.searchByFineAmountRange(minAmount, maxAmount, page, size)));
         } catch (Exception ex) {
             LOG.log(Level.WARNING, "Search offense by fine amount range failed", ex);
             if (ex instanceof RuntimeException) {

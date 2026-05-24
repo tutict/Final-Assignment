@@ -3,8 +3,8 @@ package com.tutict.finalassignmentbackend.config.websocket;
 import lombok.Getter;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.BeansException;
 import org.springframework.context.ApplicationContext;
-import org.springframework.context.annotation.Profile;
 import org.springframework.stereotype.Component;
 
 import jakarta.annotation.PostConstruct;
@@ -18,7 +18,6 @@ import java.util.Map;
  * 扫描带 @WsAction 的方法，并存储到 Map:  (serviceName + "#" + actionName) -> (beanInstance, method)
  */
 @Component
-@Profile("!test")
 public class WsActionRegistry {
 
     private static final Logger log = LoggerFactory.getLogger(WsActionRegistry.class);
@@ -39,12 +38,22 @@ public class WsActionRegistry {
         // 获取Spring容器中所有的Bean
         String[] beanNames = applicationContext.getBeanDefinitionNames();
         for (String beanName : beanNames) {
-            Object bean = applicationContext.getBean(beanName);
-            Class<?> beanClass = bean.getClass();
+            Class<?> beanClass = applicationContext.getType(beanName);
+            if (beanClass == null) {
+                continue;
+            }
             Class<?> actualClass = getActualClass(beanClass);
 
             // 如果不想遍历全部, 你可以加判断:
             if (!actualClass.getPackageName().startsWith(BASE_PACKAGE)) continue;
+
+            Object bean;
+            try {
+                bean = applicationContext.getBean(beanName);
+            } catch (BeansException ex) {
+                log.debug("Skip WsAction scan for bean {} because it cannot be initialized yet", beanName, ex);
+                continue;
+            }
 
             for (Method m : actualClass.getMethods()) {
                 WsAction anno = m.getAnnotation(WsAction.class);
