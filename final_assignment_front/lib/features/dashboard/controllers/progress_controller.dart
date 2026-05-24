@@ -1,18 +1,16 @@
-import 'dart:convert';
-
 import 'package:final_assignment_front/features/api/appeal_management_controller_api.dart';
+import 'package:final_assignment_front/features/api/progress_item_controller_api.dart';
 import 'package:final_assignment_front/features/model/appeal_record.dart';
 import 'package:final_assignment_front/features/model/progress_item.dart';
 import 'package:final_assignment_front/shared/controllers/base_list_controller.dart';
 import 'package:final_assignment_front/core/network/app_exception.dart';
-import 'package:final_assignment_front/utils/services/api_client.dart';
 import 'package:final_assignment_front/utils/ui/ui_utils.dart';
 import 'package:get/get.dart';
 import 'package:jwt_decoder/jwt_decoder.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 class ProgressController extends BaseListController<ProgressItem> {
-  final ApiClient apiClient = ApiClient();
+  final ProgressControllerApi progressApi = ProgressControllerApi();
   final AppealManagementControllerApi appealApi =
       AppealManagementControllerApi();
   RxList<ProgressItem> get progressItems => items;
@@ -79,26 +77,7 @@ class ProgressController extends BaseListController<ProgressItem> {
   Future<void> fetchAppeals() async {
     try {
       await appealApi.initializeWithJwt();
-      final response = await appealApi.apiClient.invokeAPI(
-        '/api/appeals',
-        'GET',
-        const [],
-        null,
-        {},
-        const {},
-        null,
-        ['bearerAuth'],
-        passThroughStatusCodes: const {404},
-      );
-      if (response.statusCode == 404 || response.body.isEmpty) {
-        appeals.clear();
-        return;
-      }
-      final List<dynamic> data = jsonDecode(response.body);
-      appeals.value = data
-          .map((json) =>
-              AppealRecordModel.fromJson(json as Map<String, dynamic>))
-          .toList();
+      appeals.value = await appealApi.listAllAppeals();
     } catch (_) {
       appeals.clear();
     }
@@ -106,32 +85,9 @@ class ProgressController extends BaseListController<ProgressItem> {
 
   Future<void> fetchProgress() async {
     await runWithLoading(() async {
-      final prefs = await SharedPreferences.getInstance();
-      final jwtToken = prefs.getString('jwtToken');
-      if (jwtToken == null) {
-        throw Exception('JWT Token not found');
-      }
-
-      final response = await apiClient.invokeAPI(
-        '/api/progress',
-        'GET',
-        [],
-        null,
-        {'Authorization': 'Bearer $jwtToken'},
-        {},
-        'application/json',
-        ['bearerAuth'],
-      );
-
-      if (response.statusCode == 200) {
-        final List<dynamic> data = jsonDecode(response.body);
-        progressItems.value =
-            data.map((json) => ProgressItem.fromJson(json)).toList();
-        _applyActiveFilters();
-      } else {
-        throw AppException.http(
-            response.statusCode, 'Failed to fetch progress');
-      }
+      await progressApi.initializeWithJwt();
+      progressItems.value = await progressApi.listProgressItems();
+      _applyActiveFilters();
     });
   }
 
@@ -140,10 +96,9 @@ class ProgressController extends BaseListController<ProgressItem> {
     await runWithLoading(
       () async {
         final prefs = await SharedPreferences.getInstance();
-        final jwtToken = prefs.getString('jwtToken');
         final username = prefs.getString('userName');
-        if (jwtToken == null || username == null) {
-          throw Exception('JWT Token or username not found');
+        if (username == null) {
+          throw Exception('username not found');
         }
 
         final progressItem = ProgressItem(
@@ -155,27 +110,9 @@ class ProgressController extends BaseListController<ProgressItem> {
           appealId: appealId,
         );
 
-        final response = await apiClient.invokeAPI(
-          '/api/progress',
-          'POST',
-          [],
-          progressItem.toJson(),
-          {
-            'Authorization': 'Bearer $jwtToken',
-            'Content-Type': 'application/json',
-          },
-          {},
-          'application/json',
-          ['bearerAuth'],
-        );
-
-        if (response.statusCode == 201) {
-          await fetchProgress();
-          _showSnackbar('成功', '进度提交成功');
-        } else {
-          throw AppException.http(
-              response.statusCode, 'Failed to submit progress');
-        }
+        await progressApi.createProgressItem(progressItem: progressItem);
+        await fetchProgress();
+        _showSnackbar('成功', '进度提交成功');
       },
       onError: (_, __) =>
           _showSnackbar('错误', errorMessage.value, isError: true),
@@ -188,10 +125,9 @@ class ProgressController extends BaseListController<ProgressItem> {
     await runWithLoading(
       () async {
         final prefs = await SharedPreferences.getInstance();
-        final jwtToken = prefs.getString('jwtToken');
         final username = prefs.getString('username');
-        if (jwtToken == null || username == null) {
-          throw Exception('JWT Token or username not found');
+        if (username == null) {
+          throw Exception('username not found');
         }
 
         final progressItem = progressItems.firstWhere((item) => item.id == id);
@@ -204,27 +140,12 @@ class ProgressController extends BaseListController<ProgressItem> {
           appealId: appealId ?? progressItem.appealId,
         );
 
-        final response = await apiClient.invokeAPI(
-          '/api/progress/$id',
-          'PUT',
-          [],
-          updatedItem.toJson(),
-          {
-            'Authorization': 'Bearer $jwtToken',
-            'Content-Type': 'application/json',
-          },
-          {},
-          'application/json',
-          ['bearerAuth'],
+        await progressApi.updateProgressItem(
+          progressId: id,
+          progressItem: updatedItem,
         );
-
-        if (response.statusCode == 200) {
-          await fetchProgress();
-          _showSnackbar('成功', '进度更新成功');
-        } else {
-          throw AppException.http(
-              response.statusCode, 'Failed to update progress');
-        }
+        await fetchProgress();
+        _showSnackbar('成功', '进度更新成功');
       },
       onError: (_, __) =>
           _showSnackbar('错误', errorMessage.value, isError: true),
@@ -234,39 +155,18 @@ class ProgressController extends BaseListController<ProgressItem> {
   Future<void> updateProgressStatus(int id, String newStatus) async {
     await runWithLoading(
       () async {
-        final prefs = await SharedPreferences.getInstance();
-        final jwtToken = prefs.getString('jwtToken');
-        if (jwtToken == null) {
-          throw Exception('JWT Token not found');
-        }
-
         final progressItem = progressItems.firstWhere((item) => item.id == id);
         final updatedItem = progressItem.copyWith(
           status: newStatus,
           submitTime: DateTime.now(),
         );
 
-        final response = await apiClient.invokeAPI(
-          '/api/progress/$id',
-          'PUT',
-          [],
-          updatedItem.toJson(),
-          {
-            'Authorization': 'Bearer $jwtToken',
-            'Content-Type': 'application/json',
-          },
-          {},
-          'application/json',
-          ['bearerAuth'],
+        await progressApi.updateProgressItem(
+          progressId: id,
+          progressItem: updatedItem,
         );
-
-        if (response.statusCode == 200) {
-          await fetchProgress();
-          _showSnackbar('成功', '状态更新成功');
-        } else {
-          throw AppException.http(
-              response.statusCode, 'Failed to update status');
-        }
+        await fetchProgress();
+        _showSnackbar('成功', '状态更新成功');
       },
       onError: (_, __) =>
           _showSnackbar('错误', errorMessage.value, isError: true),
@@ -276,30 +176,9 @@ class ProgressController extends BaseListController<ProgressItem> {
   Future<void> deleteProgress(int id) async {
     await runWithLoading(
       () async {
-        final prefs = await SharedPreferences.getInstance();
-        final jwtToken = prefs.getString('jwtToken');
-        if (jwtToken == null) {
-          throw Exception('JWT Token not found');
-        }
-
-        final response = await apiClient.invokeAPI(
-          '/api/progress/$id',
-          'DELETE',
-          [],
-          null,
-          {'Authorization': 'Bearer $jwtToken'},
-          {},
-          'application/json',
-          ['bearerAuth'],
-        );
-
-        if (response.statusCode == 204) {
-          await fetchProgress();
-          _showSnackbar('成功', '进度删除成功');
-        } else {
-          throw AppException.http(
-              response.statusCode, 'Failed to delete progress');
-        }
+        await progressApi.deleteProgressItem(progressId: id);
+        await fetchProgress();
+        _showSnackbar('成功', '进度删除成功');
       },
       onError: (_, __) =>
           _showSnackbar('错误', errorMessage.value, isError: true),
@@ -315,34 +194,13 @@ class ProgressController extends BaseListController<ProgressItem> {
 
   Future<void> fetchProgressByTimeRange(DateTime start, DateTime end) async {
     await runWithLoading(() async {
-      final prefs = await SharedPreferences.getInstance();
-      final jwtToken = prefs.getString('jwtToken');
-      if (jwtToken == null) {
-        throw Exception('JWT Token not found');
-      }
-
-      final response = await apiClient.invokeAPI(
-        '/api/progress/timeRange?startTime=${start.toIso8601String()}&endTime=${end.toIso8601String()}',
-        'GET',
-        [],
-        null,
-        {'Authorization': 'Bearer $jwtToken'},
-        {},
-        'application/json',
-        ['bearerAuth'],
+      selectedStatus.value = null;
+      selectedStartDate.value = start;
+      selectedEndDate.value = end;
+      filteredItems.value = await progressApi.searchProgressItemsByTimeRange(
+        startTime: start.toIso8601String(),
+        endTime: end.toIso8601String(),
       );
-
-      if (response.statusCode == 200) {
-        final List<dynamic> data = jsonDecode(response.body);
-        selectedStatus.value = null;
-        selectedStartDate.value = start;
-        selectedEndDate.value = end;
-        filteredItems.value =
-            data.map((json) => ProgressItem.fromJson(json)).toList();
-      } else {
-        throw AppException.http(
-            response.statusCode, 'Failed to fetch progress by time range');
-      }
     });
   }
 
@@ -389,7 +247,7 @@ class ProgressController extends BaseListController<ProgressItem> {
     if (item.driverId != null) contexts.add('司机ID: ${item.driverId}');
     if (item.fineId != null) contexts.add('罚款ID: ${item.fineId}');
     if (item.vehicleId != null) contexts.add('车辆ID: ${item.vehicleId}');
-    if (item.offenseId != null) contexts.add('违章ID: ${item.offenseId}');
+    if (item.offenseId != null) contexts.add('违法ID: ${item.offenseId}');
     return contexts.isNotEmpty ? contexts.join(', ') : '无关联业务';
   }
 

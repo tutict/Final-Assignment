@@ -307,28 +307,12 @@ class _LoginScreenState extends State<LoginScreen> {
     final newPassword = newPasswordController.text.trim();
 
     try {
-      final response = await authApi.apiClient.invokeAPI(
-        '/api/users/me/password',
-        'PUT',
-        [],
-        newPassword,
-        {
-          'Authorization': 'Bearer $jwtToken',
-          'Content-Type': 'text/plain; charset=utf-8',
-          'Idempotency-Key': generateIdempotencyKey(),
-        },
-        {},
-        'text/plain',
-        ['bearerAuth'],
+      await authApi.updateCurrentPassword(
+        newPassword: newPassword,
+        idempotencyKey: generateIdempotencyKey(),
       );
 
-      if (response.statusCode == 200) {
-        return null;
-      }
-      throw AppException.http(
-        response.statusCode,
-        '密码重置失败: ${response.statusCode}',
-      );
+      return null;
     } on AppException catch (e) {
       AppLogger.error('重置密码失败: $e');
       return _formatErrorMessage(e, '密码重置失败');

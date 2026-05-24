@@ -1,10 +1,9 @@
 // ignore_for_file: use_build_context_synchronously
-import 'dart:convert';
 import 'dart:developer' as developer;
 
 import 'package:final_assignment_front/config/routes/app_routes.dart';
 import 'package:final_assignment_front/core/auth/auth_service.dart';
-import 'package:final_assignment_front/core/config/app_config.dart';
+import 'package:final_assignment_front/features/api/auth_controller_api.dart';
 import 'package:final_assignment_front/features/api/offense_information_controller_api.dart';
 import 'package:final_assignment_front/features/dashboard/controllers/manager_dashboard_controller.dart';
 import 'package:final_assignment_front/features/dashboard/views/shared/widgets/dashboard_page_template.dart';
@@ -15,7 +14,6 @@ import 'package:final_assignment_front/shared/widgets/index.dart';
 import 'package:final_assignment_front/utils/helpers/app_helpers.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
-import 'package:http/http.dart' as http;
 import 'package:jwt_decoder/jwt_decoder.dart';
 import 'package:final_assignment_front/utils/services/auth_token_store.dart';
 import 'package:final_assignment_front/shared/utils/navigation_helper.dart';
@@ -131,19 +129,10 @@ class _OffenseListPageState extends State<OffenseList> {
         NavigationHelper.offAllNamed(Routes.login);
         return;
       }
-      final jwtToken = (await AuthTokenStore.instance.getJwtToken())!;
-
       // Try backend API first
       try {
-        final response = await http.get(
-          Uri.parse('${AppConfig.apiBaseUrl}/api/users/me'),
-          headers: {
-            'Authorization': 'Bearer $jwtToken',
-            'Content-Type': 'application/json',
-          },
-        );
-        if (response.statusCode == 200) {
-          final userData = jsonDecode(utf8.decode(response.bodyBytes));
+        final userData = await AuthControllerApi().getCurrentProfile();
+        if (userData != null) {
           developer.log('User data from /api/users/me: $userData');
           final roles = (userData['roles'] as List<dynamic>?)
               ?.map((r) => r.toString().toUpperCase())
@@ -156,8 +145,7 @@ class _OffenseListPageState extends State<OffenseList> {
           developer.log(
               'No valid roles in /api/users/me response, falling back to JWT');
         } else {
-          developer.log(
-              'Failed to fetch user roles: ${response.statusCode} - ${response.body}');
+          developer.log('Failed to fetch user roles: empty profile response');
         }
       } catch (e) {
         developer.log('Error fetching user roles from API: $e');
@@ -1045,22 +1033,15 @@ class _OffenseDetailPageState extends State<OffenseDetailPage> {
       }
       final jwtToken = (await AuthTokenStore.instance.getJwtToken());
       if (jwtToken == null) throw Exception('未找到 JWT，请重新登录');
-      final response = await http.get(
-        Uri.parse('${AppConfig.apiBaseUrl}/api/users/me'),
-        headers: {
-          'Authorization': 'Bearer $jwtToken',
-          'Content-Type': 'application/json'
-        },
-      );
-      if (response.statusCode == 200) {
-        final userData = jsonDecode(utf8.decode(response.bodyBytes));
+      final userData = await AuthControllerApi().getCurrentProfile();
+      if (userData != null) {
         final roles = (userData['roles'] as List<dynamic>?)
                 ?.map((r) => r.toString())
                 .toList() ??
             [];
         setState(() => _isEditable = roles.contains('ADMIN'));
       } else {
-        throw Exception('验证失败：${response.statusCode}');
+        throw Exception('验证失败：未获取到用户信息');
       }
     } catch (e) {
       setState(() => _errorMessage = '加载权限失败: $e');

@@ -65,6 +65,10 @@ class DeductionInformationControllerApi with BaseApiClient {
     return requestVoid('DELETE', '/api/deductions/$deductionId');
   }
 
+  Future<void> clearCache() {
+    return requestVoid('POST', '/api/cache/clear');
+  }
+
   Future<List<DeductionRecordModel>> listDeductionsByDriver({
     required int driverId,
     int page = 1,

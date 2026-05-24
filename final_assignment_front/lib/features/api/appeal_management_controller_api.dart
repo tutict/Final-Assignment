@@ -47,6 +47,21 @@ class AppealManagementControllerApi with BaseApiClient {
     return requestVoid('DELETE', '/api/appeals/$appealId');
   }
 
+  Future<AppealRecordModel> submitWorkflowEvent({
+    required int appealId,
+    required String eventCode,
+    required String idempotencyKey,
+  }) {
+    requireNotBlank(eventCode, 'eventCode');
+    requireNotBlank(idempotencyKey, 'idempotencyKey');
+    return requestObject(
+      'POST',
+      '/api/workflow/appeals/$appealId/events/${Uri.encodeComponent(eventCode)}',
+      AppealRecordModel.fromJson,
+      idempotencyKey: idempotencyKey,
+    );
+  }
+
   Future<AppealRecordModel?> getAppeal({required int appealId}) {
     return requestNullableObject(
       'GET',
@@ -76,6 +91,17 @@ class AppealManagementControllerApi with BaseApiClient {
     return _listAppeals(
       '/api/appeals',
       {'offenseId': offenseId, 'page': page, 'size': size},
+      treatNotFoundAsEmpty: true,
+    );
+  }
+
+  Future<List<AppealRecordModel>> listAllAppeals({
+    int page = 1,
+    int size = 20,
+  }) {
+    return _listAppeals(
+      '/api/appeals',
+      {'page': page, 'size': size},
       treatNotFoundAsEmpty: true,
     );
   }

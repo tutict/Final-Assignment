@@ -1,8 +1,6 @@
 // ignore_for_file: use_build_context_synchronously
-import 'dart:convert';
 
-import 'package:final_assignment_front/features/dashboard/bindings/progress_binding.dart';
-import 'package:final_assignment_front/features/dashboard/controllers/progress_controller.dart';
+import 'package:final_assignment_front/features/api/feedback_controller_api.dart';
 import 'package:final_assignment_front/features/dashboard/controllers/user_dashboard_screen_controller.dart';
 import 'package:final_assignment_front/features/dashboard/views/user/widgets/user_page_app_bar.dart';
 import 'package:final_assignment_front/shared/widgets/index.dart';
@@ -54,7 +52,7 @@ class ConsultationFeedback extends StatefulWidget {
 
 class _ConsultationFeedbackState extends State<ConsultationFeedback> {
   final TextEditingController _feedbackController = TextEditingController();
-  late final ProgressController _progressController;
+  final FeedbackControllerApi _feedbackApi = FeedbackControllerApi();
   final UserDashboardController _dashboardController =
       Get.find<UserDashboardController>();
   bool _isLoading = false;
@@ -62,8 +60,6 @@ class _ConsultationFeedbackState extends State<ConsultationFeedback> {
   @override
   void initState() {
     super.initState();
-    ProgressBinding.registerDependencies();
-    _progressController = Get.find<ProgressController>();
   }
 
   @override
@@ -83,13 +79,11 @@ class _ConsultationFeedbackState extends State<ConsultationFeedback> {
 
     try {
       final prefs = await SharedPreferences.getInstance();
-      final jwtToken = prefs.getString('jwtToken');
       final username = prefs.getString('userName');
-      if (jwtToken == null || username == null) {
+      if (username == null) {
         throw Exception('未找到登录信息，请重新登录');
       }
 
-      final apiClient = _progressController.apiClient;
       final feedbackData = Feedback(
         feedbackId: 0,
         username: username,
@@ -98,32 +92,14 @@ class _ConsultationFeedbackState extends State<ConsultationFeedback> {
         timestamp: DateTime.now().toIso8601String(),
       );
 
-      final response = await apiClient.invokeAPI(
-        '/api/feedback',
-        'POST',
-        const [],
-        feedbackData.toJson(),
-        {
-          'Authorization': 'Bearer $jwtToken',
-          'Content-Type': 'application/json',
-        },
-        const {},
-        'application/json',
-        const [],
+      await _feedbackApi.createFeedback(body: feedbackData.toJson());
+      AppDialog.showConfirmDialog(
+        context: context,
+        title: '成功',
+        message: '反馈已提交，等待管理员审核',
+        confirmText: '知道了',
       );
-
-      if (response.statusCode == 201) {
-        AppDialog.showConfirmDialog(
-          context: context,
-          title: '成功',
-          message: '反馈已提交，等待管理员审核',
-          confirmText: '知道了',
-        );
-        _feedbackController.clear();
-      } else {
-        throw Exception(
-            '提交失败: ${jsonDecode(response.body)['error'] ?? '未知错误'}');
-      }
+      _feedbackController.clear();
     } catch (e) {
       AppSnackbar.showError(context, message: '提交反馈失败: $e');
     } finally {
@@ -211,7 +187,7 @@ class FeedbackApprovalPage extends StatefulWidget {
 
 class _FeedbackApprovalPageState extends State<FeedbackApprovalPage> {
   final List<Feedback> _feedbackRequests = [];
-  late final ProgressController _progressController;
+  final FeedbackControllerApi _feedbackApi = FeedbackControllerApi();
   final UserDashboardController dashboardController =
       Get.find<UserDashboardController>();
   bool _isLoading = true;
@@ -220,8 +196,6 @@ class _FeedbackApprovalPageState extends State<FeedbackApprovalPage> {
   @override
   void initState() {
     super.initState();
-    ProgressBinding.registerDependencies();
-    _progressController = Get.find<ProgressController>();
     _fetchFeedbackRequests();
   }
 
@@ -232,38 +206,13 @@ class _FeedbackApprovalPageState extends State<FeedbackApprovalPage> {
     });
 
     try {
-      final prefs = await SharedPreferences.getInstance();
-      final jwtToken = prefs.getString('jwtToken');
-      if (jwtToken == null) {
-        throw Exception('未登录，请重新登录');
-      }
-
-      final apiClient = _progressController.apiClient;
-      final response = await apiClient.invokeAPI(
-        '/api/feedback',
-        'GET',
-        const [],
-        null,
-        {
-          'Authorization': 'Bearer $jwtToken',
-          'Content-Type': 'application/json',
-        },
-        const {},
-        null,
-        const [],
-      );
-
-      if (response.statusCode == 200) {
-        final List<dynamic> data = jsonDecode(response.body);
-        setState(() {
-          _feedbackRequests
-            ..clear()
-            ..addAll(data.map((json) => Feedback.fromJson(json)));
-          _isLoading = false;
-        });
-      } else {
-        throw Exception('加载反馈请求失败: ${response.statusCode} - ${response.body}');
-      }
+      final data = await _feedbackApi.listFeedback();
+      setState(() {
+        _feedbackRequests
+          ..clear()
+          ..addAll(data.map(Feedback.fromJson));
+        _isLoading = false;
+      });
     } catch (e) {
       setState(() {
         _isLoading = false;
@@ -275,37 +224,16 @@ class _FeedbackApprovalPageState extends State<FeedbackApprovalPage> {
   Future<void> _updateFeedbackRequest(int feedbackId, String status) async {
     setState(() => _isLoading = true);
     try {
-      final prefs = await SharedPreferences.getInstance();
-      final jwtToken = prefs.getString('jwtToken');
-      if (jwtToken == null) {
-        throw Exception('未登录，请重新登录');
-      }
-
-      final apiClient = _progressController.apiClient;
-      final response = await apiClient.invokeAPI(
-        '/api/feedback/$feedbackId',
-        'PUT',
-        const [],
-        {
+      await _feedbackApi.updateFeedback(
+        feedbackId: feedbackId,
+        body: {
           'status': status,
           'timestamp': DateTime.now().toIso8601String(),
         },
-        {
-          'Authorization': 'Bearer $jwtToken',
-          'Content-Type': 'application/json',
-        },
-        const {},
-        'application/json',
-        const [],
       );
-
-      if (response.statusCode == 200) {
-        await _fetchFeedbackRequests();
-        AppSnackbar.showSuccess(context,
-            message: '反馈已${status == 'Approved' ? '批准' : '拒绝'}');
-      } else {
-        throw Exception('更新失败: ${response.statusCode} - ${response.body}');
-      }
+      await _fetchFeedbackRequests();
+      AppSnackbar.showSuccess(context,
+          message: '反馈已${status == 'Approved' ? '批准' : '拒绝'}');
     } catch (e) {
       AppSnackbar.showError(context, message: '更新失败: $e');
     } finally {

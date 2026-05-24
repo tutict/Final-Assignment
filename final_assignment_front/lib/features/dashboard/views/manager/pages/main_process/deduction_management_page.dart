@@ -1,7 +1,6 @@
 import 'package:final_assignment_front/core/utils/app_logger.dart';
 import 'package:final_assignment_front/config/routes/app_routes.dart';
 import 'package:final_assignment_front/core/auth/auth_service.dart';
-import 'package:final_assignment_front/core/config/app_config.dart';
 import 'package:final_assignment_front/features/api/deduction_information_controller_api.dart';
 import 'package:final_assignment_front/features/api/offense_information_controller_api.dart';
 import 'package:final_assignment_front/features/dashboard/controllers/manager_dashboard_controller.dart';
@@ -11,10 +10,8 @@ import 'package:final_assignment_front/shared/widgets/index.dart';
 import 'package:final_assignment_front/core/network/app_exception.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
-import 'package:http/http.dart' as http;
 import 'package:intl/intl.dart';
 import 'package:jwt_decoder/jwt_decoder.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 import 'package:uuid/uuid.dart';
 import 'package:final_assignment_front/shared/utils/navigation_helper.dart';
 import 'package:final_assignment_front/utils/services/auth_token_store.dart';
@@ -178,12 +175,7 @@ class _DeductionManagementState extends State<DeductionManagementPage> {
       });
 
       // Clear cache to ensure fresh data
-      final prefs = await SharedPreferences.getInstance();
-      final jwtToken = prefs.getString('jwtToken');
-      await http.post(
-        Uri.parse('${AppConfig.apiBaseUrl}/api/cache/clear'),
-        headers: {'Authorization': 'Bearer $jwtToken'},
-      );
+      await deductionApi.clearCache();
     } catch (e) {
       AppLogger.error('Load Deductions Error: $e');
       setState(() {
@@ -827,12 +819,7 @@ class _AddDeductionPageState extends State<AddDeductionPage> {
       _showSnackBar('创建扣分记录成功！');
 
       // Clear cache
-      final prefs = await SharedPreferences.getInstance();
-      final jwtToken = prefs.getString('jwtToken');
-      await http.post(
-        Uri.parse('${AppConfig.apiBaseUrl}/api/cache/clear'),
-        headers: {'Authorization': 'Bearer $jwtToken'},
-      );
+      await deductionApi.clearCache();
 
       if (mounted) Navigator.pop(context, true);
     } catch (e) {
@@ -1273,12 +1260,7 @@ class _EditDeductionPageState extends State<EditDeductionPage> {
       _showSnackBar('更新扣分记录成功！');
 
       // Clear cache
-      final prefs = await SharedPreferences.getInstance();
-      final jwtToken = prefs.getString('jwtToken');
-      await http.post(
-        Uri.parse('${AppConfig.apiBaseUrl}/api/cache/clear'),
-        headers: {'Authorization': 'Bearer $jwtToken'},
-      );
+      await deductionApi.clearCache();
 
       if (mounted) Navigator.pop(context, true);
     } catch (e) {

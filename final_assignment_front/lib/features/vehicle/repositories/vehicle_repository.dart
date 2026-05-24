@@ -1,10 +1,6 @@
-import 'dart:convert';
-
 import 'package:final_assignment_front/core/repository/base_repository.dart';
 import 'package:final_assignment_front/features/api/vehicle_information_controller_api.dart';
 import 'package:final_assignment_front/features/model/vehicle_information.dart';
-import 'package:final_assignment_front/core/network/app_exception.dart';
-import 'package:final_assignment_front/utils/services/api_client.dart';
 
 abstract class VehicleRepository {
   Future<void> initializeWithJwt();
@@ -77,14 +73,9 @@ abstract class VehicleRepository {
 
 class VehicleRepositoryImpl extends BaseRepository
     implements VehicleRepository {
-  VehicleRepositoryImpl(
-    VehicleInformationControllerApi api, {
-    ApiClient? apiClient,
-  })  : _api = api,
-        _apiClient = apiClient ?? api.apiClient;
+  VehicleRepositoryImpl(VehicleInformationControllerApi api) : _api = api;
 
   final VehicleInformationControllerApi _api;
-  final ApiClient _apiClient;
 
   @override
   Future<void> initializeWithJwt() {
@@ -114,22 +105,9 @@ class VehicleRepositoryImpl extends BaseRepository
   }) {
     return guard(() async {
       await _api.initializeWithJwt();
-      final response = await _apiClient.invokeAPI(
-        '/api/vehicles',
-        'POST',
-        const [],
-        vehicle.toJson(),
-        _headersWithIdempotencyKey(idempotencyKey),
-        const {},
-        'application/json',
-        const ['bearerAuth'],
-      );
-      if (response.body.isEmpty) {
-        throw AppException.http(
-            response.statusCode, 'Empty vehicle create response');
-      }
-      return VehicleInformation.fromJson(
-        jsonDecode(response.body) as Map<String, dynamic>,
+      return _api.createVehicle(
+        vehicle: vehicle,
+        idempotencyKey: idempotencyKey,
       );
     });
   }
@@ -142,22 +120,10 @@ class VehicleRepositoryImpl extends BaseRepository
   }) {
     return guard(() async {
       await _api.initializeWithJwt();
-      final response = await _apiClient.invokeAPI(
-        '/api/vehicles/$vehicleId',
-        'PUT',
-        const [],
-        vehicle.toJson(),
-        _headersWithIdempotencyKey(idempotencyKey),
-        const {},
-        'application/json',
-        const ['bearerAuth'],
-      );
-      if (response.body.isEmpty) {
-        throw AppException.http(
-            response.statusCode, 'Empty vehicle update response');
-      }
-      return VehicleInformation.fromJson(
-        jsonDecode(response.body) as Map<String, dynamic>,
+      return _api.updateVehicle(
+        vehicleId: vehicleId,
+        vehicle: vehicle,
+        idempotencyKey: idempotencyKey,
       );
     });
   }
@@ -308,13 +274,5 @@ class VehicleRepositoryImpl extends BaseRepository
         licensePlate: licensePlate,
       );
     });
-  }
-
-  Map<String, String> _headersWithIdempotencyKey(String idempotencyKey) {
-    final trimmed = idempotencyKey.trim();
-    if (trimmed.isEmpty) {
-      throw AppException.http(400, 'Missing required header: Idempotency-Key');
-    }
-    return {'Idempotency-Key': trimmed};
   }
 }

@@ -7,9 +7,9 @@ import 'package:flutter/material.dart';
 typedef ChatActionHandler = Future<void> Function(ChatAction action);
 typedef ChatConfirmHandler = Future<bool> Function();
 
-class ChatActionExecutor {
+class ChatActionExecutor with BaseApiClient {
   final BuildContext? context;
-  final ApiClient? apiClient;
+  final ApiClient? _apiClient;
   final ChatActionHandler? onNavigate;
   final ChatActionHandler? onFillForm;
   final ChatActionHandler? onCallApi;
@@ -18,13 +18,22 @@ class ChatActionExecutor {
 
   ChatActionExecutor({
     this.context,
-    this.apiClient,
+    ApiClient? apiClient,
     this.onNavigate,
     this.onFillForm,
     this.onCallApi,
     this.onShowModal,
     this.onConfirm,
-  });
+  }) : _apiClient = apiClient;
+
+  @override
+  ApiClient get apiClient {
+    final client = _apiClient;
+    if (client == null) {
+      throw StateError('CALL_API fallback missing apiClient');
+    }
+    return client;
+  }
 
   Future<void> executeActions(List<ChatAction> actions,
       {bool needConfirm = true}) async {
@@ -76,12 +85,16 @@ class ChatActionExecutor {
   }
 
   Future<void> _callApiFallback(ChatAction action) async {
-    if (apiClient == null || action.target == null) {
+    if (_apiClient == null || action.target == null) {
       AppLogger.debug('CALL_API fallback missing apiClient/target: $action');
       return;
     }
-    await apiClient!
-        .invokeAPI(action.target!, 'GET', [], null, {}, {}, null, []);
+    await request(
+      'GET',
+      action.target!,
+      includeAuthHeader: false,
+      authNames: const [],
+    );
   }
 
   Future<void> _showModalFallback(ChatAction action) async {

@@ -2,7 +2,6 @@ import 'package:final_assignment_front/core/errors/app_exception.dart';
 import 'package:final_assignment_front/core/repository/base_repository.dart';
 import 'package:final_assignment_front/features/api/deduction_information_controller_api.dart';
 import 'package:final_assignment_front/features/model/deduction_record.dart';
-import 'package:final_assignment_front/utils/services/api_client.dart';
 import 'package:final_assignment_front/utils/services/auth_token_store.dart';
 import 'package:jwt_decoder/jwt_decoder.dart';
 
@@ -81,14 +80,9 @@ abstract class DeductionRepository {
 
 class DeductionRepositoryImpl extends BaseRepository
     implements DeductionRepository {
-  DeductionRepositoryImpl(
-    DeductionInformationControllerApi api, {
-    ApiClient? apiClient,
-  })  : _api = api,
-        _apiClient = apiClient ?? api.apiClient;
+  DeductionRepositoryImpl(DeductionInformationControllerApi api) : _api = api;
 
   final DeductionInformationControllerApi _api;
-  final ApiClient _apiClient;
 
   @override
   Future<void> initializeWithJwt() {
@@ -331,16 +325,7 @@ class DeductionRepositoryImpl extends BaseRepository
   }
 
   Future<void> _clearCacheUnsafe() async {
-    await _apiClient.invokeAPI(
-      '/api/cache/clear',
-      'POST',
-      const [],
-      null,
-      <String, String>{},
-      <String, String>{},
-      null,
-      const ['bearerAuth'],
-    );
+    await _api.clearCache();
   }
 
   List<DeductionRecordModel> _sortByDeductionTimeDesc(

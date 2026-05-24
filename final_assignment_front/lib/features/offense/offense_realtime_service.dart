@@ -5,10 +5,11 @@ import 'package:get/get.dart';
 
 final ApiClient defaultOffenseRealtimeApiClient = ApiClient();
 
-class OffenseRealtimeService extends GetxService {
+class OffenseRealtimeService extends GetxService with BaseApiClient {
   OffenseRealtimeService({ApiClient? apiClient})
       : apiClient = apiClient ?? defaultOffenseRealtimeApiClient;
 
+  @override
   final ApiClient apiClient;
 
   Future<void> connect({
@@ -26,11 +27,11 @@ class OffenseRealtimeService extends GetxService {
     required OffenseInformation offenseInformation,
     required String idempotencyKey,
   }) async {
-    final respMap = await apiClient.sendWsMessage({
-      'service': 'OffenseRecordService',
-      'action': 'checkAndInsertIdempotency',
-      'args': [idempotencyKey, offenseInformation.toJson(), 'create'],
-    });
+    final respMap = await sendWsRaw(
+      service: 'OffenseRecordService',
+      action: 'checkAndInsertIdempotency',
+      args: [idempotencyKey, offenseInformation.toJson(), 'create'],
+    );
     _throwIfError(
       respMap,
       duplicateMessage:
@@ -41,11 +42,11 @@ class OffenseRealtimeService extends GetxService {
   Future<OffenseInformation?> eventbusOffensesOffenseIdGet({
     required int offenseId,
   }) async {
-    final respMap = await apiClient.sendWsMessage({
-      'service': 'OffenseRecordService',
-      'action': 'getOffenseByOffenseId',
-      'args': [offenseId],
-    });
+    final respMap = await sendWsRaw(
+      service: 'OffenseRecordService',
+      action: 'getOffenseByOffenseId',
+      args: [offenseId],
+    );
     final error = _errorText(respMap);
     if (error != null) {
       if (error.contains('not found')) {
@@ -62,11 +63,10 @@ class OffenseRealtimeService extends GetxService {
   }
 
   Future<List<OffenseInformation>> eventbusOffensesGet() async {
-    final respMap = await apiClient.sendWsMessage({
-      'service': 'OffenseRecordService',
-      'action': 'getOffensesInformation',
-      'args': [],
-    });
+    final respMap = await sendWsRaw(
+      service: 'OffenseRecordService',
+      action: 'getOffensesInformation',
+    );
     _throwIfError(respMap);
     return _parseOffenseList(respMap['result']);
   }
@@ -76,11 +76,11 @@ class OffenseRealtimeService extends GetxService {
     required OffenseInformation offenseInformation,
     required String idempotencyKey,
   }) async {
-    final respMap = await apiClient.sendWsMessage({
-      'service': 'OffenseRecordService',
-      'action': 'checkAndInsertIdempotency',
-      'args': [idempotencyKey, offenseInformation.toJson(), 'update'],
-    });
+    final respMap = await sendWsRaw(
+      service: 'OffenseRecordService',
+      action: 'checkAndInsertIdempotency',
+      args: [idempotencyKey, offenseInformation.toJson(), 'update'],
+    );
     _throwIfError(
       respMap,
       notFoundMessage: 'Offense not found with ID: $offenseId',
@@ -98,11 +98,11 @@ class OffenseRealtimeService extends GetxService {
   Future<void> eventbusOffensesOffenseIdDelete({
     required int offenseId,
   }) async {
-    final respMap = await apiClient.sendWsMessage({
-      'service': 'OffenseRecordService',
-      'action': 'deleteOffense',
-      'args': [offenseId],
-    });
+    final respMap = await sendWsRaw(
+      service: 'OffenseRecordService',
+      action: 'deleteOffense',
+      args: [offenseId],
+    );
     _throwIfError(
       respMap,
       notFoundMessage: 'Offense not found with ID: $offenseId',
@@ -114,11 +114,11 @@ class OffenseRealtimeService extends GetxService {
     String startTime = '1970-01-01T00:00:00',
     String endTime = '2100-01-01T23:59:59',
   }) async {
-    final respMap = await apiClient.sendWsMessage({
-      'service': 'OffenseRecordService',
-      'action': 'getOffensesByTimeRange',
-      'args': [startTime, endTime],
-    });
+    final respMap = await sendWsRaw(
+      service: 'OffenseRecordService',
+      action: 'getOffensesByTimeRange',
+      args: [startTime, endTime],
+    );
     _throwIfError(respMap);
     return _parseOffenseList(respMap['result']);
   }

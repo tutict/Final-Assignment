@@ -1,11 +1,10 @@
 // ignore_for_file: use_build_context_synchronously
-import 'dart:convert';
 import 'dart:developer' as developer;
 
 import 'package:final_assignment_front/config/routes/app_routes.dart';
 import 'package:final_assignment_front/core/auth/auth_service.dart';
-import 'package:final_assignment_front/core/config/app_config.dart';
 import 'package:final_assignment_front/features/api/appeal_management_controller_api.dart';
+import 'package:final_assignment_front/features/api/auth_controller_api.dart';
 import 'package:final_assignment_front/features/api/offense_information_controller_api.dart';
 import 'package:final_assignment_front/features/dashboard/controllers/manager_dashboard_controller.dart';
 import 'package:final_assignment_front/features/dashboard/views/shared/widgets/dashboard_page_template.dart';
@@ -17,7 +16,6 @@ import 'package:final_assignment_front/utils/workflow_permissions.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
-import 'package:http/http.dart' as http;
 import 'package:intl/intl.dart';
 import 'package:jwt_decoder/jwt_decoder.dart';
 import 'package:uuid/uuid.dart';
@@ -144,19 +142,10 @@ class _AppealManagementAdminState extends State<ManagerAppealManagementPage> {
         NavigationHelper.offAllNamed(Routes.login);
         return;
       }
-      final jwtToken = (await AuthTokenStore.instance.getJwtToken())!;
-
       // Try backend API first
       try {
-        final response = await http.get(
-          Uri.parse('${AppConfig.apiBaseUrl}/api/users/me'),
-          headers: {
-            'Authorization': 'Bearer $jwtToken',
-            'Content-Type': 'application/json',
-          },
-        );
-        if (response.statusCode == 200) {
-          final userData = jsonDecode(utf8.decode(response.bodyBytes));
+        final userData = await AuthControllerApi().getCurrentProfile();
+        if (userData != null) {
           developer.log('User data from /api/users/me: $userData');
           final roles = (userData['roles'] as List<dynamic>?)
               ?.map((r) => r.toString().toUpperCase())
@@ -168,8 +157,7 @@ class _AppealManagementAdminState extends State<ManagerAppealManagementPage> {
           developer.log(
               'No valid roles in /api/users/me response, falling back to JWT');
         } else {
-          developer.log(
-              'Failed to fetch user roles: ${response.statusCode} - ${response.body}');
+          developer.log('Failed to fetch user roles: empty profile response');
         }
       } catch (e) {
         developer.log('Error fetching user roles from API: $e');
@@ -704,19 +692,10 @@ class _AppealDetailPageState extends State<AppealDetailPage> {
         NavigationHelper.offAllNamed(Routes.login);
         return;
       }
-      final jwtToken = (await AuthTokenStore.instance.getJwtToken())!;
-
       // Try backend API first
       try {
-        final response = await http.get(
-          Uri.parse('${AppConfig.apiBaseUrl}/api/users/me'),
-          headers: {
-            'Authorization': 'Bearer $jwtToken',
-            'Content-Type': 'application/json',
-          },
-        );
-        if (response.statusCode == 200) {
-          final userData = jsonDecode(utf8.decode(response.bodyBytes));
+        final userData = await AuthControllerApi().getCurrentProfile();
+        if (userData != null) {
           developer.log('User data from /api/users/me: $userData');
           final roles = (userData['roles'] as List<dynamic>?)
               ?.map((r) => r.toString().toUpperCase())
@@ -728,8 +707,7 @@ class _AppealDetailPageState extends State<AppealDetailPage> {
           developer.log(
               'No valid roles in /api/users/me response, falling back to JWT');
         } else {
-          developer.log(
-              'Failed to fetch user roles: ${response.statusCode} - ${response.body}');
+          developer.log('Failed to fetch user roles: empty profile response');
         }
       } catch (e) {
         developer.log('Error fetching user roles from API: $e');
@@ -780,23 +758,10 @@ class _AppealDetailPageState extends State<AppealDetailPage> {
       NavigationHelper.offAllNamed(Routes.login);
       throw AppException.http(401, '未授权');
     }
-    final jwtToken = await AuthTokenStore.instance.getJwtToken();
-    final response = await http.post(
-      Uri.parse(
-          '${AppConfig.apiBaseUrl}/api/workflow/appeals/$appealId/events/${event.code}'),
-      headers: {
-        'Authorization': 'Bearer $jwtToken',
-        'Idempotency-Key': generateIdempotencyKey(),
-      },
-    ).timeout(const Duration(seconds: 5));
-
-    if (response.statusCode == 200) {
-      return AppealRecordModel.fromJson(
-          jsonDecode(response.body) as Map<String, dynamic>);
-    }
-    throw AppException.http(
-      response.statusCode,
-      response.body.isEmpty ? '工作流事件提交失败' : response.body,
+    return appealApi.submitWorkflowEvent(
+      appealId: appealId,
+      eventCode: event.code,
+      idempotencyKey: generateIdempotencyKey(),
     );
   }
 

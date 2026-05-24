@@ -1,12 +1,10 @@
 // ignore_for_file: use_build_context_synchronously
-import 'dart:convert';
 import 'package:final_assignment_front/core/auth/auth_service.dart';
-import 'package:final_assignment_front/core/config/app_config.dart';
+import 'package:final_assignment_front/features/api/auth_controller_api.dart';
 import 'package:final_assignment_front/features/api/offense_information_controller_api.dart';
 import 'package:final_assignment_front/features/api/vehicle_information_controller_api.dart';
 import 'package:final_assignment_front/core/network/app_exception.dart';
 import 'package:flutter/material.dart';
-import 'package:http/http.dart' as http;
 import 'package:final_assignment_front/features/dashboard/controllers/manager_dashboard_controller.dart';
 import 'package:final_assignment_front/features/dashboard/views/shared/widgets/dashboard_page_template.dart';
 import 'package:final_assignment_front/config/routes/app_routes.dart';
@@ -152,16 +150,8 @@ class _FineListState extends State<FineListPage> {
         Navigator.pushReplacementNamed(context, Routes.login);
         return;
       }
-      final jwtToken = (await AuthTokenStore.instance.getJwtToken())!;
-      final response = await http.get(
-        Uri.parse('${AppConfig.apiBaseUrl}/api/users/me'),
-        headers: {
-          'Authorization': 'Bearer $jwtToken',
-          'Content-Type': 'application/json'
-        },
-      );
-      if (response.statusCode == 200) {
-        final userData = jsonDecode(utf8.decode(response.bodyBytes));
+      final userData = await AuthControllerApi().getCurrentProfile();
+      if (userData != null) {
         final roles = (userData['roles'] as List<dynamic>?)
                 ?.map((r) => r.toString())
                 .toList() ??
@@ -171,7 +161,7 @@ class _FineListState extends State<FineListPage> {
           setState(() => _errorMessage = '权限不足：仅管理员可访问此页面');
         }
       } else {
-        throw Exception('验证失败：${response.statusCode}');
+        throw Exception('验证失败：未获取到用户信息');
       }
     } catch (e) {
       setState(() => _errorMessage = '验证角色失败: $e');
@@ -1296,22 +1286,15 @@ class _FineDetailPageState extends State<FineDetailPage> {
       }
       final jwtToken = (await AuthTokenStore.instance.getJwtToken());
       if (jwtToken == null) throw Exception('未找到 JWT，请重新登录');
-      final response = await http.get(
-        Uri.parse('${AppConfig.apiBaseUrl}/api/users/me'),
-        headers: {
-          'Authorization': 'Bearer $jwtToken',
-          'Content-Type': 'application/json'
-        },
-      );
-      if (response.statusCode == 200) {
-        final userData = jsonDecode(utf8.decode(response.bodyBytes));
+      final userData = await AuthControllerApi().getCurrentProfile();
+      if (userData != null) {
         final roles = (userData['roles'] as List<dynamic>?)
                 ?.map((r) => r.toString())
                 .toList() ??
             [];
         setState(() => _isAdmin = roles.contains('ADMIN'));
       } else {
-        throw Exception('验证失败：${response.statusCode}');
+        throw Exception('验证失败：未获取到用户信息');
       }
     } catch (e) {
       setState(() => _errorMessage = '加载权限失败: $e');

@@ -1,9 +1,8 @@
 // ignore_for_file: use_build_context_synchronously
 import 'package:final_assignment_front/core/utils/app_logger.dart';
-import 'dart:convert';
 
 import 'package:final_assignment_front/core/auth/auth_service.dart';
-import 'package:final_assignment_front/core/config/app_config.dart';
+import 'package:final_assignment_front/features/api/auth_controller_api.dart';
 import 'package:final_assignment_front/features/api/driver_information_controller_api.dart';
 import 'package:final_assignment_front/features/api/vehicle_information_controller_api.dart';
 import 'package:final_assignment_front/features/dashboard/controllers/manager_dashboard_controller.dart';
@@ -16,7 +15,6 @@ import 'package:final_assignment_front/shared/dialogs/app_dialog.dart';
 import 'package:final_assignment_front/shared/widgets/index.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
-import 'package:http/http.dart' as http;
 import 'package:jwt_decoder/jwt_decoder.dart';
 import 'package:final_assignment_front/utils/services/auth_token_store.dart';
 
@@ -152,15 +150,8 @@ class _VehicleListState extends State<VehicleList> {
         return;
       }
       final jwtToken = (await AuthTokenStore.instance.getJwtToken())!;
-      final response = await http.get(
-        Uri.parse('${AppConfig.apiBaseUrl}/api/users/me'),
-        headers: {
-          'Authorization': 'Bearer $jwtToken',
-          'Content-Type': 'application/json'
-        },
-      );
-      if (response.statusCode == 200) {
-        final userData = jsonDecode(utf8.decode(response.bodyBytes));
+      final userData = await AuthControllerApi().getCurrentProfile();
+      if (userData != null) {
         final roles = (userData['roles'] as List<dynamic>?)
                 ?.map((r) => r.toString())
                 .toList() ??
@@ -171,9 +162,8 @@ class _VehicleListState extends State<VehicleList> {
         AppLogger.debug('Full userData: $userData');
         setState(() => _isAdmin = roles.contains('ADMIN')); // Changed to ADMIN
       } else {
-        AppLogger.debug(
-            'Role check failed: Status ${response.statusCode}, Body: ${response.body}');
-        throw Exception('验证失败：${response.statusCode}');
+        AppLogger.debug('Role check failed: /api/users/me returned empty');
+        throw Exception('验证失败：未获取到用户信息');
       }
     } catch (e) {
       AppLogger.error('Error checking role: $e');
@@ -1518,19 +1508,8 @@ class _VehicleDetailPageState extends State<VehicleDetailPage> {
         Navigator.pushReplacementNamed(context, '/login');
         return null;
       }
-      final jwtToken = (await AuthTokenStore.instance.getJwtToken());
-      final response = await http.get(
-        Uri.parse('${AppConfig.apiBaseUrl}/api/users/me'),
-        headers: {
-          'Authorization': 'Bearer $jwtToken',
-          'Content-Type': 'application/json'
-        },
-      );
-      if (response.statusCode == 200) {
-        return UserManagement.fromJson(
-            jsonDecode(utf8.decode(response.bodyBytes)));
-      }
-      return null;
+      final userData = await AuthControllerApi().getCurrentProfile();
+      return userData == null ? null : UserManagement.fromJson(userData);
     } catch (e) {
       setState(() => _errorMessage = '获取用户信息失败: $e');
       return null;
@@ -1560,15 +1539,8 @@ class _VehicleDetailPageState extends State<VehicleDetailPage> {
       }
       final jwtToken = (await AuthTokenStore.instance.getJwtToken());
       if (jwtToken == null) throw Exception('未找到 JWT，请重新登录');
-      final response = await http.get(
-        Uri.parse('${AppConfig.apiBaseUrl}/api/users/me'),
-        headers: {
-          'Authorization': 'Bearer $jwtToken',
-          'Content-Type': 'application/json'
-        },
-      );
-      if (response.statusCode == 200) {
-        final userData = jsonDecode(utf8.decode(response.bodyBytes));
+      final userData = await AuthControllerApi().getCurrentProfile();
+      if (userData != null) {
         final roles = (userData['roles'] as List<dynamic>?)
                 ?.map((r) => r.toString())
                 .toList() ??
@@ -1581,9 +1553,8 @@ class _VehicleDetailPageState extends State<VehicleDetailPage> {
             () => _isEditable = roles.contains('ADMIN') || // Changed to ADMIN
                 (_currentDriverName == widget.vehicle.ownerName));
       } else {
-        AppLogger.debug(
-            'Role check failed: Status ${response.statusCode}, Body: ${response.body}');
-        throw Exception('验证失败：${response.statusCode}');
+        AppLogger.debug('Role check failed: /api/users/me returned empty');
+        throw Exception('验证失败：未获取到用户信息');
       }
     } catch (e) {
       AppLogger.error('Error checking role: $e');

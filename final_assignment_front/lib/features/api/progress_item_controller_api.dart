@@ -73,6 +73,21 @@ class ProgressControllerApi with BaseApiClient {
     );
   }
 
+  Future<ProgressItem> updateProgressItem({
+    required int progressId,
+    required ProgressItem progressItem,
+    Map<String, String>? headers,
+  }) {
+    return requestObject(
+      'PUT',
+      '/api/progress/$progressId',
+      ProgressItem.fromJson,
+      body: progressItem.toJson(),
+      headers: headers ?? const {},
+      contentType: BaseApiClient.defaultContentType,
+    );
+  }
+
   Future<void> deleteProgressItem({
     required int progressId,
     Map<String, String>? headers,

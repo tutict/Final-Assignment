@@ -67,6 +67,37 @@ class AuthControllerApi with BaseApiClient {
     return decoded is Map<String, dynamic> ? decoded : {'data': decoded};
   }
 
+  Future<Map<String, dynamic>?> getCurrentProfile() async {
+    final response = await request(
+      'GET',
+      '/api/auth/me',
+      passThroughStatusCodes: const {404},
+    );
+    if (response.statusCode == 404) {
+      return null;
+    }
+    if (decodeBodyBytes(response).trim().isEmpty) {
+      return <String, dynamic>{};
+    }
+    return parseMapResponse(response);
+  }
+
+  Future<void> updateCurrentPassword({
+    required String newPassword,
+    required String idempotencyKey,
+  }) {
+    requireNotBlank(newPassword, 'newPassword');
+    requireNotBlank(idempotencyKey, 'idempotencyKey');
+    return requestVoid(
+      'PUT',
+      '/api/users/me/password',
+      body: newPassword,
+      contentType: 'text/plain; charset=utf-8',
+      idempotencyKey: idempotencyKey,
+      successStatusCodes: const {200, 204},
+    );
+  }
+
   Future<Object?> eventbusAuthLoginPost({
     required LoginRequest loginRequest,
   }) {

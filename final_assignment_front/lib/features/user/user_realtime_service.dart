@@ -1,6 +1,7 @@
 import 'package:final_assignment_front/core/utils/app_logger.dart';
-import 'package:final_assignment_front/features/model/user_management.dart';
 import 'package:final_assignment_front/core/network/app_exception.dart';
+import 'package:final_assignment_front/features/api/user_management_controller_api.dart';
+import 'package:final_assignment_front/features/model/user_management.dart';
 import 'package:final_assignment_front/utils/services/api_client.dart';
 import 'package:get/get.dart';
 
@@ -8,27 +9,24 @@ final ApiClient defaultUserRealtimeApiClient = ApiClient();
 
 class UserRealtimeService extends GetxService {
   UserRealtimeService({ApiClient? apiClient})
-      : apiClient = apiClient ?? defaultUserRealtimeApiClient;
+      : _api = UserManagementControllerApi(
+          apiClient ?? defaultUserRealtimeApiClient,
+        );
 
-  final ApiClient apiClient;
+  final UserManagementControllerApi _api;
 
   Future<UserManagement?> getCurrentUser({required String username}) async {
-    final msg = {
-      'service': 'UserManagementService',
-      'action': 'getCurrentUser',
-      'args': [username],
-    };
     try {
-      final respMap = await apiClient.sendWsMessage(msg);
-      AppLogger.debug('WebSocket users me get response: $respMap');
-
-      if (respMap.containsKey('error')) {
-        throw AppException.http(400, respMap['error']);
+      final user = await _api.getCurrentUser(username: username);
+      AppLogger.debug('WebSocket users me get response: ${user.toJson()}');
+      return user;
+    } on AppException catch (e) {
+      if (e.statusCode == 404) {
+        AppLogger.debug('WebSocket users me get response: null');
+        return null;
       }
-      if (respMap.containsKey('result') && respMap['result'] != null) {
-        return UserManagement.fromJson(respMap['result']);
-      }
-      return null;
+      AppLogger.error('WebSocket users me get error: $e');
+      rethrow;
     } catch (e) {
       AppLogger.error('WebSocket users me get error: $e');
       rethrow;

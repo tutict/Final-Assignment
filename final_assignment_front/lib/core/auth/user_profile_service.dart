@@ -4,6 +4,7 @@ import 'package:final_assignment_front/core/auth/role_utils.dart';
 import 'package:final_assignment_front/core/auth/user_profile.dart';
 import 'package:final_assignment_front/core/utils/app_logger.dart';
 import 'package:final_assignment_front/config/routes/app_routes.dart';
+import 'package:final_assignment_front/features/api/auth_controller_api.dart';
 import 'package:final_assignment_front/shared/utils/navigation_helper.dart';
 import 'package:final_assignment_front/utils/services/api_client.dart';
 import 'package:final_assignment_front/utils/services/auth_token_store.dart';
@@ -12,11 +13,11 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 class UserProfileService extends GetxService {
   UserProfileService({ApiClient? apiClient})
-      : _apiClient = apiClient ?? ApiClient();
+      : _authApi = AuthControllerApi(apiClient ?? ApiClient());
 
   static const _profileCacheVersion = '3';
 
-  final ApiClient _apiClient;
+  final AuthControllerApi _authApi;
   UserProfile? _cachedProfile;
 
   Future<UserProfile> getProfile() async {
@@ -69,18 +70,9 @@ class UserProfileService extends GetxService {
   }
 
   Future<UserProfile> _fetchFromServer() async {
-    final response = await _apiClient.invokeAPI(
-      '/api/auth/me',
-      'GET',
-      const [],
-      null,
-      const {},
-      const {},
-      null,
-      const ['bearerAuth'],
-    );
+    final data = await _authApi.getCurrentProfile();
 
-    if (response.statusCode == 404) {
+    if (data == null) {
       AppLogger.error('Profile endpoint not found - may be using Cloud auth');
       await AuthTokenStore.instance.clearJwtToken();
       final prefs = await SharedPreferences.getInstance();
@@ -90,11 +82,6 @@ class UserProfileService extends GetxService {
       NavigationHelper.offAllNamed(Routes.login);
       throw StateError('Profile endpoint not found');
     }
-
-    final body = response.body.isEmpty
-        ? <String, dynamic>{}
-        : jsonDecode(response.body) as Map<String, dynamic>;
-    final data = _unwrapPayload(body);
 
     _cachedProfile = _normalizeProfile(UserProfile.fromJson(data));
     await _persist(_cachedProfile!);
