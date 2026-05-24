@@ -2,10 +2,10 @@ package com.tutict.finalassignmentbackend.rag.indexing;
 
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
-import com.tutict.finalassignmentbackend.entity.AppealRecord;
-import com.tutict.finalassignmentbackend.entity.OffenseTypeDict;
-import com.tutict.finalassignmentbackend.mapper.AppealRecordMapper;
-import com.tutict.finalassignmentbackend.mapper.OffenseTypeDictMapper;
+import com.tutict.finalassignmentbackend.entity.appeal.AppealRecord;
+import com.tutict.finalassignmentbackend.entity.offense.OffenseTypeDict;
+import com.tutict.finalassignmentbackend.mapper.appeal.AppealRecordMapper;
+import com.tutict.finalassignmentbackend.mapper.offense.OffenseTypeDictMapper;
 import com.tutict.finalassignmentbackend.rag.config.RagProperties;
 import com.tutict.finalassignmentbackend.rag.ingestion.AppealRecordExtractor;
 import com.tutict.finalassignmentbackend.rag.ingestion.OffenseTypeExtractor;

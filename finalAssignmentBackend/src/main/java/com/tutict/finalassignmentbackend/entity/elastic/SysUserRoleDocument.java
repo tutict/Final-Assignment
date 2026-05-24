@@ -1,6 +1,6 @@
 package com.tutict.finalassignmentbackend.entity.elastic;
 
-import com.tutict.finalassignmentbackend.entity.SysUserRole;
+import com.tutict.finalassignmentbackend.entity.admin.SysUserRole;
 import java.io.Serial;
 import java.io.Serializable;
 import java.time.LocalDateTime;

@@ -2,7 +2,7 @@ package com.tutict.finalassignmentbackend.rag.ingestion;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.tutict.finalassignmentbackend.entity.AppealRecord;
+import com.tutict.finalassignmentbackend.entity.appeal.AppealRecord;
 import com.tutict.finalassignmentbackend.rag.dto.RagSourceDocument;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.stereotype.Component;

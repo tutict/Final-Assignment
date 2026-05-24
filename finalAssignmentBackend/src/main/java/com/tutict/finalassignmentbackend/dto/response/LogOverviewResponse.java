@@ -1,8 +1,8 @@
 package com.tutict.finalassignmentbackend.dto.response;
 
-import com.tutict.finalassignmentbackend.entity.AuditLoginLog;
-import com.tutict.finalassignmentbackend.entity.AuditOperationLog;
-import com.tutict.finalassignmentbackend.entity.SysRequestHistory;
+import com.tutict.finalassignmentbackend.entity.audit.AuditLoginLog;
+import com.tutict.finalassignmentbackend.entity.audit.AuditOperationLog;
+import com.tutict.finalassignmentbackend.entity.system.SysRequestHistory;
 import lombok.Builder;
 import lombok.Data;
 

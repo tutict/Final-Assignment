@@ -1,6 +1,6 @@
 package com.tutict.finalassignmentbackend.appeal.domain.policy;
 
-import com.tutict.finalassignmentbackend.entity.AppealRecord;
+import com.tutict.finalassignmentbackend.entity.appeal.AppealRecord;
 
 import java.util.Objects;
 import java.util.function.Function;

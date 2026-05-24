@@ -2,7 +2,7 @@ package com.tutict.finalassignmentbackend.ai.chat;
 
 import com.tutict.finalassignmentbackend.dto.response.ApiResponse;
 import com.tutict.finalassignmentbackend.model.ai.ChatActionResponse;
-import com.tutict.finalassignmentbackend.service.ChatAgent;
+import com.tutict.finalassignmentbackend.service.ai.ChatAgent;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;

@@ -1,6 +1,6 @@
 package com.tutict.finalassignmentbackend.payment.governance;
 
-import com.tutict.finalassignmentbackend.entity.PaymentRecord;
+import com.tutict.finalassignmentbackend.entity.payment.PaymentRecord;
 
 import java.util.LinkedHashMap;
 import java.util.Map;

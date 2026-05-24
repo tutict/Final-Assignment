@@ -1,8 +1,8 @@
 package com.tutict.finalassignmentbackend.kafkaListener;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.tutict.finalassignmentbackend.entity.DriverInformation;
-import com.tutict.finalassignmentbackend.service.DriverInformationService;
+import com.tutict.finalassignmentbackend.entity.driver.DriverInformation;
+import com.tutict.finalassignmentbackend.service.driver.DriverInformationService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.kafka.annotation.KafkaListener;
 import org.springframework.kafka.support.Acknowledgment;

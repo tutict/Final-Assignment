@@ -1,6 +1,6 @@
 package com.tutict.finalassignmentbackend.payment.messaging;
 
-import com.tutict.finalassignmentbackend.entity.PaymentRecord;
+import com.tutict.finalassignmentbackend.entity.payment.PaymentRecord;
 
 public record PaymentRecordKafkaEvent(
         String topic,

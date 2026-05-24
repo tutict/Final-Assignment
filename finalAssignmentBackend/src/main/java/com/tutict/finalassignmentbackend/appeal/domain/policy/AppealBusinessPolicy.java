@@ -1,6 +1,6 @@
 package com.tutict.finalassignmentbackend.appeal.domain.policy;
 
-import com.tutict.finalassignmentbackend.entity.SysRequestHistory;
+import com.tutict.finalassignmentbackend.entity.system.SysRequestHistory;
 import org.springframework.stereotype.Service;
 
 @Service

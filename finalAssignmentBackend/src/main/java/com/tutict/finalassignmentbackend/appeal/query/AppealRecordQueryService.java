@@ -7,7 +7,7 @@ import com.tutict.finalassignmentbackend.appeal.domain.policy.AppealVisibilityPo
 import com.tutict.finalassignmentbackend.appeal.query.dto.AppealPageRequest;
 import com.tutict.finalassignmentbackend.appeal.read.AppealReadAssembler;
 import com.tutict.finalassignmentbackend.appeal.read.AppealReadModel;
-import com.tutict.finalassignmentbackend.entity.AppealRecord;
+import com.tutict.finalassignmentbackend.entity.appeal.AppealRecord;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDateTime;

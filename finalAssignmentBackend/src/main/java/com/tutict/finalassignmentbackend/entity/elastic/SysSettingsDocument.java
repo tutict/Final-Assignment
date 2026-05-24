@@ -1,6 +1,6 @@
 package com.tutict.finalassignmentbackend.entity.elastic;
 
-import com.tutict.finalassignmentbackend.entity.SysSettings;
+import com.tutict.finalassignmentbackend.entity.system.SysSettings;
 import java.io.Serial;
 import java.io.Serializable;
 import java.time.LocalDateTime;

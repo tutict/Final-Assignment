@@ -1,7 +1,7 @@
 package com.tutict.finalassignmentbackend.payment.governance;
 
 import com.tutict.finalassignmentbackend.config.statemachine.states.PaymentState;
-import com.tutict.finalassignmentbackend.entity.PaymentRecord;
+import com.tutict.finalassignmentbackend.entity.payment.PaymentRecord;
 import org.junit.jupiter.api.Test;
 
 import static org.assertj.core.api.Assertions.assertThat;

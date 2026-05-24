@@ -1,7 +1,7 @@
 package com.tutict.finalassignmentbackend.appeal.read;
 
 import com.tutict.finalassignmentbackend.appeal.projection.AppealRecordSearchProjection;
-import com.tutict.finalassignmentbackend.entity.AppealRecord;
+import com.tutict.finalassignmentbackend.entity.appeal.AppealRecord;
 import org.junit.jupiter.api.Test;
 
 import java.time.LocalDateTime;

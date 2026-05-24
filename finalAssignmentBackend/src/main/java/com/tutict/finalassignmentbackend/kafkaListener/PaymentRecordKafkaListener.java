@@ -1,11 +1,11 @@
 package com.tutict.finalassignmentbackend.kafkaListener;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.tutict.finalassignmentbackend.entity.PaymentRecord;
+import com.tutict.finalassignmentbackend.entity.payment.PaymentRecord;
 import com.tutict.finalassignmentbackend.payment.governance.PaymentGovernanceClassifier;
 import com.tutict.finalassignmentbackend.payment.governance.PaymentGovernanceLogFactory;
 import com.tutict.finalassignmentbackend.payment.governance.PaymentGovernanceSource;
-import com.tutict.finalassignmentbackend.service.PaymentRecordService;
+import com.tutict.finalassignmentbackend.service.payment.PaymentRecordService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.kafka.annotation.KafkaListener;
 import org.springframework.kafka.support.Acknowledgment;

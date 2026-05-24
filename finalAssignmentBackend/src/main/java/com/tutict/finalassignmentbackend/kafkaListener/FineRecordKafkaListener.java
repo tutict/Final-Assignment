@@ -1,8 +1,8 @@
 package com.tutict.finalassignmentbackend.kafkaListener;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.tutict.finalassignmentbackend.entity.FineRecord;
-import com.tutict.finalassignmentbackend.service.FineRecordService;
+import com.tutict.finalassignmentbackend.entity.offense.FineRecord;
+import com.tutict.finalassignmentbackend.service.offense.FineRecordService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.kafka.annotation.KafkaListener;
 import org.springframework.kafka.support.Acknowledgment;

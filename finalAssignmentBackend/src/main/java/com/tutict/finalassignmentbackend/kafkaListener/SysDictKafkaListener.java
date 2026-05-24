@@ -1,8 +1,8 @@
 package com.tutict.finalassignmentbackend.kafkaListener;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.tutict.finalassignmentbackend.entity.SysDict;
-import com.tutict.finalassignmentbackend.service.SysDictService;
+import com.tutict.finalassignmentbackend.entity.system.SysDict;
+import com.tutict.finalassignmentbackend.service.admin.SysDictService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.kafka.annotation.KafkaListener;
 import org.springframework.kafka.support.Acknowledgment;

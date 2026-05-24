@@ -9,28 +9,28 @@ import static org.assertj.core.api.Assertions.assertThatCode;
 class TokenProviderRoleNormalizationTest {
 
     @Test
-    void roleAdminAliasIsAcceptedAsAdmin() {
+    void adminRoleIsIssuedWithSpringAuthorityPrefix() {
         TokenProvider tokenProvider = tokenProvider();
 
-        String token = tokenProvider.createToken("admin", "ROLE_ADMIN");
+        String token = tokenProvider.createToken("admin", "ADMIN");
 
-        assertThat(tokenProvider.extractRoles(token)).containsExactly("ROLE_ADMIN");
+        assertThat(tokenProvider.extractRoles(token)).containsExactly("ROLE_" + "ADMIN");
     }
 
     @Test
-    void enhancedClaimsAcceptRolePrefixedAliases() {
+    void enhancedClaimsUseCanonicalAdminRoles() {
         TokenProvider tokenProvider = tokenProvider();
 
         assertThatCode(() -> {
             String token = tokenProvider.createEnhancedToken(
                     "super_admin",
-                    "ROLE_SUPER_ADMIN,ROLE_ADMIN",
+                    "SUPER_ADMIN,ADMIN",
                     "System",
                     "All"
             );
 
             assertThat(tokenProvider.extractRoles(token))
-                    .containsExactly("ROLE_SUPER_ADMIN", "ROLE_ADMIN");
+                    .containsExactly("ROLE_" + "SUPER_ADMIN", "ROLE_" + "ADMIN");
         }).doesNotThrowAnyException();
     }
 

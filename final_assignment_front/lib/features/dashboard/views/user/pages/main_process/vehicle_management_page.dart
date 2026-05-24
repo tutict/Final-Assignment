@@ -1,5 +1,6 @@
 // ignore_for_file: use_build_context_synchronously
 import 'package:final_assignment_front/core/utils/app_logger.dart';
+import 'package:final_assignment_front/core/auth/role_utils.dart';
 import 'package:final_assignment_front/core/auth/user_profile_service.dart';
 import 'package:flutter/material.dart';
 import 'package:final_assignment_front/features/api/vehicle_information_controller_api.dart';
@@ -1303,7 +1304,7 @@ class _VehicleDetailPageState extends State<VehicleDetailPage> {
       final decodedToken = JwtDecoder.decode(jwtToken);
       final roles = decodedToken['roles']?.toString().split(',') ?? [];
       setState(() {
-        _isEditable = roles.contains('ROLE_ADMIN') ||
+        _isEditable = RoleUtils.isAdminRole(roles) ||
             (_currentDriverIdCardNumber != null &&
                 _currentDriverIdCardNumber == widget.vehicle.idCardNumber);
       });

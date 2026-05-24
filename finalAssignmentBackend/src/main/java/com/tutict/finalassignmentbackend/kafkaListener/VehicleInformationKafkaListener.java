@@ -1,8 +1,8 @@
 package com.tutict.finalassignmentbackend.kafkaListener;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.tutict.finalassignmentbackend.entity.VehicleInformation;
-import com.tutict.finalassignmentbackend.service.VehicleInformationService;
+import com.tutict.finalassignmentbackend.entity.driver.VehicleInformation;
+import com.tutict.finalassignmentbackend.service.driver.VehicleInformationService;
 import org.apache.kafka.clients.consumer.ConsumerRecord;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.kafka.annotation.EnableKafka;

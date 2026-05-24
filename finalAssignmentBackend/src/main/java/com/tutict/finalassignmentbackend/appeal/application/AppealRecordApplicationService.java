@@ -14,11 +14,11 @@ import com.tutict.finalassignmentbackend.appeal.domain.policy.AppealWorkflowDeci
 import com.tutict.finalassignmentbackend.appeal.infrastructure.messaging.TransactionalDomainEventPublisher;
 import com.tutict.finalassignmentbackend.appeal.infrastructure.search.AppealRecordSearchIndexer;
 import com.tutict.finalassignmentbackend.config.statemachine.states.AppealProcessState;
-import com.tutict.finalassignmentbackend.entity.AppealRecord;
-import com.tutict.finalassignmentbackend.entity.OffenseRecord;
+import com.tutict.finalassignmentbackend.entity.appeal.AppealRecord;
+import com.tutict.finalassignmentbackend.entity.offense.OffenseRecord;
 import com.tutict.finalassignmentbackend.exception.BusinessException;
-import com.tutict.finalassignmentbackend.mapper.AppealRecordMapper;
-import com.tutict.finalassignmentbackend.mapper.OffenseRecordMapper;
+import com.tutict.finalassignmentbackend.mapper.appeal.AppealRecordMapper;
+import com.tutict.finalassignmentbackend.mapper.offense.OffenseRecordMapper;
 import com.tutict.finalassignmentbackend.service.events.AppealStatusChangedEvent;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.ApplicationEventPublisher;

@@ -2,7 +2,7 @@ package com.tutict.finalassignmentbackend.config.login.jwt;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.tutict.finalassignmentbackend.dto.response.ApiResponse;
-import com.tutict.finalassignmentbackend.service.TokenBlacklistService;
+import com.tutict.finalassignmentbackend.service.auth.TokenBlacklistService;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;

@@ -1,7 +1,7 @@
 package com.tutict.finalassignmentbackend.dto.mapper;
 
 import com.tutict.finalassignmentbackend.dto.response.PaymentRecordResponse;
-import com.tutict.finalassignmentbackend.entity.PaymentRecord;
+import com.tutict.finalassignmentbackend.entity.payment.PaymentRecord;
 
 public final class PaymentRecordResponseMapper {
 

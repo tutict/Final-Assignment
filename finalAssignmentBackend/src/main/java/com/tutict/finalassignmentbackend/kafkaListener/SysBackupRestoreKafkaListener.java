@@ -1,8 +1,8 @@
 package com.tutict.finalassignmentbackend.kafkaListener;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.tutict.finalassignmentbackend.entity.SysBackupRestore;
-import com.tutict.finalassignmentbackend.service.SysBackupRestoreService;
+import com.tutict.finalassignmentbackend.entity.system.SysBackupRestore;
+import com.tutict.finalassignmentbackend.service.admin.SysBackupRestoreService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.kafka.annotation.KafkaListener;
 import org.springframework.kafka.support.Acknowledgment;

@@ -34,9 +34,9 @@ public class DriverCreateRequest {
     @JsonFormat(pattern = "yyyy-MM-dd")
     private LocalDate expiryDate;
 
-    public com.tutict.finalassignmentbackend.entity.DriverInformation toEntity() {
-        com.tutict.finalassignmentbackend.entity.DriverInformation driver =
-                new com.tutict.finalassignmentbackend.entity.DriverInformation();
+    public com.tutict.finalassignmentbackend.entity.driver.DriverInformation toEntity() {
+        com.tutict.finalassignmentbackend.entity.driver.DriverInformation driver =
+                new com.tutict.finalassignmentbackend.entity.driver.DriverInformation();
         driver.setName(name);
         driver.setDriverLicenseNumber(licenseNumber);
         driver.setContactNumber(phoneNumber);

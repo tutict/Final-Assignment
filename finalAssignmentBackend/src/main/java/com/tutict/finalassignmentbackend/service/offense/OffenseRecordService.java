@@ -1,0 +1,793 @@
+package com.tutict.finalassignmentbackend.service.offense;
+
+import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
+import com.baomidou.mybatisplus.core.conditions.update.UpdateWrapper;
+import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.tutict.finalassignmentbackend.config.statemachine.states.OffenseProcessState;
+import com.tutict.finalassignmentbackend.config.websocket.WsAction;
+import com.tutict.finalassignmentbackend.entity.offense.OffenseRecord;
+import com.tutict.finalassignmentbackend.entity.system.SysRequestHistory;
+import com.tutict.finalassignmentbackend.entity.elastic.OffenseRecordDocument;
+import com.tutict.finalassignmentbackend.mapper.offense.OffenseRecordMapper;
+import com.tutict.finalassignmentbackend.mapper.system.SysRequestHistoryMapper;
+import com.tutict.finalassignmentbackend.offense.governance.AfterCommitBoundary;
+import com.tutict.finalassignmentbackend.offense.governance.FullUpdateCompatibilityMode;
+import com.tutict.finalassignmentbackend.offense.governance.FullUpdateMergePolicy;
+import com.tutict.finalassignmentbackend.offense.governance.MutationSideEffectPolicy;
+import com.tutict.finalassignmentbackend.offense.governance.OffenseGovernanceDecision;
+import com.tutict.finalassignmentbackend.offense.governance.OffenseGovernanceLogFactory;
+import com.tutict.finalassignmentbackend.offense.governance.OffenseSideEffectCoordinator;
+import com.tutict.finalassignmentbackend.offense.governance.OffenseStaleUpdatePolicy;
+import com.tutict.finalassignmentbackend.offense.governance.OffenseUpdateFreshnessEvaluator;
+import com.tutict.finalassignmentbackend.offense.governance.OffenseUpdateMergeCoordinator;
+import com.tutict.finalassignmentbackend.offense.governance.SemanticEventType;
+import com.tutict.finalassignmentbackend.offense.governance.SemanticIntentClassifier;
+import com.tutict.finalassignmentbackend.offense.governance.StaleFullUpdateRejectedException;
+import com.tutict.finalassignmentbackend.offense.governance.rollout.GovernanceRolloutPolicy;
+import com.tutict.finalassignmentbackend.offense.governance.rollout.GovernanceSourceType;
+import com.tutict.finalassignmentbackend.exception.BusinessException;
+import com.tutict.finalassignmentbackend.repository.OffenseInformationSearchRepository;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.cache.annotation.CacheEvict;
+import org.springframework.cache.annotation.Cacheable;
+import org.springframework.kafka.core.KafkaTemplate;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
+import java.time.LocalDateTime;
+import java.time.format.DateTimeParseException;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Objects;
+import java.util.logging.Level;
+import java.util.logging.Logger;
+import java.util.stream.Collectors;
+import java.util.stream.StreamSupport;
+
+@Service
+public class OffenseRecordService {
+
+    private static final Logger log = Logger.getLogger(OffenseRecordService.class.getName());
+    private static final String CACHE_NAME = "offenseRecordCache";
+
+    private final OffenseRecordMapper offenseRecordMapper;
+    private final SysRequestHistoryMapper sysRequestHistoryMapper;
+    private final OffenseInformationSearchRepository offenseInformationSearchRepository;
+    private final KafkaTemplate<String, String> kafkaTemplate;
+    private final ObjectMapper objectMapper;
+    private final SemanticIntentClassifier semanticIntentClassifier;
+    private final OffenseSideEffectCoordinator sideEffectCoordinator;
+    private final OffenseUpdateMergeCoordinator updateMergeCoordinator;
+    private final OffenseUpdateFreshnessEvaluator updateFreshnessEvaluator;
+    private final FullUpdateMergePolicy fullUpdateMergePolicy;
+    private final GovernanceRolloutPolicy governanceRolloutPolicy;
+
+    @Autowired
+    public OffenseRecordService(OffenseRecordMapper offenseRecordMapper,
+                                SysRequestHistoryMapper sysRequestHistoryMapper,
+                                OffenseInformationSearchRepository offenseInformationSearchRepository,
+                                KafkaTemplate<String, String> kafkaTemplate,
+                                ObjectMapper objectMapper) {
+        this.offenseRecordMapper = offenseRecordMapper;
+        this.sysRequestHistoryMapper = sysRequestHistoryMapper;
+        this.offenseInformationSearchRepository = offenseInformationSearchRepository;
+        this.kafkaTemplate = kafkaTemplate;
+        this.objectMapper = objectMapper;
+        this.semanticIntentClassifier = new SemanticIntentClassifier();
+        this.sideEffectCoordinator = new OffenseSideEffectCoordinator(new AfterCommitBoundary());
+        this.updateMergeCoordinator = new OffenseUpdateMergeCoordinator();
+        this.updateFreshnessEvaluator = new OffenseUpdateFreshnessEvaluator();
+        this.fullUpdateMergePolicy = new FullUpdateMergePolicy();
+        this.governanceRolloutPolicy = new GovernanceRolloutPolicy();
+    }
+
+    @Transactional
+    @CacheEvict(cacheNames = CACHE_NAME, allEntries = true)
+    @WsAction(service = "OffenseRecordService", action = "checkAndInsertIdempotency")
+    public void checkAndInsertIdempotency(String idempotencyKey, OffenseRecord offenseRecord, String action) {
+        Objects.requireNonNull(offenseRecord, "OffenseRecord must not be null");
+        if (sysRequestHistoryMapper.selectByIdempotencyKey(idempotencyKey) != null) {
+            throw new RuntimeException("Duplicate offense record request detected");
+        }
+
+        SysRequestHistory history = new SysRequestHistory();
+        history.setIdempotencyKey(idempotencyKey);
+        history.setBusinessStatus("PROCESSING");
+        history.setCreatedAt(LocalDateTime.now());
+        history.setUpdatedAt(LocalDateTime.now());
+        sysRequestHistoryMapper.insert(history);
+
+        if (!"create".equalsIgnoreCase(action)) {
+            MutationSideEffectPolicy policy = semanticIntentClassifier.classifyIdempotencyPublish(action);
+            sideEffectCoordinator.publishKafkaLegacy(policy, () -> sendKafkaMessage("offense_record_" + action, idempotencyKey, offenseRecord));
+        }
+
+        history.setBusinessStatus("SUCCESS");
+        history.setBusinessId(offenseRecord.getOffenseId());
+        history.setRequestParams("PENDING");
+        history.setUpdatedAt(LocalDateTime.now());
+        sysRequestHistoryMapper.updateById(history);
+    }
+
+    @Transactional
+    @CacheEvict(cacheNames = CACHE_NAME, allEntries = true)
+    public OffenseRecord createOffenseRecord(OffenseRecord offenseRecord) {
+        MutationSideEffectPolicy policy = semanticIntentClassifier.classifyCreate();
+        validateOffenseRecord(offenseRecord);
+        // 同步写库，成功后再异步刷新 ES
+        offenseRecordMapper.insert(offenseRecord);
+        syncToIndexAfterCommit(policy, offenseRecord);
+        return offenseRecord;
+    }
+
+    @Transactional
+    @CacheEvict(cacheNames = CACHE_NAME, allEntries = true)
+    public OffenseRecord updateOffenseRecord(OffenseRecord offenseRecord) {
+        MutationSideEffectPolicy policy = semanticIntentClassifier.classifyUpdate();
+        shadowCompareControllerFullUpdate(offenseRecord);
+        validateOffenseRecord(offenseRecord);
+        requirePositive(offenseRecord.getOffenseId(), "Offense ID");
+        int rows = offenseRecordMapper.updateById(offenseRecord);
+        if (rows == 0) {
+            throw new IllegalStateException("No OffenseRecord updated for id=" + offenseRecord.getOffenseId());
+        }
+        syncToIndexAfterCommit(policy, offenseRecord);
+        return offenseRecord;
+    }
+
+    @Transactional
+    @CacheEvict(cacheNames = CACHE_NAME, allEntries = true)
+    public OffenseRecord updateKafkaFullUpdate(OffenseRecord incoming) {
+        MutationSideEffectPolicy policy = semanticIntentClassifier.classifyUpdate();
+        Objects.requireNonNull(incoming, "OffenseRecord must not be null");
+        requirePositive(incoming.getOffenseId(), "Offense ID");
+        OffenseRecord current = offenseRecordMapper.selectById(incoming.getOffenseId());
+        if (current == null) {
+            validateOffenseRecord(incoming);
+            int rows = offenseRecordMapper.updateById(incoming);
+            if (rows == 0) {
+                throw new IllegalStateException("No OffenseRecord updated for id=" + incoming.getOffenseId());
+            }
+            syncToIndexAfterCommit(policy, incoming);
+            return incoming;
+        }
+
+        OffenseStaleUpdatePolicy.Decision freshness =
+                updateFreshnessEvaluator.evaluate(current, incoming, SemanticEventType.FULL_UPDATE);
+        if (freshness == OffenseStaleUpdatePolicy.Decision.SHADOW_ONLY) {
+            if (governanceRolloutPolicy.shouldRejectStale(GovernanceSourceType.KAFKA, SemanticEventType.FULL_UPDATE)) {
+                OffenseGovernanceDecision decision = OffenseGovernanceLogFactory.staleKafkaRejected(
+                        incoming.getOffenseId(),
+                        current.getUpdatedAt(),
+                        incoming.getUpdatedAt()
+                );
+                throw new StaleFullUpdateRejectedException(decision);
+            }
+            logGovernance(Level.INFO, OffenseGovernanceLogFactory.shadowStale(
+                    OffenseGovernanceDecision.Source.KAFKA,
+                    incoming.getOffenseId(),
+                    current.getUpdatedAt(),
+                    incoming.getUpdatedAt()
+            ));
+        }
+
+        FullUpdateMergePolicy.MergeResult merge =
+                fullUpdateMergePolicy.merge(current, incoming, FullUpdateCompatibilityMode.GUARDED_COMPATIBILITY);
+        logFullUpdateMergeGovernance(OffenseGovernanceDecision.Source.KAFKA, incoming.getOffenseId(), merge);
+        OffenseRecord guarded = merge.mergedRecord();
+        validateOffenseRecord(guarded);
+        int rows = offenseRecordMapper.updateById(guarded);
+        if (rows == 0) {
+            throw new IllegalStateException("No OffenseRecord updated for id=" + guarded.getOffenseId());
+        }
+        syncToIndexAfterCommit(policy, guarded);
+        return guarded;
+    }
+
+    @Transactional(rollbackFor = Exception.class)
+    public OffenseRecord updateProcessStatus(Long offenseId, OffenseProcessState newState) {
+        MutationSideEffectPolicy policy = semanticIntentClassifier.classifyWorkflow();
+        requirePositive(offenseId, "Offense ID");
+        OffenseRecord existing = offenseRecordMapper.selectById(offenseId);
+        if (existing == null) {
+            throw new IllegalStateException("OffenseRecord not found for id=" + offenseId);
+        }
+        // 仅允许状态机计算出的状态覆盖数据库的 process_status 字段
+        OffenseRecord incoming = new OffenseRecord();
+        incoming.setOffenseId(offenseId);
+        incoming.setProcessStatus(newState != null ? newState.getCode() : existing.getProcessStatus());
+        incoming.setUpdatedAt(LocalDateTime.now());
+        OffenseStaleUpdatePolicy.Decision freshness =
+                updateFreshnessEvaluator.evaluate(existing, incoming, SemanticEventType.WORKFLOW);
+        if (freshness == OffenseStaleUpdatePolicy.Decision.REJECT_STALE) {
+            OffenseGovernanceDecision decision = OffenseGovernanceLogFactory.workflowStaleRejected(
+                    offenseId,
+                    existing.getProcessStatus(),
+                    incoming.getProcessStatus(),
+                    existing.getProcessTime(),
+                    incoming.getProcessTime()
+            );
+            if (governanceRolloutPolicy.shouldRejectStale(GovernanceSourceType.WORKFLOW, SemanticEventType.WORKFLOW)) {
+                logGovernance(Level.WARNING, decision);
+                throw new IllegalStateException("Stale Offense workflow update rejected for id=" + offenseId);
+            }
+            logGovernance(Level.INFO, decision);
+        }
+        OffenseRecord merged = updateMergeCoordinator.merge(existing, incoming, SemanticEventType.WORKFLOW);
+        UpdateWrapper<OffenseRecord> updateWrapper = new UpdateWrapper<OffenseRecord>()
+                .eq("offense_id", offenseId)
+                .set("process_status", merged.getProcessStatus())
+                .set("updated_at", merged.getUpdatedAt());
+        applyOffenseStatusPrecondition(updateWrapper, existing.getProcessStatus());
+        int rows = offenseRecordMapper.update(null, updateWrapper);
+        if (rows == 0) {
+            throw new BusinessException("CONFLICT", "该记录已被处理，无法重复操作");
+        }
+        syncToIndexAfterCommit(policy, merged);
+        return merged;
+    }
+
+    private void applyOffenseStatusPrecondition(UpdateWrapper<OffenseRecord> updateWrapper,
+                                                String currentProcessStatus) {
+        if (currentProcessStatus == null) {
+            updateWrapper.isNull("process_status");
+        } else {
+            updateWrapper.eq("process_status", currentProcessStatus);
+        }
+    }
+
+    /**
+     * 仅用于治理回归测试的 Kafka 更新合并影子比较。
+     * 生产代码不应调用此方法。
+     *
+     * @deprecated 仅供测试使用，见 OffenseGovernanceHardeningTest
+     */
+    @Deprecated(since = "test-only")
+    public void shadowCompareKafkaUpdateMerge(OffenseRecord incoming) {
+        if (incoming == null || incoming.getOffenseId() == null) {
+            return;
+        }
+        try {
+            OffenseRecord current = offenseRecordMapper.selectById(incoming.getOffenseId());
+            if (current == null) {
+                return;
+            }
+            OffenseStaleUpdatePolicy.Decision freshness =
+                    updateFreshnessEvaluator.evaluate(current, incoming, SemanticEventType.FULL_UPDATE);
+            if (freshness == OffenseStaleUpdatePolicy.Decision.SHADOW_ONLY) {
+                logGovernance(Level.INFO, OffenseGovernanceLogFactory.shadowStale(
+                        OffenseGovernanceDecision.Source.KAFKA,
+                        incoming.getOffenseId(),
+                        current.getUpdatedAt(),
+                        incoming.getUpdatedAt()
+                ));
+            }
+            FullUpdateMergePolicy.MergeResult shadowMerge =
+                    fullUpdateMergePolicy.merge(current, incoming, FullUpdateCompatibilityMode.LEGACY_SHADOW);
+            logFullUpdateMergeGovernance(OffenseGovernanceDecision.Source.KAFKA, incoming.getOffenseId(), shadowMerge);
+            if (!Objects.equals(shadowMerge.mergedRecord(), incoming)) {
+                logGovernance(Level.INFO, OffenseGovernanceLogFactory.legacyCompatibilityMode(
+                        OffenseGovernanceDecision.Source.KAFKA,
+                        incoming.getOffenseId(),
+                        FullUpdateCompatibilityMode.LEGACY_SHADOW,
+                        shadowMerge.mergedRecord() == null ? null : shadowMerge.mergedRecord().getUpdatedAt(),
+                        mergedGovernanceFields(shadowMerge)
+                ));
+            }
+        } catch (Exception ex) {
+            log.log(Level.WARNING, "Offense Kafka update shadow merge comparison failed", ex);
+        }
+    }
+
+    private void shadowCompareControllerFullUpdate(OffenseRecord incoming) {
+        if (incoming == null || incoming.getOffenseId() == null) {
+            return;
+        }
+        try {
+            OffenseRecord current = offenseRecordMapper.selectById(incoming.getOffenseId());
+            if (current == null) {
+                return;
+            }
+            OffenseStaleUpdatePolicy.Decision freshness =
+                    updateFreshnessEvaluator.evaluate(current, incoming, SemanticEventType.FULL_UPDATE);
+            if (freshness == OffenseStaleUpdatePolicy.Decision.SHADOW_ONLY
+                    && governanceRolloutPolicy.shouldShadowLog(GovernanceSourceType.CONTROLLER, SemanticEventType.FULL_UPDATE)) {
+                logGovernance(Level.INFO, OffenseGovernanceLogFactory.shadowStale(
+                        OffenseGovernanceDecision.Source.CONTROLLER,
+                        incoming.getOffenseId(),
+                        current.getUpdatedAt(),
+                        incoming.getUpdatedAt()
+                ));
+            }
+            FullUpdateMergePolicy.MergeResult shadowMerge =
+                    fullUpdateMergePolicy.merge(current, incoming, FullUpdateCompatibilityMode.LEGACY_SHADOW);
+            logFullUpdateMergeGovernance(OffenseGovernanceDecision.Source.CONTROLLER, incoming.getOffenseId(), shadowMerge);
+        } catch (Exception ex) {
+            log.log(Level.WARNING, "Offense controller update shadow comparison failed", ex);
+        }
+    }
+
+    @Transactional
+    public void publishCreateKafkaAfterCommit(String idempotencyKey, OffenseRecord offenseRecord) {
+        Objects.requireNonNull(offenseRecord, "OffenseRecord must not be null");
+        MutationSideEffectPolicy policy = semanticIntentClassifier.classifyIdempotencyPublish("create");
+        sideEffectCoordinator.publishKafkaAfterCommit(policy,
+                () -> sendKafkaMessage("offense_record_create", idempotencyKey, offenseRecord));
+    }
+
+    @Transactional
+    @CacheEvict(cacheNames = CACHE_NAME, allEntries = true)
+    public void deleteOffenseRecord(Long offenseId) {
+        MutationSideEffectPolicy policy = semanticIntentClassifier.classifyDelete();
+        requirePositive(offenseId, "Offense ID");
+        int rows = offenseRecordMapper.deleteById(offenseId);
+        if (rows == 0) {
+            throw new IllegalStateException("No OffenseRecord deleted for id=" + offenseId);
+        }
+        sideEffectCoordinator.indexAfterCommit(policy, () -> offenseInformationSearchRepository.deleteById(offenseId));
+    }
+
+    @Transactional(readOnly = true)
+    @Cacheable(cacheNames = CACHE_NAME, key = "#offenseId", unless = "#result == null")
+    public OffenseRecord findById(Long offenseId) {
+        requirePositive(offenseId, "Offense ID");
+        return offenseInformationSearchRepository.findById(offenseId)
+                .map(OffenseRecordDocument::toEntity)
+                .orElseGet(() -> {
+                    OffenseRecord entity = offenseRecordMapper.selectById(offenseId);
+                    if (entity != null) {
+                        MutationSideEffectPolicy policy = semanticIntentClassifier.classifyReadRepair();
+                        logReadRepairGovernance(entity.getOffenseId(), 1);
+                        sideEffectCoordinator.readRepairNow(policy, () -> offenseInformationSearchRepository.save(OffenseRecordDocument.fromEntity(entity)));
+                    }
+                    return entity;
+                });
+    }
+
+    @Transactional(readOnly = true)
+    @Cacheable(cacheNames = CACHE_NAME, key = "'all'", unless = "#result == null || #result.isEmpty()")
+    @Deprecated
+    public List<OffenseRecord> findAll() {
+        log.warning("findAll() called - this method should not be used in production. Use findPage() instead.");
+        List<OffenseRecord> fromIndex = StreamSupport.stream(offenseInformationSearchRepository.findAll().spliterator(), false)
+                .map(OffenseRecordDocument::toEntity)
+                .collect(Collectors.toList());
+        if (!fromIndex.isEmpty()) {
+            return fromIndex;
+        }
+        List<OffenseRecord> fromDb = offenseRecordMapper.selectList(null);
+        logReadRepairGovernance(null, fromDb == null ? 0 : fromDb.size());
+        syncBatchToIndexAfterCommit(semanticIntentClassifier.classifyReadRepair(), fromDb);
+        return fromDb;
+    }
+
+    @Transactional(readOnly = true)
+    public Page<OffenseRecord> findPage(int page, int size) {
+        validatePagination(page, size);
+        QueryWrapper<OffenseRecord> wrapper = new QueryWrapper<>();
+        wrapper.orderByDesc("offense_time");
+        Page<OffenseRecord> mpPage = new Page<>(page, size);
+        offenseRecordMapper.selectPage(mpPage, wrapper);
+        syncBatchToIndexAfterCommit(
+                semanticIntentClassifier.classifyReadRepair(),
+                mpPage.getRecords()
+        );
+        return mpPage;
+    }
+
+    @Cacheable(cacheNames = CACHE_NAME, key = "'driver:' + #driverId + ':' + #page + ':' + #size", unless = "#result == null || #result.isEmpty()")
+    public List<OffenseRecord> findByDriverId(Long driverId, int page, int size) {
+        requirePositive(driverId, "Driver ID");
+        validatePagination(page, size);
+        List<OffenseRecord> index = mapHits(offenseInformationSearchRepository.findByDriverId(driverId, pageable(page, size)));
+        if (!index.isEmpty()) {
+            return index;
+        }
+        QueryWrapper<OffenseRecord> wrapper = new QueryWrapper<>();
+        wrapper.eq("driver_id", driverId)
+                .orderByDesc("offense_time");
+        return fetchFromDatabase(wrapper, page, size);
+    }
+
+    @Cacheable(cacheNames = CACHE_NAME, key = "'vehicle:' + #vehicleId + ':' + #page + ':' + #size", unless = "#result == null || #result.isEmpty()")
+    public List<OffenseRecord> findByVehicleId(Long vehicleId, int page, int size) {
+        requirePositive(vehicleId, "Vehicle ID");
+        validatePagination(page, size);
+        List<OffenseRecord> index = mapHits(offenseInformationSearchRepository.findByVehicleId(vehicleId, pageable(page, size)));
+        if (!index.isEmpty()) {
+            return index;
+        }
+        QueryWrapper<OffenseRecord> wrapper = new QueryWrapper<>();
+        wrapper.eq("vehicle_id", vehicleId)
+                .orderByDesc("offense_time");
+        return fetchFromDatabase(wrapper, page, size);
+    }
+
+    @Cacheable(cacheNames = CACHE_NAME, key = "'code:' + #offenseCode + ':' + #page + ':' + #size", unless = "#result == null || #result.isEmpty()")
+    public List<OffenseRecord> searchByOffenseCode(String offenseCode, int page, int size) {
+        if (isBlank(offenseCode)) {
+            return List.of();
+        }
+        validatePagination(page, size);
+        List<OffenseRecord> index = mapHits(offenseInformationSearchRepository.searchByOffenseCode(offenseCode, pageable(page, size)));
+        if (!index.isEmpty()) {
+            return index;
+        }
+        QueryWrapper<OffenseRecord> wrapper = new QueryWrapper<>();
+        wrapper.like("offense_code", offenseCode)
+                .orderByDesc("offense_time");
+        return fetchFromDatabase(wrapper, page, size);
+    }
+
+    @Cacheable(cacheNames = CACHE_NAME, key = "'status:' + #processStatus + ':' + #page + ':' + #size", unless = "#result == null || #result.isEmpty()")
+    public List<OffenseRecord> searchByProcessStatus(String processStatus, int page, int size) {
+        if (isBlank(processStatus)) {
+            return List.of();
+        }
+        validatePagination(page, size);
+        List<OffenseRecord> index = mapHits(offenseInformationSearchRepository.searchByProcessStatus(processStatus, pageable(page, size)));
+        if (!index.isEmpty()) {
+            return index;
+        }
+        QueryWrapper<OffenseRecord> wrapper = new QueryWrapper<>();
+        wrapper.eq("process_status", processStatus)
+                .orderByDesc("offense_time");
+        return fetchFromDatabase(wrapper, page, size);
+    }
+
+    @Cacheable(cacheNames = CACHE_NAME, key = "'timeRange:' + #startTime + ':' + #endTime + ':' + #page + ':' + #size", unless = "#result == null || #result.isEmpty()")
+    public List<OffenseRecord> searchByOffenseTimeRange(String startTime, String endTime, int page, int size) {
+        validatePagination(page, size);
+        LocalDateTime start = parseDateTime(startTime, "startTime");
+        LocalDateTime end = parseDateTime(endTime, "endTime");
+        if (start == null || end == null) {
+            return List.of();
+        }
+        List<OffenseRecord> index = mapHits(offenseInformationSearchRepository.searchByOffenseTimeRange(startTime, endTime, pageable(page, size)));
+        if (!index.isEmpty()) {
+            return index;
+        }
+        QueryWrapper<OffenseRecord> wrapper = new QueryWrapper<>();
+        wrapper.between("offense_time", start, end)
+                .orderByDesc("offense_time");
+        return fetchFromDatabase(wrapper, page, size);
+    }
+
+    @Cacheable(cacheNames = CACHE_NAME, key = "'number:' + #offenseNumber + ':' + #page + ':' + #size", unless = "#result == null || #result.isEmpty()")
+    public List<OffenseRecord> searchByOffenseNumber(String offenseNumber, int page, int size) {
+        if (isBlank(offenseNumber)) {
+            return List.of();
+        }
+        validatePagination(page, size);
+        List<OffenseRecord> index = mapHits(offenseInformationSearchRepository.searchByOffenseNumber(offenseNumber, pageable(page, size)));
+        if (!index.isEmpty()) {
+            return index;
+        }
+        QueryWrapper<OffenseRecord> wrapper = new QueryWrapper<>();
+        wrapper.like("offense_number", offenseNumber)
+                .orderByDesc("offense_time");
+        return fetchFromDatabase(wrapper, page, size);
+    }
+
+    @Cacheable(cacheNames = CACHE_NAME, key = "'location:' + #offenseLocation + ':' + #page + ':' + #size", unless = "#result == null || #result.isEmpty()")
+    public List<OffenseRecord> searchByOffenseLocation(String offenseLocation, int page, int size) {
+        if (isBlank(offenseLocation)) {
+            return List.of();
+        }
+        validatePagination(page, size);
+        List<OffenseRecord> index = mapHits(offenseInformationSearchRepository.searchByOffenseLocation(offenseLocation, pageable(page, size)));
+        if (!index.isEmpty()) {
+            return index;
+        }
+        QueryWrapper<OffenseRecord> wrapper = new QueryWrapper<>();
+        wrapper.like("offense_location", offenseLocation)
+                .orderByDesc("offense_time");
+        return fetchFromDatabase(wrapper, page, size);
+    }
+
+    @Cacheable(cacheNames = CACHE_NAME, key = "'province:' + #offenseProvince + ':' + #page + ':' + #size", unless = "#result == null || #result.isEmpty()")
+    public List<OffenseRecord> searchByOffenseProvince(String offenseProvince, int page, int size) {
+        if (isBlank(offenseProvince)) {
+            return List.of();
+        }
+        validatePagination(page, size);
+        List<OffenseRecord> index = mapHits(offenseInformationSearchRepository.searchByOffenseProvince(offenseProvince, pageable(page, size)));
+        if (!index.isEmpty()) {
+            return index;
+        }
+        QueryWrapper<OffenseRecord> wrapper = new QueryWrapper<>();
+        wrapper.eq("offense_province", offenseProvince)
+                .orderByDesc("offense_time");
+        return fetchFromDatabase(wrapper, page, size);
+    }
+
+    @Cacheable(cacheNames = CACHE_NAME, key = "'city:' + #offenseCity + ':' + #page + ':' + #size", unless = "#result == null || #result.isEmpty()")
+    public List<OffenseRecord> searchByOffenseCity(String offenseCity, int page, int size) {
+        if (isBlank(offenseCity)) {
+            return List.of();
+        }
+        validatePagination(page, size);
+        List<OffenseRecord> index = mapHits(offenseInformationSearchRepository.searchByOffenseCity(offenseCity, pageable(page, size)));
+        if (!index.isEmpty()) {
+            return index;
+        }
+        QueryWrapper<OffenseRecord> wrapper = new QueryWrapper<>();
+        wrapper.eq("offense_city", offenseCity)
+                .orderByDesc("offense_time");
+        return fetchFromDatabase(wrapper, page, size);
+    }
+
+    @Cacheable(cacheNames = CACHE_NAME, key = "'notification:' + #notificationStatus + ':' + #page + ':' + #size", unless = "#result == null || #result.isEmpty()")
+    public List<OffenseRecord> searchByNotificationStatus(String notificationStatus, int page, int size) {
+        if (isBlank(notificationStatus)) {
+            return List.of();
+        }
+        validatePagination(page, size);
+        List<OffenseRecord> index = mapHits(offenseInformationSearchRepository.searchByNotificationStatus(notificationStatus, pageable(page, size)));
+        if (!index.isEmpty()) {
+            return index;
+        }
+        QueryWrapper<OffenseRecord> wrapper = new QueryWrapper<>();
+        wrapper.eq("notification_status", notificationStatus)
+                .orderByDesc("offense_time");
+        return fetchFromDatabase(wrapper, page, size);
+    }
+
+    @Cacheable(cacheNames = CACHE_NAME, key = "'agency:' + #enforcementAgency + ':' + #page + ':' + #size", unless = "#result == null || #result.isEmpty()")
+    public List<OffenseRecord> searchByEnforcementAgency(String enforcementAgency, int page, int size) {
+        if (isBlank(enforcementAgency)) {
+            return List.of();
+        }
+        validatePagination(page, size);
+        List<OffenseRecord> index = mapHits(offenseInformationSearchRepository.searchByEnforcementAgency(enforcementAgency, pageable(page, size)));
+        if (!index.isEmpty()) {
+            return index;
+        }
+        QueryWrapper<OffenseRecord> wrapper = new QueryWrapper<>();
+        wrapper.like("enforcement_agency", enforcementAgency)
+                .orderByDesc("offense_time");
+        return fetchFromDatabase(wrapper, page, size);
+    }
+
+    @Cacheable(cacheNames = CACHE_NAME, key = "'fineRange:' + #minAmount + ':' + #maxAmount + ':' + #page + ':' + #size", unless = "#result == null || #result.isEmpty()")
+    public List<OffenseRecord> searchByFineAmountRange(double minAmount, double maxAmount, int page, int size) {
+        validatePagination(page, size);
+        if (minAmount > maxAmount) {
+            return List.of();
+        }
+        List<OffenseRecord> index = mapHits(offenseInformationSearchRepository.searchByFineAmountRange(minAmount, maxAmount, pageable(page, size)));
+        if (!index.isEmpty()) {
+            return index;
+        }
+        QueryWrapper<OffenseRecord> wrapper = new QueryWrapper<>();
+        wrapper.between("fine_amount", minAmount, maxAmount)
+                .orderByDesc("offense_time");
+        return fetchFromDatabase(wrapper, page, size);
+    }
+
+    public boolean shouldSkipProcessing(String idempotencyKey) {
+        SysRequestHistory history = sysRequestHistoryMapper.selectByIdempotencyKey(idempotencyKey);
+        return history != null
+                && "SUCCESS".equalsIgnoreCase(history.getBusinessStatus())
+                && "DONE".equalsIgnoreCase(history.getRequestParams());
+    }
+
+    public void markHistorySuccess(String idempotencyKey, Long offenseId) {
+        SysRequestHistory history = sysRequestHistoryMapper.selectByIdempotencyKey(idempotencyKey);
+        if (history == null) {
+            log.log(Level.WARNING, "Cannot mark success for missing idempotency key {0}", idempotencyKey);
+            return;
+        }
+        history.setBusinessStatus("SUCCESS");
+        history.setBusinessId(offenseId);
+        history.setRequestParams("DONE");
+        history.setUpdatedAt(LocalDateTime.now());
+        sysRequestHistoryMapper.updateById(history);
+    }
+
+    public void markHistoryFailure(String idempotencyKey, String reason) {
+        SysRequestHistory history = sysRequestHistoryMapper.selectByIdempotencyKey(idempotencyKey);
+        if (history == null) {
+            log.log(Level.WARNING, "Cannot mark failure for missing idempotency key {0}", idempotencyKey);
+            return;
+        }
+        history.setBusinessStatus("FAILED");
+        history.setRequestParams(truncate(reason));
+        history.setUpdatedAt(LocalDateTime.now());
+        sysRequestHistoryMapper.updateById(history);
+    }
+
+    private void sendKafkaMessage(String topic, String idempotencyKey, OffenseRecord offenseRecord) {
+        try {
+            String payload = objectMapper.writeValueAsString(offenseRecord);
+            kafkaTemplate.send(topic, idempotencyKey, payload);
+        } catch (Exception ex) {
+            log.log(Level.SEVERE, "Failed to send OffenseRecord Kafka message", ex);
+            throw new RuntimeException("Failed to send OffenseRecord event", ex);
+        }
+    }
+
+    private void syncToIndexAfterCommit(MutationSideEffectPolicy policy, OffenseRecord offenseRecord) {
+        if (offenseRecord == null) {
+            return;
+        }
+        sideEffectCoordinator.indexAfterCommit(policy, () -> saveToIndex(offenseRecord));
+    }
+
+    private void syncBatchToIndexAfterCommit(MutationSideEffectPolicy policy, List<OffenseRecord> records) {
+        if (records == null || records.isEmpty()) {
+            return;
+        }
+        sideEffectCoordinator.indexAfterCommit(policy, () -> saveBatchToIndex(records));
+    }
+
+    private void logFullUpdateMergeGovernance(OffenseGovernanceDecision.Source source,
+                                              Long offenseId,
+                                              FullUpdateMergePolicy.MergeResult merge) {
+        if (merge == null) {
+            return;
+        }
+        GovernanceSourceType sourceType = sourceType(source);
+        LocalDateTime updatedAt = merge.mergedRecord() == null ? null : merge.mergedRecord().getUpdatedAt();
+        if (source == OffenseGovernanceDecision.Source.CONTROLLER
+                && merge.compatibilityMode() == FullUpdateCompatibilityMode.LEGACY_SHADOW) {
+            logGovernance(Level.INFO, OffenseGovernanceLogFactory.legacyCompatibilityMode(
+                    offenseId,
+                    merge.compatibilityMode(),
+                    updatedAt,
+                    mergedGovernanceFields(merge)
+            ));
+        }
+        if (!merge.nullPreservedFields().isEmpty()
+                && governanceRolloutPolicy.shouldPreserveNulls(sourceType, SemanticEventType.FULL_UPDATE)) {
+            logGovernance(Level.INFO, OffenseGovernanceLogFactory.nullFieldPreserved(
+                    source,
+                    offenseId,
+                    merge.compatibilityMode(),
+                    updatedAt,
+                    merge.nullPreservedFields()
+            ));
+        }
+        if (!merge.immutablePreservedFields().isEmpty()
+                && governanceRolloutPolicy.shouldPreserveImmutableFields(sourceType, SemanticEventType.FULL_UPDATE)) {
+            logGovernance(Level.INFO, OffenseGovernanceLogFactory.immutableFieldPreserved(
+                    source,
+                    offenseId,
+                    merge.compatibilityMode(),
+                    updatedAt,
+                    merge.immutablePreservedFields()
+            ));
+        }
+        if (!merge.workflowSuppressedFields().isEmpty()
+                && governanceRolloutPolicy.shouldSuppressWorkflowOverwrite(sourceType, SemanticEventType.FULL_UPDATE)) {
+            logGovernance(Level.INFO, OffenseGovernanceLogFactory.workflowFieldSuppressed(
+                    source,
+                    offenseId,
+                    merge.compatibilityMode(),
+                    updatedAt,
+                    merge.workflowSuppressedFields()
+            ));
+        }
+    }
+
+    private List<String> mergedGovernanceFields(FullUpdateMergePolicy.MergeResult merge) {
+        List<String> fields = new ArrayList<>();
+        fields.addAll(merge.nullPreservedFields());
+        fields.addAll(merge.immutablePreservedFields());
+        fields.addAll(merge.workflowSuppressedFields());
+        return fields.stream().distinct().collect(Collectors.toList());
+    }
+
+    private void logReadRepairGovernance(Long offenseId, int recordCount) {
+        if (recordCount <= 0) {
+            return;
+        }
+        logGovernance(Level.INFO, OffenseGovernanceLogFactory.readRepairTriggered(offenseId, recordCount));
+    }
+
+    private void logGovernance(Level level, OffenseGovernanceDecision decision) {
+        log.log(level, OffenseGovernanceLogFactory.format(decision));
+    }
+
+    private GovernanceSourceType sourceType(OffenseGovernanceDecision.Source source) {
+        if (source == null) {
+            return null;
+        }
+        return switch (source) {
+            case CONTROLLER -> GovernanceSourceType.CONTROLLER;
+            case KAFKA -> GovernanceSourceType.KAFKA;
+            case WORKFLOW -> GovernanceSourceType.WORKFLOW;
+            case QUERY_REPAIR -> GovernanceSourceType.QUERY_REPAIR;
+        };
+    }
+
+    private void saveToIndex(OffenseRecord offenseRecord) {
+        OffenseRecordDocument doc = OffenseRecordDocument.fromEntity(offenseRecord);
+        if (doc != null) {
+            offenseInformationSearchRepository.save(doc);
+        }
+    }
+
+    private void saveBatchToIndex(List<OffenseRecord> records) {
+        List<OffenseRecordDocument> documents = records.stream()
+                .filter(Objects::nonNull)
+                .map(OffenseRecordDocument::fromEntity)
+                .filter(Objects::nonNull)
+                .collect(Collectors.toList());
+        if (!documents.isEmpty()) {
+            offenseInformationSearchRepository.saveAll(documents);
+        }
+    }
+
+    /**
+     * 将 ES 命中结果转换成实体列表，供缓存 miss 时快速返回
+     */
+    private List<OffenseRecord> mapHits(org.springframework.data.elasticsearch.core.SearchHits<OffenseRecordDocument> hits) {
+        if (hits == null || !hits.hasSearchHits()) {
+            return List.of();
+        }
+        return hits.getSearchHits().stream()
+                .map(org.springframework.data.elasticsearch.core.SearchHit::getContent)
+                .map(OffenseRecordDocument::toEntity)
+                .collect(Collectors.toList());
+    }
+
+    private List<OffenseRecord> fetchFromDatabase(QueryWrapper<OffenseRecord> wrapper, int page, int size) {
+        Page<OffenseRecord> mpPage = new Page<>(Math.max(page, 1), Math.max(size, 1));
+        offenseRecordMapper.selectPage(mpPage, wrapper);
+        List<OffenseRecord> records = mpPage.getRecords();
+        logReadRepairGovernance(null, records == null ? 0 : records.size());
+        syncBatchToIndexAfterCommit(semanticIntentClassifier.classifyReadRepair(), records);
+        return records;
+    }
+
+    private org.springframework.data.domain.Pageable pageable(int page, int size) {
+        return org.springframework.data.domain.PageRequest.of(Math.max(page - 1, 0), Math.max(size, 1));
+    }
+
+    private void validateOffenseRecord(OffenseRecord offenseRecord) {
+        Objects.requireNonNull(offenseRecord, "OffenseRecord must not be null");
+        if (offenseRecord.getOffenseTime() == null) {
+            offenseRecord.setOffenseTime(LocalDateTime.now());
+        }
+        if (offenseRecord.getProcessStatus() == null || offenseRecord.getProcessStatus().isBlank()) {
+            offenseRecord.setProcessStatus("Pending");
+        }
+    }
+
+    private void validatePagination(int page, int size) {
+        if (page < 1 || size < 1) {
+            throw new IllegalArgumentException("Page must be >= 1 and size must be >= 1");
+        }
+    }
+
+    private void requirePositive(Number number, String fieldName) {
+        if (number == null || number.longValue() <= 0) {
+            throw new IllegalArgumentException(fieldName + " must be greater than zero");
+        }
+    }
+
+    private LocalDateTime parseDateTime(String value, String fieldName) {
+        if (isBlank(value)) {
+            return null;
+        }
+        try {
+            return LocalDateTime.parse(value);
+        } catch (DateTimeParseException ex) {
+            log.log(Level.WARNING, "Failed to parse " + fieldName + ": " + value, ex);
+            return null;
+        }
+    }
+
+    private boolean isBlank(String value) {
+        return value == null || value.trim().isEmpty();
+    }
+
+    private String truncate(String value) {
+        if (value == null) {
+            return null;
+        }
+        return value.length() <= 500 ? value : value.substring(0, 500);
+    }
+}

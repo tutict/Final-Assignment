@@ -1,8 +1,8 @@
 package com.tutict.finalassignmentbackend.kafkaListener;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.tutict.finalassignmentbackend.entity.SysUser;
-import com.tutict.finalassignmentbackend.service.SysUserService;
+import com.tutict.finalassignmentbackend.entity.admin.SysUser;
+import com.tutict.finalassignmentbackend.service.admin.SysUserService;
 import org.apache.kafka.clients.consumer.ConsumerRecord;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.kafka.annotation.EnableKafka;

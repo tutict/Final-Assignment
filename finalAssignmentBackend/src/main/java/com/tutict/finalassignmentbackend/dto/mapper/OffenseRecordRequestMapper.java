@@ -1,7 +1,7 @@
 package com.tutict.finalassignmentbackend.dto.mapper;
 
 import com.tutict.finalassignmentbackend.dto.request.OffenseCreateRequest;
-import com.tutict.finalassignmentbackend.entity.OffenseRecord;
+import com.tutict.finalassignmentbackend.entity.offense.OffenseRecord;
 
 public final class OffenseRecordRequestMapper {
 

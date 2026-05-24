@@ -1,6 +1,6 @@
 package com.tutict.finalassignmentbackend.dto.response;
 
-import com.tutict.finalassignmentbackend.entity.DriverInformation;
+import com.tutict.finalassignmentbackend.entity.driver.DriverInformation;
 import lombok.Builder;
 import lombok.Data;
 

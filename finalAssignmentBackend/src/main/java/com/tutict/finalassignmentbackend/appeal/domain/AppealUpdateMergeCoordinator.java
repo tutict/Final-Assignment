@@ -6,7 +6,7 @@ import com.tutict.finalassignmentbackend.appeal.domain.policy.AppealUpdateIntent
 import com.tutict.finalassignmentbackend.appeal.domain.policy.AppealUpdateIntentPolicy.UpdateIntent;
 import com.tutict.finalassignmentbackend.appeal.domain.policy.AppealWorkflowDecisionPolicy;
 import com.tutict.finalassignmentbackend.config.statemachine.states.AppealProcessState;
-import com.tutict.finalassignmentbackend.entity.AppealRecord;
+import com.tutict.finalassignmentbackend.entity.appeal.AppealRecord;
 import org.springframework.stereotype.Service;
 
 import java.util.Objects;

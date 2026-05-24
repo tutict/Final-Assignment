@@ -1,7 +1,7 @@
 package com.tutict.finalassignmentbackend.appeal.infrastructure.messaging;
 
 import com.tutict.finalassignmentbackend.appeal.infrastructure.transaction.AfterCommitExecutor;
-import com.tutict.finalassignmentbackend.entity.AppealRecord;
+import com.tutict.finalassignmentbackend.entity.appeal.AppealRecord;
 import org.springframework.stereotype.Service;
 
 import java.util.logging.Level;

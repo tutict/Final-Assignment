@@ -1,10 +1,10 @@
 package com.tutict.finalassignmentbackend.dto.response;
 
-import com.tutict.finalassignmentbackend.entity.AppealRecord;
-import com.tutict.finalassignmentbackend.entity.DriverInformation;
-import com.tutict.finalassignmentbackend.entity.FineRecord;
-import com.tutict.finalassignmentbackend.entity.OffenseRecord;
-import com.tutict.finalassignmentbackend.entity.VehicleInformation;
+import com.tutict.finalassignmentbackend.entity.appeal.AppealRecord;
+import com.tutict.finalassignmentbackend.entity.driver.DriverInformation;
+import com.tutict.finalassignmentbackend.entity.offense.FineRecord;
+import com.tutict.finalassignmentbackend.entity.offense.OffenseRecord;
+import com.tutict.finalassignmentbackend.entity.driver.VehicleInformation;
 import lombok.Builder;
 import lombok.Data;
 

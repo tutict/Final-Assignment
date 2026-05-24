@@ -21,7 +21,7 @@ import com.tutict.finalassignmentbackend.repository.SysSettingsSearchRepository;
 import com.tutict.finalassignmentbackend.repository.SysUserRoleSearchRepository;
 import com.tutict.finalassignmentbackend.repository.SysUserSearchRepository;
 import com.tutict.finalassignmentbackend.repository.VehicleInformationSearchRepository;
-import com.tutict.finalassignmentbackend.service.ChatAgent;
+import com.tutict.finalassignmentbackend.service.ai.ChatAgent;
 import org.apache.kafka.clients.producer.RecordMetadata;
 import org.mockito.Mockito;
 import org.springframework.boot.test.context.TestConfiguration;

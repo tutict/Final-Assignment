@@ -2,7 +2,7 @@ package com.tutict.finalassignmentbackend.config;
 
 import com.tutict.finalassignmentbackend.config.login.jwt.JwtAuthenticationFilter;
 import com.tutict.finalassignmentbackend.config.login.jwt.TokenProvider;
-import com.tutict.finalassignmentbackend.service.TokenBlacklistService;
+import com.tutict.finalassignmentbackend.service.auth.TokenBlacklistService;
 import jakarta.servlet.http.HttpServletResponse;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;

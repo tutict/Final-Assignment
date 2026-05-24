@@ -2,7 +2,7 @@ package com.tutict.finalassignmentbackend.appeal.application.workflow;
 
 import com.tutict.finalassignmentbackend.appeal.application.AppealRecordApplicationService;
 import com.tutict.finalassignmentbackend.config.statemachine.states.AppealProcessState;
-import com.tutict.finalassignmentbackend.entity.AppealRecord;
+import com.tutict.finalassignmentbackend.entity.appeal.AppealRecord;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 

@@ -57,7 +57,7 @@ public class AuthController {
                     description = "登录成功，返回包含令牌的结构化响应",
                     content = @Content(mediaType = "application/json",
                             schema = @Schema(type = "object",
-                                    example = "{\"jwtToken\":\"<token>\",\"username\":\"admin\",\"roles\":[\"ROLE_ADMIN\"]}")))
+                                    example = "{\"jwtToken\":\"<token>\",\"username\":\"admin\",\"roles\":[\"ADMIN\"]}")))
             ,
             @ApiResponse(
                     responseCode = "400",

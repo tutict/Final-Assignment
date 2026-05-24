@@ -2,7 +2,7 @@ package com.tutict.finalassignmentbackend.appeal.domain;
 
 import com.tutict.finalassignmentbackend.appeal.domain.policy.AppealFieldMutationPolicy;
 import com.tutict.finalassignmentbackend.config.statemachine.states.AppealProcessState;
-import com.tutict.finalassignmentbackend.entity.AppealRecord;
+import com.tutict.finalassignmentbackend.entity.appeal.AppealRecord;
 import org.junit.jupiter.api.Test;
 
 import java.time.LocalDateTime;

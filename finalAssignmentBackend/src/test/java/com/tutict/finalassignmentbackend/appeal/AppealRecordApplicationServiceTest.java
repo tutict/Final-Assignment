@@ -18,11 +18,11 @@ import com.tutict.finalassignmentbackend.appeal.infrastructure.messaging.Transac
 import com.tutict.finalassignmentbackend.appeal.infrastructure.search.AppealRecordSearchIndexer;
 import com.tutict.finalassignmentbackend.appeal.infrastructure.transaction.AfterCommitExecutor;
 import com.tutict.finalassignmentbackend.config.statemachine.states.AppealProcessState;
-import com.tutict.finalassignmentbackend.entity.AppealRecord;
-import com.tutict.finalassignmentbackend.entity.SysRequestHistory;
+import com.tutict.finalassignmentbackend.entity.appeal.AppealRecord;
+import com.tutict.finalassignmentbackend.entity.system.SysRequestHistory;
 import com.tutict.finalassignmentbackend.entity.elastic.AppealRecordDocument;
-import com.tutict.finalassignmentbackend.mapper.AppealRecordMapper;
-import com.tutict.finalassignmentbackend.mapper.SysRequestHistoryMapper;
+import com.tutict.finalassignmentbackend.mapper.appeal.AppealRecordMapper;
+import com.tutict.finalassignmentbackend.mapper.system.SysRequestHistoryMapper;
 import com.tutict.finalassignmentbackend.repository.AppealRecordSearchRepository;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;

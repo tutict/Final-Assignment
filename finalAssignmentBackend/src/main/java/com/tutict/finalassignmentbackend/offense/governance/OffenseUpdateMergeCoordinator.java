@@ -1,6 +1,6 @@
 package com.tutict.finalassignmentbackend.offense.governance;
 
-import com.tutict.finalassignmentbackend.entity.OffenseRecord;
+import com.tutict.finalassignmentbackend.entity.offense.OffenseRecord;
 
 import java.util.function.Consumer;
 

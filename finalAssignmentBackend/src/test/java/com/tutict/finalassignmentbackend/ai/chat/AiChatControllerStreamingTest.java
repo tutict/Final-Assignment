@@ -12,7 +12,7 @@ import com.tutict.finalassignmentbackend.ai.provider.AiToken;
 import com.tutict.finalassignmentbackend.ai.provider.NoopAiProvider;
 import com.tutict.finalassignmentbackend.ai.provider.ProviderHealth;
 import com.tutict.finalassignmentbackend.dto.response.ApiResponse;
-import com.tutict.finalassignmentbackend.service.ChatAgent;
+import com.tutict.finalassignmentbackend.service.ai.ChatAgent;
 import org.junit.jupiter.api.Test;
 import org.springframework.http.ResponseEntity;
 import org.springframework.http.codec.ServerSentEvent;

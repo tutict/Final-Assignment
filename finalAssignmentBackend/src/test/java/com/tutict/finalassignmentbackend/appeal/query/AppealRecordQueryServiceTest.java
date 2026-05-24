@@ -7,7 +7,7 @@ import com.tutict.finalassignmentbackend.appeal.infrastructure.search.AppealReco
 import com.tutict.finalassignmentbackend.appeal.query.dto.AppealPageRequest;
 import com.tutict.finalassignmentbackend.appeal.read.AppealReadAssembler;
 import com.tutict.finalassignmentbackend.appeal.read.AppealReadModel;
-import com.tutict.finalassignmentbackend.entity.AppealRecord;
+import com.tutict.finalassignmentbackend.entity.appeal.AppealRecord;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
 import org.mockito.InOrder;

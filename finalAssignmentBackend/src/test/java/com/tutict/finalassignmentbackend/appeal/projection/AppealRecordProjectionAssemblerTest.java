@@ -1,6 +1,6 @@
 package com.tutict.finalassignmentbackend.appeal.projection;
 
-import com.tutict.finalassignmentbackend.entity.AppealRecord;
+import com.tutict.finalassignmentbackend.entity.appeal.AppealRecord;
 import com.tutict.finalassignmentbackend.entity.elastic.AppealRecordDocument;
 import org.junit.jupiter.api.Test;
 

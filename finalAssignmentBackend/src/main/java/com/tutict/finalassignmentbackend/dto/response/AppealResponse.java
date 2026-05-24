@@ -1,6 +1,6 @@
 package com.tutict.finalassignmentbackend.dto.response;
 
-import com.tutict.finalassignmentbackend.entity.AppealRecord;
+import com.tutict.finalassignmentbackend.entity.appeal.AppealRecord;
 import lombok.Builder;
 import lombok.Data;
 

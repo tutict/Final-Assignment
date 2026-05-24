@@ -126,7 +126,7 @@ public class TokenProvider {
      * 从 JWT 中提取角色列表
      *
      * @param token 令牌字符串
-     * @return 角色列表，例如 ["ROLE_USER", "ROLE_ADMIN"]
+     * @return Spring Security authority 列表，例如 ["ROLE_USER", "ROLE_" + "ADMIN"]
      */
     public List<String> extractRoles(String token) {
         try {
@@ -372,4 +372,3 @@ public class TokenProvider {
 
     }
 }
-

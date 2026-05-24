@@ -3,8 +3,8 @@ package com.tutict.finalassignmentbackend.appeal.query;
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.tutict.finalassignmentbackend.appeal.query.dto.AppealPageRequest;
-import com.tutict.finalassignmentbackend.entity.AppealRecord;
-import com.tutict.finalassignmentbackend.mapper.AppealRecordMapper;
+import com.tutict.finalassignmentbackend.entity.appeal.AppealRecord;
+import com.tutict.finalassignmentbackend.mapper.appeal.AppealRecordMapper;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDateTime;

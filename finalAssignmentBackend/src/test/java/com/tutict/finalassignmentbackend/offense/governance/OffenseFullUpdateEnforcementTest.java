@@ -2,12 +2,12 @@ package com.tutict.finalassignmentbackend.offense.governance;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.tutict.finalassignmentbackend.config.statemachine.states.OffenseProcessState;
-import com.tutict.finalassignmentbackend.entity.OffenseRecord;
+import com.tutict.finalassignmentbackend.entity.offense.OffenseRecord;
 import com.tutict.finalassignmentbackend.kafkaListener.OffenseRecordKafkaListener;
-import com.tutict.finalassignmentbackend.mapper.OffenseRecordMapper;
-import com.tutict.finalassignmentbackend.mapper.SysRequestHistoryMapper;
+import com.tutict.finalassignmentbackend.mapper.offense.OffenseRecordMapper;
+import com.tutict.finalassignmentbackend.mapper.system.SysRequestHistoryMapper;
 import com.tutict.finalassignmentbackend.repository.OffenseInformationSearchRepository;
-import com.tutict.finalassignmentbackend.service.OffenseRecordService;
+import com.tutict.finalassignmentbackend.service.offense.OffenseRecordService;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;

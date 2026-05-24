@@ -1,0 +1,551 @@
+package com.tutict.finalassignmentbackend.service.admin;
+
+import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
+import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.tutict.finalassignmentbackend.common.PageRequest;
+import com.tutict.finalassignmentbackend.config.websocket.WsAction;
+import com.tutict.finalassignmentbackend.entity.system.SysRequestHistory;
+import com.tutict.finalassignmentbackend.entity.admin.SysUser;
+import com.tutict.finalassignmentbackend.entity.elastic.SysUserDocument;
+import com.tutict.finalassignmentbackend.mapper.system.SysRequestHistoryMapper;
+import com.tutict.finalassignmentbackend.mapper.admin.SysUserMapper;
+import com.tutict.finalassignmentbackend.repository.SysUserSearchRepository;
+import com.tutict.finalassignmentbackend.service.messaging.KafkaMessageSender;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.cache.annotation.CacheEvict;
+import org.springframework.cache.annotation.Cacheable;
+import org.springframework.security.crypto.password.PasswordEncoder;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionSynchronization;
+import org.springframework.transaction.support.TransactionSynchronizationManager;
+
+import java.time.LocalDateTime;
+import java.time.format.DateTimeParseException;
+import java.util.Collections;
+import java.util.List;
+import java.util.Objects;
+import java.util.regex.Pattern;
+import java.util.logging.Level;
+import java.util.logging.Logger;
+import java.util.stream.Collectors;
+import java.util.stream.StreamSupport;
+
+@Service
+public class SysUserService {
+
+    private static final Logger LOG = Logger.getLogger(SysUserService.class.getName());
+    private static final String CACHE_NAME = "sysUserCache";
+    private static final Pattern BCRYPT_PATTERN =
+            Pattern.compile("\\A\\$2[aby]\\$\\d{2}\\$[./A-Za-z0-9]{53}\\z");
+
+    private final SysUserMapper sysUserMapper;
+    private final SysRequestHistoryMapper sysRequestHistoryMapper;
+    private final SysUserSearchRepository sysUserSearchRepository;
+    private final KafkaMessageSender kafkaMessageSender;
+    private final ObjectMapper objectMapper;
+    private final PasswordEncoder passwordEncoder;
+
+    @Autowired
+    public SysUserService(SysUserMapper sysUserMapper,
+                          SysRequestHistoryMapper sysRequestHistoryMapper,
+                          SysUserSearchRepository sysUserSearchRepository,
+                          KafkaMessageSender kafkaMessageSender,
+                          ObjectMapper objectMapper,
+                          PasswordEncoder passwordEncoder) {
+        this.sysUserMapper = sysUserMapper;
+        this.sysRequestHistoryMapper = sysRequestHistoryMapper;
+        this.sysUserSearchRepository = sysUserSearchRepository;
+        this.kafkaMessageSender = kafkaMessageSender;
+        this.objectMapper = objectMapper;
+        this.passwordEncoder = passwordEncoder;
+    }
+
+    @Transactional
+    @CacheEvict(cacheNames = CACHE_NAME, allEntries = true)
+    @WsAction(service = "SysUserService", action = "checkAndInsertIdempotency")
+    public void checkAndInsertIdempotency(String idempotencyKey, SysUser sysUser, String action) {
+        Objects.requireNonNull(sysUser, "SysUser must not be null");
+        SysRequestHistory existing = sysRequestHistoryMapper.selectByIdempotencyKey(idempotencyKey);
+        if (existing != null) {
+            LOG.warning(() -> String.format("Duplicate sys user request detected (key=%s)", idempotencyKey));
+            throw new RuntimeException("Duplicate sys user request detected");
+        }
+
+        SysRequestHistory history = new SysRequestHistory();
+        history.setIdempotencyKey(idempotencyKey);
+        history.setBusinessStatus("PROCESSING");
+        history.setCreatedAt(LocalDateTime.now());
+        history.setUpdatedAt(LocalDateTime.now());
+        sysRequestHistoryMapper.insert(history);
+
+        encodePasswordIfNecessary(sysUser);
+        sendKafkaMessage("sys_user_" + action, idempotencyKey, sysUser);
+
+        history.setBusinessStatus("SUCCESS");
+        history.setBusinessId(sysUser.getUserId());
+        history.setRequestParams("PENDING");
+        history.setUpdatedAt(LocalDateTime.now());
+        sysRequestHistoryMapper.updateById(history);
+    }
+
+    @Transactional
+    @CacheEvict(cacheNames = CACHE_NAME, allEntries = true)
+    public SysUser createSysUser(SysUser sysUser) {
+        validateSysUser(sysUser);
+        encodePasswordIfNecessary(sysUser);
+        sysUserMapper.insert(sysUser);
+        syncToIndexAfterCommit(sysUser);
+        return sysUser;
+    }
+
+    @Transactional
+    @CacheEvict(cacheNames = CACHE_NAME, allEntries = true)
+    public SysUser updateSysUser(SysUser sysUser) {
+        validateSysUser(sysUser);
+        requirePositive(sysUser.getUserId());
+        encodePasswordIfNecessary(sysUser);
+        int rows = sysUserMapper.updateById(sysUser);
+        if (rows == 0) {
+            throw new IllegalStateException("SysUser not found for id=" + sysUser.getUserId());
+        }
+        syncToIndexAfterCommit(sysUser);
+        return sysUser;
+    }
+
+    @Transactional
+    @CacheEvict(cacheNames = CACHE_NAME, allEntries = true)
+    public void deleteSysUser(Long userId) {
+        requirePositive(userId);
+        int rows = sysUserMapper.deleteById(userId);
+        if (rows == 0) {
+            throw new IllegalStateException("SysUser not found for id=" + userId);
+        }
+        TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
+            @Override
+            public void afterCommit() {
+                sysUserSearchRepository.deleteById(userId);
+            }
+        });
+    }
+
+    @Transactional(readOnly = true)
+    @Cacheable(cacheNames = CACHE_NAME, key = "#userId", unless = "#result == null")
+    public SysUser findById(Long userId) {
+        requirePositive(userId);
+        return sysUserSearchRepository.findById(userId)
+                .map(SysUserDocument::toEntity)
+                .orElseGet(() -> {
+                    SysUser entity = sysUserMapper.selectById(userId);
+                    if (entity != null) {
+                        sysUserSearchRepository.save(SysUserDocument.fromEntity(entity));
+                    }
+                    return entity;
+                });
+    }
+
+    @Transactional(readOnly = true)
+    @Cacheable(cacheNames = CACHE_NAME, key = "'all'", unless = "#result == null || #result.isEmpty()")
+    public List<SysUser> findAll() {
+        List<SysUser> fromIndex = StreamSupport.stream(
+                        sysUserSearchRepository.findAll().spliterator(), false)
+                .map(SysUserDocument::toEntity)
+                .collect(Collectors.toList());
+        if (!fromIndex.isEmpty()) {
+            return fromIndex;
+        }
+        List<SysUser> fromDb = sysUserMapper.selectList(null);
+        syncBatchToIndexAfterCommit(fromDb);
+        return fromDb;
+    }
+
+    @Transactional(readOnly = true)
+    public Page<SysUser> findPage(PageRequest pageRequest) {
+        Page<SysUser> mpPage = new Page<>(pageRequest.toMyBatisPage(), pageRequest.getSize());
+        sysUserMapper.selectPage(mpPage, null);
+        syncBatchToIndexAfterCommit(mpPage.getRecords());
+        return mpPage;
+    }
+
+    @Cacheable(cacheNames = CACHE_NAME, key = "'usernamePrefix:' + #username + ':' + #page + ':' + #size",
+            unless = "#result == null || #result.isEmpty()")
+    public List<SysUser> searchByUsernamePrefix(String username, int page, int size) {
+        if (isBlank(username)) {
+            return List.of();
+        }
+        validatePagination(page, size);
+        List<SysUser> index = mapHits(sysUserSearchRepository.searchByUsernamePrefix(username, pageable(page, size)));
+        if (!index.isEmpty()) {
+            return index;
+        }
+        QueryWrapper<SysUser> wrapper = new QueryWrapper<>();
+        wrapper.likeRight("username", username);
+        return fetchFromDatabase(wrapper, page, size);
+    }
+
+    @Cacheable(cacheNames = CACHE_NAME, key = "'usernameFuzzy:' + #username + ':' + #page + ':' + #size",
+            unless = "#result == null || #result.isEmpty()")
+    public List<SysUser> searchByUsernameFuzzy(String username, int page, int size) {
+        if (isBlank(username)) {
+            return List.of();
+        }
+        validatePagination(page, size);
+        List<SysUser> index = mapHits(sysUserSearchRepository.searchByUsernameFuzzy(username, pageable(page, size)));
+        if (!index.isEmpty()) {
+            return index;
+        }
+        QueryWrapper<SysUser> wrapper = new QueryWrapper<>();
+        wrapper.like("username", username);
+        return fetchFromDatabase(wrapper, page, size);
+    }
+
+    @Cacheable(cacheNames = CACHE_NAME, key = "'realNamePrefix:' + #realName + ':' + #page + ':' + #size",
+            unless = "#result == null || #result.isEmpty()")
+    public List<SysUser> searchByRealNamePrefix(String realName, int page, int size) {
+        if (isBlank(realName)) {
+            return List.of();
+        }
+        validatePagination(page, size);
+        List<SysUser> index = mapHits(sysUserSearchRepository.searchByRealNamePrefix(realName, pageable(page, size)));
+        if (!index.isEmpty()) {
+            return index;
+        }
+        QueryWrapper<SysUser> wrapper = new QueryWrapper<>();
+        wrapper.likeRight("real_name", realName);
+        return fetchFromDatabase(wrapper, page, size);
+    }
+
+    @Cacheable(cacheNames = CACHE_NAME, key = "'realNameFuzzy:' + #realName + ':' + #page + ':' + #size",
+            unless = "#result == null || #result.isEmpty()")
+    public List<SysUser> searchByRealNameFuzzy(String realName, int page, int size) {
+        if (isBlank(realName)) {
+            return List.of();
+        }
+        validatePagination(page, size);
+        List<SysUser> index = mapHits(sysUserSearchRepository.searchByRealNameFuzzy(realName, pageable(page, size)));
+        if (!index.isEmpty()) {
+            return index;
+        }
+        QueryWrapper<SysUser> wrapper = new QueryWrapper<>();
+        wrapper.like("real_name", realName);
+        return fetchFromDatabase(wrapper, page, size);
+    }
+
+    @Cacheable(cacheNames = CACHE_NAME, key = "'idCard:' + #idCardNumber + ':' + #page + ':' + #size",
+            unless = "#result == null || #result.isEmpty()")
+    public List<SysUser> searchByIdCardNumber(String idCardNumber, int page, int size) {
+        if (isBlank(idCardNumber)) {
+            return List.of();
+        }
+        validatePagination(page, size);
+        List<SysUser> index = mapHits(sysUserSearchRepository.searchByIdCardNumber(idCardNumber, pageable(page, size)));
+        if (!index.isEmpty()) {
+            return index;
+        }
+        QueryWrapper<SysUser> wrapper = new QueryWrapper<>();
+        wrapper.likeRight("id_card_number", idCardNumber);
+        return fetchFromDatabase(wrapper, page, size);
+    }
+
+    @Cacheable(cacheNames = CACHE_NAME, key = "'contact:' + #contactNumber + ':' + #page + ':' + #size",
+            unless = "#result == null || #result.isEmpty()")
+    public List<SysUser> searchByContactNumber(String contactNumber, int page, int size) {
+        if (isBlank(contactNumber)) {
+            return List.of();
+        }
+        validatePagination(page, size);
+        List<SysUser> index = mapHits(sysUserSearchRepository.searchByContactNumber(contactNumber, pageable(page, size)));
+        if (!index.isEmpty()) {
+            return index;
+        }
+        QueryWrapper<SysUser> wrapper = new QueryWrapper<>();
+        wrapper.likeRight("contact_number", contactNumber);
+        return fetchFromDatabase(wrapper, page, size);
+    }
+
+    @Cacheable(cacheNames = CACHE_NAME, key = "'deptPrefix:' + #department + ':' + #page + ':' + #size",
+            unless = "#result == null || #result.isEmpty()")
+    public List<SysUser> searchByDepartmentPrefix(String department, int page, int size) {
+        if (isBlank(department)) {
+            return List.of();
+        }
+        validatePagination(page, size);
+        List<SysUser> index = mapHits(sysUserSearchRepository.searchByDepartment(department, pageable(page, size)));
+        if (!index.isEmpty()) {
+            return index;
+        }
+        QueryWrapper<SysUser> wrapper = new QueryWrapper<>();
+        wrapper.likeRight("department", department);
+        return fetchFromDatabase(wrapper, page, size);
+    }
+
+    @Cacheable(cacheNames = CACHE_NAME, key = "'employee:' + #employeeNumber + ':' + #page + ':' + #size",
+            unless = "#result == null || #result.isEmpty()")
+    public List<SysUser> searchByEmployeeNumber(String employeeNumber, int page, int size) {
+        if (isBlank(employeeNumber)) {
+            return List.of();
+        }
+        validatePagination(page, size);
+        List<SysUser> index = mapHits(sysUserSearchRepository.searchByEmployeeNumber(employeeNumber, pageable(page, size)));
+        if (!index.isEmpty()) {
+            return index;
+        }
+        QueryWrapper<SysUser> wrapper = new QueryWrapper<>();
+        wrapper.likeRight("employee_number", employeeNumber);
+        return fetchFromDatabase(wrapper, page, size);
+    }
+
+    @Transactional(readOnly = true)
+    public SysUser findByUsername(String username) {
+        if (isBlank(username)) {
+            return null;
+        }
+        QueryWrapper<SysUser> wrapper = new QueryWrapper<>();
+        wrapper.eq("username", username);
+        SysUser entity = sysUserMapper.selectOne(wrapper);
+        if (entity != null) {
+            syncToIndexAfterCommit(entity);
+        }
+        return entity;
+    }
+
+    public boolean isUsernameExists(String username) {
+        if (isBlank(username)) {
+            return false;
+        }
+        QueryWrapper<SysUser> wrapper = new QueryWrapper<>();
+        wrapper.eq("username", username);
+        return sysUserMapper.selectCount(wrapper) > 0;
+    }
+
+    @Transactional(readOnly = true)
+    @Cacheable(cacheNames = CACHE_NAME, key = "'status:' + #status + ':' + #page + ':' + #size",
+            unless = "#result == null || #result.isEmpty()")
+    public List<SysUser> findByStatus(String status, int page, int size) {
+        validatePagination(page, size);
+        if (isBlank(status)) {
+            return Collections.emptyList();
+        }
+        List<SysUser> index = mapHits(sysUserSearchRepository.searchByStatus(status, pageable(page, size)));
+        if (!index.isEmpty()) {
+            return index;
+        }
+        QueryWrapper<SysUser> wrapper = new QueryWrapper<>();
+        wrapper.eq("status", status);
+        return fetchFromDatabase(wrapper, page, size);
+    }
+
+    @Transactional(readOnly = true)
+    @Cacheable(cacheNames = CACHE_NAME, key = "'dept:' + #department + ':' + #page + ':' + #size",
+            unless = "#result == null || #result.isEmpty()")
+    public List<SysUser> findByDepartment(String department, int page, int size) {
+        validatePagination(page, size);
+        if (isBlank(department)) {
+            return Collections.emptyList();
+        }
+        QueryWrapper<SysUser> wrapper = new QueryWrapper<>();
+        wrapper.eq("department", department);
+        return fetchFromDatabase(wrapper, page, size);
+    }
+
+    @Cacheable(cacheNames = CACHE_NAME, key = "'lastLogin:' + #startTime + ':' + #endTime + ':' + #page + ':' + #size",
+            unless = "#result == null || #result.isEmpty()")
+    public List<SysUser> searchByLastLoginTimeRange(String startTime, String endTime, int page, int size) {
+        validatePagination(page, size);
+        LocalDateTime start = parseDateTime(startTime, "startTime");
+        LocalDateTime end = parseDateTime(endTime, "endTime");
+        if (start == null || end == null) {
+            return List.of();
+        }
+        List<SysUser> index = mapHits(sysUserSearchRepository.searchByLastLoginTimeRange(startTime, endTime, pageable(page, size)));
+        if (!index.isEmpty()) {
+            return index;
+        }
+        QueryWrapper<SysUser> wrapper = new QueryWrapper<>();
+        wrapper.between("last_login_time", start, end);
+        return fetchFromDatabase(wrapper, page, size);
+    }
+
+    public List<SysUser> getAllUsers() {
+        return findAll();
+    }
+
+    public boolean shouldSkipProcessing(String idempotencyKey) {
+        SysRequestHistory history = sysRequestHistoryMapper.selectByIdempotencyKey(idempotencyKey);
+        return history != null
+                && "SUCCESS".equalsIgnoreCase(history.getBusinessStatus())
+                && "DONE".equalsIgnoreCase(history.getRequestParams());
+    }
+
+    public void markHistorySuccess(String idempotencyKey, Long userId) {
+        SysRequestHistory history = sysRequestHistoryMapper.selectByIdempotencyKey(idempotencyKey);
+        if (history == null) {
+            LOG.log(Level.WARNING, "Cannot mark success for missing idempotency key {0}", idempotencyKey);
+            return;
+        }
+        history.setBusinessStatus("SUCCESS");
+        history.setBusinessId(userId);
+        history.setRequestParams("DONE");
+        history.setUpdatedAt(LocalDateTime.now());
+        sysRequestHistoryMapper.updateById(history);
+    }
+
+    public void markHistoryFailure(String idempotencyKey, String reason) {
+        SysRequestHistory history = sysRequestHistoryMapper.selectByIdempotencyKey(idempotencyKey);
+        if (history == null) {
+            LOG.log(Level.WARNING, "Cannot mark failure for missing idempotency key {0}", idempotencyKey);
+            return;
+        }
+        history.setBusinessStatus("FAILED");
+        history.setRequestParams(truncate(reason));
+        history.setUpdatedAt(LocalDateTime.now());
+        sysRequestHistoryMapper.updateById(history);
+    }
+
+    private void sendKafkaMessage(String topic, String idempotencyKey, SysUser sysUser) {
+        try {
+            String payload = objectMapper.writeValueAsString(sysUser);
+            kafkaMessageSender.sendAfterCommit(topic, idempotencyKey, payload);
+        } catch (Exception ex) {
+            LOG.log(Level.SEVERE, "Failed to send SysUser Kafka message", ex);
+            throw new RuntimeException("Failed to send sys user event", ex);
+        }
+    }
+
+    private void syncToIndexAfterCommit(SysUser sysUser) {
+        if (sysUser == null) {
+            return;
+        }
+        Runnable sync = () -> {
+            SysUserDocument doc = SysUserDocument.fromEntity(sysUser);
+            if (doc != null) {
+                sysUserSearchRepository.save(doc);
+            }
+        };
+        if (TransactionSynchronizationManager.isSynchronizationActive()) {
+            TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
+                @Override
+                public void afterCommit() {
+                    sync.run();
+                }
+            });
+        } else {
+            sync.run();
+        }
+    }
+
+    private void syncBatchToIndexAfterCommit(List<SysUser> records) {
+        if (records == null || records.isEmpty()) {
+            return;
+        }
+        Runnable sync = () -> {
+            List<SysUserDocument> documents = records.stream()
+                    .filter(Objects::nonNull)
+                    .map(SysUserDocument::fromEntity)
+                    .filter(Objects::nonNull)
+                    .collect(Collectors.toList());
+            if (!documents.isEmpty()) {
+                sysUserSearchRepository.saveAll(documents);
+            }
+        };
+        if (TransactionSynchronizationManager.isSynchronizationActive()) {
+            TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
+                @Override
+                public void afterCommit() {
+                    sync.run();
+                }
+            });
+        } else {
+            sync.run();
+        }
+    }
+
+    private void validateSysUser(SysUser sysUser) {
+        if (sysUser == null) {
+            throw new IllegalArgumentException("SysUser must not be null");
+        }
+        if (isBlank(sysUser.getUsername())) {
+            throw new IllegalArgumentException("Username must not be blank");
+        }
+        if (isBlank(sysUser.getPassword())) {
+            throw new IllegalArgumentException("Password must not be blank");
+        }
+        if (sysUser.getCreatedAt() == null) {
+            sysUser.setCreatedAt(LocalDateTime.now());
+        }
+        if (sysUser.getUpdatedAt() == null) {
+            sysUser.setUpdatedAt(LocalDateTime.now());
+        }
+        if (isBlank(sysUser.getStatus())) {
+            sysUser.setStatus("Active");
+        }
+    }
+
+    private void encodePasswordIfNecessary(SysUser sysUser) {
+        if (sysUser == null || isBlank(sysUser.getPassword())) {
+            return;
+        }
+        if (!BCRYPT_PATTERN.matcher(sysUser.getPassword()).matches()) {
+            sysUser.setPassword(passwordEncoder.encode(sysUser.getPassword()));
+            sysUser.setSalt(null);
+        }
+    }
+
+    private void validatePagination(int page, int size) {
+        if (page < 1 || size < 1) {
+            throw new IllegalArgumentException("Page must be >= 1 and size must be >= 1");
+        }
+    }
+
+    private List<SysUser> fetchFromDatabase(QueryWrapper<SysUser> wrapper, int page, int size) {
+        Page<SysUser> mpPage = new Page<>(Math.max(page, 1), Math.max(size, 1));
+        sysUserMapper.selectPage(mpPage, wrapper);
+        List<SysUser> records = mpPage.getRecords();
+        syncBatchToIndexAfterCommit(records);
+        return records;
+    }
+
+    private List<SysUser> mapHits(org.springframework.data.elasticsearch.core.SearchHits<SysUserDocument> hits) {
+        if (hits == null || !hits.hasSearchHits()) {
+            return List.of();
+        }
+        return hits.getSearchHits().stream()
+                .map(org.springframework.data.elasticsearch.core.SearchHit::getContent)
+                .map(SysUserDocument::toEntity)
+                .collect(Collectors.toList());
+    }
+
+    private org.springframework.data.domain.Pageable pageable(int page, int size) {
+        return org.springframework.data.domain.PageRequest.of(Math.max(page - 1, 0), Math.max(size, 1));
+    }
+
+    private LocalDateTime parseDateTime(String value, String fieldName) {
+        if (isBlank(value)) {
+            return null;
+        }
+        try {
+            return LocalDateTime.parse(value);
+        } catch (DateTimeParseException ex) {
+            LOG.log(Level.WARNING, "Failed to parse " + fieldName + ": " + value, ex);
+            return null;
+        }
+    }
+
+    private void requirePositive(Number number) {
+        if (number == null || number.longValue() <= 0) {
+            throw new IllegalArgumentException("User ID" + " must be greater than zero");
+        }
+    }
+
+    private boolean isBlank(String value) {
+        return value == null || value.trim().isEmpty();
+    }
+
+    private String truncate(String value) {
+        if (value == null) {
+            return null;
+        }
+        return value.length() <= 500 ? value : value.substring(0, 500);
+    }
+}

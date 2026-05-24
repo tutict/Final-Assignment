@@ -2,7 +2,7 @@ package com.tutict.finalassignmentbackend.appeal.projection;
 
 import com.tutict.finalassignmentbackend.appeal.read.AppealReadAssembler;
 import com.tutict.finalassignmentbackend.appeal.read.AppealReadModel;
-import com.tutict.finalassignmentbackend.entity.AppealRecord;
+import com.tutict.finalassignmentbackend.entity.appeal.AppealRecord;
 import com.tutict.finalassignmentbackend.entity.elastic.AppealRecordDocument;
 import org.springframework.stereotype.Service;
 

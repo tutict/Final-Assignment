@@ -1,8 +1,8 @@
 package com.tutict.finalassignmentbackend.config;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.tutict.finalassignmentbackend.entity.DeductionRecord;
-import com.tutict.finalassignmentbackend.entity.VehicleInformation;
+import com.tutict.finalassignmentbackend.entity.offense.DeductionRecord;
+import com.tutict.finalassignmentbackend.entity.driver.VehicleInformation;
 import com.tutict.finalassignmentbackend.observability.TraceIdProducerInterceptor;
 import org.apache.kafka.clients.producer.ProducerConfig;
 import org.apache.kafka.common.serialization.StringSerializer;

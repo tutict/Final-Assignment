@@ -1,8 +1,8 @@
 package com.tutict.finalassignmentbackend.appeal.domain.policy;
 
 import com.tutict.finalassignmentbackend.config.statemachine.states.AppealProcessState;
-import com.tutict.finalassignmentbackend.entity.AppealRecord;
-import com.tutict.finalassignmentbackend.entity.SysRequestHistory;
+import com.tutict.finalassignmentbackend.entity.appeal.AppealRecord;
+import com.tutict.finalassignmentbackend.entity.system.SysRequestHistory;
 import org.junit.jupiter.api.Test;
 
 import java.time.LocalDateTime;

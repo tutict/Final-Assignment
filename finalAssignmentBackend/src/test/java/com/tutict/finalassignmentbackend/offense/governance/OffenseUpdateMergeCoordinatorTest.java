@@ -1,6 +1,6 @@
 package com.tutict.finalassignmentbackend.offense.governance;
 
-import com.tutict.finalassignmentbackend.entity.OffenseRecord;
+import com.tutict.finalassignmentbackend.entity.offense.OffenseRecord;
 import org.junit.jupiter.api.Test;
 
 import java.math.BigDecimal;

@@ -1,12 +1,12 @@
 package com.tutict.finalassignmentbackend.integration;
 
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
-import com.tutict.finalassignmentbackend.entity.SysRole;
-import com.tutict.finalassignmentbackend.entity.SysUser;
-import com.tutict.finalassignmentbackend.entity.SysUserRole;
-import com.tutict.finalassignmentbackend.mapper.SysRoleMapper;
-import com.tutict.finalassignmentbackend.mapper.SysUserMapper;
-import com.tutict.finalassignmentbackend.mapper.SysUserRoleMapper;
+import com.tutict.finalassignmentbackend.entity.admin.SysRole;
+import com.tutict.finalassignmentbackend.entity.admin.SysUser;
+import com.tutict.finalassignmentbackend.entity.admin.SysUserRole;
+import com.tutict.finalassignmentbackend.mapper.admin.SysRoleMapper;
+import com.tutict.finalassignmentbackend.mapper.admin.SysUserMapper;
+import com.tutict.finalassignmentbackend.mapper.admin.SysUserRoleMapper;
 import jakarta.annotation.PostConstruct;
 import java.time.LocalDateTime;
 import org.springframework.boot.sql.init.dependency.DependsOnDatabaseInitialization;

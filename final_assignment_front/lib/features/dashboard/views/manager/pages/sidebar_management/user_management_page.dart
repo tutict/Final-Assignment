@@ -2,6 +2,7 @@
 import 'dart:async';
 import 'package:final_assignment_front/config/routes/app_routes.dart';
 import 'package:final_assignment_front/core/auth/auth_service.dart';
+import 'package:final_assignment_front/core/auth/role_utils.dart';
 import 'package:final_assignment_front/features/api/auth_controller_api.dart';
 import 'package:final_assignment_front/features/dashboard/controllers/manager_dashboard_controller.dart';
 import 'package:final_assignment_front/features/dashboard/views/shared/widgets/dashboard_page_template.dart';
@@ -143,7 +144,7 @@ class _UserManagementPageState extends State<UserManagementPage> {
           : decodedToken['roles'] is String
               ? [decodedToken['roles'].toString()]
               : [];
-      _isAdmin = roles.contains('ADMIN') || roles.contains('ROLE_ADMIN');
+      _isAdmin = RoleUtils.isAdminRole(roles);
       _logger.info('User roles: $roles, isAdmin: $_isAdmin');
 
       if (_isAdmin) {

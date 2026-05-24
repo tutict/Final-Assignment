@@ -1,6 +1,6 @@
 package com.tutict.finalassignmentbackend.entity.elastic;
 
-import com.tutict.finalassignmentbackend.entity.OffenseRecord;
+import com.tutict.finalassignmentbackend.entity.offense.OffenseRecord;
 import java.io.Serial;
 import java.io.Serializable;
 import java.math.BigDecimal;

@@ -2,7 +2,7 @@ package com.tutict.finalassignmentbackend.controller.view;
 
 import com.tutict.finalassignmentbackend.dto.response.ApiResponse;
 import com.tutict.finalassignmentbackend.dto.response.OffenseDetailResponse;
-import com.tutict.finalassignmentbackend.service.OffenseDetailService;
+import com.tutict.finalassignmentbackend.service.offense.OffenseDetailService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;

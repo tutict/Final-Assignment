@@ -2,7 +2,7 @@ package com.tutict.finalassignmentbackend.appeal.read;
 
 import com.tutict.finalassignmentbackend.appeal.projection.AppealRecordSearchProjection;
 import com.tutict.finalassignmentbackend.appeal.projection.AppealRecordView;
-import com.tutict.finalassignmentbackend.entity.AppealRecord;
+import com.tutict.finalassignmentbackend.entity.appeal.AppealRecord;
 
 import java.util.LinkedHashMap;
 import java.util.Map;

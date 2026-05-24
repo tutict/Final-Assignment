@@ -1,7 +1,7 @@
 package com.tutict.finalassignmentbackend.appeal.query;
 
 import com.tutict.finalassignmentbackend.appeal.query.dto.AppealPageRequest;
-import com.tutict.finalassignmentbackend.entity.AppealRecord;
+import com.tutict.finalassignmentbackend.entity.appeal.AppealRecord;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 

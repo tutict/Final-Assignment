@@ -1,8 +1,8 @@
 package com.tutict.finalassignmentbackend.appeal.domain.idempotency;
 
 import com.tutict.finalassignmentbackend.appeal.domain.policy.AppealBusinessPolicy;
-import com.tutict.finalassignmentbackend.entity.SysRequestHistory;
-import com.tutict.finalassignmentbackend.mapper.SysRequestHistoryMapper;
+import com.tutict.finalassignmentbackend.entity.system.SysRequestHistory;
+import com.tutict.finalassignmentbackend.mapper.system.SysRequestHistoryMapper;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDateTime;

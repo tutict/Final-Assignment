@@ -4,7 +4,7 @@ import com.tutict.finalassignmentbackend.appeal.domain.policy.AppealCallerMetada
 import com.tutict.finalassignmentbackend.appeal.domain.policy.AppealUpdateIntentPolicy;
 import com.tutict.finalassignmentbackend.appeal.domain.policy.AppealUpdateIntentPolicy.UpdateIntent;
 import com.tutict.finalassignmentbackend.config.statemachine.states.AppealProcessState;
-import com.tutict.finalassignmentbackend.entity.AppealRecord;
+import com.tutict.finalassignmentbackend.entity.appeal.AppealRecord;
 import org.junit.jupiter.api.Test;
 
 import java.time.LocalDateTime;

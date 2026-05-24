@@ -1,7 +1,7 @@
 package com.tutict.finalassignmentbackend.appeal.domain;
 
 import com.tutict.finalassignmentbackend.appeal.domain.policy.AppealFieldMutationPolicy;
-import com.tutict.finalassignmentbackend.entity.AppealRecord;
+import com.tutict.finalassignmentbackend.entity.appeal.AppealRecord;
 import org.springframework.stereotype.Service;
 
 import java.util.Objects;

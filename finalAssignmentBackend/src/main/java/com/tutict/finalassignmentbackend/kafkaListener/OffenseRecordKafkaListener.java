@@ -1,12 +1,12 @@
 package com.tutict.finalassignmentbackend.kafkaListener;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.tutict.finalassignmentbackend.entity.OffenseRecord;
+import com.tutict.finalassignmentbackend.entity.offense.OffenseRecord;
 import com.tutict.finalassignmentbackend.offense.governance.OffenseGovernanceDecision;
 import com.tutict.finalassignmentbackend.offense.governance.OffenseGovernanceLogFactory;
 import com.tutict.finalassignmentbackend.offense.governance.SemanticIntentClassifier;
 import com.tutict.finalassignmentbackend.offense.governance.StaleFullUpdateRejectedException;
-import com.tutict.finalassignmentbackend.service.OffenseRecordService;
+import com.tutict.finalassignmentbackend.service.offense.OffenseRecordService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.kafka.annotation.KafkaListener;
 import org.springframework.kafka.support.Acknowledgment;

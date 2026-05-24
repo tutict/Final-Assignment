@@ -1,7 +1,7 @@
 package com.tutict.finalassignmentbackend.dto.mapper;
 
 import com.tutict.finalassignmentbackend.dto.request.AppealCreateRequest;
-import com.tutict.finalassignmentbackend.entity.AppealRecord;
+import com.tutict.finalassignmentbackend.entity.appeal.AppealRecord;
 
 public final class AppealRecordRequestMapper {
 

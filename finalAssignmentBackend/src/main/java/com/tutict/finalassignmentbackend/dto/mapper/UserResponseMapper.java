@@ -2,7 +2,7 @@ package com.tutict.finalassignmentbackend.dto.mapper;
 
 import com.tutict.finalassignmentbackend.dto.request.UserCreateRequest;
 import com.tutict.finalassignmentbackend.dto.response.UserResponse;
-import com.tutict.finalassignmentbackend.entity.SysUser;
+import com.tutict.finalassignmentbackend.entity.admin.SysUser;
 
 public final class UserResponseMapper {
 

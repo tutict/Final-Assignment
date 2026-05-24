@@ -1,6 +1,6 @@
 package com.tutict.finalassignmentbackend.entity.elastic;
 
-import com.tutict.finalassignmentbackend.entity.DriverVehicle;
+import com.tutict.finalassignmentbackend.entity.driver.DriverVehicle;
 import java.io.Serial;
 import java.io.Serializable;
 import java.time.LocalDate;
