@@ -39,6 +39,7 @@ public class AccountDriverSchemaMigration implements InitializingBean {
             }
             addColumnIfMissing(connection, DRIVER_TABLE, AUTH_USER_COLUMN,
                     "BIGINT NULL COMMENT 'Linked sys_user.user_id'");
+            relaxDraftDriverProfileColumns(connection);
             addIndexIfMissing(connection, DRIVER_TABLE, AUTH_USER_INDEX, AUTH_USER_COLUMN, true);
             migrateDriverBusinessLinks(connection);
         } catch (SQLException ex) {
@@ -72,6 +73,34 @@ public class AccountDriverSchemaMigration implements InitializingBean {
         }
         jdbcTemplate.execute("ALTER TABLE " + tableName + " ADD COLUMN " + columnName + " " + definition);
         LOG.log(Level.INFO, "Added {0}.{1}.", new Object[]{tableName, columnName});
+    }
+
+    private void relaxDraftDriverProfileColumns(Connection connection) throws SQLException {
+        relaxColumnIfPresent(connection, DRIVER_TABLE, "id_card_number",
+                "VARCHAR(18) NULL COMMENT 'Identity card number'");
+        relaxColumnIfPresent(connection, DRIVER_TABLE, "gender",
+                "ENUM('Male','Female','Other') NULL COMMENT 'Gender'");
+        relaxColumnIfPresent(connection, DRIVER_TABLE, "birthdate",
+                "DATE NULL COMMENT 'Birth date'");
+        relaxColumnIfPresent(connection, DRIVER_TABLE, "driver_license_number",
+                "VARCHAR(50) NULL COMMENT 'Driver license number'");
+        relaxColumnIfPresent(connection, DRIVER_TABLE, "license_type",
+                "VARCHAR(10) NULL COMMENT 'Permitted vehicle type'");
+        relaxColumnIfPresent(connection, DRIVER_TABLE, "first_license_date",
+                "DATE NULL COMMENT 'First license date'");
+        relaxColumnIfPresent(connection, DRIVER_TABLE, "issue_date",
+                "DATE NULL COMMENT 'License issue date'");
+        relaxColumnIfPresent(connection, DRIVER_TABLE, "expiry_date",
+                "DATE NULL COMMENT 'License expiry date'");
+    }
+
+    private void relaxColumnIfPresent(Connection connection, String tableName, String columnName, String definition)
+            throws SQLException {
+        if (!columnExists(connection, tableName, columnName)) {
+            return;
+        }
+        jdbcTemplate.execute("ALTER TABLE " + tableName + " MODIFY COLUMN " + columnName + " " + definition);
+        LOG.log(Level.INFO, "Relaxed {0}.{1} for draft driver profiles.", new Object[]{tableName, columnName});
     }
 
     private void addIndexIfMissing(Connection connection, String tableName, String indexName,

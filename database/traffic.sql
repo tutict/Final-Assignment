@@ -19,20 +19,21 @@ SET FOREIGN_KEY_CHECKS = 0;
 DROP TABLE IF EXISTS `driver_information`;
 CREATE TABLE `driver_information` (
     `driver_id` BIGINT UNSIGNED NOT NULL AUTO_INCREMENT COMMENT '驾驶员ID',
+    `auth_user_id` BIGINT NULL COMMENT 'Linked sys_user.user_id',
     `name` VARCHAR(100) NOT NULL COMMENT '姓名',
-    `id_card_number` VARCHAR(18) NOT NULL COMMENT '身份证号',
-    `gender` ENUM('Male', 'Female') NOT NULL COMMENT '性别',
-    `birthdate` DATE NOT NULL COMMENT '出生日期',
+    `id_card_number` VARCHAR(18) NULL COMMENT '身份证号',
+    `gender` ENUM('Male', 'Female', 'Other') NULL COMMENT '性别',
+    `birthdate` DATE NULL COMMENT '出生日期',
     `contact_number` VARCHAR(20) NULL COMMENT '联系电话',
     `email` VARCHAR(100) NULL COMMENT '电子邮箱',
     `address` VARCHAR(255) NULL COMMENT '联系地址',
 
     -- 驾驶证信息
-    `driver_license_number` VARCHAR(50) NOT NULL COMMENT '驾驶证号',
-    `license_type` VARCHAR(10) NOT NULL COMMENT '准驾车型(A1,A2,B1,B2,C1,C2等)',
-    `first_license_date` DATE NOT NULL COMMENT '初次领证日期',
-    `issue_date` DATE NOT NULL COMMENT '驾驶证签发日期',
-    `expiry_date` DATE NOT NULL COMMENT '驾驶证有效期',
+    `driver_license_number` VARCHAR(50) NULL COMMENT '驾驶证号',
+    `license_type` VARCHAR(10) NULL COMMENT '准驾车型(A1,A2,B1,B2,C1,C2等)',
+    `first_license_date` DATE NULL COMMENT '初次领证日期',
+    `issue_date` DATE NULL COMMENT '驾驶证签发日期',
+    `expiry_date` DATE NULL COMMENT '驾驶证有效期',
     `issuing_authority` VARCHAR(100) NULL COMMENT '发证机关',
 
     -- 积分信息
@@ -51,6 +52,7 @@ CREATE TABLE `driver_information` (
     `remarks` TEXT NULL COMMENT '备注',
 
     PRIMARY KEY (`driver_id`),
+    UNIQUE KEY `uk_driver_information_auth_user` (`auth_user_id`) USING BTREE,
     UNIQUE KEY `uk_id_card_number` (`id_card_number`) USING BTREE,
     UNIQUE KEY `uk_driver_license_number` (`driver_license_number`) USING BTREE,
     KEY `idx_name` (`name`) USING BTREE,

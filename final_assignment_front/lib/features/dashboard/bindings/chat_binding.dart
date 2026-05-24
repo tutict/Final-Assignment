@@ -11,7 +11,7 @@ class AiChatBinding extends Bindings {
   static void registerDependencies() {
     if (!Get.isRegistered<ChatController>() &&
         !Get.isPrepared<ChatController>()) {
-      Get.lazyPut<ChatController>(() => ChatController(), fenix: true);
+      Get.put<ChatController>(ChatController(), permanent: true);
     }
     _syncUserRole();
   }
@@ -22,7 +22,9 @@ class AiChatBinding extends Bindings {
       if (role == null || role.isEmpty) {
         return;
       }
-      Get.find<ChatController>().setUserRole(role);
+      if (Get.isRegistered<ChatController>()) {
+        Get.find<ChatController>().setUserRole(role);
+      }
     });
   }
 }

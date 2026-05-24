@@ -1,5 +1,5 @@
 import 'package:final_assignment_front/core/utils/app_logger.dart';
-import 'package:eva_icons_flutter/eva_icons_flutter.dart';
+import 'package:final_assignment_front/shared/eva_icons_compat.dart';
 import 'package:final_assignment_front/features/dashboard/models/profile.dart';
 import 'package:final_assignment_front/features/dashboard/controllers/user_dashboard_screen_controller.dart';
 import 'package:final_assignment_front/features/dashboard/controllers/manager_dashboard_controller.dart';

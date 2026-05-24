@@ -60,3 +60,21 @@ scripts\start-all.bat
 ```
 
 The local MySQL database is expected at `jdbc:mysql://localhost:3306/traffic`.
+
+## Smoke Tests
+
+Run the local auth + AI stream chain test:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File scripts\test-ai-chain.ps1
+```
+
+This verifies the frontend entry page, frontend AI stream modules, backend auth flow,
+CORS preflight, Ollama availability, and `/api/ai/chat/stream` SSE output.
+
+Use strict provider mode when the backend must call a real AI provider instead of
+the mock provider:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File scripts\test-ai-chain.ps1 -StrictProvider
+```

@@ -1,6 +1,6 @@
+import 'package:final_assignment_front/constants/app_constants.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
-import 'package:final_assignment_front/constants/app_constants.dart';
 
 class PoliceCard extends StatelessWidget {
   const PoliceCard({
@@ -9,135 +9,142 @@ class PoliceCard extends StatelessWidget {
     super.key,
   });
 
+  static const String _title =
+      '\u6267\u6cd5\u4e3a\u6c11\n\u516c\u6b63\u5ec9\u6d01';
+  static const String _subtitle =
+      '\u52a0\u5f3a\u7efc\u5408\u6cbb\u7406\uff0c\u4fdd\u969c\u4ea4\u901a\u5b89\u5168';
+
   final Color? backgroundColor;
   final VoidCallback onPressed;
 
   @override
   Widget build(BuildContext context) {
-    final bool isLight = Theme.of(context).brightness == Brightness.light;
+    final theme = Theme.of(context);
+    final scheme = theme.colorScheme;
+    final dark = theme.brightness == Brightness.dark;
+    final resolvedBackground =
+        backgroundColor != null && backgroundColor != Colors.transparent
+            ? backgroundColor
+            : null;
+    final surface = resolvedBackground ??
+        Color.lerp(
+          scheme.surface,
+          scheme.primaryContainer,
+          dark ? 0.16 : 0.26,
+        )!;
+    final borderColor =
+        scheme.outlineVariant.withValues(alpha: dark ? 0.34 : 0.44);
+    final accent = scheme.primary;
 
     return Material(
-      borderRadius: BorderRadius.circular(18),
-      color: backgroundColor ?? Colors.transparent,
-      elevation: 4.0,
-      shadowColor: Colors.black.withValues(alpha: 0.2),
+      color: Colors.transparent,
+      borderRadius: BorderRadius.circular(8),
       child: InkWell(
-        borderRadius: BorderRadius.circular(18),
+        borderRadius: BorderRadius.circular(8),
         onTap: onPressed,
-        splashColor: Theme.of(context).primaryColor.withValues(alpha: 0.3),
-        highlightColor: Colors.transparent,
-        child: AnimatedContainer(
-          duration: const Duration(milliseconds: 200),
-          curve: Curves.easeInOut,
+        splashColor: accent.withValues(alpha: 0.10),
+        highlightColor: accent.withValues(alpha: 0.06),
+        child: Container(
           constraints: const BoxConstraints(
-            minWidth: 250,
-            maxWidth: 350,
-            minHeight: 200,
-            maxHeight: 200,
+            minWidth: 180,
+            maxWidth: 300,
+            minHeight: 150,
+            maxHeight: 174,
           ),
-          padding: const EdgeInsets.all(20),
+          padding: const EdgeInsets.all(16),
           decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(18),
-            gradient: LinearGradient(
-              colors: [
-                isLight
-                    ? Colors.blue.shade50.withValues(alpha: 0.9)
-                    : Theme.of(context).canvasColor.withValues(alpha: 0.8),
-                isLight
-                    ? Colors.white.withValues(alpha: 0.95)
-                    : Theme.of(context).cardColor.withValues(alpha: 0.9),
-              ],
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
-            ),
-            border: Border.all(
-              color: isLight
-                  ? Colors.blue.shade100
-                  : Colors.white.withValues(alpha: 0.3),
-              width: 1,
-            ),
+            color: surface,
+            borderRadius: BorderRadius.circular(8),
+            border: Border.all(color: borderColor),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withValues(alpha: dark ? 0.12 : 0.06),
+                blurRadius: 18,
+                offset: const Offset(0, 10),
+              ),
+            ],
           ),
           child: ClipRect(
-            // 添加 ClipRect 防止溢出
             child: Stack(
               children: [
                 Positioned(
-                  top: -25,
-                  right: -25,
+                  right: -20,
+                  bottom: -18,
                   child: SvgPicture.asset(
                     ImageVectorPath.police,
-                    width: 130,
-                    height: 130,
+                    width: 112,
+                    height: 112,
                     fit: BoxFit.contain,
                     colorFilter: ColorFilter.mode(
-                      Theme.of(context).primaryColor.withValues(alpha: 0.25),
+                      accent.withValues(alpha: dark ? 0.14 : 0.12),
                       BlendMode.srcIn,
                     ),
                   ),
                 ),
-                const Padding(
-                  padding: EdgeInsets.all(16),
-                  child: _PoliceInfoRow(),
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        Container(
+                          width: 34,
+                          height: 34,
+                          decoration: BoxDecoration(
+                            color: accent.withValues(
+                              alpha: dark ? 0.18 : 0.12,
+                            ),
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                          child: Icon(
+                            Icons.verified_user_outlined,
+                            color: accent,
+                            size: 19,
+                          ),
+                        ),
+                        const Spacer(),
+                        Container(
+                          width: 28,
+                          height: 3,
+                          decoration: BoxDecoration(
+                            color: accent.withValues(alpha: 0.75),
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                        ),
+                      ],
+                    ),
+                    const Spacer(),
+                    Text(
+                      _title,
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                      style: theme.textTheme.titleMedium?.copyWith(
+                        color: scheme.onSurface,
+                        fontSize: 18,
+                        fontWeight: FontWeight.w900,
+                        height: 1.20,
+                        letterSpacing: 0,
+                      ),
+                    ),
+                    const SizedBox(height: 9),
+                    Text(
+                      _subtitle,
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                      style: theme.textTheme.bodySmall?.copyWith(
+                        color: scheme.onSurfaceVariant,
+                        fontSize: 12.5,
+                        fontWeight: FontWeight.w600,
+                        height: 1.35,
+                        letterSpacing: 0,
+                      ),
+                    ),
+                  ],
                 ),
               ],
             ),
           ),
         ),
       ),
-    );
-  }
-}
-
-class _PoliceInfoRow extends StatelessWidget {
-  const _PoliceInfoRow();
-
-  @override
-  Widget build(BuildContext context) {
-    return Column(
-      mainAxisAlignment: MainAxisAlignment.end,
-      crossAxisAlignment: CrossAxisAlignment.start,
-      mainAxisSize: MainAxisSize.min, // 限制 Column 高度
-      children: [
-        Flexible(
-          // 使用 Flexible 包裹标题
-          child: Text(
-            "执法为民\n公正廉洁\n无私奉献",
-            style: Theme.of(context).textTheme.titleLarge!.copyWith(
-              fontSize: 20,
-              // 减小字体以适应空间
-              fontWeight: FontWeight.w700,
-              color: Theme.of(context).brightness == Brightness.light
-                  ? Colors.black.withValues(alpha: 0.9)
-                  : Colors.white.withValues(alpha: 0.9),
-              height: 1.4,
-              // 减小行高
-              letterSpacing: 0.6,
-              shadows: [
-                Shadow(
-                  color: Colors.black.withValues(alpha: 0.1),
-                  offset: const Offset(0, 1),
-                  blurRadius: 2,
-                ),
-              ],
-            ),
-          ),
-        ),
-        const SizedBox(height: 10), // 减小间距
-        Flexible(
-          // 使用 Flexible 包裹描述
-          child: Text(
-            "加强综合治理，保障交通安全",
-            style: Theme.of(context).textTheme.bodyMedium!.copyWith(
-                  fontSize: 14, // 减小字体以适应空间
-                  color: Theme.of(context).brightness == Brightness.light
-                      ? Colors.black.withValues(alpha: 0.8)
-                      : Colors.white.withValues(alpha: 0.8),
-                  height: 1.3, // 减小行高
-                  fontWeight: FontWeight.w500,
-                ),
-          ),
-        ),
-      ],
     );
   }
 }

@@ -479,6 +479,8 @@ class _ComposerSurface extends StatelessWidget {
     final theme = Theme.of(context);
     final scheme = theme.colorScheme;
     final dark = theme.brightness == Brightness.dark;
+    final availableHeight = MediaQuery.sizeOf(context).height;
+    final promptMaxHeight = availableHeight < 720 ? 118.0 : 164.0;
 
     return SafeArea(
       top: false,
@@ -504,9 +506,19 @@ class _ComposerSurface extends StatelessWidget {
                     : CrossFadeState.showSecond,
                 firstChild: Padding(
                   padding: const EdgeInsets.only(bottom: 8),
-                  child: controller.userRole.value == 'ADMIN'
-                      ? ManagerPredefinedQuestions(onQuestionTap: onPromptTap)
-                      : UserPredefinedQuestions(onQuestionTap: onPromptTap),
+                  child: ConstrainedBox(
+                    constraints: BoxConstraints(maxHeight: promptMaxHeight),
+                    child: SingleChildScrollView(
+                      physics: const ClampingScrollPhysics(),
+                      child: controller.userRole.value == 'ADMIN'
+                          ? ManagerPredefinedQuestions(
+                              onQuestionTap: onPromptTap,
+                            )
+                          : UserPredefinedQuestions(
+                              onQuestionTap: onPromptTap,
+                            ),
+                    ),
+                  ),
                 ),
                 secondChild: const SizedBox.shrink(),
               ),

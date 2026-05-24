@@ -6,6 +6,8 @@ import 'package:final_assignment_front/core/auth/auth_service.dart';
 import 'package:final_assignment_front/core/config/app_config.dart';
 import 'package:final_assignment_front/core/network/app_exception.dart';
 import 'package:final_assignment_front/core/network/api_client.dart';
+import 'package:final_assignment_front/core/network/client_factory.dart'
+    as client_factory;
 import 'package:final_assignment_front/core/utils/app_logger.dart';
 import 'package:final_assignment_front/shared/utils/navigation_helper.dart';
 import 'package:final_assignment_front/utils/services/auth_token_store.dart';
@@ -47,7 +49,7 @@ class AiChatApi {
     ApiClient? apiClient,
     http.Client Function()? clientFactory,
   })  : apiClient = apiClient ?? ApiClient(),
-        _clientFactory = clientFactory ?? (() => http.Client());
+        _clientFactory = clientFactory ?? client_factory.createHttpClient;
 
   final ApiClient apiClient;
   final http.Client Function() _clientFactory;

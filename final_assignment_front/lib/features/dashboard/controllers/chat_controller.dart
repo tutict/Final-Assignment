@@ -25,6 +25,7 @@ enum ChatLoadingState { idle, thinking, searching, generating }
 
 class ChatController extends GetxController {
   static ChatController get to => Get.find();
+  static const Duration _streamUiTimeout = Duration(seconds: 75);
 
   final messages = <ChatMessage>[].obs;
   final searchResults = <String>[].obs;
@@ -66,6 +67,7 @@ class ChatController extends GetxController {
     final text = textController.text.trim();
     if (text.isEmpty || isStreaming.value) return;
 
+    _removeThinkingMessages();
     final conversationWindow = _buildConversationWindow();
     if (messages.length >= 20) {
       _showContextLimitHint();
@@ -93,9 +95,11 @@ class ChatController extends GetxController {
     final chunkBuffer = StringBuffer();
     final processedChunks = <String>{};
     Timer? debounceTimer;
+    Timer? uiTimeoutTimer;
     var isFirstMessage = true;
     var receivedFallback = false;
     var receivedAiContent = false;
+    var timedOut = false;
 
     Future<void> processChunk(ChatStreamChunk streamChunk) async {
       if (cancelToken.isCanceled) return;
@@ -107,7 +111,7 @@ class ChatController extends GetxController {
       final chunk = streamChunk.text;
       if (streamChunk.isFallback) {
         receivedFallback = true;
-        _removeThinkingMessage();
+        _removeThinkingMessages();
         messages.add(ChatMessage(
           formalContent: chunk,
           isUser: false,
@@ -136,7 +140,7 @@ class ChatController extends GetxController {
       }
 
       if (isFirstMessage) {
-        _removeThinkingMessage();
+        _removeThinkingMessages();
         messages
             .add(const ChatMessage(formalContent: 'DeepSeek: ', isUser: false));
         aiMessageIndex = messages.length - 1;
@@ -212,6 +216,19 @@ class ChatController extends GetxController {
         cancelOnError: true,
       );
       _activeStreamSubscription = subscription;
+      uiTimeoutTimer = Timer(_streamUiTimeout, () {
+        if (streamDone.isCompleted || cancelToken.isCanceled) return;
+        timedOut = true;
+        cancelToken.cancel();
+        streamDone.completeError(
+          TimeoutException(
+            'AI response timed out',
+            _streamUiTimeout,
+          ),
+          StackTrace.current,
+        );
+        unawaited(subscription.cancel());
+      });
 
       await streamDone.future;
       if (cancelToken.isCanceled || receivedFallback) return;
@@ -231,7 +248,7 @@ class ChatController extends GetxController {
       }
 
       if (!receivedAiContent) {
-        _removeThinkingMessage();
+        _removeThinkingMessages();
         return;
       }
 
@@ -249,12 +266,12 @@ class ChatController extends GetxController {
         isUser: false,
       );
     } catch (error, stackTrace) {
-      if (cancelToken.isCanceled) {
+      if (cancelToken.isCanceled && !timedOut) {
         AppLogger.debug('AI stream canceled by user.');
         return;
       }
       AppLogger.error('AI stream failed', error: error, stackTrace: stackTrace);
-      _removeThinkingMessage();
+      _removeThinkingMessages();
       _showFriendlyError('AI stream failed', details: error.toString());
       messages.add(ChatMessage(
         formalContent: 'Error: $error',
@@ -262,6 +279,7 @@ class ChatController extends GetxController {
         isSystem: true,
       ));
     } finally {
+      uiTimeoutTimer?.cancel();
       debounceTimer?.cancel();
       await _activeStreamSubscription?.cancel();
       _activeStreamSubscription = null;
@@ -325,6 +343,7 @@ class ChatController extends GetxController {
     unawaited(_activeStreamSubscription?.cancel() ?? Future<void>.value());
     _activeStreamSubscription = null;
     _activeCancelToken = null;
+    _removeThinkingMessages();
     isStreaming.value = false;
     loadingState.value = ChatLoadingState.idle;
     AppLogger.debug('SSE stream cancelled on page close');
@@ -363,11 +382,10 @@ class ChatController extends GetxController {
     Get.snackbar('提示', '对话历史较长，较早的消息可能不会被考虑');
   }
 
-  void _removeThinkingMessage() {
-    if (messages.isNotEmpty &&
-        messages.last.formalContent.startsWith('THINKING:')) {
-      messages.removeLast();
-    }
+  void _removeThinkingMessages() {
+    messages.removeWhere(
+      (message) => message.formalContent.startsWith('THINKING:'),
+    );
   }
 
   List<String> _splitThinkAndFormal(String text) {

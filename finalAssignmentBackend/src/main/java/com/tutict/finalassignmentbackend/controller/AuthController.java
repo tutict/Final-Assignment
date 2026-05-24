@@ -17,6 +17,7 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.annotation.security.PermitAll;
 import jakarta.annotation.security.RolesAllowed;
 import jakarta.validation.Valid;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.scheduling.annotation.Async;
@@ -136,10 +137,15 @@ public class AuthController {
                         return ResponseEntity.status(HttpStatus.CREATED)
                                 .body(Map.of("status", status));
                     } catch (Exception ex) {
-                        LOG.log(Level.WARNING, "Register failed for username: {0}, error: {1}",
-                                new Object[]{registerRequest.getUsername(), ex.getClass().getSimpleName()});
-                        return ResponseEntity.status(HttpStatus.CONFLICT)
-                                .body(Map.of("error", registerErrorMessage(ex)));
+                        if (isRegisterConflict(ex)) {
+                            LOG.log(Level.WARNING, "Register conflict for username: {0}, error: {1}",
+                                    new Object[]{registerRequest.getUsername(), ex.getClass().getSimpleName()});
+                            return ResponseEntity.status(HttpStatus.CONFLICT)
+                                    .body(Map.of("error", registerErrorMessage(ex)));
+                        }
+                        LOG.log(Level.SEVERE, "Register failed for username: " + registerRequest.getUsername(), ex);
+                        return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                                .body(Map.of("error", "Internal server error"));
                     }
                 }, VIRTUAL_THREAD_EXECUTOR)
                 .exceptionally(throwable -> {
@@ -150,10 +156,20 @@ public class AuthController {
                 });
     }
 
+    private boolean isRegisterConflict(Exception ex) {
+        String message = ex.getMessage();
+        return ex instanceof DataIntegrityViolationException
+                || (message != null && (message.contains("Username already exists")
+                || message.contains("Register request duplicated")));
+    }
+
     private String registerErrorMessage(Exception ex) {
         String message = ex.getMessage();
         if (message == null || message.isBlank()) {
             return "Registration failed";
+        }
+        if (ex instanceof DataIntegrityViolationException) {
+            return "Registration data conflicts with existing records";
         }
         if (message.contains("Username already exists")) {
             return "Username already exists";

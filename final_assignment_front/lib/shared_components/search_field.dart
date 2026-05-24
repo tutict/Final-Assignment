@@ -1,4 +1,4 @@
-import 'package:eva_icons_flutter/eva_icons_flutter.dart';
+import 'package:final_assignment_front/shared/eva_icons_compat.dart';
 import 'package:flutter/material.dart';
 
 /// SearchField 是一个自定义搜索字段，支持外部搜索回调

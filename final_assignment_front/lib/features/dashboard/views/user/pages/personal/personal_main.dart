@@ -262,7 +262,6 @@ class _PersonalMainPageState extends State<PersonalMainPage> {
           appBar: UserPageAppBar(
             theme: theme,
             title: '个人资料',
-            onThemeToggle: dashboardController.toggleBodyTheme,
           ),
           body: Stack(
             children: [

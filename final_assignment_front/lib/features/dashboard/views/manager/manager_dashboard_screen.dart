@@ -1,5 +1,5 @@
 import 'dart:developer';
-import 'package:eva_icons_flutter/eva_icons_flutter.dart';
+import 'package:final_assignment_front/shared/eva_icons_compat.dart';
 import 'package:final_assignment_front/config/routes/app_routes.dart';
 import 'package:final_assignment_front/core/utils/app_logger.dart';
 import 'package:final_assignment_front/constants/app_constants.dart';
@@ -95,7 +95,7 @@ class DashboardScreen extends GetView<ManagerDashboardController> {
                                 width: controller.isSidebarCollapsed.value
                                     ? 76.0
                                     : screenWidth * 0.3,
-                                child: const _Sidebar(),
+                                child: const ClipRect(child: _Sidebar()),
                               ),
                             ),
                             Expanded(child: _buildScrollableLayout(context)),
@@ -130,7 +130,7 @@ class DashboardScreen extends GetView<ManagerDashboardController> {
                                 ),
                               ),
                             ),
-                            child: const _Sidebar(),
+                            child: const ClipRect(child: _Sidebar()),
                           ),
                         ),
                         Expanded(
