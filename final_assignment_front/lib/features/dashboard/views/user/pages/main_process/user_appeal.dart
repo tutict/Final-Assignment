@@ -1230,7 +1230,7 @@ class _UserAppealDetailPageState extends State<UserAppealDetailPage> {
                                                 Icons.arrow_forward_ios),
                                             onTap: () =>
                                                 NavigationHelper.toNamed(
-                                                    '/progressDetail',
+                                                    Routes.progressDetailPage,
                                                     arguments: item),
                                           ))
                                       .toList(),
