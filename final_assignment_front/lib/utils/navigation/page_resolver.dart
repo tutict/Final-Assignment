@@ -4,6 +4,7 @@ import 'package:final_assignment_front/features/dashboard/views/manager/pages/pr
 import 'package:final_assignment_front/features/dashboard/views/manager/pages/sidebar_management/manager_business_processing.dart';
 import 'package:final_assignment_front/features/dashboard/views/manager/pages/sidebar_management/rag_management_page.dart';
 import 'package:final_assignment_front/features/dashboard/views/manager/pages/sidebar_management/system_governance.dart';
+import 'package:final_assignment_front/features/dashboard/views/shared/components/map.dart';
 import 'package:final_assignment_front/features/dashboard/views/user/pages/main_process/business_progress.dart';
 import 'package:final_assignment_front/features/dashboard/views/user/pages/main_process/online_processing_progress.dart';
 import 'package:final_assignment_front/features/dashboard/views/user/pages/main_process/user_offense_list_page.dart';
@@ -29,6 +30,8 @@ Widget? resolveDashboardPage(String routeName) {
       return const BusinessProgressPage();
     case Routes.personalMain:
       return const PersonalMainPage();
+    case Routes.map:
+      return const MapPage();
     case Routes.userSetting:
       return const SettingPage();
     case Routes.consultation:
