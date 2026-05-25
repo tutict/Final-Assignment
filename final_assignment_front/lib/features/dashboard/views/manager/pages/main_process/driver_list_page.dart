@@ -6,6 +6,7 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:final_assignment_front/features/api/driver_information_controller_api.dart';
 import 'package:final_assignment_front/features/dashboard/controllers/manager_dashboard_controller.dart';
+import 'package:final_assignment_front/features/dashboard/views/manager/pages/main_process/manager_business_page_chrome.dart';
 import 'package:final_assignment_front/features/dashboard/views/shared/widgets/dashboard_page_template.dart';
 import 'package:final_assignment_front/features/model/driver_information.dart';
 import 'package:final_assignment_front/shared/widgets/index.dart';
@@ -156,114 +157,90 @@ class _DriverListPageState extends State<DriverListPage> {
             tooltip: '添加司机',
           ),
         ],
-        body: Column(
-          children: [
-            Padding(
-              padding: const EdgeInsets.all(16.0),
-              child: Material(
-                color: Colors.transparent,
-                child: TextField(
-                  controller: _searchController,
-                  decoration: InputDecoration(
-                    labelText: '搜索司机（姓名、ID、电话、身份证号）',
-                    prefixIcon: Icon(Icons.search,
-                        color: themeData.colorScheme.primary),
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(8.0),
-                    ),
-                    filled: true,
-                    fillColor: themeData.colorScheme.surfaceContainer,
-                  ),
-                  onChanged: (value) => _filterDrivers(),
-                ),
+        body: ManagerBusinessPageChrome(
+          icon: Icons.badge_outlined,
+          title: '司机列表',
+          subtitle: '查询司机档案，维护证件、联系方式和准驾信息。',
+          totalCount: _drivers.length,
+          visibleCount: _filteredDrivers.length,
+          searchBar: TextField(
+            controller: _searchController,
+            decoration: InputDecoration(
+              labelText: '搜索司机（姓名、ID、电话、身份证号）',
+              prefixIcon: Icon(
+                Icons.search,
+                color: themeData.colorScheme.primary,
               ),
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(8.0),
+              ),
+              filled: true,
+              fillColor: themeData.colorScheme.surfaceContainerLowest,
             ),
-            Expanded(
-              child: _isLoading
-                  ? Center(
-                      child: CupertinoActivityIndicator(
-                        color: themeData.colorScheme.primary,
-                        radius: 16.0,
-                      ),
-                    )
-                  : RefreshIndicator(
-                      onRefresh: _loadDrivers,
-                      color: themeData.colorScheme.primary,
-                      child: _filteredDrivers.isEmpty
-                          ? Center(
-                              child: Text(
-                                _searchController.text.isEmpty
-                                    ? '暂无司机信息'
-                                    : '无匹配的司机记录',
-                                style: themeData.textTheme.bodyLarge?.copyWith(
-                                  color: themeData.colorScheme.onSurfaceVariant,
-                                ),
-                              ),
-                            )
-                          : ListView.builder(
-                              physics: const AlwaysScrollableScrollPhysics(),
-                              itemCount: _filteredDrivers.length,
-                              itemBuilder: (context, index) {
-                                final driver = _filteredDrivers[index];
-                                final name = driver.name ?? '未知';
-                                final id = driver.driverId?.toString() ?? '无';
-                                final gender =
-                                    _mapGenderToDisplay(driver.gender);
-                                final contact = driver.contactNumber ?? '无';
+            onChanged: (value) => _filterDrivers(),
+          ),
+          onRefresh: _loadDrivers,
+          isLoading: _isLoading,
+          emptyMessage: _filteredDrivers.isEmpty
+              ? (_searchController.text.isEmpty ? '暂无司机信息' : '无匹配的司机记录')
+              : '',
+          emptyIcon: Icons.badge_outlined,
+          onRetry: _loadDrivers,
+          child: ListView.builder(
+            physics: const AlwaysScrollableScrollPhysics(),
+            itemCount: _filteredDrivers.length,
+            itemBuilder: (context, index) {
+              final driver = _filteredDrivers[index];
+              final name = driver.name ?? '未知';
+              final id = driver.driverId?.toString() ?? '无';
+              final gender = _mapGenderToDisplay(driver.gender);
+              final contact = driver.contactNumber ?? '无';
 
-                                return Card(
-                                  elevation: 2,
-                                  color: themeData
-                                      .colorScheme.surfaceContainerLowest,
-                                  shape: RoundedRectangleBorder(
-                                    borderRadius: BorderRadius.circular(12.0),
-                                  ),
-                                  margin: const EdgeInsets.symmetric(
-                                      vertical: 8.0, horizontal: 16.0),
-                                  child: ListTile(
-                                    contentPadding: const EdgeInsets.all(16.0),
-                                    leading: CircleAvatar(
-                                      backgroundColor: themeData
-                                          .colorScheme.primaryContainer,
-                                      child: Text(
-                                        name.isNotEmpty ? name[0] : '?',
-                                        style: TextStyle(
-                                          color: themeData
-                                              .colorScheme.onPrimaryContainer,
-                                          fontWeight: FontWeight.bold,
-                                        ),
-                                      ),
-                                    ),
-                                    title: Text(
-                                      name,
-                                      style: themeData.textTheme.titleMedium
-                                          ?.copyWith(
-                                        fontWeight: FontWeight.bold,
-                                        color: themeData.colorScheme.onSurface,
-                                      ),
-                                    ),
-                                    subtitle: Text(
-                                      'ID: $id | 性别: $gender | 电话: $contact',
-                                      style: themeData.textTheme.bodyMedium
-                                          ?.copyWith(
-                                        color: themeData
-                                            .colorScheme.onSurfaceVariant,
-                                      ),
-                                    ),
-                                    trailing: Icon(
-                                      CupertinoIcons.right_chevron,
-                                      color: themeData
-                                          .colorScheme.onSurfaceVariant,
-                                    ),
-                                    onTap: () =>
-                                        _navigateToDriverDetail(driver),
-                                  ),
-                                );
-                              },
-                            ),
+              return Card(
+                elevation: 0,
+                color: themeData.colorScheme.surfaceContainerLowest,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(8.0),
+                  side: BorderSide(
+                    color: themeData.colorScheme.outlineVariant
+                        .withValues(alpha: 0.42),
+                  ),
+                ),
+                margin: const EdgeInsets.symmetric(vertical: 8.0),
+                child: ListTile(
+                  contentPadding: const EdgeInsets.all(16.0),
+                  leading: CircleAvatar(
+                    backgroundColor: themeData.colorScheme.primaryContainer,
+                    child: Text(
+                      name.isNotEmpty ? name[0] : '?',
+                      style: TextStyle(
+                        color: themeData.colorScheme.onPrimaryContainer,
+                        fontWeight: FontWeight.bold,
+                      ),
                     ),
-            ),
-          ],
+                  ),
+                  title: Text(
+                    name,
+                    style: themeData.textTheme.titleMedium?.copyWith(
+                      fontWeight: FontWeight.bold,
+                      color: themeData.colorScheme.onSurface,
+                    ),
+                  ),
+                  subtitle: Text(
+                    'ID: $id | 性别: $gender | 电话: $contact',
+                    style: themeData.textTheme.bodyMedium?.copyWith(
+                      color: themeData.colorScheme.onSurfaceVariant,
+                    ),
+                  ),
+                  trailing: Icon(
+                    CupertinoIcons.right_chevron,
+                    color: themeData.colorScheme.onSurfaceVariant,
+                  ),
+                  onTap: () => _navigateToDriverDetail(driver),
+                ),
+              );
+            },
+          ),
         ),
       );
     });
@@ -1313,13 +1290,7 @@ class AppUtils {
 
   static void showSnackBar(BuildContext context, String message,
       {bool isError = false}) {
-    Get.snackbar(
-      isError ? '错误' : '提示',
-      message,
-      snackPosition: SnackPosition.BOTTOM,
-      backgroundColor: isError ? Colors.red.shade100 : Colors.green.shade100,
-      duration: const Duration(seconds: 3),
-    );
+    showManagerBusinessToast(context, message: message, isError: isError);
   }
 
   static Widget buildTextField(

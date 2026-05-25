@@ -4,6 +4,7 @@ import 'package:final_assignment_front/core/auth/auth_service.dart';
 import 'package:final_assignment_front/features/api/deduction_information_controller_api.dart';
 import 'package:final_assignment_front/features/api/offense_information_controller_api.dart';
 import 'package:final_assignment_front/features/dashboard/controllers/manager_dashboard_controller.dart';
+import 'package:final_assignment_front/features/dashboard/views/manager/pages/main_process/manager_business_page_chrome.dart';
 import 'package:final_assignment_front/features/dashboard/views/shared/widgets/dashboard_page_template.dart';
 import 'package:final_assignment_front/features/model/deduction_record.dart';
 import 'package:final_assignment_front/shared/widgets/index.dart';
@@ -242,13 +243,7 @@ class _DeductionManagementState extends State<DeductionManagementPage> {
 
   void _showSnackBar(String message, {bool isError = false}) {
     if (!mounted) return;
-    Get.snackbar(
-      isError ? '错误' : '提示',
-      message,
-      snackPosition: SnackPosition.BOTTOM,
-      backgroundColor: isError ? Colors.red.shade100 : Colors.green.shade100,
-      duration: const Duration(seconds: 3),
-    );
+    showManagerBusinessToast(context, message: message, isError: isError);
   }
 
   String _formatErrorMessage(dynamic error) {
@@ -310,32 +305,6 @@ class _DeductionManagementState extends State<DeductionManagementPage> {
     }
   }
 
-  Widget _buildNoDataWidget(ThemeData themeData) {
-    final message = _errorMessage.trim();
-    if (message.isEmpty) {
-      return const EmptyStateView(
-        message: '暂无扣分记录',
-        icon: Icons.fact_check_outlined,
-      );
-    }
-
-    final lowerMessage = message.toLowerCase();
-    final accessDenied = lowerMessage.contains('forbidden') ||
-        lowerMessage.contains('401') ||
-        lowerMessage.contains('403') ||
-        message.contains('未授权') ||
-        message.contains('登录') ||
-        message.contains('权限');
-
-    return ErrorStateView(
-      message: message,
-      onRetry: accessDenied
-          ? () => NavigationHelper.offAllNamed(Routes.login)
-          : () => _loadDeductions(reset: true),
-      actionLabel: accessDenied ? '重新登录' : '重试',
-    );
-  }
-
   @override
   Widget build(BuildContext context) {
     return Obx(() {
@@ -361,297 +330,247 @@ class _DeductionManagementState extends State<DeductionManagementPage> {
             tooltip: '刷新列表',
           ),
         ],
-        body: RefreshIndicator(
+        body: ManagerBusinessPageChrome(
+          icon: Icons.fact_check_outlined,
+          title: '扣分管理',
+          subtitle: '核对扣分记录，追踪处理人、时间和关联违法编号。',
+          totalCount: _deductions.length,
+          visibleCount: _filteredDeductions.length,
+          searchBar: Row(
+            children: [
+              Expanded(
+                child: Autocomplete<String>(
+                  optionsBuilder: (TextEditingValue textEditingValue) {
+                    if (textEditingValue.text.isEmpty ||
+                        _searchType != 'handler') {
+                      return const Iterable<String>.empty();
+                    }
+                    return _deductions.map((d) => d.handler ?? '').where((s) =>
+                        s
+                            .toLowerCase()
+                            .contains(textEditingValue.text.toLowerCase()));
+                  },
+                  onSelected: (String selection) {
+                    _searchController.text = selection;
+                    _loadDeductions(reset: true, query: selection);
+                  },
+                  fieldViewBuilder: (context, textEditingController, focusNode,
+                      onFieldSubmitted) {
+                    textEditingController.text = _searchController.text;
+                    return TextField(
+                      controller: textEditingController,
+                      focusNode: focusNode,
+                      style: TextStyle(color: themeData.colorScheme.onSurface),
+                      decoration: InputDecoration(
+                        hintText:
+                            _searchType == 'handler' ? '按处理人搜索' : '选择时间范围',
+                        hintStyle: TextStyle(
+                            color: themeData.colorScheme.onSurfaceVariant
+                                .withValues(alpha: 0.6)),
+                        prefixIcon: Icon(Icons.search,
+                            color: themeData.colorScheme.onSurfaceVariant),
+                        suffixIcon: textEditingController.text.isNotEmpty
+                            ? IconButton(
+                                icon: Icon(Icons.clear,
+                                    color:
+                                        themeData.colorScheme.onSurfaceVariant),
+                                onPressed: () {
+                                  textEditingController.clear();
+                                  _searchController.clear();
+                                  _loadDeductions(reset: true);
+                                },
+                              )
+                            : null,
+                        border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(12.0)),
+                        enabledBorder: OutlineInputBorder(
+                            borderSide: BorderSide(
+                                color: themeData.colorScheme.outline)),
+                        focusedBorder: OutlineInputBorder(
+                            borderSide: BorderSide(
+                                color: themeData.colorScheme.primary,
+                                width: 1.5)),
+                        filled: true,
+                        fillColor: themeData.colorScheme.surfaceContainerLowest,
+                      ),
+                      onSubmitted: (value) =>
+                          _loadDeductions(reset: true, query: value),
+                      enabled: _searchType == 'handler',
+                    );
+                  },
+                ),
+              ),
+              const SizedBox(width: 8.0),
+              DropdownButton<String>(
+                value: _searchType,
+                items: const [
+                  DropdownMenuItem(value: 'handler', child: Text('处理人')),
+                  DropdownMenuItem(value: 'timeRange', child: Text('时间范围')),
+                ],
+                onChanged: (value) {
+                  setState(() {
+                    _searchType = value!;
+                    _searchController.clear();
+                    _startTime = null;
+                    _endTime = null;
+                    _loadDeductions(reset: true);
+                  });
+                },
+                style: TextStyle(color: themeData.colorScheme.onSurface),
+                icon: Icon(
+                  Icons.arrow_drop_down,
+                  color: themeData.colorScheme.primary,
+                ),
+                underline: const SizedBox.shrink(),
+              ),
+              if (_searchType == 'timeRange')
+                IconButton(
+                  icon: Icon(
+                    Icons.date_range,
+                    color: themeData.colorScheme.primary,
+                  ),
+                  onPressed: () => _selectDateRange(themeData),
+                  tooltip: '选择日期范围',
+                ),
+            ],
+          ),
           onRefresh: () => _loadDeductions(reset: true),
-          color: themeData.colorScheme.primary,
-          backgroundColor: themeData.colorScheme.surfaceContainer,
-          child: Padding(
-            padding: const EdgeInsets.all(16.0),
-            child: Column(
-              children: [
-                Card(
-                  elevation: 3,
+          isLoading: _isLoading && _currentPage == 1,
+          errorMessage: _filteredDeductions.isEmpty ? _errorMessage : '',
+          emptyMessage: _filteredDeductions.isEmpty && _errorMessage.isEmpty
+              ? '暂无扣分记录'
+              : '',
+          emptyIcon: Icons.fact_check_outlined,
+          onRetry: () => _loadDeductions(reset: true),
+          onLogin: () => NavigationHelper.offAllNamed(Routes.login),
+          child: NotificationListener<ScrollNotification>(
+            onNotification: (notification) {
+              if (notification is ScrollEndNotification &&
+                  _scrollController.position.extentAfter < 200 &&
+                  !_isLoading &&
+                  _hasMore) {
+                _loadDeductions();
+              }
+              return false;
+            },
+            child: ListView.builder(
+              controller: _scrollController,
+              itemCount: _filteredDeductions.length + (_hasMore ? 1 : 0),
+              itemBuilder: (context, index) {
+                if (index == _filteredDeductions.length && _hasMore) {
+                  return Center(
+                      child: CircularProgressIndicator(
+                          color: themeData.colorScheme.primary));
+                }
+                final deduction = _filteredDeductions[index];
+                return Card(
+                  elevation: 0,
                   color: themeData.colorScheme.surfaceContainer,
                   shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(16.0)),
-                  child: Padding(
-                    padding: const EdgeInsets.all(12.0),
-                    child: Row(
-                      children: [
-                        Expanded(
-                          child: Autocomplete<String>(
-                            optionsBuilder:
-                                (TextEditingValue textEditingValue) {
-                              if (textEditingValue.text.isEmpty ||
-                                  _searchType != 'handler') {
-                                return const Iterable<String>.empty();
-                              }
-                              return _deductions
-                                  .map((d) => d.handler ?? '')
-                                  .where((s) => s.toLowerCase().contains(
-                                      textEditingValue.text.toLowerCase()));
-                            },
-                            onSelected: (String selection) {
-                              _searchController.text = selection;
-                              _loadDeductions(reset: true, query: selection);
-                            },
-                            fieldViewBuilder: (context, textEditingController,
-                                focusNode, onFieldSubmitted) {
-                              textEditingController.text =
-                                  _searchController.text;
-                              return TextField(
-                                controller: textEditingController,
-                                focusNode: focusNode,
-                                style: TextStyle(
-                                    color: themeData.colorScheme.onSurface),
-                                decoration: InputDecoration(
-                                  hintText: _searchType == 'handler'
-                                      ? '按处理人搜索'
-                                      : '选择时间范围',
-                                  hintStyle: TextStyle(
-                                      color: themeData
-                                          .colorScheme.onSurfaceVariant
-                                          .withValues(alpha: 0.6)),
-                                  prefixIcon: Icon(Icons.search,
-                                      color: themeData
-                                          .colorScheme.onSurfaceVariant),
-                                  suffixIcon:
-                                      textEditingController.text.isNotEmpty
-                                          ? IconButton(
-                                              icon: Icon(Icons.clear,
-                                                  color: themeData.colorScheme
-                                                      .onSurfaceVariant),
-                                              onPressed: () {
-                                                textEditingController.clear();
-                                                _searchController.clear();
-                                                _loadDeductions(reset: true);
-                                              },
-                                            )
-                                          : null,
-                                  border: OutlineInputBorder(
-                                      borderRadius:
-                                          BorderRadius.circular(12.0)),
-                                  enabledBorder: OutlineInputBorder(
-                                      borderSide: BorderSide(
-                                          color:
-                                              themeData.colorScheme.outline)),
-                                  focusedBorder: OutlineInputBorder(
-                                      borderSide: BorderSide(
-                                          color: themeData.colorScheme.primary,
-                                          width: 1.5)),
-                                  filled: true,
-                                  fillColor: themeData
-                                      .colorScheme.surfaceContainerLowest,
-                                ),
-                                onSubmitted: (value) =>
-                                    _loadDeductions(reset: true, query: value),
-                                enabled: _searchType == 'handler',
-                              );
-                            },
-                          ),
-                        ),
-                        const SizedBox(width: 8.0),
-                        DropdownButton<String>(
-                          value: _searchType,
-                          items: const [
-                            DropdownMenuItem(
-                                value: 'handler', child: Text('处理人')),
-                            DropdownMenuItem(
-                                value: 'timeRange', child: Text('时间范围')),
-                          ],
-                          onChanged: (value) {
-                            setState(() {
-                              _searchType = value!;
-                              _searchController.clear();
-                              _startTime = null;
-                              _endTime = null;
-                              _loadDeductions(reset: true);
-                            });
-                          },
-                          style:
-                              TextStyle(color: themeData.colorScheme.onSurface),
-                          icon: Icon(Icons.arrow_drop_down,
-                              color: themeData.colorScheme.primary),
-                          underline: Container(),
-                        ),
-                        if (_searchType == 'timeRange')
-                          IconButton(
-                            icon: Icon(Icons.date_range,
-                                color: themeData.colorScheme.primary),
-                            onPressed: () => _selectDateRange(themeData),
-                            tooltip: '选择日期范围',
-                          ),
-                      ],
+                    borderRadius: BorderRadius.circular(8.0),
+                    side: BorderSide(
+                      color: themeData.colorScheme.outlineVariant
+                          .withValues(alpha: 0.42),
                     ),
                   ),
-                ),
-                const SizedBox(height: 16.0),
-                Expanded(
-                  child: _isLoading && _currentPage == 1
-                      ? Center(
-                          child: CircularProgressIndicator(
-                              color: themeData.colorScheme.primary))
-                      : _errorMessage.isNotEmpty && _filteredDeductions.isEmpty
-                          ? _buildNoDataWidget(themeData)
-                          : NotificationListener<ScrollNotification>(
-                              onNotification: (notification) {
-                                if (notification is ScrollEndNotification &&
-                                    _scrollController.position.extentAfter <
-                                        200 &&
-                                    !_isLoading &&
-                                    _hasMore) {
-                                  _loadDeductions();
-                                }
-                                return false;
-                              },
-                              child: ListView.builder(
-                                controller: _scrollController,
-                                itemCount: _filteredDeductions.length +
-                                    (_hasMore ? 1 : 0),
-                                itemBuilder: (context, index) {
-                                  if (index == _filteredDeductions.length &&
-                                      _hasMore) {
-                                    return Center(
-                                        child: CircularProgressIndicator(
-                                            color:
-                                                themeData.colorScheme.primary));
-                                  }
-                                  final deduction = _filteredDeductions[index];
-                                  return Card(
-                                    elevation: 3,
-                                    color:
-                                        themeData.colorScheme.surfaceContainer,
-                                    shape: RoundedRectangleBorder(
-                                        borderRadius:
-                                            BorderRadius.circular(16.0)),
-                                    margin: const EdgeInsets.symmetric(
-                                        vertical: 8.0),
-                                    child: ListTile(
-                                      contentPadding:
-                                          const EdgeInsets.symmetric(
-                                              horizontal: 16.0, vertical: 8.0),
-                                      title: Text(
-                                        '扣分: ${deduction.deductedPoints ?? 0}',
-                                        style: themeData.textTheme.titleMedium
-                                            ?.copyWith(
-                                          color: themeData.colorScheme.primary,
-                                          fontWeight: FontWeight.bold,
+                  margin: const EdgeInsets.symmetric(vertical: 8.0),
+                  child: ListTile(
+                    contentPadding: const EdgeInsets.symmetric(
+                        horizontal: 16.0, vertical: 8.0),
+                    title: Text(
+                      '扣分: ${deduction.deductedPoints ?? 0}',
+                      style: themeData.textTheme.titleMedium?.copyWith(
+                        color: themeData.colorScheme.primary,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                    subtitle: Text(
+                      '处理人: ${deduction.handler ?? '未知'} | 时间: ${formatDateTime(deduction.deductionTime)} | 违法ID: ${deduction.offenseId ?? '无'}',
+                      style: themeData.textTheme.bodyMedium?.copyWith(
+                        color: themeData.colorScheme.onSurfaceVariant,
+                      ),
+                    ),
+                    trailing: _isAdmin
+                        ? Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              IconButton(
+                                icon: Icon(Icons.edit,
+                                    size: 18,
+                                    color: themeData.colorScheme.primary),
+                                onPressed: () {
+                                  Navigator.push(
+                                    context,
+                                    MaterialPageRoute(
+                                      builder: (context) => EditDeductionPage(
+                                          deduction: deduction),
+                                    ),
+                                  ).then((value) {
+                                    if (value == true) {
+                                      _loadDeductions(reset: true);
+                                    }
+                                  });
+                                },
+                                tooltip: '编辑',
+                              ),
+                              IconButton(
+                                icon: Icon(Icons.delete,
+                                    size: 18,
+                                    color: themeData.colorScheme.error),
+                                onPressed: () async {
+                                  final confirm = await showDialog<bool>(
+                                    context: context,
+                                    builder: (context) => AlertDialog(
+                                      title: const Text('确认删除'),
+                                      content: const Text('确定要删除此扣分记录吗？'),
+                                      actions: [
+                                        TextButton(
+                                          onPressed: () =>
+                                              Navigator.pop(context, false),
+                                          child: const Text('取消'),
                                         ),
-                                      ),
-                                      subtitle: Text(
-                                        '处理人: ${deduction.handler ?? '未知'} | 时间: ${formatDateTime(deduction.deductionTime)} | 违法ID: ${deduction.offenseId ?? '无'}',
-                                        style: themeData.textTheme.bodyMedium
-                                            ?.copyWith(
-                                          color: themeData
-                                              .colorScheme.onSurfaceVariant,
+                                        TextButton(
+                                          onPressed: () =>
+                                              Navigator.pop(context, true),
+                                          child: const Text('删除'),
                                         ),
-                                      ),
-                                      trailing: _isAdmin
-                                          ? Row(
-                                              mainAxisSize: MainAxisSize.min,
-                                              children: [
-                                                IconButton(
-                                                  icon: Icon(Icons.edit,
-                                                      size: 18,
-                                                      color: themeData
-                                                          .colorScheme.primary),
-                                                  onPressed: () {
-                                                    Navigator.push(
-                                                      context,
-                                                      MaterialPageRoute(
-                                                        builder: (context) =>
-                                                            EditDeductionPage(
-                                                                deduction:
-                                                                    deduction),
-                                                      ),
-                                                    ).then((value) {
-                                                      if (value == true) {
-                                                        _loadDeductions(
-                                                            reset: true);
-                                                      }
-                                                    });
-                                                  },
-                                                  tooltip: '编辑',
-                                                ),
-                                                IconButton(
-                                                  icon: Icon(Icons.delete,
-                                                      size: 18,
-                                                      color: themeData
-                                                          .colorScheme.error),
-                                                  onPressed: () async {
-                                                    final confirm =
-                                                        await showDialog<bool>(
-                                                      context: context,
-                                                      builder: (context) =>
-                                                          AlertDialog(
-                                                        title:
-                                                            const Text('确认删除'),
-                                                        content: const Text(
-                                                            '确定要删除此扣分记录吗？'),
-                                                        actions: [
-                                                          TextButton(
-                                                            onPressed: () =>
-                                                                Navigator.pop(
-                                                                    context,
-                                                                    false),
-                                                            child: const Text(
-                                                                '取消'),
-                                                          ),
-                                                          TextButton(
-                                                            onPressed: () =>
-                                                                Navigator.pop(
-                                                                    context,
-                                                                    true),
-                                                            child: const Text(
-                                                                '删除'),
-                                                          ),
-                                                        ],
-                                                      ),
-                                                    );
-                                                    if (confirm == true) {
-                                                      try {
-                                                        await deductionApi
-                                                            .deleteDeduction(
-                                                                deductionId:
-                                                                    deduction
-                                                                        .deductionId!);
-                                                        _showSnackBar(
-                                                            '删除扣分记录成功');
-                                                        _loadDeductions(
-                                                            reset: true);
-                                                      } catch (e) {
-                                                        _showSnackBar(
-                                                            '删除失败: ${_formatErrorMessage(e)}',
-                                                            isError: true);
-                                                      }
-                                                    }
-                                                  },
-                                                  tooltip: '删除',
-                                                ),
-                                              ],
-                                            )
-                                          : null,
-                                      onTap: () {
-                                        Navigator.push(
-                                          context,
-                                          MaterialPageRoute(
-                                            builder: (context) =>
-                                                EditDeductionPage(
-                                                    deduction: deduction),
-                                          ),
-                                        ).then((value) {
-                                          if (value == true) {
-                                            _loadDeductions(reset: true);
-                                          }
-                                        });
-                                      },
+                                      ],
                                     ),
                                   );
+                                  if (confirm == true) {
+                                    try {
+                                      await deductionApi.deleteDeduction(
+                                          deductionId: deduction.deductionId!);
+                                      _showSnackBar('删除扣分记录成功');
+                                      _loadDeductions(reset: true);
+                                    } catch (e) {
+                                      _showSnackBar(
+                                          '删除失败: ${_formatErrorMessage(e)}',
+                                          isError: true);
+                                    }
+                                  }
                                 },
+                                tooltip: '删除',
                               ),
-                            ),
-                ),
-              ],
+                            ],
+                          )
+                        : null,
+                    onTap: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) =>
+                              EditDeductionPage(deduction: deduction),
+                        ),
+                      ).then((value) {
+                        if (value == true) {
+                          _loadDeductions(reset: true);
+                        }
+                      });
+                    },
+                  ),
+                );
+              },
             ),
           ),
         ),
@@ -831,13 +750,7 @@ class _AddDeductionPageState extends State<AddDeductionPage> {
 
   void _showSnackBar(String message, {bool isError = false}) {
     if (!mounted) return;
-    Get.snackbar(
-      isError ? '错误' : '提示',
-      message,
-      snackPosition: SnackPosition.BOTTOM,
-      backgroundColor: isError ? Colors.red.shade100 : Colors.green.shade100,
-      duration: const Duration(seconds: 3),
-    );
+    showManagerBusinessToast(context, message: message, isError: isError);
   }
 
   String _formatErrorMessage(dynamic error) {
@@ -1272,13 +1185,7 @@ class _EditDeductionPageState extends State<EditDeductionPage> {
 
   void _showSnackBar(String message, {bool isError = false}) {
     if (!mounted) return;
-    Get.snackbar(
-      isError ? '错误' : '提示',
-      message,
-      snackPosition: SnackPosition.BOTTOM,
-      backgroundColor: isError ? Colors.red.shade100 : Colors.green.shade100,
-      duration: const Duration(seconds: 3),
-    );
+    showManagerBusinessToast(context, message: message, isError: isError);
   }
 
   String _formatErrorMessage(dynamic error) {

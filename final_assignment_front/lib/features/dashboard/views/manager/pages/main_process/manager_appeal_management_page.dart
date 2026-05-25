@@ -7,6 +7,7 @@ import 'package:final_assignment_front/features/api/appeal_management_controller
 import 'package:final_assignment_front/features/api/auth_controller_api.dart';
 import 'package:final_assignment_front/features/api/offense_information_controller_api.dart';
 import 'package:final_assignment_front/features/dashboard/controllers/manager_dashboard_controller.dart';
+import 'package:final_assignment_front/features/dashboard/views/manager/pages/main_process/manager_business_page_chrome.dart';
 import 'package:final_assignment_front/features/dashboard/views/shared/widgets/dashboard_page_template.dart';
 import 'package:final_assignment_front/features/model/appeal_record.dart';
 import 'package:final_assignment_front/shared/widgets/index.dart';
@@ -375,13 +376,7 @@ class _AppealManagementAdminState extends State<ManagerAppealManagementPage> {
   // ignore: unused_element
   void _showSnackBar(String message, {bool isError = false}) {
     if (!mounted) return;
-    Get.snackbar(
-      isError ? '错误' : '提示',
-      message,
-      snackPosition: SnackPosition.BOTTOM,
-      backgroundColor: isError ? Colors.red.shade100 : Colors.green.shade100,
-      duration: const Duration(seconds: 3),
-    );
+    showManagerBusinessToast(context, message: message, isError: isError);
   }
 
   String _formatErrorMessage(dynamic error) {
@@ -476,9 +471,14 @@ class _AppealManagementAdminState extends State<ManagerAppealManagementPage> {
 
   Widget _buildAppealCard(AppealRecordModel appeal, ThemeData themeData) {
     return Card(
-      elevation: 4,
+      elevation: 0,
       color: themeData.colorScheme.surfaceContainerLowest,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16.0)),
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(8.0),
+        side: BorderSide(
+          color: themeData.colorScheme.outlineVariant.withValues(alpha: 0.42),
+        ),
+      ),
       margin: const EdgeInsets.symmetric(vertical: 8.0),
       child: ListTile(
         contentPadding:
@@ -546,61 +546,32 @@ class _AppealManagementAdminState extends State<ManagerAppealManagementPage> {
             tooltip: '刷新列表',
           ),
         ],
-        body: Padding(
-          padding: const EdgeInsets.all(16.0),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              _buildSearchBar(themeData),
-              const SizedBox(height: 20),
-              Expanded(
-                child: _isLoading
-                    ? const LoadingView()
-                    : _errorMessage.isNotEmpty
-                        ? (_errorMessage.contains('未找到') ||
-                                _errorMessage.contains('暂无')
-                            ? EmptyStateView(
-                                message: _errorMessage,
-                                icon: CupertinoIcons.doc,
-                              )
-                            : ErrorStateView(
-                                message: _errorMessage,
-                                actionLabel: '重新登录',
-                                onRetry: _errorMessage.contains('未授权') ||
-                                        _errorMessage.contains('登录') ||
-                                        _errorMessage.contains('权限不足')
-                                    ? () => NavigationHelper.offAllNamed(
-                                        Routes.login)
-                                    : null,
-                              ))
-                        : _filteredAppeals.isEmpty
-                            ? EmptyStateView(
-                                message: _errorMessage.isNotEmpty
-                                    ? _errorMessage
-                                    : '暂无申诉记录',
-                                icon: CupertinoIcons.doc,
-                              )
-                            : CupertinoScrollbar(
-                                thumbVisibility: true,
-                                thickness: 6.0,
-                                thicknessWhileDragging: 10.0,
-                                child: RefreshIndicator(
-                                  onRefresh: () => _refreshAppeals(),
-                                  color: themeData.colorScheme.primary,
-                                  backgroundColor:
-                                      themeData.colorScheme.surfaceContainer,
-                                  child: ListView.builder(
-                                    itemCount: _filteredAppeals.length,
-                                    itemBuilder: (context, index) {
-                                      final appeal = _filteredAppeals[index];
-                                      return _buildAppealCard(
-                                          appeal, themeData);
-                                    },
-                                  ),
-                                ),
-                              ),
-              ),
-            ],
+        body: ManagerBusinessPageChrome(
+          icon: Icons.gavel_outlined,
+          title: '申诉审批管理',
+          subtitle: '集中查看用户申诉，处理审核进度和审批结果。',
+          totalCount: _appeals.length,
+          visibleCount: _filteredAppeals.length,
+          searchBar: _buildSearchBar(themeData),
+          onRefresh: () => _refreshAppeals(),
+          isLoading: _isLoading,
+          errorMessage: _filteredAppeals.isEmpty ? _errorMessage : '',
+          emptyMessage:
+              _filteredAppeals.isEmpty && _errorMessage.isEmpty ? '暂无申诉记录' : '',
+          emptyIcon: CupertinoIcons.doc,
+          onRetry: () => _refreshAppeals(),
+          onLogin: () => NavigationHelper.offAllNamed(Routes.login),
+          child: CupertinoScrollbar(
+            thumbVisibility: true,
+            thickness: 6.0,
+            thicknessWhileDragging: 10.0,
+            child: ListView.builder(
+              itemCount: _filteredAppeals.length,
+              itemBuilder: (context, index) {
+                final appeal = _filteredAppeals[index];
+                return _buildAppealCard(appeal, themeData);
+              },
+            ),
           ),
         ),
       );
@@ -964,13 +935,7 @@ class _AppealDetailPageState extends State<AppealDetailPage> {
 
   void _showSnackBar(String message, {bool isError = false}) {
     if (!mounted) return;
-    Get.snackbar(
-      isError ? '错误' : '提示',
-      message,
-      snackPosition: SnackPosition.BOTTOM,
-      backgroundColor: isError ? Colors.red.shade100 : Colors.green.shade100,
-      duration: const Duration(seconds: 3),
-    );
+    showManagerBusinessToast(context, message: message, isError: isError);
   }
 
   String _formatErrorMessage(dynamic error) {

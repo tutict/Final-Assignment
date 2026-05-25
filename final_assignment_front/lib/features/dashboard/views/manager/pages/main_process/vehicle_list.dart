@@ -7,6 +7,7 @@ import 'package:final_assignment_front/features/api/driver_information_controlle
 import 'package:final_assignment_front/features/api/vehicle_information_controller_api.dart';
 import 'package:final_assignment_front/features/dashboard/controllers/manager_dashboard_controller.dart';
 import 'package:final_assignment_front/features/dashboard/controllers/vehicle_controller.dart';
+import 'package:final_assignment_front/features/dashboard/views/manager/pages/main_process/manager_business_page_chrome.dart';
 import 'package:final_assignment_front/features/dashboard/views/shared/widgets/dashboard_page_template.dart';
 import 'package:final_assignment_front/features/model/driver_information.dart';
 import 'package:final_assignment_front/features/model/user_management.dart';
@@ -459,173 +460,130 @@ class _VehicleListState extends State<VehicleList> {
             ),
           ],
         ],
-        body: RefreshIndicator(
+        body: ManagerBusinessPageChrome(
+          icon: Icons.directions_car_filled_outlined,
+          title: '车辆管理',
+          subtitle: '查询车辆档案，维护车牌、类型和登记信息。',
+          totalCount: _vehicleList.length,
+          visibleCount: _filteredVehicleList.length,
+          searchBar: _buildSearchField(themeData),
           onRefresh: () => _refreshVehicleList(),
-          color: themeData.colorScheme.primary,
-          backgroundColor: themeData.colorScheme.surfaceContainer,
-          child: Padding(
-            padding: const EdgeInsets.all(16.0),
-            child: Column(
-              children: [
-                const SizedBox(height: 12),
-                _buildSearchField(themeData),
-                const SizedBox(height: 12),
-                Expanded(
-                  child: NotificationListener<ScrollNotification>(
-                    onNotification: (scrollInfo) {
-                      if (scrollInfo.metrics.pixels ==
-                              scrollInfo.metrics.maxScrollExtent &&
-                          _hasMore) {
-                        _loadMoreVehicles();
-                      }
-                      return false;
-                    },
-                    child: _isLoading && _currentPage == 1
-                        ? const LoadingView()
-                        : _errorMessage.isNotEmpty &&
-                                _filteredVehicleList.isEmpty
-                            ? (_errorMessage.contains('未找到') ||
-                                    _errorMessage.contains('当前没有')
-                                ? EmptyStateView(
-                                    message: _errorMessage,
-                                    icon: Icons.directions_car_outlined,
-                                  )
-                                : ErrorStateView(
-                                    message: _errorMessage,
-                                    actionLabel: '重新登录',
-                                    onRetry: _errorMessage.contains('未授权') ||
-                                            _errorMessage.contains('登录')
-                                        ? () => Navigator.pushReplacementNamed(
-                                              context,
-                                              '/login',
-                                            )
-                                        : null,
-                                  ))
-                            : ListView.builder(
-                                itemCount: _filteredVehicleList.length +
-                                    (_hasMore ? 1 : 0),
-                                itemBuilder: (context, index) {
-                                  if (index == _filteredVehicleList.length &&
-                                      _hasMore) {
-                                    return const Padding(
-                                      padding: EdgeInsets.all(8.0),
-                                      child: Center(
-                                        child: CircularProgressIndicator(),
-                                      ),
-                                    );
-                                  }
-                                  final vehicle = _filteredVehicleList[index];
-                                  return Card(
-                                    margin: const EdgeInsets.symmetric(
-                                        vertical: 8.0),
-                                    elevation: 3,
-                                    color:
-                                        themeData.colorScheme.surfaceContainer,
-                                    shape: RoundedRectangleBorder(
-                                      borderRadius: BorderRadius.circular(16.0),
-                                    ),
-                                    child: ListTile(
-                                      contentPadding:
-                                          const EdgeInsets.symmetric(
-                                              horizontal: 16.0, vertical: 12.0),
-                                      title: Text(
-                                        '车牌号: ${vehicle.licensePlate ?? '未知车牌'}',
-                                        style: themeData.textTheme.titleMedium
-                                            ?.copyWith(
-                                          color:
-                                              themeData.colorScheme.onSurface,
-                                          fontWeight: FontWeight.w600,
-                                        ),
-                                      ),
-                                      subtitle: Column(
-                                        crossAxisAlignment:
-                                            CrossAxisAlignment.start,
-                                        children: [
-                                          const SizedBox(height: 4),
-                                          Text(
-                                            '类型: ${vehicle.vehicleType ?? '未知类型'}',
-                                            style: themeData
-                                                .textTheme.bodyMedium
-                                                ?.copyWith(
-                                              color: themeData
-                                                  .colorScheme.onSurfaceVariant,
-                                            ),
-                                          ),
-                                          Text(
-                                            '车主: ${vehicle.ownerName ?? '未知车主'}',
-                                            style: themeData
-                                                .textTheme.bodyMedium
-                                                ?.copyWith(
-                                              color: themeData
-                                                  .colorScheme.onSurfaceVariant,
-                                            ),
-                                          ),
-                                          Text(
-                                            '状态: ${vehicle.currentStatus ?? '无'}',
-                                            style: themeData
-                                                .textTheme.bodyMedium
-                                                ?.copyWith(
-                                              color: themeData
-                                                  .colorScheme.onSurfaceVariant,
-                                            ),
-                                          ),
-                                        ],
-                                      ),
-                                      trailing: _isAdmin
-                                          ? Row(
-                                              mainAxisSize: MainAxisSize.min,
-                                              children: [
-                                                IconButton(
-                                                  icon: const Icon(Icons.edit,
-                                                      size: 18),
-                                                  color: themeData
-                                                      .colorScheme.primary,
-                                                  onPressed: () =>
-                                                      _editVehicle(vehicle),
-                                                  tooltip: '编辑车辆',
-                                                ),
-                                                IconButton(
-                                                  icon: Icon(
-                                                    Icons.delete,
-                                                    size: 18,
-                                                    color: themeData
-                                                        .colorScheme.error,
-                                                  ),
-                                                  onPressed: () {
-                                                    final vehicleId =
-                                                        vehicle.vehicleId;
-                                                    if (vehicleId == null) {
-                                                      _showSnackBar(
-                                                          '无法删除：缺少车辆ID',
-                                                          isError: true);
-                                                      return;
-                                                    }
-                                                    _deleteVehicle(vehicleId);
-                                                  },
-                                                  tooltip: '删除车辆',
-                                                ),
-                                                Icon(
-                                                  Icons.arrow_forward_ios,
-                                                  color: themeData.colorScheme
-                                                      .onSurfaceVariant,
-                                                  size: 18,
-                                                ),
-                                              ],
-                                            )
-                                          : Icon(
-                                              Icons.arrow_forward_ios,
-                                              color: themeData
-                                                  .colorScheme.onSurfaceVariant,
-                                              size: 18,
-                                            ),
-                                      onTap: () => _goToDetailPage(vehicle),
-                                    ),
-                                  );
-                                },
-                              ),
+          isLoading: _isLoading && _currentPage == 1,
+          errorMessage: _filteredVehicleList.isEmpty ? _errorMessage : '',
+          emptyMessage: _filteredVehicleList.isEmpty && _errorMessage.isEmpty
+              ? '暂无车辆记录'
+              : '',
+          emptyIcon: Icons.directions_car_outlined,
+          onRetry: () => _refreshVehicleList(),
+          onLogin: () => Navigator.pushReplacementNamed(context, '/login'),
+          child: NotificationListener<ScrollNotification>(
+            onNotification: (scrollInfo) {
+              if (scrollInfo.metrics.pixels ==
+                      scrollInfo.metrics.maxScrollExtent &&
+                  _hasMore) {
+                _loadMoreVehicles();
+              }
+              return false;
+            },
+            child: ListView.builder(
+              itemCount: _filteredVehicleList.length + (_hasMore ? 1 : 0),
+              itemBuilder: (context, index) {
+                if (index == _filteredVehicleList.length && _hasMore) {
+                  return const Padding(
+                    padding: EdgeInsets.all(8.0),
+                    child: Center(
+                      child: CircularProgressIndicator(),
+                    ),
+                  );
+                }
+                final vehicle = _filteredVehicleList[index];
+                return Card(
+                  margin: const EdgeInsets.symmetric(vertical: 8.0),
+                  elevation: 0,
+                  color: themeData.colorScheme.surfaceContainer,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(8.0),
+                    side: BorderSide(
+                      color: themeData.colorScheme.outlineVariant
+                          .withValues(alpha: 0.42),
+                    ),
                   ),
-                ),
-              ],
+                  child: ListTile(
+                    contentPadding: const EdgeInsets.symmetric(
+                        horizontal: 16.0, vertical: 12.0),
+                    title: Text(
+                      '车牌号: ${vehicle.licensePlate ?? '未知车牌'}',
+                      style: themeData.textTheme.titleMedium?.copyWith(
+                        color: themeData.colorScheme.onSurface,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                    subtitle: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const SizedBox(height: 4),
+                        Text(
+                          '类型: ${vehicle.vehicleType ?? '未知类型'}',
+                          style: themeData.textTheme.bodyMedium?.copyWith(
+                            color: themeData.colorScheme.onSurfaceVariant,
+                          ),
+                        ),
+                        Text(
+                          '车主: ${vehicle.ownerName ?? '未知车主'}',
+                          style: themeData.textTheme.bodyMedium?.copyWith(
+                            color: themeData.colorScheme.onSurfaceVariant,
+                          ),
+                        ),
+                        Text(
+                          '状态: ${vehicle.currentStatus ?? '无'}',
+                          style: themeData.textTheme.bodyMedium?.copyWith(
+                            color: themeData.colorScheme.onSurfaceVariant,
+                          ),
+                        ),
+                      ],
+                    ),
+                    trailing: _isAdmin
+                        ? Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              IconButton(
+                                icon: const Icon(Icons.edit, size: 18),
+                                color: themeData.colorScheme.primary,
+                                onPressed: () => _editVehicle(vehicle),
+                                tooltip: '编辑车辆',
+                              ),
+                              IconButton(
+                                icon: Icon(
+                                  Icons.delete,
+                                  size: 18,
+                                  color: themeData.colorScheme.error,
+                                ),
+                                onPressed: () {
+                                  final vehicleId = vehicle.vehicleId;
+                                  if (vehicleId == null) {
+                                    _showSnackBar('无法删除：缺少车辆ID', isError: true);
+                                    return;
+                                  }
+                                  _deleteVehicle(vehicleId);
+                                },
+                                tooltip: '删除车辆',
+                              ),
+                              Icon(
+                                Icons.arrow_forward_ios,
+                                color: themeData.colorScheme.onSurfaceVariant,
+                                size: 18,
+                              ),
+                            ],
+                          )
+                        : Icon(
+                            Icons.arrow_forward_ios,
+                            color: themeData.colorScheme.onSurfaceVariant,
+                            size: 18,
+                          ),
+                    onTap: () => _goToDetailPage(vehicle),
+                  ),
+                );
+              },
             ),
           ),
         ),
@@ -635,13 +593,7 @@ class _VehicleListState extends State<VehicleList> {
 
   void _showSnackBar(String message, {bool isError = false}) {
     if (!mounted) return;
-    Get.snackbar(
-      isError ? '错误' : '提示',
-      message,
-      snackPosition: SnackPosition.BOTTOM,
-      backgroundColor: isError ? Colors.red.shade100 : Colors.green.shade100,
-      duration: const Duration(seconds: 3),
-    );
+    showManagerBusinessToast(context, message: message, isError: isError);
   }
 }
 
@@ -809,13 +761,7 @@ class _AddVehiclePageState extends State<AddVehiclePage> {
 
   void _showSnackBar(String message, {bool isError = false}) {
     if (!mounted) return;
-    Get.snackbar(
-      isError ? '错误' : '提示',
-      message,
-      snackPosition: SnackPosition.BOTTOM,
-      backgroundColor: isError ? Colors.red.shade100 : Colors.green.shade100,
-      duration: const Duration(seconds: 3),
-    );
+    showManagerBusinessToast(context, message: message, isError: isError);
   }
 
   Future<void> _pickDate() async {
@@ -1216,13 +1162,7 @@ class _EditVehiclePageState extends State<EditVehiclePage> {
 
   void _showSnackBar(String message, {bool isError = false}) {
     if (!mounted) return;
-    Get.snackbar(
-      isError ? '错误' : '提示',
-      message,
-      snackPosition: SnackPosition.BOTTOM,
-      backgroundColor: isError ? Colors.red.shade100 : Colors.green.shade100,
-      duration: const Duration(seconds: 3),
-    );
+    showManagerBusinessToast(context, message: message, isError: isError);
   }
 
   Future<void> _pickDate() async {
@@ -1584,13 +1524,7 @@ class _VehicleDetailPageState extends State<VehicleDetailPage> {
 
   void _showSnackBar(String message, {bool isError = false}) {
     if (!mounted) return;
-    Get.snackbar(
-      isError ? '错误' : '提示',
-      message,
-      snackPosition: SnackPosition.BOTTOM,
-      backgroundColor: isError ? Colors.red.shade100 : Colors.green.shade100,
-      duration: const Duration(seconds: 3),
-    );
+    showManagerBusinessToast(context, message: message, isError: isError);
   }
 
   Widget _buildDetailRow(String label, String value, ThemeData themeData) {

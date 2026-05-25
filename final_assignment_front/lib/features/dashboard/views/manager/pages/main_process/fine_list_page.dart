@@ -6,6 +6,7 @@ import 'package:final_assignment_front/features/api/vehicle_information_controll
 import 'package:final_assignment_front/core/network/app_exception.dart';
 import 'package:flutter/material.dart';
 import 'package:final_assignment_front/features/dashboard/controllers/manager_dashboard_controller.dart';
+import 'package:final_assignment_front/features/dashboard/views/manager/pages/main_process/manager_business_page_chrome.dart';
 import 'package:final_assignment_front/features/dashboard/views/shared/widgets/dashboard_page_template.dart';
 import 'package:final_assignment_front/config/routes/app_routes.dart';
 import 'package:final_assignment_front/features/api/fine_information_controller_api.dart';
@@ -412,13 +413,7 @@ class _FineListState extends State<FineListPage> {
 
   void _showSnackBar(String message, {bool isError = false}) {
     if (!mounted) return;
-    Get.snackbar(
-      isError ? '错误' : '提示',
-      message,
-      snackPosition: SnackPosition.BOTTOM,
-      backgroundColor: isError ? Colors.red.shade100 : Colors.green.shade100,
-      duration: const Duration(seconds: 3),
-    );
+    showManagerBusinessToast(context, message: message, isError: isError);
   }
 
   Widget _buildSearchField(ThemeData themeData) {
@@ -507,191 +502,116 @@ class _FineListState extends State<FineListPage> {
             ),
           ],
         ],
-        body: RefreshIndicator(
+        body: ManagerBusinessPageChrome(
+          icon: Icons.payments_outlined,
+          title: '罚款管理',
+          subtitle: '核对罚款记录，跟踪缴款状态和关联违法信息。',
+          totalCount: _fineList.length,
+          visibleCount: _filteredFineList.length,
+          searchBar: _buildSearchField(themeData),
           onRefresh: () => _refreshFines(),
-          color: themeData.colorScheme.primary,
-          backgroundColor: themeData.colorScheme.surfaceContainer,
-          child: Padding(
-            padding: const EdgeInsets.all(16.0),
-            child: Column(
-              children: [
-                const SizedBox(height: 12),
-                _buildSearchField(themeData),
-                const SizedBox(height: 12),
-                Expanded(
-                  child: NotificationListener<ScrollNotification>(
-                    onNotification: (scrollInfo) {
-                      if (scrollInfo.metrics.pixels ==
-                              scrollInfo.metrics.maxScrollExtent &&
-                          _hasMore) {
-                        _loadMoreFines();
-                      }
-                      return false;
-                    },
-                    child: _isLoading && _currentPage == 1
-                        ? const LoadingView()
-                        : _errorMessage.isNotEmpty && _filteredFineList.isEmpty
-                            ? (_errorMessage.contains('未找到') ||
-                                    _errorMessage.contains('当前没有')
-                                ? EmptyStateView(
-                                    message: _errorMessage,
-                                    icon: Icons.payments_outlined,
-                                  )
-                                : Column(
-                                    mainAxisAlignment: MainAxisAlignment.center,
-                                    children: [
-                                      ErrorStateView(
-                                        message: _errorMessage,
-                                        actionLabel:
-                                            _errorMessage.contains('未授权') ||
-                                                    _errorMessage.contains('登录')
-                                                ? '重新登录'
-                                                : '重试',
-                                        onRetry: _errorMessage
-                                                    .contains('未授权') ||
-                                                _errorMessage.contains('登录')
-                                            ? () =>
-                                                Navigator.pushReplacementNamed(
-                                                  context,
-                                                  Routes.login,
-                                                )
-                                            : _errorMessage.contains('获取罚款信息失败')
-                                                ? _refreshFines
-                                                : null,
-                                      ),
-                                      if (_errorMessage.contains('获取罚款信息失败') &&
-                                          _cachedFineList.isNotEmpty)
-                                        Padding(
-                                          padding:
-                                              const EdgeInsets.only(top: 16.0),
-                                          child: ElevatedButton(
-                                            onPressed: () {
-                                              setState(() {
-                                                _fineList.clear();
-                                                _fineList
-                                                    .addAll(_cachedFineList);
-                                                _applyFilters(
-                                                    _searchController.text);
-                                                _errorMessage = '';
-                                              });
-                                            },
-                                            style: ElevatedButton.styleFrom(
-                                              backgroundColor: themeData
-                                                  .colorScheme.secondary,
-                                              foregroundColor: themeData
-                                                  .colorScheme.onSecondary,
-                                            ),
-                                            child: const Text('恢复缓存数据'),
-                                          ),
-                                        ),
-                                    ],
-                                  ))
-                            : ListView.builder(
-                                controller: _scrollController,
-                                itemCount: _filteredFineList.length +
-                                    (_hasMore ? 1 : 0),
-                                itemBuilder: (context, index) {
-                                  if (index == _filteredFineList.length &&
-                                      _hasMore) {
-                                    return const Padding(
-                                      padding: EdgeInsets.all(8.0),
-                                      child: Center(
-                                          child: CircularProgressIndicator()),
-                                    );
-                                  }
-                                  final fijne = _filteredFineList[index];
-                                  return Card(
-                                    margin: const EdgeInsets.symmetric(
-                                        vertical: 8.0),
-                                    elevation: 3,
-                                    color:
-                                        themeData.colorScheme.surfaceContainer,
-                                    shape: RoundedRectangleBorder(
-                                        borderRadius:
-                                            BorderRadius.circular(16.0)),
-                                    child: ListTile(
-                                      contentPadding:
-                                          const EdgeInsets.symmetric(
-                                              horizontal: 16.0, vertical: 12.0),
-                                      title: Text(
-                                        '金额: ${fijne.fineAmount ?? 0} 元',
-                                        style: themeData.textTheme.titleMedium
-                                            ?.copyWith(
-                                          color:
-                                              themeData.colorScheme.onSurface,
-                                          fontWeight: FontWeight.w600,
-                                        ),
-                                      ),
-                                      subtitle: Column(
-                                        crossAxisAlignment:
-                                            CrossAxisAlignment.start,
-                                        children: [
-                                          const SizedBox(height: 4),
-                                          Text(
-                                            '缴款人: ${fijne.payee ?? '未知'}',
-                                            style: themeData
-                                                .textTheme.bodyMedium
-                                                ?.copyWith(
-                                              color: themeData
-                                                  .colorScheme.onSurfaceVariant,
-                                            ),
-                                          ),
-                                          Text(
-                                            '时间: ${formatDate(_resolvedFineDate(fijne))}',
-                                            style: themeData
-                                                .textTheme.bodyMedium
-                                                ?.copyWith(
-                                              color: themeData
-                                                  .colorScheme.onSurfaceVariant,
-                                            ),
-                                          ),
-                                          Text(
-                                            '状态: ${finePaymentStatusLabel(fijne)}',
-                                            style: themeData
-                                                .textTheme.bodyMedium
-                                                ?.copyWith(
-                                              color: themeData
-                                                  .colorScheme.onSurfaceVariant,
-                                            ),
-                                          ),
-                                        ],
-                                      ),
-                                      trailing: Row(
-                                        mainAxisSize: MainAxisSize.min,
-                                        children: [
-                                          IconButton(
-                                            icon: Icon(Icons.edit,
-                                                size: 18,
-                                                color: themeData
-                                                    .colorScheme.primary),
-                                            onPressed: () => _editFine(fijne),
-                                            tooltip: '编辑罚款',
-                                          ),
-                                          IconButton(
-                                            icon: Icon(Icons.delete,
-                                                size: 18,
-                                                color: themeData
-                                                    .colorScheme.error),
-                                            onPressed: () =>
-                                                _deleteFine(fijne.fineId ?? 0),
-                                            tooltip: '删除罚款',
-                                          ),
-                                          Icon(
-                                            Icons.arrow_forward_ios,
-                                            color: themeData
-                                                .colorScheme.onSurfaceVariant,
-                                            size: 18,
-                                          ),
-                                        ],
-                                      ),
-                                      onTap: () => _goToDetailPage(fijne),
-                                    ),
-                                  );
-                                },
-                              ),
+          isLoading: _isLoading && _currentPage == 1,
+          errorMessage: _filteredFineList.isEmpty ? _errorMessage : '',
+          emptyMessage: _filteredFineList.isEmpty && _errorMessage.isEmpty
+              ? '暂无罚款记录'
+              : '',
+          emptyIcon: Icons.payments_outlined,
+          onRetry: () => _refreshFines(),
+          onLogin: () => Navigator.pushReplacementNamed(
+            context,
+            Routes.login,
+          ),
+          child: NotificationListener<ScrollNotification>(
+            onNotification: (scrollInfo) {
+              if (scrollInfo.metrics.pixels ==
+                      scrollInfo.metrics.maxScrollExtent &&
+                  _hasMore) {
+                _loadMoreFines();
+              }
+              return false;
+            },
+            child: ListView.builder(
+              controller: _scrollController,
+              itemCount: _filteredFineList.length + (_hasMore ? 1 : 0),
+              itemBuilder: (context, index) {
+                if (index == _filteredFineList.length && _hasMore) {
+                  return const Padding(
+                    padding: EdgeInsets.all(8.0),
+                    child: Center(child: CircularProgressIndicator()),
+                  );
+                }
+                final fijne = _filteredFineList[index];
+                return Card(
+                  margin: const EdgeInsets.symmetric(vertical: 8.0),
+                  elevation: 0,
+                  color: themeData.colorScheme.surfaceContainer,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(8.0),
+                    side: BorderSide(
+                      color: themeData.colorScheme.outlineVariant
+                          .withValues(alpha: 0.42),
+                    ),
                   ),
-                ),
-              ],
+                  child: ListTile(
+                    contentPadding: const EdgeInsets.symmetric(
+                        horizontal: 16.0, vertical: 12.0),
+                    title: Text(
+                      '金额: ${fijne.fineAmount ?? 0} 元',
+                      style: themeData.textTheme.titleMedium?.copyWith(
+                        color: themeData.colorScheme.onSurface,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                    subtitle: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const SizedBox(height: 4),
+                        Text(
+                          '缴款人: ${fijne.payee ?? '未知'}',
+                          style: themeData.textTheme.bodyMedium?.copyWith(
+                            color: themeData.colorScheme.onSurfaceVariant,
+                          ),
+                        ),
+                        Text(
+                          '时间: ${formatDate(_resolvedFineDate(fijne))}',
+                          style: themeData.textTheme.bodyMedium?.copyWith(
+                            color: themeData.colorScheme.onSurfaceVariant,
+                          ),
+                        ),
+                        Text(
+                          '状态: ${finePaymentStatusLabel(fijne)}',
+                          style: themeData.textTheme.bodyMedium?.copyWith(
+                            color: themeData.colorScheme.onSurfaceVariant,
+                          ),
+                        ),
+                      ],
+                    ),
+                    trailing: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        IconButton(
+                          icon: Icon(Icons.edit,
+                              size: 18, color: themeData.colorScheme.primary),
+                          onPressed: () => _editFine(fijne),
+                          tooltip: '编辑罚款',
+                        ),
+                        IconButton(
+                          icon: Icon(Icons.delete,
+                              size: 18, color: themeData.colorScheme.error),
+                          onPressed: () => _deleteFine(fijne.fineId ?? 0),
+                          tooltip: '删除罚款',
+                        ),
+                        Icon(
+                          Icons.arrow_forward_ios,
+                          color: themeData.colorScheme.onSurfaceVariant,
+                          size: 18,
+                        ),
+                      ],
+                    ),
+                    onTap: () => _goToDetailPage(fijne),
+                  ),
+                );
+              },
             ),
           ),
         ),
@@ -978,13 +898,7 @@ class _AddFinePageState extends State<AddFinePage> {
 
   void _showSnackBar(String message, {bool isError = false}) {
     if (!mounted) return;
-    Get.snackbar(
-      isError ? '错误' : '提示',
-      message,
-      snackPosition: SnackPosition.BOTTOM,
-      backgroundColor: isError ? Colors.red.shade100 : Colors.green.shade100,
-      duration: const Duration(seconds: 3),
-    );
+    showManagerBusinessToast(context, message: message, isError: isError);
   }
 
   Future<void> _pickDate() async {
@@ -1386,13 +1300,7 @@ class _FineDetailPageState extends State<FineDetailPage> {
 
   void _showSnackBar(String message, {bool isError = false}) {
     if (!mounted) return;
-    Get.snackbar(
-      isError ? '错误' : '提示',
-      message,
-      snackPosition: SnackPosition.BOTTOM,
-      backgroundColor: isError ? Colors.red.shade100 : Colors.green.shade100,
-      duration: const Duration(seconds: 3),
-    );
+    showManagerBusinessToast(context, message: message, isError: isError);
   }
 
   Widget _buildDetailRow(String label, String value, ThemeData themeData) {
