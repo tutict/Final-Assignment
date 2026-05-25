@@ -89,7 +89,7 @@ public class AIChatSearchService {
                 """
                         import json
                         from baidu_crawler import search
-                        res = search('%s', num_results=15, debug=True)
+                        res = search('%s', num_results=15, debug=False)
                         json.dumps(res, ensure_ascii=False)
                         """,
                 gbkQuery
