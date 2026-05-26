@@ -2,6 +2,8 @@ package com.tutict.finalassignmentbackend.controller.admin;
 
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.tutict.finalassignmentbackend.common.PageRequest;
+import com.tutict.finalassignmentbackend.common.idempotency.IdempotentExecution;
+import com.tutict.finalassignmentbackend.common.idempotency.IdempotentRequestExecutor;
 import com.tutict.finalassignmentbackend.dto.mapper.UserResponseMapper;
 import com.tutict.finalassignmentbackend.dto.request.UserCreateRequest;
 import com.tutict.finalassignmentbackend.dto.response.ApiResponse;
@@ -44,11 +46,14 @@ public class UserManagementController {
 
     private final SysUserService sysUserService;
     private final SysUserRoleService sysUserRoleService;
+    private final IdempotentRequestExecutor idempotentRequestExecutor;
 
     public UserManagementController(SysUserService sysUserService,
-                                    SysUserRoleService sysUserRoleService) {
+                                    SysUserRoleService sysUserRoleService,
+                                    IdempotentRequestExecutor idempotentRequestExecutor) {
         this.sysUserService = sysUserService;
         this.sysUserRoleService = sysUserRoleService;
+        this.idempotentRequestExecutor = idempotentRequestExecutor;
     }
 
     @PostMapping
@@ -56,26 +61,27 @@ public class UserManagementController {
     public ResponseEntity<ApiResponse<UserResponse>> createUser(@Valid @RequestBody UserCreateRequest request,
                                                                 @RequestHeader(value = "Idempotency-Key", required = false)
                                                                 String idempotencyKey) {
-        boolean useKey = hasKey(idempotencyKey);
         try {
             SysUser user = UserResponseMapper.toEntity(request);
-            if (useKey) {
-                if (sysUserService.shouldSkipProcessing(idempotencyKey)) {
-                    return ResponseEntity.status(HttpStatus.ALREADY_REPORTED)
-                            .body(ApiResponse.ok(null));
-                }
-                sysUserService.checkAndInsertIdempotency(idempotencyKey, user, "create");
-            }
-            SysUser saved = sysUserService.createSysUser(user);
-            if (useKey && saved.getUserId() != null) {
-                sysUserService.markHistorySuccess(idempotencyKey, saved.getUserId());
+            IdempotentExecution<SysUser> execution = idempotentRequestExecutor.execute(
+                    idempotencyKey,
+                    () -> sysUserService.shouldSkipProcessing(idempotencyKey),
+                    () -> sysUserService.checkAndInsertIdempotency(idempotencyKey, user, "create"),
+                    () -> sysUserService.createSysUser(user),
+                    saved -> {
+                        if (saved != null && saved.getUserId() != null) {
+                            sysUserService.markHistorySuccess(idempotencyKey, saved.getUserId());
+                        }
+                    },
+                    ex -> sysUserService.markHistoryFailure(idempotencyKey, ex.getMessage())
+            );
+            if (execution.duplicate()) {
+                return ResponseEntity.status(HttpStatus.ALREADY_REPORTED)
+                        .body(ApiResponse.ok(null));
             }
             return ResponseEntity.status(HttpStatus.CREATED)
-                    .body(ApiResponse.ok(toUserResponse(saved)));
+                    .body(ApiResponse.ok(toUserResponse(execution.result())));
         } catch (RuntimeException ex) {
-            if (useKey) {
-                sysUserService.markHistoryFailure(idempotencyKey, ex.getMessage());
-            }
             LOG.log(Level.SEVERE, "Create user failed", ex);
             throw ex;
         }
@@ -87,22 +93,27 @@ public class UserManagementController {
                                                                 @Valid @RequestBody UserCreateRequest request,
                                                                 @RequestHeader(value = "Idempotency-Key", required = false)
                                                                 String idempotencyKey) {
-        boolean useKey = hasKey(idempotencyKey);
         try {
             SysUser user = UserResponseMapper.toEntity(request);
             user.setUserId(userId);
-            if (useKey) {
-                sysUserService.checkAndInsertIdempotency(idempotencyKey, user, "update");
+            IdempotentExecution<SysUser> execution = idempotentRequestExecutor.execute(
+                    idempotencyKey,
+                    () -> sysUserService.shouldSkipProcessing(idempotencyKey),
+                    () -> sysUserService.checkAndInsertIdempotency(idempotencyKey, user, "update"),
+                    () -> sysUserService.updateSysUser(user),
+                    updated -> {
+                        if (updated != null && updated.getUserId() != null) {
+                            sysUserService.markHistorySuccess(idempotencyKey, updated.getUserId());
+                        }
+                    },
+                    ex -> sysUserService.markHistoryFailure(idempotencyKey, ex.getMessage())
+            );
+            if (execution.duplicate()) {
+                return ResponseEntity.status(HttpStatus.ALREADY_REPORTED)
+                        .body(ApiResponse.ok(null));
             }
-            SysUser updated = sysUserService.updateSysUser(user);
-            if (useKey && updated.getUserId() != null) {
-                sysUserService.markHistorySuccess(idempotencyKey, updated.getUserId());
-            }
-            return ResponseEntity.ok(ApiResponse.ok(toUserResponse(updated)));
+            return ResponseEntity.ok(ApiResponse.ok(toUserResponse(execution.result())));
         } catch (RuntimeException ex) {
-            if (useKey) {
-                sysUserService.markHistoryFailure(idempotencyKey, ex.getMessage());
-            }
             LOG.log(Level.SEVERE, "Update user failed", ex);
             throw ex;
         }
@@ -277,24 +288,25 @@ public class UserManagementController {
                                                    @Valid @RequestBody SysUserRole relation,
                                                    @RequestHeader(value = "Idempotency-Key", required = false)
                                                    String idempotencyKey) {
-        boolean useKey = hasKey(idempotencyKey);
         try {
             relation.setUserId(userId);
-            if (useKey) {
-                if (sysUserRoleService.shouldSkipProcessing(idempotencyKey)) {
-                    return ResponseEntity.status(HttpStatus.ALREADY_REPORTED).body(ApiResponse.ok(null));
-                }
-                sysUserRoleService.checkAndInsertIdempotency(idempotencyKey, relation, "create");
+            IdempotentExecution<SysUserRole> execution = idempotentRequestExecutor.execute(
+                    idempotencyKey,
+                    () -> sysUserRoleService.shouldSkipProcessing(idempotencyKey),
+                    () -> sysUserRoleService.checkAndInsertIdempotency(idempotencyKey, relation, "create"),
+                    () -> sysUserRoleService.createRelation(relation),
+                    saved -> {
+                        if (saved != null && saved.getId() != null) {
+                            sysUserRoleService.markHistorySuccess(idempotencyKey, saved.getId());
+                        }
+                    },
+                    ex -> sysUserRoleService.markHistoryFailure(idempotencyKey, ex.getMessage())
+            );
+            if (execution.duplicate()) {
+                return ResponseEntity.status(HttpStatus.ALREADY_REPORTED).body(ApiResponse.ok(null));
             }
-            SysUserRole saved = sysUserRoleService.createRelation(relation);
-            if (useKey && saved.getId() != null) {
-                sysUserRoleService.markHistorySuccess(idempotencyKey, saved.getId());
-            }
-            return ResponseEntity.status(HttpStatus.CREATED).body(saved);
+            return ResponseEntity.status(HttpStatus.CREATED).body(execution.result());
         } catch (RuntimeException ex) {
-            if (useKey) {
-                sysUserRoleService.markHistoryFailure(idempotencyKey, ex.getMessage());
-            }
             LOG.log(Level.SEVERE, "Add user role failed", ex);
             throw ex;
         }
@@ -337,21 +349,25 @@ public class UserManagementController {
                                                       @Valid @RequestBody SysUserRole relation,
                                                       @RequestHeader(value = "Idempotency-Key", required = false)
                                                       String idempotencyKey) {
-        boolean useKey = hasKey(idempotencyKey);
         try {
             relation.setId(relationId);
-            if (useKey) {
-                sysUserRoleService.checkAndInsertIdempotency(idempotencyKey, relation, "update");
+            IdempotentExecution<SysUserRole> execution = idempotentRequestExecutor.execute(
+                    idempotencyKey,
+                    () -> sysUserRoleService.shouldSkipProcessing(idempotencyKey),
+                    () -> sysUserRoleService.checkAndInsertIdempotency(idempotencyKey, relation, "update"),
+                    () -> sysUserRoleService.updateRelation(relation),
+                    updated -> {
+                        if (updated != null && updated.getId() != null) {
+                            sysUserRoleService.markHistorySuccess(idempotencyKey, updated.getId());
+                        }
+                    },
+                    ex -> sysUserRoleService.markHistoryFailure(idempotencyKey, ex.getMessage())
+            );
+            if (execution.duplicate()) {
+                return ResponseEntity.status(HttpStatus.ALREADY_REPORTED).build();
             }
-            SysUserRole updated = sysUserRoleService.updateRelation(relation);
-            if (useKey && updated.getId() != null) {
-                sysUserRoleService.markHistorySuccess(idempotencyKey, updated.getId());
-            }
-            return ResponseEntity.ok(updated);
+            return ResponseEntity.ok(execution.result());
         } catch (RuntimeException ex) {
-            if (useKey) {
-                sysUserRoleService.markHistoryFailure(idempotencyKey, ex.getMessage());
-            }
             LOG.log(Level.SEVERE, "Update user role failed", ex);
             throw ex;
         }
@@ -399,10 +415,6 @@ public class UserManagementController {
         return users.stream()
                 .map(this::toUserResponse)
                 .toList();
-    }
-
-    private boolean hasKey(String value) {
-        return value != null && !value.isBlank();
     }
 
     private HttpStatus resolveStatus(Exception ex) {

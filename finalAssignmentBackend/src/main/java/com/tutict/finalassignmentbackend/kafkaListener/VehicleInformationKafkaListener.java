@@ -1,6 +1,6 @@
 package com.tutict.finalassignmentbackend.kafkaListener;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
+import com.tutict.finalassignmentbackend.common.idempotency.IdempotentKafkaMessageProcessor;
 import com.tutict.finalassignmentbackend.entity.driver.VehicleInformation;
 import com.tutict.finalassignmentbackend.service.driver.VehicleInformationService;
 import org.apache.kafka.clients.consumer.ConsumerRecord;
@@ -21,13 +21,14 @@ public class VehicleInformationKafkaListener {
     private static final Logger log = Logger.getLogger(VehicleInformationKafkaListener.class.getName());
 
     private final VehicleInformationService vehicleInformationService;
-    private final ObjectMapper objectMapper;
+    private final IdempotentKafkaMessageProcessor messageProcessor;
 
     // 构造器注入依赖
     @Autowired
-    public VehicleInformationKafkaListener(VehicleInformationService vehicleInformationService, ObjectMapper objectMapper) {
+    public VehicleInformationKafkaListener(VehicleInformationService vehicleInformationService,
+                                           IdempotentKafkaMessageProcessor messageProcessor) {
         this.vehicleInformationService = vehicleInformationService;
-        this.objectMapper = objectMapper;
+        this.messageProcessor = messageProcessor;
     }
 
     // 监听 Kafka 消息
@@ -45,31 +46,26 @@ public class VehicleInformationKafkaListener {
     }
 
     private void processRecord(ConsumerRecord<String, String> record, String action, Acknowledgment ack) {
-        String idempotencyKey = record.key();
-        if (idempotencyKey != null && vehicleInformationService.shouldSkipProcessing(idempotencyKey)) {
-            log.log(Level.INFO, "Skipping duplicate VehicleInformation message: key={0}", idempotencyKey);
-            ack.acknowledge();
-            return;
-        }
-        try {
-            VehicleInformation entity = processMessage(record.value(), action);
-            if (idempotencyKey != null) {
-                vehicleInformationService.markHistorySuccess(idempotencyKey, entity.getVehicleId());
-            }
-            ack.acknowledge();
-        } catch (Exception e) {
-            if (idempotencyKey != null) {
-                vehicleInformationService.markHistoryFailure(idempotencyKey, e.getMessage());
-            }
-            log.log(Level.SEVERE, "VehicleInformation message processing failed", e);
-            throw e;
-        }
+        messageProcessor.process(
+                record,
+                ack,
+                "VehicleInformation",
+                action,
+                vehicleInformationService::shouldSkipProcessing,
+                payload -> processMessage(payload, action),
+                (key, entity) -> {
+                    if (entity != null && entity.getVehicleId() != null) {
+                        vehicleInformationService.markHistorySuccess(key, entity.getVehicleId());
+                    }
+                },
+                (key, ex) -> vehicleInformationService.markHistoryFailure(key, ex.getMessage())
+        );
     }
 
     // 统一处理消息并执行业务逻辑
     private VehicleInformation processMessage(String message, String action) {
         try {
-            VehicleInformation entity = deserializeMessage(message);
+            VehicleInformation entity = messageProcessor.deserialize(message, VehicleInformation.class);
             if ("create".equals(action)) {
                 entity.setVehicleId(null);
                 entity = vehicleInformationService.createVehicleInformation(entity);
@@ -84,14 +80,6 @@ public class VehicleInformationKafkaListener {
         } catch (Exception e) {
             log.log(Level.SEVERE, String.format("Error processing %s VehicleInformation message (payload omitted)", action), e);
             throw new RuntimeException(String.format("Failed to process %s VehicleInformation message", action), e);
-        }
-    }
-    private VehicleInformation deserializeMessage(String message) {
-        try {
-            return objectMapper.readValue(message, VehicleInformation.class);
-        } catch (Exception e) {
-            log.log(Level.SEVERE, "Failed to deserialize message (payload omitted)");
-            throw new RuntimeException("Failed to deserialize message", e);
         }
     }
 }

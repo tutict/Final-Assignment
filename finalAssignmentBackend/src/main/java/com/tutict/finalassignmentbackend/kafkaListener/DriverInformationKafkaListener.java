@@ -1,6 +1,6 @@
 package com.tutict.finalassignmentbackend.kafkaListener;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
+import com.tutict.finalassignmentbackend.common.idempotency.IdempotentKafkaMessageProcessor;
 import com.tutict.finalassignmentbackend.entity.driver.DriverInformation;
 import com.tutict.finalassignmentbackend.service.driver.DriverInformationService;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -21,14 +21,14 @@ public class DriverInformationKafkaListener {
     private static final Logger log = Logger.getLogger(DriverInformationKafkaListener.class.getName());
 
     private final DriverInformationService driverInformationService;
-    private final ObjectMapper objectMapper;
+    private final IdempotentKafkaMessageProcessor messageProcessor;
 
     // 构造器注入依赖
     @Autowired
     public DriverInformationKafkaListener(DriverInformationService driverInformationService,
-                                          ObjectMapper objectMapper) {
+                                          IdempotentKafkaMessageProcessor messageProcessor) {
         this.driverInformationService = driverInformationService;
-        this.objectMapper = objectMapper;
+        this.messageProcessor = messageProcessor;
     }
 
     // 监听 Kafka 消息
@@ -37,8 +37,7 @@ public class DriverInformationKafkaListener {
                                           @Payload String message,
                                       Acknowledgment ack) {
         log.log(Level.INFO, "Received Kafka message for DriverInformation create (payload omitted)");
-        processMessage(asKey(rawKey), message, "create");
-        ack.acknowledge();
+        processMessage(asKey(rawKey), message, "create", ack);
     }
 
     // 监听 Kafka 消息
@@ -47,55 +46,46 @@ public class DriverInformationKafkaListener {
                                           @Payload String message,
                                       Acknowledgment ack) {
         log.log(Level.INFO, "Received Kafka message for DriverInformation update (payload omitted)");
-        processMessage(asKey(rawKey), message, "update");
-        ack.acknowledge();
+        processMessage(asKey(rawKey), message, "update", ack);
     }
 
     // 统一处理消息并执行业务逻辑
-    private void processMessage(String idempotencyKey, String message, String action) {
+    private void processMessage(String idempotencyKey, String message, String action, Acknowledgment ack) {
         if (isBlank(idempotencyKey)) {
             log.warning("Received driver information event without idempotency key, skipping");
+            ack.acknowledge();
             return;
         }
-        DriverInformation payload = deserializeMessage(message);
-        if (payload == null) {
-            log.warning("Received driver information event with empty payload, skipping");
-            return;
-        }
-        try {
-            if (driverInformationService.shouldSkipProcessing(idempotencyKey)) {
-                log.log(Level.INFO, "Skipping duplicate driver event (key={0}, action={1})",
-                        new Object[]{idempotencyKey, action});
-                return;
-            }
-            DriverInformation result;
-            if ("create".equalsIgnoreCase(action)) {
-                payload.setDriverId(null);
-                result = driverInformationService.createDriver(payload);
-            } else if ("update".equalsIgnoreCase(action)) {
-                result = driverInformationService.updateDriver(payload);
-            } else {
-                log.log(Level.WARNING, "Unsupported driver action: {0}", action);
-                return;
-            }
-            driverInformationService.markHistorySuccess(idempotencyKey,
-                    result.getDriverId() != null ? result.getDriverId() : null);
-        } catch (Exception ex) {
-            driverInformationService.markHistoryFailure(idempotencyKey, ex.getMessage());
-            log.log(Level.SEVERE,
-                    String.format("Error processing driver event (key=%s, action=%s)", idempotencyKey, action),
-                    ex);
-            throw ex;
-        }
+        messageProcessor.process(
+                idempotencyKey,
+                message,
+                ack,
+                "DriverInformation",
+                action,
+                driverInformationService::shouldSkipProcessing,
+                payload -> processPayload(payload, action),
+                (key, result) -> {
+                    if (result != null && result.getDriverId() != null) {
+                        driverInformationService.markHistorySuccess(key, result.getDriverId());
+                    }
+                },
+                (key, ex) -> driverInformationService.markHistoryFailure(key, ex.getMessage())
+        );
     }
-    private DriverInformation deserializeMessage(String message) {
-        try {
-            return objectMapper.readValue(message, DriverInformation.class);
-        } catch (Exception ex) {
-            log.log(Level.SEVERE, "Failed to deserialize Kafka message (payload omitted)", ex);
-            throw new IllegalArgumentException("Failed to deserialize Kafka message", ex);
+
+    private DriverInformation processPayload(String message, String action) {
+        DriverInformation payload = messageProcessor.deserialize(message, DriverInformation.class);
+        if ("create".equalsIgnoreCase(action)) {
+            payload.setDriverId(null);
+            return driverInformationService.createDriver(payload);
         }
+        if ("update".equalsIgnoreCase(action)) {
+            return driverInformationService.updateDriver(payload);
+        }
+        log.log(Level.WARNING, "Unsupported driver action: {0}", action);
+        return payload;
     }
+
     private String asKey(byte[] rawKey) {
         return rawKey == null ? null : new String(rawKey);
     }
