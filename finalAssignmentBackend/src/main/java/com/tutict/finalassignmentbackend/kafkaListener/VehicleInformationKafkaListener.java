@@ -73,7 +73,7 @@ public class VehicleInformationKafkaListener {
                 entity = vehicleInformationService.updateVehicleInformation(entity);
             } else {
                 log.log(Level.WARNING, "Unsupported action: {0}", action);
-                return entity;
+                return null;
             }
             log.info(String.format("VehicleInformation %s action processed successfully", action));
             return entity;

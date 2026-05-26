@@ -1,6 +1,6 @@
 package com.tutict.finalassignmentbackend.kafkaListener;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
+import com.tutict.finalassignmentbackend.common.idempotency.IdempotentKafkaMessageProcessor;
 import com.tutict.finalassignmentbackend.entity.driver.DriverVehicle;
 import com.tutict.finalassignmentbackend.service.driver.DriverVehicleService;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -15,93 +15,83 @@ import java.util.logging.Level;
 import java.util.logging.Logger;
 
 @Service
-// Kafka 监听器，处理消息
 public class DriverVehicleKafkaListener {
 
     private static final Logger log = Logger.getLogger(DriverVehicleKafkaListener.class.getName());
 
     private final DriverVehicleService driverVehicleService;
-    private final ObjectMapper objectMapper;
+    private final IdempotentKafkaMessageProcessor messageProcessor;
 
-    // 构造器注入依赖
     @Autowired
     public DriverVehicleKafkaListener(DriverVehicleService driverVehicleService,
-                                      ObjectMapper objectMapper) {
+                                      IdempotentKafkaMessageProcessor messageProcessor) {
         this.driverVehicleService = driverVehicleService;
-        this.objectMapper = objectMapper;
+        this.messageProcessor = messageProcessor;
     }
 
-    // 监听 Kafka 消息
     @KafkaListener(topics = "${kafka.topics.driver-vehicle.create:driver_vehicle_create}", groupId = "${kafka.groups.driver-vehicle:driverVehicleGroup}", concurrency = "3")
     public void onDriverVehicleCreateReceived(@Header(value = KafkaHeaders.RECEIVED_KEY, required = false) byte[] rawKey,
                                               @Payload String message,
-                                      Acknowledgment ack) {
+                                              Acknowledgment ack) {
         log.log(Level.INFO, "Received Kafka message for create (payload omitted)");
-        processMessage(asKey(rawKey), message, "create");
-        ack.acknowledge();
+        processMessage(asKey(rawKey), message, "create", ack);
     }
 
-    // 监听 Kafka 消息
     @KafkaListener(topics = "${kafka.topics.driver-vehicle.update:driver_vehicle_update}", groupId = "${kafka.groups.driver-vehicle:driverVehicleGroup}", concurrency = "3")
     public void onDriverVehicleUpdateReceived(@Header(value = KafkaHeaders.RECEIVED_KEY, required = false) byte[] rawKey,
                                               @Payload String message,
-                                      Acknowledgment ack) {
+                                              Acknowledgment ack) {
         log.log(Level.INFO, "Received Kafka message for update (payload omitted)");
-        processMessage(asKey(rawKey), message, "update");
-        ack.acknowledge();
+        processMessage(asKey(rawKey), message, "update", ack);
     }
 
-    // 统一处理消息并执行业务逻辑
-    private void processMessage(String idempotencyKey, String message, String action) {
+    private void processMessage(String idempotencyKey, String message, String action, Acknowledgment ack) {
         if (isBlank(idempotencyKey)) {
             log.warning("Received DriverVehicle event without idempotency key, skipping");
+            acknowledge(ack);
             return;
         }
-        try {
-            DriverVehicle payload = deserializeMessage(message);
-            if (payload == null) {
-                log.warning("Received DriverVehicle event with empty payload, skipping");
-                return;
-            }
-            if (driverVehicleService.shouldSkipProcessing(idempotencyKey)) {
-                log.log(Level.INFO, "Skipping duplicate DriverVehicle event (key={0}, action={1})",
-                        new Object[]{idempotencyKey, action});
-                return;
-            }
-            DriverVehicle result;
-            if ("create".equalsIgnoreCase(action)) {
-                payload.setId(null);
-                result = driverVehicleService.createBinding(payload);
-            } else if ("update".equalsIgnoreCase(action)) {
-                result = driverVehicleService.updateBinding(payload);
-            } else {
-                log.log(Level.WARNING, "Unsupported DriverVehicle action: {0}", action);
-                return;
-            }
-            driverVehicleService.markHistorySuccess(idempotencyKey, result.getId());
-            log.info(String.format("DriverVehicle %s action processed successfully (key=%s)", action, idempotencyKey));
-        } catch (Exception ex) {
-            driverVehicleService.markHistoryFailure(idempotencyKey, ex.getMessage());
-            log.log(Level.SEVERE,
-                    String.format("Error processing %s DriverVehicle message (key=%s, payload omitted)", action, idempotencyKey),
-                    ex);
-            throw ex;
-        }
+        messageProcessor.process(
+                idempotencyKey,
+                message,
+                ack,
+                "DriverVehicle",
+                action,
+                driverVehicleService::shouldSkipProcessing,
+                payload -> processPayload(payload, action),
+                (key, result) -> {
+                    if (result != null && result.getId() != null) {
+                        driverVehicleService.markHistorySuccess(key, result.getId());
+                    }
+                },
+                (key, ex) -> driverVehicleService.markHistoryFailure(key, ex.getMessage())
+        );
     }
-    private DriverVehicle deserializeMessage(String message) {
-        try {
-            return objectMapper.readValue(message, DriverVehicle.class);
-        } catch (Exception ex) {
-            log.log(Level.SEVERE, "Failed to deserialize Kafka message (payload omitted)", ex);
-            throw new IllegalArgumentException("Failed to deserialize Kafka message", ex);
+
+    private DriverVehicle processPayload(String message, String action) {
+        DriverVehicle payload = messageProcessor.deserialize(message, DriverVehicle.class);
+        if ("create".equalsIgnoreCase(action)) {
+            payload.setId(null);
+            return driverVehicleService.createBinding(payload);
         }
+        if ("update".equalsIgnoreCase(action)) {
+            return driverVehicleService.updateBinding(payload);
+        }
+        log.log(Level.WARNING, "Unsupported DriverVehicle action: {0}", action);
+        return null;
     }
+
     private String asKey(byte[] rawKey) {
         return rawKey == null ? null : new String(rawKey);
     }
 
-    // 判空
     private boolean isBlank(String value) {
         return value == null || value.trim().isEmpty();
+    }
+
+    private void acknowledge(Acknowledgment acknowledgment) {
+        if (acknowledgment != null) {
+            acknowledgment.acknowledge();
+        }
     }
 }

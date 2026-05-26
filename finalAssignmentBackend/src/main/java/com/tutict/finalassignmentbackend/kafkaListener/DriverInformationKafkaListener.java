@@ -83,7 +83,7 @@ public class DriverInformationKafkaListener {
             return driverInformationService.updateDriver(payload);
         }
         log.log(Level.WARNING, "Unsupported driver action: {0}", action);
-        return payload;
+        return null;
     }
 
     private String asKey(byte[] rawKey) {

@@ -1,6 +1,6 @@
 package com.tutict.finalassignmentbackend.kafkaListener;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
+import com.tutict.finalassignmentbackend.common.idempotency.IdempotentKafkaMessageProcessor;
 import com.tutict.finalassignmentbackend.entity.offense.DeductionRecord;
 import com.tutict.finalassignmentbackend.service.offense.DeductionRecordService;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -15,93 +15,83 @@ import java.util.logging.Level;
 import java.util.logging.Logger;
 
 @Service
-// Kafka 监听器，处理消息
 public class DeductionRecordKafkaListener {
 
     private static final Logger log = Logger.getLogger(DeductionRecordKafkaListener.class.getName());
 
     private final DeductionRecordService deductionRecordService;
-    private final ObjectMapper objectMapper;
+    private final IdempotentKafkaMessageProcessor messageProcessor;
 
-    // 构造器注入依赖
     @Autowired
     public DeductionRecordKafkaListener(DeductionRecordService deductionRecordService,
-                                        ObjectMapper objectMapper) {
+                                        IdempotentKafkaMessageProcessor messageProcessor) {
         this.deductionRecordService = deductionRecordService;
-        this.objectMapper = objectMapper;
+        this.messageProcessor = messageProcessor;
     }
 
-    // 监听 Kafka 消息
     @KafkaListener(topics = "${kafka.topics.deduction.create:deduction_record_create}", groupId = "${kafka.groups.deduction:deductionRecordGroup}", concurrency = "3")
     public void onDeductionRecordCreate(@Header(value = KafkaHeaders.RECEIVED_KEY, required = false) byte[] rawKey,
                                         @Payload String message,
-                                      Acknowledgment ack) {
+                                        Acknowledgment ack) {
         log.log(Level.INFO, "Received Kafka message for DeductionRecord create (payload omitted)");
-        processMessage(asKey(rawKey), message, "create");
-        ack.acknowledge();
+        processMessage(asKey(rawKey), message, "create", ack);
     }
 
-    // 监听 Kafka 消息
     @KafkaListener(topics = "${kafka.topics.deduction.update:deduction_record_update}", groupId = "${kafka.groups.deduction:deductionRecordGroup}", concurrency = "3")
     public void onDeductionRecordUpdate(@Header(value = KafkaHeaders.RECEIVED_KEY, required = false) byte[] rawKey,
                                         @Payload String message,
-                                      Acknowledgment ack) {
+                                        Acknowledgment ack) {
         log.log(Level.INFO, "Received Kafka message for DeductionRecord update (payload omitted)");
-        processMessage(asKey(rawKey), message, "update");
-        ack.acknowledge();
+        processMessage(asKey(rawKey), message, "update", ack);
     }
 
-    // 统一处理消息并执行业务逻辑
-    private void processMessage(String idempotencyKey, String message, String action) {
+    private void processMessage(String idempotencyKey, String message, String action, Acknowledgment ack) {
         if (isBlank(idempotencyKey)) {
             log.warning("Received DeductionRecord event without idempotency key, skipping");
+            acknowledge(ack);
             return;
         }
-        DeductionRecord payload = deserializeMessage(message);
-        if (payload == null) {
-            log.warning("Received DeductionRecord event with empty payload, skipping");
-            return;
-        }
-        try {
-            if (deductionRecordService.shouldSkipProcessing(idempotencyKey)) {
-                log.log(Level.INFO, "Skipping duplicate DeductionRecord event (key={0}, action={1})",
-                        new Object[]{idempotencyKey, action});
-                return;
-            }
+        messageProcessor.process(
+                idempotencyKey,
+                message,
+                ack,
+                "DeductionRecord",
+                action,
+                deductionRecordService::shouldSkipProcessing,
+                payload -> processPayload(payload, action),
+                (key, result) -> {
+                    if (result != null && result.getDeductionId() != null) {
+                        deductionRecordService.markHistorySuccess(key, result.getDeductionId());
+                    }
+                },
+                (key, ex) -> deductionRecordService.markHistoryFailure(key, ex.getMessage())
+        );
+    }
 
-            DeductionRecord result;
-            if ("create".equalsIgnoreCase(action)) {
-                payload.setDeductionId(null);
-                result = deductionRecordService.createDeductionRecord(payload);
-            } else if ("update".equalsIgnoreCase(action)) {
-                result = deductionRecordService.updateDeductionRecord(payload);
-            } else {
-                log.log(Level.WARNING, "Unsupported DeductionRecord action: {0}", action);
-                return;
-            }
-            deductionRecordService.markHistorySuccess(idempotencyKey, result.getDeductionId());
-        } catch (Exception ex) {
-            deductionRecordService.markHistoryFailure(idempotencyKey, ex.getMessage());
-            log.log(Level.SEVERE,
-                    String.format("Error processing DeductionRecord event (key=%s, action=%s)", idempotencyKey, action),
-                    ex);
-            throw ex;
+    private DeductionRecord processPayload(String message, String action) {
+        DeductionRecord payload = messageProcessor.deserialize(message, DeductionRecord.class);
+        if ("create".equalsIgnoreCase(action)) {
+            payload.setDeductionId(null);
+            return deductionRecordService.createDeductionRecord(payload);
         }
-    }
-    private DeductionRecord deserializeMessage(String message) {
-        try {
-            return objectMapper.readValue(message, DeductionRecord.class);
-        } catch (Exception ex) {
-            log.log(Level.SEVERE, "Failed to deserialize Kafka message (payload omitted)", ex);
-            throw new IllegalArgumentException("Failed to deserialize Kafka message", ex);
+        if ("update".equalsIgnoreCase(action)) {
+            return deductionRecordService.updateDeductionRecord(payload);
         }
+        log.log(Level.WARNING, "Unsupported DeductionRecord action: {0}", action);
+        return null;
     }
+
     private String asKey(byte[] rawKey) {
         return rawKey == null ? null : new String(rawKey);
     }
 
-    // 判空
     private boolean isBlank(String value) {
         return value == null || value.trim().isEmpty();
+    }
+
+    private void acknowledge(Acknowledgment acknowledgment) {
+        if (acknowledgment != null) {
+            acknowledgment.acknowledge();
+        }
     }
 }

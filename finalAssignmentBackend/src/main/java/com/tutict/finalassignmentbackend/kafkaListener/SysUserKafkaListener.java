@@ -73,7 +73,7 @@ public class SysUserKafkaListener {
                 entity = sysUserService.updateSysUser(entity);
             } else {
                 log.log(Level.WARNING, "Unsupported action: {0}", action);
-                return entity;
+                return null;
             }
             log.info(String.format("SysUser %s action processed successfully", action));
             return entity;
