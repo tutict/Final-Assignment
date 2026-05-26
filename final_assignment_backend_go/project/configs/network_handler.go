@@ -28,7 +28,7 @@ type NetWorkHandler struct {
 	BackendHost   string // host without scheme, e.g. "localhost"
 	BackendPort   int
 	TokenProvider *TokenProvider
-	WsRegistry    *WsActionRegistry
+	WsRegistry    *websocket_settings.WsActionRegistry
 	ObjectMapper  *json.Encoder // not strictly necessary, kept for parity
 	server        *http.Server
 	upgrader      websocket.Upgrader
@@ -37,7 +37,7 @@ type NetWorkHandler struct {
 }
 
 // NewNetWorkHandler 构造函数
-func NewNetWorkHandler(port int, backendHost string, backendPort int, tp *TokenProvider, ws *WsActionRegistry) *NetWorkHandler {
+func NewNetWorkHandler(port int, backendHost string, backendPort int, tp *TokenProvider, ws *websocket_settings.WsActionRegistry) *NetWorkHandler {
 	return &NetWorkHandler{
 		Port:          port,
 		BackendHost:   backendHost,
@@ -241,7 +241,13 @@ func (n *NetWorkHandler) handleWsMessage(conn *websocket.Conn, raw []byte) {
 	}
 
 	// token check
-	if in.Token == "" || !n.TokenProvider.ValidateToken(in.Token) {
+	if n.TokenProvider == nil {
+		log.Printf("[%s] token provider not configured", requestID)
+		_ = conn.WriteJSON(map[string]string{"error": "Invalid token"})
+		return
+	}
+	token, err := n.TokenProvider.ValidateToken(in.Token)
+	if in.Token == "" || err != nil || token == nil || !token.Valid {
 		log.Printf("[%s] invalid token, closing ws", requestID)
 		_ = conn.WriteJSON(map[string]string{"error": "Invalid token"})
 		_ = conn.WriteControl(websocket.CloseMessage, websocket.FormatCloseMessage(1008, "Invalid token"), time.Now().Add(time.Second))
@@ -256,25 +262,30 @@ func (n *NetWorkHandler) handleWsMessage(conn *websocket.Conn, raw []byte) {
 		return
 	}
 
-	handler := n.WsRegistry.GetHandler(service, action)
-	if handler == nil {
+	if n.WsRegistry == nil {
+		_ = conn.WriteJSON(map[string]string{"error": "WebSocket registry not configured"})
+		return
+	}
+	handler, ok := n.WsRegistry.GetHandler(service, action)
+	if !ok {
 		_ = conn.WriteJSON(map[string]string{"error": fmt.Sprintf("No such WsAction for %s#%s", service, action)})
 		return
 	}
 
 	method := handler.Method
 	bean := handler.Bean
-	methodType := method.Type()
-	paramCount := methodType.NumIn()
+	methodType := method.Type
+	paramCount := methodType.NumIn() - 1
 	if len(in.Args) != paramCount {
 		_ = conn.WriteJSON(map[string]string{"error": fmt.Sprintf("Param mismatch, method expects %d but got %d", paramCount, len(in.Args))})
 		return
 	}
 
 	// convert args
-	invokeArgs := make([]reflect.Value, paramCount)
+	invokeArgs := make([]reflect.Value, paramCount+1)
+	invokeArgs[0] = reflect.ValueOf(bean)
 	for i := 0; i < paramCount; i++ {
-		targetType := methodType.In(i)
+		targetType := methodType.In(i + 1)
 		argRaw := in.Args[i]
 		val, convErr := convertJSONToReflectValue(argRaw, targetType)
 		if convErr != nil {
@@ -282,7 +293,7 @@ func (n *NetWorkHandler) handleWsMessage(conn *websocket.Conn, raw []byte) {
 			_ = conn.WriteJSON(map[string]string{"error": fmt.Sprintf("Arg %d conversion error: %v", i, convErr)})
 			return
 		}
-		invokeArgs[i] = val
+		invokeArgs[i+1] = val
 	}
 
 	// call
@@ -293,7 +304,7 @@ func (n *NetWorkHandler) handleWsMessage(conn *websocket.Conn, raw []byte) {
 		}
 	}()
 
-	results := method.Call(invokeArgs)
+	results := method.Func.Call(invokeArgs)
 
 	// handle return values:
 	// common patterns:

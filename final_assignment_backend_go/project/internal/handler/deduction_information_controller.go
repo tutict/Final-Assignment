@@ -9,16 +9,15 @@ import (
 	"github.com/gin-gonic/gin"
 
 	"final_assignment_backend_go/project/internal/domain"
-	"final_assignment_backend_go/project/internal/service"
 )
 
 // DeductionInformationController 控制器层
 type DeductionInformationController struct {
-	deductionService *service.DeductionInformationService
+	deductionService DeductionInformationService
 }
 
 // NewDeductionInformationController 构造函数
-func NewDeductionInformationController(deductionService *service.DeductionInformationService) *DeductionInformationController {
+func NewDeductionInformationController(deductionService DeductionInformationService) *DeductionInformationController {
 	return &DeductionInformationController{
 		deductionService: deductionService,
 	}

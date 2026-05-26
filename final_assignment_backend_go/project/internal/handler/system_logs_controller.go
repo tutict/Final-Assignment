@@ -9,16 +9,15 @@ import (
 	"github.com/gin-gonic/gin"
 
 	"final_assignment_backend_go/project/internal/domain"
-	"final_assignment_backend_go/project/internal/service"
 )
 
 // SystemLogsController 负责处理系统日志相关请求
 type SystemLogsController struct {
-	SystemLogsService *service.SystemLogsService
+	SystemLogsService SystemLogsService
 }
 
 // NewSystemLogsController 创建新的控制器实例
-func NewSystemLogsController(svc *service.SystemLogsService) *SystemLogsController {
+func NewSystemLogsController(svc SystemLogsService) *SystemLogsController {
 	return &SystemLogsController{SystemLogsService: svc}
 }
 

@@ -9,11 +9,10 @@ import (
 	"github.com/gin-gonic/gin"
 
 	"final_assignment_backend_go/project/internal/domain"
-	"final_assignment_backend_go/project/internal/service"
 )
 
 type OperationLogController struct {
-	Service *service.OperationLogService
+	Service OperationLogService
 }
 
 // RegisterRoutes 注册 operation log 的所有接口
@@ -99,7 +98,7 @@ func (c *OperationLogController) updateOperationLog(ctx *gin.Context) {
 		return
 	}
 
-	updated.LogID = uint(id)
+	updated.LogID = id
 	if err := c.Service.CheckAndInsertIdempotency(idempotencyKey, &updated, "update"); err != nil {
 		ctx.JSON(http.StatusConflict, gin.H{"error": err.Error()})
 		return

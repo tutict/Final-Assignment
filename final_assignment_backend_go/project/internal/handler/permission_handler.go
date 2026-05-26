@@ -7,15 +7,14 @@ import (
 	"github.com/gin-gonic/gin"
 
 	"final_assignment_backend_go/project/internal/domain"
-	"final_assignment_backend_go/project/internal/service"
 )
 
 type PermissionHandler struct {
-	svc *service.PermissionService
+	svc PermissionService
 }
 
 // NewPermissionHandler 构造函数
-func NewPermissionHandler(svc *service.PermissionService) *PermissionHandler {
+func NewPermissionHandler(svc PermissionService) *PermissionHandler {
 	return &PermissionHandler{svc: svc}
 }
 

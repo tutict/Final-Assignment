@@ -13,11 +13,11 @@ import (
 )
 
 type ProgressHandler struct {
-	svc *service.ProgressService
+	svc ProgressService
 }
 
 // NewProgressHandler 构造函数
-func NewProgressHandler(svc *service.ProgressService) *ProgressHandler {
+func NewProgressHandler(svc ProgressService) *ProgressHandler {
 	return &ProgressHandler{svc: svc}
 }
 

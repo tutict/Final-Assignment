@@ -4,22 +4,21 @@ import (
 	"log"
 	"net/http"
 	"net/url"
+	"strconv"
 	"time"
 
 	"github.com/gin-gonic/gin"
-
-	"final_assignment_backend_go/project/internal/service"
 
 	"final_assignment_backend_go/project/internal/domain"
 )
 
 // LoginLogController 负责路由与请求处理
 type LoginLogController struct {
-	service *service.LoginLogService
+	service LoginLogService
 }
 
 // NewLoginLogController 创建控制器实例
-func NewLoginLogController(s *service.LoginLogService) *LoginLogController {
+func NewLoginLogController(s LoginLogService) *LoginLogController {
 	return &LoginLogController{service: s}
 }
 
@@ -91,7 +90,8 @@ func (c *LoginLogController) UpdateLoginLog(ctx *gin.Context) {
 		return
 	}
 
-	updated.ID = id
+	logID, _ := strconv.Atoi(id)
+	updated.LogID = logID
 	if err := c.service.CheckAndInsertIdempotency(idempotencyKey, &updated, "update"); err != nil {
 		ctx.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return

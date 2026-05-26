@@ -8,12 +8,10 @@ import (
 	"github.com/gin-gonic/gin"
 
 	"final_assignment_backend_go/project/internal/domain"
-
-	"final_assignment_backend_go/project/internal/service"
 )
 
 type OffenseInformationController struct {
-	Service *service.OffenseInformationService
+	Service OffenseInformationService
 }
 
 // RegisterRoutes 注册路由
@@ -91,7 +89,7 @@ func (c *OffenseInformationController) updateOffense(ctx *gin.Context) {
 	}
 
 	idempotencyKey := ctx.Query("idempotencyKey")
-	updated.OffenseID = uint(id)
+	updated.OffenseID = id
 
 	if err := c.Service.CheckAndInsertIdempotency(idempotencyKey, &updated, "update"); err != nil {
 		ctx.JSON(http.StatusConflict, gin.H{"error": err.Error()})

@@ -9,16 +9,15 @@ import (
 	"github.com/gin-gonic/gin"
 
 	"final_assignment_backend_go/project/internal/domain"
-	"final_assignment_backend_go/project/internal/service"
 )
 
 // UserManagementController 提供用户管理相关的 HTTP 接口
 type UserManagementController struct {
-	userService *service.UserManagementService
+	userService UserManagementService
 }
 
 // NewUserManagementController 创建新的控制器实例
-func NewUserManagementController(svc *service.UserManagementService) *UserManagementController {
+func NewUserManagementController(svc UserManagementService) *UserManagementController {
 	return &UserManagementController{userService: svc}
 }
 

@@ -9,18 +9,17 @@ import (
 	"github.com/gin-gonic/gin"
 
 	"final_assignment_backend_go/project/internal/domain"
-	"final_assignment_backend_go/project/internal/service"
 )
 
 type DriverInformationController struct {
-	driverService *service.DriverInformationService
-	userService   *service.UserManagementService
+	driverService DriverInformationService
+	userService   UserManagementService
 }
 
 // NewDriverInformationController 构造函数
 func NewDriverInformationController(
-	driverService *service.DriverInformationService,
-	userService *service.UserManagementService,
+	driverService DriverInformationService,
+	userService UserManagementService,
 ) *DriverInformationController {
 	return &DriverInformationController{
 		driverService: driverService,
@@ -108,7 +107,7 @@ func (c *DriverInformationController) UpdateDriver(ctx *gin.Context) {
 		return
 	}
 
-	updated.DriverId = id
+	updated.DriverID = id
 	if err := c.driverService.CheckAndInsertIdempotency(idempotencyKey, &updated, "update"); err != nil {
 		if err.Error() == "Duplicate request" {
 			ctx.JSON(http.StatusConflict, gin.H{"error": "duplicate request"})
@@ -218,7 +217,7 @@ func (c *DriverInformationController) UpdateDriverIdCardNumber(ctx *gin.Context)
 		ctx.JSON(http.StatusNotFound, gin.H{"error": "driver not found"})
 		return
 	}
-	driver.IdCardNumber = payload.IdCardNumber
+	driver.IDCardNumber = payload.IdCardNumber
 
 	if err := c.driverService.CheckAndInsertIdempotency(idempotencyKey, driver, "update"); err != nil {
 		if err.Error() == "Duplicate request" {

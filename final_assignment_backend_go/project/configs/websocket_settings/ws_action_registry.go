@@ -38,11 +38,6 @@ func (r *WsActionRegistry) RegisterService(serviceName string, service interface
 	serviceType := reflect.TypeOf(service)
 	serviceValue := reflect.ValueOf(service)
 
-	// 如果传的是指针，则获取其底层类型
-	if serviceType.Kind() == reflect.Ptr {
-		serviceType = serviceType.Elem()
-	}
-
 	// 扫描方法
 	for i := 0; i < serviceType.NumMethod(); i++ {
 		method := serviceType.Method(i)
@@ -56,7 +51,7 @@ func (r *WsActionRegistry) RegisterService(serviceName string, service interface
 				Bean:   serviceValue.Interface(),
 				Method: method,
 			}
-			log.Printf("[WsRegistry] Registered %s -> %s.%s", key, serviceType.Name(), method.Name)
+			log.Printf("[WsRegistry] Registered %s -> %s.%s", key, serviceType.String(), method.Name)
 		}
 	}
 }
