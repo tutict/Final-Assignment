@@ -31,9 +31,9 @@ services:
       - "0"
       - --check=false
       - --kafka-addr
-      - PLAINTEXT://0.0.0.0:9092
+      - INTERNAL://0.0.0.0:29092,OUTSIDE://0.0.0.0:9092
       - --advertise-kafka-addr
-      - PLAINTEXT://localhost:9092
+      - INTERNAL://redpanda:29092,OUTSIDE://localhost:9092
     ports:
       - "9092:9092"
       - "9644:9644"
@@ -61,6 +61,32 @@ services:
       interval: 15s
       timeout: 10s
       retries: 12
+
+  debezium-connect:
+    image: ${DEBEZIUM_CONNECT_IMAGE:-debezium/connect:2.7.3.Final}
+    container_name: final-assignment-debezium-connect
+    depends_on:
+      redpanda:
+        condition: service_healthy
+    environment:
+      BOOTSTRAP_SERVERS: redpanda:29092
+      GROUP_ID: final-assignment-connect
+      CONFIG_STORAGE_TOPIC: final_assignment_connect_configs
+      OFFSET_STORAGE_TOPIC: final_assignment_connect_offsets
+      STATUS_STORAGE_TOPIC: final_assignment_connect_status
+      KEY_CONVERTER: org.apache.kafka.connect.json.JsonConverter
+      VALUE_CONVERTER: org.apache.kafka.connect.json.JsonConverter
+      KEY_CONVERTER_SCHEMAS_ENABLE: "false"
+      VALUE_CONVERTER_SCHEMAS_ENABLE: "false"
+      CONNECT_REST_ADVERTISED_HOST_NAME: debezium-connect
+      CONNECT_PLUGIN_PATH: /kafka/connect,/debezium-connector
+    ports:
+      - "8083:8083"
+    healthcheck:
+      test: ["CMD-SHELL", "curl -fsS http://localhost:8083/connectors || exit 1"]
+      interval: 15s
+      timeout: 10s
+      retries: 20
 
   manticore:
     image: ${MANTICORE_IMAGE:-manticoresearch/manticore:dev}

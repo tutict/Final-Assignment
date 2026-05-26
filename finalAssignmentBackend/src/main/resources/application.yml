@@ -76,6 +76,20 @@ spring:
 backend:
   url: ${BACKEND_URL}
 
+app:
+  cdc:
+    elasticsearch:
+      enabled: ${CDC_ELASTICSEARCH_ENABLED:false}
+      group-id: ${CDC_ELASTICSEARCH_GROUP_ID:mysql-cdc-elasticsearch-indexer}
+      topic-pattern: '${CDC_ELASTICSEARCH_TOPIC_PATTERN:traffic\.traffic\.(driver_information|vehicle_information|sys_user)}'
+  security:
+    sensitive-data:
+      encryption:
+        enabled: ${SENSITIVE_DATA_ENCRYPTION_ENABLED:false}
+        key: ${SENSITIVE_DATA_ENCRYPTION_KEY:}
+      blind-index:
+        key: ${SENSITIVE_DATA_BLIND_INDEX_KEY:}
+
 kafka:
   groups:
     audit-login-log: ${KAFKA_GROUP_AUDIT_LOGIN_LOG:auditLoginLogGroup}

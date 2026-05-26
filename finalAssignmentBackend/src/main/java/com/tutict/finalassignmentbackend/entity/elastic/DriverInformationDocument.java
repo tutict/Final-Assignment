@@ -1,6 +1,7 @@
 package com.tutict.finalassignmentbackend.entity.elastic;
 
 import com.tutict.finalassignmentbackend.entity.driver.DriverInformation;
+import com.tutict.finalassignmentbackend.security.privacy.SensitiveDataMasker;
 import java.io.Serial;
 import java.io.Serializable;
 import java.time.LocalDate;
@@ -182,10 +183,10 @@ public class DriverInformationDocument implements Serializable {
         doc.setDriverId(entity.getDriverId());
         doc.setAuthUserId(entity.getAuthUserId());
         doc.setName(entity.getName());
-        doc.setIdCardNumber(entity.getIdCardNumber());
+        doc.setIdCardNumber(SensitiveDataMasker.idCard(entity.getIdCardNumber()));
         doc.setGender(entity.getGender());
         doc.setBirthdate(entity.getBirthdate());
-        doc.setContactNumber(entity.getContactNumber());
+        doc.setContactNumber(SensitiveDataMasker.phone(entity.getContactNumber()));
         doc.setEmail(entity.getEmail());
         doc.setAddress(entity.getAddress());
         doc.setDriverLicenseNumber(entity.getDriverLicenseNumber());

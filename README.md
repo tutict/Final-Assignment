@@ -19,6 +19,7 @@
 - 数据备份与恢复
 - 检索、实时消息、WebSocket 通信能力
 - 基于本地模型的 AI 问答与辅助查询探索
+- 基于 Debezium 的 MySQL CDC、Kafka/Redpanda 与 Elasticsearch 搜索同步链路
 
 ## 承担内容
 
@@ -34,9 +35,11 @@
 - 使用 `MyBatis Plus + MySQL` 实现核心业务数据访问
 - 使用 `Redis + Caffeine` 实现多级缓存，降低热点数据访问开销
 - 使用 `Kafka` 支撑日志、审计和异步消息处理场景
+- 使用 `Debezium + Kafka Connect` 捕获 MySQL binlog，推动 Elasticsearch 搜索读模型异步更新
 - 使用 `WebSocket` 支撑实时通信能力
 - 使用 `Testcontainers` 管理 Redis、Kafka/Redpanda、Elasticsearch 等本地依赖
 - 在部分业务流程中引入状态机建模，提升流程可维护性
+- 对身份证号、手机号、银行卡号等敏感字段执行展示脱敏，并预留 `AES-GCM + HMAC blind index` 的密文存储改造路径
 - 集成 `Ollama + Spring AI / LangChain4j + GraalPy`，探索本地模型与 Python 能力协同
 
 ## 技术栈
@@ -50,6 +53,67 @@
 | 前端 | React 18、Vite、React Router、React Query、Axios |
 | 客户端 | Flutter 3、GetX、WebSocket、图表与地图相关组件 |
 | 工程能力 | Docker、Testcontainers、GraalVM、GraalPy、JMH |
+
+## 工程化搜索同步
+
+主线版本正在从“应用启动时全量同步 Elasticsearch”演进为更工程化的 CDC 搜索同步架构：
+
+```text
+MySQL binlog
+    -> Debezium / Kafka Connect
+    -> Redpanda(Kafka API)
+    -> Spring Boot CDC Consumer
+    -> Elasticsearch
+```
+
+本地开发环境中，`scripts/dev-compose.yml` 已包含 `redpanda`、`elasticsearch` 和 `debezium-connect`。本地 MySQL 需要开启 row-based binlog：
+
+```ini
+[mysqld]
+server-id=223344
+log-bin=mysql-bin
+binlog_format=ROW
+binlog_row_image=FULL
+```
+
+CDC 账号示例：
+
+```sql
+CREATE USER 'debezium'@'%' IDENTIFIED BY 'change_this_password';
+GRANT SELECT, RELOAD, SHOW DATABASES, REPLICATION SLAVE, REPLICATION CLIENT ON *.* TO 'debezium'@'%';
+FLUSH PRIVILEGES;
+```
+
+启动 CDC 基础设施并注册连接器：
+
+```powershell
+docker compose -f scripts\dev-compose.yml up -d redpanda elasticsearch debezium-connect
+$env:MYSQL_CDC_PASSWORD='change_this_password'
+powershell -ExecutionPolicy Bypass -File scripts\debezium\register-mysql-cdc.ps1
+```
+
+后端通过以下环境变量启用 CDC 到 ES 的消费：
+
+```properties
+CDC_ELASTICSEARCH_ENABLED=true
+CDC_ELASTICSEARCH_TOPIC_PATTERN=traffic\.traffic\.(driver_information|vehicle_information|sys_user)
+```
+
+当前第一阶段先覆盖 `driver_information`、`vehicle_information`、`sys_user` 三类核心搜索索引；后续可继续扩展到申诉、违法、罚款和扣分记录。
+
+## 敏感数据治理
+
+Elasticsearch 不应保存完整身份证号、手机号、银行卡号等敏感字段。当前 ES 文档转换层会写入脱敏值，用于界面展示和低风险检索；MySQL 仍作为真实数据源。
+
+后端已预留敏感数据加密能力：
+
+```properties
+SENSITIVE_DATA_ENCRYPTION_ENABLED=true
+SENSITIVE_DATA_ENCRYPTION_KEY=<base64-32-byte-key-or-strong-secret>
+SENSITIVE_DATA_BLIND_INDEX_KEY=<separate-base64-32-byte-key-or-strong-secret>
+```
+
+完整落地路径是：先新增密文字段与 blind-index 字段，再回填历史明文数据，最后把身份证号、手机号等查询从明文 `LIKE/eq` 改为 blind-index 精确匹配。这样可以避免直接加密导致现有业务查询失效。
 
 ## 仓库结构
 

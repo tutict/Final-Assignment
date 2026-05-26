@@ -61,6 +61,20 @@ scripts\start-all.bat
 
 The local MySQL database is expected at `jdbc:mysql://localhost:3306/traffic`.
 
+## MySQL CDC Search Sync
+
+For the engineering-grade MySQL -> Kafka -> Elasticsearch path, start the Debezium
+Connect service and register the MySQL connector:
+
+```powershell
+docker compose -f scripts\dev-compose.yml up -d redpanda elasticsearch debezium-connect
+$env:MYSQL_CDC_PASSWORD='your_cdc_password'
+powershell -ExecutionPolicy Bypass -File scripts\debezium\register-mysql-cdc.ps1
+```
+
+Enable the backend consumer with `CDC_ELASTICSEARCH_ENABLED=true`.
+See the repository root `README.md` for MySQL binlog and CDC user setup.
+
 ## Smoke Tests
 
 Run the local auth + AI stream chain test:
