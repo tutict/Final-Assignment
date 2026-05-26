@@ -1,5 +1,8 @@
 package com.tutict.finalassignmentbackend.rag.ingestion;
 
+import org.apache.pdfbox.Loader;
+import org.apache.pdfbox.pdmodel.PDDocument;
+import org.apache.pdfbox.text.PDFTextStripper;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.stereotype.Component;
 import org.springframework.web.multipart.MultipartFile;
@@ -48,8 +51,9 @@ public class RagUploadedFileParser {
             case "tsv" -> delimitedText(fileName, file.getContentType(), bytes, "\t");
             case "docx" -> docxText(fileName, file.getContentType(), bytes);
             case "xlsx" -> xlsxText(fileName, file.getContentType(), bytes);
+            case "pdf" -> pdfText(fileName, file.getContentType(), bytes);
             default -> throw new IllegalArgumentException(
-                    "unsupported RAG upload type: " + extension + ". Supported: txt, md, csv, tsv, json, docx, xlsx"
+                    "unsupported RAG upload type: " + extension + ". Supported: txt, md, csv, tsv, json, docx, xlsx, pdf"
             );
         };
     }
@@ -63,8 +67,8 @@ public class RagUploadedFileParser {
         String raw = stripUtf8Bom(new String(bytes, StandardCharsets.UTF_8));
         List<List<String>> rows = parseDelimitedRows(raw, delimiter.charAt(0));
         StringBuilder content = new StringBuilder();
-        content.append("表格文件：").append(fileName).append('\n');
-        content.append("总行数：").append(rows.size()).append("\n\n");
+        content.append("Table file: ").append(fileName).append('\n');
+        content.append("Total rows: ").append(rows.size()).append("\n\n");
         appendMarkdownRows(content, rows, 300);
         return new ParsedRagFile(
                 fileName,
@@ -118,8 +122,8 @@ public class RagUploadedFileParser {
             }
             totalRows += rows.size();
             content.append("## Sheet ").append(sheetNo++).append('\n');
-            content.append("来源：").append(worksheetName).append('\n');
-            content.append("行数：").append(rows.size()).append("\n\n");
+            content.append("Source: ").append(worksheetName).append('\n');
+            content.append("Rows: ").append(rows.size()).append("\n\n");
             appendMarkdownRows(content, rows, 250);
             content.append("\n\n");
         }
@@ -133,6 +137,34 @@ public class RagUploadedFileParser {
                 totalRows,
                 worksheetNames.size()
         );
+    }
+
+    private ParsedRagFile pdfText(String fileName, String contentType, byte[] bytes) throws IOException {
+        try (PDDocument document = Loader.loadPDF(bytes)) {
+            if (document.isEncrypted()) {
+                throw new IllegalArgumentException("encrypted pdf is not supported");
+            }
+            PDFTextStripper stripper = new PDFTextStripper();
+            stripper.setSortByPosition(true);
+            String text = stripper.getText(document).trim();
+            if (text.isBlank()) {
+                throw new IllegalArgumentException("pdf text is empty; scanned image-only PDFs are not supported");
+            }
+            int pageCount = document.getNumberOfPages();
+            String content = "PDF file: " + fileName + "\n"
+                    + "Pages: " + pageCount + "\n\n"
+                    + text;
+            return new ParsedRagFile(
+                    fileName,
+                    contentType,
+                    bytes.length,
+                    titleFromFileName(fileName),
+                    content.trim(),
+                    "pdf",
+                    0,
+                    pageCount
+            );
+        }
     }
 
     private List<String> parseSharedStrings(byte[] xmlBytes) {
@@ -210,8 +242,9 @@ public class RagUploadedFileParser {
             }
         }
         if (rows.size() > maxRows) {
-            content.append("\n已截取前 ").append(maxRows).append(" 行用于索引，剩余 ")
-                    .append(rows.size() - maxRows).append(" 行未展示。\n");
+            content.append("\nIndexed first ").append(maxRows)
+                    .append(" rows; remaining ").append(rows.size() - maxRows)
+                    .append(" rows were omitted.\n");
         }
     }
 

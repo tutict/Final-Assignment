@@ -303,7 +303,11 @@ public class RagManagementController {
                 objectNode.put("rowCount", parsedFile.rowCount());
             }
             if (parsedFile.sheetCount() > 0) {
-                objectNode.put("sheetCount", parsedFile.sheetCount());
+                if ("pdf".equalsIgnoreCase(parsedFile.parser())) {
+                    objectNode.put("pageCount", parsedFile.sheetCount());
+                } else {
+                    objectNode.put("sheetCount", parsedFile.sheetCount());
+                }
             }
             return objectMapper.writeValueAsString(objectNode);
         } catch (JsonProcessingException error) {

@@ -231,7 +231,7 @@ class _RagManagementPageState extends State<RagManagementPage> {
   Future<_PickedRagFile?> _pickRagFile() async {
     final input = web.HTMLInputElement()
       ..type = 'file'
-      ..accept = '.txt,.md,.markdown,.csv,.tsv,.json,.docx,.xlsx';
+      ..accept = '.txt,.md,.markdown,.csv,.tsv,.json,.docx,.xlsx,.pdf';
     final completer = Completer<_PickedRagFile?>();
     late StreamSubscription<web.Event> subscription;
     subscription = input.onChange.listen((_) async {
@@ -876,7 +876,7 @@ class _UploadBox extends StatelessWidget {
                       ),
                     ),
                     Text(
-                      '支持 txt、md、csv、tsv、json、docx、xlsx，上传后自动解析为 RAG 文本。',
+                  '支持 txt、md、csv、tsv、json、docx、xlsx、pdf，上传后自动解析为 RAG 文本。',
                       style: theme.textTheme.bodySmall?.copyWith(
                         color: scheme.onSurfaceVariant,
                         height: 1.32,
