@@ -1,6 +1,6 @@
 package com.tutict.finalassignmentbackend.kafkaListener;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
+import com.tutict.finalassignmentbackend.common.idempotency.IdempotentKafkaMessageProcessor;
 import com.tutict.finalassignmentbackend.entity.audit.AuditOperationLog;
 import com.tutict.finalassignmentbackend.service.audit.AuditOperationLogService;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -15,93 +15,83 @@ import java.util.logging.Level;
 import java.util.logging.Logger;
 
 @Service
-// Kafka 监听器，处理消息
 public class AuditOperationLogKafkaListener {
 
     private static final Logger log = Logger.getLogger(AuditOperationLogKafkaListener.class.getName());
 
     private final AuditOperationLogService auditOperationLogService;
-    private final ObjectMapper objectMapper;
+    private final IdempotentKafkaMessageProcessor messageProcessor;
 
-    // 构造器注入依赖
     @Autowired
     public AuditOperationLogKafkaListener(AuditOperationLogService auditOperationLogService,
-                                          ObjectMapper objectMapper) {
+                                          IdempotentKafkaMessageProcessor messageProcessor) {
         this.auditOperationLogService = auditOperationLogService;
-        this.objectMapper = objectMapper;
+        this.messageProcessor = messageProcessor;
     }
 
-    // 监听 Kafka 消息
     @KafkaListener(topics = "${kafka.topics.audit-operation-log.create:audit_operation_log_create}", groupId = "${kafka.groups.audit-operation-log:auditOperationLogGroup}", concurrency = "3")
     public void onAuditOperationLogCreateReceived(@Header(value = KafkaHeaders.RECEIVED_KEY, required = false) byte[] rawKey,
                                                   @Payload String message,
-                                      Acknowledgment ack) {
+                                                  Acknowledgment ack) {
         log.log(Level.INFO, "Received Kafka message for create (payload omitted)");
-        processMessage(asKey(rawKey), message, "create");
-        ack.acknowledge();
+        processMessage(asKey(rawKey), message, "create", ack);
     }
 
-    // 监听 Kafka 消息
     @KafkaListener(topics = "${kafka.topics.audit-operation-log.update:audit_operation_log_update}", groupId = "${kafka.groups.audit-operation-log:auditOperationLogGroup}", concurrency = "3")
     public void onAuditOperationLogUpdateReceived(@Header(value = KafkaHeaders.RECEIVED_KEY, required = false) byte[] rawKey,
                                                   @Payload String message,
-                                      Acknowledgment ack) {
+                                                  Acknowledgment ack) {
         log.log(Level.INFO, "Received Kafka message for update (payload omitted)");
-        processMessage(asKey(rawKey), message, "update");
-        ack.acknowledge();
+        processMessage(asKey(rawKey), message, "update", ack);
     }
 
-    // 统一处理消息并执行业务逻辑
-    private void processMessage(String idempotencyKey, String message, String action) {
+    private void processMessage(String idempotencyKey, String message, String action, Acknowledgment ack) {
         if (isBlank(idempotencyKey)) {
             log.warning("Received AuditOperationLog event without idempotency key, skipping");
+            acknowledge(ack);
             return;
         }
-        try {
-            AuditOperationLog payload = deserializeMessage(message);
-            if (payload == null) {
-                log.warning("Received AuditOperationLog event with empty payload, skipping");
-                return;
-            }
-            if (auditOperationLogService.shouldSkipProcessing(idempotencyKey)) {
-                log.log(Level.INFO, "Skipping duplicate AuditOperationLog event (key={0}, action={1})",
-                        new Object[]{idempotencyKey, action});
-                return;
-            }
-            AuditOperationLog result;
-            if ("create".equalsIgnoreCase(action)) {
-                payload.setLogId(null);
-                result = auditOperationLogService.createAuditOperationLog(payload);
-            } else if ("update".equalsIgnoreCase(action)) {
-                result = auditOperationLogService.updateAuditOperationLog(payload);
-            } else {
-                log.log(Level.WARNING, "Unsupported action: {0}", action);
-                return;
-            }
-            auditOperationLogService.markHistorySuccess(idempotencyKey, result.getLogId());
-            log.info(String.format("AuditOperationLog %s action processed successfully (key=%s)", action, idempotencyKey));
-        } catch (Exception e) {
-            auditOperationLogService.markHistoryFailure(idempotencyKey, e.getMessage());
-            log.log(Level.SEVERE,
-                    String.format("Error processing %s AuditOperationLog message (key=%s, payload omitted)", action, idempotencyKey),
-                    e);
-            throw e;
-        }
+        messageProcessor.process(
+                idempotencyKey,
+                message,
+                ack,
+                "AuditOperationLog",
+                action,
+                auditOperationLogService::shouldSkipProcessing,
+                payload -> processPayload(payload, action),
+                (key, result) -> {
+                    if (result != null && result.getLogId() != null) {
+                        auditOperationLogService.markHistorySuccess(key, result.getLogId());
+                    }
+                },
+                (key, ex) -> auditOperationLogService.markHistoryFailure(key, ex.getMessage())
+        );
     }
-    private AuditOperationLog deserializeMessage(String message) {
-        try {
-            return objectMapper.readValue(message, AuditOperationLog.class);
-        } catch (Exception e) {
-            log.log(Level.SEVERE, "Failed to deserialize Kafka message (payload omitted)", e);
-            throw new IllegalArgumentException("Failed to deserialize Kafka message", e);
+
+    private AuditOperationLog processPayload(String message, String action) {
+        AuditOperationLog payload = messageProcessor.deserialize(message, AuditOperationLog.class);
+        if ("create".equalsIgnoreCase(action)) {
+            payload.setLogId(null);
+            return auditOperationLogService.createAuditOperationLog(payload);
         }
+        if ("update".equalsIgnoreCase(action)) {
+            return auditOperationLogService.updateAuditOperationLog(payload);
+        }
+        log.log(Level.WARNING, "Unsupported action: {0}", action);
+        return null;
     }
+
     private String asKey(byte[] rawKey) {
         return rawKey == null ? null : new String(rawKey);
     }
 
-    // 判空
     private boolean isBlank(String value) {
         return value == null || value.trim().isEmpty();
+    }
+
+    private void acknowledge(Acknowledgment acknowledgment) {
+        if (acknowledgment != null) {
+            acknowledgment.acknowledge();
+        }
     }
 }
