@@ -63,6 +63,16 @@ class FineInformation {
   /// 用于防止重复提交，前端不应手动设置此字段。
   /// 对应后端字段：idempotencyKey
   final String? idempotencyKey;
+  final String? driverName;
+  final String? driverLicenseNumber;
+  final String? driverIdCardNumber;
+  final String? licensePlate;
+  final String? vehicleType;
+  final String? offenseNumber;
+  final String? offenseCode;
+  final String? offenseType;
+  final String? offenseLocation;
+  final DateTime? offenseTime;
 
   /// 罚单状态，表示罚单记录是否有效、作废或减免。
   /// 区别于 [paymentStatus]：本字段描述罚单本身状态，不表示支付进度。
@@ -98,6 +108,16 @@ class FineInformation {
     this.bank,
     this.receiptNumber,
     this.idempotencyKey,
+    this.driverName,
+    this.driverLicenseNumber,
+    this.driverIdCardNumber,
+    this.licensePlate,
+    this.vehicleType,
+    this.offenseNumber,
+    this.offenseCode,
+    this.offenseType,
+    this.offenseLocation,
+    this.offenseTime,
     this.status,
   });
 
@@ -129,6 +149,16 @@ class FineInformation {
     String? bank,
     String? receiptNumber,
     String? idempotencyKey,
+    String? driverName,
+    String? driverLicenseNumber,
+    String? driverIdCardNumber,
+    String? licensePlate,
+    String? vehicleType,
+    String? offenseNumber,
+    String? offenseCode,
+    String? offenseType,
+    String? offenseLocation,
+    DateTime? offenseTime,
     String? status,
   }) {
     return FineInformation(
@@ -159,6 +189,16 @@ class FineInformation {
       bank: bank ?? this.bank,
       receiptNumber: receiptNumber ?? this.receiptNumber,
       idempotencyKey: idempotencyKey ?? this.idempotencyKey,
+      driverName: driverName ?? this.driverName,
+      driverLicenseNumber: driverLicenseNumber ?? this.driverLicenseNumber,
+      driverIdCardNumber: driverIdCardNumber ?? this.driverIdCardNumber,
+      licensePlate: licensePlate ?? this.licensePlate,
+      vehicleType: vehicleType ?? this.vehicleType,
+      offenseNumber: offenseNumber ?? this.offenseNumber,
+      offenseCode: offenseCode ?? this.offenseCode,
+      offenseType: offenseType ?? this.offenseType,
+      offenseLocation: offenseLocation ?? this.offenseLocation,
+      offenseTime: offenseTime ?? this.offenseTime,
       status: status ?? this.status,
     );
   }
@@ -187,11 +227,21 @@ class FineInformation {
       deletedAt: _parseDateTime(json['deletedAt']),
       remarks: json['remarks'],
       fineTime: json['fineTime'] ?? json['fineDate'],
-      payee: json['payee'],
+      payee: json['payee'] ?? json['driverName'],
       accountNumber: json['accountNumber'],
       bank: json['bank'],
-      receiptNumber: json['receiptNumber'],
+      receiptNumber: json['receiptNumber'] ?? json['fineNumber'],
       idempotencyKey: json['idempotencyKey'],
+      driverName: json['driverName'],
+      driverLicenseNumber: json['driverLicenseNumber'],
+      driverIdCardNumber: json['driverIdCardNumber'],
+      licensePlate: json['licensePlate'],
+      vehicleType: json['vehicleType'],
+      offenseNumber: json['offenseNumber'],
+      offenseCode: json['offenseCode'],
+      offenseType: json['offenseType'],
+      offenseLocation: json['offenseLocation'],
+      offenseTime: _parseDateTime(json['offenseTime']),
       status: json['status'] ?? json['paymentStatus'],
     );
   }
@@ -225,6 +275,16 @@ class FineInformation {
       'bank': bank,
       'receiptNumber': receiptNumber,
       'idempotencyKey': idempotencyKey,
+      'driverName': driverName,
+      'driverLicenseNumber': driverLicenseNumber,
+      'driverIdCardNumber': driverIdCardNumber,
+      'licensePlate': licensePlate,
+      'vehicleType': vehicleType,
+      'offenseNumber': offenseNumber,
+      'offenseCode': offenseCode,
+      'offenseType': offenseType,
+      'offenseLocation': offenseLocation,
+      'offenseTime': offenseTime?.toIso8601String(),
       'status': status ?? paymentStatus,
     };
   }

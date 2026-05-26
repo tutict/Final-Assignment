@@ -6,6 +6,7 @@ import com.tutict.finalassignmentbackend.dto.response.ApiResponse;
 import com.tutict.finalassignmentbackend.dto.response.UserProfileResponse;
 import com.tutict.finalassignmentbackend.entity.offense.FineRecord;
 import com.tutict.finalassignmentbackend.service.auth.AuthWsService;
+import com.tutict.finalassignmentbackend.service.business.BusinessRecordViewService;
 import com.tutict.finalassignmentbackend.service.offense.FineRecordService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
@@ -49,10 +50,14 @@ public class FineInformationController {
 
     private final AuthWsService authWsService;
     private final FineRecordService fineRecordService;
+    private final BusinessRecordViewService businessRecordViewService;
 
-    public FineInformationController(AuthWsService authWsService, FineRecordService fineRecordService) {
+    public FineInformationController(AuthWsService authWsService,
+                                     FineRecordService fineRecordService,
+                                     BusinessRecordViewService businessRecordViewService) {
         this.authWsService = authWsService;
         this.fineRecordService = fineRecordService;
+        this.businessRecordViewService = businessRecordViewService;
     }
 
     @PostMapping
@@ -137,7 +142,7 @@ public class FineInformationController {
             if (record == null) {
                 throw new com.tutict.finalassignmentbackend.exception.EntityNotFoundException("Fine not found: " + fineId);
             }
-            return ResponseEntity.ok(ApiResponse.ok(record));
+            return ResponseEntity.ok(ApiResponse.ok(enrich(record)));
         } catch (Exception ex) {
             LOG.log(Level.WARNING, "Get fine failed", ex);
             if (ex instanceof RuntimeException) {
@@ -151,7 +156,7 @@ public class FineInformationController {
     @Operation(summary = "查询全部罚款记录")
     public ResponseEntity<ApiResponse<List<FineRecord>>> list() {
         try {
-            return ResponseEntity.ok(ApiResponse.ok(fineRecordService.findAll()));
+            return ResponseEntity.ok(ApiResponse.ok(enrich(fineRecordService.findAll())));
         } catch (Exception ex) {
             LOG.log(Level.WARNING, "List fines failed", ex);
             if (ex instanceof RuntimeException) {
@@ -167,7 +172,7 @@ public class FineInformationController {
                                                       @RequestParam(defaultValue = "1") int page,
                                                       @RequestParam(defaultValue = "20") int size) {
         try {
-            return ResponseEntity.ok(ApiResponse.ok(fineRecordService.findByOffenseId(offenseId, page, size)));
+            return ResponseEntity.ok(ApiResponse.ok(enrich(fineRecordService.findByOffenseId(offenseId, page, size))));
         } catch (Exception ex) {
             LOG.log(Level.WARNING, "List fines by offense failed", ex);
             if (ex instanceof RuntimeException) {
@@ -188,7 +193,7 @@ public class FineInformationController {
             return ResponseEntity.status(HttpStatus.FORBIDDEN)
                     .body(ApiResponse.error("FORBIDDEN", "Forbidden"));
         }
-        return ResponseEntity.ok(ApiResponse.ok(fineRecordService.findByDriverId(driverId, page, size)));
+        return ResponseEntity.ok(ApiResponse.ok(enrich(fineRecordService.findByDriverId(driverId, page, size))));
     }
 
     @GetMapping("/search/handler")
@@ -201,7 +206,7 @@ public class FineInformationController {
             List<FineRecord> result = "fuzzy".equalsIgnoreCase(mode)
                     ? fineRecordService.searchByHandlerFuzzy(handler, page, size)
                     : fineRecordService.searchByHandlerPrefix(handler, page, size);
-            return ResponseEntity.ok(ApiResponse.ok(result));
+            return ResponseEntity.ok(ApiResponse.ok(enrich(result)));
         } catch (Exception ex) {
             LOG.log(Level.WARNING, "Search fine by handler failed", ex);
             if (ex instanceof RuntimeException) {
@@ -217,7 +222,7 @@ public class FineInformationController {
                                                                   @RequestParam(defaultValue = "1") int page,
                                                                   @RequestParam(defaultValue = "20") int size) {
         try {
-            return ResponseEntity.ok(ApiResponse.ok(fineRecordService.searchByPaymentStatus(status, page, size)));
+            return ResponseEntity.ok(ApiResponse.ok(enrich(fineRecordService.searchByPaymentStatus(status, page, size))));
         } catch (Exception ex) {
             LOG.log(Level.WARNING, "Search fine by status failed", ex);
             if (ex instanceof RuntimeException) {
@@ -234,7 +239,7 @@ public class FineInformationController {
                                                               @RequestParam(defaultValue = "1") int page,
                                                               @RequestParam(defaultValue = "20") int size) {
         try {
-            return ResponseEntity.ok(ApiResponse.ok(fineRecordService.searchByFineDateRange(startDate, endDate, page, size)));
+            return ResponseEntity.ok(ApiResponse.ok(enrich(fineRecordService.searchByFineDateRange(startDate, endDate, page, size))));
         } catch (Exception ex) {
             LOG.log(Level.WARNING, "Search fine by date range failed", ex);
             if (ex instanceof RuntimeException) {
@@ -246,6 +251,14 @@ public class FineInformationController {
 
     private boolean hasKey(String value) {
         return value != null && !value.isBlank();
+    }
+
+    private FineRecord enrich(FineRecord record) {
+        return businessRecordViewService.enrichFine(record);
+    }
+
+    private List<FineRecord> enrich(List<FineRecord> records) {
+        return businessRecordViewService.enrichFines(records);
     }
 
     private boolean canAccessDriver(Authentication authentication, Long driverId) {

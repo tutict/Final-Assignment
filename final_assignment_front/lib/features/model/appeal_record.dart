@@ -25,6 +25,16 @@ class AppealRecordModel {
   final String? processHandler;
   final DateTime? createdAt;
   final DateTime? updatedAt;
+  final String? driverName;
+  final String? driverLicenseNumber;
+  final String? driverIdCardNumber;
+  final String? licensePlate;
+  final String? vehicleType;
+  final String? offenseNumber;
+  final String? offenseCode;
+  final String? offenseType;
+  final String? offenseLocation;
+  final DateTime? offenseTime;
 
   const AppealRecordModel({
     this.appealId,
@@ -51,6 +61,16 @@ class AppealRecordModel {
     this.processHandler,
     this.createdAt,
     this.updatedAt,
+    this.driverName,
+    this.driverLicenseNumber,
+    this.driverIdCardNumber,
+    this.licensePlate,
+    this.vehicleType,
+    this.offenseNumber,
+    this.offenseCode,
+    this.offenseType,
+    this.offenseLocation,
+    this.offenseTime,
   });
 
   factory AppealRecordModel.fromJson(Map<String, dynamic> json) {
@@ -89,6 +109,18 @@ class AppealRecordModel {
       updatedAt: json['updatedAt'] != null
           ? DateTime.tryParse(json['updatedAt'])
           : null,
+      driverName: json['driverName'],
+      driverLicenseNumber: json['driverLicenseNumber'],
+      driverIdCardNumber: json['driverIdCardNumber'],
+      licensePlate: json['licensePlate'],
+      vehicleType: json['vehicleType'],
+      offenseNumber: json['offenseNumber'],
+      offenseCode: json['offenseCode'],
+      offenseType: json['offenseType'],
+      offenseLocation: json['offenseLocation'],
+      offenseTime: json['offenseTime'] != null
+          ? DateTime.tryParse(json['offenseTime'])
+          : null,
     );
   }
 
@@ -121,6 +153,16 @@ class AppealRecordModel {
         'processHandler': processHandler,
         'createdAt': createdAt?.toIso8601String(),
         'updatedAt': updatedAt?.toIso8601String(),
+        'driverName': driverName,
+        'driverLicenseNumber': driverLicenseNumber,
+        'driverIdCardNumber': driverIdCardNumber,
+        'licensePlate': licensePlate,
+        'vehicleType': vehicleType,
+        'offenseNumber': offenseNumber,
+        'offenseCode': offenseCode,
+        'offenseType': offenseType,
+        'offenseLocation': offenseLocation,
+        'offenseTime': offenseTime?.toIso8601String(),
       };
 
   AppealRecordModel copyWith({
@@ -148,6 +190,16 @@ class AppealRecordModel {
     String? processHandler,
     DateTime? createdAt,
     DateTime? updatedAt,
+    String? driverName,
+    String? driverLicenseNumber,
+    String? driverIdCardNumber,
+    String? licensePlate,
+    String? vehicleType,
+    String? offenseNumber,
+    String? offenseCode,
+    String? offenseType,
+    String? offenseLocation,
+    DateTime? offenseTime,
   }) {
     return AppealRecordModel(
       appealId: appealId ?? this.appealId,
@@ -174,6 +226,16 @@ class AppealRecordModel {
       processHandler: processHandler ?? this.processHandler,
       createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
+      driverName: driverName ?? this.driverName,
+      driverLicenseNumber: driverLicenseNumber ?? this.driverLicenseNumber,
+      driverIdCardNumber: driverIdCardNumber ?? this.driverIdCardNumber,
+      licensePlate: licensePlate ?? this.licensePlate,
+      vehicleType: vehicleType ?? this.vehicleType,
+      offenseNumber: offenseNumber ?? this.offenseNumber,
+      offenseCode: offenseCode ?? this.offenseCode,
+      offenseType: offenseType ?? this.offenseType,
+      offenseLocation: offenseLocation ?? this.offenseLocation,
+      offenseTime: offenseTime ?? this.offenseTime,
     );
   }
 }

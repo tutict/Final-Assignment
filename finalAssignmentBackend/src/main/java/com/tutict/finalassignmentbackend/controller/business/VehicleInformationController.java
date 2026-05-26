@@ -7,6 +7,7 @@ import com.tutict.finalassignmentbackend.dto.response.UserProfileResponse;
 import com.tutict.finalassignmentbackend.entity.driver.DriverVehicle;
 import com.tutict.finalassignmentbackend.entity.driver.VehicleInformation;
 import com.tutict.finalassignmentbackend.service.auth.AuthWsService;
+import com.tutict.finalassignmentbackend.service.business.BusinessRecordViewService;
 import com.tutict.finalassignmentbackend.service.driver.DriverVehicleService;
 import com.tutict.finalassignmentbackend.service.driver.VehicleInformationService;
 import io.swagger.v3.oas.annotations.Operation;
@@ -52,13 +53,16 @@ public class VehicleInformationController {
     private final AuthWsService authWsService;
     private final VehicleInformationService vehicleInformationService;
     private final DriverVehicleService driverVehicleService;
+    private final BusinessRecordViewService businessRecordViewService;
 
     public VehicleInformationController(AuthWsService authWsService,
                                         VehicleInformationService vehicleInformationService,
-                                        DriverVehicleService driverVehicleService) {
+                                        DriverVehicleService driverVehicleService,
+                                        BusinessRecordViewService businessRecordViewService) {
         this.authWsService = authWsService;
         this.vehicleInformationService = vehicleInformationService;
         this.driverVehicleService = driverVehicleService;
+        this.businessRecordViewService = businessRecordViewService;
     }
 
     @PostMapping
@@ -119,7 +123,7 @@ public class VehicleInformationController {
                 vehicleInformationService.checkAndInsertIdempotency(idempotencyKey, request, "update");
             }
             VehicleInformation updated = vehicleInformationService.updateVehicleInformation(request);
-            return ResponseEntity.ok(updated);
+            return ResponseEntity.ok(enrich(updated));
         } catch (Exception ex) {
             LOG.log(Level.SEVERE, "Update vehicle failed", ex);
             if (ex instanceof RuntimeException) {
@@ -176,7 +180,7 @@ public class VehicleInformationController {
             if (vehicle == null) {
                 throw new com.tutict.finalassignmentbackend.exception.EntityNotFoundException("Vehicle not found: " + vehicleId);
             }
-            return ResponseEntity.ok(vehicle);
+            return ResponseEntity.ok(enrich(vehicle));
         } catch (Exception ex) {
             LOG.log(Level.WARNING, "Get vehicle failed", ex);
             if (ex instanceof RuntimeException) {
@@ -190,7 +194,7 @@ public class VehicleInformationController {
     @Operation(summary = "查询全部车辆")
     public ResponseEntity<List<VehicleInformation>> listVehicles() {
         try {
-            return ResponseEntity.ok(vehicleInformationService.getAllVehicleInformation());
+            return ResponseEntity.ok(enrich(vehicleInformationService.getAllVehicleInformation()));
         } catch (Exception ex) {
             LOG.log(Level.WARNING, "List vehicles failed", ex);
             if (ex instanceof RuntimeException) {
@@ -208,7 +212,7 @@ public class VehicleInformationController {
             if (vehicle == null) {
                 throw new com.tutict.finalassignmentbackend.exception.EntityNotFoundException("Vehicle not found: " + licensePlate);
             }
-            return ResponseEntity.ok(vehicle);
+            return ResponseEntity.ok(enrich(vehicle));
         } catch (Exception ex) {
             LOG.log(Level.WARNING, "Search vehicle by license failed", ex);
             if (ex instanceof RuntimeException) {
@@ -222,7 +226,7 @@ public class VehicleInformationController {
     @Operation(summary = "按车主身份证号查询车辆")
     public ResponseEntity<List<VehicleInformation>> searchByOwnerIdCard(@RequestParam String idCard) {
         try {
-            return ResponseEntity.ok(vehicleInformationService.getVehicleInformationByIdCardNumber(idCard));
+            return ResponseEntity.ok(enrich(vehicleInformationService.getVehicleInformationByIdCardNumber(idCard)));
         } catch (Exception ex) {
             LOG.log(Level.WARNING, "Search vehicle by id card failed", ex);
             if (ex instanceof RuntimeException) {
@@ -236,7 +240,7 @@ public class VehicleInformationController {
     @Operation(summary = "按车辆类型查询")
     public ResponseEntity<List<VehicleInformation>> searchByType(@RequestParam String type) {
         try {
-            return ResponseEntity.ok(vehicleInformationService.getVehicleInformationByType(type));
+            return ResponseEntity.ok(enrich(vehicleInformationService.getVehicleInformationByType(type)));
         } catch (Exception ex) {
             LOG.log(Level.WARNING, "Search vehicle by type failed", ex);
             if (ex instanceof RuntimeException) {
@@ -250,7 +254,7 @@ public class VehicleInformationController {
     @Operation(summary = "按车主姓名查询车辆")
     public ResponseEntity<List<VehicleInformation>> searchByOwnerName(@RequestParam String ownerName) {
         try {
-            return ResponseEntity.ok(vehicleInformationService.getVehicleInformationByOwnerName(ownerName));
+            return ResponseEntity.ok(enrich(vehicleInformationService.getVehicleInformationByOwnerName(ownerName)));
         } catch (Exception ex) {
             LOG.log(Level.WARNING, "Search vehicle by owner name failed", ex);
             if (ex instanceof RuntimeException) {
@@ -264,7 +268,7 @@ public class VehicleInformationController {
     @Operation(summary = "按车辆状态查询")
     public ResponseEntity<List<VehicleInformation>> searchByStatus(@RequestParam String status) {
         try {
-            return ResponseEntity.ok(vehicleInformationService.getVehicleInformationByStatus(status));
+            return ResponseEntity.ok(enrich(vehicleInformationService.getVehicleInformationByStatus(status)));
         } catch (Exception ex) {
             LOG.log(Level.WARNING, "Search vehicle by status failed", ex);
             if (ex instanceof RuntimeException) {
@@ -280,7 +284,7 @@ public class VehicleInformationController {
                                                                    @RequestParam(defaultValue = "1") int page,
                                                                    @RequestParam(defaultValue = "20") int size) {
         try {
-            return ResponseEntity.ok(vehicleInformationService.searchVehicles(keywords, page, size));
+            return ResponseEntity.ok(enrich(vehicleInformationService.searchVehicles(keywords, page, size)));
         } catch (Exception ex) {
             LOG.log(Level.WARNING, "General vehicle search failed", ex);
             if (ex instanceof RuntimeException) {
@@ -441,7 +445,7 @@ public class VehicleInformationController {
         if (!canAccessDriver(authentication, driverId)) {
             return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
         }
-        return ResponseEntity.ok(vehicleInformationService.getVehicleInformationByDriverId(driverId, page, size));
+        return ResponseEntity.ok(enrich(vehicleInformationService.getVehicleInformationByDriverId(driverId, page, size)));
     }
 
     @GetMapping("/drivers/{driverId}/vehicles/primary")
@@ -490,11 +494,16 @@ public class VehicleInformationController {
     }
 
     @GetMapping("/autocomplete/plates")
+    @RolesAllowed({"SUPER_ADMIN", "ADMIN", "TRAFFIC_POLICE", "USER"})
     @Operation(summary = "获取指定车主的车牌补全建议")
     public ResponseEntity<List<String>> plateAutocomplete(@RequestParam String prefix,
                                                           @RequestParam(defaultValue = "10") int size,
-                                                          @RequestParam String idCard) {
+                                                          @RequestParam String idCard,
+                                                          Authentication authentication) {
         try {
+            if (isRegularUser(authentication)) {
+                return ResponseEntity.ok(currentUserPlateSuggestions(authentication, prefix, size));
+            }
             return ResponseEntity.ok(vehicleInformationService.getLicensePlateAutocompleteSuggestions(prefix, size, idCard));
         } catch (Exception ex) {
             LOG.log(Level.WARNING, "Fetch plate autocomplete failed", ex);
@@ -509,8 +518,12 @@ public class VehicleInformationController {
     @RolesAllowed({"SUPER_ADMIN", "ADMIN", "TRAFFIC_POLICE", "USER"})
     @Operation(summary = "Autocomplete license plates by prefix")
     public ResponseEntity<ApiResponse<List<String>>> autocompletePlates(@RequestParam String prefix,
-                                                                        @RequestParam(defaultValue = "10") int limit) {
+                                                                        @RequestParam(defaultValue = "10") int limit,
+                                                                        Authentication authentication) {
         try {
+            if (isRegularUser(authentication)) {
+                return ResponseEntity.ok(ApiResponse.ok(currentUserPlateSuggestions(authentication, prefix, limit)));
+            }
             return ResponseEntity.ok(ApiResponse.ok(vehicleInformationService.suggestPlates(prefix, limit)));
         } catch (Exception ex) {
             LOG.log(Level.WARNING, "Fetch plate autocomplete failed", ex);
@@ -522,11 +535,16 @@ public class VehicleInformationController {
     }
 
     @GetMapping("/autocomplete/types")
+    @RolesAllowed({"SUPER_ADMIN", "ADMIN", "TRAFFIC_POLICE", "USER"})
     @Operation(summary = "获取指定车主的车辆类型补全")
     public ResponseEntity<List<String>> vehicleTypeAutocomplete(@RequestParam String idCard,
                                                                 @RequestParam String prefix,
-                                                                @RequestParam(defaultValue = "10") int size) {
+                                                                @RequestParam(defaultValue = "10") int size,
+                                                                Authentication authentication) {
         try {
+            if (isRegularUser(authentication)) {
+                return ResponseEntity.ok(currentUserTypeSuggestions(authentication, prefix, size));
+            }
             return ResponseEntity.ok(vehicleInformationService.getVehicleTypeAutocompleteSuggestions(idCard, prefix, size));
         } catch (Exception ex) {
             LOG.log(Level.WARNING, "Fetch vehicle type autocomplete failed", ex);
@@ -553,6 +571,7 @@ public class VehicleInformationController {
     }
 
     @GetMapping("/exists/{licensePlate}")
+    @RolesAllowed({"SUPER_ADMIN", "ADMIN", "TRAFFIC_POLICE", "USER"})
     @Operation(summary = "检查车辆是否存在")
     public ResponseEntity<Map<String, Boolean>> licenseExists(@PathVariable String licensePlate) {
         try {
@@ -569,6 +588,14 @@ public class VehicleInformationController {
 
     private boolean hasKey(String value) {
         return value != null && !value.isBlank();
+    }
+
+    private VehicleInformation enrich(VehicleInformation vehicle) {
+        return businessRecordViewService.enrichVehicle(vehicle);
+    }
+
+    private List<VehicleInformation> enrich(List<VehicleInformation> vehicles) {
+        return businessRecordViewService.enrichVehicles(vehicles);
     }
 
     private VehicleInformation toVehicleInformation(Map<String, Object> payload) {
@@ -637,6 +664,49 @@ public class VehicleInformationController {
         return authentication != null
                 && !isElevated(authentication)
                 && SecurityRoleUtils.hasRole(authentication, "USER");
+    }
+
+    private List<String> currentUserPlateSuggestions(Authentication authentication, String prefix, int limit) {
+        return currentUserVehicles(authentication, limit).stream()
+                .map(VehicleInformation::getLicensePlate)
+                .filter(value -> startsWithIgnoreCase(value, prefix))
+                .distinct()
+                .limit(Math.max(limit, 1))
+                .toList();
+    }
+
+    private List<String> currentUserTypeSuggestions(Authentication authentication, String prefix, int limit) {
+        return currentUserVehicles(authentication, limit).stream()
+                .map(VehicleInformation::getVehicleType)
+                .filter(value -> startsWithIgnoreCase(value, prefix))
+                .distinct()
+                .limit(Math.max(limit, 1))
+                .toList();
+    }
+
+    private List<VehicleInformation> currentUserVehicles(Authentication authentication, int limit) {
+        if (authentication == null || authWsService == null) {
+            return List.of();
+        }
+        UserProfileResponse profile = authWsService.getCurrentUserProfile(authentication.getName());
+        if (profile == null || profile.getDriverId() == null) {
+            return List.of();
+        }
+        return vehicleInformationService.getVehicleInformationByDriverId(
+                profile.getDriverId(),
+                1,
+                Math.max(Math.max(limit, 1), 50)
+        );
+    }
+
+    private boolean startsWithIgnoreCase(String value, String prefix) {
+        if (value == null) {
+            return false;
+        }
+        if (prefix == null || prefix.isBlank()) {
+            return true;
+        }
+        return value.toLowerCase().startsWith(prefix.toLowerCase());
     }
 
     private boolean isElevated(Authentication authentication) {
