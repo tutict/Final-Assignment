@@ -1029,3 +1029,45 @@ service finalAssignmentGoApi {
 	@handler getOffenseDetailsView
 	get /api/view/offenses/:offenseId returns (ApiResponse)
 }
+
+@server (
+	group: aiChat
+)
+service finalAssignmentGoApi {
+	@handler aiChatStream
+	post /api/ai/chat/stream returns (ApiResponse)
+
+	@handler aiChatLegacy
+	get /api/ai/chat returns (ApiResponse)
+
+	@handler aiChatActions
+	get /api/ai/chat/actions returns (ApiResponse)
+}
+
+@server (
+	group: ragQuery
+)
+service finalAssignmentGoApi {
+	@handler ragQuery
+	post /api/rag/query returns (ApiResponse)
+}
+
+@server (
+	group: ragAdmin
+)
+service finalAssignmentGoApi {
+	@handler ragOverview
+	get /api/rag/admin/overview returns (ApiResponse)
+
+	@handler listRagDocuments
+	get /api/rag/admin/documents returns (ApiResponse)
+
+	@handler createManualRagDocument
+	post /api/rag/admin/documents/manual returns (ApiResponse)
+
+	@handler runRagBackfill
+	post /api/rag/admin/backfill returns (ApiResponse)
+
+	@handler deleteRagDocument
+	delete /api/rag/admin/documents/:documentId returns (ApiResponse)
+}

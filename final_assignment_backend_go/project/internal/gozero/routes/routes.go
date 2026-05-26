@@ -17,6 +17,7 @@ func Register(server *rest.Server) {
 	server.AddRoutes(stubRoutes(contract.VehicleRouteSpecs()))
 	server.AddRoutes(stubRoutes(contract.BusinessRouteSpecs()))
 	server.AddRoutes(stubRoutes(contract.AuditRouteSpecs()))
+	server.AddRoutes(stubRoutes(contract.AIRouteSpecs()))
 }
 
 func systemRoutes() []rest.Route {

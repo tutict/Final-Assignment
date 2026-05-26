@@ -68,3 +68,41 @@ func TestRegisteredRouteSpecsIncludeBusinessContracts(t *testing.T) {
 		}
 	}
 }
+
+func TestRegisteredRouteSpecsIncludeAIContracts(t *testing.T) {
+	routes := make(map[string]RouteSpec)
+	for _, spec := range RegisteredRouteSpecs() {
+		routes[spec.Method+" "+spec.Path] = spec
+	}
+
+	required := map[string]string{
+		"POST /api/ai/chat/stream":                    "AiChatController",
+		"GET /api/ai/chat/actions":                    "AiChatController",
+		"POST /api/rag/query":                         "RagQueryController",
+		"POST /api/rag/admin/documents/manual":        "RagManagementController",
+		"DELETE /api/rag/admin/documents/:documentId": "RagManagementController",
+	}
+
+	for key, controller := range required {
+		spec, ok := routes[key]
+		if !ok {
+			t.Fatalf("missing route spec %s", key)
+		}
+		if spec.Controller != controller {
+			t.Fatalf("route spec %s controller = %s, want %s", key, spec.Controller, controller)
+		}
+	}
+}
+
+func TestSpringGroupsHaveRegisteredRoutes(t *testing.T) {
+	routeCounts := make(map[string]int)
+	for _, spec := range RegisteredRouteSpecs() {
+		routeCounts[spec.Domain]++
+	}
+
+	for _, group := range SpringGroups() {
+		if routeCounts[group.Domain] == 0 {
+			t.Fatalf("spring group %s (%s) has no registered route specs", group.Domain, group.Controller)
+		}
+	}
+}

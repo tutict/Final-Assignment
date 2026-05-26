@@ -202,6 +202,23 @@ func SpringGroups() []SpringAPIGroup {
 			MigrationState: "contract-cataloged",
 		},
 		{
+			Domain:         "ai-chat",
+			Controller:     "AiChatController",
+			BasePath:       "/api/ai/chat",
+			SourcePackage:  "ai.chat",
+			MigrationState: "contract-cataloged",
+			Notes: []string{
+				"Spring Boot exposes an SSE streaming endpoint and legacy JSON endpoints.",
+			},
+		},
+		{
+			Domain:         "rag-query",
+			Controller:     "RagQueryController",
+			BasePath:       "/api/rag",
+			SourcePackage:  "ai.rag.query",
+			MigrationState: "contract-cataloged",
+		},
+		{
 			Domain:         "rag-admin",
 			Controller:     "RagManagementController",
 			BasePath:       "/api/rag/admin",

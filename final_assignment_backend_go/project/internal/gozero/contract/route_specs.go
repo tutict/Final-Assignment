@@ -20,6 +20,7 @@ func RegisteredRouteSpecs() []RouteSpec {
 	routes = append(routes, VehicleRouteSpecs()...)
 	routes = append(routes, BusinessRouteSpecs()...)
 	routes = append(routes, AuditRouteSpecs()...)
+	routes = append(routes, AIRouteSpecs()...)
 	return routes
 }
 
