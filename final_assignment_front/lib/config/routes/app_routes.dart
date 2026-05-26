@@ -67,6 +67,9 @@ class Routes {
   // 罚款列表页面路由
   static const fineList = RoutePaths.fineList;
 
+  // 扣分管理页面路由
+  static const deductionManagement = RoutePaths.deductionManagement;
+
   // 管理员个人主页页面路由
   static const managerPersonalPage = RoutePaths.managerPersonalPage;
 
@@ -225,6 +228,9 @@ class RoutePaths {
 
   // 罚款列表路由
   static const fineList = '/fineList';
+
+  // 扣分管理路由
+  static const deductionManagement = '/deductionManagement';
 
   // 管理员个人主页路由
   static const managerPersonalPage = '/admin/managerPersonalPage';

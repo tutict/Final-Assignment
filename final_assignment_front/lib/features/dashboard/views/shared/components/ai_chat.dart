@@ -1,5 +1,6 @@
 import 'package:final_assignment_front/features/dashboard/bindings/chat_binding.dart';
 import 'package:final_assignment_front/features/dashboard/controllers/chat_controller.dart';
+import 'package:final_assignment_front/features/model/chat_action.dart';
 import 'package:final_assignment_front/shared_components/manager_predefined_questions.dart';
 import 'package:final_assignment_front/shared_components/user_predefined_questions.dart';
 import 'package:flutter/material.dart';
@@ -205,6 +206,7 @@ class _MessageList extends StatelessWidget {
               return _ThinkingBubble(maxWidth: constraints.maxWidth * 0.86);
             }
             return _MessageBubble(
+              controller: controller,
               message: msg,
               maxWidth: constraints.maxWidth * 0.88,
             );
@@ -270,10 +272,12 @@ class _ThinkingBubble extends StatelessWidget {
 
 class _MessageBubble extends StatelessWidget {
   const _MessageBubble({
+    required this.controller,
     required this.message,
     required this.maxWidth,
   });
 
+  final ChatController controller;
   final ChatMessage message;
   final double maxWidth;
 
@@ -347,10 +351,91 @@ class _MessageBubble extends StatelessWidget {
                   letterSpacing: 0,
                 ),
               ),
+            if (message.actions.isNotEmpty)
+              _MessageActionBar(
+                controller: controller,
+                message: message,
+                foregroundColor: foregroundColor,
+              ),
           ],
         ),
       ),
     );
+  }
+}
+
+class _MessageActionBar extends StatelessWidget {
+  const _MessageActionBar({
+    required this.controller,
+    required this.message,
+    required this.foregroundColor,
+  });
+
+  final ChatController controller;
+  final ChatMessage message;
+  final Color foregroundColor;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final scheme = theme.colorScheme;
+
+    return Padding(
+      padding: const EdgeInsets.only(top: 10),
+      child: Wrap(
+        spacing: 8,
+        runSpacing: 8,
+        children: [
+          for (final action in message.actions)
+            OutlinedButton.icon(
+              onPressed: () => controller.executeAction(
+                action,
+                needConfirm: message.needConfirm,
+              ),
+              icon: Icon(_iconForAction(action), size: 16),
+              label: Text(_labelForAction(action)),
+              style: OutlinedButton.styleFrom(
+                foregroundColor: foregroundColor,
+                side: BorderSide(
+                  color: scheme.primary.withValues(alpha: 0.72),
+                ),
+                backgroundColor: scheme.primary.withValues(alpha: 0.10),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 12,
+                  vertical: 10,
+                ),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                textStyle: theme.textTheme.labelMedium?.copyWith(
+                  fontWeight: FontWeight.w800,
+                  letterSpacing: 0,
+                ),
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+
+  IconData _iconForAction(ChatAction action) {
+    return switch (action.type?.toUpperCase()) {
+      'FILL_FORM' => Icons.edit_note_rounded,
+      'CALL_API' => Icons.cloud_sync_rounded,
+      'SHOW_MODAL' => Icons.open_in_new_rounded,
+      _ => Icons.arrow_forward_rounded,
+    };
+  }
+
+  String _labelForAction(ChatAction action) {
+    final label = action.label?.trim();
+    if (label != null && label.isNotEmpty) return label;
+    return switch (action.type?.toUpperCase()) {
+      'FILL_FORM' => '填写表单',
+      'CALL_API' => '执行操作',
+      'SHOW_MODAL' => '查看详情',
+      _ => '打开页面',
+    };
   }
 }
 

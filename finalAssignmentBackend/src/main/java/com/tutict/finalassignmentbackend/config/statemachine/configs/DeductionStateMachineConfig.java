@@ -19,8 +19,8 @@ import java.util.logging.Level;
 import java.util.logging.Logger;
 
 /**
- * 扣分状态机配置
- * 对应 deduction_record.status
+ * 扣分记录状态机配置。
+ * 对应 deduction_record.status。
  */
 @Configuration
 @EnableStateMachineFactory(name = "deductionStateMachineFactory")
@@ -48,28 +48,28 @@ public class DeductionStateMachineConfig extends StateMachineConfigurerAdapter<D
     public void configure(StateMachineTransitionConfigurer<DeductionState, DeductionEvent> transitions)
             throws Exception {
         transitions
-                // 生效 -> 取消
+                // 生效中 -> 已取消
                 .withExternal()
                 .source(DeductionState.EFFECTIVE)
                 .target(DeductionState.CANCELLED)
                 .event(DeductionEvent.CANCEL)
                 .and()
 
-                // 生效 -> 已恢复
+                // 生效中 -> 已恢复
                 .withExternal()
                 .source(DeductionState.EFFECTIVE)
                 .target(DeductionState.RESTORED)
                 .event(DeductionEvent.RESTORE)
                 .and()
 
-                // 取消 -> 生效（重新生�?
+                // 已取消 -> 生效中（重新生效）
                 .withExternal()
                 .source(DeductionState.CANCELLED)
                 .target(DeductionState.EFFECTIVE)
                 .event(DeductionEvent.REACTIVATE)
                 .and()
 
-                // 已恢复 -> 生效（重新生�?
+                // 已恢复 -> 生效中（重新生效）
                 .withExternal()
                 .source(DeductionState.RESTORED)
                 .target(DeductionState.EFFECTIVE)

@@ -2,11 +2,16 @@ package com.tutict.finalassignmentbackend.controller.rag;
 
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.tutict.finalassignmentbackend.dto.response.ApiResponse;
 import com.tutict.finalassignmentbackend.rag.dto.RagSourceDocument;
 import com.tutict.finalassignmentbackend.rag.entity.RagChunk;
 import com.tutict.finalassignmentbackend.rag.entity.RagDocument;
 import com.tutict.finalassignmentbackend.rag.entity.RagEmbeddingTask;
+import com.tutict.finalassignmentbackend.rag.ingestion.RagUploadedFileParser;
 import com.tutict.finalassignmentbackend.rag.indexing.RagBackfillJob;
 import com.tutict.finalassignmentbackend.rag.mapper.RagChunkMapper;
 import com.tutict.finalassignmentbackend.rag.mapper.RagDocumentMapper;
@@ -22,6 +27,7 @@ import jakarta.validation.constraints.Size;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -31,6 +37,7 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.multipart.MultipartFile;
 
 import java.time.Instant;
 import java.util.List;
@@ -49,6 +56,8 @@ public class RagManagementController {
     private final RagEmbeddingTaskMapper taskMapper;
     private final ObjectProvider<RagIndexingService> indexingServiceProvider;
     private final ObjectProvider<RagBackfillJob> backfillJobProvider;
+    private final ObjectProvider<RagUploadedFileParser> uploadedFileParserProvider;
+    private final ObjectMapper objectMapper;
     private final boolean ragEnabled;
     private final boolean ragIndexingEnabled;
 
@@ -58,6 +67,8 @@ public class RagManagementController {
             RagEmbeddingTaskMapper taskMapper,
             ObjectProvider<RagIndexingService> indexingServiceProvider,
             ObjectProvider<RagBackfillJob> backfillJobProvider,
+            ObjectProvider<RagUploadedFileParser> uploadedFileParserProvider,
+            ObjectMapper objectMapper,
             @Value("${rag.enabled:false}") boolean ragEnabled,
             @Value("${rag.indexing.enabled:false}") boolean ragIndexingEnabled
     ) {
@@ -66,8 +77,70 @@ public class RagManagementController {
         this.taskMapper = taskMapper;
         this.indexingServiceProvider = indexingServiceProvider;
         this.backfillJobProvider = backfillJobProvider;
+        this.uploadedFileParserProvider = uploadedFileParserProvider;
+        this.objectMapper = objectMapper;
         this.ragEnabled = ragEnabled;
         this.ragIndexingEnabled = ragIndexingEnabled;
+    }
+
+    @PostMapping(value = "/documents/upload", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    @Operation(summary = "Upload and index a RAG document or table")
+    public ResponseEntity<ApiResponse<RagIndexResponse>> uploadDocument(
+            @RequestParam("file") MultipartFile file,
+            @RequestParam(required = false) String sourceId,
+            @RequestParam(required = false) String sourceVersion,
+            @RequestParam(required = false) String title,
+            @RequestParam(required = false) String aclScope,
+            @RequestParam(required = false) String route,
+            @RequestParam(required = false) String metadataJson
+    ) {
+        RagIndexingService indexingService = indexingServiceProvider.getIfAvailable();
+        RagUploadedFileParser uploadedFileParser = uploadedFileParserProvider.getIfAvailable();
+        if (!ragEnabled || !ragIndexingEnabled || indexingService == null || uploadedFileParser == null) {
+            return ResponseEntity.status(HttpStatus.CONFLICT)
+                    .body(ApiResponse.error("RAG_DISABLED", "RAG indexing is not enabled"));
+        }
+
+        RagUploadedFileParser.ParsedRagFile parsedFile;
+        try {
+            parsedFile = uploadedFileParser.parse(file);
+        } catch (Exception error) {
+            return ResponseEntity.badRequest()
+                    .body(ApiResponse.error("INVALID_RAG_UPLOAD", error.getMessage()));
+        }
+        if (parsedFile.content().isBlank()) {
+            return ResponseEntity.badRequest()
+                    .body(ApiResponse.error("EMPTY_RAG_UPLOAD", "uploaded file did not contain indexable text"));
+        }
+
+        String normalizedMetadata;
+        try {
+            normalizedMetadata = mergeUploadMetadata(metadataJson, parsedFile);
+        } catch (IllegalArgumentException error) {
+            return ResponseEntity.badRequest()
+                    .body(ApiResponse.error("INVALID_METADATA_JSON", error.getMessage()));
+        }
+
+        RagSourceDocument source = new RagSourceDocument(
+                "UPLOAD",
+                "uploaded_rag_document",
+                defaultIfBlank(sourceId, "upload-" + UUID.randomUUID()),
+                defaultIfBlank(sourceVersion, "v" + Instant.now().toEpochMilli()),
+                defaultIfBlank(title, parsedFile.title()),
+                parsedFile.content(),
+                defaultIfBlank(aclScope, "PUBLIC"),
+                defaultIfBlank(route, ""),
+                normalizedMetadata,
+                "file"
+        );
+        RagIndexingService.RagIndexingResult result = indexingService.index(source);
+        return ResponseEntity.status(HttpStatus.CREATED).body(ApiResponse.ok(
+                new RagIndexResponse(
+                        result.document(),
+                        result.chunks().size(),
+                        result.embeddingTasks().size()
+                )
+        ));
     }
 
     @GetMapping("/overview")
@@ -100,7 +173,13 @@ public class RagManagementController {
                     .or()
                     .like("source_table", keyword)
                     .or()
-                    .like("source_id", keyword));
+                    .like("source_id", keyword)
+                    .or()
+                    .like("acl_scope", keyword)
+                    .or()
+                    .like("route", keyword)
+                    .or()
+                    .apply("CAST(metadata_json AS CHAR) LIKE {0}", "%" + keyword + "%"));
         }
         Page<RagDocument> page = documentMapper.selectPage(
                 new Page<>(1, normalizeLimit(limit)),
@@ -122,6 +201,13 @@ public class RagManagementController {
 
         String sourceId = defaultIfBlank(request.sourceId(), "manual-" + UUID.randomUUID());
         String sourceVersion = defaultIfBlank(request.sourceVersion(), "v" + Instant.now().toEpochMilli());
+        String metadataJson;
+        try {
+            metadataJson = normalizeMetadataJson(request.metadataJson());
+        } catch (IllegalArgumentException error) {
+            return ResponseEntity.badRequest()
+                    .body(ApiResponse.error("INVALID_METADATA_JSON", error.getMessage()));
+        }
         RagSourceDocument source = new RagSourceDocument(
                 "MANUAL",
                 "manual_rag_document",
@@ -131,7 +217,7 @@ public class RagManagementController {
                 request.content(),
                 defaultIfBlank(request.aclScope(), "PUBLIC"),
                 defaultIfBlank(request.route(), ""),
-                defaultIfBlank(request.metadataJson(), "{}"),
+                metadataJson,
                 "content"
         );
         RagIndexingService.RagIndexingResult result = indexingService.index(source);
@@ -185,6 +271,44 @@ public class RagManagementController {
 
     private static String defaultIfBlank(String value, String fallback) {
         return value == null || value.isBlank() ? fallback : value.trim();
+    }
+
+    private String normalizeMetadataJson(String value) {
+        String normalized = defaultIfBlank(value, "{}");
+        try {
+            JsonNode node = objectMapper.readTree(normalized);
+            if (!node.isObject()) {
+                throw new IllegalArgumentException("metadataJson must be a JSON object");
+            }
+            return objectMapper.writeValueAsString(node);
+        } catch (JsonProcessingException error) {
+            throw new IllegalArgumentException("metadataJson is not valid JSON", error);
+        }
+    }
+
+    private String mergeUploadMetadata(String value, RagUploadedFileParser.ParsedRagFile parsedFile) {
+        String normalized = defaultIfBlank(value, "{}");
+        try {
+            JsonNode node = objectMapper.readTree(normalized);
+            if (!node.isObject()) {
+                throw new IllegalArgumentException("metadataJson must be a JSON object");
+            }
+            ObjectNode objectNode = (ObjectNode) node.deepCopy();
+            objectNode.put("ingestMode", "upload");
+            objectNode.put("fileName", parsedFile.fileName());
+            objectNode.put("contentType", defaultIfBlank(parsedFile.contentType(), "application/octet-stream"));
+            objectNode.put("fileSize", parsedFile.size());
+            objectNode.put("parser", parsedFile.parser());
+            if (parsedFile.rowCount() > 0) {
+                objectNode.put("rowCount", parsedFile.rowCount());
+            }
+            if (parsedFile.sheetCount() > 0) {
+                objectNode.put("sheetCount", parsedFile.sheetCount());
+            }
+            return objectMapper.writeValueAsString(objectNode);
+        } catch (JsonProcessingException error) {
+            throw new IllegalArgumentException("metadataJson is not valid JSON", error);
+        }
     }
 
     public record ManualRagDocumentRequest(
