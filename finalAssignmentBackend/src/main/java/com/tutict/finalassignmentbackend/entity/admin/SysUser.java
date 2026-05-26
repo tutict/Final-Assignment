@@ -1,6 +1,7 @@
 package com.tutict.finalassignmentbackend.entity.admin;
 
 import com.baomidou.mybatisplus.annotation.*;
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import lombok.Data;
 
 import java.io.Serial;
@@ -60,6 +61,14 @@ public class SysUser implements Serializable {
     @TableField("id_card_number")
     private String idCardNumber;
 
+    @TableField("id_card_number_ciphertext")
+    @JsonIgnore
+    private String idCardNumberCiphertext;
+
+    @TableField("id_card_number_blind_index")
+    @JsonIgnore
+    private String idCardNumberBlindIndex;
+
     /**
      * 性别 (Male, Female, Other)
      */
@@ -71,6 +80,14 @@ public class SysUser implements Serializable {
      */
     @TableField("contact_number")
     private String contactNumber;
+
+    @TableField("contact_number_ciphertext")
+    @JsonIgnore
+    private String contactNumberCiphertext;
+
+    @TableField("contact_number_blind_index")
+    @JsonIgnore
+    private String contactNumberBlindIndex;
 
     /**
      * 电子邮箱

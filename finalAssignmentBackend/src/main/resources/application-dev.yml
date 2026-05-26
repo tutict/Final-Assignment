@@ -25,7 +25,7 @@ app:
   elasticsearch:
     fallback:
       enabled: true
-    sync:
+    startup-sync:
       enabled: false
   security:
     token-blacklist:

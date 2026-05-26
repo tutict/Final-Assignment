@@ -19,6 +19,7 @@ import com.tutict.finalassignmentbackend.entity.offense.OffenseRecord;
 import com.tutict.finalassignmentbackend.exception.BusinessException;
 import com.tutict.finalassignmentbackend.mapper.appeal.AppealRecordMapper;
 import com.tutict.finalassignmentbackend.mapper.offense.OffenseRecordMapper;
+import com.tutict.finalassignmentbackend.security.crypto.SensitiveDataPersistenceService;
 import com.tutict.finalassignmentbackend.service.events.AppealStatusChangedEvent;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.ApplicationEventPublisher;
@@ -48,6 +49,7 @@ public class AppealRecordApplicationService {
     private final AppealWorkflowDecisionPolicy workflowDecisionPolicy;
     private final AppealUpdateMergeCoordinator updateMergeCoordinator;
     private final ApplicationEventPublisher applicationEventPublisher;
+    private final SensitiveDataPersistenceService sensitiveDataPersistenceService;
     private final AppealEventIntentPolicy eventIntentPolicy = new AppealEventIntentPolicy();
 
     @Autowired
@@ -61,7 +63,8 @@ public class AppealRecordApplicationService {
             AppealIdempotencyService idempotencyService,
             AppealWorkflowDecisionPolicy workflowDecisionPolicy,
             AppealUpdateMergeCoordinator updateMergeCoordinator,
-            ApplicationEventPublisher applicationEventPublisher
+            ApplicationEventPublisher applicationEventPublisher,
+            SensitiveDataPersistenceService sensitiveDataPersistenceService
     ) {
         this.appealRecordMapper = appealRecordMapper;
         this.offenseRecordMapper = offenseRecordMapper;
@@ -73,6 +76,7 @@ public class AppealRecordApplicationService {
         this.workflowDecisionPolicy = workflowDecisionPolicy;
         this.updateMergeCoordinator = updateMergeCoordinator;
         this.applicationEventPublisher = applicationEventPublisher;
+        this.sensitiveDataPersistenceService = sensitiveDataPersistenceService;
     }
 
     public AppealRecordApplicationService(
@@ -97,7 +101,8 @@ public class AppealRecordApplicationService {
                 workflowDecisionPolicy,
                 updateMergeCoordinator,
                 event -> {
-                }
+                },
+                null
         );
     }
 
@@ -127,6 +132,7 @@ public class AppealRecordApplicationService {
     @Transactional
     public void checkAndInsertIdempotency(String idempotencyKey, AppealRecord appealRecord, String action) {
         Objects.requireNonNull(appealRecord, "Appeal record cannot be null");
+        prepareSensitiveData(appealRecord);
         idempotencyService.checkAndInsert(idempotencyKey);
         AppealEventMetadata eventMetadata = classifyOutboundEvent(appealRecord, action);
         if (eventMetadata.republishesKafka()) {
@@ -142,6 +148,7 @@ public class AppealRecordApplicationService {
     public AppealRecord createAppeal(AppealRecord appealRecord) {
         fillDriverIdFromOffense(appealRecord);
         domainService.validateAppeal(appealRecord);
+        prepareSensitiveData(appealRecord);
         appealRecordMapper.insert(appealRecord);
         searchIndexer.indexAfterCommit(appealRecord);
         cachePolicy.onWrite();
@@ -166,6 +173,7 @@ public class AppealRecordApplicationService {
                 FULL_UPDATE_CALLER
         );
         merged.setUpdatedAt(LocalDateTime.now());
+        prepareSensitiveData(merged);
         int rows = appealRecordMapper.updateById(merged);
         if (workflowDecisionPolicy.isMissingMutation(rows)) {
             throw new IllegalStateException("Appeal not found: " + appealRecord.getAppealId());
@@ -203,6 +211,7 @@ public class AppealRecordApplicationService {
                 callerFor(eventMetadata)
         );
         merged.setUpdatedAt(LocalDateTime.now());
+        prepareSensitiveData(merged);
         int rows = appealRecordMapper.updateById(merged);
         if (workflowDecisionPolicy.isMissingMutation(rows)) {
             throw new IllegalStateException("Appeal not found: " + appealRecord.getAppealId());
@@ -325,6 +334,12 @@ public class AppealRecordApplicationService {
                 updated.getProcessStatus(),
                 updated.getUpdatedAt()
         ));
+    }
+
+    private void prepareSensitiveData(AppealRecord appealRecord) {
+        if (sensitiveDataPersistenceService != null) {
+            sensitiveDataPersistenceService.prepare(appealRecord);
+        }
     }
 
     private void fillDriverIdFromOffense(AppealRecord appealRecord) {

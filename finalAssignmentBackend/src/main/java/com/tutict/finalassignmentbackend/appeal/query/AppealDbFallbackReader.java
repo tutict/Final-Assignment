@@ -5,6 +5,7 @@ import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.tutict.finalassignmentbackend.appeal.query.dto.AppealPageRequest;
 import com.tutict.finalassignmentbackend.entity.appeal.AppealRecord;
 import com.tutict.finalassignmentbackend.mapper.appeal.AppealRecordMapper;
+import com.tutict.finalassignmentbackend.security.crypto.SensitiveDataPersistenceService;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDateTime;
@@ -14,9 +15,14 @@ import java.util.List;
 public class AppealDbFallbackReader {
 
     private final AppealRecordMapper appealRecordMapper;
+    private final SensitiveDataPersistenceService sensitiveDataPersistenceService;
 
-    public AppealDbFallbackReader(AppealRecordMapper appealRecordMapper) {
+    public AppealDbFallbackReader(
+            AppealRecordMapper appealRecordMapper,
+            SensitiveDataPersistenceService sensitiveDataPersistenceService
+    ) {
         this.appealRecordMapper = appealRecordMapper;
+        this.sensitiveDataPersistenceService = sensitiveDataPersistenceService;
     }
 
     public AppealRecord findById(Long appealId) {
@@ -66,6 +72,16 @@ public class AppealDbFallbackReader {
     }
 
     public List<AppealRecord> searchByAppellantIdCard(String appellantIdCard, AppealPageRequest pageRequest) {
+        String blindIndex = sensitiveDataPersistenceService.blindIndex(appellantIdCard);
+        if (blindIndex != null && !blindIndex.isBlank()) {
+            QueryWrapper<AppealRecord> blindWrapper = new QueryWrapper<>();
+            blindWrapper.eq("appellant_id_card_blind_index", blindIndex)
+                    .orderByDesc("appeal_time");
+            List<AppealRecord> exact = selectPage(blindWrapper, pageRequest);
+            if (!exact.isEmpty()) {
+                return exact;
+            }
+        }
         QueryWrapper<AppealRecord> wrapper = new QueryWrapper<>();
         wrapper.likeRight("appellant_id_card", appellantIdCard)
                 .orderByDesc("appeal_time");

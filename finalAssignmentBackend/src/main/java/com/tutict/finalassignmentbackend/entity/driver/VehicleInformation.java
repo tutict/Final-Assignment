@@ -1,6 +1,7 @@
 package com.tutict.finalassignmentbackend.entity.driver;
 
 import com.baomidou.mybatisplus.annotation.*;
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import lombok.Data;
 
 import java.io.Serial;
@@ -93,11 +94,27 @@ public class VehicleInformation implements Serializable {
     @TableField("owner_id_card")
     private String ownerIdCard;
 
+    @TableField("owner_id_card_ciphertext")
+    @JsonIgnore
+    private String ownerIdCardCiphertext;
+
+    @TableField("owner_id_card_blind_index")
+    @JsonIgnore
+    private String ownerIdCardBlindIndex;
+
     /**
      * 车主联系电话
      */
     @TableField("owner_contact")
     private String ownerContact;
+
+    @TableField("owner_contact_ciphertext")
+    @JsonIgnore
+    private String ownerContactCiphertext;
+
+    @TableField("owner_contact_blind_index")
+    @JsonIgnore
+    private String ownerContactBlindIndex;
 
     /**
      * 车主地址

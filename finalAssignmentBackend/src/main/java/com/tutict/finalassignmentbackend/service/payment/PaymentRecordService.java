@@ -19,6 +19,7 @@ import com.tutict.finalassignmentbackend.payment.exception.PaymentOptimisticLock
 import com.tutict.finalassignmentbackend.payment.messaging.PaymentRecordKafkaEvent;
 import com.tutict.finalassignmentbackend.service.events.PaymentStatusChangedEvent;
 import com.tutict.finalassignmentbackend.repository.PaymentRecordSearchRepository;
+import com.tutict.finalassignmentbackend.security.crypto.SensitiveDataPersistenceService;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.cache.annotation.CacheEvict;
@@ -50,19 +51,22 @@ public class PaymentRecordService {
     private final PaymentRecordSearchRepository paymentRecordSearchRepository;
     private final ApplicationEventPublisher applicationEventPublisher;
     private final PaymentGovernanceClassifier paymentGovernanceClassifier;
+    private final SensitiveDataPersistenceService sensitiveDataPersistenceService;
 
     @Autowired
     public PaymentRecordService(PaymentRecordMapper paymentRecordMapper,
                                 FineRecordMapper fineRecordMapper,
                                 SysRequestHistoryMapper sysRequestHistoryMapper,
                                 PaymentRecordSearchRepository paymentRecordSearchRepository,
-                                ApplicationEventPublisher applicationEventPublisher) {
+                                ApplicationEventPublisher applicationEventPublisher,
+                                SensitiveDataPersistenceService sensitiveDataPersistenceService) {
         this.paymentRecordMapper = paymentRecordMapper;
         this.fineRecordMapper = fineRecordMapper;
         this.sysRequestHistoryMapper = sysRequestHistoryMapper;
         this.paymentRecordSearchRepository = paymentRecordSearchRepository;
         this.applicationEventPublisher = applicationEventPublisher;
         this.paymentGovernanceClassifier = new PaymentGovernanceClassifier();
+        this.sensitiveDataPersistenceService = sensitiveDataPersistenceService;
     }
 
     @Transactional(rollbackFor = Exception.class)
@@ -84,6 +88,7 @@ public class PaymentRecordService {
     @CacheEvict(cacheNames = CACHE_NAME, allEntries = true)
     public PaymentRecord createPaymentRecord(PaymentRecord paymentRecord) {
         validatePaymentRecord(paymentRecord);
+        sensitiveDataPersistenceService.prepare(paymentRecord);
         paymentRecordMapper.insert(paymentRecord);
         syncToIndexAfterCommit(paymentRecord);
         return paymentRecord;
@@ -101,6 +106,7 @@ public class PaymentRecordService {
                 paymentRecord.getPaymentId(),
                 "PROCESSING"
         );
+        sensitiveDataPersistenceService.prepare(paymentRecord);
         paymentRecordMapper.insert(paymentRecord);
         applicationEventPublisher.publishEvent(
                 new PaymentRecordKafkaEvent("payment_record_create", idempotencyKey, paymentRecord)
@@ -115,6 +121,7 @@ public class PaymentRecordService {
     public PaymentRecord updatePaymentRecord(PaymentRecord paymentRecord) {
         validatePaymentRecord(paymentRecord);
         requirePositive(paymentRecord.getPaymentId(), "Payment ID");
+        sensitiveDataPersistenceService.prepare(paymentRecord);
         int rows = paymentRecordMapper.updateById(paymentRecord);
         if (rows == 0) {
             throw new PaymentOptimisticLockException("Payment record was updated concurrently; refresh and retry");
@@ -137,6 +144,7 @@ public class PaymentRecordService {
                 paymentRecord.getPaymentId(),
                 "PROCESSING"
         );
+        sensitiveDataPersistenceService.prepare(paymentRecord);
         int rows = paymentRecordMapper.updateById(paymentRecord);
         if (rows == 0) {
             throw new PaymentOptimisticLockException("Payment record was updated concurrently; refresh and retry");
@@ -289,9 +297,15 @@ public class PaymentRecordService {
             return List.of();
         }
         validatePagination(page, size);
-        List<PaymentRecord> index = mapHits(paymentRecordSearchRepository.searchByPayerIdCard(payerIdCard, pageable(page, size)));
-        if (!index.isEmpty()) {
-            return index;
+        String blindIndex = sensitiveDataPersistenceService.blindIndex(payerIdCard);
+        if (!isBlank(blindIndex)) {
+            QueryWrapper<PaymentRecord> blindWrapper = new QueryWrapper<>();
+            blindWrapper.eq("payer_id_card_blind_index", blindIndex)
+                    .orderByDesc("payment_time");
+            List<PaymentRecord> exact = fetchFromDatabase(blindWrapper, page, size);
+            if (!exact.isEmpty()) {
+                return exact;
+            }
         }
         QueryWrapper<PaymentRecord> wrapper = new QueryWrapper<>();
         wrapper.likeRight("payer_id_card", payerIdCard)

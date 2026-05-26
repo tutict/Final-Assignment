@@ -1,6 +1,7 @@
 package com.tutict.finalassignmentbackend.service.driver;
 
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
+import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.tutict.finalassignmentbackend.config.websocket.WsAction;
 import com.tutict.finalassignmentbackend.entity.driver.DriverInformation;
@@ -11,6 +12,7 @@ import com.tutict.finalassignmentbackend.mapper.driver.DriverInformationMapper;
 import com.tutict.finalassignmentbackend.mapper.system.SysRequestHistoryMapper;
 import com.tutict.finalassignmentbackend.mapper.admin.SysUserMapper;
 import com.tutict.finalassignmentbackend.repository.DriverInformationSearchRepository;
+import com.tutict.finalassignmentbackend.security.crypto.SensitiveDataPersistenceService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.cache.annotation.Cacheable;
@@ -48,6 +50,7 @@ public class DriverInformationService {
     private final DriverInformationSearchRepository driverInformationSearchRepository;
     private final KafkaTemplate<String, String> kafkaTemplate;
     private final ObjectMapper objectMapper;
+    private final SensitiveDataPersistenceService sensitiveDataPersistenceService;
 
     @Autowired
     public DriverInformationService(DriverInformationMapper driverInformationMapper,
@@ -55,13 +58,15 @@ public class DriverInformationService {
                                     SysRequestHistoryMapper sysRequestHistoryMapper,
                                     KafkaTemplate<String, String> kafkaTemplate,
                                     DriverInformationSearchRepository driverInformationSearchRepository,
-                                    ObjectMapper objectMapper) {
+                                    ObjectMapper objectMapper,
+                                    SensitiveDataPersistenceService sensitiveDataPersistenceService) {
         this.driverInformationMapper = driverInformationMapper;
         this.sysUserMapper = sysUserMapper;
         this.sysRequestHistoryMapper = sysRequestHistoryMapper;
         this.kafkaTemplate = kafkaTemplate;
         this.driverInformationSearchRepository = driverInformationSearchRepository;
         this.objectMapper = objectMapper;
+        this.sensitiveDataPersistenceService = sensitiveDataPersistenceService;
     }
 
     @Transactional
@@ -82,6 +87,7 @@ public class DriverInformationService {
         history.setBusinessStatus("PROCESSING");
         sysRequestHistoryMapper.insert(history);
 
+        sensitiveDataPersistenceService.prepare(driverInformation);
         sendKafkaMessage("driver_" + action, idempotencyKey, driverInformation);
 
         history.setBusinessStatus("SUCCESS");
@@ -95,6 +101,7 @@ public class DriverInformationService {
     public DriverInformation createDriver(DriverInformation driverInformation) {
         validateDriver(driverInformation);
         log.log(Level.INFO, "Creating driver: {0}", driverInformation);
+        sensitiveDataPersistenceService.prepare(driverInformation);
         driverInformationMapper.insert(driverInformation);
         syncToIndexAfterCommit(driverInformation);
         return driverInformation;
@@ -114,6 +121,7 @@ public class DriverInformationService {
             driverInformation.setAuthUserId(existing.getAuthUserId());
         }
         driverInformation.setUpdatedAt(LocalDateTime.now());
+        sensitiveDataPersistenceService.prepare(driverInformation);
         driverInformationMapper.updateById(driverInformation);
 
         DriverInformation updated = driverInformationMapper.selectById(driverInformation.getDriverId());
@@ -164,12 +172,20 @@ public class DriverInformationService {
             return byAuthUser;
         }
 
-        DriverInformation byIdCard = findFirstByColumn("id_card_number", user.getIdCardNumber());
+        DriverInformation byIdCard = findFirstBySensitiveColumn(
+                "id_card_number",
+                "id_card_number_blind_index",
+                user.getIdCardNumber()
+        );
         if (byIdCard != null) {
             return linkLegacyDriver(byIdCard, user);
         }
 
-        DriverInformation byContactNumber = findFirstByColumn("contact_number", user.getContactNumber());
+        DriverInformation byContactNumber = findFirstBySensitiveColumn(
+                "contact_number",
+                "contact_number_blind_index",
+                user.getContactNumber()
+        );
         if (byContactNumber != null) {
             return linkLegacyDriver(byContactNumber, user);
         }
@@ -199,6 +215,7 @@ public class DriverInformationService {
         driver.setUpdatedAt(LocalDateTime.now());
         driver.setCreatedBy("AuthWsService");
         try {
+            sensitiveDataPersistenceService.prepare(driver);
             driverInformationMapper.insert(driver);
         } catch (DuplicateKeyException ex) {
             DriverInformation concurrent = findByAuthUserId(user.getUserId());
@@ -232,10 +249,8 @@ public class DriverInformationService {
     @Cacheable(cacheNames = CACHE_NAME, key = "'idCard:' + #query + ':' + #page + ':' + #size")
     @WsAction(service = "DriverInformationService", action = "searchByIdCardNumber")
     public List<DriverInformation> searchByIdCardNumber(String query, int page, int size) {
-        return aggregatedSearch(query, page, size,
-                q -> driverInformationSearchRepository.searchByIdCardNumber(q, pageable(page, size)),
-                q -> driverInformationSearchRepository.searchByIdCardNumberFuzzy(q, pageable(page, size)),
-                DriverInformationDocument::getIdCardNumber);
+        validatePagination(page, size);
+        return searchBySensitiveColumn("id_card_number", "id_card_number_blind_index", query, page, size);
     }
 
     @Cacheable(cacheNames = CACHE_NAME, key = "'license:' + #query + ':' + #page + ':' + #size")
@@ -397,6 +412,59 @@ public class DriverInformationService {
         return driverInformationMapper.selectOne(wrapper);
     }
 
+    private DriverInformation findFirstBySensitiveColumn(String plaintextColumn, String blindIndexColumn, String value) {
+        if (value == null || value.trim().isEmpty()) {
+            return null;
+        }
+        String blindIndex = sensitiveDataPersistenceService.blindIndex(value);
+        if (StringUtils.hasText(blindIndex)) {
+            QueryWrapper<DriverInformation> wrapper = new QueryWrapper<>();
+            wrapper.eq(blindIndexColumn, blindIndex)
+                    .isNull("deleted_at")
+                    .last("LIMIT 1");
+            DriverInformation matched = driverInformationMapper.selectOne(wrapper);
+            if (matched != null) {
+                return matched;
+            }
+        }
+        return findFirstByColumn(plaintextColumn, value);
+    }
+
+    private List<DriverInformation> searchBySensitiveColumn(String plaintextColumn,
+                                                            String blindIndexColumn,
+                                                            String value,
+                                                            int page,
+                                                            int size) {
+        if (!StringUtils.hasText(value)) {
+            return List.of();
+        }
+        String blindIndex = sensitiveDataPersistenceService.blindIndex(value);
+        if (StringUtils.hasText(blindIndex)) {
+            QueryWrapper<DriverInformation> blindWrapper = new QueryWrapper<>();
+            blindWrapper.eq(blindIndexColumn, blindIndex)
+                    .isNull("deleted_at");
+            List<DriverInformation> exact = fetchFromDatabase(blindWrapper, page, size);
+            if (!exact.isEmpty()) {
+                return exact;
+            }
+        }
+        QueryWrapper<DriverInformation> wrapper = new QueryWrapper<>();
+        wrapper.likeRight(plaintextColumn, value.trim())
+                .isNull("deleted_at");
+        return fetchFromDatabase(wrapper, page, size);
+    }
+
+    private List<DriverInformation> fetchFromDatabase(QueryWrapper<DriverInformation> wrapper, int page, int size) {
+        Page<DriverInformation> mpPage = new Page<>(Math.max(page, 1), Math.max(size, 1));
+        driverInformationMapper.selectPage(mpPage, wrapper);
+        List<DriverInformation> records = mpPage.getRecords();
+        records.stream()
+                .map(DriverInformationDocument::fromEntity)
+                .filter(Objects::nonNull)
+                .forEach(driverInformationSearchRepository::save);
+        return records;
+    }
+
     private DriverInformation findByAuthUserId(Long authUserId) {
         if (authUserId == null || authUserId <= 0) {
             return null;
@@ -416,6 +484,7 @@ public class DriverInformationService {
         if (linkedUserId == null) {
             driver.setAuthUserId(user.getUserId());
             driver.setUpdatedAt(LocalDateTime.now());
+            sensitiveDataPersistenceService.prepare(driver);
             driverInformationMapper.updateById(driver);
             syncToIndexAfterCommit(driver);
             return driverInformationMapper.selectById(driver.getDriverId());
@@ -450,6 +519,7 @@ public class DriverInformationService {
         }
         if (changed) {
             sysUser.setUpdatedAt(LocalDateTime.now());
+            sensitiveDataPersistenceService.prepare(sysUser);
             sysUserMapper.updateById(sysUser);
         }
     }
