@@ -1,0 +1,5 @@
+Name: final-assignment-go-api
+Host: 0.0.0.0
+Port: 8081
+Timeout: 3000
+MaxBytes: 1048576
