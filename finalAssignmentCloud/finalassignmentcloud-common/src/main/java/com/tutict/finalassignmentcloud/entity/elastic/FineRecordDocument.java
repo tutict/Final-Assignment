@@ -31,6 +31,9 @@ public class FineRecordDocument implements Serializable {
     @Field(type = FieldType.Long)
     private Long offenseId;
 
+    @Field(type = FieldType.Long)
+    private Long driverId;
+
     @MultiField(
             mainField = @Field(type = FieldType.Text, analyzer = "ik_max_word", searchAnalyzer = "ik_max_word"),
             otherFields = {
@@ -140,6 +143,7 @@ public class FineRecordDocument implements Serializable {
         FineRecordDocument doc = new FineRecordDocument();
         doc.setFineId(entity.getFineId());
         doc.setOffenseId(entity.getOffenseId());
+        doc.setDriverId(entity.getDriverId());
         doc.setFineNumber(entity.getFineNumber());
         doc.setFineAmount(entity.getFineAmount());
         doc.setLateFee(entity.getLateFee());
@@ -165,6 +169,7 @@ public class FineRecordDocument implements Serializable {
         FineRecord entity = new FineRecord();
         entity.setFineId(this.fineId);
         entity.setOffenseId(this.offenseId);
+        entity.setDriverId(this.driverId);
         entity.setFineNumber(this.fineNumber);
         entity.setFineAmount(this.fineAmount);
         entity.setLateFee(this.lateFee);

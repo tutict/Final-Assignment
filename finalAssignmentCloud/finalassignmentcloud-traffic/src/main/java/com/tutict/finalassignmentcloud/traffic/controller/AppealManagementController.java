@@ -1,15 +1,19 @@
 package com.tutict.finalassignmentcloud.traffic.controller;
 
+import com.tutict.finalassignmentcloud.dto.response.UserProfileResponse;
 import com.tutict.finalassignmentcloud.entity.AppealRecord;
 import com.tutict.finalassignmentcloud.entity.AppealReview;
 import com.tutict.finalassignmentcloud.traffic.service.AppealRecordService;
 import com.tutict.finalassignmentcloud.traffic.service.AppealReviewService;
+import com.tutict.finalassignmentcloud.traffic.service.DriverAccessService;
+import com.tutict.finalassignmentcloud.traffic.service.TrafficUserProfileService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.annotation.security.RolesAllowed;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -23,6 +27,7 @@ import org.springframework.web.bind.annotation.RestController;
 
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
@@ -34,23 +39,39 @@ import java.util.logging.Logger;
 public class AppealManagementController {
 
     private static final Logger LOG = Logger.getLogger(AppealManagementController.class.getName());
+    private static final Set<String> ELEVATED_ROLES = Set.of("SUPER_ADMIN", "ADMIN", "APPEAL_REVIEWER");
 
     private final AppealRecordService appealRecordService;
     private final AppealReviewService appealReviewService;
+    private final DriverAccessService driverAccessService;
+    private final TrafficUserProfileService userProfileService;
 
     public AppealManagementController(AppealRecordService appealRecordService,
-                                      AppealReviewService appealReviewService) {
+                                      AppealReviewService appealReviewService,
+                                      DriverAccessService driverAccessService,
+                                      TrafficUserProfileService userProfileService) {
         this.appealRecordService = appealRecordService;
         this.appealReviewService = appealReviewService;
+        this.driverAccessService = driverAccessService;
+        this.userProfileService = userProfileService;
     }
 
     @PostMapping
+    @RolesAllowed({"USER", "ADMIN", "APPEAL_REVIEWER", "SUPER_ADMIN"})
     @Operation(summary = "创建申诉记录")
     public ResponseEntity<AppealRecord> createAppeal(@RequestBody AppealRecord request,
                                                      @RequestHeader(value = "Idempotency-Key", required = false)
-                                                     String idempotencyKey) {
+                                                     String idempotencyKey,
+                                                     Authentication authentication) {
         boolean useIdempotency = hasKey(idempotencyKey);
         try {
+            if (driverAccessService.isRegularUser(authentication, ELEVATED_ROLES)) {
+                UserProfileResponse profile = userProfileService.getCurrentUserProfile(authentication);
+                if (profile.getDriverId() == null) {
+                    return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
+                }
+                request.setDriverId(profile.getDriverId());
+            }
             if (useIdempotency) {
                 if (appealRecordService.shouldSkipProcessing(idempotencyKey)) {
                     LOG.log(Level.INFO, "Appeal create skipped by idempotency key {0}", idempotencyKey);
@@ -131,6 +152,24 @@ public class AppealManagementController {
             return ResponseEntity.ok(appealRecordService.findByOffenseId(offenseId, page, size));
         } catch (Exception ex) {
             LOG.log(Level.WARNING, "List appeals failed", ex);
+            return ResponseEntity.status(resolveStatus(ex)).build();
+        }
+    }
+
+    @GetMapping("/driver/{driverId}")
+    @RolesAllowed({"SUPER_ADMIN", "ADMIN", "APPEAL_REVIEWER", "USER"})
+    @Operation(summary = "Search appeals by driver")
+    public ResponseEntity<List<AppealRecord>> listAppealsByDriver(@PathVariable Long driverId,
+                                                                  @RequestParam(defaultValue = "1") int page,
+                                                                  @RequestParam(defaultValue = "20") int size,
+                                                                  Authentication authentication) {
+        try {
+            if (!driverAccessService.canAccessDriver(authentication, driverId, ELEVATED_ROLES)) {
+                return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
+            }
+            return ResponseEntity.ok(appealRecordService.findByDriverId(driverId, page, size));
+        } catch (Exception ex) {
+            LOG.log(Level.WARNING, "List appeals by driver failed", ex);
             return ResponseEntity.status(resolveStatus(ex)).build();
         }
     }

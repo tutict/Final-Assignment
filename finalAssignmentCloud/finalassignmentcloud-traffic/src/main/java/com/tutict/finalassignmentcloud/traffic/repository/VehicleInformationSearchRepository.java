@@ -15,6 +15,17 @@ public interface VehicleInformationSearchRepository extends ElasticsearchReposit
 
     @Query("""
     {
+      "term": {
+        "driverId": {
+          "value": ?0
+        }
+      }
+    }
+    """)
+    SearchHits<VehicleInformationDocument> findByDriverId(Long driverId, Pageable pageable);
+
+    @Query("""
+    {
       "bool": {
         "must": [
           {

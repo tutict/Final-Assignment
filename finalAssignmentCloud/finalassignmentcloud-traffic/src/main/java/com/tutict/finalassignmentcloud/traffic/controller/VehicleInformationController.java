@@ -2,6 +2,8 @@ package com.tutict.finalassignmentcloud.traffic.controller;
 
 import com.tutict.finalassignmentcloud.entity.DriverVehicle;
 import com.tutict.finalassignmentcloud.entity.VehicleInformation;
+import com.tutict.finalassignmentcloud.dto.response.ApiResponse;
+import com.tutict.finalassignmentcloud.traffic.service.DriverAccessService;
 import com.tutict.finalassignmentcloud.traffic.service.DriverVehicleService;
 import com.tutict.finalassignmentcloud.traffic.service.VehicleInformationService;
 import io.swagger.v3.oas.annotations.Operation;
@@ -10,6 +12,7 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.annotation.security.RolesAllowed;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -23,6 +26,7 @@ import org.springframework.web.bind.annotation.RestController;
 
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
@@ -34,14 +38,18 @@ import java.util.logging.Logger;
 public class VehicleInformationController {
 
     private static final Logger LOG = Logger.getLogger(VehicleInformationController.class.getName());
+    private static final Set<String> ELEVATED_ROLES = Set.of("SUPER_ADMIN", "ADMIN", "TRAFFIC_POLICE");
 
     private final VehicleInformationService vehicleInformationService;
     private final DriverVehicleService driverVehicleService;
+    private final DriverAccessService driverAccessService;
 
     public VehicleInformationController(VehicleInformationService vehicleInformationService,
-                                        DriverVehicleService driverVehicleService) {
+                                        DriverVehicleService driverVehicleService,
+                                        DriverAccessService driverAccessService) {
         this.vehicleInformationService = vehicleInformationService;
         this.driverVehicleService = driverVehicleService;
+        this.driverAccessService = driverAccessService;
     }
 
     @PostMapping
@@ -312,6 +320,24 @@ public class VehicleInformationController {
         }
     }
 
+    @GetMapping("/drivers/{driverId}/records")
+    @RolesAllowed({"SUPER_ADMIN", "ADMIN", "TRAFFIC_POLICE", "USER"})
+    @Operation(summary = "Search vehicle records by driver")
+    public ResponseEntity<List<VehicleInformation>> listVehicleRecordsByDriver(@PathVariable Long driverId,
+                                                                               @RequestParam(defaultValue = "1") int page,
+                                                                               @RequestParam(defaultValue = "20") int size,
+                                                                               Authentication authentication) {
+        try {
+            if (!driverAccessService.canAccessDriver(authentication, driverId, ELEVATED_ROLES)) {
+                return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
+            }
+            return ResponseEntity.ok(vehicleInformationService.getVehicleInformationByDriverId(driverId, page, size));
+        } catch (Exception ex) {
+            LOG.log(Level.WARNING, "List driver vehicles failed", ex);
+            return ResponseEntity.status(resolveStatus(ex)).build();
+        }
+    }
+
     @GetMapping("/drivers/{driverId}/vehicles/primary")
     @Operation(summary = "查询驾驶员的主绑定车辆")
     public ResponseEntity<List<DriverVehicle>> primaryBinding(@PathVariable Long driverId) {
@@ -345,6 +371,19 @@ public class VehicleInformationController {
         } catch (Exception ex) {
             LOG.log(Level.WARNING, "Fetch global plate suggestions failed", ex);
             return ResponseEntity.status(resolveStatus(ex)).build();
+        }
+    }
+
+    @GetMapping("/autocomplete")
+    @Operation(summary = "Search global plate autocomplete suggestions")
+    public ResponseEntity<ApiResponse<List<String>>> autocompletePlates(@RequestParam String prefix,
+                                                                        @RequestParam(defaultValue = "10") int limit) {
+        try {
+            return ResponseEntity.ok(ApiResponse.ok(vehicleInformationService.suggestPlates(prefix, limit)));
+        } catch (Exception ex) {
+            LOG.log(Level.WARNING, "Fetch plate autocomplete failed", ex);
+            return ResponseEntity.status(resolveStatus(ex))
+                    .body(ApiResponse.error("VEHICLE_AUTOCOMPLETE_FAILED", ex.getMessage()));
         }
     }
 

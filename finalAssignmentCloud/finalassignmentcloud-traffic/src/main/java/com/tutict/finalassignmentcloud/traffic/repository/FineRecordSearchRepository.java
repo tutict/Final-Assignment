@@ -30,6 +30,17 @@ public interface FineRecordSearchRepository extends ElasticsearchRepository<Fine
 
     @Query("""
             {
+              "term": {
+                "driverId": {
+                  "value": ?0
+                }
+              }
+            }
+            """)
+    SearchHits<FineRecordDocument> findByDriverId(Long driverId, Pageable pageable);
+
+    @Query("""
+            {
               "match_phrase_prefix": {
                 "handler": {
                   "query": "?0"

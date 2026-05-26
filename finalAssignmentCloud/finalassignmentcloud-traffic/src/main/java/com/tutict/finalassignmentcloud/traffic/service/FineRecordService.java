@@ -160,6 +160,20 @@ public class FineRecordService {
         return fetchFromDatabase(wrapper, page, size);
     }
 
+    @Cacheable(cacheNames = CACHE_NAME, key = "'driver:' + #driverId + ':' + #page + ':' + #size", unless = "#result == null || #result.isEmpty()")
+    public List<FineRecord> findByDriverId(Long driverId, int page, int size) {
+        requirePositive(driverId, "Driver ID");
+        validatePagination(page, size);
+        List<FineRecord> index = mapHits(fineRecordSearchRepository.findByDriverId(driverId, pageable(page, size)));
+        if (!index.isEmpty()) {
+            return index;
+        }
+        QueryWrapper<FineRecord> wrapper = new QueryWrapper<>();
+        wrapper.eq("driver_id", driverId)
+                .orderByDesc("fine_date");
+        return fetchFromDatabase(wrapper, page, size);
+    }
+
     @Cacheable(cacheNames = CACHE_NAME, key = "'handlerPrefix:' + #handler + ':' + #page + ':' + #size", unless = "#result == null || #result.isEmpty()")
     public List<FineRecord> searchByHandlerPrefix(String handler, int page, int size) {
         if (isBlank(handler)) {

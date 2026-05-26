@@ -30,6 +30,9 @@ public class PaymentRecordDocument implements Serializable {
     @Field(type = FieldType.Long)
     private Long fineId;
 
+    @Field(type = FieldType.Long)
+    private Long driverId;
+
     @MultiField(
             mainField = @Field(type = FieldType.Text, analyzer = "ik_max_word", searchAnalyzer = "ik_max_word"),
             otherFields = {
@@ -193,6 +196,7 @@ public class PaymentRecordDocument implements Serializable {
         PaymentRecordDocument doc = new PaymentRecordDocument();
         doc.setPaymentId(entity.getPaymentId());
         doc.setFineId(entity.getFineId());
+        doc.setDriverId(entity.getDriverId());
         doc.setPaymentNumber(entity.getPaymentNumber());
         doc.setPaymentAmount(entity.getPaymentAmount());
         doc.setPaymentMethod(entity.getPaymentMethod());
@@ -222,6 +226,7 @@ public class PaymentRecordDocument implements Serializable {
         PaymentRecord entity = new PaymentRecord();
         entity.setPaymentId(this.paymentId);
         entity.setFineId(this.fineId);
+        entity.setDriverId(this.driverId);
         entity.setPaymentNumber(this.paymentNumber);
         entity.setPaymentAmount(this.paymentAmount);
         entity.setPaymentMethod(this.paymentMethod);

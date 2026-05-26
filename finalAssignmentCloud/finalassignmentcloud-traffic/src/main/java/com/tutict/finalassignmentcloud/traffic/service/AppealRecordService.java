@@ -157,6 +157,20 @@ public class AppealRecordService {
         return fetchFromDatabase(wrapper, page, size);
     }
 
+    @Cacheable(cacheNames = CACHE, key = "'driver:' + #driverId + ':' + #page + ':' + #size", unless = "#result == null || #result.isEmpty()")
+    public List<AppealRecord> findByDriverId(Long driverId, int page, int size) {
+        validateDriverId(driverId);
+        validatePagination(page, size);
+        List<AppealRecord> index = mapHits(appealRecordSearchRepository.findByDriverId(driverId, pageable(page, size)));
+        if (!index.isEmpty()) {
+            return index;
+        }
+        QueryWrapper<AppealRecord> wrapper = new QueryWrapper<>();
+        wrapper.eq("driver_id", driverId)
+                .orderByDesc("appeal_time");
+        return fetchFromDatabase(wrapper, page, size);
+    }
+
     @Cacheable(cacheNames = CACHE, key = "'appealNumberPrefix:' + #appealNumber + ':' + #page + ':' + #size", unless = "#result == null || #result.isEmpty()")
     public List<AppealRecord> searchByAppealNumberPrefix(String appealNumber, int page, int size) {
         if (isBlank(appealNumber)) {
@@ -430,6 +444,12 @@ public class AppealRecordService {
     private void validateAppealId(Long appealId) {
         if (appealId == null || appealId <= 0) {
             throw new IllegalArgumentException("Invalid appeal ID: " + appealId);
+        }
+    }
+
+    private void validateDriverId(Long driverId) {
+        if (driverId == null || driverId <= 0) {
+            throw new IllegalArgumentException("Invalid driver ID: " + driverId);
         }
     }
 

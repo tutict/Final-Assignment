@@ -1,11 +1,14 @@
 package com.tutict.finalassignmentcloud.auth.service;
 
 import com.tutict.finalassignmentcloud.auth.client.AuditLogClient;
+import com.tutict.finalassignmentcloud.auth.client.DriverClient;
 import com.tutict.finalassignmentcloud.auth.client.RoleClient;
 import com.tutict.finalassignmentcloud.auth.client.UserClient;
 import com.tutict.finalassignmentcloud.auth.config.login.jwt.TokenProvider;
 import com.tutict.finalassignmentcloud.config.websocket.WsAction;
 import com.tutict.finalassignmentcloud.entity.AuditLoginLog;
+import com.tutict.finalassignmentcloud.dto.response.UserProfileResponse;
+import com.tutict.finalassignmentcloud.entity.DriverInformation;
 import com.tutict.finalassignmentcloud.entity.SysRole;
 import com.tutict.finalassignmentcloud.entity.SysUser;
 import com.tutict.finalassignmentcloud.entity.SysUserRole;
@@ -16,6 +19,8 @@ import lombok.Data;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.security.authentication.BadCredentialsException;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -27,6 +32,7 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Set;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import java.util.stream.Collectors;
@@ -36,11 +42,20 @@ public class AuthWsService {
 
     private static final Logger logger = Logger.getLogger(AuthWsService.class.getName());
     private static final int MAX_ROLE_PAGE_SIZE = 100;
+    private static final Set<String> DRIVER_PROFILE_ROLES = Set.of("USER");
+    private static final Set<String> STAFF_ROLES = Set.of(
+            "SUPER_ADMIN",
+            "ADMIN",
+            "TRAFFIC_POLICE",
+            "FINANCE",
+            "APPEAL_REVIEWER"
+    );
 
     private final TokenProvider tokenProvider;
     private final AuditLogClient auditLogClient;
     private final UserClient userClient;
     private final RoleClient roleClient;
+    private final DriverClient driverClient;
     private final PasswordEncoder passwordEncoder;
 
     @Autowired
@@ -48,11 +63,13 @@ public class AuthWsService {
                          AuditLogClient auditLogClient,
                          UserClient userClient,
                          RoleClient roleClient,
+                         DriverClient driverClient,
                          PasswordEncoder passwordEncoder) {
         this.tokenProvider = tokenProvider;
         this.auditLogClient = auditLogClient;
         this.userClient = userClient;
         this.roleClient = roleClient;
+        this.driverClient = driverClient;
         this.passwordEncoder = passwordEncoder;
     }
 
@@ -66,14 +83,15 @@ public class AuthWsService {
 
         if (user != null && authenticateUser(user, loginRequest.getPassword())) {
             RoleAggregation aggregation = aggregateRoles(user.getUserId());
-            List<String> roles = aggregation.getRoleNames();
-            if (roles.isEmpty()) {
+            List<String> roleNames = aggregation.getRoleNames();
+            List<String> roleCodes = aggregation.getRoleCodes();
+            if (roleCodes.isEmpty()) {
                 logger.severe(() -> String.format("No roles found for user: %s", loginRequest.getUsername()));
                 recordFailedLogin(loginRequest.getUsername(), "NO_ROLES_ASSIGNED");
                 throw new RuntimeException("No roles assigned to user.");
             }
-            String rolesString = String.join(",", roles);
-            String roleCodesCsv = String.join(",", aggregation.getRoleCodes());
+            String rolesString = String.join(",", roleCodes);
+            String roleCodesCsv = String.join(",", roleCodes);
             String roleTypesCsv = String.join(",", aggregation.getRoleTypes());
             String dataScopeCode = aggregation.getDataScope().getCode();
 
@@ -93,25 +111,88 @@ public class AuthWsService {
             boolean systemRole = tokenProvider.hasSystemRole(jwtToken);
             boolean businessRole = tokenProvider.hasBusinessRole(jwtToken);
             boolean hasDepartmentScope = tokenProvider.hasDataScopePermission(jwtToken, DataScope.DEPARTMENT);
+            DriverInformation driver = resolveDriverForUser(user, aggregation);
 
             logger.info(() -> String.format("User authenticated successfully (WS): %s with roles: %s",
                     loginRequest.getUsername(), rolesString));
-            return Map.of(
-                    "jwtToken", jwtToken,
-                    "username", user.getUsername(),
-                    "roles", roles,
-                    "roleCodes", aggregation.getRoleCodes(),
-                    "roleTypes", aggregation.getRoleTypes(),
-                    "dataScope", dataScopeCode,
-                    "systemRole", systemRole,
-                    "businessRole", businessRole,
-                    "departmentScope", hasDepartmentScope
-            );
+            Map<String, Object> result = new java.util.LinkedHashMap<>();
+            result.put("jwtToken", jwtToken);
+            result.put("accessToken", jwtToken);
+            result.put("tokenType", "Bearer");
+            result.put("username", user.getUsername());
+            result.put("authUserId", user.getUserId());
+            result.put("displayName", resolveDisplayName(user));
+            result.put("driverId", driver != null ? driver.getDriverId() : null);
+            result.put("driverName", driver != null ? driver.getName() : null);
+            result.put("roles", aggregation.getRoleCodes());
+            result.put("roleNames", roleNames);
+            result.put("roleCodes", aggregation.getRoleCodes());
+            result.put("roleTypes", aggregation.getRoleTypes());
+            result.put("dataScope", dataScopeCode);
+            result.put("systemRole", systemRole);
+            result.put("businessRole", businessRole);
+            result.put("departmentScope", hasDepartmentScope);
+            return result;
         }
 
         logger.severe(() -> String.format("Authentication failed (WS) for user: %s", loginRequest.getUsername()));
         recordFailedLogin(loginRequest.getUsername(), "INVALID_CREDENTIALS");
         throw new BadCredentialsException("Invalid username or password.");
+    }
+
+    @Transactional
+    public UserProfileResponse getCurrentUserProfile(String username) {
+        if (!StringUtils.hasText(username)) {
+            throw new IllegalStateException("User not found");
+        }
+
+        SysUser user = safeGetByUsername(username);
+        if (user == null) {
+            throw new IllegalStateException("User not found: " + username);
+        }
+
+        RoleAggregation aggregation = aggregateRoles(user.getUserId());
+        DriverInformation driver = resolveDriverForUser(user, aggregation);
+
+        return UserProfileResponse.builder()
+                .authUserId(user.getUserId())
+                .username(user.getUsername())
+                .displayName(resolveDisplayName(user))
+                .email(user.getEmail())
+                .phoneNumber(maskPhone(user.getContactNumber()))
+                .roles(aggregation.getRoleCodes())
+                .driverId(driver != null ? driver.getDriverId() : null)
+                .driverName(driver != null ? driver.getName() : null)
+                .build();
+    }
+
+    @Transactional
+    public UserProfileResponse getCurrentUserProfile(Authentication authentication) {
+        if (authentication == null || !StringUtils.hasText(authentication.getName())) {
+            throw new IllegalStateException("User not found");
+        }
+
+        SysUser user = safeGetByUsername(authentication.getName());
+        if (user == null) {
+            throw new IllegalStateException("User not found: " + authentication.getName());
+        }
+
+        RoleAggregation aggregation = aggregateRoles(user.getUserId());
+        List<String> roleCodes = aggregation.getRoleCodes().isEmpty()
+                ? rolesFromAuthentication(authentication)
+                : aggregation.getRoleCodes();
+        DriverInformation driver = shouldOwnDriverProfile(roleCodes) ? safeFindOrCreateLinkedDriver(user) : null;
+
+        return UserProfileResponse.builder()
+                .authUserId(user.getUserId())
+                .username(user.getUsername())
+                .displayName(resolveDisplayName(user))
+                .email(user.getEmail())
+                .phoneNumber(maskPhone(user.getContactNumber()))
+                .roles(roleCodes)
+                .driverId(driver != null ? driver.getDriverId() : null)
+                .driverName(driver != null ? driver.getName() : null)
+                .build();
     }
 
     @Transactional
@@ -162,6 +243,68 @@ public class AuthWsService {
             logger.warning("No users found in the system");
         }
         return users;
+    }
+
+    private DriverInformation resolveDriverForUser(SysUser user, RoleAggregation aggregation) {
+        if (!shouldOwnDriverProfile(aggregation)) {
+            return null;
+        }
+        return safeFindOrCreateLinkedDriver(user);
+    }
+
+    private boolean shouldOwnDriverProfile(RoleAggregation aggregation) {
+        if (aggregation == null || aggregation.getRoleCodes() == null || aggregation.getRoleCodes().isEmpty()) {
+            return false;
+        }
+        return shouldOwnDriverProfile(aggregation.getRoleCodes());
+    }
+
+    private boolean shouldOwnDriverProfile(List<String> roleCodes) {
+        if (roleCodes == null || roleCodes.isEmpty()) {
+            return false;
+        }
+        boolean userRole = roleCodes.stream().anyMatch(DRIVER_PROFILE_ROLES::contains);
+        boolean staffRole = roleCodes.stream().anyMatch(STAFF_ROLES::contains);
+        return userRole && !staffRole;
+    }
+
+    private List<String> rolesFromAuthentication(Authentication authentication) {
+        return authentication.getAuthorities().stream()
+                .map(GrantedAuthority::getAuthority)
+                .map(AuthWsService::normalizeRoleCode)
+                .filter(role -> !role.isBlank())
+                .distinct()
+                .toList();
+    }
+
+    private DriverInformation safeFindOrCreateLinkedDriver(SysUser user) {
+        if (user == null || user.getUserId() == null) {
+            return null;
+        }
+        try {
+            return driverClient.findOrCreateLinkedDriver(user);
+        } catch (FeignException ex) {
+            logger.log(Level.WARNING, "Failed to resolve linked driver for userId=" + user.getUserId(), ex);
+            return null;
+        }
+    }
+
+    private String resolveDisplayName(SysUser user) {
+        if (user == null) {
+            return null;
+        }
+        return StringUtils.hasText(user.getRealName()) ? user.getRealName() : user.getUsername();
+    }
+
+    private String maskPhone(String phoneNumber) {
+        if (!StringUtils.hasText(phoneNumber)) {
+            return phoneNumber;
+        }
+        String trimmed = phoneNumber.trim();
+        if (trimmed.length() < 7) {
+            return trimmed.charAt(0) + "****";
+        }
+        return trimmed.substring(0, 3) + "****" + trimmed.substring(trimmed.length() - 4);
     }
 
     private void validateLoginRequest(LoginRequest loginRequest) {
@@ -279,7 +422,21 @@ public class AuthWsService {
             return null;
         }
         String code = StringUtils.hasText(role.getRoleCode()) ? role.getRoleCode() : role.getRoleName();
-        return StringUtils.hasText(code) ? code.trim().toUpperCase(Locale.ROOT) : null;
+        if (!StringUtils.hasText(code)) {
+            return null;
+        }
+        return normalizeRoleCode(code);
+    }
+
+    private static String normalizeRoleCode(String roleCode) {
+        if (!StringUtils.hasText(roleCode)) {
+            return "";
+        }
+        String normalized = roleCode.trim().toUpperCase(Locale.ROOT);
+        if (normalized.startsWith("ROLE_")) {
+            return normalized.substring("ROLE_".length());
+        }
+        return normalized;
     }
 
     private String resolveRoleType(SysRole role) {

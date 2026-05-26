@@ -2,6 +2,7 @@ package com.tutict.finalassignmentcloud.traffic.controller;
 
 import com.tutict.finalassignmentcloud.traffic.config.statemachine.states.PaymentState;
 import com.tutict.finalassignmentcloud.entity.PaymentRecord;
+import com.tutict.finalassignmentcloud.traffic.service.DriverAccessService;
 import com.tutict.finalassignmentcloud.traffic.service.PaymentRecordService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
@@ -9,6 +10,7 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.annotation.security.RolesAllowed;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -21,6 +23,7 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import java.util.List;
+import java.util.Set;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
@@ -32,11 +35,15 @@ import java.util.logging.Logger;
 public class PaymentRecordController {
 
     private static final Logger LOG = Logger.getLogger(PaymentRecordController.class.getName());
+    private static final Set<String> ELEVATED_ROLES = Set.of("SUPER_ADMIN", "ADMIN", "FINANCE");
 
     private final PaymentRecordService paymentRecordService;
+    private final DriverAccessService driverAccessService;
 
-    public PaymentRecordController(PaymentRecordService paymentRecordService) {
+    public PaymentRecordController(PaymentRecordService paymentRecordService,
+                                   DriverAccessService driverAccessService) {
         this.paymentRecordService = paymentRecordService;
+        this.driverAccessService = driverAccessService;
     }
 
     @PostMapping
@@ -123,6 +130,34 @@ public class PaymentRecordController {
                                                           @RequestParam(defaultValue = "1") int page,
                                                           @RequestParam(defaultValue = "20") int size) {
         return ResponseEntity.ok(paymentRecordService.findByFineId(fineId, page, size));
+    }
+
+    @GetMapping("/driver/{driverId}")
+    @RolesAllowed({"SUPER_ADMIN", "ADMIN", "FINANCE", "USER"})
+    @Operation(summary = "Search payment records by driver")
+    public ResponseEntity<List<PaymentRecord>> findByDriver(@PathVariable Long driverId,
+                                                            @RequestParam(defaultValue = "1") int page,
+                                                            @RequestParam(defaultValue = "20") int size,
+                                                            Authentication authentication) {
+        if (!driverAccessService.canAccessDriver(authentication, driverId, ELEVATED_ROLES)) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
+        }
+        return ResponseEntity.ok(paymentRecordService.findByDriverId(driverId, page, size));
+    }
+
+    @PostMapping("/driver/{driverId}")
+    @RolesAllowed({"SUPER_ADMIN", "ADMIN", "FINANCE", "USER"})
+    @Operation(summary = "Create payment record for driver")
+    public ResponseEntity<PaymentRecord> createDriverPayment(@PathVariable Long driverId,
+                                                             @RequestBody PaymentRecord request,
+                                                             @RequestHeader(value = "Idempotency-Key", required = false)
+                                                             String idempotencyKey,
+                                                             Authentication authentication) {
+        if (!driverAccessService.canAccessDriver(authentication, driverId, ELEVATED_ROLES)) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
+        }
+        request.setDriverId(driverId);
+        return createPayment(request, idempotencyKey);
     }
 
     @GetMapping("/search/payer")

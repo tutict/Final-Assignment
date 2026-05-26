@@ -28,6 +28,12 @@ public class VehicleInformation implements Serializable {
     private Long vehicleId;
 
     /**
+     * Linked driver ID.
+     */
+    @TableField("driver_id")
+    private Long driverId;
+
+    /**
      * 车牌号
      */
     @TableField("license_plate")

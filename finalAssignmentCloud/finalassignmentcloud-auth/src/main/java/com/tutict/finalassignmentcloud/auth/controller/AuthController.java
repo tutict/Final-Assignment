@@ -1,6 +1,7 @@
 package com.tutict.finalassignmentcloud.auth.controller;
 
 import com.tutict.finalassignmentcloud.auth.service.AuthWsService;
+import com.tutict.finalassignmentcloud.dto.response.UserProfileResponse;
 import com.tutict.finalassignmentcloud.entity.SysUser;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
@@ -15,6 +16,7 @@ import jakarta.annotation.security.RolesAllowed;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.scheduling.annotation.Async;
+import org.springframework.security.core.Authentication;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -177,5 +179,18 @@ public class AuthController {
             LOG.log(Level.SEVERE, "GetAllUsers failed: {0}", ex.getMessage());
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(List.of());
         }
+    }
+
+    @GetMapping("/me")
+    @SecurityRequirement(name = "bearerAuth")
+    @Operation(summary = "Get current user profile")
+    public ResponseEntity<com.tutict.finalassignmentcloud.dto.response.ApiResponse<UserProfileResponse>> getCurrentUser(
+            Authentication authentication) {
+        if (authentication == null) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+                    .body(com.tutict.finalassignmentcloud.dto.response.ApiResponse.error("UNAUTHORIZED", "Unauthorized"));
+        }
+        UserProfileResponse profile = authWsService.getCurrentUserProfile(authentication);
+        return ResponseEntity.ok(com.tutict.finalassignmentcloud.dto.response.ApiResponse.ok(profile));
     }
 }

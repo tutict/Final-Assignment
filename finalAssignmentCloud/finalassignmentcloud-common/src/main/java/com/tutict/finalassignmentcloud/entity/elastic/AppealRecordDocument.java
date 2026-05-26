@@ -29,6 +29,9 @@ public class AppealRecordDocument implements Serializable {
     @Field(type = FieldType.Long)
     private Long offenseId;
 
+    @Field(type = FieldType.Long)
+    private Long driverId;
+
     @MultiField(
             mainField = @Field(type = FieldType.Text, analyzer = "ik_max_word", searchAnalyzer = "ik_max_word"),
             otherFields = {
@@ -225,6 +228,7 @@ public class AppealRecordDocument implements Serializable {
         AppealRecordDocument doc = new AppealRecordDocument();
         doc.setAppealId(entity.getAppealId());
         doc.setOffenseId(entity.getOffenseId());
+        doc.setDriverId(entity.getDriverId());
         doc.setAppealNumber(entity.getAppealNumber());
         doc.setAppellantName(entity.getAppellantName());
         doc.setAppellantIdCard(entity.getAppellantIdCard());
@@ -257,6 +261,7 @@ public class AppealRecordDocument implements Serializable {
         AppealRecord entity = new AppealRecord();
         entity.setAppealId(this.appealId);
         entity.setOffenseId(this.offenseId);
+        entity.setDriverId(this.driverId);
         entity.setAppealNumber(this.appealNumber);
         entity.setAppellantName(this.appellantName);
         entity.setAppellantIdCard(this.appellantIdCard);

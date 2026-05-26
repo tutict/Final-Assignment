@@ -165,6 +165,23 @@ public class VehicleInformationService {
         return db;
     }
 
+    @Cacheable(cacheNames = CACHE_NAME, key = "'driver:' + #driverId + ':' + #page + ':' + #size",
+            unless = "#result == null || #result.isEmpty()")
+    public List<VehicleInformation> getVehicleInformationByDriverId(Long driverId, int page, int size) {
+        validateVehicleId(driverId);
+        validatePagination(page, size);
+        SearchHits<VehicleInformationDocument> hits = vehicleInformationSearchRepository
+                .findByDriverId(driverId, pageable(page, size));
+        List<VehicleInformation> fromIndex = mapVehicleHits(hits);
+        if (!fromIndex.isEmpty()) {
+            return fromIndex;
+        }
+        QueryWrapper<VehicleInformation> wrapper = new QueryWrapper<>();
+        wrapper.eq("driver_id", driverId)
+                .orderByDesc("registration_date");
+        return vehicleInformationMapper.selectList(wrapper);
+    }
+
     @Cacheable(cacheNames = CACHE_NAME, key = "'plate:' + #licensePlate")
     public VehicleInformation getVehicleInformationByLicensePlate(String licensePlate) {
         validateInput(licensePlate, "Invalid license plate");
@@ -292,6 +309,19 @@ public class VehicleInformationService {
         SearchHits<VehicleInformationDocument> hits = vehicleInformationSearchRepository
                 .findCompletionSuggestions(idCardNumber, prefix, pageable);
         return mapLicensePlateSuggestions(hits);
+    }
+
+    @Cacheable(cacheNames = CACHE_NAME, key = "'autocomplete:global:' + #prefix + ':' + #limit")
+    public List<String> suggestPlates(String prefix, int limit) {
+        validateInput(prefix, "Invalid license plate prefix");
+        QueryWrapper<VehicleInformation> wrapper = new QueryWrapper<>();
+        wrapper.select("license_plate")
+                .likeRight("license_plate", prefix)
+                .last("LIMIT " + Math.max(limit, 1));
+        return vehicleInformationMapper.selectList(wrapper).stream()
+                .map(VehicleInformation::getLicensePlate)
+                .filter(Objects::nonNull)
+                .collect(Collectors.toList());
     }
 
     @Cacheable(cacheNames = CACHE_NAME, key = "'autocomplete:type:me:' + #idCardNumber + ':' + #prefix + ':' + #maxSuggestions")

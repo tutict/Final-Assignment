@@ -1,5 +1,6 @@
 package com.tutict.finalassignmentcloud.user.controller;
 
+import com.tutict.finalassignmentcloud.config.security.SecurityRoleUtils;
 import com.tutict.finalassignmentcloud.entity.SysUser;
 import com.tutict.finalassignmentcloud.entity.SysUserRole;
 import com.tutict.finalassignmentcloud.user.service.SysUserRoleService;
@@ -10,6 +11,7 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.annotation.security.RolesAllowed;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -22,6 +24,8 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import java.util.List;
+import java.util.Objects;
+import java.util.Set;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
@@ -33,6 +37,7 @@ import java.util.logging.Logger;
 public class UserManagementController {
 
     private static final Logger LOG = Logger.getLogger(UserManagementController.class.getName());
+    private static final Set<String> ELEVATED_ROLES = Set.of("SUPER_ADMIN", "ADMIN");
 
     private final SysUserService sysUserService;
     private final SysUserRoleService sysUserRoleService;
@@ -109,9 +114,13 @@ public class UserManagementController {
     }
 
     @GetMapping("/{userId}")
+    @RolesAllowed({"SUPER_ADMIN", "ADMIN", "USER"})
     @Operation(summary = "查询用户详情")
-    public ResponseEntity<SysUser> getUser(@PathVariable Long userId) {
+    public ResponseEntity<SysUser> getUser(@PathVariable Long userId, Authentication authentication) {
         try {
+            if (!canAccessUser(authentication, userId)) {
+                return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
+            }
             SysUser user = sysUserService.findById(userId);
             return user == null ? ResponseEntity.notFound().build() : ResponseEntity.ok(user);
         } catch (Exception ex) {
@@ -132,9 +141,13 @@ public class UserManagementController {
     }
 
     @GetMapping("/search/username/{username}")
+    @RolesAllowed({"SUPER_ADMIN", "ADMIN", "USER"})
     @Operation(summary = "按用户名查询用户")
-    public ResponseEntity<SysUser> getByUsername(@PathVariable String username) {
+    public ResponseEntity<SysUser> getByUsername(@PathVariable String username, Authentication authentication) {
         try {
+            if (!canAccessUsername(authentication, username)) {
+                return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
+            }
             SysUser user = sysUserService.findByUsername(username);
             return user == null ? ResponseEntity.notFound().build() : ResponseEntity.ok(user);
         } catch (Exception ex) {
@@ -284,11 +297,16 @@ public class UserManagementController {
     }
 
     @GetMapping("/{userId}/roles")
+    @RolesAllowed({"SUPER_ADMIN", "ADMIN", "USER"})
     @Operation(summary = "查询用户角色列表")
     public ResponseEntity<List<SysUserRole>> listUserRoles(@PathVariable Long userId,
                                                            @RequestParam(defaultValue = "1") int page,
-                                                           @RequestParam(defaultValue = "20") int size) {
+                                                           @RequestParam(defaultValue = "20") int size,
+                                                           Authentication authentication) {
         try {
+            if (!canAccessUser(authentication, userId)) {
+                return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
+            }
             return ResponseEntity.ok(sysUserRoleService.findByUserId(userId, page, size));
         } catch (Exception ex) {
             LOG.log(Level.WARNING, "List user roles failed", ex);
@@ -355,6 +373,31 @@ public class UserManagementController {
 
     private boolean hasKey(String value) {
         return value != null && !value.isBlank();
+    }
+
+    private boolean canAccessUsername(Authentication authentication, String username) {
+        if (authentication == null || username == null) {
+            return false;
+        }
+        if (SecurityRoleUtils.hasAnyRole(authentication, ELEVATED_ROLES)) {
+            return true;
+        }
+        return SecurityRoleUtils.hasRole(authentication, "USER")
+                && Objects.equals(authentication.getName(), username);
+    }
+
+    private boolean canAccessUser(Authentication authentication, Long userId) {
+        if (authentication == null || userId == null) {
+            return false;
+        }
+        if (SecurityRoleUtils.hasAnyRole(authentication, ELEVATED_ROLES)) {
+            return true;
+        }
+        if (!SecurityRoleUtils.hasRole(authentication, "USER")) {
+            return false;
+        }
+        SysUser currentUser = sysUserService.findByUsername(authentication.getName());
+        return currentUser != null && Objects.equals(currentUser.getUserId(), userId);
     }
 
     private HttpStatus resolveStatus(Exception ex) {

@@ -1,6 +1,7 @@
 package com.tutict.finalassignmentcloud.traffic.controller;
 
 import com.tutict.finalassignmentcloud.entity.FineRecord;
+import com.tutict.finalassignmentcloud.traffic.service.DriverAccessService;
 import com.tutict.finalassignmentcloud.traffic.service.FineRecordService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
@@ -8,6 +9,7 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.annotation.security.RolesAllowed;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -20,6 +22,7 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import java.util.List;
+import java.util.Set;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
@@ -31,11 +34,20 @@ import java.util.logging.Logger;
 public class FineInformationController {
 
     private static final Logger LOG = Logger.getLogger(FineInformationController.class.getName());
+    private static final Set<String> ELEVATED_ROLES = Set.of(
+            "SUPER_ADMIN",
+            "ADMIN",
+            "TRAFFIC_POLICE",
+            "FINANCE"
+    );
 
     private final FineRecordService fineRecordService;
+    private final DriverAccessService driverAccessService;
 
-    public FineInformationController(FineRecordService fineRecordService) {
+    public FineInformationController(FineRecordService fineRecordService,
+                                     DriverAccessService driverAccessService) {
         this.fineRecordService = fineRecordService;
+        this.driverAccessService = driverAccessService;
     }
 
     @PostMapping
@@ -135,6 +147,24 @@ public class FineInformationController {
             return ResponseEntity.ok(fineRecordService.findByOffenseId(offenseId, page, size));
         } catch (Exception ex) {
             LOG.log(Level.WARNING, "List fines by offense failed", ex);
+            return ResponseEntity.status(resolveStatus(ex)).build();
+        }
+    }
+
+    @GetMapping("/driver/{driverId}")
+    @RolesAllowed({"SUPER_ADMIN", "ADMIN", "TRAFFIC_POLICE", "FINANCE", "USER"})
+    @Operation(summary = "Search fine records by driver")
+    public ResponseEntity<List<FineRecord>> byDriver(@PathVariable Long driverId,
+                                                     @RequestParam(defaultValue = "1") int page,
+                                                     @RequestParam(defaultValue = "20") int size,
+                                                     Authentication authentication) {
+        try {
+            if (!driverAccessService.canAccessDriver(authentication, driverId, ELEVATED_ROLES)) {
+                return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
+            }
+            return ResponseEntity.ok(fineRecordService.findByDriverId(driverId, page, size));
+        } catch (Exception ex) {
+            LOG.log(Level.WARNING, "List fines by driver failed", ex);
             return ResponseEntity.status(resolveStatus(ex)).build();
         }
     }

@@ -30,6 +30,17 @@ public interface PaymentRecordSearchRepository extends ElasticsearchRepository<P
 
     @Query("""
     {
+      "term": {
+        "driverId": {
+          "value": ?0
+        }
+      }
+    }
+    """)
+    SearchHits<PaymentRecordDocument> findByDriverId(Long driverId, Pageable pageable);
+
+    @Query("""
+    {
       "match_phrase_prefix": {
         "payerIdCard": {
           "query": "?0"

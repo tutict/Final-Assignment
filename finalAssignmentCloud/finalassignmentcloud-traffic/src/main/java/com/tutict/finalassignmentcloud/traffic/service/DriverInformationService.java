@@ -1,5 +1,6 @@
 package com.tutict.finalassignmentcloud.traffic.service;
 
+import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.tutict.finalassignmentcloud.config.websocket.WsAction;
 import com.tutict.finalassignmentcloud.entity.DriverInformation;
@@ -14,6 +15,7 @@ import feign.FeignException;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.cache.annotation.Cacheable;
+import org.springframework.dao.DuplicateKeyException;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.elasticsearch.core.SearchHit;
@@ -23,6 +25,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.transaction.support.TransactionSynchronization;
 import org.springframework.transaction.support.TransactionSynchronizationManager;
+import org.springframework.util.StringUtils;
 
 import java.time.LocalDateTime;
 import java.util.HashSet;
@@ -103,16 +106,21 @@ public class DriverInformationService {
     @WsAction(service = "DriverInformationService", action = "updateDriver")
     public DriverInformation updateDriver(DriverInformation driverInformation) {
         validateDriverId(driverInformation);
-        driverInformationMapper.updateById(driverInformation);
-
-        SysUser sysUser = safeGetUser(driverInformation.getDriverId());
-        if (sysUser != null) {
-            sysUser.setUpdatedAt(LocalDateTime.now());
-            safeUpdateUser(sysUser);
+        DriverInformation existing = driverInformationMapper.selectById(driverInformation.getDriverId());
+        if (existing == null) {
+            throw new IllegalStateException("Driver not found: " + driverInformation.getDriverId());
         }
 
-        syncToIndexAfterCommit(driverInformation);
-        return driverInformation;
+        if (driverInformation.getAuthUserId() == null) {
+            driverInformation.setAuthUserId(existing.getAuthUserId());
+        }
+        driverInformation.setUpdatedAt(LocalDateTime.now());
+        driverInformationMapper.updateById(driverInformation);
+
+        DriverInformation updated = driverInformationMapper.selectById(driverInformation.getDriverId());
+        syncLinkedUserProfile(updated);
+        syncToIndexAfterCommit(updated);
+        return updated;
     }
 
     @Transactional
@@ -145,6 +153,66 @@ public class DriverInformationService {
                     }
                     return dbEntity;
                 });
+    }
+
+    public DriverInformation findLinkedDriver(SysUser user) {
+        if (user == null) {
+            return null;
+        }
+
+        DriverInformation byAuthUser = findByAuthUserId(user.getUserId());
+        if (byAuthUser != null) {
+            return byAuthUser;
+        }
+
+        DriverInformation byIdCard = findFirstByColumn("id_card_number", user.getIdCardNumber());
+        if (byIdCard != null) {
+            return linkLegacyDriver(byIdCard, user);
+        }
+
+        DriverInformation byContactNumber = findFirstByColumn("contact_number", user.getContactNumber());
+        if (byContactNumber != null) {
+            return linkLegacyDriver(byContactNumber, user);
+        }
+
+        DriverInformation byEmail = findFirstByColumn("email", user.getEmail());
+        return byEmail != null ? linkLegacyDriver(byEmail, user) : null;
+    }
+
+    @Transactional
+    @CacheEvict(cacheNames = CACHE_NAME, allEntries = true)
+    public DriverInformation findOrCreateLinkedDriver(SysUser user) {
+        if (user == null || user.getUserId() == null) {
+            throw new IllegalArgumentException("User is required to link driver profile");
+        }
+        DriverInformation linked = findLinkedDriver(user);
+        if (linked != null) {
+            return linked;
+        }
+
+        DriverInformation driver = new DriverInformation();
+        driver.setAuthUserId(user.getUserId());
+        driver.setName(resolveDriverName(user));
+        driver.setIdCardNumber(trimToNull(user.getIdCardNumber()));
+        driver.setContactNumber(trimToNull(user.getContactNumber()));
+        driver.setEmail(trimToNull(user.getEmail()));
+        driver.setCurrentPoints(12);
+        driver.setTotalDeductedPoints(0);
+        driver.setStatus("Active");
+        driver.setCreatedAt(LocalDateTime.now());
+        driver.setUpdatedAt(LocalDateTime.now());
+        driver.setCreatedBy("AuthWsService");
+        try {
+            driverInformationMapper.insert(driver);
+        } catch (DuplicateKeyException ex) {
+            DriverInformation concurrent = findByAuthUserId(user.getUserId());
+            if (concurrent != null) {
+                return concurrent;
+            }
+            throw ex;
+        }
+        syncToIndexAfterCommit(driver);
+        return driver;
     }
 
     @Cacheable(cacheNames = CACHE_NAME, key = "'all'", unless = "#result == null || #result.isEmpty()")
@@ -271,6 +339,13 @@ public class DriverInformationService {
     }
 
     private void syncToIndexAfterCommit(DriverInformation driverInformation) {
+        if (!TransactionSynchronizationManager.isSynchronizationActive()) {
+            DriverInformationDocument doc = DriverInformationDocument.fromEntity(driverInformation);
+            if (doc != null) {
+                driverInformationSearchRepository.save(doc);
+            }
+            return;
+        }
         TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
             @Override
             public void afterCommit() {
@@ -315,6 +390,94 @@ public class DriverInformationService {
         } catch (FeignException ex) {
             log.log(Level.WARNING, "Failed to update user id=" + user.getUserId(), ex);
         }
+    }
+
+    private DriverInformation findFirstByColumn(String column, String value) {
+        if (!StringUtils.hasText(value)) {
+            return null;
+        }
+        QueryWrapper<DriverInformation> wrapper = new QueryWrapper<>();
+        wrapper.eq(column, value.trim())
+                .isNull("deleted_at")
+                .last("LIMIT 1");
+        return driverInformationMapper.selectOne(wrapper);
+    }
+
+    private DriverInformation findByAuthUserId(Long authUserId) {
+        if (authUserId == null || authUserId <= 0) {
+            return null;
+        }
+        QueryWrapper<DriverInformation> wrapper = new QueryWrapper<>();
+        wrapper.eq("auth_user_id", authUserId)
+                .isNull("deleted_at")
+                .last("LIMIT 1");
+        return driverInformationMapper.selectOne(wrapper);
+    }
+
+    private DriverInformation linkLegacyDriver(DriverInformation driver, SysUser user) {
+        if (driver == null || user == null || user.getUserId() == null) {
+            return driver;
+        }
+        Long linkedUserId = driver.getAuthUserId();
+        if (linkedUserId == null) {
+            driver.setAuthUserId(user.getUserId());
+            driver.setUpdatedAt(LocalDateTime.now());
+            driverInformationMapper.updateById(driver);
+            syncToIndexAfterCommit(driver);
+            return driverInformationMapper.selectById(driver.getDriverId());
+        }
+        return Objects.equals(linkedUserId, user.getUserId()) ? driver : null;
+    }
+
+    private void syncLinkedUserProfile(DriverInformation driver) {
+        if (driver == null || driver.getAuthUserId() == null) {
+            return;
+        }
+        SysUser sysUser = safeGetUser(driver.getAuthUserId());
+        if (sysUser == null) {
+            return;
+        }
+        boolean changed = false;
+        if (StringUtils.hasText(driver.getName())) {
+            sysUser.setRealName(driver.getName().trim());
+            changed = true;
+        }
+        if (StringUtils.hasText(driver.getIdCardNumber())) {
+            sysUser.setIdCardNumber(driver.getIdCardNumber().trim());
+            changed = true;
+        }
+        if (StringUtils.hasText(driver.getContactNumber())) {
+            sysUser.setContactNumber(driver.getContactNumber().trim());
+            changed = true;
+        }
+        if (StringUtils.hasText(driver.getEmail())) {
+            sysUser.setEmail(driver.getEmail().trim());
+            changed = true;
+        }
+        if (changed) {
+            sysUser.setUpdatedAt(LocalDateTime.now());
+            safeUpdateUser(sysUser);
+        }
+    }
+
+    private String resolveDriverName(SysUser user) {
+        if (user == null) {
+            return "Driver";
+        }
+        if (StringUtils.hasText(user.getRealName())) {
+            return user.getRealName().trim();
+        }
+        if (StringUtils.hasText(user.getUsername())) {
+            return user.getUsername().trim();
+        }
+        return "Driver";
+    }
+
+    private String trimToNull(String value) {
+        if (!StringUtils.hasText(value)) {
+            return null;
+        }
+        return value.trim();
     }
 
     private void validateDriver(DriverInformation driverInformation) {

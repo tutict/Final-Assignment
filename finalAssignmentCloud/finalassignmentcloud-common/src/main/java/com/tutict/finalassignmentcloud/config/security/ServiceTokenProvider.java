@@ -33,6 +33,7 @@ public class ServiceTokenProvider {
         schema.put("TRAFFIC_POLICE", new RoleMetadata(RoleType.BUSINESS, DataScope.DEPARTMENT));
         schema.put("FINANCE", new RoleMetadata(RoleType.BUSINESS, DataScope.DEPARTMENT));
         schema.put("APPEAL_REVIEWER", new RoleMetadata(RoleType.BUSINESS, DataScope.DEPARTMENT));
+        schema.put("USER", new RoleMetadata(RoleType.CUSTOM, DataScope.SELF));
         ROLE_SCHEMA = Collections.unmodifiableMap(schema);
     }
 

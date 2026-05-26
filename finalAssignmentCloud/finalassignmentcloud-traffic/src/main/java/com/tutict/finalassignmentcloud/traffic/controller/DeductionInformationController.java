@@ -2,12 +2,14 @@ package com.tutict.finalassignmentcloud.traffic.controller;
 
 import com.tutict.finalassignmentcloud.entity.DeductionRecord;
 import com.tutict.finalassignmentcloud.traffic.service.DeductionRecordService;
+import com.tutict.finalassignmentcloud.traffic.service.DriverAccessService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.annotation.security.RolesAllowed;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -20,6 +22,7 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import java.util.List;
+import java.util.Set;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
@@ -31,11 +34,15 @@ import java.util.logging.Logger;
 public class DeductionInformationController {
 
     private static final Logger LOG = Logger.getLogger(DeductionInformationController.class.getName());
+    private static final Set<String> ELEVATED_ROLES = Set.of("SUPER_ADMIN", "ADMIN", "TRAFFIC_POLICE");
 
     private final DeductionRecordService deductionRecordService;
+    private final DriverAccessService driverAccessService;
 
-    public DeductionInformationController(DeductionRecordService deductionRecordService) {
+    public DeductionInformationController(DeductionRecordService deductionRecordService,
+                                          DriverAccessService driverAccessService) {
         this.deductionRecordService = deductionRecordService;
+        this.driverAccessService = driverAccessService;
     }
 
     @PostMapping
@@ -127,11 +134,16 @@ public class DeductionInformationController {
     }
 
     @GetMapping("/driver/{driverId}")
+    @RolesAllowed({"SUPER_ADMIN", "ADMIN", "TRAFFIC_POLICE", "USER"})
     @Operation(summary = "按驾驶证分页查询扣分")
     public ResponseEntity<List<DeductionRecord>> byDriver(@PathVariable Long driverId,
                                                           @RequestParam(defaultValue = "1") int page,
-                                                          @RequestParam(defaultValue = "20") int size) {
+                                                          @RequestParam(defaultValue = "20") int size,
+                                                          Authentication authentication) {
         try {
+            if (!driverAccessService.canAccessDriver(authentication, driverId, ELEVATED_ROLES)) {
+                return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
+            }
             return ResponseEntity.ok(deductionRecordService.findByDriverId(driverId, page, size));
         } catch (Exception ex) {
             LOG.log(Level.WARNING, "List deductions by driver failed", ex);

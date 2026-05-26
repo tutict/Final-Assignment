@@ -178,6 +178,20 @@ public class PaymentRecordService {
         return fetchFromDatabase(wrapper, page, size);
     }
 
+    @Cacheable(cacheNames = CACHE_NAME, key = "'driver:' + #driverId + ':' + #page + ':' + #size", unless = "#result == null || #result.isEmpty()")
+    public List<PaymentRecord> findByDriverId(Long driverId, int page, int size) {
+        requirePositive(driverId, "Driver ID");
+        validatePagination(page, size);
+        List<PaymentRecord> index = mapHits(paymentRecordSearchRepository.findByDriverId(driverId, pageable(page, size)));
+        if (!index.isEmpty()) {
+            return index;
+        }
+        QueryWrapper<PaymentRecord> wrapper = new QueryWrapper<>();
+        wrapper.eq("driver_id", driverId)
+                .orderByDesc("payment_time");
+        return fetchFromDatabase(wrapper, page, size);
+    }
+
     @Cacheable(cacheNames = CACHE_NAME, key = "'payer:' + #payerIdCard + ':' + #page + ':' + #size", unless = "#result == null || #result.isEmpty()")
     public List<PaymentRecord> searchByPayerIdCard(String payerIdCard, int page, int size) {
         if (isBlank(payerIdCard)) {

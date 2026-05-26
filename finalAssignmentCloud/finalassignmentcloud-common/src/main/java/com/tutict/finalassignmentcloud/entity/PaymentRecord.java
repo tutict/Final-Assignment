@@ -34,6 +34,12 @@ public class PaymentRecord implements Serializable {
     private Long fineId;
 
     /**
+     * Linked driver ID.
+     */
+    @TableField("driver_id")
+    private Long driverId;
+
+    /**
      * 支付流水号
      */
     @TableField("payment_number")

@@ -1,13 +1,18 @@
 package com.tutict.finalassignmentcloud.traffic.controller;
 
+import com.tutict.finalassignmentcloud.config.security.SecurityRoleUtils;
 import com.tutict.finalassignmentcloud.entity.DriverInformation;
+import com.tutict.finalassignmentcloud.entity.SysUser;
+import com.tutict.finalassignmentcloud.dto.response.UserProfileResponse;
 import com.tutict.finalassignmentcloud.traffic.service.DriverInformationService;
+import com.tutict.finalassignmentcloud.traffic.service.TrafficUserProfileService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.annotation.security.RolesAllowed;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -20,6 +25,8 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import java.util.List;
+import java.util.Objects;
+import java.util.Set;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
@@ -31,11 +38,15 @@ import java.util.logging.Logger;
 public class DriverInformationController {
 
     private static final Logger LOG = Logger.getLogger(DriverInformationController.class.getName());
+    private static final Set<String> ELEVATED_ROLES = Set.of("SUPER_ADMIN", "ADMIN", "TRAFFIC_POLICE");
 
     private final DriverInformationService driverInformationService;
+    private final TrafficUserProfileService userProfileService;
 
-    public DriverInformationController(DriverInformationService driverInformationService) {
+    public DriverInformationController(DriverInformationService driverInformationService,
+                                       TrafficUserProfileService userProfileService) {
         this.driverInformationService = driverInformationService;
+        this.userProfileService = userProfileService;
     }
 
     @PostMapping
@@ -66,13 +77,18 @@ public class DriverInformationController {
     }
 
     @PutMapping("/{driverId}")
+    @RolesAllowed({"SUPER_ADMIN", "ADMIN", "TRAFFIC_POLICE", "USER"})
     @Operation(summary = "更新驾驶员档案")
     public ResponseEntity<DriverInformation> update(@PathVariable Long driverId,
                                                     @RequestBody DriverInformation request,
                                                     @RequestHeader(value = "Idempotency-Key", required = false)
-                                                    String idempotencyKey) {
+                                                    String idempotencyKey,
+                                                    Authentication authentication) {
         boolean useKey = hasKey(idempotencyKey);
         try {
+            if (!canAccessDriver(authentication, driverId)) {
+                return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
+            }
             request.setDriverId(driverId);
             if (useKey) {
                 driverInformationService.checkAndInsertIdempotency(idempotencyKey, request, "update");
@@ -104,9 +120,13 @@ public class DriverInformationController {
     }
 
     @GetMapping("/{driverId}")
+    @RolesAllowed({"SUPER_ADMIN", "ADMIN", "TRAFFIC_POLICE", "USER"})
     @Operation(summary = "查询驾驶员详情")
-    public ResponseEntity<DriverInformation> get(@PathVariable Long driverId) {
+    public ResponseEntity<DriverInformation> get(@PathVariable Long driverId, Authentication authentication) {
         try {
+            if (!canAccessDriver(authentication, driverId)) {
+                return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
+            }
             DriverInformation driver = driverInformationService.getDriverById(driverId);
             return driver == null ? ResponseEntity.notFound().build() : ResponseEntity.ok(driver);
         } catch (Exception ex) {
@@ -165,8 +185,49 @@ public class DriverInformationController {
         }
     }
 
+    @PostMapping("/internal/linked")
+    @RolesAllowed({"SUPER_ADMIN", "ADMIN", "TRAFFIC_POLICE", "USER"})
+    @Operation(summary = "Find or create linked driver profile")
+    public ResponseEntity<DriverInformation> findOrCreateLinkedDriver(@RequestBody SysUser user,
+                                                                      Authentication authentication) {
+        try {
+            if (!canAccessUserPayload(authentication, user)) {
+                return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
+            }
+            return ResponseEntity.ok(driverInformationService.findOrCreateLinkedDriver(user));
+        } catch (Exception ex) {
+            LOG.log(Level.WARNING, "Find or create linked driver failed", ex);
+            return ResponseEntity.status(resolveStatus(ex)).build();
+        }
+    }
+
     private boolean hasKey(String value) {
         return value != null && !value.isBlank();
+    }
+
+    private boolean canAccessDriver(Authentication authentication, Long driverId) {
+        if (authentication == null || driverId == null) {
+            return false;
+        }
+        if (SecurityRoleUtils.hasAnyRole(authentication, ELEVATED_ROLES)) {
+            return true;
+        }
+        if (!SecurityRoleUtils.hasRole(authentication, "USER")) {
+            return false;
+        }
+        UserProfileResponse profile = userProfileService.getCurrentUserProfile(authentication);
+        return Objects.equals(profile.getDriverId(), driverId);
+    }
+
+    private boolean canAccessUserPayload(Authentication authentication, SysUser user) {
+        if (authentication == null || user == null || user.getUsername() == null) {
+            return false;
+        }
+        if (SecurityRoleUtils.hasAnyRole(authentication, ELEVATED_ROLES)) {
+            return true;
+        }
+        return SecurityRoleUtils.hasRole(authentication, "USER")
+                && Objects.equals(authentication.getName(), user.getUsername());
     }
 
     private HttpStatus resolveStatus(Exception ex) {
