@@ -1,6 +1,11 @@
 spring:
   application:
     name: finalassignmentcloud-audit
+  main:
+    keep-alive: ${SPRING_MAIN_KEEP_ALIVE:${SPRING_THREADS_VIRTUAL_ENABLED:false}}
+  threads:
+    virtual:
+      enabled: ${SPRING_THREADS_VIRTUAL_ENABLED:false}
   config:
     import: "optional:nacos:"
   cloud:

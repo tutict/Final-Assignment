@@ -1,6 +1,11 @@
 spring:
   application:
     name: finalassignmentcloud-ai
+  main:
+    keep-alive: ${SPRING_MAIN_KEEP_ALIVE:${SPRING_THREADS_VIRTUAL_ENABLED:false}}
+  threads:
+    virtual:
+      enabled: ${SPRING_THREADS_VIRTUAL_ENABLED:false}
   config:
     import: "optional:nacos:"
   cloud:
@@ -25,3 +30,6 @@ management:
     web:
       exposure:
         include: health,info
+ai:
+  search:
+    timeout-seconds: ${AI_SEARCH_TIMEOUT:30}
