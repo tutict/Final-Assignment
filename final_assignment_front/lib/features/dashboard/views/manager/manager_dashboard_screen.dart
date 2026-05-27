@@ -1744,7 +1744,7 @@ class DashboardScreen extends GetView<ManagerDashboardController> {
                   barTouchData: BarTouchData(
                     enabled: true,
                     touchTooltipData: BarTouchTooltipData(
-                      tooltipRoundedRadius: 8,
+                      tooltipBorderRadius: BorderRadius.circular(8),
                       tooltipPadding: const EdgeInsets.all(8),
                       tooltipMargin: 8,
                       getTooltipColor: (_) => theme.colorScheme.primaryContainer
@@ -1806,7 +1806,7 @@ class DashboardScreen extends GetView<ManagerDashboardController> {
                   lineTouchData: LineTouchData(
                     enabled: true,
                     touchTooltipData: LineTouchTooltipData(
-                      tooltipRoundedRadius: 8,
+                      tooltipBorderRadius: BorderRadius.circular(8),
                       tooltipPadding: const EdgeInsets.all(8),
                       getTooltipColor: (_) => theme
                           .colorScheme.secondaryContainer

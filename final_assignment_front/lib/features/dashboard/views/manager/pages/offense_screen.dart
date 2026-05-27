@@ -296,7 +296,7 @@ class OffenseScreen extends GetView<OffenseController> {
             barTouchData: BarTouchData(
               enabled: true,
               touchTooltipData: BarTouchTooltipData(
-                tooltipRoundedRadius: 8,
+                tooltipBorderRadius: BorderRadius.circular(8),
                 tooltipPadding: const EdgeInsets.all(8),
                 tooltipMargin: 8,
                 getTooltipColor: (_) =>
@@ -358,7 +358,7 @@ class OffenseScreen extends GetView<OffenseController> {
             lineTouchData: LineTouchData(
               enabled: true,
               touchTooltipData: LineTouchTooltipData(
-                tooltipRoundedRadius: 8,
+                tooltipBorderRadius: BorderRadius.circular(8),
                 tooltipPadding: const EdgeInsets.all(8),
                 getTooltipColor: (_) =>
                     theme.colorScheme.secondaryContainer.withValues(alpha: 0.9),
@@ -570,7 +570,7 @@ class OffenseBarChart extends StatelessWidget {
           barTouchData: BarTouchData(
             enabled: true,
             touchTooltipData: BarTouchTooltipData(
-              tooltipRoundedRadius: 8,
+              tooltipBorderRadius: BorderRadius.circular(8),
               tooltipPadding: const EdgeInsets.all(8),
               tooltipMargin: 8,
               getTooltipColor: (_) =>

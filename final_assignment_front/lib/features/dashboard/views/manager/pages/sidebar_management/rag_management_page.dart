@@ -1,7 +1,4 @@
-import 'dart:async';
 import 'dart:convert';
-import 'dart:js_interop';
-import 'dart:typed_data';
 
 import 'package:final_assignment_front/features/api/rag_management_controller_api.dart';
 import 'package:final_assignment_front/features/dashboard/bindings/manager_dashboard_binding.dart';
@@ -9,7 +6,8 @@ import 'package:final_assignment_front/features/dashboard/controllers/manager_da
 import 'package:final_assignment_front/features/dashboard/views/shared/widgets/dashboard_page_template.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
-import 'package:web/web.dart' as web;
+
+import 'rag_file_picker.dart';
 
 class RagManagementPage extends StatefulWidget {
   const RagManagementPage({super.key});
@@ -40,7 +38,7 @@ class _RagManagementPageState extends State<RagManagementPage> {
   bool uploading = false;
   String? errorMessage;
   String selectedAclScope = 'PUBLIC';
-  _PickedRagFile? selectedUploadFile;
+  PickedRagFile? selectedUploadFile;
 
   @override
   void initState() {
@@ -228,46 +226,7 @@ class _RagManagementPageState extends State<RagManagementPage> {
     }
   }
 
-  Future<_PickedRagFile?> _pickRagFile() async {
-    final input = web.HTMLInputElement()
-      ..type = 'file'
-      ..accept = '.txt,.md,.markdown,.csv,.tsv,.json,.docx,.xlsx,.pdf';
-    final completer = Completer<_PickedRagFile?>();
-    late StreamSubscription<web.Event> subscription;
-    subscription = input.onChange.listen((_) async {
-      try {
-        await subscription.cancel();
-        final files = input.files;
-        if (files == null || files.length == 0) {
-          completer.complete(null);
-          return;
-        }
-        final file = files.item(0);
-        if (file == null) {
-          completer.complete(null);
-          return;
-        }
-        final buffer = await file.arrayBuffer().toDart;
-        final bytes = Uint8List.fromList(buffer.toDart.asUint8List());
-        completer.complete(_PickedRagFile(
-          name: file.name,
-          bytes: bytes,
-          size: file.size,
-          contentType: file.type,
-        ));
-      } catch (error, stackTrace) {
-        completer.completeError(error, stackTrace);
-      }
-    });
-    input.click();
-    return completer.future.timeout(
-      const Duration(minutes: 2),
-      onTimeout: () async {
-        await subscription.cancel();
-        return null;
-      },
-    );
-  }
+  Future<PickedRagFile?> _pickRagFile() => pickRagFile();
 
   Future<void> _uploadSelectedFile() async {
     final file = selectedUploadFile;
@@ -823,7 +782,7 @@ class _UploadBox extends StatelessWidget {
     required this.onClear,
   });
 
-  final _PickedRagFile? selectedFile;
+  final PickedRagFile? selectedFile;
   final bool uploading;
   final VoidCallback? onPick;
   final VoidCallback? onUpload;
@@ -876,7 +835,7 @@ class _UploadBox extends StatelessWidget {
                       ),
                     ),
                     Text(
-                  '支持 txt、md、csv、tsv、json、docx、xlsx、pdf，上传后自动解析为 RAG 文本。',
+                      '支持 txt、md、csv、tsv、json、docx、xlsx、pdf，上传后自动解析为 RAG 文本。',
                       style: theme.textTheme.bodySmall?.copyWith(
                         color: scheme.onSurfaceVariant,
                         height: 1.32,
@@ -1143,31 +1102,6 @@ class _DocumentMetaChip extends StatelessWidget {
             ),
       ),
     );
-  }
-}
-
-class _PickedRagFile {
-  const _PickedRagFile({
-    required this.name,
-    required this.bytes,
-    required this.size,
-    required this.contentType,
-  });
-
-  final String name;
-  final Uint8List bytes;
-  final int size;
-  final String contentType;
-
-  String get title {
-    final dot = name.lastIndexOf('.');
-    return dot <= 0 ? name : name.substring(0, dot);
-  }
-
-  String get sizeLabel {
-    if (size < 1024) return '$size B';
-    if (size < 1024 * 1024) return '${(size / 1024).toStringAsFixed(1)} KB';
-    return '${(size / 1024 / 1024).toStringAsFixed(1)} MB';
   }
 }
 
