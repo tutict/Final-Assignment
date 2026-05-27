@@ -11,7 +11,7 @@ import 'package:final_assignment_front/features/dashboard/views/shared/widgets/d
 import 'package:final_assignment_front/features/model/offense_information.dart';
 import 'package:final_assignment_front/features/offense/controllers/offense_form_controller.dart';
 import 'package:final_assignment_front/shared/dialogs/app_dialog.dart';
-import 'package:final_assignment_front/shared/widgets/index.dart';
+import 'package:final_assignment_front/utils/widgets/index.dart';
 import 'package:final_assignment_front/utils/helpers/app_helpers.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';

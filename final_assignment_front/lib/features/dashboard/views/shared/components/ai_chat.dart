@@ -1,8 +1,8 @@
 import 'package:final_assignment_front/features/dashboard/bindings/chat_binding.dart';
 import 'package:final_assignment_front/features/dashboard/controllers/chat_controller.dart';
 import 'package:final_assignment_front/features/model/chat_action.dart';
-import 'package:final_assignment_front/shared_components/manager_predefined_questions.dart';
-import 'package:final_assignment_front/shared_components/user_predefined_questions.dart';
+import 'package:final_assignment_front/utils/components/manager_predefined_questions.dart';
+import 'package:final_assignment_front/utils/components/user_predefined_questions.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 

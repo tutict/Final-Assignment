@@ -9,7 +9,7 @@ import 'package:final_assignment_front/features/dashboard/controllers/user_dashb
 import 'package:final_assignment_front/features/dashboard/views/shared/widgets/dashboard_page_template.dart';
 import 'package:final_assignment_front/features/dashboard/views/user/pages/main_process/user_business_page_chrome.dart';
 import 'package:final_assignment_front/features/model/offense_information.dart';
-import 'package:final_assignment_front/shared/widgets/index.dart';
+import 'package:final_assignment_front/utils/widgets/index.dart';
 import 'package:final_assignment_front/core/network/app_exception.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';

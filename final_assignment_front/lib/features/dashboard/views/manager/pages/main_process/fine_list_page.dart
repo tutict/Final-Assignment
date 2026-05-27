@@ -12,7 +12,7 @@ import 'package:final_assignment_front/config/routes/app_routes.dart';
 import 'package:final_assignment_front/features/api/fine_information_controller_api.dart';
 import 'package:final_assignment_front/features/model/fine_information.dart';
 import 'package:final_assignment_front/shared/dialogs/app_dialog.dart';
-import 'package:final_assignment_front/shared/widgets/index.dart';
+import 'package:final_assignment_front/utils/widgets/index.dart';
 import 'package:final_assignment_front/utils/helpers/app_helpers.dart';
 import 'package:final_assignment_front/utils/workflow_permissions.dart';
 import 'package:final_assignment_front/utils/json_parser.dart';

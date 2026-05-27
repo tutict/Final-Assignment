@@ -8,7 +8,7 @@ import 'package:final_assignment_front/features/dashboard/views/shared/widgets/d
 import 'package:final_assignment_front/features/model/driver_information.dart';
 import 'package:final_assignment_front/features/model/user_management.dart';
 import 'package:final_assignment_front/shared/utils/error_handler.dart';
-import 'package:final_assignment_front/shared/widgets/index.dart';
+import 'package:final_assignment_front/utils/widgets/index.dart';
 import 'package:final_assignment_front/core/network/app_exception.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';

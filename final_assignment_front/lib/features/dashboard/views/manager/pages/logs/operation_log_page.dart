@@ -8,7 +8,7 @@ import 'package:final_assignment_front/features/dashboard/controllers/manager_da
 import 'package:final_assignment_front/features/dashboard/views/shared/widgets/dashboard_page_template.dart';
 import 'package:final_assignment_front/features/model/operation_log.dart';
 import 'package:final_assignment_front/shared/dialogs/app_dialog.dart';
-import 'package:final_assignment_front/shared/widgets/index.dart';
+import 'package:final_assignment_front/utils/widgets/index.dart';
 import 'package:final_assignment_front/core/network/app_exception.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';

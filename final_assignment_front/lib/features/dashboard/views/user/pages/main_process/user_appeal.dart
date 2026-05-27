@@ -17,7 +17,7 @@ import 'package:final_assignment_front/features/api/offense_information_controll
 import 'package:final_assignment_front/features/api/user_management_controller_api.dart';
 import 'package:final_assignment_front/features/model/driver_information.dart';
 import 'package:final_assignment_front/features/model/user_management.dart';
-import 'package:final_assignment_front/shared/widgets/index.dart';
+import 'package:final_assignment_front/utils/widgets/index.dart';
 import 'package:final_assignment_front/utils/helpers/app_helpers.dart';
 import 'package:get/get.dart';
 import 'package:jwt_decoder/jwt_decoder.dart';

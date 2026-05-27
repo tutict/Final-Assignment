@@ -9,7 +9,7 @@ import 'package:final_assignment_front/features/dashboard/views/shared/widgets/d
 import 'package:final_assignment_front/features/api/user_management_controller_api.dart';
 import 'package:final_assignment_front/features/model/user_management.dart';
 import 'package:final_assignment_front/shared/dialogs/app_dialog.dart';
-import 'package:final_assignment_front/shared/widgets/index.dart';
+import 'package:final_assignment_front/utils/widgets/index.dart';
 import 'package:final_assignment_front/core/network/app_exception.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';

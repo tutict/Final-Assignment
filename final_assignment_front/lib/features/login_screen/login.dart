@@ -11,7 +11,7 @@ import 'package:final_assignment_front/features/api/auth_controller_api.dart';
 import 'package:final_assignment_front/features/model/login_request.dart';
 import 'package:final_assignment_front/features/model/register_request.dart';
 import 'package:final_assignment_front/shared/utils/navigation_helper.dart';
-import 'package:final_assignment_front/shared_components/local_captcha_main.dart';
+import 'package:final_assignment_front/utils/components/local_captcha_main.dart';
 import 'package:final_assignment_front/utils/services/auth_token_store.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';

@@ -8,8 +8,8 @@ import 'package:final_assignment_front/features/api/driver_information_controlle
 import 'package:final_assignment_front/features/api/offense_information_controller_api.dart';
 import 'package:final_assignment_front/features/api/role_management_controller_api.dart';
 import 'package:final_assignment_front/features/dashboard/models/profile.dart';
-import 'package:final_assignment_front/shared_components/case_card.dart';
-import 'package:final_assignment_front/shared_components/project_card.dart';
+import 'package:final_assignment_front/utils/components/case_card.dart';
+import 'package:final_assignment_front/utils/components/project_card.dart';
 import 'package:final_assignment_front/utils/helpers/app_helpers.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
