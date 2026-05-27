@@ -31,7 +31,7 @@ public class RunDocker {
     String redisImage;
 
     @Inject
-    @ConfigProperty(name = "redpanda.image", defaultValue = "tutict/elasticsearch-with-plugins:8.17.3-for-my-work")
+    @ConfigProperty(name = "redpanda.image", defaultValue = "redpandadata/redpanda:v24.1.2")
     String redpandaImage;
 
     /**

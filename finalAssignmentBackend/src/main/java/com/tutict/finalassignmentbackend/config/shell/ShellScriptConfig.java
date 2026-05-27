@@ -289,7 +289,7 @@ public class ShellScriptConfig {
         String redpandaImage = environment.getProperty("app.docker.images.redpanda", "redpandadata/redpanda:v24.1.2");
         String elasticsearchImage = environment.getProperty(
                 "app.docker.images.elasticsearch",
-                "docker.elastic.co/elasticsearch/elasticsearch:8.17.3");
+                "docker.elastic.co/elasticsearch/elasticsearch:9.4.1");
         String manticoreImage = environment.getProperty("app.docker.images.manticore", "manticoresearch/manticore:dev");
 
         return """

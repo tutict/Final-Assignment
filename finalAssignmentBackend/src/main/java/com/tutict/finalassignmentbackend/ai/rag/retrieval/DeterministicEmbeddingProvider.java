@@ -1,6 +1,7 @@
 package com.tutict.finalassignmentbackend.ai.rag.retrieval;
 
-import com.tutict.finalassignmentbackend.ai.rag.config.RagChunkIndexMapping;
+import com.tutict.finalassignmentbackend.rag.config.RagProperties;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.stereotype.Component;
 
 import java.nio.charset.StandardCharsets;
@@ -8,11 +9,28 @@ import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 
 @Component
+@ConditionalOnProperty(prefix = "rag.embedding", name = "provider", havingValue = "deterministic", matchIfMissing = true)
 public class DeterministicEmbeddingProvider implements EmbeddingProvider {
+
+    private final int dimensions;
+
+    public DeterministicEmbeddingProvider(RagProperties properties) {
+        this.dimensions = Math.max(1, properties.getEmbedding().getDimensions());
+    }
+
+    @Override
+    public String providerName() {
+        return "deterministic";
+    }
+
+    @Override
+    public String modelName() {
+        return "deterministic-" + dimensions;
+    }
 
     @Override
     public int dimensions() {
-        return RagChunkIndexMapping.EMBEDDING_DIMS;
+        return dimensions;
     }
 
     @Override

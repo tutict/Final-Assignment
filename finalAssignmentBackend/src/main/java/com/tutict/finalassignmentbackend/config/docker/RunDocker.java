@@ -23,6 +23,7 @@ public class RunDocker implements ApplicationContextInitializer<ConfigurableAppl
 
     private static final Logger log = Logger.getLogger(RunDocker.class.getName());
     private static final String PROPERTY_SOURCE_NAME = "docker";
+    private static final String DEFAULT_ELASTICSEARCH_IMAGE = "docker.elastic.co/elasticsearch/elasticsearch:9.4.1";
     private static final String DEFAULT_MANTICORE_IMAGE = "manticoresearch/manticore:dev";
     private static volatile boolean shutdownHookRegistered = false;
 
@@ -103,15 +104,17 @@ public class RunDocker implements ApplicationContextInitializer<ConfigurableAppl
 
     private void startElasticsearch(ConfigurableApplicationContext applicationContext) {
         try {
-            // å£°æ˜Žè‡ªå®šä¹‰é•œåƒä¸Žå®˜æ–¹é•œåƒå…¼å®¹
-            DockerImageName myImage = DockerImageName.parse("tutict/elasticsearch-with-plugins:8.17.3-for-my-work")
+            // Allow the local Elasticsearch image to be overridden by configuration.
+            String image = applicationContext.getEnvironment()
+                    .getProperty("app.docker.images.elasticsearch", DEFAULT_ELASTICSEARCH_IMAGE);
+            DockerImageName elasticsearchImage = DockerImageName.parse(image)
                     .asCompatibleSubstituteFor("docker.elastic.co/elasticsearch/elasticsearch");
 
-            // ä½¿ç”¨è‡ªå®šä¹‰é•œåƒå¯åŠ¨å®¹å™¨ï¼Œä»…è®¾ç½®å•èŠ‚ç‚¹æ¨¡å¼
+            // Start a single-node local Elasticsearch instance for dev services.
             if (elasticsearchContainer == null || !elasticsearchContainer.isRunning()) {
-                elasticsearchContainer = new ElasticsearchContainer(myImage)
+                elasticsearchContainer = new ElasticsearchContainer(elasticsearchImage)
                         .withEnv("xpack.security.enabled", "false")
-                        .withEnv("discovery.type", "single-node"); // å¯ç”¨å•èŠ‚ç‚¹æ¨¡å¼?
+                        .withEnv("discovery.type", "single-node");
                 elasticsearchContainer.start();
             }
 

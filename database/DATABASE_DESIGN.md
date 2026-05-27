@@ -16,7 +16,7 @@
 - 敏感字段支持密文存储和 blind-index 精确查询
 - 搜索读模型由 Elasticsearch 承载，MySQL 作为事实数据源
 - Kafka 幂等请求历史可追踪
-- RAG 知识库独立建模，支持资料录入和分块索引
+- RAG 知识库独立建模，支持资料录入、分块、向量化任务和 Elasticsearch 检索
 
 ## 角色与账号模型
 
@@ -219,9 +219,37 @@ finalAssignmentBackend/src/main/resources/rag/rag_schema.sql
 
 资料分块。
 
+关键字段：
+
+| 字段 | 说明 |
+| --- | --- |
+| `id` | chunk ID |
+| `document_id` | 关联 `rag_document.id` |
+| `chunk_no` | 文档内分块序号 |
+| `content` | chunk 文本 |
+| `content_hash` | chunk 内容哈希 |
+| `source_field` | 来源字段 |
+| `status` | 分块状态，例如 `PENDING_EMBEDDING`、`EMBEDDED` |
+| `embedding_model` | 最近一次成功向量化模型 |
+| `embedding_hash` | provider、模型、内容和向量共同计算的哈希 |
+
 ### rag_embedding_task
 
-向量化任务队列。当前支持先落库、后续再接真实 embedding provider。
+向量化任务队列。资料写入 `rag_chunk` 后会按 provider 和 model 创建任务，后台 embedding worker 定时消费 `PENDING` / `FAILED` 任务，调用 embedding 模型生成向量，再写入 Elasticsearch `rag_chunk_current` alias。
+
+关键字段：
+
+| 字段 | 说明 |
+| --- | --- |
+| `chunk_id` | 待向量化的 chunk |
+| `provider` | embedding provider，例如 `ollama`、`deterministic` |
+| `model` | embedding 模型，例如 `nomic-embed-text` |
+| `status` | `PENDING`、`RUNNING`、`SUCCEEDED`、`FAILED`、`POISONED` |
+| `attempt_count` | 尝试次数 |
+| `next_retry_at` | 失败重试时间 |
+| `last_error` | 最近一次错误信息 |
+
+向量本体不存 MySQL，写入 Elasticsearch dense vector 字段；MySQL 只保留任务状态、模型名和哈希，用于追踪、重试和判断是否需要重建索引。
 
 ## 敏感字段治理
 

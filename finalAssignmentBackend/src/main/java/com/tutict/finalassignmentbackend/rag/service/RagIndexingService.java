@@ -2,6 +2,7 @@ package com.tutict.finalassignmentbackend.rag.service;
 
 import com.tutict.finalassignmentbackend.rag.chunk.ChineseTextChunker;
 import com.tutict.finalassignmentbackend.rag.chunk.Chunker;
+import com.tutict.finalassignmentbackend.rag.config.RagProperties;
 import com.tutict.finalassignmentbackend.rag.dto.RagSourceDocument;
 import com.tutict.finalassignmentbackend.rag.entity.RagChunk;
 import com.tutict.finalassignmentbackend.rag.entity.RagDocument;
@@ -10,6 +11,7 @@ import com.tutict.finalassignmentbackend.rag.mapper.RagChunkMapper;
 import com.tutict.finalassignmentbackend.rag.mapper.RagDocumentMapper;
 import com.tutict.finalassignmentbackend.rag.mapper.RagEmbeddingTaskMapper;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -172,8 +174,6 @@ class RagChunkService {
 @ConditionalOnProperty(prefix = "rag", name = "enabled", havingValue = "true")
 class RagEmbeddingTaskService {
 
-    private static final String DEFAULT_PROVIDER = "unassigned";
-    private static final String DEFAULT_MODEL = "unassigned";
     static final String STATUS_PENDING = "PENDING";
     static final String STATUS_RUNNING = "RUNNING";
     static final String STATUS_SUCCEEDED = "SUCCEEDED";
@@ -181,21 +181,34 @@ class RagEmbeddingTaskService {
     static final String STATUS_POISONED = "POISONED";
 
     private final RagEmbeddingTaskMapper mapper;
+    private final RagProperties properties;
+
+    @Autowired
+    RagEmbeddingTaskService(RagEmbeddingTaskMapper mapper, RagProperties properties) {
+        this.mapper = mapper;
+        this.properties = properties;
+    }
 
     RagEmbeddingTaskService(RagEmbeddingTaskMapper mapper) {
-        this.mapper = mapper;
+        this(mapper, new RagProperties());
     }
 
     RagEmbeddingTask ensurePendingTask(RagChunk chunk) {
+        String provider = normalize(properties.getEmbedding().getProvider(), "unassigned");
+        String model = normalize(properties.getEmbedding().getModel(), "unassigned");
         String taskKey = RagHashSupport.stableId(
                 "emb",
                 chunk.getId(),
-                DEFAULT_PROVIDER,
-                DEFAULT_MODEL
+                provider,
+                model
         );
         LocalDateTime now = LocalDateTime.now();
         RagEmbeddingTask task = mapper.selectById(taskKey);
         if (task != null) {
+            if (!STATUS_SUCCEEDED.equals(task.getStatus())) {
+                task.setStatus(STATUS_PENDING);
+                task.setNextRetryAt(null);
+            }
             task.setUpdatedAt(now);
             mapper.updateById(task);
             return task;
@@ -205,14 +218,18 @@ class RagEmbeddingTaskService {
         task.setId(taskKey);
         task.setChunkId(chunk.getId());
         task.setTaskKey(taskKey);
-        task.setProvider(DEFAULT_PROVIDER);
-        task.setModel(DEFAULT_MODEL);
+        task.setProvider(provider);
+        task.setModel(model);
         task.setStatus(STATUS_PENDING);
         task.setAttemptCount(0);
         task.setCreatedAt(now);
         task.setUpdatedAt(now);
         mapper.insert(task);
         return task;
+    }
+
+    private static String normalize(String value, String fallback) {
+        return value == null || value.isBlank() ? fallback : value.trim();
     }
 }
 

@@ -6,9 +6,10 @@ spring:
   main:
     allow-bean-definition-overriding: true
   datasource:
-    url: ${TEST_DB_URL:jdbc:tc:mysql:8.0:///testdb}
-    driver-class-name: org.testcontainers.jdbc.ContainerDatabaseDriver
-    password: ${DB_PASSWORD:test_password}
+    url: ${TEST_DB_URL:jdbc:mysql://localhost:3306/traffic_test?createDatabaseIfNotExist=true&useUnicode=true&characterEncoding=utf8&serverTimezone=Asia/Shanghai&allowPublicKeyRetrieval=true&useSSL=false}
+    driver-class-name: ${TEST_DB_DRIVER_CLASS_NAME:com.mysql.cj.jdbc.Driver}
+    username: ${TEST_DB_USERNAME:${SPRING_DATASOURCE_USERNAME:${DB_USERNAME:root}}}
+    password: ${TEST_DB_PASSWORD:${SPRING_DATASOURCE_PASSWORD:${DB_PASSWORD:root}}}
   kafka:
     bootstrap-servers: ${TEST_KAFKA_SERVERS:localhost:9092}
     listener:
@@ -40,6 +41,10 @@ ai:
       enabled: false
     embedding:
       enabled: false
+
+rag:
+  embedding:
+    enabled: false
 
 jwt:
   secret: ${JWT_SECRET:test-secret-key-for-integration-tests-minimum-32-chars}

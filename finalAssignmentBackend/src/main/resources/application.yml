@@ -33,10 +33,18 @@ rag:
     enabled: ${RAG_INDEXING_ENABLED:true}
     batch-size: 200
   embedding:
-    enabled: false
+    enabled: ${RAG_EMBEDDING_ENABLED:true}
+    provider: ${RAG_EMBEDDING_PROVIDER:ollama}
+    model: ${RAG_EMBEDDING_MODEL:nomic-embed-text}
+    dimensions: ${RAG_EMBEDDING_DIMENSIONS:768}
+    batch-size: ${RAG_EMBEDDING_BATCH_SIZE:25}
+    max-attempts: ${RAG_EMBEDDING_MAX_ATTEMPTS:3}
+    retry-delay: ${RAG_EMBEDDING_RETRY_DELAY:PT1M}
+    poll-interval-ms: ${RAG_EMBEDDING_POLL_INTERVAL_MS:30000}
   index:
     name: rag_chunk_v1
     alias: rag_chunk_current
+    text-analyzer: ${RAG_INDEX_TEXT_ANALYZER:standard}
   retrieval:
     enabled: false
     top-k: 10

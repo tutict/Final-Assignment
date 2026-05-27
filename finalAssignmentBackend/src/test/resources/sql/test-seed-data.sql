@@ -317,15 +317,15 @@ INSERT INTO sys_user (
 )
 VALUES
     ('admin',
-     '$2a$12$PW3K2/TxmVth2CmbBw5fFuIXRtYj5vPIyqXJLAMC0KQUKSV7oPPNW',
+     '$2a$12$iP8//JMEbxOt9MkARmMSP.Gs7i2h/oeC4k9HuV9t6NolT8hl.yrjW',
      NULL, '测试管理员', '13800138001', 'admin@test.com', 'Active',
      0, NOW(), NOW(), NOW(), 'test-seed'),
     ('testuser',
-     '$2a$12$cnyYWbDEKRb9MJeYZ8BMfOAcHGz/BSfN4Ou5.R6P8uSuen71DhT8y',
+     '$2a$12$CFLH0Udf.VAOEODXhuH5Y.ABOF.7lX6U6dBb2RK79DtCFr8FhnZxS',
      NULL, '测试用户', '13800138002', 'user@test.com', 'Active',
      0, NOW(), NOW(), NOW(), 'test-seed'),
     ('superadmin',
-     '$2a$12$ymiLs1eRyOcHP0.3E12xd.O8/hmX5ADn1du61kX6DuJEGXcSLEiCW',
+     '$2a$12$i62XLZap1a8S9PqU1BKALuR8LrK6cEAQzKfwOx7OTRcpf1OJiG2qO',
      NULL, '测试超级管理员', '13800138003', 'super@test.com', 'Active',
      0, NOW(), NOW(), NOW(), 'test-seed')
 ON DUPLICATE KEY UPDATE

@@ -77,15 +77,35 @@ set SENSITIVE_DATA_BLIND_INDEX_KEY=another_32_byte_base64_or_strong_secret
 scripts\start-all.bat
 ```
 
+Use Ollama for RAG embeddings:
+
+```bat
+set RAG_EMBEDDING_ENABLED=true
+set RAG_EMBEDDING_PROVIDER=ollama
+set RAG_EMBEDDING_MODEL=nomic-embed-text
+set RAG_EMBEDDING_DIMENSIONS=768
+scripts\start-all.bat
+```
+
+The Ollama model must exist locally before the backend can turn `rag_chunk` rows into vectors:
+
+```powershell
+ollama pull nomic-embed-text
+```
+
 ## Local Infrastructure
 
 `scripts\dev-compose.yml` contains:
 
 - Redis
 - Redpanda
-- Elasticsearch
+- Elasticsearch 9.4.1
 - Debezium Connect
 - Manticore Search
+
+The default Elasticsearch image is Elastic GA 9.4.1. The backend still uses the Spring Boot managed `elasticsearch-java 9.2.2` client, which can connect to newer 9.x minor server versions; upgrade the client separately only when 9.4-specific typed APIs are needed. Override the image with `ELASTICSEARCH_IMAGE=docker.elastic.co/elasticsearch/elasticsearch:<version>` when testing another Elasticsearch server.
+
+RAG vector documents are written to the Elasticsearch `rag_chunk_current` alias after `rag_embedding_task` rows are consumed. The local default uses Ollama `nomic-embed-text` with 768 dimensions; change `RAG_EMBEDDING_MODEL` and `RAG_EMBEDDING_DIMENSIONS` together when switching models.
 
 Start only the infrastructure:
 

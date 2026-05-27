@@ -19,6 +19,8 @@ app:
   docker:
     startup-script:
       enabled: true
+    images:
+      elasticsearch: ${ELASTICSEARCH_IMAGE:docker.elastic.co/elasticsearch/elasticsearch:9.4.1}
   ollama:
     startup-script:
       enabled: true

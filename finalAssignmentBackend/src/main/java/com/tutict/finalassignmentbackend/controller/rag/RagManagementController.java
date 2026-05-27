@@ -11,6 +11,7 @@ import com.tutict.finalassignmentbackend.rag.dto.RagSourceDocument;
 import com.tutict.finalassignmentbackend.rag.entity.RagChunk;
 import com.tutict.finalassignmentbackend.rag.entity.RagDocument;
 import com.tutict.finalassignmentbackend.rag.entity.RagEmbeddingTask;
+import com.tutict.finalassignmentbackend.rag.embedding.RagEmbeddingService;
 import com.tutict.finalassignmentbackend.rag.ingestion.RagUploadedFileParser;
 import com.tutict.finalassignmentbackend.rag.indexing.RagBackfillJob;
 import com.tutict.finalassignmentbackend.rag.mapper.RagChunkMapper;
@@ -57,6 +58,7 @@ public class RagManagementController {
     private final ObjectProvider<RagIndexingService> indexingServiceProvider;
     private final ObjectProvider<RagBackfillJob> backfillJobProvider;
     private final ObjectProvider<RagUploadedFileParser> uploadedFileParserProvider;
+    private final ObjectProvider<RagEmbeddingService> embeddingServiceProvider;
     private final ObjectMapper objectMapper;
     private final boolean ragEnabled;
     private final boolean ragIndexingEnabled;
@@ -68,6 +70,7 @@ public class RagManagementController {
             ObjectProvider<RagIndexingService> indexingServiceProvider,
             ObjectProvider<RagBackfillJob> backfillJobProvider,
             ObjectProvider<RagUploadedFileParser> uploadedFileParserProvider,
+            ObjectProvider<RagEmbeddingService> embeddingServiceProvider,
             ObjectMapper objectMapper,
             @Value("${rag.enabled:false}") boolean ragEnabled,
             @Value("${rag.indexing.enabled:false}") boolean ragIndexingEnabled
@@ -78,6 +81,7 @@ public class RagManagementController {
         this.indexingServiceProvider = indexingServiceProvider;
         this.backfillJobProvider = backfillJobProvider;
         this.uploadedFileParserProvider = uploadedFileParserProvider;
+        this.embeddingServiceProvider = embeddingServiceProvider;
         this.objectMapper = objectMapper;
         this.ragEnabled = ragEnabled;
         this.ragIndexingEnabled = ragIndexingEnabled;
@@ -153,7 +157,9 @@ public class RagManagementController {
                 documentMapper.selectCount(new QueryWrapper<RagDocument>().eq("status", "READY")),
                 chunkMapper.selectCount(new QueryWrapper<>()),
                 taskMapper.selectCount(new QueryWrapper<RagEmbeddingTask>().eq("status", "PENDING")),
-                taskMapper.selectCount(new QueryWrapper<RagEmbeddingTask>().eq("status", "FAILED"))
+                taskMapper.selectCount(new QueryWrapper<RagEmbeddingTask>().eq("status", "FAILED")),
+                taskMapper.selectCount(new QueryWrapper<RagEmbeddingTask>().eq("status", "SUCCEEDED")),
+                taskMapper.selectCount(new QueryWrapper<RagEmbeddingTask>().eq("status", "POISONED"))
         );
         return ResponseEntity.ok(ApiResponse.ok(response));
     }
@@ -242,6 +248,19 @@ public class RagManagementController {
                     .body(ApiResponse.error("RAG_DISABLED", "RAG backfill is not enabled"));
         }
         return ResponseEntity.ok(ApiResponse.ok(job.runBatch(page, size)));
+    }
+
+    @PostMapping("/embedding/run")
+    @Operation(summary = "Run one RAG embedding batch")
+    public ResponseEntity<ApiResponse<RagEmbeddingService.RagEmbeddingBatchResult>> runEmbeddingBatch(
+            @RequestParam(defaultValue = "25") int limit
+    ) {
+        RagEmbeddingService embeddingService = embeddingServiceProvider.getIfAvailable();
+        if (!ragEnabled || embeddingService == null) {
+            return ResponseEntity.status(HttpStatus.CONFLICT)
+                    .body(ApiResponse.error("RAG_EMBEDDING_DISABLED", "RAG embedding is not enabled"));
+        }
+        return ResponseEntity.ok(ApiResponse.ok(embeddingService.processPendingBatch(limit)));
     }
 
     @DeleteMapping("/documents/{documentId}")
@@ -333,7 +352,9 @@ public class RagManagementController {
             long readyDocumentCount,
             long chunkCount,
             long pendingEmbeddingTaskCount,
-            long failedEmbeddingTaskCount
+            long failedEmbeddingTaskCount,
+            long succeededEmbeddingTaskCount,
+            long poisonedEmbeddingTaskCount
     ) {
     }
 

@@ -10,8 +10,6 @@ import java.util.Map;
 public class RagChunkIndexMapping {
 
     public static final String CURRENT_ALIAS = "rag_chunk_current";
-    public static final int EMBEDDING_DIMS = 1024;
-
     private final RagProperties properties;
 
     public RagChunkIndexMapping(RagProperties properties) {
@@ -27,11 +25,13 @@ public class RagChunkIndexMapping {
     }
 
     public Map<String, Object> mapping() {
+        String textAnalyzer = properties.getIndex().getTextAnalyzer();
+        int dimensions = Math.max(1, properties.getEmbedding().getDimensions());
         Map<String, Object> propertiesMap = new LinkedHashMap<>();
         propertiesMap.put("chunk_id", keyword());
         propertiesMap.put("document_id", keyword());
-        propertiesMap.put("content", Map.of("type", "text", "analyzer", "ik_max_word"));
-        propertiesMap.put("title", Map.of("type", "text", "analyzer", "ik_max_word"));
+        propertiesMap.put("content", Map.of("type", "text", "analyzer", textAnalyzer));
+        propertiesMap.put("title", Map.of("type", "text", "analyzer", textAnalyzer));
         propertiesMap.put("source_type", keyword());
         propertiesMap.put("source_table", keyword());
         propertiesMap.put("source_id", keyword());
@@ -44,7 +44,7 @@ public class RagChunkIndexMapping {
         propertiesMap.put("metadata", Map.of("type", "object", "enabled", true));
         propertiesMap.put("embedding", Map.of(
                 "type", "dense_vector",
-                "dims", EMBEDDING_DIMS,
+                "dims", dimensions,
                 "index", true,
                 "similarity", "cosine"
         ));

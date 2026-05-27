@@ -100,7 +100,7 @@ func (r *RunDocker) startElasticsearch() {
 	log.Println("[INFO] Starting Elasticsearch container...")
 
 	container, err := elasticsearch.RunContainer(r.ctx,
-		testcontainers.WithImage("tutict/elasticsearch-with-plugins:8.17.3-for-my-work"),
+		testcontainers.WithImage("docker.elastic.co/elasticsearch/elasticsearch:9.4.1"),
 		testcontainers.WithEnv(map[string]string{
 			"xpack.security.enabled": "false",
 			"discovery.type":         "single-node",

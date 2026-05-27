@@ -85,9 +85,11 @@ scripts\start-all.bat
 
 - Redis
 - Redpanda
-- Elasticsearch
+- Elasticsearch 9.4.1
 - Debezium Connect
 - Manticore Search
+
+Elasticsearch 默认使用 Elastic 官方 GA 9.4.1。后端 Java client 由 Spring Boot 4.0.1 管理为 `elasticsearch-java 9.2.2`，可连接同主版本更高 minor 的服务端；如果需要调用 9.4 专属强类型 API，再单独升级客户端依赖。需要验证其他版本时，可用 `ELASTICSEARCH_IMAGE=docker.elastic.co/elasticsearch/elasticsearch:<version>` 覆盖本地镜像。
 
 MySQL 默认按本机服务使用，连接库名为 `traffic`。密码、JWT、AI、加密密钥等通过环境变量注入。
 
@@ -110,6 +112,11 @@ OLLAMA_URL=http://localhost:11434
 OLLAMA_MODEL=llama3.2
 RAG_ENABLED=true
 RAG_INDEXING_ENABLED=true
+RAG_EMBEDDING_ENABLED=true
+RAG_EMBEDDING_PROVIDER=ollama
+RAG_EMBEDDING_MODEL=nomic-embed-text
+RAG_EMBEDDING_DIMENSIONS=768
+RAG_RETRIEVAL_ENABLED=true
 ```
 
 敏感字段加密与 blind-index：
@@ -190,6 +197,18 @@ Elasticsearch 文档只写入脱敏展示值或低风险字段，不写入完整
 
 当前 PDF 解析基于 PDFBox，只支持可提取文本的 PDF；扫描版图片 PDF 需要先 OCR。
 
+资料入库后会写入 `rag_document` 和 `rag_chunk`，同时为每个 chunk 创建 `rag_embedding_task`。默认 embedding provider 为 Ollama `nomic-embed-text`，后台定时任务会把待处理 chunk 转为向量并写入 Elasticsearch `rag_chunk_current` alias，MySQL 侧只记录 `embedding_model`、`embedding_hash` 和处理状态。首次使用前需要先准备模型：
+
+```powershell
+ollama pull nomic-embed-text
+```
+
+如需手动触发一批向量化任务，可由超级管理员调用：
+
+```text
+POST /api/rag/admin/embedding/run?limit=25
+```
+
 RAG 数据表定义见：
 
 - `finalAssignmentBackend/src/main/resources/rag/rag_schema.sql`
@@ -212,7 +231,7 @@ RAG 数据表定义见：
 - 驾驶员账号通过 `driver_information.user_id` 关联司机档案
 - 车辆通过 `driver_vehicle` 与驾驶员建立多对多绑定
 - 违法、罚款、扣分、申诉围绕 `offense_record` 串联
-- RAG 使用独立的 `rag_document`、`rag_chunk`、`rag_embedding_task`
+- RAG 使用独立的 `rag_document`、`rag_chunk`、`rag_embedding_task`，向量写入 Elasticsearch `rag_chunk_current`
 
 ## 验证命令
 
@@ -221,6 +240,13 @@ RAG 数据表定义见：
 ```powershell
 cd finalAssignmentBackend
 mvn -q -DskipTests test
+```
+
+后端测试默认使用本地 MySQL `traffic_test`，可通过 `TEST_DB_URL`、`TEST_DB_USERNAME`、`TEST_DB_PASSWORD` 覆盖连接信息：
+
+```powershell
+cd finalAssignmentBackend
+mvn -q test
 ```
 
 Flutter 静态检查：
@@ -252,7 +278,7 @@ powershell -ExecutionPolicy Bypass -File scripts\test-ai-chain.ps1
 - 司机档案、用户账户、车辆、违法、罚款、扣分、申诉的多表关联已经补齐主线查询
 - Kafka Listener 幂等样板已集中到公共处理器
 - 复杂治理监听器保留原业务审计语义后完成收口
-- RAG 已支持手工录入和多格式文件解析
+- RAG 已支持手工录入、多格式文件解析、chunk 向量化和 Elasticsearch 混合检索
 - 敏感字段密文列、blind-index 字段、查询改造和历史回填已经落地
 
 ## 注意事项
