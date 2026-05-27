@@ -1,72 +1,145 @@
-﻿# 交通违法处理管理系统
+﻿# 交通违法行为处理管理系统
 
-一个面向交通违法业务场景的全栈项目，覆盖违法信息管理、罚款处理、扣分管理、申诉流程、日志审计、权限控制等核心能力。项目最初来源于毕业设计，后续持续迭代，逐步扩展为包含单体、微服务、轻量框架和多端前端在内的综合性工程实践。
+面向交通违法处理、驾驶员服务和后台监管的全栈工程项目。项目最初来自毕业设计，当前已经按更工程化的方向持续演进：后端以 Spring Boot 单体为主线，同时保留 Spring Cloud、Go、Quarkus 等实现作为架构实验；前端以 Flutter Web 为主要联调入口。
 
-目前仓库以 `Spring Boot + React / Flutter` 作为主要展示链路，同时保留 `Quarkus`、`Go`、`Spring Cloud` 等版本，用于架构演进和技术验证。
+当前主线关注点不再只是 CRUD 展示，而是围绕真实业务链路补齐权限、幂等、消息、检索、RAG、敏感数据保护和本地一键启动能力。
 
-## 项目概览
+## 当前主线
 
-- 项目类型：个人独立开发的全栈作品集项目
-- 业务方向：交通违法处理与后台管理
-- 主要能力：后端架构设计、权限与安全、缓存与消息、跨端前端实现、工程化落地
+| 模块 | 路径 | 状态 |
+| --- | --- | --- |
+| Spring Boot 主后端 | `finalAssignmentBackend` | 主线实现，承载认证、业务、审计、AI、RAG、CDC、ES |
+| Flutter 前端 | `final_assignment_front` | 当前主要目检与联调入口，管理员端和驾驶员端共用 |
+| React 前端 | `final_assignment_front_react` | 保留的管理端实现 |
+| Spring Cloud 版本 | `finalAssignmentCloud` | 微服务拆分实验 |
+| Go 版本 | `final_assignment_backend_go` | Go 后端实验 |
+| Quarkus 版本 | `final_assignment_backend_quarkus` | Quarkus 后端实验 |
 
-## 核心功能
+## 核心业务
 
-- 用户、角色、权限管理
-- 驾驶员、车辆、违法信息、罚款信息管理
-- 扣分处理与申诉处理流程
-- 登录日志、操作日志、系统日志审计
-- 数据备份与恢复
-- 检索、实时消息、WebSocket 通信能力
-- 基于本地模型的 AI 问答与辅助查询探索
-- 基于 Debezium 的 MySQL CDC、Kafka/Redpanda 与 Elasticsearch 搜索同步链路
+- 管理员端：驾驶员、车辆、违法行为、罚款、扣分、申诉、日志、系统配置管理
+- 驾驶员端：个人资料、违法详情、罚款缴纳、用户申诉、车辆登记、进度消息、地图入口
+- 超级管理员端：操作日志审查、RAG 资料录入、知识库索引与回填管理
+- AI 助手：驾驶员常见问题、管理员业务辅助、RAG 检索增强问答、前端页面跳转/填单能力探索
+- 实时链路：WebSocket/SSE、Kafka 异步消息、死信监听、业务进度推送
 
-## 承担内容
+## 工程化能力
 
-- 独立完成系统需求拆解、数据库设计与模块划分
-- 独立完成后端接口开发、权限认证、缓存设计、消息通信和部分状态流转建模
-- 独立完成 Flutter 与 React 两套前端界面及接口联调
-- 维护多套后端实现方案，用于对比单体、轻量化和微服务架构的实现差异
-- 完成 Docker/Testcontainers 驱动的本地依赖管理与开发环境搭建
+- `Spring Security + JWT + BCrypt` 认证授权
+- `ADMIN` 与 `SUPER_ADMIN` 角色边界，普通管理员负责业务处理，超级管理员负责日志与 RAG 管理
+- `MyBatis Plus + MySQL` 核心数据访问
+- `Redis + Caffeine` 多级缓存
+- `Kafka / Redpanda` 异步事件、审计与幂等处理
+- `Debezium + Kafka Connect` 捕获 MySQL binlog，异步同步到 Elasticsearch
+- `Elasticsearch` 作为搜索读模型，避免将敏感明文直接写入搜索索引
+- `Ollama + Spring AI / LangChain4j + GraalPy` 支持本地 AI、联网搜索和 Python 脚本能力
+- `RAG` 支持手工录入、文档上传、表格上传、PDF 文本解析、分块、索引任务和检索
+- 敏感字段支持 `AES-GCM` 密文列与 `HMAC blind-index` 查询列
+- 统一 Kafka Listener 幂等处理器，减少重复反序列化、重复请求判断、成功/失败历史标记代码
 
-## 关键技术实现
+## 一键启动
 
-- 使用 `Spring Security + JWT + BCrypt` 构建认证与授权链路
-- 使用 `MyBatis Plus + MySQL` 实现核心业务数据访问
-- 使用 `Redis + Caffeine` 实现多级缓存，降低热点数据访问开销
-- 使用 `Kafka` 支撑日志、审计和异步消息处理场景
-- 使用 `Debezium + Kafka Connect` 捕获 MySQL binlog，推动 Elasticsearch 搜索读模型异步更新
-- 使用 `WebSocket` 支撑实时通信能力
-- 使用 `Testcontainers` 管理 Redis、Kafka/Redpanda、Elasticsearch 等本地依赖
-- 在部分业务流程中引入状态机建模，提升流程可维护性
-- 对身份证号、手机号、银行卡号等敏感字段执行展示脱敏，并预留 `AES-GCM + HMAC blind index` 的密文存储改造路径
-- 集成 `Ollama + Spring AI / LangChain4j + GraalPy`，探索本地模型与 Python 能力协同
+推荐从仓库根目录使用脚本启动。
 
-## 技术栈
+Windows:
 
-| 分层 | 技术方案 |
-| --- | --- |
-| 后端主线 | Spring Boot 4、Spring Security、MyBatis Plus、Redis、Kafka、WebSocket、Elasticsearch |
-| 微服务演进 | Spring Cloud、Spring Cloud Alibaba、Gateway、OpenFeign、Nacos、ShardingSphere |
-| 轻量后端探索 | Quarkus、Vert.x、MyBatis Plus、SmallRye JWT、Redis Cache、Reactive Messaging |
-| Go 版本探索 | Gin、GORM、Redis、Kafka、Elasticsearch、WebSocket |
-| 前端 | React 18、Vite、React Router、React Query、Axios |
-| 客户端 | Flutter 3、GetX、WebSocket、图表与地图相关组件 |
-| 工程能力 | Docker、Testcontainers、GraalVM、GraalPy、JMH |
+```bat
+scripts\start-all.bat
+```
 
-## 工程化搜索同步
+Linux / macOS:
 
-主线版本正在从“应用启动时全量同步 Elasticsearch”演进为更工程化的 CDC 搜索同步架构：
+```sh
+sh scripts/start-all.sh
+```
+
+默认会尝试启动：
+
+1. Docker Desktop / Docker 服务
+2. `scripts/dev-compose.yml` 中的本地依赖
+3. Ollama
+4. Spring Boot 后端
+5. Flutter Web 前端，默认访问 `http://127.0.0.1:3000`
+
+如只启动前后端，可跳过 Docker/Ollama：
+
+```bat
+set START_LOCAL_SERVICES=false
+scripts\start-all.bat
+```
+
+更多启动参数见 [scripts/README.md](scripts/README.md)。
+
+## 本地依赖
+
+主线开发建议准备：
+
+- JDK 23 或 25
+- Maven 3.9+
+- Flutter 3+
+- Docker Desktop
+- 本地 MySQL 8.0+
+- Ollama
+
+`scripts/dev-compose.yml` 提供：
+
+- Redis
+- Redpanda
+- Elasticsearch
+- Debezium Connect
+- Manticore Search
+
+MySQL 默认按本机服务使用，连接库名为 `traffic`。密码、JWT、AI、加密密钥等通过环境变量注入。
+
+## 关键环境变量
+
+后端常用配置：
+
+```properties
+DB_USERNAME=root
+DB_PASSWORD=your_password
+BACKEND_URL=http://localhost:8080
+JWT_SECRET=replace_with_a_real_secret
+```
+
+AI/RAG：
+
+```properties
+OLLAMA_ENABLED=true
+OLLAMA_URL=http://localhost:11434
+OLLAMA_MODEL=llama3.2
+RAG_ENABLED=true
+RAG_INDEXING_ENABLED=true
+```
+
+敏感字段加密与 blind-index：
+
+```properties
+SENSITIVE_DATA_ENCRYPTION_ENABLED=true
+SENSITIVE_DATA_ENCRYPTION_KEY=<base64-32-byte-key-or-strong-secret>
+SENSITIVE_DATA_BLIND_INDEX_KEY=<separate-base64-32-byte-key-or-strong-secret>
+```
+
+CDC 到 Elasticsearch：
+
+```properties
+CDC_ELASTICSEARCH_ENABLED=true
+CDC_ELASTICSEARCH_TOPIC_PATTERN=traffic\.traffic\.(driver_information|vehicle_information|sys_user)
+```
+
+## MySQL CDC 到 Elasticsearch
+
+当前搜索同步链路：
 
 ```text
 MySQL binlog
-    -> Debezium / Kafka Connect
-    -> Redpanda(Kafka API)
-    -> Spring Boot CDC Consumer
-    -> Elasticsearch
+  -> Debezium Connect
+  -> Redpanda(Kafka API)
+  -> Spring Boot CDC Consumer
+  -> Elasticsearch
 ```
 
-本地开发环境中，`scripts/dev-compose.yml` 已包含 `redpanda`、`elasticsearch` 和 `debezium-connect`。本地 MySQL 需要开启 row-based binlog：
+本地 MySQL 需要开启 row-based binlog：
 
 ```ini
 [mysqld]
@@ -84,7 +157,7 @@ GRANT SELECT, RELOAD, SHOW DATABASES, REPLICATION SLAVE, REPLICATION CLIENT ON *
 FLUSH PRIVILEGES;
 ```
 
-启动 CDC 基础设施并注册连接器：
+启动依赖并注册连接器：
 
 ```powershell
 docker compose -f scripts\dev-compose.yml up -d redpanda elasticsearch debezium-connect
@@ -92,177 +165,99 @@ $env:MYSQL_CDC_PASSWORD='change_this_password'
 powershell -ExecutionPolicy Bypass -File scripts\debezium\register-mysql-cdc.ps1
 ```
 
-后端通过以下环境变量启用 CDC 到 ES 的消费：
-
-```properties
-CDC_ELASTICSEARCH_ENABLED=true
-CDC_ELASTICSEARCH_TOPIC_PATTERN=traffic\.traffic\.(driver_information|vehicle_information|sys_user)
-```
-
-当前第一阶段先覆盖 `driver_information`、`vehicle_information`、`sys_user` 三类核心搜索索引；后续可继续扩展到申诉、违法、罚款和扣分记录。
-
 ## 敏感数据治理
 
-Elasticsearch 不应保存完整身份证号、手机号、银行卡号等敏感字段。当前 ES 文档转换层会写入脱敏值，用于界面展示和低风险检索；MySQL 仍作为真实数据源。
+身份证号、手机号、银行卡号等敏感数据采用三层处理：
 
-后端已预留敏感数据加密能力：
+- MySQL 原业务列保留兼容旧逻辑
+- 新增 `*_ciphertext` 列保存密文
+- 新增 `*_blind_index` 列用于精确查询
 
-```properties
-SENSITIVE_DATA_ENCRYPTION_ENABLED=true
-SENSITIVE_DATA_ENCRYPTION_KEY=<base64-32-byte-key-or-strong-secret>
-SENSITIVE_DATA_BLIND_INDEX_KEY=<separate-base64-32-byte-key-or-strong-secret>
-```
+后端启动时会通过 `SensitiveDataSchemaMigration` 检查并补齐密文字段、blind-index 字段和索引，然后对历史明文数据回填密文与 blind-index。查询层优先使用 blind-index 精确匹配，避免继续依赖明文等值查询。
 
-完整落地路径是：先新增密文字段与 blind-index 字段，再回填历史明文数据，最后把身份证号、手机号等查询从明文 `LIKE/eq` 改为 blind-index 精确匹配。这样可以避免直接加密导致现有业务查询失效。
+Elasticsearch 文档只写入脱敏展示值或低风险字段，不写入完整身份证号、手机号和银行卡号。
 
-## 仓库结构
+## RAG 资料录入
 
-```text
-Final-Assignment
-├─ finalAssignmentBackend             # Spring Boot 单体后端主版本
-├─ finalAssignmentCloud               # Spring Cloud 微服务拆分版本
-├─ final_assignment_backend_quarkus   # Quarkus 后端实验版本
-├─ final_assignment_backend_go        # Go 后端实验版本
-├─ final_assignment_front             # Flutter 前端
-├─ final_assignment_front_react       # React 管理端
-├─ database                           # 数据库设计文档
-└─ finalAssignmentTools               # 工具脚本与辅助资源
-```
+超级管理员可以通过 RAG 管理接口录入资料：
 
-## 主要模块说明
+- 手工文本
+- Markdown / TXT
+- CSV / TSV / JSON
+- DOCX
+- XLSX
+- PDF 文本型文件
 
-### 1. Spring Boot 单体后端
+当前 PDF 解析基于 PDFBox，只支持可提取文本的 PDF；扫描版图片 PDF 需要先 OCR。
 
-主线版本，用于承载完整业务流程与主要技术能力。
+RAG 数据表定义见：
 
-- 路径：`finalAssignmentBackend`
-- 技术关键词：`Spring Boot 4`、`Spring Security`、`MyBatis Plus`、`Redis`、`Kafka`、`Elasticsearch`
-- 工程特点：
-  - 基于 JWT 的认证鉴权
-  - 审计日志与业务日志拆分
-  - 基于 Testcontainers 的中间件依赖管理
-  - 引入状态机管理部分业务流程
-  - 集成本地 AI 服务与 GraalPy 能力
+- `finalAssignmentBackend/src/main/resources/rag/rag_schema.sql`
 
-### 2. React 管理端
+## 后端包结构
 
-用于后台管理系统展示，覆盖登录鉴权、角色路由、数据列表、表单、统计图表等典型后台能力。
+后端已经从单纯的平铺包逐步拆成按领域归属组织的结构。详细说明见：
 
-- 路径：`final_assignment_front_react`
-- 技术关键词：`React 18`、`Vite`、`React Router`、`React Query`、`Axios`
-- 页面能力：
-  - 登录与认证上下文管理
-  - 基于角色的路由访问控制
-  - 通用数据表格、检索、弹窗、表单组件
-  - 面向管理员场景的多业务页面
+- [finalAssignmentBackend/PACKAGE_LAYOUT.md](finalAssignmentBackend/PACKAGE_LAYOUT.md)
 
-### 3. Flutter 前端
+## 数据库设计
 
-用于多端客户端能力验证，体现移动端与跨端开发能力。
+数据库设计文档已按当前业务域重新整理：
 
-- 路径：`final_assignment_front`
-- 技术关键词：`Flutter`、`GetX`、`WebSocket`、`SharedPreferences`
-- 功能方向：
-  - 登录与本地状态存储
-  - 图表、地图、二维码等交互组件集成
-  - 面向移动端的业务流程展示
+- [database/DATABASE_DESIGN.md](database/DATABASE_DESIGN.md)
 
-### 4. Spring Cloud 微服务版本
+重点关系：
 
-用于体现从单体架构向微服务架构拆分的设计思路。
+- `sys_user` 统一承载驾驶员用户、普通管理员、超级管理员账号
+- 驾驶员账号通过 `driver_information.user_id` 关联司机档案
+- 车辆通过 `driver_vehicle` 与驾驶员建立多对多绑定
+- 违法、罚款、扣分、申诉围绕 `offense_record` 串联
+- RAG 使用独立的 `rag_document`、`rag_chunk`、`rag_embedding_task`
 
-- 路径：`finalAssignmentCloud`
-- 已拆分模块：
-  - `gateway`
-  - `auth`
-  - `user`
-  - `traffic`
-  - `audit`
-  - `system`
-  - `search`
-  - `ai`
-- 技术关键词：`Spring Cloud Gateway`、`OpenFeign`、`Nacos`、`ShardingSphere`
+## 验证命令
 
-### 5. Quarkus / Go 后端探索版本
+后端编译：
 
-用于验证同一业务域在不同技术路线下的实现方式，体现对框架特性和架构取舍的理解。
-
-- Quarkus 路径：`final_assignment_backend_quarkus`
-- Go 路径：`final_assignment_backend_go`
-- 关注点：
-  - 轻量化启动与开发效率
-  - 异步处理与高性能组件组合
-  - 不同语言生态下的业务建模方式
-
-## 运行说明
-
-### 环境准备
-
-- JDK 23 / 25
-- Maven 3.9+
-- Node.js 18+
-- Flutter 3+
-- Go 1.24+
-- Docker
-- MySQL、Redis、Kafka/Redpanda、Elasticsearch、Ollama（按所选模块启用）
-
-### 推荐查看路径
-
-优先查看 `Spring Boot 单体后端 + React 管理端`，这也是当前最完整、最稳定的业务实现组合。
-
-### 常用启动方式
-
-Spring Boot 后端：
-
-```bash
+```powershell
 cd finalAssignmentBackend
-mvn spring-boot:run
+mvn -q -DskipTests test
 ```
 
-React 前端：
+Flutter 静态检查：
 
-```bash
-cd final_assignment_front_react
-npm install
-npm run dev
-```
-
-Flutter 前端：
-
-```bash
+```powershell
 cd final_assignment_front
-flutter pub get
-flutter run
+$env:DART_SUPPRESS_ANALYTICS='true'
+C:\Users\tutic\Flutter\flutter\bin\flutter.bat analyze
 ```
 
-Quarkus 后端：
+Flutter Web 构建：
 
-```bash
-cd final_assignment_backend_quarkus
-.\gradlew quarkusDev
+```powershell
+cd final_assignment_front
+$env:DART_SUPPRESS_ANALYTICS='true'
+C:\Users\tutic\Flutter\flutter\bin\flutter.bat build web
 ```
 
-Go 后端：
+AI 链路冒烟测试：
 
-```bash
-cd final_assignment_backend_go
-go run ./project/cmd/app
+```powershell
+powershell -ExecutionPolicy Bypass -File scripts\test-ai-chain.ps1
 ```
 
-## 配置说明
+## 当前工程状态
 
-- 运行前请根据本地环境补充各模块中的数据库、Redis、Kafka、Elasticsearch、JWT 等配置
-- 涉及密钥和账号信息时，请使用本地配置文件或环境变量，不要将真实凭据提交到仓库
-- 部分模块依赖 Docker/Testcontainers 自动拉起中间件，因此请确保 Docker 处于可用状态
+- 主展示链路：`finalAssignmentBackend` + `final_assignment_front`
+- 普通管理员与驾驶员端 UI 已统一暗色/亮色主题、侧边栏、AI 助手入口和业务页面样式
+- 司机档案、用户账户、车辆、违法、罚款、扣分、申诉的多表关联已经补齐主线查询
+- Kafka Listener 幂等样板已集中到公共处理器
+- 复杂治理监听器保留原业务审计语义后完成收口
+- RAG 已支持手工录入和多格式文件解析
+- 敏感字段密文列、blind-index 字段、查询改造和历史回填已经落地
 
-## 当前状态
+## 注意事项
 
-- `finalAssignmentBackend`、`final_assignment_front_react`、`final_assignment_front` 适合作为主展示内容
-- `finalAssignmentCloud` 处于持续拆分与补充阶段
-- `final_assignment_backend_quarkus`、`final_assignment_backend_go` 主要用于技术验证与架构探索
-
-## 补充文档
-
-- 数据库设计文档：`database/DATABASE_DESIGN.md`
-
-
+- 不要提交真实数据库密码、JWT 密钥、AI API Key 或加密密钥
+- 本地开发可用弱密钥，演示或生产必须使用独立强密钥
+- PDF RAG 当前不支持加密 PDF 和纯图片扫描 PDF
+- CDC 同步依赖 MySQL binlog 配置，未开启时不会有增量同步
