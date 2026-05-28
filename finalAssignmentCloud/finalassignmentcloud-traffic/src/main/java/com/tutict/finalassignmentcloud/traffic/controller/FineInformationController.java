@@ -1,6 +1,7 @@
 package com.tutict.finalassignmentcloud.traffic.controller;
 
 import com.tutict.finalassignmentcloud.entity.FineRecord;
+import com.tutict.finalassignmentcloud.traffic.service.BusinessRecordViewService;
 import com.tutict.finalassignmentcloud.traffic.service.DriverAccessService;
 import com.tutict.finalassignmentcloud.traffic.service.FineRecordService;
 import io.swagger.v3.oas.annotations.Operation;
@@ -43,11 +44,14 @@ public class FineInformationController {
 
     private final FineRecordService fineRecordService;
     private final DriverAccessService driverAccessService;
+    private final BusinessRecordViewService businessRecordViewService;
 
     public FineInformationController(FineRecordService fineRecordService,
-                                     DriverAccessService driverAccessService) {
+                                     DriverAccessService driverAccessService,
+                                     BusinessRecordViewService businessRecordViewService) {
         this.fineRecordService = fineRecordService;
         this.driverAccessService = driverAccessService;
+        this.businessRecordViewService = businessRecordViewService;
     }
 
     @PostMapping
@@ -67,7 +71,7 @@ public class FineInformationController {
             if (useKey && saved.getFineId() != null) {
                 fineRecordService.markHistorySuccess(idempotencyKey, saved.getFineId());
             }
-            return ResponseEntity.status(HttpStatus.CREATED).body(saved);
+            return ResponseEntity.status(HttpStatus.CREATED).body(enrich(saved));
         } catch (Exception ex) {
             if (useKey) {
                 fineRecordService.markHistoryFailure(idempotencyKey, ex.getMessage());
@@ -93,7 +97,7 @@ public class FineInformationController {
             if (useKey && updated.getFineId() != null) {
                 fineRecordService.markHistorySuccess(idempotencyKey, updated.getFineId());
             }
-            return ResponseEntity.ok(updated);
+            return ResponseEntity.ok(enrich(updated));
         } catch (Exception ex) {
             if (useKey) {
                 fineRecordService.markHistoryFailure(idempotencyKey, ex.getMessage());
@@ -120,7 +124,7 @@ public class FineInformationController {
     public ResponseEntity<FineRecord> get(@PathVariable Long fineId) {
         try {
             FineRecord record = fineRecordService.findById(fineId);
-            return record == null ? ResponseEntity.notFound().build() : ResponseEntity.ok(record);
+            return record == null ? ResponseEntity.notFound().build() : ResponseEntity.ok(enrich(record));
         } catch (Exception ex) {
             LOG.log(Level.WARNING, "Get fine failed", ex);
             return ResponseEntity.status(resolveStatus(ex)).build();
@@ -131,7 +135,7 @@ public class FineInformationController {
     @Operation(summary = "查询全部罚款记录")
     public ResponseEntity<List<FineRecord>> list() {
         try {
-            return ResponseEntity.ok(fineRecordService.findAll());
+            return ResponseEntity.ok(enrich(fineRecordService.findAll()));
         } catch (Exception ex) {
             LOG.log(Level.WARNING, "List fines failed", ex);
             return ResponseEntity.status(resolveStatus(ex)).build();
@@ -144,7 +148,7 @@ public class FineInformationController {
                                                       @RequestParam(defaultValue = "1") int page,
                                                       @RequestParam(defaultValue = "20") int size) {
         try {
-            return ResponseEntity.ok(fineRecordService.findByOffenseId(offenseId, page, size));
+            return ResponseEntity.ok(enrich(fineRecordService.findByOffenseId(offenseId, page, size)));
         } catch (Exception ex) {
             LOG.log(Level.WARNING, "List fines by offense failed", ex);
             return ResponseEntity.status(resolveStatus(ex)).build();
@@ -162,7 +166,7 @@ public class FineInformationController {
             if (!driverAccessService.canAccessDriver(authentication, driverId, ELEVATED_ROLES)) {
                 return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
             }
-            return ResponseEntity.ok(fineRecordService.findByDriverId(driverId, page, size));
+            return ResponseEntity.ok(enrich(fineRecordService.findByDriverId(driverId, page, size)));
         } catch (Exception ex) {
             LOG.log(Level.WARNING, "List fines by driver failed", ex);
             return ResponseEntity.status(resolveStatus(ex)).build();
@@ -179,7 +183,7 @@ public class FineInformationController {
             List<FineRecord> result = "fuzzy".equalsIgnoreCase(mode)
                     ? fineRecordService.searchByHandlerFuzzy(handler, page, size)
                     : fineRecordService.searchByHandlerPrefix(handler, page, size);
-            return ResponseEntity.ok(result);
+            return ResponseEntity.ok(enrich(result));
         } catch (Exception ex) {
             LOG.log(Level.WARNING, "Search fine by handler failed", ex);
             return ResponseEntity.status(resolveStatus(ex)).build();
@@ -192,7 +196,7 @@ public class FineInformationController {
                                                                   @RequestParam(defaultValue = "1") int page,
                                                                   @RequestParam(defaultValue = "20") int size) {
         try {
-            return ResponseEntity.ok(fineRecordService.searchByPaymentStatus(status, page, size));
+            return ResponseEntity.ok(enrich(fineRecordService.searchByPaymentStatus(status, page, size)));
         } catch (Exception ex) {
             LOG.log(Level.WARNING, "Search fine by status failed", ex);
             return ResponseEntity.status(resolveStatus(ex)).build();
@@ -206,7 +210,7 @@ public class FineInformationController {
                                                               @RequestParam(defaultValue = "1") int page,
                                                               @RequestParam(defaultValue = "20") int size) {
         try {
-            return ResponseEntity.ok(fineRecordService.searchByFineDateRange(startDate, endDate, page, size));
+            return ResponseEntity.ok(enrich(fineRecordService.searchByFineDateRange(startDate, endDate, page, size)));
         } catch (Exception ex) {
             LOG.log(Level.WARNING, "Search fine by date range failed", ex);
             return ResponseEntity.status(resolveStatus(ex)).build();
@@ -215,6 +219,14 @@ public class FineInformationController {
 
     private boolean hasKey(String value) {
         return value != null && !value.isBlank();
+    }
+
+    private FineRecord enrich(FineRecord record) {
+        return businessRecordViewService.enrichFine(record);
+    }
+
+    private List<FineRecord> enrich(List<FineRecord> records) {
+        return businessRecordViewService.enrichFines(records);
     }
 
     private HttpStatus resolveStatus(Exception ex) {

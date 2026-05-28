@@ -1,6 +1,7 @@
 package com.tutict.finalassignmentcloud.entity.elastic;
 
 import com.tutict.finalassignmentcloud.entity.SysUser;
+import com.tutict.finalassignmentcloud.security.privacy.SensitiveDataMasker;
 import java.io.Serial;
 import java.io.Serializable;
 import java.time.LocalDate;
@@ -182,9 +183,9 @@ public class SysUserDocument implements Serializable {
         doc.setUserId(entity.getUserId());
         doc.setUsername(entity.getUsername());
         doc.setRealName(entity.getRealName());
-        doc.setIdCardNumber(entity.getIdCardNumber());
+        doc.setIdCardNumber(SensitiveDataMasker.idCard(entity.getIdCardNumber()));
         doc.setGender(entity.getGender());
-        doc.setContactNumber(entity.getContactNumber());
+        doc.setContactNumber(SensitiveDataMasker.phone(entity.getContactNumber()));
         doc.setEmail(entity.getEmail());
         doc.setDepartment(entity.getDepartment());
         doc.setPosition(entity.getPosition());

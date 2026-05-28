@@ -4,6 +4,7 @@ import com.tutict.finalassignmentcloud.config.security.SecurityRoleUtils;
 import com.tutict.finalassignmentcloud.entity.DriverInformation;
 import com.tutict.finalassignmentcloud.entity.SysUser;
 import com.tutict.finalassignmentcloud.dto.response.UserProfileResponse;
+import com.tutict.finalassignmentcloud.traffic.service.BusinessRecordViewService;
 import com.tutict.finalassignmentcloud.traffic.service.DriverInformationService;
 import com.tutict.finalassignmentcloud.traffic.service.TrafficUserProfileService;
 import io.swagger.v3.oas.annotations.Operation;
@@ -42,11 +43,14 @@ public class DriverInformationController {
 
     private final DriverInformationService driverInformationService;
     private final TrafficUserProfileService userProfileService;
+    private final BusinessRecordViewService businessRecordViewService;
 
     public DriverInformationController(DriverInformationService driverInformationService,
-                                       TrafficUserProfileService userProfileService) {
+                                       TrafficUserProfileService userProfileService,
+                                       BusinessRecordViewService businessRecordViewService) {
         this.driverInformationService = driverInformationService;
         this.userProfileService = userProfileService;
+        this.businessRecordViewService = businessRecordViewService;
     }
 
     @PostMapping
@@ -66,7 +70,7 @@ public class DriverInformationController {
             if (useKey && saved.getDriverId() != null) {
                 driverInformationService.markHistorySuccess(idempotencyKey, saved.getDriverId());
             }
-            return ResponseEntity.status(HttpStatus.CREATED).body(saved);
+            return ResponseEntity.status(HttpStatus.CREATED).body(enrich(saved));
         } catch (Exception ex) {
             if (useKey) {
                 driverInformationService.markHistoryFailure(idempotencyKey, ex.getMessage());
@@ -97,7 +101,7 @@ public class DriverInformationController {
             if (useKey && updated.getDriverId() != null) {
                 driverInformationService.markHistorySuccess(idempotencyKey, updated.getDriverId());
             }
-            return ResponseEntity.ok(updated);
+            return ResponseEntity.ok(enrich(updated));
         } catch (Exception ex) {
             if (useKey) {
                 driverInformationService.markHistoryFailure(idempotencyKey, ex.getMessage());
@@ -128,7 +132,7 @@ public class DriverInformationController {
                 return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
             }
             DriverInformation driver = driverInformationService.getDriverById(driverId);
-            return driver == null ? ResponseEntity.notFound().build() : ResponseEntity.ok(driver);
+            return driver == null ? ResponseEntity.notFound().build() : ResponseEntity.ok(enrich(driver));
         } catch (Exception ex) {
             LOG.log(Level.WARNING, "Get driver failed", ex);
             return ResponseEntity.status(resolveStatus(ex)).build();
@@ -139,7 +143,7 @@ public class DriverInformationController {
     @Operation(summary = "查询全部驾驶员")
     public ResponseEntity<List<DriverInformation>> list() {
         try {
-            return ResponseEntity.ok(driverInformationService.getAllDrivers());
+            return ResponseEntity.ok(enrich(driverInformationService.getAllDrivers()));
         } catch (Exception ex) {
             LOG.log(Level.WARNING, "List drivers failed", ex);
             return ResponseEntity.status(resolveStatus(ex)).build();
@@ -152,7 +156,7 @@ public class DriverInformationController {
                                                                   @RequestParam(defaultValue = "1") int page,
                                                                   @RequestParam(defaultValue = "20") int size) {
         try {
-            return ResponseEntity.ok(driverInformationService.searchByIdCardNumber(keywords, page, size));
+            return ResponseEntity.ok(enrich(driverInformationService.searchByIdCardNumber(keywords, page, size)));
         } catch (Exception ex) {
             LOG.log(Level.WARNING, "Search driver by id card failed", ex);
             return ResponseEntity.status(resolveStatus(ex)).build();
@@ -165,7 +169,7 @@ public class DriverInformationController {
                                                                    @RequestParam(defaultValue = "1") int page,
                                                                    @RequestParam(defaultValue = "20") int size) {
         try {
-            return ResponseEntity.ok(driverInformationService.searchByDriverLicenseNumber(keywords, page, size));
+            return ResponseEntity.ok(enrich(driverInformationService.searchByDriverLicenseNumber(keywords, page, size)));
         } catch (Exception ex) {
             LOG.log(Level.WARNING, "Search driver by license failed", ex);
             return ResponseEntity.status(resolveStatus(ex)).build();
@@ -178,7 +182,7 @@ public class DriverInformationController {
                                                                 @RequestParam(defaultValue = "1") int page,
                                                                 @RequestParam(defaultValue = "20") int size) {
         try {
-            return ResponseEntity.ok(driverInformationService.searchByName(keywords, page, size));
+            return ResponseEntity.ok(enrich(driverInformationService.searchByName(keywords, page, size)));
         } catch (Exception ex) {
             LOG.log(Level.WARNING, "Search driver by name failed", ex);
             return ResponseEntity.status(resolveStatus(ex)).build();
@@ -194,7 +198,7 @@ public class DriverInformationController {
             if (!canAccessUserPayload(authentication, user)) {
                 return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
             }
-            return ResponseEntity.ok(driverInformationService.findOrCreateLinkedDriver(user));
+            return ResponseEntity.ok(enrich(driverInformationService.findOrCreateLinkedDriver(user)));
         } catch (Exception ex) {
             LOG.log(Level.WARNING, "Find or create linked driver failed", ex);
             return ResponseEntity.status(resolveStatus(ex)).build();
@@ -203,6 +207,14 @@ public class DriverInformationController {
 
     private boolean hasKey(String value) {
         return value != null && !value.isBlank();
+    }
+
+    private DriverInformation enrich(DriverInformation driver) {
+        return businessRecordViewService.enrichDriver(driver);
+    }
+
+    private List<DriverInformation> enrich(List<DriverInformation> drivers) {
+        return businessRecordViewService.enrichDrivers(drivers);
     }
 
     private boolean canAccessDriver(Authentication authentication, Long driverId) {

@@ -5,6 +5,7 @@ import com.tutict.finalassignmentcloud.entity.AppealRecord;
 import com.tutict.finalassignmentcloud.entity.AppealReview;
 import com.tutict.finalassignmentcloud.traffic.service.AppealRecordService;
 import com.tutict.finalassignmentcloud.traffic.service.AppealReviewService;
+import com.tutict.finalassignmentcloud.traffic.service.BusinessRecordViewService;
 import com.tutict.finalassignmentcloud.traffic.service.DriverAccessService;
 import com.tutict.finalassignmentcloud.traffic.service.TrafficUserProfileService;
 import io.swagger.v3.oas.annotations.Operation;
@@ -45,15 +46,18 @@ public class AppealManagementController {
     private final AppealReviewService appealReviewService;
     private final DriverAccessService driverAccessService;
     private final TrafficUserProfileService userProfileService;
+    private final BusinessRecordViewService businessRecordViewService;
 
     public AppealManagementController(AppealRecordService appealRecordService,
                                       AppealReviewService appealReviewService,
                                       DriverAccessService driverAccessService,
-                                      TrafficUserProfileService userProfileService) {
+                                      TrafficUserProfileService userProfileService,
+                                      BusinessRecordViewService businessRecordViewService) {
         this.appealRecordService = appealRecordService;
         this.appealReviewService = appealReviewService;
         this.driverAccessService = driverAccessService;
         this.userProfileService = userProfileService;
+        this.businessRecordViewService = businessRecordViewService;
     }
 
     @PostMapping
@@ -83,7 +87,7 @@ public class AppealManagementController {
             if (useIdempotency && saved.getAppealId() != null) {
                 appealRecordService.markHistorySuccess(idempotencyKey, saved.getAppealId());
             }
-            return ResponseEntity.status(HttpStatus.CREATED).body(saved);
+            return ResponseEntity.status(HttpStatus.CREATED).body(enrich(saved));
         } catch (Exception ex) {
             if (useIdempotency) {
                 appealRecordService.markHistoryFailure(idempotencyKey, ex.getMessage());
@@ -109,7 +113,7 @@ public class AppealManagementController {
             if (useIdempotency && updated.getAppealId() != null) {
                 appealRecordService.markHistorySuccess(idempotencyKey, updated.getAppealId());
             }
-            return ResponseEntity.ok(updated);
+            return ResponseEntity.ok(enrich(updated));
         } catch (Exception ex) {
             if (useIdempotency) {
                 appealRecordService.markHistoryFailure(idempotencyKey, ex.getMessage());
@@ -136,7 +140,7 @@ public class AppealManagementController {
     public ResponseEntity<AppealRecord> getAppeal(@PathVariable Long appealId) {
         try {
             AppealRecord record = appealRecordService.getAppealById(appealId);
-            return record == null ? ResponseEntity.notFound().build() : ResponseEntity.ok(record);
+            return record == null ? ResponseEntity.notFound().build() : ResponseEntity.ok(enrich(record));
         } catch (Exception ex) {
             LOG.log(Level.WARNING, "Get appeal failed", ex);
             return ResponseEntity.status(resolveStatus(ex)).build();
@@ -149,7 +153,7 @@ public class AppealManagementController {
                                                           @RequestParam(defaultValue = "1") int page,
                                                           @RequestParam(defaultValue = "20") int size) {
         try {
-            return ResponseEntity.ok(appealRecordService.findByOffenseId(offenseId, page, size));
+            return ResponseEntity.ok(enrich(appealRecordService.findByOffenseId(offenseId, page, size)));
         } catch (Exception ex) {
             LOG.log(Level.WARNING, "List appeals failed", ex);
             return ResponseEntity.status(resolveStatus(ex)).build();
@@ -167,7 +171,7 @@ public class AppealManagementController {
             if (!driverAccessService.canAccessDriver(authentication, driverId, ELEVATED_ROLES)) {
                 return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
             }
-            return ResponseEntity.ok(appealRecordService.findByDriverId(driverId, page, size));
+            return ResponseEntity.ok(enrich(appealRecordService.findByDriverId(driverId, page, size)));
         } catch (Exception ex) {
             LOG.log(Level.WARNING, "List appeals by driver failed", ex);
             return ResponseEntity.status(resolveStatus(ex)).build();
@@ -179,7 +183,7 @@ public class AppealManagementController {
     public ResponseEntity<List<AppealRecord>> searchByNumberPrefix(@RequestParam String appealNumber,
                                                                    @RequestParam(defaultValue = "1") int page,
                                                                    @RequestParam(defaultValue = "20") int size) {
-        return ResponseEntity.ok(appealRecordService.searchByAppealNumberPrefix(appealNumber, page, size));
+        return ResponseEntity.ok(enrich(appealRecordService.searchByAppealNumberPrefix(appealNumber, page, size)));
     }
 
     @GetMapping("/search/number/fuzzy")
@@ -187,7 +191,7 @@ public class AppealManagementController {
     public ResponseEntity<List<AppealRecord>> searchByNumberFuzzy(@RequestParam String appealNumber,
                                                                   @RequestParam(defaultValue = "1") int page,
                                                                   @RequestParam(defaultValue = "20") int size) {
-        return ResponseEntity.ok(appealRecordService.searchByAppealNumberFuzzy(appealNumber, page, size));
+        return ResponseEntity.ok(enrich(appealRecordService.searchByAppealNumberFuzzy(appealNumber, page, size)));
     }
 
     @GetMapping("/search/appellant/name/prefix")
@@ -195,7 +199,7 @@ public class AppealManagementController {
     public ResponseEntity<List<AppealRecord>> searchByAppellantNamePrefix(@RequestParam String appellantName,
                                                                           @RequestParam(defaultValue = "1") int page,
                                                                           @RequestParam(defaultValue = "20") int size) {
-        return ResponseEntity.ok(appealRecordService.searchByAppellantNamePrefix(appellantName, page, size));
+        return ResponseEntity.ok(enrich(appealRecordService.searchByAppellantNamePrefix(appellantName, page, size)));
     }
 
     @GetMapping("/search/appellant/name/fuzzy")
@@ -203,7 +207,7 @@ public class AppealManagementController {
     public ResponseEntity<List<AppealRecord>> searchByAppellantNameFuzzy(@RequestParam String appellantName,
                                                                          @RequestParam(defaultValue = "1") int page,
                                                                          @RequestParam(defaultValue = "20") int size) {
-        return ResponseEntity.ok(appealRecordService.searchByAppellantNameFuzzy(appellantName, page, size));
+        return ResponseEntity.ok(enrich(appealRecordService.searchByAppellantNameFuzzy(appellantName, page, size)));
     }
 
     @GetMapping("/search/appellant/id-card")
@@ -211,7 +215,7 @@ public class AppealManagementController {
     public ResponseEntity<List<AppealRecord>> searchByAppellantIdCard(@RequestParam String appellantIdCard,
                                                                       @RequestParam(defaultValue = "1") int page,
                                                                       @RequestParam(defaultValue = "20") int size) {
-        return ResponseEntity.ok(appealRecordService.searchByAppellantIdCard(appellantIdCard, page, size));
+        return ResponseEntity.ok(enrich(appealRecordService.searchByAppellantIdCard(appellantIdCard, page, size)));
     }
 
     @GetMapping("/search/acceptance-status")
@@ -219,7 +223,7 @@ public class AppealManagementController {
     public ResponseEntity<List<AppealRecord>> searchByAcceptanceStatus(@RequestParam String acceptanceStatus,
                                                                        @RequestParam(defaultValue = "1") int page,
                                                                        @RequestParam(defaultValue = "20") int size) {
-        return ResponseEntity.ok(appealRecordService.searchByAcceptanceStatus(acceptanceStatus, page, size));
+        return ResponseEntity.ok(enrich(appealRecordService.searchByAcceptanceStatus(acceptanceStatus, page, size)));
     }
 
     @GetMapping("/search/process-status")
@@ -227,7 +231,7 @@ public class AppealManagementController {
     public ResponseEntity<List<AppealRecord>> searchByProcessStatus(@RequestParam String processStatus,
                                                                     @RequestParam(defaultValue = "1") int page,
                                                                     @RequestParam(defaultValue = "20") int size) {
-        return ResponseEntity.ok(appealRecordService.searchByProcessStatus(processStatus, page, size));
+        return ResponseEntity.ok(enrich(appealRecordService.searchByProcessStatus(processStatus, page, size)));
     }
 
     @GetMapping("/search/time-range")
@@ -236,7 +240,7 @@ public class AppealManagementController {
                                                                 @RequestParam String endTime,
                                                                 @RequestParam(defaultValue = "1") int page,
                                                                 @RequestParam(defaultValue = "20") int size) {
-        return ResponseEntity.ok(appealRecordService.searchByAppealTimeRange(startTime, endTime, page, size));
+        return ResponseEntity.ok(enrich(appealRecordService.searchByAppealTimeRange(startTime, endTime, page, size)));
     }
 
     @GetMapping("/search/handler")
@@ -244,7 +248,7 @@ public class AppealManagementController {
     public ResponseEntity<List<AppealRecord>> searchByHandler(@RequestParam String acceptanceHandler,
                                                               @RequestParam(defaultValue = "1") int page,
                                                               @RequestParam(defaultValue = "20") int size) {
-        return ResponseEntity.ok(appealRecordService.searchByAcceptanceHandler(acceptanceHandler, page, size));
+        return ResponseEntity.ok(enrich(appealRecordService.searchByAcceptanceHandler(acceptanceHandler, page, size)));
     }
 
     @PostMapping("/{appealId}/reviews")
@@ -377,6 +381,14 @@ public class AppealManagementController {
 
     private boolean hasKey(String value) {
         return value != null && !value.isBlank();
+    }
+
+    private AppealRecord enrich(AppealRecord record) {
+        return businessRecordViewService.enrichAppeal(record);
+    }
+
+    private List<AppealRecord> enrich(List<AppealRecord> records) {
+        return businessRecordViewService.enrichAppeals(records);
     }
 
     private HttpStatus resolveStatus(Exception ex) {

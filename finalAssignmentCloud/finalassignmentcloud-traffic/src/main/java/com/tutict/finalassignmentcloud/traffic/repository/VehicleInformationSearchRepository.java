@@ -62,7 +62,9 @@ public interface VehicleInformationSearchRepository extends ElasticsearchReposit
             "match": {
               "licensePlate": {
                 "query": "?0",
-                "fuzziness": "AUTO"
+                "fuzziness": "AUTO:4,7",
+                  "prefix_length": 1,
+                  "max_expansions": 25
               }
             }
           }
@@ -123,7 +125,9 @@ public interface VehicleInformationSearchRepository extends ElasticsearchReposit
             "match": {
               "vehicleType": {
                 "query": "?0",
-                "fuzziness": "AUTO"
+                "fuzziness": "AUTO:4,7",
+                  "prefix_length": 1,
+                  "max_expansions": 25
               }
             }
           }

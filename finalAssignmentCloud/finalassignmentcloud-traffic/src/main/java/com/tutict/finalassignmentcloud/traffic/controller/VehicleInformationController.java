@@ -3,6 +3,7 @@ package com.tutict.finalassignmentcloud.traffic.controller;
 import com.tutict.finalassignmentcloud.entity.DriverVehicle;
 import com.tutict.finalassignmentcloud.entity.VehicleInformation;
 import com.tutict.finalassignmentcloud.dto.response.ApiResponse;
+import com.tutict.finalassignmentcloud.traffic.service.BusinessRecordViewService;
 import com.tutict.finalassignmentcloud.traffic.service.DriverAccessService;
 import com.tutict.finalassignmentcloud.traffic.service.DriverVehicleService;
 import com.tutict.finalassignmentcloud.traffic.service.VehicleInformationService;
@@ -43,13 +44,16 @@ public class VehicleInformationController {
     private final VehicleInformationService vehicleInformationService;
     private final DriverVehicleService driverVehicleService;
     private final DriverAccessService driverAccessService;
+    private final BusinessRecordViewService businessRecordViewService;
 
     public VehicleInformationController(VehicleInformationService vehicleInformationService,
                                         DriverVehicleService driverVehicleService,
-                                        DriverAccessService driverAccessService) {
+                                        DriverAccessService driverAccessService,
+                                        BusinessRecordViewService businessRecordViewService) {
         this.vehicleInformationService = vehicleInformationService;
         this.driverVehicleService = driverVehicleService;
         this.driverAccessService = driverAccessService;
+        this.businessRecordViewService = businessRecordViewService;
     }
 
     @PostMapping
@@ -62,7 +66,7 @@ public class VehicleInformationController {
                 vehicleInformationService.checkAndInsertIdempotency(idempotencyKey, request, "create");
             }
             VehicleInformation saved = vehicleInformationService.createVehicleInformation(request);
-            return ResponseEntity.status(HttpStatus.CREATED).body(saved);
+            return ResponseEntity.status(HttpStatus.CREATED).body(enrich(saved));
         } catch (Exception ex) {
             LOG.log(Level.SEVERE, "Create vehicle failed", ex);
             return ResponseEntity.status(resolveStatus(ex)).build();
@@ -81,7 +85,7 @@ public class VehicleInformationController {
                 vehicleInformationService.checkAndInsertIdempotency(idempotencyKey, request, "update");
             }
             VehicleInformation updated = vehicleInformationService.updateVehicleInformation(request);
-            return ResponseEntity.ok(updated);
+            return ResponseEntity.ok(enrich(updated));
         } catch (Exception ex) {
             LOG.log(Level.SEVERE, "Update vehicle failed", ex);
             return ResponseEntity.status(resolveStatus(ex)).build();
@@ -117,7 +121,7 @@ public class VehicleInformationController {
     public ResponseEntity<VehicleInformation> getVehicle(@PathVariable Long vehicleId) {
         try {
             VehicleInformation vehicle = vehicleInformationService.getVehicleInformationById(vehicleId);
-            return vehicle == null ? ResponseEntity.notFound().build() : ResponseEntity.ok(vehicle);
+            return vehicle == null ? ResponseEntity.notFound().build() : ResponseEntity.ok(enrich(vehicle));
         } catch (Exception ex) {
             LOG.log(Level.WARNING, "Get vehicle failed", ex);
             return ResponseEntity.status(resolveStatus(ex)).build();
@@ -128,7 +132,7 @@ public class VehicleInformationController {
     @Operation(summary = "查询全部车辆")
     public ResponseEntity<List<VehicleInformation>> listVehicles() {
         try {
-            return ResponseEntity.ok(vehicleInformationService.getAllVehicleInformation());
+            return ResponseEntity.ok(enrich(vehicleInformationService.getAllVehicleInformation()));
         } catch (Exception ex) {
             LOG.log(Level.WARNING, "List vehicles failed", ex);
             return ResponseEntity.status(resolveStatus(ex)).build();
@@ -140,7 +144,7 @@ public class VehicleInformationController {
     public ResponseEntity<VehicleInformation> searchByLicense(@RequestParam String licensePlate) {
         try {
             VehicleInformation vehicle = vehicleInformationService.getVehicleInformationByLicensePlate(licensePlate);
-            return vehicle == null ? ResponseEntity.notFound().build() : ResponseEntity.ok(vehicle);
+            return vehicle == null ? ResponseEntity.notFound().build() : ResponseEntity.ok(enrich(vehicle));
         } catch (Exception ex) {
             LOG.log(Level.WARNING, "Search vehicle by license failed", ex);
             return ResponseEntity.status(resolveStatus(ex)).build();
@@ -151,7 +155,7 @@ public class VehicleInformationController {
     @Operation(summary = "按车主身份证号查询车辆")
     public ResponseEntity<List<VehicleInformation>> searchByOwnerIdCard(@RequestParam String idCard) {
         try {
-            return ResponseEntity.ok(vehicleInformationService.getVehicleInformationByIdCardNumber(idCard));
+            return ResponseEntity.ok(enrich(vehicleInformationService.getVehicleInformationByIdCardNumber(idCard)));
         } catch (Exception ex) {
             LOG.log(Level.WARNING, "Search vehicle by id card failed", ex);
             return ResponseEntity.status(resolveStatus(ex)).build();
@@ -162,7 +166,7 @@ public class VehicleInformationController {
     @Operation(summary = "按车辆类型查询")
     public ResponseEntity<List<VehicleInformation>> searchByType(@RequestParam String type) {
         try {
-            return ResponseEntity.ok(vehicleInformationService.getVehicleInformationByType(type));
+            return ResponseEntity.ok(enrich(vehicleInformationService.getVehicleInformationByType(type)));
         } catch (Exception ex) {
             LOG.log(Level.WARNING, "Search vehicle by type failed", ex);
             return ResponseEntity.status(resolveStatus(ex)).build();
@@ -173,7 +177,7 @@ public class VehicleInformationController {
     @Operation(summary = "按车主姓名查询车辆")
     public ResponseEntity<List<VehicleInformation>> searchByOwnerName(@RequestParam String ownerName) {
         try {
-            return ResponseEntity.ok(vehicleInformationService.getVehicleInformationByOwnerName(ownerName));
+            return ResponseEntity.ok(enrich(vehicleInformationService.getVehicleInformationByOwnerName(ownerName)));
         } catch (Exception ex) {
             LOG.log(Level.WARNING, "Search vehicle by owner name failed", ex);
             return ResponseEntity.status(resolveStatus(ex)).build();
@@ -184,7 +188,7 @@ public class VehicleInformationController {
     @Operation(summary = "按车辆状态查询")
     public ResponseEntity<List<VehicleInformation>> searchByStatus(@RequestParam String status) {
         try {
-            return ResponseEntity.ok(vehicleInformationService.getVehicleInformationByStatus(status));
+            return ResponseEntity.ok(enrich(vehicleInformationService.getVehicleInformationByStatus(status)));
         } catch (Exception ex) {
             LOG.log(Level.WARNING, "Search vehicle by status failed", ex);
             return ResponseEntity.status(resolveStatus(ex)).build();
@@ -197,7 +201,7 @@ public class VehicleInformationController {
                                                                    @RequestParam(defaultValue = "1") int page,
                                                                    @RequestParam(defaultValue = "20") int size) {
         try {
-            return ResponseEntity.ok(vehicleInformationService.searchVehicles(keywords, page, size));
+            return ResponseEntity.ok(enrich(vehicleInformationService.searchVehicles(keywords, page, size)));
         } catch (Exception ex) {
             LOG.log(Level.WARNING, "General vehicle search failed", ex);
             return ResponseEntity.status(resolveStatus(ex)).build();
@@ -331,7 +335,7 @@ public class VehicleInformationController {
             if (!driverAccessService.canAccessDriver(authentication, driverId, ELEVATED_ROLES)) {
                 return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
             }
-            return ResponseEntity.ok(vehicleInformationService.getVehicleInformationByDriverId(driverId, page, size));
+            return ResponseEntity.ok(enrich(vehicleInformationService.getVehicleInformationByDriverId(driverId, page, size)));
         } catch (Exception ex) {
             LOG.log(Level.WARNING, "List driver vehicles failed", ex);
             return ResponseEntity.status(resolveStatus(ex)).build();
@@ -439,6 +443,14 @@ public class VehicleInformationController {
 
     private boolean hasKey(String value) {
         return value != null && !value.isBlank();
+    }
+
+    private VehicleInformation enrich(VehicleInformation vehicle) {
+        return businessRecordViewService.enrichVehicle(vehicle);
+    }
+
+    private List<VehicleInformation> enrich(List<VehicleInformation> vehicles) {
+        return businessRecordViewService.enrichVehicles(vehicles);
     }
 
     private HttpStatus resolveStatus(Exception ex) {

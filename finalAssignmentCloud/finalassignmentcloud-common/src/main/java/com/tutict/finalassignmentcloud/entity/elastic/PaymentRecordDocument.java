@@ -1,6 +1,7 @@
 package com.tutict.finalassignmentcloud.entity.elastic;
 
 import com.tutict.finalassignmentcloud.entity.PaymentRecord;
+import com.tutict.finalassignmentcloud.security.privacy.SensitiveDataMasker;
 import java.io.Serial;
 import java.io.Serializable;
 import java.math.BigDecimal;
@@ -203,10 +204,10 @@ public class PaymentRecordDocument implements Serializable {
         doc.setPaymentTime(entity.getPaymentTime());
         doc.setPaymentChannel(entity.getPaymentChannel());
         doc.setPayerName(entity.getPayerName());
-        doc.setPayerIdCard(entity.getPayerIdCard());
-        doc.setPayerContact(entity.getPayerContact());
+        doc.setPayerIdCard(SensitiveDataMasker.idCard(entity.getPayerIdCard()));
+        doc.setPayerContact(SensitiveDataMasker.phone(entity.getPayerContact()));
         doc.setBankName(entity.getBankName());
-        doc.setBankAccount(entity.getBankAccount());
+        doc.setBankAccount(SensitiveDataMasker.bankAccount(entity.getBankAccount()));
         doc.setTransactionId(entity.getTransactionId());
         doc.setReceiptNumber(entity.getReceiptNumber());
         doc.setReceiptUrl(entity.getReceiptUrl());

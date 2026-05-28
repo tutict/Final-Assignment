@@ -63,7 +63,9 @@ public interface SysDictSearchRepository extends ElasticsearchRepository<SysDict
               "match": {
                 "dictLabel": {
                   "query": "?0",
-                  "fuzziness": "AUTO"
+                  "fuzziness": "AUTO:4,7",
+                  "prefix_length": 1,
+                  "max_expansions": 25
                 }
               }
             }

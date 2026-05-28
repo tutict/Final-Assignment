@@ -134,5 +134,35 @@ public class DeductionRecord implements Serializable {
      */
     @TableField("remarks")
     private String remarks;
+
+    @TableField(exist = false)
+    private String driverName;
+
+    @TableField(exist = false)
+    private String driverLicenseNumber;
+
+    @TableField(exist = false)
+    private String driverIdCardNumber;
+
+    @TableField(exist = false)
+    private String licensePlate;
+
+    @TableField(exist = false)
+    private String vehicleType;
+
+    @TableField(exist = false)
+    private String offenseNumber;
+
+    @TableField(exist = false)
+    private String offenseCode;
+
+    @TableField(exist = false)
+    private String offenseType;
+
+    @TableField(exist = false)
+    private String offenseLocation;
+
+    @TableField(exist = false)
+    private LocalDateTime offenseTime;
 }
 

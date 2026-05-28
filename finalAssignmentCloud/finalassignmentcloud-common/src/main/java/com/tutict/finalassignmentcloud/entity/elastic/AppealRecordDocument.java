@@ -1,6 +1,7 @@
 package com.tutict.finalassignmentcloud.entity.elastic;
 
 import com.tutict.finalassignmentcloud.entity.AppealRecord;
+import com.tutict.finalassignmentcloud.security.privacy.SensitiveDataMasker;
 import java.io.Serial;
 import java.io.Serializable;
 import java.time.LocalDateTime;
@@ -231,8 +232,8 @@ public class AppealRecordDocument implements Serializable {
         doc.setDriverId(entity.getDriverId());
         doc.setAppealNumber(entity.getAppealNumber());
         doc.setAppellantName(entity.getAppellantName());
-        doc.setAppellantIdCard(entity.getAppellantIdCard());
-        doc.setAppellantContact(entity.getAppellantContact());
+        doc.setAppellantIdCard(SensitiveDataMasker.idCard(entity.getAppellantIdCard()));
+        doc.setAppellantContact(SensitiveDataMasker.phone(entity.getAppellantContact()));
         doc.setAppellantEmail(entity.getAppellantEmail());
         doc.setAppellantAddress(entity.getAppellantAddress());
         doc.setAppealType(entity.getAppealType());

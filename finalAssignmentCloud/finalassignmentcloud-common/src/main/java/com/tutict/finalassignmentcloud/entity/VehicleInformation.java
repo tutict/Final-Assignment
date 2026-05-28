@@ -177,5 +177,26 @@ public class VehicleInformation implements Serializable {
      */
     @TableField("remarks")
     private String remarks;
+
+    @TableField(exist = false)
+    private String driverName;
+
+    @TableField(exist = false)
+    private String driverLicenseNumber;
+
+    @TableField(exist = false)
+    private String driverIdCardNumber;
+
+    @TableField(exist = false)
+    private String driverContactNumber;
+
+    @TableField(exist = false)
+    private Long offenseCount;
+
+    @TableField(exist = false)
+    private Long unpaidFineCount;
+
+    @TableField(exist = false)
+    private Long appealCount;
 }
 

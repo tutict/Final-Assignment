@@ -33,7 +33,9 @@ public interface DriverInformationSearchRepository extends ElasticsearchReposito
               "match": {
                 "name": {
                   "query": "?0",
-                  "fuzziness": "AUTO"
+                  "fuzziness": "AUTO:4,7",
+                  "prefix_length": 1,
+                  "max_expansions": 25
                 }
               }
             }
@@ -64,7 +66,9 @@ public interface DriverInformationSearchRepository extends ElasticsearchReposito
               "match": {
                 "idCardNumber": {
                   "query": "?0",
-                  "fuzziness": "AUTO"
+                  "fuzziness": "AUTO:4,7",
+                  "prefix_length": 1,
+                  "max_expansions": 25
                 }
               }
             }
@@ -95,7 +99,9 @@ public interface DriverInformationSearchRepository extends ElasticsearchReposito
               "match": {
                 "driverLicenseNumber": {
                   "query": "?0",
-                  "fuzziness": "AUTO"
+                  "fuzziness": "AUTO:4,7",
+                  "prefix_length": 1,
+                  "max_expansions": 25
                 }
               }
             }

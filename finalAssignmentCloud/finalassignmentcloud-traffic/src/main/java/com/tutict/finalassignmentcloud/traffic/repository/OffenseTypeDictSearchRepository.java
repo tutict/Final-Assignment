@@ -33,7 +33,9 @@ public interface OffenseTypeDictSearchRepository extends ElasticsearchRepository
               "match": {
                 "offenseCode": {
                   "query": "?0",
-                  "fuzziness": "AUTO"
+                  "fuzziness": "AUTO:4,7",
+                  "prefix_length": 1,
+                  "max_expansions": 25
                 }
               }
             }
@@ -64,7 +66,9 @@ public interface OffenseTypeDictSearchRepository extends ElasticsearchRepository
               "match": {
                 "offenseName": {
                   "query": "?0",
-                  "fuzziness": "AUTO"
+                  "fuzziness": "AUTO:4,7",
+                  "prefix_length": 1,
+                  "max_expansions": 25
                 }
               }
             }

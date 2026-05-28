@@ -1,6 +1,7 @@
 package com.tutict.finalassignmentcloud.traffic.controller;
 
 import com.tutict.finalassignmentcloud.entity.OffenseRecord;
+import com.tutict.finalassignmentcloud.traffic.service.BusinessRecordViewService;
 import com.tutict.finalassignmentcloud.traffic.service.DriverAccessService;
 import com.tutict.finalassignmentcloud.traffic.service.OffenseRecordService;
 import io.swagger.v3.oas.annotations.Operation;
@@ -43,11 +44,14 @@ public class OffenseInformationController {
 
     private final OffenseRecordService offenseRecordService;
     private final DriverAccessService driverAccessService;
+    private final BusinessRecordViewService businessRecordViewService;
 
     public OffenseInformationController(OffenseRecordService offenseRecordService,
-                                        DriverAccessService driverAccessService) {
+                                        DriverAccessService driverAccessService,
+                                        BusinessRecordViewService businessRecordViewService) {
         this.offenseRecordService = offenseRecordService;
         this.driverAccessService = driverAccessService;
+        this.businessRecordViewService = businessRecordViewService;
     }
 
     @PostMapping
@@ -67,7 +71,7 @@ public class OffenseInformationController {
             if (useKey && saved.getOffenseId() != null) {
                 offenseRecordService.markHistorySuccess(idempotencyKey, saved.getOffenseId());
             }
-            return ResponseEntity.status(HttpStatus.CREATED).body(saved);
+            return ResponseEntity.status(HttpStatus.CREATED).body(enrich(saved));
         } catch (Exception ex) {
             if (useKey) {
                 offenseRecordService.markHistoryFailure(idempotencyKey, ex.getMessage());
@@ -93,7 +97,7 @@ public class OffenseInformationController {
             if (useKey && updated.getOffenseId() != null) {
                 offenseRecordService.markHistorySuccess(idempotencyKey, updated.getOffenseId());
             }
-            return ResponseEntity.ok(updated);
+            return ResponseEntity.ok(enrich(updated));
         } catch (Exception ex) {
             if (useKey) {
                 offenseRecordService.markHistoryFailure(idempotencyKey, ex.getMessage());
@@ -120,7 +124,7 @@ public class OffenseInformationController {
     public ResponseEntity<OffenseRecord> get(@PathVariable Long offenseId) {
         try {
             OffenseRecord record = offenseRecordService.findById(offenseId);
-            return record == null ? ResponseEntity.notFound().build() : ResponseEntity.ok(record);
+            return record == null ? ResponseEntity.notFound().build() : ResponseEntity.ok(enrich(record));
         } catch (Exception ex) {
             LOG.log(Level.WARNING, "Get offense failed", ex);
             return ResponseEntity.status(resolveStatus(ex)).build();
@@ -131,7 +135,7 @@ public class OffenseInformationController {
     @Operation(summary = "查询全部违法记录")
     public ResponseEntity<List<OffenseRecord>> list() {
         try {
-            return ResponseEntity.ok(offenseRecordService.findAll());
+            return ResponseEntity.ok(enrich(offenseRecordService.findAll()));
         } catch (Exception ex) {
             LOG.log(Level.WARNING, "List offenses failed", ex);
             return ResponseEntity.status(resolveStatus(ex)).build();
@@ -149,7 +153,7 @@ public class OffenseInformationController {
             if (!driverAccessService.canAccessDriver(authentication, driverId, ELEVATED_ROLES)) {
                 return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
             }
-            return ResponseEntity.ok(offenseRecordService.findByDriverId(driverId, page, size));
+            return ResponseEntity.ok(enrich(offenseRecordService.findByDriverId(driverId, page, size)));
         } catch (Exception ex) {
             LOG.log(Level.WARNING, "List offenses by driver failed", ex);
             return ResponseEntity.status(resolveStatus(ex)).build();
@@ -162,7 +166,7 @@ public class OffenseInformationController {
                                                          @RequestParam(defaultValue = "1") int page,
                                                          @RequestParam(defaultValue = "20") int size) {
         try {
-            return ResponseEntity.ok(offenseRecordService.findByVehicleId(vehicleId, page, size));
+            return ResponseEntity.ok(enrich(offenseRecordService.findByVehicleId(vehicleId, page, size)));
         } catch (Exception ex) {
             LOG.log(Level.WARNING, "List offenses by vehicle failed", ex);
             return ResponseEntity.status(resolveStatus(ex)).build();
@@ -175,7 +179,7 @@ public class OffenseInformationController {
                                                             @RequestParam(defaultValue = "1") int page,
                                                             @RequestParam(defaultValue = "20") int size) {
         try {
-            return ResponseEntity.ok(offenseRecordService.searchByOffenseCode(offenseCode, page, size));
+            return ResponseEntity.ok(enrich(offenseRecordService.searchByOffenseCode(offenseCode, page, size)));
         } catch (Exception ex) {
             LOG.log(Level.WARNING, "Search offense by code failed", ex);
             return ResponseEntity.status(resolveStatus(ex)).build();
@@ -188,7 +192,7 @@ public class OffenseInformationController {
                                                               @RequestParam(defaultValue = "1") int page,
                                                               @RequestParam(defaultValue = "20") int size) {
         try {
-            return ResponseEntity.ok(offenseRecordService.searchByProcessStatus(status, page, size));
+            return ResponseEntity.ok(enrich(offenseRecordService.searchByProcessStatus(status, page, size)));
         } catch (Exception ex) {
             LOG.log(Level.WARNING, "Search offense by status failed", ex);
             return ResponseEntity.status(resolveStatus(ex)).build();
@@ -202,7 +206,7 @@ public class OffenseInformationController {
                                                                  @RequestParam(defaultValue = "1") int page,
                                                                  @RequestParam(defaultValue = "20") int size) {
         try {
-            return ResponseEntity.ok(offenseRecordService.searchByOffenseTimeRange(startTime, endTime, page, size));
+            return ResponseEntity.ok(enrich(offenseRecordService.searchByOffenseTimeRange(startTime, endTime, page, size)));
         } catch (Exception ex) {
             LOG.log(Level.WARNING, "Search offense by time range failed", ex);
             return ResponseEntity.status(resolveStatus(ex)).build();
@@ -215,7 +219,7 @@ public class OffenseInformationController {
                                                               @RequestParam(defaultValue = "1") int page,
                                                               @RequestParam(defaultValue = "20") int size) {
         try {
-            return ResponseEntity.ok(offenseRecordService.searchByOffenseNumber(offenseNumber, page, size));
+            return ResponseEntity.ok(enrich(offenseRecordService.searchByOffenseNumber(offenseNumber, page, size)));
         } catch (Exception ex) {
             LOG.log(Level.WARNING, "Search offense by number failed", ex);
             return ResponseEntity.status(resolveStatus(ex)).build();
@@ -228,7 +232,7 @@ public class OffenseInformationController {
                                                                  @RequestParam(defaultValue = "1") int page,
                                                                  @RequestParam(defaultValue = "20") int size) {
         try {
-            return ResponseEntity.ok(offenseRecordService.searchByOffenseLocation(offenseLocation, page, size));
+            return ResponseEntity.ok(enrich(offenseRecordService.searchByOffenseLocation(offenseLocation, page, size)));
         } catch (Exception ex) {
             LOG.log(Level.WARNING, "Search offense by location failed", ex);
             return ResponseEntity.status(resolveStatus(ex)).build();
@@ -241,7 +245,7 @@ public class OffenseInformationController {
                                                                  @RequestParam(defaultValue = "1") int page,
                                                                  @RequestParam(defaultValue = "20") int size) {
         try {
-            return ResponseEntity.ok(offenseRecordService.searchByOffenseProvince(offenseProvince, page, size));
+            return ResponseEntity.ok(enrich(offenseRecordService.searchByOffenseProvince(offenseProvince, page, size)));
         } catch (Exception ex) {
             LOG.log(Level.WARNING, "Search offense by province failed", ex);
             return ResponseEntity.status(resolveStatus(ex)).build();
@@ -254,7 +258,7 @@ public class OffenseInformationController {
                                                             @RequestParam(defaultValue = "1") int page,
                                                             @RequestParam(defaultValue = "20") int size) {
         try {
-            return ResponseEntity.ok(offenseRecordService.searchByOffenseCity(offenseCity, page, size));
+            return ResponseEntity.ok(enrich(offenseRecordService.searchByOffenseCity(offenseCity, page, size)));
         } catch (Exception ex) {
             LOG.log(Level.WARNING, "Search offense by city failed", ex);
             return ResponseEntity.status(resolveStatus(ex)).build();
@@ -267,7 +271,7 @@ public class OffenseInformationController {
                                                                     @RequestParam(defaultValue = "1") int page,
                                                                     @RequestParam(defaultValue = "20") int size) {
         try {
-            return ResponseEntity.ok(offenseRecordService.searchByNotificationStatus(notificationStatus, page, size));
+            return ResponseEntity.ok(enrich(offenseRecordService.searchByNotificationStatus(notificationStatus, page, size)));
         } catch (Exception ex) {
             LOG.log(Level.WARNING, "Search offense by notification status failed", ex);
             return ResponseEntity.status(resolveStatus(ex)).build();
@@ -280,7 +284,7 @@ public class OffenseInformationController {
                                                               @RequestParam(defaultValue = "1") int page,
                                                               @RequestParam(defaultValue = "20") int size) {
         try {
-            return ResponseEntity.ok(offenseRecordService.searchByEnforcementAgency(enforcementAgency, page, size));
+            return ResponseEntity.ok(enrich(offenseRecordService.searchByEnforcementAgency(enforcementAgency, page, size)));
         } catch (Exception ex) {
             LOG.log(Level.WARNING, "Search offense by enforcement agency failed", ex);
             return ResponseEntity.status(resolveStatus(ex)).build();
@@ -294,7 +298,7 @@ public class OffenseInformationController {
                                                                  @RequestParam(defaultValue = "1") int page,
                                                                  @RequestParam(defaultValue = "20") int size) {
         try {
-            return ResponseEntity.ok(offenseRecordService.searchByFineAmountRange(minAmount, maxAmount, page, size));
+            return ResponseEntity.ok(enrich(offenseRecordService.searchByFineAmountRange(minAmount, maxAmount, page, size)));
         } catch (Exception ex) {
             LOG.log(Level.WARNING, "Search offense by fine amount range failed", ex);
             return ResponseEntity.status(resolveStatus(ex)).build();
@@ -303,6 +307,14 @@ public class OffenseInformationController {
 
     private boolean hasKey(String value) {
         return value != null && !value.isBlank();
+    }
+
+    private OffenseRecord enrich(OffenseRecord record) {
+        return businessRecordViewService.enrichOffense(record);
+    }
+
+    private List<OffenseRecord> enrich(List<OffenseRecord> records) {
+        return businessRecordViewService.enrichOffenses(records);
     }
 
     private HttpStatus resolveStatus(Exception ex) {

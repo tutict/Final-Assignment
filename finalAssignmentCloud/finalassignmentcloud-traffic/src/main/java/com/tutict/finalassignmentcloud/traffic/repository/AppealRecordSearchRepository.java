@@ -59,7 +59,9 @@ public interface AppealRecordSearchRepository extends ElasticsearchRepository<Ap
               "match": {
                 "appealNumber": {
                   "query": "?0",
-                  "fuzziness": "AUTO"
+                  "fuzziness": "AUTO:4,7",
+                  "prefix_length": 1,
+                  "max_expansions": 25
                 }
               }
             }
@@ -90,7 +92,9 @@ public interface AppealRecordSearchRepository extends ElasticsearchRepository<Ap
               "match": {
                 "appellantName": {
                   "query": "?0",
-                  "fuzziness": "AUTO"
+                  "fuzziness": "AUTO:4,7",
+                  "prefix_length": 1,
+                  "max_expansions": 25
                 }
               }
             }

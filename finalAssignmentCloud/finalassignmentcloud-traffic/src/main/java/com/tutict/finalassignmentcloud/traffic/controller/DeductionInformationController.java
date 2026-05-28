@@ -1,6 +1,7 @@
 package com.tutict.finalassignmentcloud.traffic.controller;
 
 import com.tutict.finalassignmentcloud.entity.DeductionRecord;
+import com.tutict.finalassignmentcloud.traffic.service.BusinessRecordViewService;
 import com.tutict.finalassignmentcloud.traffic.service.DeductionRecordService;
 import com.tutict.finalassignmentcloud.traffic.service.DriverAccessService;
 import io.swagger.v3.oas.annotations.Operation;
@@ -38,11 +39,14 @@ public class DeductionInformationController {
 
     private final DeductionRecordService deductionRecordService;
     private final DriverAccessService driverAccessService;
+    private final BusinessRecordViewService businessRecordViewService;
 
     public DeductionInformationController(DeductionRecordService deductionRecordService,
-                                          DriverAccessService driverAccessService) {
+                                          DriverAccessService driverAccessService,
+                                          BusinessRecordViewService businessRecordViewService) {
         this.deductionRecordService = deductionRecordService;
         this.driverAccessService = driverAccessService;
+        this.businessRecordViewService = businessRecordViewService;
     }
 
     @PostMapping
@@ -62,7 +66,7 @@ public class DeductionInformationController {
             if (useKey && saved.getDeductionId() != null) {
                 deductionRecordService.markHistorySuccess(idempotencyKey, saved.getDeductionId());
             }
-            return ResponseEntity.status(HttpStatus.CREATED).body(saved);
+            return ResponseEntity.status(HttpStatus.CREATED).body(enrich(saved));
         } catch (Exception ex) {
             if (useKey) {
                 deductionRecordService.markHistoryFailure(idempotencyKey, ex.getMessage());
@@ -88,7 +92,7 @@ public class DeductionInformationController {
             if (useKey && updated.getDeductionId() != null) {
                 deductionRecordService.markHistorySuccess(idempotencyKey, updated.getDeductionId());
             }
-            return ResponseEntity.ok(updated);
+            return ResponseEntity.ok(enrich(updated));
         } catch (Exception ex) {
             if (useKey) {
                 deductionRecordService.markHistoryFailure(idempotencyKey, ex.getMessage());
@@ -115,7 +119,7 @@ public class DeductionInformationController {
     public ResponseEntity<DeductionRecord> get(@PathVariable Long deductionId) {
         try {
             DeductionRecord record = deductionRecordService.findById(deductionId);
-            return record == null ? ResponseEntity.notFound().build() : ResponseEntity.ok(record);
+            return record == null ? ResponseEntity.notFound().build() : ResponseEntity.ok(enrich(record));
         } catch (Exception ex) {
             LOG.log(Level.WARNING, "Get deduction failed", ex);
             return ResponseEntity.status(resolveStatus(ex)).build();
@@ -126,7 +130,7 @@ public class DeductionInformationController {
     @Operation(summary = "查询全部扣分记录")
     public ResponseEntity<List<DeductionRecord>> list() {
         try {
-            return ResponseEntity.ok(deductionRecordService.findAll());
+            return ResponseEntity.ok(enrich(deductionRecordService.findAll()));
         } catch (Exception ex) {
             LOG.log(Level.WARNING, "List deductions failed", ex);
             return ResponseEntity.status(resolveStatus(ex)).build();
@@ -144,7 +148,7 @@ public class DeductionInformationController {
             if (!driverAccessService.canAccessDriver(authentication, driverId, ELEVATED_ROLES)) {
                 return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
             }
-            return ResponseEntity.ok(deductionRecordService.findByDriverId(driverId, page, size));
+            return ResponseEntity.ok(enrich(deductionRecordService.findByDriverId(driverId, page, size)));
         } catch (Exception ex) {
             LOG.log(Level.WARNING, "List deductions by driver failed", ex);
             return ResponseEntity.status(resolveStatus(ex)).build();
@@ -157,7 +161,7 @@ public class DeductionInformationController {
                                                            @RequestParam(defaultValue = "1") int page,
                                                            @RequestParam(defaultValue = "20") int size) {
         try {
-            return ResponseEntity.ok(deductionRecordService.findByOffenseId(offenseId, page, size));
+            return ResponseEntity.ok(enrich(deductionRecordService.findByOffenseId(offenseId, page, size)));
         } catch (Exception ex) {
             LOG.log(Level.WARNING, "List deductions by offense failed", ex);
             return ResponseEntity.status(resolveStatus(ex)).build();
@@ -174,7 +178,7 @@ public class DeductionInformationController {
             List<DeductionRecord> result = "fuzzy".equalsIgnoreCase(mode)
                     ? deductionRecordService.searchByHandlerFuzzy(handler, page, size)
                     : deductionRecordService.searchByHandlerPrefix(handler, page, size);
-            return ResponseEntity.ok(result);
+            return ResponseEntity.ok(enrich(result));
         } catch (Exception ex) {
             LOG.log(Level.WARNING, "Search deduction by handler failed", ex);
             return ResponseEntity.status(resolveStatus(ex)).build();
@@ -187,7 +191,7 @@ public class DeductionInformationController {
                                                                 @RequestParam(defaultValue = "1") int page,
                                                                 @RequestParam(defaultValue = "20") int size) {
         try {
-            return ResponseEntity.ok(deductionRecordService.searchByStatus(status, page, size));
+            return ResponseEntity.ok(enrich(deductionRecordService.searchByStatus(status, page, size)));
         } catch (Exception ex) {
             LOG.log(Level.WARNING, "Search deduction by status failed", ex);
             return ResponseEntity.status(resolveStatus(ex)).build();
@@ -201,7 +205,7 @@ public class DeductionInformationController {
                                                                    @RequestParam(defaultValue = "1") int page,
                                                                    @RequestParam(defaultValue = "20") int size) {
         try {
-            return ResponseEntity.ok(deductionRecordService.searchByDeductionTimeRange(startTime, endTime, page, size));
+            return ResponseEntity.ok(enrich(deductionRecordService.searchByDeductionTimeRange(startTime, endTime, page, size)));
         } catch (Exception ex) {
             LOG.log(Level.WARNING, "Search deduction by time range failed", ex);
             return ResponseEntity.status(resolveStatus(ex)).build();
@@ -210,6 +214,14 @@ public class DeductionInformationController {
 
     private boolean hasKey(String value) {
         return value != null && !value.isBlank();
+    }
+
+    private DeductionRecord enrich(DeductionRecord record) {
+        return businessRecordViewService.enrichDeduction(record);
+    }
+
+    private List<DeductionRecord> enrich(List<DeductionRecord> records) {
+        return businessRecordViewService.enrichDeductions(records);
     }
 
     private HttpStatus resolveStatus(Exception ex) {

@@ -74,7 +74,9 @@ public interface PaymentRecordSearchRepository extends ElasticsearchRepository<P
       "match": {
         "transactionId": {
           "query": "?0",
-          "fuzziness": "AUTO"
+          "fuzziness": "AUTO:4,7",
+                  "prefix_length": 1,
+                  "max_expansions": 25
         }
       }
     }
