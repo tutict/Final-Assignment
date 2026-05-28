@@ -1,14 +1,19 @@
 package com.tutict.finalassignmentbackend.rag.embedding;
 
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
+import com.baomidou.mybatisplus.core.conditions.update.UpdateWrapper;
+import com.tutict.finalassignmentbackend.ai.rag.config.RagChunkIndexMapping;
 import com.tutict.finalassignmentbackend.ai.rag.retrieval.EmbeddingProvider;
 import com.tutict.finalassignmentbackend.rag.config.RagProperties;
 import com.tutict.finalassignmentbackend.rag.entity.RagChunk;
 import com.tutict.finalassignmentbackend.rag.entity.RagDocument;
 import com.tutict.finalassignmentbackend.rag.entity.RagEmbeddingTask;
+import com.tutict.finalassignmentbackend.rag.indexing.RagIndexMaintenanceService;
 import com.tutict.finalassignmentbackend.rag.mapper.RagChunkMapper;
 import com.tutict.finalassignmentbackend.rag.mapper.RagDocumentMapper;
 import com.tutict.finalassignmentbackend.rag.mapper.RagEmbeddingTaskMapper;
+import org.springframework.beans.factory.ObjectProvider;
+import org.springframework.data.elasticsearch.core.ElasticsearchOperations;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
 
@@ -19,6 +24,7 @@ import java.util.List;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.ArgumentMatchers.isNull;
 import static org.mockito.Mockito.atLeastOnce;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
@@ -77,6 +83,40 @@ class RagEmbeddingServiceTest {
         ArgumentCaptor<RagEmbeddingTask> taskCaptor = ArgumentCaptor.forClass(RagEmbeddingTask.class);
         verify(taskMapper, atLeastOnce()).updateById(taskCaptor.capture());
         assertThat(taskCaptor.getAllValues().get(taskCaptor.getAllValues().size() - 1).getStatus()).isEqualTo("SUCCEEDED");
+    }
+
+    @Test
+    void requeuesExistingChunksAndCreatesMissingEmbeddingTask() {
+        RagChunkMapper chunkMapper = mock(RagChunkMapper.class);
+        RagEmbeddingTaskMapper taskMapper = mock(RagEmbeddingTaskMapper.class);
+        ObjectProvider<ElasticsearchOperations> operationsProvider = mock(ObjectProvider.class);
+        RagProperties properties = new RagProperties();
+        properties.getEmbedding().setProvider("test");
+        properties.getEmbedding().setModel("test-embed");
+        RagChunk chunk = chunk();
+        when(chunkMapper.selectList(any(QueryWrapper.class))).thenReturn(List.of(chunk));
+        when(chunkMapper.update(isNull(), any(UpdateWrapper.class))).thenReturn(1);
+        when(taskMapper.update(isNull(), any(UpdateWrapper.class))).thenReturn(0);
+
+        RagIndexMaintenanceService service = new RagIndexMaintenanceService(
+                operationsProvider,
+                new RagChunkIndexMapping(properties),
+                chunkMapper,
+                taskMapper,
+                properties
+        );
+
+        RagIndexMaintenanceService.RequeueResult result = service.requeueEmbeddingTasks(10);
+
+        assertThat(result.requeuedChunks()).isEqualTo(1);
+        assertThat(result.requeuedTasks()).isZero();
+        assertThat(result.createdTasks()).isEqualTo(1);
+        ArgumentCaptor<RagEmbeddingTask> taskCaptor = ArgumentCaptor.forClass(RagEmbeddingTask.class);
+        verify(taskMapper).insert(taskCaptor.capture());
+        assertThat(taskCaptor.getValue().getChunkId()).isEqualTo("chunk-1");
+        assertThat(taskCaptor.getValue().getProvider()).isEqualTo("test");
+        assertThat(taskCaptor.getValue().getModel()).isEqualTo("test-embed");
+        assertThat(taskCaptor.getValue().getStatus()).isEqualTo("PENDING");
     }
 
     private static RagEmbeddingTask task() {

@@ -14,6 +14,7 @@ import com.tutict.finalassignmentbackend.rag.entity.RagEmbeddingTask;
 import com.tutict.finalassignmentbackend.rag.embedding.RagEmbeddingService;
 import com.tutict.finalassignmentbackend.rag.ingestion.RagUploadedFileParser;
 import com.tutict.finalassignmentbackend.rag.indexing.RagBackfillJob;
+import com.tutict.finalassignmentbackend.rag.indexing.RagIndexMaintenanceService;
 import com.tutict.finalassignmentbackend.rag.mapper.RagChunkMapper;
 import com.tutict.finalassignmentbackend.rag.mapper.RagDocumentMapper;
 import com.tutict.finalassignmentbackend.rag.mapper.RagEmbeddingTaskMapper;
@@ -59,6 +60,7 @@ public class RagManagementController {
     private final ObjectProvider<RagBackfillJob> backfillJobProvider;
     private final ObjectProvider<RagUploadedFileParser> uploadedFileParserProvider;
     private final ObjectProvider<RagEmbeddingService> embeddingServiceProvider;
+    private final ObjectProvider<RagIndexMaintenanceService> indexMaintenanceServiceProvider;
     private final ObjectMapper objectMapper;
     private final boolean ragEnabled;
     private final boolean ragIndexingEnabled;
@@ -71,6 +73,7 @@ public class RagManagementController {
             ObjectProvider<RagBackfillJob> backfillJobProvider,
             ObjectProvider<RagUploadedFileParser> uploadedFileParserProvider,
             ObjectProvider<RagEmbeddingService> embeddingServiceProvider,
+            ObjectProvider<RagIndexMaintenanceService> indexMaintenanceServiceProvider,
             ObjectMapper objectMapper,
             @Value("${rag.enabled:false}") boolean ragEnabled,
             @Value("${rag.indexing.enabled:false}") boolean ragIndexingEnabled
@@ -82,6 +85,7 @@ public class RagManagementController {
         this.backfillJobProvider = backfillJobProvider;
         this.uploadedFileParserProvider = uploadedFileParserProvider;
         this.embeddingServiceProvider = embeddingServiceProvider;
+        this.indexMaintenanceServiceProvider = indexMaintenanceServiceProvider;
         this.objectMapper = objectMapper;
         this.ragEnabled = ragEnabled;
         this.ragIndexingEnabled = ragIndexingEnabled;
@@ -250,6 +254,21 @@ public class RagManagementController {
         return ResponseEntity.ok(ApiResponse.ok(job.runBatch(page, size)));
     }
 
+    @PostMapping("/backfill/run")
+    @Operation(summary = "Run multiple bounded RAG backfill batches")
+    public ResponseEntity<ApiResponse<RagBackfillJob.RagBackfillRunResult>> runBackfillBatches(
+            @RequestParam(defaultValue = "1") int startPage,
+            @RequestParam(defaultValue = "200") int size,
+            @RequestParam(defaultValue = "20") int maxPages
+    ) {
+        RagBackfillJob job = backfillJobProvider.getIfAvailable();
+        if (!ragEnabled || !ragIndexingEnabled || job == null) {
+            return ResponseEntity.status(HttpStatus.CONFLICT)
+                    .body(ApiResponse.error("RAG_DISABLED", "RAG backfill is not enabled"));
+        }
+        return ResponseEntity.ok(ApiResponse.ok(job.runBatches(startPage, size, maxPages)));
+    }
+
     @PostMapping("/embedding/run")
     @Operation(summary = "Run one RAG embedding batch")
     public ResponseEntity<ApiResponse<RagEmbeddingService.RagEmbeddingBatchResult>> runEmbeddingBatch(
@@ -261,6 +280,36 @@ public class RagManagementController {
                     .body(ApiResponse.error("RAG_EMBEDDING_DISABLED", "RAG embedding is not enabled"));
         }
         return ResponseEntity.ok(ApiResponse.ok(embeddingService.processPendingBatch(limit)));
+    }
+
+    @PostMapping("/embedding/requeue")
+    @Operation(summary = "Requeue existing RAG chunks for embedding")
+    public ResponseEntity<ApiResponse<RagIndexMaintenanceService.RequeueResult>> requeueEmbeddingTasks(
+            @RequestParam(defaultValue = "1000") int limit
+    ) {
+        RagIndexMaintenanceService maintenanceService = indexMaintenanceServiceProvider.getIfAvailable();
+        if (!ragEnabled || maintenanceService == null) {
+            return ResponseEntity.status(HttpStatus.CONFLICT)
+                    .body(ApiResponse.error("RAG_MAINTENANCE_DISABLED", "RAG index maintenance is not enabled"));
+        }
+        return ResponseEntity.ok(ApiResponse.ok(maintenanceService.requeueEmbeddingTasks(limit)));
+    }
+
+    @PostMapping("/index/migrate")
+    @Operation(summary = "Create a new RAG Elasticsearch index, switch alias, and optionally requeue embeddings")
+    public ResponseEntity<ApiResponse<RagIndexMaintenanceService.RagIndexMigrationResult>> migrateIndex(
+            @RequestParam(required = false) String indexName,
+            @RequestParam(defaultValue = "true") boolean requeue,
+            @RequestParam(defaultValue = "1000") int requeueLimit
+    ) {
+        RagIndexMaintenanceService maintenanceService = indexMaintenanceServiceProvider.getIfAvailable();
+        if (!ragEnabled || maintenanceService == null) {
+            return ResponseEntity.status(HttpStatus.CONFLICT)
+                    .body(ApiResponse.error("RAG_MAINTENANCE_DISABLED", "RAG index maintenance is not enabled"));
+        }
+        return ResponseEntity.ok(ApiResponse.ok(
+                maintenanceService.migrateToNewIndex(indexName, requeue, requeueLimit)
+        ));
     }
 
     @DeleteMapping("/documents/{documentId}")

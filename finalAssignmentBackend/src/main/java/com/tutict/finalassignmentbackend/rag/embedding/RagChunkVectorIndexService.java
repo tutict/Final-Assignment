@@ -55,7 +55,7 @@ public class RagChunkVectorIndexService {
                 .withId(chunk.getId())
                 .withSource(writeJson(source(document, chunk, embedding, provider, model)))
                 .build();
-        operations.index(query, IndexCoordinates.of(mapping.indexName()));
+        operations.index(query, IndexCoordinates.of(mapping.aliasName()));
     }
 
     private void ensureIndex(ElasticsearchOperations operations) {
