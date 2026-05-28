@@ -99,20 +99,33 @@ class ElasticsearchRagSearchBackend implements RagSearchBackend {
         if (operations == null) {
             return List.of();
         }
-        Map<String, Object> query = Map.of(
-                "size", limit,
-                "query", Map.of(
-                        "bool", Map.of(
-                                "must", List.of(Map.of(
-                                        "multi_match", Map.of(
-                                                "query", normalizedQuery,
-                                                "fields", List.of("content^2", "title", "source_field")
+        Map<String, Object> query = new LinkedHashMap<>();
+        query.put("size", limit);
+        query.put("_source", sourceFilter());
+        query.put("query", Map.of(
+                "bool", Map.of(
+                        "should", List.of(
+                                Map.of("multi_match", Map.of(
+                                        "query", normalizedQuery,
+                                        "fields", List.of(
+                                                "title^4",
+                                                "content^3",
+                                                "source_field.text^1.5",
+                                                "source_type",
+                                                "source_table"
                                         )
                                 )),
-                                "filter", aclClauses(aclFilter)
-                        )
+                                Map.of("match_phrase", Map.of(
+                                        "title", Map.of("query", normalizedQuery, "boost", 2)
+                                )),
+                                Map.of("match_phrase", Map.of(
+                                        "content", Map.of("query", normalizedQuery, "boost", 1.5)
+                                ))
+                        ),
+                        "minimum_should_match", 1,
+                        "filter", aclClauses(aclFilter)
                 )
-        );
+        ));
         return execute(query, "bm25");
     }
 
@@ -125,19 +138,41 @@ class ElasticsearchRagSearchBackend implements RagSearchBackend {
         if (operations == null) {
             return List.of();
         }
-        Map<String, Object> query = Map.of(
-                "size", limit,
-                "query", Map.of(
-                        "script_score", Map.of(
-                                "query", Map.of("bool", Map.of("filter", aclClauses(aclFilter))),
-                                "script", Map.of(
-                                        "source", "cosineSimilarity(params.query_vector, 'embedding') + 1.0",
-                                        "params", Map.of("query_vector", toDoubleList(queryVector))
-                                )
+        Map<String, Object> query = new LinkedHashMap<>();
+        query.put("size", limit);
+        query.put("_source", sourceFilter());
+        query.put("knn", Map.of(
+                "field", "embedding",
+                "query_vector", toDoubleList(queryVector),
+                "k", limit,
+                "num_candidates", Math.max(50, limit * 4),
+                "filter", aclFilterQuery(aclFilter)
+        ));
+        try {
+            return execute(query, "vector");
+        } catch (RuntimeException error) {
+            return execute(scriptScoreQuery(queryVector, aclFilter, limit), "vector");
+        }
+    }
+
+    private static Map<String, Object> scriptScoreQuery(
+            float[] queryVector,
+            AclFilterService.AclFilter aclFilter,
+            int limit
+    ) {
+        Map<String, Object> query = new LinkedHashMap<>();
+        query.put("size", limit);
+        query.put("_source", sourceFilter());
+        query.put("query", Map.of(
+                "script_score", Map.of(
+                        "query", Map.of("bool", Map.of("filter", aclClauses(aclFilter))),
+                        "script", Map.of(
+                                "source", "cosineSimilarity(params.query_vector, 'embedding') + 1.0",
+                                "params", Map.of("query_vector", toDoubleList(queryVector))
                         )
                 )
-        );
-        return execute(query, "vector");
+        ));
+        return query;
     }
 
     private List<RetrievalResult> execute(Map<String, Object> query, String mode) {
@@ -186,6 +221,10 @@ class ElasticsearchRagSearchBackend implements RagSearchBackend {
     }
 
     private static List<Map<String, Object>> aclClauses(AclFilterService.AclFilter aclFilter) {
+        return List.of(aclFilterQuery(aclFilter));
+    }
+
+    private static Map<String, Object> aclFilterQuery(AclFilterService.AclFilter aclFilter) {
         List<Map<String, Object>> should = new ArrayList<>();
         should.add(Map.of("term", Map.of("acl_scope", "PUBLIC")));
         for (String role : aclFilter.roles()) {
@@ -197,7 +236,11 @@ class ElasticsearchRagSearchBackend implements RagSearchBackend {
         if (aclFilter.department() != null) {
             should.add(Map.of("term", Map.of("acl_departments", aclFilter.department())));
         }
-        return List.of(Map.of("bool", Map.of("should", should, "minimum_should_match", 1)));
+        return Map.of("bool", Map.of("should", should, "minimum_should_match", 1));
+    }
+
+    private static Map<String, Object> sourceFilter() {
+        return Map.of("excludes", List.of("embedding"));
     }
 
     private String writeJson(Map<String, Object> query) {

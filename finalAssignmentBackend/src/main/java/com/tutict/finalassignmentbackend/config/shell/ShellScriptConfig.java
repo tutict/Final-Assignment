@@ -290,7 +290,6 @@ public class ShellScriptConfig {
         String elasticsearchImage = environment.getProperty(
                 "app.docker.images.elasticsearch",
                 "docker.elastic.co/elasticsearch/elasticsearch:9.4.1");
-        String manticoreImage = environment.getProperty("app.docker.images.manticore", "manticoresearch/manticore:dev");
 
         return """
                 services:
@@ -355,26 +354,13 @@ public class ShellScriptConfig {
                       timeout: 10s
                       retries: 12
 
-                  manticore:
-                    image: __MANTICORE_IMAGE__
-                    container_name: final-assignment-manticore
-                    environment:
-                      EXTRA: "1"
-                    ports:
-                      - "9306:9306"
-                      - "9308:9308"
-                    volumes:
-                      - manticore-data:/var/lib/manticore
-
                 volumes:
                   redis-data:
                   redpanda-data:
                   elasticsearch-data:
-                  manticore-data:
                 """.replace("__REDIS_IMAGE__", redisImage)
                 .replace("__REDPANDA_IMAGE__", redpandaImage)
-                .replace("__ELASTICSEARCH_IMAGE__", elasticsearchImage)
-                .replace("__MANTICORE_IMAGE__", manticoreImage);
+                .replace("__ELASTICSEARCH_IMAGE__", elasticsearchImage);
     }
 
     private static void executeScriptWithRetry(Path script, Platform platform, Path logFile) {

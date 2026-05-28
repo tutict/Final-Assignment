@@ -176,6 +176,9 @@ public class RagProperties {
         private String name = "rag_chunk_v1";
         private String alias = "rag_chunk_current";
         private String textAnalyzer = "standard";
+        private int numberOfShards = 1;
+        private int numberOfReplicas = 0;
+        private String refreshInterval = "30s";
 
         public String getName() {
             return name;
@@ -199,6 +202,30 @@ public class RagProperties {
 
         public void setTextAnalyzer(String textAnalyzer) {
             this.textAnalyzer = textAnalyzer;
+        }
+
+        public int getNumberOfShards() {
+            return numberOfShards;
+        }
+
+        public void setNumberOfShards(int numberOfShards) {
+            this.numberOfShards = numberOfShards;
+        }
+
+        public int getNumberOfReplicas() {
+            return numberOfReplicas;
+        }
+
+        public void setNumberOfReplicas(int numberOfReplicas) {
+            this.numberOfReplicas = numberOfReplicas;
+        }
+
+        public String getRefreshInterval() {
+            return refreshInterval;
+        }
+
+        public void setRefreshInterval(String refreshInterval) {
+            this.refreshInterval = refreshInterval;
         }
     }
 }

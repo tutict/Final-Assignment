@@ -6,13 +6,10 @@ import org.springframework.context.ConfigurableApplicationContext;
 import org.springframework.core.env.ConfigurableEnvironment;
 import org.springframework.core.env.MapPropertySource;
 import org.springframework.core.env.MutablePropertySources;
-import org.testcontainers.containers.GenericContainer;
-import org.testcontainers.containers.wait.strategy.Wait;
 import org.testcontainers.elasticsearch.ElasticsearchContainer;
 import org.testcontainers.redpanda.RedpandaContainer;
 import org.testcontainers.utility.DockerImageName;
 
-import java.time.Duration;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.Map;
@@ -24,13 +21,11 @@ public class RunDocker implements ApplicationContextInitializer<ConfigurableAppl
     private static final Logger log = Logger.getLogger(RunDocker.class.getName());
     private static final String PROPERTY_SOURCE_NAME = "docker";
     private static final String DEFAULT_ELASTICSEARCH_IMAGE = "docker.elastic.co/elasticsearch/elasticsearch:9.4.1";
-    private static final String DEFAULT_MANTICORE_IMAGE = "manticoresearch/manticore:dev";
     private static volatile boolean shutdownHookRegistered = false;
 
     private static RedisContainer redisContainer;
     private static RedpandaContainer redpandaContainer;
     private static ElasticsearchContainer elasticsearchContainer;
-    private static GenericContainer<?> manticoreContainer;
 
     @Override
     public void initialize(ConfigurableApplicationContext applicationContext) {
@@ -54,7 +49,6 @@ public class RunDocker implements ApplicationContextInitializer<ConfigurableAppl
         if (isDevServiceEnabled(environment, "elasticsearch", true)) {
             startElasticsearch(applicationContext);
         }
-        // startManticoreSearch(applicationContext);
         registerShutdownHook();
     }
 
@@ -126,30 +120,6 @@ public class RunDocker implements ApplicationContextInitializer<ConfigurableAppl
         }
     }
 
-    public void startManticoreSearch(ConfigurableApplicationContext applicationContext) {
-        String manticoreImage = applicationContext.getEnvironment()
-                .getProperty("manticore.image", DEFAULT_MANTICORE_IMAGE);
-        try (GenericContainer<?> container = new GenericContainer<>(DockerImageName.parse(manticoreImage))
-                .withExposedPorts(9306, 9308)
-                .withEnv("EXTRA", "1")
-                .waitingFor(Wait.forHttp("/search")
-                        .forPort(9308)
-                        .withStartupTimeout(Duration.ofSeconds(120)))) {
-            container.start();
-
-            manticoreContainer = container;
-            String manticoreHost = manticoreContainer.getHost();
-            Integer httpPort = manticoreContainer.getMappedPort(9308);
-            String manticoreUrl = String.format("http://%s:%d", manticoreHost, httpPort);
-
-            setProperty(applicationContext, "manticore.host", manticoreUrl);
-            log.log(Level.INFO, "Manticore container started successfully at {0}", new Object[]{manticoreUrl});
-        } catch (Exception e) {
-            log.log(Level.SEVERE, "Failed to start Manticore container: {0}", new Object[]{e.getMessage()});
-            throw new RuntimeException("Manticore startup failed", e);
-        }
-    }
-
     private static void registerShutdownHook() {
         if (shutdownHookRegistered) {
             return;
@@ -175,10 +145,6 @@ public class RunDocker implements ApplicationContextInitializer<ConfigurableAppl
         if (elasticsearchContainer != null && elasticsearchContainer.isRunning()) {
             elasticsearchContainer.stop();
             log.log(Level.INFO, "Elasticsearch container stopped");
-        }
-        if (manticoreContainer != null && manticoreContainer.isRunning()) {
-            manticoreContainer.stop();
-            log.log(Level.INFO, "Manticore container stopped and closed");
         }
     }
 

@@ -88,19 +88,7 @@ services:
       timeout: 10s
       retries: 20
 
-  manticore:
-    image: ${MANTICORE_IMAGE:-manticoresearch/manticore:dev}
-    container_name: final-assignment-manticore
-    environment:
-      EXTRA: "1"
-    ports:
-      - "9306:9306"
-      - "9308:9308"
-    volumes:
-      - manticore-data:/var/lib/manticore
-
 volumes:
   redis-data:
   redpanda-data:
   elasticsearch-data:
-  manticore-data:

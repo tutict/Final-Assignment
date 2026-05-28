@@ -45,12 +45,19 @@ rag:
     name: rag_chunk_v1
     alias: rag_chunk_current
     text-analyzer: ${RAG_INDEX_TEXT_ANALYZER:standard}
+    number-of-shards: ${RAG_INDEX_SHARDS:1}
+    number-of-replicas: ${RAG_INDEX_REPLICAS:0}
+    refresh-interval: ${RAG_INDEX_REFRESH_INTERVAL:30s}
   retrieval:
     enabled: false
     top-k: 10
     vector-weight: 0.6
     bm25-weight: 0.4
     min-score: 0.2
+    candidate-multiplier: ${RAG_RETRIEVAL_CANDIDATE_MULTIPLIER:3}
+    rrf-rank-constant: ${RAG_RETRIEVAL_RRF_RANK_CONSTANT:60}
+    rerank-enabled: ${RAG_RERANK_ENABLED:true}
+    rerank-lexical-weight: ${RAG_RERANK_LEXICAL_WEIGHT:0.15}
 
 jwt:
   # Production must inject this through JWT_SECRET. TokenProvider refuses CHANGE_ME_IN_PRODUCTION.

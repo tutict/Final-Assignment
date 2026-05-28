@@ -68,7 +68,7 @@ public class RagChunkVectorIndexService {
             }
             IndexOperations indexOperations = operations.indexOps(IndexCoordinates.of(mapping.indexName()));
             if (!indexOperations.exists()) {
-                indexOperations.create(Map.of(), Document.from(mapping.mapping()));
+                indexOperations.create(mapping.settings(), Document.from(mapping.mapping()));
             }
             ensureAlias(indexOperations);
             indexReady = true;

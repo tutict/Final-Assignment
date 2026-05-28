@@ -87,7 +87,6 @@ scripts\start-all.bat
 - Redpanda
 - Elasticsearch 9.4.1
 - Debezium Connect
-- Manticore Search
 
 Elasticsearch 默认使用 Elastic 官方 GA 9.4.1。后端 Java client 由 Spring Boot 4.0.1 管理为 `elasticsearch-java 9.2.2`，可连接同主版本更高 minor 的服务端；如果需要调用 9.4 专属强类型 API，再单独升级客户端依赖。需要验证其他版本时，可用 `ELASTICSEARCH_IMAGE=docker.elastic.co/elasticsearch/elasticsearch:<version>` 覆盖本地镜像。
 

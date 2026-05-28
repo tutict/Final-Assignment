@@ -12,6 +12,10 @@ public class RagRetrievalProperties {
     private double vectorWeight = 0.6;
     private double bm25Weight = 0.4;
     private double minScore = 0.2;
+    private int candidateMultiplier = 3;
+    private int rrfRankConstant = 60;
+    private boolean rerankEnabled = true;
+    private double rerankLexicalWeight = 0.15;
 
     public boolean isEnabled() {
         return enabled;
@@ -51,5 +55,37 @@ public class RagRetrievalProperties {
 
     public void setMinScore(double minScore) {
         this.minScore = minScore;
+    }
+
+    public int getCandidateMultiplier() {
+        return candidateMultiplier;
+    }
+
+    public void setCandidateMultiplier(int candidateMultiplier) {
+        this.candidateMultiplier = candidateMultiplier;
+    }
+
+    public int getRrfRankConstant() {
+        return rrfRankConstant;
+    }
+
+    public void setRrfRankConstant(int rrfRankConstant) {
+        this.rrfRankConstant = rrfRankConstant;
+    }
+
+    public boolean isRerankEnabled() {
+        return rerankEnabled;
+    }
+
+    public void setRerankEnabled(boolean rerankEnabled) {
+        this.rerankEnabled = rerankEnabled;
+    }
+
+    public double getRerankLexicalWeight() {
+        return rerankLexicalWeight;
+    }
+
+    public void setRerankLexicalWeight(double rerankLexicalWeight) {
+        this.rerankLexicalWeight = rerankLexicalWeight;
     }
 }

@@ -2,7 +2,7 @@ package com.tutict.finalassignmentbackend.ai.rag.retrieval;
 
 import com.tutict.finalassignmentbackend.ai.rag.config.RagRetrievalProperties;
 import com.tutict.finalassignmentbackend.ai.rag.dto.RetrievalResult;
-import com.tutict.finalassignmentbackend.ai.rag.rerank.NoopRerankProvider;
+import com.tutict.finalassignmentbackend.ai.rag.rerank.RerankProvider;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.stereotype.Service;
 
@@ -17,13 +17,13 @@ public class HybridRetriever {
 
     private final EmbeddingSearchService embeddingSearchService;
     private final AclFilterService aclFilterService;
-    private final NoopRerankProvider rerankProvider;
+    private final RerankProvider rerankProvider;
     private final RagRetrievalProperties properties;
 
     public HybridRetriever(
             EmbeddingSearchService embeddingSearchService,
             AclFilterService aclFilterService,
-            NoopRerankProvider rerankProvider,
+            RerankProvider rerankProvider,
             RagRetrievalProperties properties
     ) {
         this.embeddingSearchService = embeddingSearchService;
@@ -34,7 +34,10 @@ public class HybridRetriever {
 
     public List<RetrievalResult> retrieve(RetrievalQuery query) {
         AclFilterService.AclFilter aclFilter = aclFilterService.buildFilter(query.accessContext());
-        int candidateLimit = Math.max(query.topK() * 2, query.topK());
+        int candidateLimit = Math.max(
+                query.topK(),
+                query.topK() * Math.max(1, properties.getCandidateMultiplier())
+        );
         float[] queryVector = embeddingSearchService.embedQuery(query.normalizedQuery());
         List<RetrievalResult> bm25Results = embeddingSearchService.bm25Search(
                 query.normalizedQuery(),
@@ -59,21 +62,14 @@ public class HybridRetriever {
             int topK
     ) {
         Map<String, ScoreAccumulator> byChunkId = new LinkedHashMap<>();
-        bm25Results.forEach(result -> byChunkId.computeIfAbsent(
-                result.chunkId(),
-                ignored -> new ScoreAccumulator(result)
-        ).bm25Score = Math.max(byChunkId.get(result.chunkId()).bm25Score, result.bm25Score()));
-        vectorResults.forEach(result -> byChunkId.computeIfAbsent(
-                result.chunkId(),
-                ignored -> new ScoreAccumulator(result)
-        ).vectorScore = Math.max(byChunkId.get(result.chunkId()).vectorScore, result.vectorScore()));
+        accumulateRankScores(byChunkId, bm25Results, true);
+        accumulateRankScores(byChunkId, vectorResults, false);
 
         return byChunkId.values().stream()
                 .map(accumulator -> accumulator.result.withScores(
                         accumulator.bm25Score,
                         accumulator.vectorScore,
-                        accumulator.bm25Score * properties.getBm25Weight()
-                                + accumulator.vectorScore * properties.getVectorWeight()
+                        accumulator.rrfScore
                 ))
                 .filter(result -> result.finalScore() >= properties.getMinScore())
                 .filter(result -> aclFilterService.allows(result, accessContext))
@@ -82,10 +78,37 @@ public class HybridRetriever {
                 .toList();
     }
 
+    private void accumulateRankScores(
+            Map<String, ScoreAccumulator> byChunkId,
+            List<RetrievalResult> results,
+            boolean bm25
+    ) {
+        for (int index = 0; index < results.size(); index++) {
+            RetrievalResult result = results.get(index);
+            ScoreAccumulator accumulator = byChunkId.computeIfAbsent(
+                    result.chunkId(),
+                    ignored -> new ScoreAccumulator(result)
+            );
+            if (bm25) {
+                accumulator.bm25Score = Math.max(accumulator.bm25Score, result.bm25Score());
+                accumulator.rrfScore += reciprocalRankScore(index + 1, properties.getBm25Weight());
+            } else {
+                accumulator.vectorScore = Math.max(accumulator.vectorScore, result.vectorScore());
+                accumulator.rrfScore += reciprocalRankScore(index + 1, properties.getVectorWeight());
+            }
+        }
+    }
+
+    private double reciprocalRankScore(int rank, double weight) {
+        int rankConstant = Math.max(1, properties.getRrfRankConstant());
+        return 100.0 * Math.max(0, weight) / (rankConstant + Math.max(1, rank));
+    }
+
     private static final class ScoreAccumulator {
         private final RetrievalResult result;
         private double bm25Score;
         private double vectorScore;
+        private double rrfScore;
 
         private ScoreAccumulator(RetrievalResult result) {
             this.result = result;

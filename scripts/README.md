@@ -101,7 +101,6 @@ ollama pull nomic-embed-text
 - Redpanda
 - Elasticsearch 9.4.1
 - Debezium Connect
-- Manticore Search
 
 The default Elasticsearch image is Elastic GA 9.4.1. The backend still uses the Spring Boot managed `elasticsearch-java 9.2.2` client, which can connect to newer 9.x minor server versions; upgrade the client separately only when 9.4-specific typed APIs are needed. Override the image with `ELASTICSEARCH_IMAGE=docker.elastic.co/elasticsearch/elasticsearch:<version>` when testing another Elasticsearch server.
 

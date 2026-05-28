@@ -53,8 +53,17 @@ public class AccountDriverSchemaMigration implements InitializingBean {
         addBusinessDriverLink(connection, "vehicle_information", "idx_vehicle_information_driver");
         addBusinessDriverLink(connection, "fine_record", "idx_fine_record_driver");
         addBusinessDriverLink(connection, "payment_record", "idx_payment_record_driver");
+        addPaymentOptimisticLockColumn(connection);
         addBusinessDriverLink(connection, "appeal_record", "idx_appeal_record_driver");
         backfillBusinessDriverLinks(connection);
+    }
+
+    private void addPaymentOptimisticLockColumn(Connection connection) throws SQLException {
+        if (!tableExists(connection, "payment_record")) {
+            return;
+        }
+        addColumnIfMissing(connection, "payment_record", "version",
+                "INT NOT NULL DEFAULT 0 COMMENT 'Optimistic lock version'");
     }
 
     private void addBusinessDriverLink(Connection connection, String tableName, String indexName) throws SQLException {

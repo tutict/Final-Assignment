@@ -303,11 +303,6 @@
             <artifactId>spring-boot-starter-data-elasticsearch</artifactId>
         </dependency>
         <dependency>
-            <groupId>com.manticoresearch</groupId>
-            <artifactId>manticoresearch</artifactId>
-            <version>8.1.0</version>
-        </dependency>
-        <dependency>
             <groupId>org.graalvm.polyglot</groupId>
             <artifactId>polyglot</artifactId>
             <version>25.0.3</version>
