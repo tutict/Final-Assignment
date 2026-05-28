@@ -224,6 +224,9 @@ func SpringGroups() []SpringAPIGroup {
 			BasePath:       "/api/rag/admin",
 			SourcePackage:  "controller.rag",
 			MigrationState: "contract-cataloged",
+			Notes: []string{
+				"Spring Boot exposes document upload, manual indexing, backfill, embedding, index migration and deletion endpoints.",
+			},
 		},
 	}
 }

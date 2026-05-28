@@ -95,15 +95,35 @@ func springSourceRoot(t *testing.T) string {
 	if !ok {
 		t.Fatal("resolve current test file")
 	}
-	root := filepath.Clean(filepath.Join(
-		filepath.Dir(currentFile),
-		"..", "..", "..", "..", "..",
-		"finalAssignmentBackend", "src", "main", "java", "com", "tutict", "finalassignmentbackend",
-	))
-	if _, err := os.Stat(root); err != nil {
-		t.Skipf("Spring Boot source tree is unavailable: %s", root)
+
+	candidates := []string{}
+	if envRoot := os.Getenv("SPRING_SOURCE_ROOT"); envRoot != "" {
+		candidates = append(candidates, envRoot)
 	}
-	return root
+
+	testDir := filepath.Dir(currentFile)
+	candidates = append(candidates,
+		filepath.Join(
+			testDir,
+			"..", "..", "..", "..", "..", "..",
+			"Final-Assignment", "finalAssignmentBackend", "src", "main", "java", "com", "tutict", "finalassignmentbackend",
+		),
+		filepath.Join(
+			testDir,
+			"..", "..", "..", "..", "..",
+			"finalAssignmentBackend", "src", "main", "java", "com", "tutict", "finalassignmentbackend",
+		),
+	)
+
+	for _, candidate := range candidates {
+		root := filepath.Clean(candidate)
+		if _, err := os.Stat(root); err == nil {
+			return root
+		}
+	}
+
+	t.Skipf("Spring Boot source tree is unavailable; checked %v", candidates)
+	return ""
 }
 
 func registeredRouteKeys() map[string]RouteSpec {

@@ -79,7 +79,11 @@ func TestRegisteredRouteSpecsIncludeAIContracts(t *testing.T) {
 		"POST /api/ai/chat/stream":                    "AiChatController",
 		"GET /api/ai/chat/actions":                    "AiChatController",
 		"POST /api/rag/query":                         "RagQueryController",
+		"POST /api/rag/admin/documents/upload":        "RagManagementController",
 		"POST /api/rag/admin/documents/manual":        "RagManagementController",
+		"POST /api/rag/admin/backfill/run":            "RagManagementController",
+		"POST /api/rag/admin/embedding/requeue":       "RagManagementController",
+		"POST /api/rag/admin/index/migrate":           "RagManagementController",
 		"DELETE /api/rag/admin/documents/:documentId": "RagManagementController",
 	}
 

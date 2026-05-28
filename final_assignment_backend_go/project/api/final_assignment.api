@@ -1062,11 +1062,26 @@ service finalAssignmentGoApi {
 	@handler listRagDocuments
 	get /api/rag/admin/documents returns (ApiResponse)
 
+	@handler uploadRagDocument
+	post /api/rag/admin/documents/upload returns (ApiResponse)
+
 	@handler createManualRagDocument
 	post /api/rag/admin/documents/manual returns (ApiResponse)
 
 	@handler runRagBackfill
 	post /api/rag/admin/backfill returns (ApiResponse)
+
+	@handler runRagBackfillBatches
+	post /api/rag/admin/backfill/run returns (ApiResponse)
+
+	@handler runRagEmbeddingBatch
+	post /api/rag/admin/embedding/run returns (ApiResponse)
+
+	@handler requeueRagEmbeddingTasks
+	post /api/rag/admin/embedding/requeue returns (ApiResponse)
+
+	@handler migrateRagIndex
+	post /api/rag/admin/index/migrate returns (ApiResponse)
 
 	@handler deleteRagDocument
 	delete /api/rag/admin/documents/:documentId returns (ApiResponse)
