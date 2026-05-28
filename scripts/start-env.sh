@@ -82,7 +82,7 @@ start_docker_services() {
   start_docker_engine
   wait_for_docker
   echo "Starting Docker services from $COMPOSE_FILE..."
-  docker compose -f "$COMPOSE_FILE" up -d --wait --wait-timeout "$DOCKER_WAIT_SECONDS"
+  docker compose -f "$COMPOSE_FILE" up -d --remove-orphans --wait --wait-timeout "$DOCKER_WAIT_SECONDS"
 }
 
 ollama_reachable() {

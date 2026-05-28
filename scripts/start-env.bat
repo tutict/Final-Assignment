@@ -56,7 +56,7 @@ exit /b 1
 
 :docker_ready
 echo Starting Docker services from "%COMPOSE_FILE%"...
-docker compose -f "%COMPOSE_FILE%" up -d --wait --wait-timeout %DOCKER_WAIT_SECONDS%
+docker compose -f "%COMPOSE_FILE%" up -d --remove-orphans --wait --wait-timeout %DOCKER_WAIT_SECONDS%
 exit /b %ERRORLEVEL%
 
 :start_ollama

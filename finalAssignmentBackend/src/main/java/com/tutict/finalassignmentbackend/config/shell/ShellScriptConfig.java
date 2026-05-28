@@ -147,7 +147,7 @@ public class ShellScriptConfig {
                 exit /b 1
 
                 :docker_ready
-                docker compose -f "%COMPOSE_FILE%" up -d --wait --wait-timeout __DOCKER_TIMEOUT__
+                docker compose -f "%COMPOSE_FILE%" up -d --remove-orphans --wait --wait-timeout __DOCKER_TIMEOUT__
                 endlocal
                 """.replace("__DOCKER_DESKTOP_PATH__", dockerDesktopPath)
                 .replace("__COMPOSE_FILE__", composeFile.toAbsolutePath().toString())
@@ -202,7 +202,7 @@ public class ShellScriptConfig {
                   WAIT_SECONDS=$((WAIT_SECONDS + 2))
                 done
 
-                docker compose -f "$COMPOSE_FILE" up -d --wait --wait-timeout __DOCKER_TIMEOUT__
+                docker compose -f "$COMPOSE_FILE" up -d --remove-orphans --wait --wait-timeout __DOCKER_TIMEOUT__
                 """.replace("__COMPOSE_FILE__", composeFile.toAbsolutePath().toString())
                 .replace("__START_DOCKER_BLOCK__", startDockerBlock)
                 .replace("__DOCKER_TIMEOUT__", Integer.toString(DOCKER_READY_TIMEOUT_SECONDS));

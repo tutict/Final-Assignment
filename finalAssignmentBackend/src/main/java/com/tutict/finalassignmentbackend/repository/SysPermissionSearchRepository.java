@@ -33,7 +33,9 @@ public interface SysPermissionSearchRepository extends ElasticsearchRepository<S
               "match": {
                 "permissionCode": {
                   "query": "?0",
-                  "fuzziness": "AUTO"
+                  "fuzziness": "AUTO:4,7",
+                  "prefix_length": 1,
+                  "max_expansions": 25
                 }
               }
             }
@@ -64,7 +66,9 @@ public interface SysPermissionSearchRepository extends ElasticsearchRepository<S
               "match": {
                 "permissionName": {
                   "query": "?0",
-                  "fuzziness": "AUTO"
+                  "fuzziness": "AUTO:4,7",
+                  "prefix_length": 1,
+                  "max_expansions": 25
                 }
               }
             }
