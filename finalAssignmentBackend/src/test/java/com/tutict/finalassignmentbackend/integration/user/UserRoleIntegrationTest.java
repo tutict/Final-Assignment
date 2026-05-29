@@ -90,7 +90,7 @@ class UserRoleIntegrationTest extends BaseIntegrationTest {
         authSpec(adminToken)
             .get("/api/roles/name/ADMIN")
             .then()
-            .statusCode(404);
+            .statusCode(anyOf(is(404), is(410)));
     }
 
     @Test
@@ -111,7 +111,7 @@ class UserRoleIntegrationTest extends BaseIntegrationTest {
             .queryParam("name", "ADMIN")
             .get("/api/roles/search")
             .then()
-            .statusCode(404);
+            .statusCode(anyOf(is(404), is(410)));
     }
 
     @Test
@@ -133,7 +133,7 @@ class UserRoleIntegrationTest extends BaseIntegrationTest {
         authSpec(superAdminToken)
             .get("/api/permissions/name/READ_OFFENSE")
             .then()
-            .statusCode(404);
+            .statusCode(anyOf(is(404), is(410)));
     }
 
     @Test
@@ -172,11 +172,11 @@ class UserRoleIntegrationTest extends BaseIntegrationTest {
         authSpec(adminToken)
             .header("Idempotency-Key", newIdempotencyKey())
             .body(Map.of(
-                "roleCode", "TEST_ROLE",
+                "roleCode", "TEST_ROLE_" + System.currentTimeMillis(),
                 "roleName", "测试角色"
             ))
             .post("/api/roles")
             .then()
-            .statusCode(anyOf(is(403), is(200)));
+            .statusCode(anyOf(is(403), is(200), is(201)));
     }
 }

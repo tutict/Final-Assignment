@@ -832,10 +832,10 @@ DROP TABLE IF EXISTS `sys_request_history`;
 CREATE TABLE `sys_request_history` (
     `id` BIGINT UNSIGNED NOT NULL AUTO_INCREMENT COMMENT '记录ID',
     `idempotency_key` VARCHAR(64) NOT NULL COMMENT '幂等性键',
-    `request_method` VARCHAR(20) NOT NULL COMMENT '请求方法',
-    `request_url` VARCHAR(500) NOT NULL COMMENT '请求URL',
+    `request_method` VARCHAR(20) NOT NULL DEFAULT 'UNKNOWN' COMMENT '请求方法',
+    `request_url` VARCHAR(500) NOT NULL DEFAULT '' COMMENT '请求URL',
     `request_params` TEXT NULL COMMENT '请求参数',
-    `business_type` VARCHAR(50) NOT NULL COMMENT '业务类型',
+    `business_type` VARCHAR(50) NOT NULL DEFAULT 'GENERAL' COMMENT '业务类型',
     `business_id` BIGINT UNSIGNED NULL COMMENT '业务ID',
     `business_status` VARCHAR(20) NULL COMMENT '业务状态',
     `user_id` BIGINT UNSIGNED NULL COMMENT '用户ID',

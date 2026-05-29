@@ -3,6 +3,7 @@ package com.tutict.finalassignmentbackend.controller.business;
 import com.tutict.finalassignmentbackend.config.security.SecurityRoleUtils;
 import com.tutict.finalassignmentbackend.dto.response.ApiResponse;
 
+import com.tutict.finalassignmentbackend.dto.response.PageResponse;
 import com.tutict.finalassignmentbackend.dto.response.UserProfileResponse;
 import com.tutict.finalassignmentbackend.entity.driver.DriverVehicle;
 import com.tutict.finalassignmentbackend.entity.driver.VehicleInformation;
@@ -30,6 +31,7 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
@@ -192,9 +194,17 @@ public class VehicleInformationController {
 
     @GetMapping
     @Operation(summary = "查询全部车辆")
-    public ResponseEntity<List<VehicleInformation>> listVehicles() {
+    public ResponseEntity<ApiResponse<PageResponse<VehicleInformation>>> listVehicles(
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "20") int size) {
         try {
-            return ResponseEntity.ok(enrich(vehicleInformationService.getAllVehicleInformation()));
+            List<VehicleInformation> records = enrich(vehicleInformationService.getAllVehicleInformation());
+            int normalizedPage = Math.max(page, 0);
+            int normalizedSize = Math.max(size, 1);
+            int from = Math.min(normalizedPage * normalizedSize, records.size());
+            int to = Math.min(from + normalizedSize, records.size());
+            return ResponseEntity.ok(ApiResponse.ok(PageResponse.of(
+                    records.subList(from, to), records.size(), normalizedPage, normalizedSize)));
         } catch (Exception ex) {
             LOG.log(Level.WARNING, "List vehicles failed", ex);
             if (ex instanceof RuntimeException) {
@@ -602,7 +612,7 @@ public class VehicleInformationController {
         VehicleInformation vehicle = new VehicleInformation();
         vehicle.setDriverId(asLong(payload.get("driverId")));
         vehicle.setLicensePlate(asString(payload.get("licensePlate")));
-        vehicle.setPlateColor(asString(payload.get("plateColor")));
+        vehicle.setPlateColor(normalizePlateColor(asString(payload.get("plateColor"))));
         vehicle.setVehicleType(asString(payload.get("vehicleType")));
         vehicle.setBrand(asString(payload.get("brand")));
         vehicle.setModel(asString(payload.get("model")));
@@ -623,6 +633,21 @@ public class VehicleInformationController {
         vehicle.setUpdatedBy(asString(payload.get("updatedBy")));
         vehicle.setRemarks(asString(payload.get("remarks")));
         return vehicle;
+    }
+
+    private String normalizePlateColor(String value) {
+        if (value == null || value.isBlank()) {
+            return null;
+        }
+        String normalized = value.trim();
+        return switch (normalized.toLowerCase(Locale.ROOT)) {
+            case "blue", "蓝", "蓝色", "蓝牌", "小型汽车号牌" -> "Blue";
+            case "yellow", "黄", "黄色", "黄牌", "大型汽车号牌" -> "Yellow";
+            case "black", "黑", "黑色", "黑牌", "使馆汽车号牌" -> "Black";
+            case "white", "白", "白色", "白牌", "警用汽车号牌" -> "White";
+            case "green", "绿", "绿色", "绿牌", "新能源", "新能源汽车号牌" -> "Green";
+            default -> normalized;
+        };
     }
 
     private Long resolveRequestedDriverId(Authentication authentication, Long requestedDriverId) {

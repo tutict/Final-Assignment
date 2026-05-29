@@ -54,6 +54,31 @@ CREATE TABLE IF NOT EXISTS sys_user_role (
     UNIQUE KEY uk_sys_user_role_user_role (user_id, role_id)
 );
 
+CREATE TABLE IF NOT EXISTS sys_permission (
+    permission_id INT PRIMARY KEY AUTO_INCREMENT,
+    parent_id INT NULL,
+    permission_code VARCHAR(64) NOT NULL,
+    permission_name VARCHAR(128) NOT NULL,
+    permission_type VARCHAR(32) NULL,
+    permission_description VARCHAR(255) NULL,
+    menu_path VARCHAR(255) NULL,
+    menu_icon VARCHAR(64) NULL,
+    component VARCHAR(255) NULL,
+    api_path VARCHAR(255) NULL,
+    api_method VARCHAR(16) NULL,
+    is_visible BOOLEAN NULL,
+    is_external BOOLEAN NULL,
+    sort_order INT NULL,
+    status VARCHAR(32) NULL,
+    created_at DATETIME NULL,
+    updated_at DATETIME NULL,
+    created_by VARCHAR(100) NULL,
+    updated_by VARCHAR(100) NULL,
+    deleted_at DATETIME NULL,
+    remarks VARCHAR(500) NULL,
+    UNIQUE KEY uk_sys_permission_code (permission_code)
+);
+
 CREATE TABLE IF NOT EXISTS refresh_tokens (
     id BIGINT PRIMARY KEY AUTO_INCREMENT,
     token VARCHAR(255) NOT NULL,
@@ -308,6 +333,24 @@ ON DUPLICATE KEY UPDATE
     role_type = VALUES(role_type),
     role_description = VALUES(role_description),
     data_scope = VALUES(data_scope),
+    status = VALUES(status),
+    updated_at = NOW();
+
+INSERT INTO sys_permission (
+    permission_code, permission_name, permission_type, permission_description,
+    api_path, api_method, is_visible, is_external, sort_order, status,
+    created_at, updated_at, created_by
+)
+VALUES
+    ('READ_OFFENSE', 'READ_OFFENSE', 'API', 'Read offense records', '/api/offenses', 'GET', TRUE, FALSE, 1, 'Active', NOW(), NOW(), 'test-seed'),
+    ('READ_DRIVER', 'READ_DRIVER', 'API', 'Read driver records', '/api/drivers', 'GET', TRUE, FALSE, 2, 'Active', NOW(), NOW(), 'test-seed'),
+    ('READ_VEHICLE', 'READ_VEHICLE', 'API', 'Read vehicle records', '/api/vehicles', 'GET', TRUE, FALSE, 3, 'Active', NOW(), NOW(), 'test-seed')
+ON DUPLICATE KEY UPDATE
+    permission_name = VALUES(permission_name),
+    permission_type = VALUES(permission_type),
+    permission_description = VALUES(permission_description),
+    api_path = VALUES(api_path),
+    api_method = VALUES(api_method),
     status = VALUES(status),
     updated_at = NOW();
 

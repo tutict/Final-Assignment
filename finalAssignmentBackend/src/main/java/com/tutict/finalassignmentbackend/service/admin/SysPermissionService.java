@@ -371,13 +371,20 @@ public class SysPermissionService {
         if (permission == null) {
             return;
         }
+        Runnable sync = () -> {
+            SysPermissionDocument doc = SysPermissionDocument.fromEntity(permission);
+            if (doc != null) {
+                sysPermissionSearchRepository.save(doc);
+            }
+        };
+        if (!TransactionSynchronizationManager.isSynchronizationActive()) {
+            sync.run();
+            return;
+        }
         TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
             @Override
             public void afterCommit() {
-                SysPermissionDocument doc = SysPermissionDocument.fromEntity(permission);
-                if (doc != null) {
-                    sysPermissionSearchRepository.save(doc);
-                }
+                sync.run();
             }
         });
     }
@@ -386,17 +393,24 @@ public class SysPermissionService {
         if (records == null || records.isEmpty()) {
             return;
         }
+        Runnable sync = () -> {
+            List<SysPermissionDocument> documents = records.stream()
+                    .filter(Objects::nonNull)
+                    .map(SysPermissionDocument::fromEntity)
+                    .filter(Objects::nonNull)
+                    .collect(Collectors.toList());
+            if (!documents.isEmpty()) {
+                sysPermissionSearchRepository.saveAll(documents);
+            }
+        };
+        if (!TransactionSynchronizationManager.isSynchronizationActive()) {
+            sync.run();
+            return;
+        }
         TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
             @Override
             public void afterCommit() {
-                List<SysPermissionDocument> documents = records.stream()
-                        .filter(Objects::nonNull)
-                        .map(SysPermissionDocument::fromEntity)
-                        .filter(Objects::nonNull)
-                        .collect(Collectors.toList());
-                if (!documents.isEmpty()) {
-                    sysPermissionSearchRepository.saveAll(documents);
-                }
+                sync.run();
             }
         });
     }

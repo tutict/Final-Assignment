@@ -46,6 +46,15 @@ rag:
   embedding:
     enabled: false
 
+management:
+  health:
+    elasticsearch:
+      enabled: false
+    redis:
+      enabled: false
+    kafka:
+      enabled: false
+
 jwt:
   secret: ${JWT_SECRET:test-secret-key-for-integration-tests-minimum-32-chars}
   access-token-expiration: 3600
@@ -53,6 +62,11 @@ jwt:
 
 backend:
   url: ${BACKEND_URL:http://localhost}
+  port: ${BACKEND_PORT:8080}
+
+network:
+  server:
+    port: 0
 
 logging:
   level:

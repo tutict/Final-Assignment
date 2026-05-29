@@ -61,6 +61,9 @@ public enum OffenseProcessState {
         if (code == null) {
             return null;
         }
+        if ("Pending".equalsIgnoreCase(code)) {
+            return UNPROCESSED;
+        }
         for (OffenseProcessState state : values()) {
             if (state.code.equalsIgnoreCase(code)) {
                 return state;

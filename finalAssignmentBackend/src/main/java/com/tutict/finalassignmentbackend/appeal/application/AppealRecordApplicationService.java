@@ -28,6 +28,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
 import java.util.Objects;
+import java.util.UUID;
 
 @Service
 public class AppealRecordApplicationService {
@@ -147,12 +148,34 @@ public class AppealRecordApplicationService {
     @Transactional
     public AppealRecord createAppeal(AppealRecord appealRecord) {
         fillDriverIdFromOffense(appealRecord);
+        normalizeCreateDefaults(appealRecord);
         domainService.validateAppeal(appealRecord);
         prepareSensitiveData(appealRecord);
         appealRecordMapper.insert(appealRecord);
         searchIndexer.indexAfterCommit(appealRecord);
         cachePolicy.onWrite();
         return appealRecord;
+    }
+
+    private void normalizeCreateDefaults(AppealRecord appealRecord) {
+        if (appealRecord == null) {
+            return;
+        }
+        if (isBlank(appealRecord.getAppealNumber())) {
+            appealRecord.setAppealNumber("AP" + UUID.randomUUID().toString().replace("-", "").toUpperCase());
+        }
+        if (isBlank(appealRecord.getAppealType())) {
+            appealRecord.setAppealType("Other");
+        }
+        if (isBlank(appealRecord.getAcceptanceStatus())) {
+            appealRecord.setAcceptanceStatus("Pending");
+        }
+        if (isBlank(appealRecord.getProcessStatus())) {
+            appealRecord.setProcessStatus("Unprocessed");
+        }
+        if (appealRecord.getAppealTime() == null) {
+            appealRecord.setAppealTime(LocalDateTime.now());
+        }
     }
 
     @Transactional

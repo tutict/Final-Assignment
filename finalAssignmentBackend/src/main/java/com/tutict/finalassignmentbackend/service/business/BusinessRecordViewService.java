@@ -22,6 +22,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.io.Serializable;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
@@ -442,7 +443,7 @@ public class BusinessRecordViewService {
                 .filter(Objects::nonNull)
                 .collect(Collectors.toSet());
         if (normalized.isEmpty()) {
-            return Map.of();
+            return Collections.emptyMap();
         }
         return mapper.selectBatchIds(normalized.stream()
                         .map(Serializable.class::cast)

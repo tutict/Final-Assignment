@@ -1,6 +1,7 @@
 package com.tutict.finalassignmentbackend.entity.offense;
 
 import com.baomidou.mybatisplus.annotation.*;
+import com.fasterxml.jackson.annotation.JsonProperty;
 import lombok.Data;
 
 import java.io.Serial;
@@ -178,4 +179,14 @@ public class FineRecord implements Serializable {
 
     @TableField(exist = false)
     private LocalDateTime offenseTime;
+
+    @JsonProperty("status")
+    public String getStatus() {
+        return paymentStatus;
+    }
+
+    @JsonProperty("status")
+    public void setStatus(String status) {
+        this.paymentStatus = status;
+    }
 }
