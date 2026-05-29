@@ -1,6 +1,9 @@
 package com.tutict.finalassignmentbackend.service.ai;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.tutict.finalassignmentbackend.ai.prompt.AgentConstraintService;
+import com.tutict.finalassignmentbackend.ai.prompt.AiAgentRole;
+import com.tutict.finalassignmentbackend.ai.prompt.AiAgentRoleResolver;
 import com.tutict.finalassignmentbackend.model.ai.ChatActionResponse;
 import jakarta.annotation.PreDestroy;
 import org.slf4j.Logger;
@@ -31,13 +34,22 @@ public class ChatAgent {
 
     private final OllamaChatModel chatModel;
     private final AIChatSearchService aiChatSearchService;
+    private final AiAgentRoleResolver aiAgentRoleResolver;
+    private final AgentConstraintService agentConstraintService;
     private final ExecutorService aiExecutor = Executors.newFixedThreadPool(
             Math.max(2, Runtime.getRuntime().availableProcessors() / 2)
     );
 
-    public ChatAgent(OllamaChatModel chatModel, AIChatSearchService aiChatSearchService) {
+    public ChatAgent(
+            OllamaChatModel chatModel,
+            AIChatSearchService aiChatSearchService,
+            AiAgentRoleResolver aiAgentRoleResolver,
+            AgentConstraintService agentConstraintService
+    ) {
         this.chatModel = chatModel;
         this.aiChatSearchService = aiChatSearchService;
+        this.aiAgentRoleResolver = aiAgentRoleResolver;
+        this.agentConstraintService = agentConstraintService;
     }
 
     public Flux<ChatResponse> streamChat(String message, String massage, boolean webSearch) {
@@ -86,9 +98,13 @@ public class ChatAgent {
     }
 
     private Prompt buildPrompt(String userMessage, boolean webSearch) {
+        String agentConstraints = currentAgentConstraints();
         StringBuilder promptBuilder = new StringBuilder(
                 "你是一名专业的交通违法查询助手，请用简洁准确的中文回答，并尽量使用结构化的编号或要点。"
-        ).append("\n\n");
+        ).append("\n\n")
+                .append("Agent role policy markdown:\n")
+                .append(agentConstraints)
+                .append("\n\n");
 
         if (webSearch) {
             List<Map<String, String>> searchResults = aiChatSearchService.search(userMessage);
@@ -103,10 +119,14 @@ public class ChatAgent {
     }
 
     private Prompt buildActionPrompt(String userMessage, boolean webSearch) {
+        String agentConstraints = currentAgentConstraints();
         StringBuilder promptBuilder = new StringBuilder(
                 "你是一个交通违法业务助手，需要输出可执行的页面动作方案。"
         ).append("\n")
                 .append("请严格输出 JSON，不要使用 Markdown，不要输出额外解释。")
+                .append("\n\n")
+                .append("Agent role policy markdown:\n")
+                .append(agentConstraints)
                 .append("\n\n");
 
         if (webSearch) {
@@ -139,6 +159,11 @@ public class ChatAgent {
             return massage.trim();
         }
         throw new IllegalArgumentException("缺少请求参数：message 或 massage 至少提供一个。");
+    }
+
+    private String currentAgentConstraints() {
+        AiAgentRole role = aiAgentRoleResolver.resolve(Map.of());
+        return agentConstraintService.constraintsFor(role);
     }
 
     private String extractResponseText(ChatResponse response) {

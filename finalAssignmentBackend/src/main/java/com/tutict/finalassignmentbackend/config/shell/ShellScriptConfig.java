@@ -286,7 +286,9 @@ public class ShellScriptConfig {
 
     private static String dockerComposeContent(Environment environment) {
         String redisImage = environment.getProperty("app.docker.images.redis", "redis:7");
-        String redpandaImage = environment.getProperty("app.docker.images.redpanda", "redpandadata/redpanda:v24.1.2");
+        String redpandaImage = environment.getProperty(
+                "app.docker.images.redpanda",
+                "docker.redpanda.com/redpandadata/redpanda:v26.1.9");
         String elasticsearchImage = environment.getProperty(
                 "app.docker.images.elasticsearch",
                 "docker.elastic.co/elasticsearch/elasticsearch:9.4.1");

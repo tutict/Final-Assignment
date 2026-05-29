@@ -24,10 +24,20 @@ public class PromptAssembler {
             List<String> conversationWindow,
             List<RetrievalResult> retrievalResults
     ) {
+        return assemble(userMessage, conversationWindow, retrievalResults, "");
+    }
+
+    public String assemble(
+            String userMessage,
+            List<String> conversationWindow,
+            List<RetrievalResult> retrievalResults,
+            String agentConstraints
+    ) {
         return promptTemplateService.render(
                 userMessage,
                 conversationWindow(conversationWindow),
-                contextBuilder.build(retrievalResults)
+                contextBuilder.build(retrievalResults),
+                agentConstraints
         );
     }
 

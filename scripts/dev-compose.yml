@@ -15,7 +15,7 @@ services:
       retries: 10
 
   redpanda:
-    image: ${REDPANDA_IMAGE:-redpandadata/redpanda:v24.1.2}
+    image: ${REDPANDA_IMAGE:-docker.redpanda.com/redpandadata/redpanda:v26.1.9}
     container_name: final-assignment-redpanda
     command:
       - redpanda
@@ -63,7 +63,7 @@ services:
       retries: 12
 
   debezium-connect:
-    image: ${DEBEZIUM_CONNECT_IMAGE:-debezium/connect:2.7.3.Final}
+    image: ${DEBEZIUM_CONNECT_IMAGE:-quay.io/debezium/connect:3.5.1.Final}
     container_name: final-assignment-debezium-connect
     depends_on:
       redpanda:

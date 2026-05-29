@@ -66,7 +66,7 @@ func (r *RunDocker) startRedis() {
 func (r *RunDocker) startRedpanda() {
 	log.Println("[INFO] Starting Redpanda container...")
 	req := testcontainers.ContainerRequest{
-		Image:        "redpandadata/redpanda:v24.1.2",
+		Image:        "docker.redpanda.com/redpandadata/redpanda:v26.1.9",
 		ExposedPorts: []string{"9092/tcp"},
 		WaitingFor:   wait.ForLog("Started Kafka API server").WithStartupTimeout(2 * time.Minute),
 	}

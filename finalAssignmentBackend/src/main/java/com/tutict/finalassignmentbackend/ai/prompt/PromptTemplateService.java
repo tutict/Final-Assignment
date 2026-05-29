@@ -2,6 +2,9 @@ package com.tutict.finalassignmentbackend.ai.prompt;
 
 import org.springframework.stereotype.Service;
 
+import java.util.ArrayList;
+import java.util.List;
+
 @Service
 public class PromptTemplateService {
 
@@ -11,22 +14,33 @@ public class PromptTemplateService {
     public String render(
             String userMessage,
             String conversationWindow,
-            String retrievedContext
+            String retrievedContext,
+            String agentConstraints
     ) {
-        return String.join("\n",
-                "Instructions:",
-                "- Answer the user using the conversation window and retrieved context when relevant.",
-                "- " + INJECTION_WARNING,
-                "",
-                "<conversation_window>",
-                cleanBlock(conversationWindow),
-                "</conversation_window>",
-                "",
-                cleanBlock(retrievedContext),
-                "",
-                "User message:",
-                cleanLine(userMessage)
-        ).strip();
+        String constraints = cleanBlock(agentConstraints);
+        List<String> sections = new ArrayList<>();
+        sections.add("Instructions:");
+        if (!constraints.isBlank()) {
+            sections.add("- Follow the role policy in <agent_constraints> before answering or proposing actions.");
+        }
+        sections.add("- Answer the user using the conversation window and retrieved context when relevant.");
+        sections.add("- " + INJECTION_WARNING);
+        if (!constraints.isBlank()) {
+            sections.add("");
+            sections.add("<agent_constraints>");
+            sections.add(constraints);
+            sections.add("</agent_constraints>");
+        }
+        sections.add("");
+        sections.add("<conversation_window>");
+        sections.add(cleanBlock(conversationWindow));
+        sections.add("</conversation_window>");
+        sections.add("");
+        sections.add(cleanBlock(retrievedContext));
+        sections.add("");
+        sections.add("User message:");
+        sections.add(cleanLine(userMessage));
+        return String.join("\n", sections).strip();
     }
 
     private static String cleanBlock(String value) {

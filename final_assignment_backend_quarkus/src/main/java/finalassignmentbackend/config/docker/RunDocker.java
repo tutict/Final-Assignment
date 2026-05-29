@@ -32,7 +32,7 @@ public class RunDocker {
     String redisImage;
 
     @Inject
-    @ConfigProperty(name = "redpanda.image", defaultValue = "redpandadata/redpanda:v24.1.2")
+    @ConfigProperty(name = "redpanda.image", defaultValue = "docker.redpanda.com/redpandadata/redpanda:v26.1.9")
     String redpandaImage;
 
     void onStartElasticsearch(@Observes StartupEvent event) {

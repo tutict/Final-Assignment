@@ -84,7 +84,7 @@ public class RunDocker implements ApplicationContextInitializer<ConfigurableAppl
     private void startRedpanda(ConfigurableApplicationContext applicationContext) {
         try {
             if (redpandaContainer == null || !redpandaContainer.isRunning()) {
-                redpandaContainer = new RedpandaContainer("redpandadata/redpanda:v24.1.2");
+                redpandaContainer = new RedpandaContainer("docker.redpanda.com/redpandadata/redpanda:v26.1.9");
                 redpandaContainer.start();
             }
             String bootstrapServers = redpandaContainer.getBootstrapServers();
