@@ -80,6 +80,9 @@ spring:
   datasource:
     username: ${DB_USERNAME:root}
     password: ${DB_PASSWORD}
+    hikari:
+      pool-name: final-assignment-hikari
+      register-mbeans: true
   kafka:
     producer:
       acks: all
@@ -92,19 +95,31 @@ backend:
   url: ${BACKEND_URL}
 
 app:
-  cdc:
-    elasticsearch:
-      enabled: ${CDC_ELASTICSEARCH_ENABLED:false}
-      group-id: ${CDC_ELASTICSEARCH_GROUP_ID:mysql-cdc-elasticsearch-indexer}
-      topic-pattern: '${CDC_ELASTICSEARCH_TOPIC_PATTERN:traffic\.traffic\.(driver_information|vehicle_information|sys_user)}'
+  pagination:
+    max-size: ${APP_PAGINATION_MAX_SIZE:100}
+  mybatis:
+    slow-query-threshold-ms: ${APP_SLOW_QUERY_THRESHOLD_MS:300}
   security:
+    login:
+      window: ${LOGIN_RATE_LIMIT_WINDOW:PT1M}
+      lock-duration: ${LOGIN_LOCK_DURATION:PT2M}
+      max-account-attempts: ${LOGIN_MAX_ACCOUNT_ATTEMPTS:8}
+      max-ip-attempts: ${LOGIN_MAX_IP_ATTEMPTS:40}
+      failure-penalty-after: ${LOGIN_FAILURE_PENALTY_AFTER:2}
+      max-consecutive-failures: ${LOGIN_MAX_CONSECUTIVE_FAILURES:8}
+      failure-penalty-base: ${LOGIN_FAILURE_PENALTY_BASE:PT0.75S}
+      failure-penalty-max: ${LOGIN_FAILURE_PENALTY_MAX:PT10S}
     sensitive-data:
       encryption:
         enabled: ${SENSITIVE_DATA_ENCRYPTION_ENABLED:false}
         key: ${SENSITIVE_DATA_ENCRYPTION_KEY:}
       blind-index:
         key: ${SENSITIVE_DATA_BLIND_INDEX_KEY:}
-
+  cdc:
+    elasticsearch:
+      enabled: ${CDC_ELASTICSEARCH_ENABLED:false}
+      group-id: ${CDC_ELASTICSEARCH_GROUP_ID:mysql-cdc-elasticsearch-indexer}
+      topic-pattern: '${CDC_ELASTICSEARCH_TOPIC_PATTERN:traffic\.traffic\.(driver_information|vehicle_information|sys_user)}'
 kafka:
   groups:
     audit-login-log: ${KAFKA_GROUP_AUDIT_LOGIN_LOG:auditLoginLogGroup}
@@ -212,6 +227,9 @@ management:
   endpoint:
     health:
       show-details: when-authorized
+  metrics:
+    enable:
+      hikaricp: true
 
 logging:
   pattern:

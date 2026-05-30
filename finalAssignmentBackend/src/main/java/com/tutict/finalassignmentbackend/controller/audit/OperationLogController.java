@@ -132,9 +132,10 @@ public class OperationLogController {
 
     @GetMapping
     @Operation(summary = "查询全部操作日志")
-    public ResponseEntity<List<AuditOperationLog>> list() {
+    public ResponseEntity<List<AuditOperationLog>> list(@RequestParam(defaultValue = "1") int page,
+                                                        @RequestParam(defaultValue = "20") int size) {
         try {
-            return ResponseEntity.ok(auditOperationLogService.findAll());
+            return ResponseEntity.ok(auditOperationLogService.findPage(page, size));
         } catch (Exception ex) {
             LOG.log(Level.WARNING, "List operation logs failed", ex);
             if (ex instanceof RuntimeException) {

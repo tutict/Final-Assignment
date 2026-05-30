@@ -5,6 +5,7 @@ import com.tutict.finalassignmentbackend.dto.request.RefreshRequest;
 import com.tutict.finalassignmentbackend.dto.response.TokenResponse;
 import com.tutict.finalassignmentbackend.dto.response.UserProfileResponse;
 import com.tutict.finalassignmentbackend.dto.response.UserResponse;
+import com.tutict.finalassignmentbackend.security.auth.LoginAttemptGuard;
 import com.tutict.finalassignmentbackend.service.auth.AuthWsService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
@@ -16,6 +17,7 @@ import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.annotation.security.PermitAll;
 import jakarta.annotation.security.RolesAllowed;
+import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.HttpStatus;
@@ -49,9 +51,11 @@ public class AuthController {
     private static final ExecutorService VIRTUAL_THREAD_EXECUTOR = Executors.newVirtualThreadPerTaskExecutor();
 
     private final AuthWsService authWsService;
+    private final LoginAttemptGuard loginAttemptGuard;
 
-    public AuthController(AuthWsService authWsService) {
+    public AuthController(AuthWsService authWsService, LoginAttemptGuard loginAttemptGuard) {
         this.authWsService = authWsService;
+        this.loginAttemptGuard = loginAttemptGuard;
     }
 
     @PostMapping("/login")
@@ -84,15 +88,34 @@ public class AuthController {
     public CompletableFuture<ResponseEntity<Map<String, Object>>> login(
             @Valid @RequestBody
             @Parameter(description = "登录请求体，包含用户名和密码", required = true)
-            AuthWsService.LoginRequest loginRequest) {
+            AuthWsService.LoginRequest loginRequest,
+            HttpServletRequest request) {
         return CompletableFuture.supplyAsync(() -> {
+            LoginAttemptGuard.LoginDecision decision = loginAttemptGuard.inspect(
+                    loginRequest == null ? null : loginRequest.getUsername(),
+                    request
+            );
+            if (!decision.allowed()) {
+                LOG.log(Level.WARNING, "Login throttled for username: {0}",
+                        loginRequest == null ? "<null>" : loginRequest.getUsername());
+                return ResponseEntity.status(HttpStatus.TOO_MANY_REQUESTS)
+                        .header("Retry-After", String.valueOf(decision.retryAfterSeconds()))
+                        .body(Map.of(
+                                "success", false,
+                                "errorCode", "LOGIN_RATE_LIMITED",
+                                "message", "Login attempts are too frequent, please try again later",
+                                "retryAfterSeconds", decision.retryAfterSeconds()));
+            }
             try {
                 Map<String, Object> result = authWsService.login(loginRequest);
+                loginAttemptGuard.recordSuccess(decision);
                 LOG.log(Level.INFO, "Login succeeded for username: {0}", loginRequest.getUsername());
                 return ResponseEntity.ok(result);
             } catch (Exception ex) {
+                loginAttemptGuard.recordFailureAndDelay(decision);
+                String usernameForLog = loginRequest == null ? "<null>" : loginRequest.getUsername();
                 LOG.log(Level.SEVERE, "Login failed for username: {0}, error: {1}",
-                        new Object[]{loginRequest.getUsername(), ex.getClass().getSimpleName()});
+                        new Object[]{usernameForLog, ex.getClass().getSimpleName()});
                 return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
                         .body(Map.of(
                                 "success", false,

@@ -6,6 +6,7 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
+import com.tutict.finalassignmentbackend.common.PageLimits;
 import com.tutict.finalassignmentbackend.dto.response.ApiResponse;
 import com.tutict.finalassignmentbackend.rag.dto.RagSourceDocument;
 import com.tutict.finalassignmentbackend.rag.entity.RagChunk;
@@ -28,6 +29,8 @@ import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Size;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.cache.annotation.CacheEvict;
+import org.springframework.cache.annotation.Cacheable;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
@@ -93,6 +96,7 @@ public class RagManagementController {
 
     @PostMapping(value = "/documents/upload", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     @Operation(summary = "Upload and index a RAG document or table")
+    @CacheEvict(cacheNames = "ragAdminReadCache", allEntries = true)
     public ResponseEntity<ApiResponse<RagIndexResponse>> uploadDocument(
             @RequestParam("file") MultipartFile file,
             @RequestParam(required = false) String sourceId,
@@ -153,6 +157,7 @@ public class RagManagementController {
 
     @GetMapping("/overview")
     @Operation(summary = "Get RAG management overview")
+    @Cacheable(cacheNames = "ragAdminReadCache", key = "'overview'")
     public ResponseEntity<ApiResponse<RagOverviewResponse>> overview() {
         RagOverviewResponse response = new RagOverviewResponse(
                 ragEnabled,
@@ -170,6 +175,7 @@ public class RagManagementController {
 
     @GetMapping("/documents")
     @Operation(summary = "List RAG source documents")
+    @Cacheable(cacheNames = "ragAdminReadCache", key = "'documents:' + (#query == null ? '' : #query) + ':' + #limit")
     public ResponseEntity<ApiResponse<List<RagDocument>>> listDocuments(
             @RequestParam(required = false) String query,
             @RequestParam(defaultValue = "50") int limit
@@ -200,6 +206,7 @@ public class RagManagementController {
 
     @PostMapping("/documents/manual")
     @Operation(summary = "Index a manually entered RAG document")
+    @CacheEvict(cacheNames = "ragAdminReadCache", allEntries = true)
     public ResponseEntity<ApiResponse<RagIndexResponse>> createManualDocument(
             @Valid @RequestBody ManualRagDocumentRequest request
     ) {
@@ -242,6 +249,7 @@ public class RagManagementController {
 
     @PostMapping("/backfill")
     @Operation(summary = "Run one RAG backfill batch")
+    @CacheEvict(cacheNames = "ragAdminReadCache", allEntries = true)
     public ResponseEntity<ApiResponse<RagBackfillJob.RagBackfillResult>> runBackfill(
             @RequestParam(defaultValue = "1") int page,
             @RequestParam(defaultValue = "200") int size
@@ -251,11 +259,12 @@ public class RagManagementController {
             return ResponseEntity.status(HttpStatus.CONFLICT)
                     .body(ApiResponse.error("RAG_DISABLED", "RAG backfill is not enabled"));
         }
-        return ResponseEntity.ok(ApiResponse.ok(job.runBatch(page, size)));
+        return ResponseEntity.ok(ApiResponse.ok(job.runBatch(PageLimits.normalizePage(page), PageLimits.normalizeBatchSize(size))));
     }
 
     @PostMapping("/backfill/run")
     @Operation(summary = "Run multiple bounded RAG backfill batches")
+    @CacheEvict(cacheNames = "ragAdminReadCache", allEntries = true)
     public ResponseEntity<ApiResponse<RagBackfillJob.RagBackfillRunResult>> runBackfillBatches(
             @RequestParam(defaultValue = "1") int startPage,
             @RequestParam(defaultValue = "200") int size,
@@ -266,11 +275,16 @@ public class RagManagementController {
             return ResponseEntity.status(HttpStatus.CONFLICT)
                     .body(ApiResponse.error("RAG_DISABLED", "RAG backfill is not enabled"));
         }
-        return ResponseEntity.ok(ApiResponse.ok(job.runBatches(startPage, size, maxPages)));
+        return ResponseEntity.ok(ApiResponse.ok(job.runBatches(
+                PageLimits.normalizePage(startPage),
+                PageLimits.normalizeBatchSize(size),
+                PageLimits.normalizeLimit(maxPages, 50)
+        )));
     }
 
     @PostMapping("/embedding/run")
     @Operation(summary = "Run one RAG embedding batch")
+    @CacheEvict(cacheNames = "ragAdminReadCache", allEntries = true)
     public ResponseEntity<ApiResponse<RagEmbeddingService.RagEmbeddingBatchResult>> runEmbeddingBatch(
             @RequestParam(defaultValue = "25") int limit
     ) {
@@ -279,11 +293,12 @@ public class RagManagementController {
             return ResponseEntity.status(HttpStatus.CONFLICT)
                     .body(ApiResponse.error("RAG_EMBEDDING_DISABLED", "RAG embedding is not enabled"));
         }
-        return ResponseEntity.ok(ApiResponse.ok(embeddingService.processPendingBatch(limit)));
+        return ResponseEntity.ok(ApiResponse.ok(embeddingService.processPendingBatch(PageLimits.normalizeBatchSize(limit))));
     }
 
     @PostMapping("/embedding/requeue")
     @Operation(summary = "Requeue existing RAG chunks for embedding")
+    @CacheEvict(cacheNames = "ragAdminReadCache", allEntries = true)
     public ResponseEntity<ApiResponse<RagIndexMaintenanceService.RequeueResult>> requeueEmbeddingTasks(
             @RequestParam(defaultValue = "1000") int limit
     ) {
@@ -292,11 +307,12 @@ public class RagManagementController {
             return ResponseEntity.status(HttpStatus.CONFLICT)
                     .body(ApiResponse.error("RAG_MAINTENANCE_DISABLED", "RAG index maintenance is not enabled"));
         }
-        return ResponseEntity.ok(ApiResponse.ok(maintenanceService.requeueEmbeddingTasks(limit)));
+        return ResponseEntity.ok(ApiResponse.ok(maintenanceService.requeueEmbeddingTasks(PageLimits.normalizeLimit(limit, 1000))));
     }
 
     @PostMapping("/index/migrate")
     @Operation(summary = "Create a new RAG Elasticsearch index, switch alias, and optionally requeue embeddings")
+    @CacheEvict(cacheNames = "ragAdminReadCache", allEntries = true)
     public ResponseEntity<ApiResponse<RagIndexMaintenanceService.RagIndexMigrationResult>> migrateIndex(
             @RequestParam(required = false) String indexName,
             @RequestParam(defaultValue = "true") boolean requeue,
@@ -308,12 +324,13 @@ public class RagManagementController {
                     .body(ApiResponse.error("RAG_MAINTENANCE_DISABLED", "RAG index maintenance is not enabled"));
         }
         return ResponseEntity.ok(ApiResponse.ok(
-                maintenanceService.migrateToNewIndex(indexName, requeue, requeueLimit)
+                maintenanceService.migrateToNewIndex(indexName, requeue, PageLimits.normalizeLimit(requeueLimit, 1000))
         ));
     }
 
     @DeleteMapping("/documents/{documentId}")
     @Operation(summary = "Delete a RAG source document and its chunks")
+    @CacheEvict(cacheNames = "ragAdminReadCache", allEntries = true)
     public ResponseEntity<ApiResponse<Map<String, Integer>>> deleteDocument(@PathVariable String documentId) {
         List<RagChunk> chunks = chunkMapper.selectList(
                 new QueryWrapper<RagChunk>().eq("document_id", documentId)
@@ -334,7 +351,7 @@ public class RagManagementController {
     }
 
     private static int normalizeLimit(int limit) {
-        return Math.min(Math.max(limit, 1), 200);
+        return PageLimits.normalizeLimit(limit);
     }
 
     private static String defaultIfBlank(String value, String fallback) {

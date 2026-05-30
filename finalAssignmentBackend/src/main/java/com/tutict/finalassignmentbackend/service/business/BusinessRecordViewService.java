@@ -3,6 +3,7 @@ package com.tutict.finalassignmentbackend.service.business;
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import com.baomidou.mybatisplus.core.mapper.BaseMapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
+import com.tutict.finalassignmentbackend.common.PageLimits;
 import com.tutict.finalassignmentbackend.entity.admin.SysUser;
 import com.tutict.finalassignmentbackend.entity.appeal.AppealRecord;
 import com.tutict.finalassignmentbackend.entity.driver.DriverInformation;
@@ -454,7 +455,7 @@ public class BusinessRecordViewService {
     }
 
     private <T> List<T> selectPage(BaseMapper<T> mapper, QueryWrapper<T> wrapper, int page, int size) {
-        Page<T> mpPage = new Page<>(Math.max(page, 1), Math.max(size, 1));
+        Page<T> mpPage = new Page<>(PageLimits.normalizePage(page), PageLimits.normalizeSize(size));
         mapper.selectPage(mpPage, wrapper);
         return mpPage.getRecords();
     }
