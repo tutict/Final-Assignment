@@ -4,6 +4,16 @@
 
 当前主线关注点不再只是 CRUD 展示，而是围绕真实业务链路补齐权限、幂等、消息、检索、RAG、敏感数据保护和本地一键启动能力。
 
+## 快速导航
+
+| 入口 | 说明 |
+| --- | --- |
+| [一键启动](#一键启动) | 启动 Docker 依赖、后端、Flutter Web 和本地 AI 环境 |
+| [后端包结构](finalAssignmentBackend/PACKAGE_LAYOUT.md) | Spring Boot 主后端的分层、领域包和命名规则 |
+| [数据库设计](database/DATABASE_DESIGN.md) | MySQL 表、角色、业务关联、敏感字段和 RAG 表设计 |
+| [压测报告](docs/performance/load-test-2026-05-30.md) | k6 / wrk 本地性能基线和瓶颈分析 |
+| [脚本说明](scripts/README.md) | 启动、Debezium、AI 链路测试等脚本参数 |
+
 ## 当前主线
 
 | 模块 | 路径 | 状态 |
@@ -14,6 +24,14 @@
 | Spring Cloud 版本 | `finalAssignmentCloud` | 微服务拆分实验 |
 | Go 版本 | `final_assignment_backend_go` | Go 后端实验 |
 | Quarkus 版本 | `final_assignment_backend_quarkus` | Quarkus 后端实验 |
+
+## 角色入口
+
+| 角色 | 前端入口 | 主要职责 |
+| --- | --- | --- |
+| 驾驶员 | Flutter Web 驾驶员端 | 查看个人资料、违法详情、缴费、申诉、车辆登记、进度消息和地图 |
+| 普通管理员 `ADMIN` | Flutter Web 管理端 | 处理驾驶员、车辆、违法、罚款、扣分、申诉等业务 |
+| 超级管理员 `SUPER_ADMIN` | Flutter Web 管理端的技术治理入口 | 审查操作日志/登录日志、管理 RAG 资料、执行索引/回填等高风险操作 |
 
 ## 核心业务
 
@@ -36,6 +54,21 @@
 - `RAG` 支持手工录入、文档上传、表格上传、PDF 文本解析、分块、索引任务和检索
 - 敏感字段支持 `AES-GCM` 密文列与 `HMAC blind-index` 查询列
 - 统一 Kafka Listener 幂等处理器，减少重复反序列化、重复请求判断、成功/失败历史标记代码
+
+## 架构速览
+
+```text
+Flutter Web
+  -> Spring Security + JWT
+  -> Spring Boot 业务 API
+  -> MyBatis Plus + MySQL
+  -> Redis / Caffeine
+  -> Redpanda(Kafka API) + Debezium
+  -> Elasticsearch 搜索读模型
+  -> Ollama / GraalPy / RAG
+```
+
+主线后端按“领域归属优先、框架分层其次”的方式组织：认证、业务、审计、管理、AI/RAG、CDC、搜索和共享基础设施各自收口。详细包结构见 [finalAssignmentBackend/PACKAGE_LAYOUT.md](finalAssignmentBackend/PACKAGE_LAYOUT.md)。
 
 ## 压测与性能基线
 
