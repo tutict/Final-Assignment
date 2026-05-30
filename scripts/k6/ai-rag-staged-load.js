@@ -14,6 +14,9 @@ const MODEL_RATE = parseInt(__ENV.PERF_MODEL_RATE || '1', 10);
 const INCLUDE_MODEL = (__ENV.PERF_INCLUDE_MODEL || 'false').toLowerCase() === 'true';
 const STRICT = (__ENV.PERF_STRICT || 'false').toLowerCase() === 'true';
 const SUMMARY_JSON = __ENV.PERF_SUMMARY_JSON || 'artifacts/k6/ai-rag-staged-load-summary.json';
+const RAG_QUERY = __ENV.PERF_RAG_QUERY || '驾驶员交通违法申诉材料、罚款缴纳、事故快处和车辆登记办理指南';
+const ACTION_MESSAGE = __ENV.PERF_ACTION_MESSAGE || '帮我打开交通违法申诉办理页面，并说明下一步需要填写什么';
+const MODEL_MESSAGE = __ENV.PERF_MODEL_MESSAGE || '请用三句话说明驾驶员交通违法申诉、罚款缴纳和事故快处的办理流程';
 
 const aiHttpOrchestrationMs = new Trend('ai_http_orchestration_ms', true);
 const ragRetrievalMs = new Trend('rag_retrieval_ms', true);
@@ -21,6 +24,8 @@ const aiModelGenerationMs = new Trend('ai_model_generation_ms', true);
 const aiActionOk = new Rate('ai_action_ok');
 const ragRetrievalOk = new Rate('rag_retrieval_ok');
 const aiModelOk = new Rate('ai_model_ok');
+const aiModelOllamaOk = new Rate('ai_model_ollama_ok');
+const aiModelNoopFallbackOk = new Rate('ai_model_noop_fallback_ok');
 
 const scenarios = {
   ai_http_orchestration: {
@@ -93,7 +98,7 @@ export function setup() {
 
 export function aiHttpOrchestration(data) {
   group('AI HTTP orchestration', () => {
-    const message = encodeURIComponent('帮我打开违法处理页面并说明下一步');
+    const message = encodeURIComponent(ACTION_MESSAGE);
     const res = http.get(
       `${BASE_URL}/api/ai/chat/actions?message=${message}&webSearch=false`,
       authHeaders(data.adminToken, 'ai_actions'),
@@ -114,16 +119,18 @@ export function ragRetrieval(data) {
     const res = http.post(
       `${BASE_URL}/api/rag/query`,
       JSON.stringify({
-        query: '驾驶员如何处理交通违法申诉和罚款缴纳',
+        query: RAG_QUERY,
         topK: 5,
         roles: ['ADMIN'],
       }),
       authHeaders(data.adminToken, 'rag_query'),
     );
     ragRetrievalMs.add(res.timings.duration);
+    const results = json(res)?.results;
     const ok = check(res, {
       'RAG query status is 200': (r) => r.status === 200,
-      'RAG query returns result list': (r) => Array.isArray(json(r)?.results),
+      'RAG query returns result list': () => Array.isArray(results),
+      'RAG strict query returns real hits': () => !STRICT || (Array.isArray(results) && results.length > 0),
     });
     ragRetrievalOk.add(ok);
   });
@@ -135,7 +142,7 @@ export function aiModelGeneration(data) {
     const res = http.post(
       `${BASE_URL}/api/ai/chat/stream`,
       JSON.stringify({
-        message: '请用三句话说明驾驶员申诉交通违法的办理流程',
+        message: MODEL_MESSAGE,
         sessionKey: `k6-${__VU}-${__ITER}`,
         metadata: { webSearch: false, rag: false, ragEnabled: false },
       }),
@@ -146,11 +153,14 @@ export function aiModelGeneration(data) {
     );
     aiModelGenerationMs.add(res.timings.duration);
     const success = res.status === 200 && String(res.body || '').includes('data:');
+    const providerStats = streamProviderStats(res.body);
     check(res, {
       'AI stream returned an HTTP response': (r) => r.status > 0,
       'AI stream strict success': () => !STRICT || success,
     });
     aiModelOk.add(success);
+    aiModelOllamaOk.add(success && providerStats.hasOllama && !providerStats.hasNoopFallback);
+    aiModelNoopFallbackOk.add(success && providerStats.hasNoopFallback);
   });
   sleep(0.2);
 }
@@ -224,6 +234,39 @@ function json(response) {
   }
 }
 
+function streamProviderStats(body) {
+  const stats = {
+    hasOllama: false,
+    hasNoopFallback: false,
+  };
+  const lines = String(body || '').split(/\r?\n/);
+  for (const line of lines) {
+    const trimmed = line.trim();
+    if (!trimmed.startsWith('data:')) {
+      continue;
+    }
+    const raw = trimmed.slice(5).trim();
+    if (!raw || raw === '[DONE]') {
+      continue;
+    }
+    try {
+      const event = JSON.parse(raw);
+      const payload = event.payload || event.metadata || {};
+      const provider = String(payload.provider || event.provider || '').toLowerCase();
+      const fallback = payload.isFallback === true || payload.fallback === true || event.isFallback === true;
+      if (provider === 'ollama') {
+        stats.hasOllama = true;
+      }
+      if (provider === 'noop' || fallback) {
+        stats.hasNoopFallback = true;
+      }
+    } catch (_) {
+      // Ignore keepalive or malformed diagnostic lines.
+    }
+  }
+  return stats;
+}
+
 function textSummary(data) {
   const metrics = data.metrics || {};
   return [
@@ -235,7 +278,9 @@ function textSummary(data) {
     trend(metrics, 'ai_http_orchestration_ms', 'AI HTTP 编排耗时'),
     line(metrics, 'rag_retrieval_ok', 'RAG 检索成功率'),
     trend(metrics, 'rag_retrieval_ms', 'RAG 检索耗时'),
-    line(metrics, 'ai_model_ok', '模型生成成功率'),
+    line(metrics, 'ai_model_ok', 'AI stream 返回成功率'),
+    line(metrics, 'ai_model_ollama_ok', 'AI stream Ollama 真实调用成功率'),
+    line(metrics, 'ai_model_noop_fallback_ok', 'AI stream noop fallback 比例'),
     trend(metrics, 'ai_model_generation_ms', '模型生成耗时'),
     `summary_json=${SUMMARY_JSON}`,
     '',

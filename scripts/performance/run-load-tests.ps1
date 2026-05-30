@@ -93,6 +93,12 @@ $admin = Get-AccessToken $AdminUsername $AdminPassword
 $super = Get-AccessToken $SuperUsername $SuperPassword
 $driverId = if ($driver.driverId) { $driver.driverId } else { "6" }
 
+Write-Step "Seed real RAG retrieval dataset"
+& "$Root\scripts\performance\seed-rag-load-dataset.ps1" `
+    -BaseUrl $BaseUrl `
+    -Token $super.token `
+    -DatasetPath "$Root\scripts\performance\rag-real-dataset.json"
+
 Invoke-K6 "full-api-load" "$Root\scripts\k6\full-api-load.js" @{
     BASE_URL = $BaseUrl
     PERF_DURATION = $Duration
@@ -122,7 +128,7 @@ Invoke-K6 "ai-rag-staged-load" "$Root\scripts\k6\ai-rag-staged-load.js" @{
     PERF_RAG_RATE = "1"
     PERF_INCLUDE_MODEL = if ($IncludeModel) { "true" } else { "false" }
     PERF_MODEL_RATE = "1"
-    PERF_STRICT = "false"
+    PERF_STRICT = "true"
     PERF_SUMMARY_JSON = "artifacts/k6/ai-rag-staged-load-summary.json"
 }
 

@@ -58,3 +58,5 @@ $env:PERF_INCLUDE_MODEL='true'
 $env:PERF_MODEL_RATE='1'
 k6 run scripts/k6/ai-rag-staged-load.js
 ```
+
+`scripts/performance/run-load-tests.ps1` 会先调用 `scripts/performance/seed-rag-load-dataset.ps1` 写入专用 RAG 压测资料，再以 `PERF_STRICT=true` 执行 AI/RAG 分段压测。`ai-rag-staged-load.js` 会在 AI stream 摘要中分别输出真实 `ollama` 调用成功率和 `noop fallback` 比例。

@@ -77,3 +77,7 @@ docker run --rm `
   -s /scripts/ai-actions.lua `
   http://host.docker.internal:8080
 ```
+
+## 非 2xx 端点统计
+
+`read-mix.lua` 和 `super-read-mix.lua` 会在 wrk 结束时额外输出 `Non-2xx responses by endpoint`，用于定位管理员/超级管理员混合读中的失败端点。该统计基于 wrk Lua 回调记录，适合本地压测排查；如需严格审计，仍应结合后端访问日志和 `endpoint` 标签指标。
