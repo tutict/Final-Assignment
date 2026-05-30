@@ -90,6 +90,7 @@ fabric.properties
 
 # Log file
 *.log
+artifacts/
 
 # BlueJ files
 *.ctxt

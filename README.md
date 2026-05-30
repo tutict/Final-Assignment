@@ -37,6 +37,11 @@
 - 敏感字段支持 `AES-GCM` 密文列与 `HMAC blind-index` 查询列
 - 统一 Kafka Listener 幂等处理器，减少重复反序列化、重复请求判断、成功/失败历史标记代码
 
+## 压测与性能基线
+
+- [2026-05-30 k6 / wrk 压测报告](docs/performance/load-test-2026-05-30.md)
+- k6 脚本位于 `scripts/k6/`，wrk Lua 脚本位于 `scripts/wrk/`
+
 ## 一键启动
 
 推荐从仓库根目录使用脚本启动。
