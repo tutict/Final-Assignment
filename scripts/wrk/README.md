@@ -1,16 +1,79 @@
-# wrk load scripts
+# wrk 压测脚本
 
-These scripts are intended to run from the repository root with the Docker image `williamyeh/wrk`.
+这些 Lua 脚本用于配合本地 Docker 镜像 `williamyeh/wrk` 运行。Windows 下推荐从仓库根目录执行，并通过 `host.docker.internal` 访问本机后端。
 
-Login baseline:
+## 登录基准
 
-```bat
-docker run --rm -e PERF_USERNAME=admin -e PERF_PASSWORD=Admin@123456 -v "%cd%\scripts\wrk:/scripts:ro" williamyeh/wrk -t4 -c32 -d30s -s /scripts/login.lua http://host.docker.internal:8080/api/auth/login
+登录接口会触发 BCrypt 校验和登录限流，建议单独运行，并放在其他读接口压测之后，避免 IP 级登录窗口影响后续 token 获取。
+
+```powershell
+docker run --rm `
+  -e PERF_USERNAME=admin `
+  -e PERF_PASSWORD=Admin@123456 `
+  -v "${PWD}\scripts\wrk:/scripts:ro" `
+  williamyeh/wrk -t4 -c16 -d20s `
+  -s /scripts/login.lua `
+  http://host.docker.internal:8080/api/auth/login
 ```
 
-Authenticated read mix:
+## 驾驶员读接口混合
 
-```bat
-set PERF_TOKEN=<admin access token>
-docker run --rm -e PERF_TOKEN=%PERF_TOKEN% -v "%cd%\scripts\wrk:/scripts:ro" williamyeh/wrk -t4 -c64 -d30s -s /scripts/read-mix.lua http://host.docker.internal:8080
+```powershell
+$env:PERF_TOKEN='<driver access token>'
+$env:PERF_DRIVER_ID='6'
+docker run --rm `
+  -e PERF_TOKEN="$env:PERF_TOKEN" `
+  -e PERF_DRIVER_ID="$env:PERF_DRIVER_ID" `
+  -v "${PWD}\scripts\wrk:/scripts:ro" `
+  williamyeh/wrk -t4 -c32 -d20s `
+  -s /scripts/driver-read-mix.lua `
+  http://host.docker.internal:8080
+```
+
+## 管理员读接口混合
+
+```powershell
+$env:PERF_TOKEN='<admin access token>'
+docker run --rm `
+  -e PERF_TOKEN="$env:PERF_TOKEN" `
+  -v "${PWD}\scripts\wrk:/scripts:ro" `
+  williamyeh/wrk -t4 -c48 -d20s `
+  -s /scripts/read-mix.lua `
+  http://host.docker.internal:8080
+```
+
+## 超级管理员读接口混合
+
+```powershell
+$env:PERF_TOKEN='<super admin access token>'
+docker run --rm `
+  -e PERF_TOKEN="$env:PERF_TOKEN" `
+  -v "${PWD}\scripts\wrk:/scripts:ro" `
+  williamyeh/wrk -t4 -c32 -d20s `
+  -s /scripts/super-read-mix.lua `
+  http://host.docker.internal:8080
+```
+
+## RAG 检索
+
+```powershell
+$env:PERF_TOKEN='<admin access token>'
+docker run --rm `
+  -e PERF_TOKEN="$env:PERF_TOKEN" `
+  -v "${PWD}\scripts\wrk:/scripts:ro" `
+  williamyeh/wrk -t2 -c8 -d20s `
+  -s /scripts/rag-query.lua `
+  http://host.docker.internal:8080/api/rag/query
+```
+
+## AI actions
+
+```powershell
+$env:PERF_TOKEN='<admin access token>'
+docker run --rm `
+  -e PERF_TOKEN="$env:PERF_TOKEN" `
+  -v "${PWD}\scripts\wrk:/scripts:ro" `
+  williamyeh/wrk -t2 -c8 -d20s `
+  -s /scripts/ai-actions.lua `
+  http://host.docker.internal:8080
 ```

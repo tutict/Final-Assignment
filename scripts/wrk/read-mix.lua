@@ -10,7 +10,7 @@ local endpoints = {
   "/api/offenses?page=1&size=10",
   "/api/fines?page=1&size=10",
   "/api/payments?page=1&size=10",
-  "/api/deductions",
+  "/api/deductions?page=1&size=10",
   "/api/appeals?page=1&size=10",
   "/api/offense-types?page=1&size=10",
   "/api/permissions?page=1&size=10",

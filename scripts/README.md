@@ -164,3 +164,21 @@ Use strict provider mode when the backend must call a real AI provider instead o
 ```powershell
 powershell -ExecutionPolicy Bypass -File scripts\test-ai-chain.ps1 -StrictProvider
 ```
+
+## Load Tests
+
+k6 and wrk load-test scripts live under `scripts\k6` and `scripts\wrk`.
+
+Run the local all-round load-test orchestration:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File scripts\performance\run-load-tests.ps1 `
+  -Duration 20s `
+  -DriverVus 8 `
+  -AdminVus 6 `
+  -SuperVus 2 `
+  -LoginRate 0 `
+  -IncludeModel
+```
+
+The report is maintained at `docs\performance\load-test-2026-05-30.md`. The generated raw outputs are written to `artifacts\k6` and `artifacts\wrk`; those directories are ignored by Git.

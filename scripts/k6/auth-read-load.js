@@ -3,22 +3,21 @@ import { check, group, sleep } from 'k6';
 import { Rate } from 'k6/metrics';
 
 const BASE_URL = (__ENV.BASE_URL || 'http://127.0.0.1:8080').replace(/\/$/, '');
-const PASSWORD = __ENV.PERF_PASSWORD || 'pass12345';
-const USERNAME = __ENV.PERF_USERNAME || `k6-${Date.now()}@test.com`;
-const REGISTER_USER = (__ENV.PERF_REGISTER_USER || 'true').toLowerCase() !== 'false';
+const PASSWORD = __ENV.PERF_PASSWORD || '123456';
+const USERNAME = __ENV.PERF_USERNAME || 'ce@ce.com';
+const REGISTER_USER = (__ENV.PERF_REGISTER_USER || 'false').toLowerCase() === 'true';
 const SUMMARY_JSON = __ENV.PERF_SUMMARY_JSON || 'artifacts/k6/auth-read-load-summary.json';
 
 const readVus = parseInt(__ENV.PERF_READ_VUS || '20', 10);
-const loginRate = parseInt(__ENV.PERF_LOGIN_RATE || '2', 10);
+const loginRate = parseInt(__ENV.PERF_LOGIN_RATE || '1', 10);
 const duration = __ENV.PERF_DURATION || '45s';
 
 const healthOk = new Rate('health_ok');
 const profileOk = new Rate('profile_ok');
 const loginOk = new Rate('login_ok');
 
-export const options = {
-  scenarios: {
-    auth_read: {
+const scenarios = {
+  auth_read: {
       executor: 'ramping-vus',
       stages: [
         { duration: '10s', target: readVus },
@@ -26,18 +25,24 @@ export const options = {
         { duration: '10s', target: 0 },
       ],
       exec: 'authRead',
-    },
-    login_baseline: {
-      executor: 'constant-arrival-rate',
-      rate: loginRate,
-      timeUnit: '1s',
-      duration,
-      preAllocatedVUs: Math.max(2, loginRate * 2),
-      maxVUs: Math.max(6, loginRate * 6),
-      exec: 'loginBaseline',
-      startTime: '5s',
-    },
   },
+};
+
+if (loginRate > 0) {
+  scenarios.login_baseline = {
+    executor: 'constant-arrival-rate',
+    rate: loginRate,
+    timeUnit: '1s',
+    duration,
+    preAllocatedVUs: Math.max(2, loginRate * 2),
+    maxVUs: Math.max(6, loginRate * 6),
+    exec: 'loginBaseline',
+    startTime: '5s',
+  };
+}
+
+export const options = {
+  scenarios,
   thresholds: {
     http_req_failed: ['rate<0.01'],
     http_req_duration: ['p(95)<1000', 'p(99)<2000'],

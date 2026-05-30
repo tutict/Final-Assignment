@@ -5,13 +5,13 @@ import { Rate } from 'k6/metrics';
 const BASE_URL = (__ENV.BASE_URL || 'http://127.0.0.1:8080').replace(/\/$/, '');
 const RUN_ID = `${Date.now()}-${Math.random().toString(16).slice(2)}`;
 
-const USERNAME = __ENV.PERF_USERNAME || `perf-user-${RUN_ID}@test.com`;
-const PASSWORD = __ENV.PERF_PASSWORD || 'pass12345';
+const USERNAME = __ENV.PERF_USERNAME || 'ce@ce.com';
+const PASSWORD = __ENV.PERF_PASSWORD || '123456';
 const ADMIN_USERNAME = __ENV.PERF_ADMIN_USERNAME || 'admin';
 const ADMIN_PASSWORD = __ENV.PERF_ADMIN_PASSWORD || 'Admin@123456';
 const SUPER_USERNAME = __ENV.PERF_SUPER_USERNAME || 'superadmin';
 const SUPER_PASSWORD = __ENV.PERF_SUPER_PASSWORD || 'SuperAdmin@123456';
-const REGISTER_USER = (__ENV.PERF_REGISTER_USER || 'true').toLowerCase() !== 'false';
+const REGISTER_USER = (__ENV.PERF_REGISTER_USER || 'false').toLowerCase() === 'true';
 const INCLUDE_AI = (__ENV.PERF_INCLUDE_AI || 'false').toLowerCase() === 'true';
 const SUMMARY_JSON = __ENV.PERF_SUMMARY_JSON || 'artifacts/k6/full-api-load-summary.json';
 
@@ -19,7 +19,7 @@ const duration = __ENV.PERF_DURATION || '45s';
 const userVus = parseInt(__ENV.PERF_USER_VUS || '12', 10);
 const adminVus = parseInt(__ENV.PERF_ADMIN_VUS || '10', 10);
 const superVus = parseInt(__ENV.PERF_SUPER_VUS || '4', 10);
-const loginRate = parseInt(__ENV.PERF_LOGIN_RATE || '2', 10);
+const loginRate = parseInt(__ENV.PERF_LOGIN_RATE || '1', 10);
 
 const healthOk = new Rate('health_ok');
 const registerOk = new Rate('register_ok');
@@ -29,15 +29,14 @@ const adminReadOk = new Rate('admin_read_ok');
 const superReadOk = new Rate('super_read_ok');
 const aiActionOk = new Rate('ai_action_ok');
 
-export const options = {
-  scenarios: {
-    health_probe: {
+const scenarios = {
+  health_probe: {
       executor: 'constant-vus',
       vus: 2,
       duration,
       exec: 'healthProbe',
-    },
-    driver_read_journey: {
+  },
+  driver_read_journey: {
       executor: 'ramping-vus',
       stages: [
         { duration: '10s', target: userVus },
@@ -45,8 +44,8 @@ export const options = {
         { duration: '10s', target: 0 },
       ],
       exec: 'driverReadJourney',
-    },
-    admin_business_read: {
+  },
+  admin_business_read: {
       executor: 'ramping-vus',
       stages: [
         { duration: '10s', target: adminVus },
@@ -55,25 +54,31 @@ export const options = {
       ],
       exec: 'adminBusinessRead',
       startTime: '2s',
-    },
-    super_admin_read: {
+  },
+  super_admin_read: {
       executor: 'constant-vus',
       vus: superVus,
       duration,
       exec: 'superAdminRead',
       startTime: '5s',
-    },
-    login_baseline: {
-      executor: 'constant-arrival-rate',
-      rate: loginRate,
-      timeUnit: '1s',
-      duration,
-      preAllocatedVUs: Math.max(2, loginRate * 2),
-      maxVUs: Math.max(6, loginRate * 6),
-      exec: 'loginBaseline',
-      startTime: '5s',
-    },
   },
+};
+
+if (loginRate > 0) {
+  scenarios.login_baseline = {
+    executor: 'constant-arrival-rate',
+    rate: loginRate,
+    timeUnit: '1s',
+    duration,
+    preAllocatedVUs: Math.max(2, loginRate * 2),
+    maxVUs: Math.max(6, loginRate * 6),
+    exec: 'loginBaseline',
+    startTime: '5s',
+  };
+}
+
+export const options = {
+  scenarios,
   thresholds: {
     http_req_failed: ['rate<0.02'],
     http_req_duration: ['p(95)<1500', 'p(99)<5000'],
