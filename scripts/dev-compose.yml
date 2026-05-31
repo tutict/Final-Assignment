@@ -37,6 +37,7 @@ services:
     ports:
       - "9092:9092"
       - "${REDPANDA_ADMIN_HOST_PORT:-9644}:9644"
+      - "${REDPANDA_PANDAPROXY_HOST_PORT:-8082}:8082"
     volumes:
       - redpanda-data:/var/lib/redpanda/data
     healthcheck:

@@ -112,6 +112,24 @@ Start only the infrastructure:
 docker compose -f scripts\dev-compose.yml up -d
 ```
 
+Reset only the local Redpanda data volume after an incompatible Redpanda image
+upgrade, for example when the container fails with `Attempted to upgrade from
+incompatible logical version ...`:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File scripts\reset-redpanda-dev-data.ps1
+```
+
+For non-interactive recovery:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File scripts\reset-redpanda-dev-data.ps1 -Force
+```
+
+This deletes only the local `final-assignment-dev_redpanda-data` Kafka log
+volume and recreates Redpanda plus Debezium Connect. It does not delete MySQL,
+Redis, or Elasticsearch data.
+
 Start the Spring Boot backend only:
 
 ```bat
@@ -182,3 +200,18 @@ powershell -ExecutionPolicy Bypass -File scripts\performance\run-load-tests.ps1 
 ```
 
 The report is maintained at `docs\performance\load-test-2026-05-30.md`. The generated raw outputs are written to `artifacts\k6` and `artifacts\wrk`; those directories are ignored by Git.
+
+Run the Kafka/Redpanda Pandaproxy load-test orchestration:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File scripts\performance\run-kafka-load-tests.ps1 `
+  -Duration 20s `
+  -K6Rate 20 `
+  -K6Vus 16 `
+  -WrkConnections 32 `
+  -BatchSize 10
+```
+
+This scenario writes to the dedicated `perf-kafka-http` topic through Redpanda
+Pandaproxy. k6 and wrk are HTTP load-test tools, so the scripts measure Kafka
+produce through Redpanda's HTTP proxy rather than raw Kafka protocol throughput.

@@ -73,6 +73,7 @@ Flutter Web
 ## 压测与性能基线
 
 - [2026-05-31 k6 / wrk 压测报告](docs/performance/load-test-2026-05-31.md)
+- [2026-05-31 Kafka / Redpanda 专项压测报告](docs/performance/kafka-load-test-2026-05-31.md)
 - [2026-05-30 k6 / wrk 压测报告](docs/performance/load-test-2026-05-30.md)
 - 一键压测编排脚本位于 `scripts/performance/run-load-tests.ps1`
 - k6 脚本位于 `scripts/k6/`，wrk Lua 脚本位于 `scripts/wrk/`
