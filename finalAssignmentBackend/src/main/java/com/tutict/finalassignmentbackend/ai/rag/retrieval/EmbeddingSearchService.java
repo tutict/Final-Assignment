@@ -1,18 +1,23 @@
 package com.tutict.finalassignmentbackend.ai.rag.retrieval;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.tutict.finalassignmentbackend.ai.rag.config.RagChunkIndexMapping;
 import com.tutict.finalassignmentbackend.ai.rag.dto.RetrievalResult;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.data.elasticsearch.core.ElasticsearchOperations;
-import org.springframework.data.elasticsearch.core.SearchHit;
-import org.springframework.data.elasticsearch.core.SearchHits;
-import org.springframework.data.elasticsearch.core.mapping.IndexCoordinates;
-import org.springframework.data.elasticsearch.core.query.StringQuery;
 import org.springframework.stereotype.Service;
 
+import java.io.IOException;
+import java.net.URI;
+import java.net.http.HttpClient;
+import java.net.http.HttpRequest;
+import java.net.http.HttpResponse;
+import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -25,18 +30,22 @@ public class EmbeddingSearchService {
     private final EmbeddingProvider embeddingProvider;
     private final RagSearchBackend searchBackend;
 
+    @Autowired
     public EmbeddingSearchService(
             EmbeddingProvider embeddingProvider,
             ObjectProvider<ElasticsearchOperations> elasticsearchOperations,
             RagChunkIndexMapping mapping,
-            ObjectMapper objectMapper
+            ObjectMapper objectMapper,
+            @Value("${spring.elasticsearch.uris:http://localhost:9200}") String elasticsearchUris
     ) {
         this(
                 embeddingProvider,
                 new ElasticsearchRagSearchBackend(
                         elasticsearchOperations.getIfAvailable(),
                         mapping.aliasName(),
-                        objectMapper
+                        mapping.indexName(),
+                        objectMapper,
+                        elasticsearchUris
                 )
         );
     }
@@ -55,7 +64,11 @@ public class EmbeddingSearchService {
             AclFilterService.AclFilter aclFilter,
             int limit
     ) {
-        return searchBackend.bm25Search(normalizedQuery, aclFilter, Math.max(1, limit));
+        try {
+            return searchBackend.bm25Search(normalizedQuery, aclFilter, Math.max(1, limit));
+        } catch (RuntimeException error) {
+            return List.of();
+        }
     }
 
     public List<RetrievalResult> vectorSearch(
@@ -63,7 +76,11 @@ public class EmbeddingSearchService {
             AclFilterService.AclFilter aclFilter,
             int limit
     ) {
-        return searchBackend.vectorSearch(queryVector, aclFilter, Math.max(1, limit));
+        try {
+            return searchBackend.vectorSearch(queryVector, aclFilter, Math.max(1, limit));
+        } catch (RuntimeException error) {
+            return List.of();
+        }
     }
 }
 
@@ -78,16 +95,23 @@ class ElasticsearchRagSearchBackend implements RagSearchBackend {
 
     private final ElasticsearchOperations operations;
     private final String indexAlias;
+    private final String fallbackIndex;
     private final ObjectMapper objectMapper;
+    private final URI elasticsearchBaseUri;
+    private final HttpClient httpClient = HttpClient.newHttpClient();
 
     ElasticsearchRagSearchBackend(
             ElasticsearchOperations operations,
             String indexAlias,
-            ObjectMapper objectMapper
+            String fallbackIndex,
+            ObjectMapper objectMapper,
+            String elasticsearchUris
     ) {
         this.operations = operations;
         this.indexAlias = indexAlias;
+        this.fallbackIndex = fallbackIndex;
         this.objectMapper = objectMapper;
+        this.elasticsearchBaseUri = URI.create(firstUri(elasticsearchUris));
     }
 
     @Override
@@ -176,19 +200,72 @@ class ElasticsearchRagSearchBackend implements RagSearchBackend {
     }
 
     private List<RetrievalResult> execute(Map<String, Object> query, String mode) {
-        SearchHits<Map> hits = operations.search(
-                new StringQuery(writeJson(query)),
-                Map.class,
-                IndexCoordinates.of(indexAlias)
-        );
+        List<JsonNode> hits = search(indexAlias, query);
         List<RetrievalResult> results = new ArrayList<>();
-        for (SearchHit<Map> hit : hits) {
-            RetrievalResult result = toResult(hit.getContent(), hit.getScore(), mode);
+        for (JsonNode hit : hits) {
+            Map<String, Object> source = objectMapper.convertValue(hit.path("_source"), Map.class);
+            RetrievalResult result = toResult(source, (float) hit.path("_score").asDouble(), mode);
             if (result != null) {
                 results.add(result);
             }
         }
         return results;
+    }
+
+    private List<JsonNode> search(String indexName, Map<String, Object> query) {
+        try {
+            return searchOnce(indexName, query);
+        } catch (RuntimeException error) {
+            if (fallbackIndex == null || fallbackIndex.isBlank()
+                    || fallbackIndex.equals(indexName)) {
+                throw error;
+            }
+            return searchOnce(fallbackIndex, query);
+        }
+    }
+
+    private List<JsonNode> searchOnce(String indexName, Map<String, Object> query) {
+        try {
+            HttpRequest request = HttpRequest.newBuilder(searchUri(indexName))
+                    .header("Content-Type", "application/json; charset=utf-8")
+                    .header("Accept", "application/json")
+                    .POST(HttpRequest.BodyPublishers.ofString(writeJson(query), StandardCharsets.UTF_8))
+                    .build();
+            HttpResponse<String> response = httpClient.send(
+                    request,
+                    HttpResponse.BodyHandlers.ofString(StandardCharsets.UTF_8)
+            );
+            if (response.statusCode() < 200 || response.statusCode() >= 300) {
+                throw new IllegalStateException("Elasticsearch RAG search failed with HTTP "
+                        + response.statusCode() + " from " + request.uri() + ": " + response.body());
+            }
+            JsonNode hits = objectMapper.readTree(response.body()).path("hits").path("hits");
+            List<JsonNode> results = new ArrayList<>();
+            if (hits.isArray()) {
+                hits.forEach(results::add);
+            }
+            return results;
+        } catch (IOException error) {
+            throw new IllegalStateException("Elasticsearch RAG search request failed", error);
+        } catch (InterruptedException error) {
+            Thread.currentThread().interrupt();
+            throw new IllegalStateException("Elasticsearch RAG search request was interrupted", error);
+        }
+    }
+
+    private URI searchUri(String indexName) {
+        String base = elasticsearchBaseUri.toString();
+        if (base.endsWith("/")) {
+            base = base.substring(0, base.length() - 1);
+        }
+        return URI.create(base + "/" + indexName + "/_search");
+    }
+
+    private static String firstUri(String uris) {
+        if (uris == null || uris.isBlank()) {
+            return "http://localhost:9200";
+        }
+        return uris.split(",")[0].trim();
     }
 
     private RetrievalResult toResult(Map<String, Object> source, float score, String mode) {

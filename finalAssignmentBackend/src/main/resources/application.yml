@@ -49,7 +49,7 @@ rag:
     number-of-replicas: ${RAG_INDEX_REPLICAS:0}
     refresh-interval: ${RAG_INDEX_REFRESH_INTERVAL:30s}
   retrieval:
-    enabled: false
+    enabled: ${RAG_RETRIEVAL_ENABLED:false}
     top-k: 10
     vector-weight: 0.6
     bm25-weight: 0.4

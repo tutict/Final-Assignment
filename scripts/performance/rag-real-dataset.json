@@ -4,7 +4,7 @@
   "documents": [
     {
       "sourceId": "perf-rag-appeal-guide",
-      "sourceVersion": "v1",
+      "sourceVersion": "v3",
       "title": "RAG压测资料：交通违法申诉办理指南",
       "aclScope": "PUBLIC",
       "route": "/appeal",
@@ -13,7 +13,7 @@
     },
     {
       "sourceId": "perf-rag-fine-payment",
-      "sourceVersion": "v1",
+      "sourceVersion": "v3",
       "title": "RAG压测资料：罚款缴纳与支付状态说明",
       "aclScope": "PUBLIC",
       "route": "/finePayment",
@@ -22,7 +22,7 @@
     },
     {
       "sourceId": "perf-rag-accident-fast-process",
-      "sourceVersion": "v1",
+      "sourceVersion": "v3",
       "title": "RAG压测资料：事故快处与轻微事故处理指南",
       "aclScope": "PUBLIC",
       "route": "/map",
@@ -31,7 +31,7 @@
     },
     {
       "sourceId": "perf-rag-vehicle-register",
-      "sourceVersion": "v1",
+      "sourceVersion": "v3",
       "title": "RAG压测资料：车辆登记与驾驶员档案关联",
       "aclScope": "PUBLIC",
       "route": "/vehicleRegister",

@@ -25,6 +25,7 @@ $Root = (Resolve-Path (Join-Path $PSScriptRoot "..\..")).Path
 $K6Dir = Join-Path $Root "artifacts\k6"
 $WrkDir = Join-Path $Root "artifacts\wrk"
 $DockerConfigDir = Join-Path $Root "artifacts\docker-config"
+$RagDatasetPath = Join-Path $Root "scripts\performance\rag-real-dataset.json"
 New-Item -ItemType Directory -Force -Path $K6Dir, $WrkDir, $DockerConfigDir | Out-Null
 [Environment]::SetEnvironmentVariable("DOCKER_CONFIG", $DockerConfigDir, "Process")
 Set-Location $Root
@@ -32,6 +33,10 @@ Set-Location $Root
 function Write-Step([string]$Message) {
     Write-Host ""
     Write-Host "==> $Message"
+}
+
+function ConvertFrom-CodePoints([int[]]$CodePoints) {
+    return -join ($CodePoints | ForEach-Object { [char]$_ })
 }
 
 function Get-AccessToken([string]$Username, [string]$Password) {
@@ -87,6 +92,14 @@ Write-Step "Check backend health"
 Invoke-RestMethod -Uri "$BaseUrl/actuator/health/liveness" | Out-Null
 Invoke-RestMethod -Uri "$BaseUrl/actuator/health/readiness" | Out-Null
 
+$ragDataset = Get-Content -LiteralPath $RagDatasetPath -Raw -Encoding UTF8 | ConvertFrom-Json
+$ragQuery = [string]$ragDataset.query
+if ([string]::IsNullOrWhiteSpace($ragQuery)) {
+    $ragQuery = ConvertFrom-CodePoints @(0x9a7e,0x9a76,0x5458,0x4ea4,0x901a,0x8fdd,0x6cd5,0x7533,0x8bc9,0x6750,0x6599,0x3001,0x7f5a,0x6b3e,0x7f34,0x7eb3,0x3001,0x4e8b,0x6545,0x5feb,0x5904,0x548c,0x8f66,0x8f86,0x767b,0x8bb0,0x529e,0x7406,0x6307,0x5357)
+}
+$aiActionMessage = ConvertFrom-CodePoints @(0x5e2e,0x6211,0x6253,0x5f00,0x4ea4,0x901a,0x8fdd,0x6cd5,0x7533,0x8bc9,0x529e,0x7406,0x9875,0x9762,0xff0c,0x5e76,0x8bf4,0x660e,0x4e0b,0x4e00,0x6b65,0x9700,0x8981,0x586b,0x5199,0x4ec0,0x4e48)
+$aiModelMessage = ConvertFrom-CodePoints @(0x8bf7,0x7528,0x4e09,0x53e5,0x8bdd,0x8bf4,0x660e,0x9a7e,0x9a76,0x5458,0x4ea4,0x901a,0x8fdd,0x6cd5,0x7533,0x8bc9,0x3001,0x7f5a,0x6b3e,0x7f34,0x7eb3,0x548c,0x4e8b,0x6545,0x5feb,0x5904,0x7684,0x529e,0x7406,0x6d41,0x7a0b)
+
 Write-Step "Fetch load-test account tokens"
 $driver = Get-AccessToken $DriverUsername $DriverPassword
 $admin = Get-AccessToken $AdminUsername $AdminPassword
@@ -97,7 +110,7 @@ Write-Step "Seed real RAG retrieval dataset"
 & "$Root\scripts\performance\seed-rag-load-dataset.ps1" `
     -BaseUrl $BaseUrl `
     -Token $super.token `
-    -DatasetPath "$Root\scripts\performance\rag-real-dataset.json"
+    -DatasetPath $RagDatasetPath
 
 Invoke-K6 "full-api-load" "$Root\scripts\k6\full-api-load.js" @{
     BASE_URL = $BaseUrl
@@ -128,6 +141,9 @@ Invoke-K6 "ai-rag-staged-load" "$Root\scripts\k6\ai-rag-staged-load.js" @{
     PERF_RAG_RATE = "1"
     PERF_INCLUDE_MODEL = if ($IncludeModel) { "true" } else { "false" }
     PERF_MODEL_RATE = "1"
+    PERF_RAG_QUERY = $ragQuery
+    PERF_ACTION_MESSAGE = $aiActionMessage
+    PERF_MODEL_MESSAGE = $aiModelMessage
     PERF_STRICT = "true"
     PERF_SUMMARY_JSON = "artifacts/k6/ai-rag-staged-load-summary.json"
 }
@@ -147,10 +163,12 @@ Invoke-Wrk "super-read-mix" "super-read-mix.lua" "http://host.docker.internal:80
 
 Invoke-Wrk "rag-query" "rag-query.lua" "http://host.docker.internal:8080/api/rag/query" $WrkAiConnections @{
     PERF_TOKEN = $admin.token
+    PERF_QUERY = $ragQuery
 }
 
 Invoke-Wrk "ai-actions" "ai-actions.lua" "http://host.docker.internal:8080" $WrkAiConnections @{
     PERF_TOKEN = $admin.token
+    PERF_MESSAGE = $aiActionMessage
 }
 
 # Run login pressure last so the login rate-limit window does not affect token fetching or read tests.

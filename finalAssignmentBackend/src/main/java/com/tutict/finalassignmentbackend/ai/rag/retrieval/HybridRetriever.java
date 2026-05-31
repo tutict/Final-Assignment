@@ -38,21 +38,29 @@ public class HybridRetriever {
                 query.topK(),
                 query.topK() * Math.max(1, properties.getCandidateMultiplier())
         );
-        float[] queryVector = embeddingSearchService.embedQuery(query.normalizedQuery());
         List<RetrievalResult> bm25Results = embeddingSearchService.bm25Search(
                 query.normalizedQuery(),
                 aclFilter,
                 candidateLimit
         );
-        List<RetrievalResult> vectorResults = embeddingSearchService.vectorSearch(
-                queryVector,
-                aclFilter,
-                candidateLimit
-        );
+        List<RetrievalResult> vectorResults = vectorResults(query, aclFilter, candidateLimit);
         return rerankProvider.rerank(
                 query.normalizedQuery(),
                 fuseResults(bm25Results, vectorResults, query.accessContext(), query.topK())
         );
+    }
+
+    private List<RetrievalResult> vectorResults(
+            RetrievalQuery query,
+            AclFilterService.AclFilter aclFilter,
+            int candidateLimit
+    ) {
+        try {
+            float[] queryVector = embeddingSearchService.embedQuery(query.normalizedQuery());
+            return embeddingSearchService.vectorSearch(queryVector, aclFilter, candidateLimit);
+        } catch (RuntimeException error) {
+            return List.of();
+        }
     }
 
     public List<RetrievalResult> fuseResults(

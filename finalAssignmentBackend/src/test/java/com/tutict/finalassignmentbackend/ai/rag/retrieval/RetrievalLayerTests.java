@@ -38,6 +38,27 @@ class HybridRetrieverTest {
                 .isLessThan(0.0001);
     }
 
+    @Test
+    void keepsBm25ResultsWhenEmbeddingProviderFails() {
+        RagRetrievalProperties properties = properties();
+        EmbeddingSearchService searchService = new EmbeddingSearchService(
+                new ThrowingEmbeddingProvider(),
+                new FakeBackend(List.of(result("bm25", 1, 0, "PUBLIC")), List.of())
+        );
+        HybridRetriever retriever = new HybridRetriever(
+                searchService,
+                new AclFilterService(),
+                new LightweightRerankProvider(properties),
+                properties
+        );
+
+        List<RetrievalResult> results = retriever.retrieve(
+                new RetrievalQuery("query", new AclFilterService.AccessContext("u1", java.util.Set.of(), null), 5)
+        );
+
+        assertThat(results).extracting(RetrievalResult::chunkId).containsExactly("bm25");
+    }
+
     private static float[] vector() {
         return new float[]{1, 0, 0};
     }
@@ -178,6 +199,18 @@ class EmbeddingSearchServiceTest {
         assertThat(vectorResults).extracting(RetrievalResult::chunkId).containsExactly("vector");
     }
 
+    @Test
+    void searchFailuresReturnEmptyResults() {
+        EmbeddingSearchService service = new EmbeddingSearchService(
+                new FakeEmbeddingProvider(),
+                new ThrowingSearchBackend()
+        );
+        AclFilterService.AclFilter filter = new AclFilterService.AclFilter("u1", java.util.Set.of(), null);
+
+        assertThat(service.bm25Search("hello", filter, 5)).isEmpty();
+        assertThat(service.vectorSearch(new float[]{1, 0, 0}, filter, 5)).isEmpty();
+    }
+
     private static RetrievalResult result(String chunkId, double bm25, double vector) {
         return new RetrievalResult(chunkId, "d", "content", "title", "BUSINESS", "t", "1",
                 "content", "/r", bm25, vector, 0, Map.of("aclScope", "PUBLIC"));
@@ -216,6 +249,19 @@ record StaticEmbeddingProvider(float[] vector) implements EmbeddingProvider {
     }
 }
 
+final class ThrowingEmbeddingProvider implements EmbeddingProvider {
+
+    @Override
+    public int dimensions() {
+        return 3;
+    }
+
+    @Override
+    public float[] embed(String text) {
+        throw new IllegalStateException("embedding unavailable");
+    }
+}
+
 record FakeBackend(
         List<RetrievalResult> bm25Results,
         List<RetrievalResult> vectorResults
@@ -237,5 +283,26 @@ record FakeBackend(
             int limit
     ) {
         return vectorResults.stream().limit(limit).toList();
+    }
+}
+
+final class ThrowingSearchBackend implements RagSearchBackend {
+
+    @Override
+    public List<RetrievalResult> bm25Search(
+            String normalizedQuery,
+            AclFilterService.AclFilter aclFilter,
+            int limit
+    ) {
+        throw new IllegalStateException("search unavailable");
+    }
+
+    @Override
+    public List<RetrievalResult> vectorSearch(
+            float[] queryVector,
+            AclFilterService.AclFilter aclFilter,
+            int limit
+    ) {
+        throw new IllegalStateException("search unavailable");
     }
 }

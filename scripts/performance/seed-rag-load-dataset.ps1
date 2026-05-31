@@ -20,6 +20,15 @@ $headers = @{
     Accept = "application/json"
 }
 
+function Invoke-JsonPost([string]$Uri, [string]$JsonBody) {
+    Invoke-RestMethod `
+        -Method Post `
+        -Uri $Uri `
+        -Headers $headers `
+        -ContentType "application/json; charset=utf-8" `
+        -Body ([System.Text.Encoding]::UTF8.GetBytes($JsonBody))
+}
+
 if (-not (Test-Path -LiteralPath $DatasetPath)) {
     throw "RAG load dataset not found: $DatasetPath"
 }
@@ -47,12 +56,7 @@ foreach ($document in $documents) {
         metadataJson = $metadata
     } | ConvertTo-Json -Compress -Depth 12
 
-    Invoke-RestMethod `
-        -Method Post `
-        -Uri "$BaseUrl/api/rag/admin/documents/manual" `
-        -Headers $headers `
-        -ContentType "application/json; charset=utf-8" `
-        -Body $payload | Out-Null
+    Invoke-JsonPost "$BaseUrl/api/rag/admin/documents/manual" $payload | Out-Null
 }
 
 for ($i = 0; $i -lt $EmbeddingBatches; $i++) {
@@ -74,12 +78,7 @@ $queryPayload = @{
     roles = @($dataset.roles)
 } | ConvertTo-Json -Compress -Depth 8
 
-$queryResult = Invoke-RestMethod `
-    -Method Post `
-    -Uri "$BaseUrl/api/rag/query" `
-    -Headers $headers `
-    -ContentType "application/json; charset=utf-8" `
-    -Body $queryPayload
+$queryResult = Invoke-JsonPost "$BaseUrl/api/rag/query" $queryPayload
 
 $resultCount = if ($queryResult.results) { @($queryResult.results).Count } else { 0 }
 if ($resultCount -le 0) {

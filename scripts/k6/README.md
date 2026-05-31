@@ -60,3 +60,19 @@ k6 run scripts/k6/ai-rag-staged-load.js
 ```
 
 `scripts/performance/run-load-tests.ps1` 会先调用 `scripts/performance/seed-rag-load-dataset.ps1` 写入专用 RAG 压测资料，再以 `PERF_STRICT=true` 执行 AI/RAG 分段压测。`ai-rag-staged-load.js` 会在 AI stream 摘要中分别输出真实 `ollama` 调用成功率和 `noop fallback` 比例。
+
+## 本地完整编排
+
+推荐优先使用统一入口，统一传入 RAG 查询词、AI actions 业务意图和模型生成提示词，避免 PowerShell 中文编码影响脚本参数：
+
+```powershell
+powershell -ExecutionPolicy Bypass -File scripts\performance\run-load-tests.ps1 `
+  -Duration 20s `
+  -DriverVus 8 `
+  -AdminVus 6 `
+  -SuperVus 2 `
+  -LoginRate 0 `
+  -IncludeModel
+```
+
+如果启用真实 Ollama，`PERF_STRICT=true` 会把 `/api/ai/chat/actions` 的尾延迟也纳入阈值判断；模型参与动作编排时该场景可能因为 `ai_http_orchestration_ms` 超阈值而返回 k6 exit code `99`。
