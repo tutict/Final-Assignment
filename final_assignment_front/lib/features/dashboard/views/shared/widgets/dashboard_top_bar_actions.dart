@@ -85,26 +85,34 @@ class _TopBarActionButton extends StatelessWidget {
     return Tooltip(
       message: tooltip,
       waitDuration: const Duration(milliseconds: 350),
-      child: SizedBox.square(
-        dimension: dimension,
-        child: Material(
-          color: Colors.transparent,
-          borderRadius: BorderRadius.circular(8),
-          child: Ink(
-            decoration: BoxDecoration(
-              color: background,
-              borderRadius: BorderRadius.circular(8),
-              border: Border.all(color: border),
-            ),
-            child: InkWell(
-              borderRadius: BorderRadius.circular(8),
-              onTap: onPressed,
-              hoverColor: overlay,
-              focusColor: overlay,
-              splashColor: scheme.primary.withValues(alpha: 0.14),
-              child: Center(
-                child: Icon(icon,
-                    size: dimension <= 40 ? 22 : 24, color: foreground),
+      child: Semantics(
+        button: true,
+        selected: selected,
+        label: tooltip,
+        child: SizedBox.square(
+          dimension: dimension,
+          child: Material(
+            color: Colors.transparent,
+            borderRadius: BorderRadius.circular(8),
+            child: Ink(
+              decoration: BoxDecoration(
+                color: background,
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(color: border),
+              ),
+              child: InkWell(
+                borderRadius: BorderRadius.circular(8),
+                onTap: onPressed,
+                hoverColor: overlay,
+                focusColor: overlay,
+                splashColor: scheme.primary.withValues(alpha: 0.14),
+                child: Center(
+                  child: Icon(
+                    icon,
+                    size: dimension <= 40 ? 22 : 24,
+                    color: foreground,
+                  ),
+                ),
               ),
             ),
           ),
