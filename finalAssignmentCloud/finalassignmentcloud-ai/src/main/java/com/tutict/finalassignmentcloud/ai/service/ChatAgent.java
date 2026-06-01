@@ -1,6 +1,7 @@
 package com.tutict.finalassignmentcloud.ai.service;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.tutict.finalassignmentcloud.ai.client.rag.RagRetrievalResult;
 import com.tutict.finalassignmentcloud.model.ai.ChatActionResponse;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -23,13 +24,24 @@ public class ChatAgent {
 
     private final OllamaChatModel chatModel;
     private final AIChatSearchService aiChatSearchService;
+    private final RagRetrievalService ragRetrievalService;
 
-    public ChatAgent(OllamaChatModel chatModel, AIChatSearchService aiChatSearchService) {
+    public ChatAgent(OllamaChatModel chatModel,
+                     AIChatSearchService aiChatSearchService,
+                     RagRetrievalService ragRetrievalService) {
         this.chatModel = chatModel;
         this.aiChatSearchService = aiChatSearchService;
+        this.ragRetrievalService = ragRetrievalService;
     }
 
     public Flux<ChatResponse> streamChat(String message, String massage, boolean webSearch) {
+        return streamChat(message, massage, webSearch, Map.of());
+    }
+
+    public Flux<ChatResponse> streamChat(String message,
+                                         String massage,
+                                         boolean webSearch,
+                                         Map<String, Object> metadata) {
         String userMessage = resolveUserMessage(message, massage);
         if (massage != null && !massage.isBlank()) {
             logger.warn("Parameter 'massage' has been deprecated, please use 'message' instead.");
@@ -37,11 +49,18 @@ public class ChatAgent {
 
         logger.info("AI chat request received. message={}, webSearch={}", userMessage, webSearch);
 
-        Prompt prompt = buildPrompt(userMessage, webSearch);
+        Prompt prompt = buildPrompt(userMessage, webSearch, safeMetadata(metadata));
         return chatModel.stream(prompt);
     }
 
     public ChatActionResponse chatWithActions(String message, String massage, boolean webSearch) {
+        return chatWithActions(message, massage, webSearch, Map.of());
+    }
+
+    public ChatActionResponse chatWithActions(String message,
+                                              String massage,
+                                              boolean webSearch,
+                                              Map<String, Object> metadata) {
         String userMessage = resolveUserMessage(message, massage);
         if (massage != null && !massage.isBlank()) {
             logger.warn("Parameter 'massage' has been deprecated, please use 'message' instead.");
@@ -49,13 +68,13 @@ public class ChatAgent {
 
         logger.info("AI chat actions request received. message={}, webSearch={}", userMessage, webSearch);
 
-        Prompt prompt = buildActionPrompt(userMessage, webSearch);
+        Prompt prompt = buildActionPrompt(userMessage, webSearch, safeMetadata(metadata));
         ChatResponse response = chatModel.call(prompt);
         String content = extractResponseText(response);
         return parseActionResponse(content);
     }
 
-    private Prompt buildPrompt(String userMessage, boolean webSearch) {
+    private Prompt buildPrompt(String userMessage, boolean webSearch, Map<String, Object> metadata) {
         StringBuilder promptBuilder = new StringBuilder(
                 "你是一名专业的交通违法查询助手，请用简洁准确的中文回答，并尽量使用结构化的编号或要点。"
         ).append("\n\n");
@@ -69,10 +88,11 @@ public class ChatAgent {
 
         promptBuilder.append("用户问题：").append(userMessage);
 
+        appendRagContext(promptBuilder, ragRetrievalService.retrieve(userMessage, metadata));
         return new Prompt(new UserMessage(promptBuilder.toString()));
     }
 
-    private Prompt buildActionPrompt(String userMessage, boolean webSearch) {
+    private Prompt buildActionPrompt(String userMessage, boolean webSearch, Map<String, Object> metadata) {
         StringBuilder promptBuilder = new StringBuilder(
                 "你是一个交通违法业务助手，需要输出可执行的页面动作方案。"
         ).append("\n")
@@ -98,6 +118,7 @@ public class ChatAgent {
                 .append("约束：actions.type 仅能为 NAVIGATE / FILL_FORM / CALL_API / SHOW_MODAL。")
                 .append("如果无法执行动作，请返回空数组 actions，并将 needConfirm 设为 false。");
 
+        appendRagContext(promptBuilder, ragRetrievalService.retrieve(userMessage, metadata));
         return new Prompt(new UserMessage(promptBuilder.toString()));
     }
 
@@ -112,13 +133,11 @@ public class ChatAgent {
     }
 
     private String extractResponseText(ChatResponse response) {
-        if (response == null) {
+        if (response == null || response.getResult() == null || response.getResult().getOutput() == null) {
             return "";
-        } else {
-            response.getResult();
-            response.getResult();
         }
-        return response.getResult().getOutput().getText();
+        String text = response.getResult().getOutput().getText();
+        return text == null ? "" : text;
     }
 
     private ChatActionResponse parseActionResponse(String content) {
@@ -201,6 +220,41 @@ public class ChatAgent {
             }
         }
         return null;
+    }
+
+    private void appendRagContext(StringBuilder promptBuilder, List<RagRetrievalResult> results) {
+        if (results == null || results.isEmpty()) {
+            return;
+        }
+        promptBuilder.append("\n\nKnowledge base context from the RAG service:\n")
+                .append(formatRagResults(results))
+                .append("Use this context when it is relevant. Do not expose hidden ACL or metadata details.\n\n");
+    }
+
+    private static Map<String, Object> safeMetadata(Map<String, Object> metadata) {
+        return metadata == null ? Map.of() : metadata;
+    }
+
+    private static StringBuilder formatRagResults(List<RagRetrievalResult> results) {
+        StringBuilder builder = new StringBuilder();
+        int limit = Math.min(results.size(), 8);
+        for (int i = 0; i < limit; i++) {
+            RagRetrievalResult item = results.get(i);
+            builder.append(i + 1).append(". ")
+                    .append(defaultText(item.title(), item.sourceType()))
+                    .append(" [source=")
+                    .append(defaultText(item.sourceTable(), item.sourceType()))
+                    .append(", score=")
+                    .append(item.finalScore())
+                    .append("]\n   ")
+                    .append(defaultText(item.content(), ""))
+                    .append("\n");
+        }
+        return builder;
+    }
+
+    private static String defaultText(String value, String fallback) {
+        return value == null || value.isBlank() ? fallback : value;
     }
 
     private static StringBuilder formatSearchResults(List<Map<String, String>> results) {

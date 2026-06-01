@@ -22,6 +22,7 @@
         <module>finalassignmentcloud-audit</module>
         <module>finalassignmentcloud-system</module>
         <module>finalassignmentcloud-ai</module>
+        <module>finalassignmentcloud-rag</module>
         <module>finalassignmentcloud-search</module>
     </modules>
     <properties>

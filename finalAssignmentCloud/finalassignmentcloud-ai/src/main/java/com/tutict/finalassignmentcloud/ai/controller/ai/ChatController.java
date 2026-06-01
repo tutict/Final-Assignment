@@ -21,6 +21,7 @@ import reactor.core.publisher.Flux;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
@@ -81,7 +82,7 @@ public class ChatController {
         }
         String message = messageWithConversationWindow(request);
 
-        return chatAgent.streamChat(message, null, request.isWebSearchEnabled())
+        return chatAgent.streamChat(message, null, request.isWebSearchEnabled(), metadataWithRagQuery(request))
                 .map(ChatController::extractResponseText)
                 .filter(token -> token != null && !token.isBlank())
                 .map(token -> toSse(ChatStreamEvent.token(sessionKey, messageId, token)))
@@ -148,6 +149,19 @@ public class ChatController {
         builder.append("\nCurrent user message:\n")
                 .append(message);
         return builder.toString();
+    }
+
+    private static Map<String, Object> metadataWithRagQuery(AiChatStreamRequest request) {
+        if (request == null) {
+            return Map.of();
+        }
+        Map<String, Object> metadata = request.metadata();
+        if (metadata.containsKey("ragQuery") || metadata.containsKey("rag_query")) {
+            return metadata;
+        }
+        Map<String, Object> enriched = new LinkedHashMap<>(metadata);
+        enriched.put("ragQuery", request.normalizedMessage());
+        return Map.copyOf(enriched);
     }
 
     public record AiChatStreamRequest(

@@ -28,3 +28,13 @@ services:
     ports:
       - "3308:3306"
     command: --default-authentication-plugin=mysql_native_password
+  mysql-rag:
+    image: mysql:8.4
+    container_name: finalassignmentcloud-mysql-rag
+    environment:
+      - MYSQL_ROOT_PASSWORD=root
+      - MYSQL_DATABASE=rag
+      - TZ=Asia/Shanghai
+    ports:
+      - "3309:3306"
+    command: --default-authentication-plugin=mysql_native_password

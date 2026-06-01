@@ -33,3 +33,6 @@ management:
 ai:
   search:
     timeout-seconds: ${AI_SEARCH_TIMEOUT:30}
+  rag:
+    enabled: ${AI_RAG_ENABLED:false}
+    top-k: ${AI_RAG_TOP_K:5}

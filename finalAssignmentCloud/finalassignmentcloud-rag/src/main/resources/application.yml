@@ -1,0 +1,85 @@
+spring:
+  application:
+    name: finalassignmentcloud-rag
+  main:
+    keep-alive: ${SPRING_MAIN_KEEP_ALIVE:${SPRING_THREADS_VIRTUAL_ENABLED:false}}
+  threads:
+    virtual:
+      enabled: ${SPRING_THREADS_VIRTUAL_ENABLED:false}
+  config:
+    import: "optional:nacos:"
+  cloud:
+    nacos:
+      discovery:
+        server-addr: ${NACOS_SERVER:localhost:8848}
+        namespace: ${NACOS_NAMESPACE:}
+        group: ${NACOS_GROUP:DEFAULT_GROUP}
+        username: ${NACOS_USERNAME:}
+        password: ${NACOS_PASSWORD:}
+      config:
+        server-addr: ${NACOS_SERVER:localhost:8848}
+        namespace: ${NACOS_NAMESPACE:}
+        group: ${NACOS_GROUP:DEFAULT_GROUP}
+        file-extension: yaml
+        username: ${NACOS_USERNAME:}
+        password: ${NACOS_PASSWORD:}
+  datasource:
+    driver-class-name: com.mysql.cj.jdbc.Driver
+    url: ${RAG_DB_URL:jdbc:mysql://localhost:3309/rag?useSSL=false&serverTimezone=Asia/Shanghai&allowPublicKeyRetrieval=true}
+    username: ${RAG_DB_USERNAME:root}
+    password: ${RAG_DB_PASSWORD:root}
+  sql:
+    init:
+      mode: ${RAG_SQL_INIT_MODE:never}
+      schema-locations: classpath:rag/rag_schema.sql
+  elasticsearch:
+    uris: ${ELASTICSEARCH_URIS:http://localhost:9200}
+server:
+  port: 8088
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info
+ai:
+  provider:
+    timeout: ${AI_PROVIDER_TIMEOUT:PT60S}
+  ollama:
+    enabled: ${OLLAMA_ENABLED:true}
+    base-url: ${OLLAMA_URL:http://localhost:11434}
+rag:
+  enabled: ${RAG_ENABLED:true}
+  backfill:
+    enabled: ${RAG_BACKFILL_ENABLED:false}
+  chunk:
+    size: ${RAG_CHUNK_SIZE:500}
+    overlap: ${RAG_CHUNK_OVERLAP:100}
+  indexing:
+    enabled: ${RAG_INDEXING_ENABLED:true}
+    batch-size: ${RAG_INDEXING_BATCH_SIZE:200}
+  embedding:
+    enabled: ${RAG_EMBEDDING_ENABLED:true}
+    provider: ${RAG_EMBEDDING_PROVIDER:ollama}
+    model: ${RAG_EMBEDDING_MODEL:nomic-embed-text}
+    dimensions: ${RAG_EMBEDDING_DIMENSIONS:768}
+    batch-size: ${RAG_EMBEDDING_BATCH_SIZE:25}
+    max-attempts: ${RAG_EMBEDDING_MAX_ATTEMPTS:3}
+    retry-delay: ${RAG_EMBEDDING_RETRY_DELAY:PT1M}
+    poll-interval-ms: ${RAG_EMBEDDING_POLL_INTERVAL_MS:30000}
+  index:
+    name: ${RAG_INDEX_NAME:rag_chunk_v1}
+    alias: ${RAG_INDEX_ALIAS:rag_chunk_current}
+    text-analyzer: ${RAG_INDEX_TEXT_ANALYZER:standard}
+    number-of-shards: ${RAG_INDEX_SHARDS:1}
+    number-of-replicas: ${RAG_INDEX_REPLICAS:0}
+    refresh-interval: ${RAG_INDEX_REFRESH_INTERVAL:30s}
+  retrieval:
+    enabled: ${RAG_RETRIEVAL_ENABLED:false}
+    top-k: ${RAG_RETRIEVAL_TOP_K:10}
+    vector-weight: ${RAG_RETRIEVAL_VECTOR_WEIGHT:0.6}
+    bm25-weight: ${RAG_RETRIEVAL_BM25_WEIGHT:0.4}
+    min-score: ${RAG_RETRIEVAL_MIN_SCORE:0.2}
+    candidate-multiplier: ${RAG_RETRIEVAL_CANDIDATE_MULTIPLIER:3}
+    rrf-rank-constant: ${RAG_RETRIEVAL_RRF_RANK_CONSTANT:60}
+    rerank-enabled: ${RAG_RERANK_ENABLED:true}
+    rerank-lexical-weight: ${RAG_RERANK_LEXICAL_WEIGHT:0.15}

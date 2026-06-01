@@ -47,6 +47,10 @@ spring:
           uri: lb://finalassignmentcloud-ai
           predicates:
             - Path=/api/ai/**
+        - id: rag-service
+          uri: lb://finalassignmentcloud-rag
+          predicates:
+            - Path=/api/rag/**
         - id: search-service
           uri: lb://finalassignmentcloud-search
           predicates:
