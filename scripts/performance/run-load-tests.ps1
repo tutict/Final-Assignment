@@ -107,10 +107,15 @@ $super = Get-AccessToken $SuperUsername $SuperPassword
 $driverId = if ($driver.driverId) { $driver.driverId } else { "6" }
 
 Write-Step "Seed real RAG retrieval dataset"
-& "$Root\scripts\performance\seed-rag-load-dataset.ps1" `
-    -BaseUrl $BaseUrl `
-    -Token $super.token `
-    -DatasetPath $RagDatasetPath
+try {
+    & "$Root\scripts\performance\seed-rag-load-dataset.ps1" `
+        -BaseUrl $BaseUrl `
+        -Token $super.token `
+        -DatasetPath $RagDatasetPath
+} catch {
+    Write-Error "RAG 压测数据集预热失败。请确认后端已启用 RAG 检索，例如以 RAG_RETRIEVAL_ENABLED=true 启动；原始错误：$($_.Exception.Message)"
+    throw
+}
 
 Invoke-K6 "full-api-load" "$Root\scripts\k6\full-api-load.js" @{
     BASE_URL = $BaseUrl
