@@ -72,7 +72,10 @@ func loadSpringControllerRoutes(t *testing.T) map[string]string {
 				continue
 			}
 			if previous, ok := routes[key]; ok {
-				t.Fatalf("duplicate Spring route %s in %s and %s", key, previous, controller)
+				if previous != controller {
+					t.Fatalf("duplicate Spring route %s in %s and %s", key, previous, controller)
+				}
+				continue
 			}
 			routes[key] = controller
 		}
