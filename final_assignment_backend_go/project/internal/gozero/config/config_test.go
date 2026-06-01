@@ -16,4 +16,10 @@ func TestLoadDefaultConfig(t *testing.T) {
 	if config.Rag.EmbeddingProvider != "deterministic" {
 		t.Fatalf("Rag.EmbeddingProvider = %q", config.Rag.EmbeddingProvider)
 	}
+	if config.Rag.RetrievalTopK != 10 {
+		t.Fatalf("Rag.RetrievalTopK = %d", config.Rag.RetrievalTopK)
+	}
+	if !config.Rag.RerankEnabled {
+		t.Fatalf("Rag.RerankEnabled = false")
+	}
 }

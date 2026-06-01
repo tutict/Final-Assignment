@@ -7,6 +7,7 @@ Rag:
   Enabled: false
   IndexingEnabled: false
   EmbeddingEnabled: false
+  RetrievalEnabled: false
   MySQLDSN: ""
   ElasticsearchAddresses: []
   ElasticsearchUsername: ""
@@ -21,4 +22,12 @@ Rag:
   MaxBatchSize: 500
   MaxRequeueLimit: 5000
   MaxUploadBytes: 8388608
+  RetrievalTopK: 10
+  VectorWeight: 0.6
+  BM25Weight: 0.4
+  MinScore: 0.2
+  CandidateMultiplier: 3
+  RRFRankConstant: 60
+  RerankEnabled: true
+  RerankLexicalWeight: 0.15
   AutoMigrate: false

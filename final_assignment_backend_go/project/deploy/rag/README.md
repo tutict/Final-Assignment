@@ -23,6 +23,7 @@ Useful smoke checks:
 Invoke-WebRequest -UseBasicParsing http://127.0.0.1:8081/api/rag/admin/overview
 Invoke-WebRequest -UseBasicParsing -Method POST http://127.0.0.1:8081/api/rag/admin/backfill
 Invoke-WebRequest -UseBasicParsing -Method POST http://127.0.0.1:8081/api/rag/admin/embedding/run
+Invoke-WebRequest -UseBasicParsing -Method POST http://127.0.0.1:8081/api/rag/query -ContentType 'application/json' -Body '{"query":"illegal parking appeal","topK":5,"roles":["admin"]}'
 ```
 
 The default live config uses deterministic embeddings, so Ollama is not required for this dependency stack.

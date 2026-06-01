@@ -37,6 +37,7 @@ type Runtime struct {
 	EmbeddingTasks *service.RagEmbeddingTaskService
 	Migration      *service.RagIndexMigrationService
 	UploadParser   *UploadParser
+	Query          *service.RagQueryService
 
 	db    *gorm.DB
 	sqlDB *sql.DB
@@ -96,9 +97,9 @@ func NewRuntime(conf config.RagConf) (*Runtime, error) {
 			RefreshInterval:  "30s",
 			TextAnalyzer:     "standard",
 		})
-	} else if conf.EmbeddingEnabled {
+	} else if conf.EmbeddingEnabled || conf.RetrievalEnabled {
 		_ = sqlDB.Close()
-		return nil, fmt.Errorf("Rag.ElasticsearchAddresses is required when Rag.EmbeddingEnabled is true")
+		return nil, fmt.Errorf("Rag.ElasticsearchAddresses is required when Rag.EmbeddingEnabled or Rag.RetrievalEnabled is true")
 	}
 
 	documentService := service.NewRagDocumentService(documentRepo, chunkRepo, taskRepo, serviceConfig)
@@ -123,6 +124,7 @@ func NewRuntime(conf config.RagConf) (*Runtime, error) {
 		EmbeddingTasks: embeddingTaskService,
 		Migration:      service.NewRagIndexMigrationService(indexManagerService, embeddingTaskService, serviceConfig),
 		UploadParser:   NewUploadParser(conf.MaxUploadBytes),
+		Query:          service.NewRagQueryService(indexManager, provider, serviceConfig),
 		db:             db,
 		sqlDB:          sqlDB,
 	}, nil
@@ -133,6 +135,7 @@ func DisabledRuntime() *Runtime {
 	config.Enabled = false
 	config.IndexingEnabled = false
 	config.EmbeddingEnabled = false
+	config.RetrievalEnabled = false
 	return &Runtime{Enabled: false, Config: config}
 }
 
@@ -148,6 +151,8 @@ func (r *Runtime) Ready() bool {
 }
 
 func normalizeConf(conf config.RagConf) config.RagConf {
+	defaults := service.DefaultRagConfig()
+	rerankExplicitlyDisabled := !conf.RerankEnabled && conf.RerankLexicalWeight > 0
 	if conf.ElasticsearchIndex == "" {
 		conf.ElasticsearchIndex = defaultIndexName
 	}
@@ -172,6 +177,30 @@ func normalizeConf(conf config.RagConf) config.RagConf {
 	if conf.MaxUploadBytes <= 0 {
 		conf.MaxUploadBytes = defaultUploadBytes
 	}
+	if conf.RetrievalTopK <= 0 {
+		conf.RetrievalTopK = defaults.RetrievalTopK
+	}
+	if conf.VectorWeight <= 0 {
+		conf.VectorWeight = defaults.VectorWeight
+	}
+	if conf.BM25Weight <= 0 {
+		conf.BM25Weight = defaults.BM25Weight
+	}
+	if conf.MinScore <= 0 {
+		conf.MinScore = defaults.MinScore
+	}
+	if conf.CandidateMultiplier <= 0 {
+		conf.CandidateMultiplier = defaults.CandidateMultiplier
+	}
+	if conf.RRFRankConstant <= 0 {
+		conf.RRFRankConstant = defaults.RRFRankConstant
+	}
+	if conf.RetrievalEnabled && !rerankExplicitlyDisabled {
+		conf.RerankEnabled = defaults.RerankEnabled
+	}
+	if conf.RerankLexicalWeight <= 0 {
+		conf.RerankLexicalWeight = defaults.RerankLexicalWeight
+	}
 	if conf.OllamaBaseURL == "" {
 		conf.OllamaBaseURL = defaultOllamaBaseURL
 	}
@@ -186,9 +215,18 @@ func toServiceConfig(conf config.RagConf, provider service.RagEmbeddingProvider)
 	serviceConfig.Enabled = conf.Enabled
 	serviceConfig.IndexingEnabled = conf.IndexingEnabled
 	serviceConfig.EmbeddingEnabled = conf.EmbeddingEnabled
+	serviceConfig.RetrievalEnabled = conf.RetrievalEnabled
 	serviceConfig.EmbeddingProvider = provider.ProviderName()
 	serviceConfig.EmbeddingModel = provider.ModelName()
 	serviceConfig.MaxBatchSize = conf.MaxBatchSize
 	serviceConfig.MaxRequeueLimit = conf.MaxRequeueLimit
+	serviceConfig.RetrievalTopK = conf.RetrievalTopK
+	serviceConfig.VectorWeight = conf.VectorWeight
+	serviceConfig.BM25Weight = conf.BM25Weight
+	serviceConfig.MinScore = conf.MinScore
+	serviceConfig.CandidateMultiplier = conf.CandidateMultiplier
+	serviceConfig.RRFRankConstant = conf.RRFRankConstant
+	serviceConfig.RerankEnabled = conf.RerankEnabled
+	serviceConfig.RerankLexicalWeight = conf.RerankLexicalWeight
 	return serviceConfig
 }

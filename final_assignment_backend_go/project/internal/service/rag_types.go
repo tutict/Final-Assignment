@@ -20,12 +20,21 @@ type RagConfig struct {
 	Enabled              bool
 	IndexingEnabled      bool
 	EmbeddingEnabled     bool
+	RetrievalEnabled     bool
 	EmbeddingProvider    string
 	EmbeddingModel       string
 	MaxBatchSize         int
 	MaxRequeueLimit      int
 	MaxEmbeddingAttempts int
 	RetryDelay           time.Duration
+	RetrievalTopK        int
+	VectorWeight         float64
+	BM25Weight           float64
+	MinScore             float64
+	CandidateMultiplier  int
+	RRFRankConstant      int
+	RerankEnabled        bool
+	RerankLexicalWeight  float64
 }
 
 func DefaultRagConfig() RagConfig {
@@ -33,12 +42,21 @@ func DefaultRagConfig() RagConfig {
 		Enabled:              true,
 		IndexingEnabled:      true,
 		EmbeddingEnabled:     true,
+		RetrievalEnabled:     false,
 		EmbeddingProvider:    "unassigned",
 		EmbeddingModel:       "unassigned",
 		MaxBatchSize:         500,
 		MaxRequeueLimit:      5000,
 		MaxEmbeddingAttempts: 3,
 		RetryDelay:           30 * time.Second,
+		RetrievalTopK:        10,
+		VectorWeight:         0.6,
+		BM25Weight:           0.4,
+		MinScore:             0.2,
+		CandidateMultiplier:  3,
+		RRFRankConstant:      60,
+		RerankEnabled:        true,
+		RerankLexicalWeight:  0.15,
 	}
 }
 
@@ -109,6 +127,71 @@ type RagVectorStore interface {
 		provider string,
 		model string,
 	) error
+}
+
+type RagSearchBackend interface {
+	BM25Search(ctx context.Context, normalizedQuery string, aclFilter RagAccessFilter, limit int) ([]RagRetrievalResult, error)
+	VectorSearch(ctx context.Context, queryVector []float32, aclFilter RagAccessFilter, limit int) ([]RagRetrievalResult, error)
+}
+
+type RagQueryRequest struct {
+	Query      string   `json:"query"`
+	TopK       *int     `json:"topK,omitempty"`
+	UserID     string   `json:"userId,omitempty"`
+	Roles      []string `json:"roles,omitempty"`
+	Department string   `json:"department,omitempty"`
+}
+
+type RagQueryResponse struct {
+	Results []RagRetrievalResult `json:"results"`
+}
+
+type RagRetrievalQuery struct {
+	NormalizedQuery string
+	AccessContext   RagAccessContext
+	TopK            int
+}
+
+type RagAccessContext struct {
+	UserID     string
+	Roles      []string
+	Department string
+}
+
+type RagAccessFilter struct {
+	UserID     string
+	Roles      []string
+	Department string
+}
+
+type RagRetrievalResult struct {
+	ChunkID        string         `json:"chunkId"`
+	DocumentID     string         `json:"documentId"`
+	Content        string         `json:"content"`
+	Title          string         `json:"title"`
+	SourceType     string         `json:"sourceType"`
+	SourceTable    string         `json:"sourceTable"`
+	SourceID       string         `json:"sourceId"`
+	SourceField    string         `json:"sourceField"`
+	Route          string         `json:"route"`
+	BM25Score      float64        `json:"bm25Score"`
+	VectorScore    float64        `json:"vectorScore"`
+	FinalScore     float64        `json:"finalScore"`
+	Metadata       map[string]any `json:"metadata"`
+	ACLScope       string         `json:"-"`
+	ACLRoles       []string       `json:"-"`
+	ACLUserIDs     []string       `json:"-"`
+	ACLDepartments []string       `json:"-"`
+}
+
+func (r RagRetrievalResult) WithScores(bm25Score, vectorScore, finalScore float64) RagRetrievalResult {
+	r.BM25Score = bm25Score
+	r.VectorScore = vectorScore
+	r.FinalScore = finalScore
+	if r.Metadata == nil {
+		r.Metadata = map[string]any{}
+	}
+	return r
 }
 
 type RagOverview struct {
@@ -189,6 +272,27 @@ func normalizeRagConfig(config RagConfig) RagConfig {
 	}
 	if config.RetryDelay <= 0 {
 		config.RetryDelay = defaults.RetryDelay
+	}
+	if config.RetrievalTopK <= 0 {
+		config.RetrievalTopK = defaults.RetrievalTopK
+	}
+	if config.VectorWeight <= 0 {
+		config.VectorWeight = defaults.VectorWeight
+	}
+	if config.BM25Weight <= 0 {
+		config.BM25Weight = defaults.BM25Weight
+	}
+	if config.MinScore <= 0 {
+		config.MinScore = defaults.MinScore
+	}
+	if config.CandidateMultiplier <= 0 {
+		config.CandidateMultiplier = defaults.CandidateMultiplier
+	}
+	if config.RRFRankConstant <= 0 {
+		config.RRFRankConstant = defaults.RRFRankConstant
+	}
+	if config.RerankLexicalWeight <= 0 {
+		config.RerankLexicalWeight = defaults.RerankLexicalWeight
 	}
 	return config
 }

@@ -7,6 +7,7 @@ Rag:
   Enabled: true
   IndexingEnabled: true
   EmbeddingEnabled: true
+  RetrievalEnabled: true
   MySQLDSN: "root:final_assignment@tcp(127.0.0.1:3307)/final_assignment?charset=utf8mb4&parseTime=True&loc=Local"
   ElasticsearchAddresses:
     - "http://127.0.0.1:9201"
@@ -22,4 +23,12 @@ Rag:
   MaxBatchSize: 500
   MaxRequeueLimit: 5000
   MaxUploadBytes: 8388608
+  RetrievalTopK: 10
+  VectorWeight: 0.6
+  BM25Weight: 0.4
+  MinScore: 0.2
+  CandidateMultiplier: 3
+  RRFRankConstant: 60
+  RerankEnabled: true
+  RerankLexicalWeight: 0.15
   AutoMigrate: true

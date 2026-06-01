@@ -36,7 +36,7 @@ func Register(server *rest.Server, options ...Option) {
 	server.AddRoutes(stubRoutes(contract.BusinessRouteSpecs()))
 	server.AddRoutes(stubRoutes(contract.AuditRouteSpecs()))
 	server.AddRoutes(stubRoutes(contract.AiChatRouteSpecs()))
-	server.AddRoutes(stubRoutes(contract.RagQueryRouteSpecs()))
+	server.AddRoutes(ragQueryRoutes(config.ragRuntime))
 	server.AddRoutes(ragAdminRoutes(config.ragRuntime))
 }
 

@@ -11,6 +11,7 @@ type RagConf struct {
 	Enabled                bool     `json:",optional"`
 	IndexingEnabled        bool     `json:",optional"`
 	EmbeddingEnabled       bool     `json:",optional"`
+	RetrievalEnabled       bool     `json:",optional"`
 	MySQLDSN               string   `json:",optional"`
 	ElasticsearchAddresses []string `json:",optional"`
 	ElasticsearchUsername  string   `json:",optional"`
@@ -25,5 +26,13 @@ type RagConf struct {
 	MaxBatchSize           int      `json:",optional"`
 	MaxRequeueLimit        int      `json:",optional"`
 	MaxUploadBytes         int64    `json:",optional"`
+	RetrievalTopK          int      `json:",optional"`
+	VectorWeight           float64  `json:",optional"`
+	BM25Weight             float64  `json:",optional"`
+	MinScore               float64  `json:",optional"`
+	CandidateMultiplier    int      `json:",optional"`
+	RRFRankConstant        int      `json:",optional"`
+	RerankEnabled          bool     `json:",optional"`
+	RerankLexicalWeight    float64  `json:",optional"`
 	AutoMigrate            bool     `json:",optional"`
 }
