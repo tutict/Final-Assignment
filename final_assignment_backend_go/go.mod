@@ -1,6 +1,6 @@
 module final_assignment_backend_go
 
-go 1.24.0
+go 1.24.1
 
 toolchain go1.24.4
 
@@ -27,6 +27,7 @@ require (
 	github.com/elastic/go-elasticsearch/v8 v8.12.1
 	github.com/golang-jwt/jwt/v5 v5.3.0
 	github.com/gorilla/websocket v1.5.3
+	github.com/ledongthuc/pdf v0.0.0-20250511090121-5959a4027728
 	github.com/redis/go-redis/v9 v9.18.0
 	github.com/segmentio/kafka-go v0.4.49
 	github.com/testcontainers/testcontainers-go v0.39.0

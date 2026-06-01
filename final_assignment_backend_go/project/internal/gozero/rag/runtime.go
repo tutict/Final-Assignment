@@ -119,7 +119,7 @@ func NewRuntime(conf config.RagConf) (*Runtime, error) {
 		Config:         serviceConfig,
 		Documents:      documentService,
 		Indexing:       indexingService,
-		Backfill:       service.NewRagBackfillService(nil, indexingService, serviceConfig),
+		Backfill:       service.NewRagBackfillService(NewBusinessSourceProviders(db), indexingService, serviceConfig),
 		EmbeddingTasks: embeddingTaskService,
 		Migration:      service.NewRagIndexMigrationService(indexManagerService, embeddingTaskService, serviceConfig),
 		UploadParser:   NewUploadParser(conf.MaxUploadBytes),

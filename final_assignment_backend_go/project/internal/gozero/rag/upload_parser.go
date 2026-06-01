@@ -14,6 +14,8 @@ import (
 	"strconv"
 	"strings"
 	"unicode/utf8"
+
+	pdf "github.com/ledongthuc/pdf"
 )
 
 type UploadParser struct {
@@ -82,8 +84,10 @@ func (p *UploadParser) Parse(file multipart.File, header *multipart.FileHeader) 
 		return docxTextFile(fileName, contentType, raw)
 	case "xlsx":
 		return xlsxTextFile(fileName, contentType, raw)
+	case "pdf":
+		return pdfTextFile(fileName, contentType, raw)
 	default:
-		return ParsedRagFile{}, fmt.Errorf("unsupported RAG upload type: %s. Supported: txt, md, csv, tsv, json, xml, yaml, docx, xlsx", extension)
+		return ParsedRagFile{}, fmt.Errorf("unsupported RAG upload type: %s. Supported: txt, md, csv, tsv, json, xml, yaml, docx, xlsx, pdf", extension)
 	}
 }
 
@@ -220,6 +224,47 @@ func xlsxTextFile(fileName, contentType string, raw []byte) (ParsedRagFile, erro
 		Parser:      "xlsx",
 		RowCount:    rowCount,
 		SheetCount:  sheetCount,
+	}, nil
+}
+
+func pdfTextFile(fileName, contentType string, raw []byte) (ParsedRagFile, error) {
+	reader, err := pdf.NewReader(bytes.NewReader(raw), int64(len(raw)))
+	if err != nil {
+		return ParsedRagFile{}, fmt.Errorf("invalid pdf: %w", err)
+	}
+	pageCount := reader.NumPage()
+	var builder strings.Builder
+	for pageNo := 1; pageNo <= pageCount; pageNo++ {
+		page := reader.Page(pageNo)
+		if page.V.IsNull() {
+			continue
+		}
+		text, err := page.GetPlainText(nil)
+		if err != nil {
+			return ParsedRagFile{}, fmt.Errorf("extract pdf page %d text: %w", pageNo, err)
+		}
+		text = strings.TrimSpace(text)
+		if text == "" {
+			continue
+		}
+		if builder.Len() > 0 {
+			builder.WriteString("\n\n")
+		}
+		builder.WriteString(text)
+	}
+	text := strings.TrimSpace(builder.String())
+	if text == "" {
+		return ParsedRagFile{}, fmt.Errorf("pdf text is empty; scanned image-only PDFs are not supported")
+	}
+	content := fmt.Sprintf("PDF file: %s\nPages: %d\n\n%s", fileName, pageCount, text)
+	return ParsedRagFile{
+		FileName:    fileName,
+		ContentType: contentType,
+		Size:        int64(len(raw)),
+		Title:       titleFromFileName(fileName),
+		Content:     strings.TrimSpace(content),
+		Parser:      "pdf",
+		SheetCount:  pageCount,
 	}, nil
 }
 
