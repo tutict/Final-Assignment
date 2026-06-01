@@ -3,9 +3,11 @@ package service
 import (
 	"context"
 	"crypto/sha256"
+	"encoding/binary"
 	"encoding/hex"
 	"errors"
 	"fmt"
+	"math"
 	"strings"
 	"time"
 
@@ -15,24 +17,28 @@ import (
 const ragIDDelimiter = "\x1f"
 
 type RagConfig struct {
-	Enabled           bool
-	IndexingEnabled   bool
-	EmbeddingEnabled  bool
-	EmbeddingProvider string
-	EmbeddingModel    string
-	MaxBatchSize      int
-	MaxRequeueLimit   int
+	Enabled              bool
+	IndexingEnabled      bool
+	EmbeddingEnabled     bool
+	EmbeddingProvider    string
+	EmbeddingModel       string
+	MaxBatchSize         int
+	MaxRequeueLimit      int
+	MaxEmbeddingAttempts int
+	RetryDelay           time.Duration
 }
 
 func DefaultRagConfig() RagConfig {
 	return RagConfig{
-		Enabled:           true,
-		IndexingEnabled:   true,
-		EmbeddingEnabled:  true,
-		EmbeddingProvider: "unassigned",
-		EmbeddingModel:    "unassigned",
-		MaxBatchSize:      500,
-		MaxRequeueLimit:   5000,
+		Enabled:              true,
+		IndexingEnabled:      true,
+		EmbeddingEnabled:     true,
+		EmbeddingProvider:    "unassigned",
+		EmbeddingModel:       "unassigned",
+		MaxBatchSize:         500,
+		MaxRequeueLimit:      5000,
+		MaxEmbeddingAttempts: 3,
+		RetryDelay:           30 * time.Second,
 	}
 }
 
@@ -86,6 +92,23 @@ type RagVectorIndexManager interface {
 	SwitchWriteAlias(ctx context.Context, indexName string) (bool, error)
 	DefaultIndexName() string
 	AliasName() string
+}
+
+type RagEmbeddingProvider interface {
+	ProviderName() string
+	ModelName() string
+	Embed(ctx context.Context, text string) ([]float32, error)
+}
+
+type RagVectorStore interface {
+	IndexChunk(
+		ctx context.Context,
+		document domain.RagDocument,
+		chunk domain.RagChunk,
+		vector []float32,
+		provider string,
+		model string,
+	) error
 }
 
 type RagOverview struct {
@@ -161,6 +184,12 @@ func normalizeRagConfig(config RagConfig) RagConfig {
 	if config.MaxRequeueLimit <= 0 {
 		config.MaxRequeueLimit = defaults.MaxRequeueLimit
 	}
+	if config.MaxEmbeddingAttempts <= 0 {
+		config.MaxEmbeddingAttempts = defaults.MaxEmbeddingAttempts
+	}
+	if config.RetryDelay <= 0 {
+		config.RetryDelay = defaults.RetryDelay
+	}
 	return config
 }
 
@@ -184,6 +213,21 @@ func sha256Hex(value string) string {
 	return hex.EncodeToString(sum[:])
 }
 
+func embeddingHash(chunk domain.RagChunk, vector []float32, provider, model string) string {
+	digest := sha256.New()
+	digest.Write([]byte(provider))
+	digest.Write([]byte(ragIDDelimiter))
+	digest.Write([]byte(model))
+	digest.Write([]byte(ragIDDelimiter))
+	digest.Write([]byte(chunk.ContentHash))
+	var buffer [4]byte
+	for _, value := range vector {
+		binary.BigEndian.PutUint32(buffer[:], math.Float32bits(value))
+		digest.Write(buffer[:])
+	}
+	return hex.EncodeToString(digest.Sum(nil))
+}
+
 func defaultIfBlank(value, fallback string) string {
 	if strings.TrimSpace(value) == "" {
 		return fallback
@@ -197,4 +241,11 @@ func errAsNotFound(err error) bool {
 
 func nowUTC() time.Time {
 	return time.Now().UTC()
+}
+
+func clipString(value string, max int) string {
+	if max <= 0 || len(value) <= max {
+		return value
+	}
+	return value[:max]
 }

@@ -3,3 +3,22 @@ Host: 0.0.0.0
 Port: 8081
 Timeout: 3000
 MaxBytes: 1048576
+Rag:
+  Enabled: false
+  IndexingEnabled: false
+  EmbeddingEnabled: false
+  MySQLDSN: ""
+  ElasticsearchAddresses: []
+  ElasticsearchUsername: ""
+  ElasticsearchPassword: ""
+  ElasticsearchIndex: rag_chunk
+  ElasticsearchAlias: rag_chunk_current
+  EmbeddingProvider: deterministic
+  EmbeddingModel: deterministic-384
+  EmbeddingDimensions: 384
+  OllamaBaseURL: http://127.0.0.1:11434
+  OllamaTimeoutMillis: 30000
+  MaxBatchSize: 500
+  MaxRequeueLimit: 5000
+  MaxUploadBytes: 8388608
+  AutoMigrate: false

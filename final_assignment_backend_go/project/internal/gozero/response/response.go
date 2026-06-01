@@ -27,6 +27,13 @@ func OK(w http.ResponseWriter, data any) {
 	})
 }
 
+func Created(w http.ResponseWriter, data any) {
+	httpx.WriteJson(w, http.StatusCreated, APIResponse{
+		Success: true,
+		Data:    data,
+	})
+}
+
 func Error(w http.ResponseWriter, status int, code string, message string) {
 	ErrorWithData(w, status, code, message, nil)
 }

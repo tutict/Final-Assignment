@@ -2,6 +2,7 @@ package service
 
 import (
 	"context"
+	"fmt"
 	"sync/atomic"
 	"time"
 
@@ -9,10 +10,13 @@ import (
 )
 
 type RagEmbeddingTaskService struct {
-	tasks   RagEmbeddingTaskStore
-	chunks  RagChunkStore
-	config  RagConfig
-	running atomic.Bool
+	tasks     RagEmbeddingTaskStore
+	chunks    RagChunkStore
+	documents RagDocumentStore
+	provider  RagEmbeddingProvider
+	vectors   RagVectorStore
+	config    RagConfig
+	running   atomic.Bool
 }
 
 func NewRagEmbeddingTaskService(tasks RagEmbeddingTaskStore, chunks RagChunkStore, config RagConfig) *RagEmbeddingTaskService {
@@ -21,6 +25,17 @@ func NewRagEmbeddingTaskService(tasks RagEmbeddingTaskStore, chunks RagChunkStor
 		chunks: chunks,
 		config: normalizeRagConfig(config),
 	}
+}
+
+func (s *RagEmbeddingTaskService) WithProcessing(
+	documents RagDocumentStore,
+	provider RagEmbeddingProvider,
+	vectors RagVectorStore,
+) *RagEmbeddingTaskService {
+	s.documents = documents
+	s.provider = provider
+	s.vectors = vectors
+	return s
 }
 
 func (s *RagEmbeddingTaskService) EnsurePendingTask(ctx context.Context, chunk domain.RagChunk, now time.Time) (domain.RagEmbeddingTask, error) {
@@ -87,13 +102,96 @@ func (s *RagEmbeddingTaskService) ProcessPendingBatch(ctx context.Context, limit
 	if err != nil {
 		return RagEmbeddingBatchResult{}, err
 	}
+	if len(tasks) == 0 {
+		return RagEmbeddingBatchResult{Enabled: true}, nil
+	}
+	if s.documents == nil || s.provider == nil || s.vectors == nil {
+		return RagEmbeddingBatchResult{}, fmt.Errorf("rag embedding processor is not configured")
+	}
 
-	// The actual provider/vector index integration is intentionally a later adapter.
-	// This boundary only selects runnable work without mutating external systems.
-	return RagEmbeddingBatchResult{
-		SelectedTasks: len(tasks),
-		Enabled:       true,
-	}, nil
+	result := RagEmbeddingBatchResult{SelectedTasks: len(tasks), Enabled: true}
+	for _, task := range tasks {
+		if err := s.processTask(ctx, task); err != nil {
+			result.FailedTasks++
+			continue
+		}
+		result.SucceededTasks++
+	}
+	return result, nil
+}
+
+func (s *RagEmbeddingTaskService) processTask(ctx context.Context, task domain.RagEmbeddingTask) error {
+	now := time.Now().UTC()
+	task.Status = domain.RagEmbeddingTaskStatusRunning
+	task.Provider = s.provider.ProviderName()
+	task.Model = s.provider.ModelName()
+	task.AttemptCount++
+	task.NextRetryAt = nil
+	task.LastError = ""
+	task.UpdatedAt = now
+	if err := s.tasks.Save(ctx, &task); err != nil {
+		return err
+	}
+
+	chunk, err := s.chunks.FindByID(ctx, task.ChunkID)
+	if err != nil {
+		return s.poisonTask(ctx, task, "RAG chunk does not exist: "+task.ChunkID)
+	}
+	document, err := s.documents.FindByID(ctx, chunk.DocumentID)
+	if err != nil {
+		return s.poisonTask(ctx, task, "RAG document does not exist: "+chunk.DocumentID)
+	}
+	vector, err := s.provider.Embed(ctx, chunk.Content)
+	if err != nil {
+		return s.failTask(ctx, task, err)
+	}
+	if err := s.vectors.IndexChunk(ctx, *document, *chunk, vector, s.provider.ProviderName(), s.provider.ModelName()); err != nil {
+		return s.failTask(ctx, task, err)
+	}
+
+	chunk.Status = domain.RagChunkStatusEmbedded
+	chunk.EmbeddingModel = s.provider.ModelName()
+	chunk.EmbeddingHash = embeddingHash(*chunk, vector, s.provider.ProviderName(), s.provider.ModelName())
+	chunk.UpdatedAt = now
+	if err := s.chunks.Save(ctx, chunk); err != nil {
+		return err
+	}
+
+	task.Status = domain.RagEmbeddingTaskStatusSucceeded
+	task.LastError = ""
+	task.NextRetryAt = nil
+	task.UpdatedAt = now
+	return s.tasks.Save(ctx, &task)
+}
+
+func (s *RagEmbeddingTaskService) failTask(ctx context.Context, task domain.RagEmbeddingTask, failure error) error {
+	now := time.Now().UTC()
+	if task.AttemptCount >= s.config.MaxEmbeddingAttempts {
+		task.Status = domain.RagEmbeddingTaskStatusPoisoned
+		task.NextRetryAt = nil
+	} else {
+		nextRetry := now.Add(s.config.RetryDelay)
+		task.Status = domain.RagEmbeddingTaskStatusFailed
+		task.NextRetryAt = &nextRetry
+	}
+	task.LastError = clipString(failure.Error(), 2000)
+	task.UpdatedAt = now
+	if err := s.tasks.Save(ctx, &task); err != nil {
+		return err
+	}
+	return failure
+}
+
+func (s *RagEmbeddingTaskService) poisonTask(ctx context.Context, task domain.RagEmbeddingTask, message string) error {
+	now := time.Now().UTC()
+	task.Status = domain.RagEmbeddingTaskStatusPoisoned
+	task.LastError = clipString(message, 2000)
+	task.NextRetryAt = nil
+	task.UpdatedAt = now
+	if err := s.tasks.Save(ctx, &task); err != nil {
+		return err
+	}
+	return fmt.Errorf("%s", message)
 }
 
 func (s *RagEmbeddingTaskService) RequeueChunk(ctx context.Context, chunkID string, now time.Time) (RagRequeueResult, error) {

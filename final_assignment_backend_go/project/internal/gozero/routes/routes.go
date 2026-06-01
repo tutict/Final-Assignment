@@ -5,19 +5,39 @@ import (
 	"time"
 
 	"final_assignment_backend_go/project/internal/gozero/contract"
+	gozerorag "final_assignment_backend_go/project/internal/gozero/rag"
 	"final_assignment_backend_go/project/internal/gozero/response"
 
 	"github.com/zeromicro/go-zero/rest"
 )
 
-func Register(server *rest.Server) {
+type Option func(*registerOptions)
+
+type registerOptions struct {
+	ragRuntime *gozerorag.Runtime
+}
+
+func WithRAGRuntime(runtime *gozerorag.Runtime) Option {
+	return func(options *registerOptions) {
+		options.ragRuntime = runtime
+	}
+}
+
+func Register(server *rest.Server, options ...Option) {
+	var config registerOptions
+	for _, option := range options {
+		option(&config)
+	}
+
 	server.AddRoutes(systemRoutes())
 	server.AddRoutes(stubRoutes(contract.AuthRouteSpecs()))
 	server.AddRoutes(stubRoutes(contract.AdminRouteSpecs()))
 	server.AddRoutes(stubRoutes(contract.VehicleRouteSpecs()))
 	server.AddRoutes(stubRoutes(contract.BusinessRouteSpecs()))
 	server.AddRoutes(stubRoutes(contract.AuditRouteSpecs()))
-	server.AddRoutes(stubRoutes(contract.AIRouteSpecs()))
+	server.AddRoutes(stubRoutes(contract.AiChatRouteSpecs()))
+	server.AddRoutes(stubRoutes(contract.RagQueryRouteSpecs()))
+	server.AddRoutes(ragAdminRoutes(config.ragRuntime))
 }
 
 func systemRoutes() []rest.Route {

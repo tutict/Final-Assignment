@@ -104,6 +104,63 @@ func TestRagBackfillServiceRunBatches(t *testing.T) {
 	}
 }
 
+func TestRagEmbeddingTaskServiceProcessesPendingBatch(t *testing.T) {
+	ctx := context.Background()
+	documents := newMemoryRagDocumentStore()
+	chunks := newMemoryRagChunkStore()
+	tasks := newMemoryRagEmbeddingTaskStore()
+	config := DefaultRagConfig()
+	config.EmbeddingProvider = "deterministic"
+	config.EmbeddingModel = "test-2"
+	now := time.Now().UTC()
+
+	if err := documents.Save(ctx, &domain.RagDocument{
+		ID:        "doc-1",
+		Title:     "Manual RAG",
+		Status:    domain.RagDocumentStatusReady,
+		CreatedAt: now,
+		UpdatedAt: now,
+	}); err != nil {
+		t.Fatalf("save document: %v", err)
+	}
+	if err := chunks.Save(ctx, &domain.RagChunk{
+		ID:          "chunk-1",
+		DocumentID:  "doc-1",
+		Content:     "chunk content",
+		ContentHash: "hash-1",
+		Status:      domain.RagChunkStatusPendingEmbedding,
+		CreatedAt:   now,
+		UpdatedAt:   now,
+	}); err != nil {
+		t.Fatalf("save chunk: %v", err)
+	}
+
+	vectorStore := &memoryRagVectorStore{}
+	taskService := NewRagEmbeddingTaskService(tasks, chunks, config).
+		WithProcessing(documents, &memoryRagEmbeddingProvider{}, vectorStore)
+	if _, err := taskService.EnsurePendingTask(ctx, domain.RagChunk{ID: "chunk-1"}, now); err != nil {
+		t.Fatalf("EnsurePendingTask() error = %v", err)
+	}
+
+	result, err := taskService.ProcessPendingBatch(ctx, 10)
+	if err != nil {
+		t.Fatalf("ProcessPendingBatch() error = %v", err)
+	}
+	if result.SelectedTasks != 1 || result.SucceededTasks != 1 || result.FailedTasks != 0 {
+		t.Fatalf("unexpected embedding result: %+v", result)
+	}
+	if len(vectorStore.indexed) != 1 {
+		t.Fatalf("indexed vectors = %d, want 1", len(vectorStore.indexed))
+	}
+	chunk, err := chunks.FindByID(ctx, "chunk-1")
+	if err != nil {
+		t.Fatalf("FindByID(chunk) error = %v", err)
+	}
+	if chunk.Status != domain.RagChunkStatusEmbedded || chunk.EmbeddingHash == "" {
+		t.Fatalf("chunk was not marked embedded: %+v", chunk)
+	}
+}
+
 func TestRagIndexMigrationServiceRequeuesChunks(t *testing.T) {
 	ctx := context.Background()
 	chunks := newMemoryRagChunkStore()
@@ -368,4 +425,34 @@ func (m *memoryVectorIndexManager) DefaultIndexName() string {
 
 func (m *memoryVectorIndexManager) AliasName() string {
 	return "rag_chunks_write"
+}
+
+type memoryRagEmbeddingProvider struct{}
+
+func (p *memoryRagEmbeddingProvider) ProviderName() string {
+	return "deterministic"
+}
+
+func (p *memoryRagEmbeddingProvider) ModelName() string {
+	return "test-2"
+}
+
+func (p *memoryRagEmbeddingProvider) Embed(context.Context, string) ([]float32, error) {
+	return []float32{0.25, -0.75}, nil
+}
+
+type memoryRagVectorStore struct {
+	indexed []domain.RagChunk
+}
+
+func (s *memoryRagVectorStore) IndexChunk(
+	_ context.Context,
+	_ domain.RagDocument,
+	chunk domain.RagChunk,
+	_ []float32,
+	_ string,
+	_ string,
+) error {
+	s.indexed = append(s.indexed, chunk)
+	return nil
 }
