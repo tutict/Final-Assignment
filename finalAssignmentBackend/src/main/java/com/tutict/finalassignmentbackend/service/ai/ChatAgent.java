@@ -21,6 +21,7 @@ import reactor.core.publisher.Flux;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -39,6 +40,7 @@ public class ChatAgent {
     private final AIChatSearchService aiChatSearchService;
     private final AiAgentRoleResolver aiAgentRoleResolver;
     private final AgentConstraintService agentConstraintService;
+    private final ChatActionRuleEngine chatActionRuleEngine;
     private final ExecutorService aiExecutor = Executors.newFixedThreadPool(
             Math.max(2, Runtime.getRuntime().availableProcessors() / 2)
     );
@@ -48,13 +50,15 @@ public class ChatAgent {
             AiProviderRegistry aiProviderRegistry,
             AIChatSearchService aiChatSearchService,
             AiAgentRoleResolver aiAgentRoleResolver,
-            AgentConstraintService agentConstraintService
+            AgentConstraintService agentConstraintService,
+            ChatActionRuleEngine chatActionRuleEngine
     ) {
         this.chatModel = chatModel;
         this.aiProviderRegistry = aiProviderRegistry;
         this.aiChatSearchService = aiChatSearchService;
         this.aiAgentRoleResolver = aiAgentRoleResolver;
         this.agentConstraintService = agentConstraintService;
+        this.chatActionRuleEngine = chatActionRuleEngine;
     }
 
     public Flux<ChatResponse> streamChat(String message, String massage, boolean webSearch) {
@@ -79,10 +83,20 @@ public class ChatAgent {
         logger.info("AI chat actions request received. length={}, webSearch={}, traceId={}",
                 userMessage.length(), webSearch, MDC.get("traceId"));
 
-        String prompt = buildActionPrompt(userMessage, webSearch);
+        AiAgentRole role = currentAgentRole();
+        Optional<ChatActionResponse> ruleResponse = chatActionRuleEngine.resolve(userMessage, role);
+        if (ruleResponse.isPresent()) {
+            ChatActionResponse response = ruleResponse.get();
+            logger.info("AI chat actions resolved locally. role={}, actions={}, traceId={}",
+                    role.policyFileName(), response.getActions().size(), MDC.get("traceId"));
+            return response;
+        }
+
+        String prompt = buildActionPrompt(userMessage, webSearch, role);
         AiMessage response = completeWithTimeout(prompt, Map.of(
                 "feature", "chat_actions",
-                "webSearch", webSearch
+                "webSearch", webSearch,
+                "role", role.policyFileName()
         ));
         String content = response == null || isFallbackProvider(response) ? fallbackActionAnswer() : response.text();
         return parseActionResponse(content);
@@ -155,8 +169,8 @@ public class ChatAgent {
         return new Prompt(new UserMessage(promptBuilder.toString()));
     }
 
-    private String buildActionPrompt(String userMessage, boolean webSearch) {
-        String agentConstraints = currentAgentConstraints();
+    private String buildActionPrompt(String userMessage, boolean webSearch, AiAgentRole role) {
+        String agentConstraints = currentAgentConstraints(role);
         StringBuilder promptBuilder = new StringBuilder(
                 "你是一个交通违法业务助手，需要输出可执行的页面动作方案。"
         ).append("\n")
@@ -199,7 +213,15 @@ public class ChatAgent {
     }
 
     private String currentAgentConstraints() {
-        AiAgentRole role = aiAgentRoleResolver.resolve(Map.of());
+        AiAgentRole role = currentAgentRole();
+        return currentAgentConstraints(role);
+    }
+
+    private AiAgentRole currentAgentRole() {
+        return aiAgentRoleResolver.resolve(Map.of());
+    }
+
+    private String currentAgentConstraints(AiAgentRole role) {
         return agentConstraintService.constraintsFor(role);
     }
 

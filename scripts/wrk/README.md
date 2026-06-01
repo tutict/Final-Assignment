@@ -78,6 +78,12 @@ docker run --rm `
   http://host.docker.internal:8080
 ```
 
-## 非 2xx 端点统计
+## 端点级失败与超时候选统计
 
-`read-mix.lua` 和 `super-read-mix.lua` 会在 wrk 结束时额外输出 `Non-2xx responses by endpoint`，用于定位管理员/超级管理员混合读中的失败端点。该统计基于 wrk Lua 回调记录，适合本地压测排查；如需严格审计，仍应结合后端访问日志和 `endpoint` 标签指标。
+`read-mix.lua` 和 `super-read-mix.lua` 会在 wrk 结束时额外输出：
+
+- `Endpoint request accounting`：按 endpoint 汇总发出数、完成数、missing/timeout 候选数和非 2xx 数。
+- `Estimated timeout/write-error candidates by endpoint`：用“发出数 - 完成数”定位 wrk timeout/write error 的候选端点。
+- `Non-2xx responses by endpoint`：按 endpoint 汇总已收到响应中的非 2xx。
+
+wrk 的 Lua `response` 回调不会在超时请求上触发，所以 timeout 无法像 HTTP 状态码一样被直接归因；这里的 missing 统计用于快速定位尾延迟端点，最终结论仍应结合后端访问日志、慢查询日志和 `endpoint` 标签指标。

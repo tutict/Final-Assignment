@@ -15,6 +15,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.anyMap;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
 class ChatAgentTest {
@@ -39,6 +40,17 @@ class ChatAgentTest {
         assertThat(response.getActions().getFirst().getType()).isEqualTo("NAVIGATE");
         assertThat(response.getActions().getFirst().getTarget()).isEqualTo("/appeals");
         assertThat(response.isNeedConfirm()).isTrue();
+    }
+
+    @Test
+    void chatWithActionsUsesLocalRuleBeforeProvider() {
+        AiProviderRegistry registry = mock(AiProviderRegistry.class);
+
+        ChatActionResponse response = agent(registry).chatWithActions("帮我查看违法处理入口", null, false);
+
+        assertThat(response.getActions()).hasSize(1);
+        assertThat(response.getActions().getFirst().getTarget()).isEqualTo("/userOffenseListPage");
+        verifyNoInteractions(registry);
     }
 
     @Test
@@ -74,6 +86,6 @@ class ChatAgentTest {
         AIChatSearchService searchService = mock(AIChatSearchService.class);
         when(roleResolver.resolve(anyMap())).thenReturn(AiAgentRole.DRIVER);
         when(constraintService.constraintsFor(AiAgentRole.DRIVER)).thenReturn("# test policy");
-        return new ChatAgent(null, registry, searchService, roleResolver, constraintService);
+        return new ChatAgent(null, registry, searchService, roleResolver, constraintService, new ChatActionRuleEngine());
     }
 }
