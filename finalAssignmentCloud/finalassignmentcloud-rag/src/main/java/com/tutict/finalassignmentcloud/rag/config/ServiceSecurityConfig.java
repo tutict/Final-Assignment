@@ -3,6 +3,7 @@ package com.tutict.finalassignmentcloud.rag.config;
 import com.tutict.finalassignmentcloud.config.security.SecurityResponseWriter;
 import com.tutict.finalassignmentcloud.config.security.ServiceJwtAuthenticationFilter;
 import com.tutict.finalassignmentcloud.config.security.ServiceTokenProvider;
+import jakarta.servlet.DispatcherType;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -38,7 +39,9 @@ public class ServiceSecurityConfig {
                 .csrf(AbstractHttpConfigurer::disable)
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authorizeHttpRequests(auth -> auth
+                        .dispatcherTypeMatchers(DispatcherType.ASYNC, DispatcherType.ERROR).permitAll()
                         .requestMatchers("/actuator/health", "/actuator/health/**").permitAll()
+                        .requestMatchers("/error").permitAll()
                         .anyRequest().authenticated())
                 .exceptionHandling(ex -> ex
                         .authenticationEntryPoint(SecurityResponseWriter::writeUnauthorized)
