@@ -27,15 +27,15 @@ func (ctrl *SystemLogsController) RegisterRoutes(r *gin.Engine) {
 	group := r.Group("/api/systemLogs")
 
 	group.POST("", ctrl.CreateSystemLog)
-	group.GET("/:logId", ctrl.GetSystemLogByID)
 	group.GET("", ctrl.GetAllSystemLogs)
 	group.GET("/type/:logType", ctrl.GetSystemLogsByType)
 	group.GET("/timeRange", ctrl.GetSystemLogsByTimeRange)
 	group.GET("/operationUser/:operationUser", ctrl.GetSystemLogsByOperationUser)
-	group.PUT("/:logId", ctrl.UpdateSystemLog)
-	group.DELETE("/:logId", ctrl.DeleteSystemLog)
 	group.GET("/autocomplete/log-types/me", ctrl.GetLogTypeAutocompleteSuggestionsGlobally)
 	group.GET("/autocomplete/operation-users/me", ctrl.GetOperationUserAutocompleteSuggestionsGlobally)
+	group.GET("/:logId", ctrl.GetSystemLogByID)
+	group.PUT("/:logId", ctrl.UpdateSystemLog)
+	group.DELETE("/:logId", ctrl.DeleteSystemLog)
 }
 
 // CreateSystemLog 创建系统日志记录

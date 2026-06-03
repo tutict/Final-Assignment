@@ -21,15 +21,15 @@ func (c *OperationLogController) RegisterRoutes(r *gin.RouterGroup) {
 	api := r.Group("/api/operationLogs")
 
 	api.POST("", c.createOperationLog)
-	api.GET("/:logId", c.getOperationLog)
 	api.GET("", c.getAllOperationLogs)
-	api.PUT("/:logId", c.updateOperationLog)
-	api.DELETE("/:logId", c.deleteOperationLog)
 	api.GET("/timeRange", c.getOperationLogsByTimeRange)
 	api.GET("/userId/:userId", c.getOperationLogsByUserId)
 	api.GET("/result/:result", c.getOperationLogsByResult)
 	api.GET("/autocomplete/user-ids/me", c.getUserIdAutocompleteSuggestions)
 	api.GET("/autocomplete/operation-results/me", c.getOperationResultAutocompleteSuggestions)
+	api.GET("/:logId", c.getOperationLog)
+	api.PUT("/:logId", c.updateOperationLog)
+	api.DELETE("/:logId", c.deleteOperationLog)
 }
 
 // POST /api/operationLogs
@@ -99,7 +99,7 @@ func (c *OperationLogController) updateOperationLog(ctx *gin.Context) {
 		return
 	}
 
-	updated.LogID = uint(id)
+	updated.LogID = id
 	if err := c.Service.CheckAndInsertIdempotency(idempotencyKey, &updated, "update"); err != nil {
 		ctx.JSON(http.StatusConflict, gin.H{"error": err.Error()})
 		return

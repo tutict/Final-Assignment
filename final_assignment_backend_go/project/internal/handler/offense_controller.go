@@ -21,14 +21,14 @@ func (c *OffenseInformationController) RegisterRoutes(r *gin.RouterGroup) {
 	api := r.Group("/api/offenses")
 
 	api.POST("", c.createOffense)
-	api.GET("/:offenseId", c.getOffenseByID)
 	api.GET("", c.getAllOffenses)
-	api.PUT("/:offenseId", c.updateOffense)
-	api.DELETE("/:offenseId", c.deleteOffense)
 	api.GET("/timeRange", c.getOffensesByTimeRange)
 	api.GET("/by-offense-type", c.searchByOffenseType)
 	api.GET("/by-driver-name", c.searchByDriverName)
 	api.GET("/by-license-plate", c.searchByLicensePlate)
+	api.GET("/:offenseId", c.getOffenseByID)
+	api.PUT("/:offenseId", c.updateOffense)
+	api.DELETE("/:offenseId", c.deleteOffense)
 }
 
 // POST /api/offenses
@@ -91,7 +91,7 @@ func (c *OffenseInformationController) updateOffense(ctx *gin.Context) {
 	}
 
 	idempotencyKey := ctx.Query("idempotencyKey")
-	updated.OffenseID = uint(id)
+	updated.OffenseID = id
 
 	if err := c.Service.CheckAndInsertIdempotency(idempotencyKey, &updated, "update"); err != nil {
 		ctx.JSON(http.StatusConflict, gin.H{"error": err.Error()})

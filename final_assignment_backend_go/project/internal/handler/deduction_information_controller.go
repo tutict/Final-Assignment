@@ -30,13 +30,13 @@ func (c *DeductionInformationController) RegisterRoutes(r *gin.Engine) {
 
 	group.POST("", c.CreateDeduction)
 	group.GET("", c.GetAllDeductions)
-	group.GET("/:deductionId", c.GetDeductionById)
-	group.PUT("/:deductionId", c.UpdateDeduction)
-	group.DELETE("/:deductionId", c.DeleteDeduction)
 	group.GET("/handler/:handler", c.GetDeductionsByHandler)
 	group.GET("/timeRange", c.GetDeductionsByTimeRange)
 	group.GET("/by-handler", c.SearchByHandler)
 	group.GET("/by-time-range", c.SearchByDeductionTimeRange)
+	group.GET("/:deductionId", c.GetDeductionById)
+	group.PUT("/:deductionId", c.UpdateDeduction)
+	group.DELETE("/:deductionId", c.DeleteDeduction)
 }
 
 // CreateDeduction 创建扣除记录（仅限管理员）

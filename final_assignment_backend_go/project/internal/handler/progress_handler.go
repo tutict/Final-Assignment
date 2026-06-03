@@ -27,7 +27,7 @@ func (h *ProgressHandler) RegisterRoutes(r *gin.Engine) {
 	{
 		api.POST("", h.RequireRole("USER"), h.CreateProgress)
 		api.GET("", h.RequireRole("ADMIN"), h.GetAllProgress)
-		api.GET("", h.RequireRole("USER"), h.GetProgressByUsername) // ?username=
+		api.GET("/by-username", h.RequireRole("USER"), h.GetProgressByUsername) // ?username=
 		api.PUT("/:progressId/status", h.RequireRole("ADMIN"), h.UpdateProgressStatus)
 		api.DELETE("/:progressId", h.RequireRole("ADMIN"), h.DeleteProgress)
 		api.GET("/status/:status", h.RequireRole("ADMIN", "USER"), h.GetProgressByStatus)

@@ -24,13 +24,13 @@ func (h *PermissionHandler) RegisterRoutes(r *gin.Engine) {
 	api := r.Group("/api/permissions")
 	{
 		api.POST("", h.RequireRole("ADMIN"), h.CreatePermission)
-		api.GET("/:permissionId", h.RequireRole("ADMIN", "USER"), h.GetPermissionById)
 		api.GET("", h.RequireRole("ADMIN", "USER"), h.GetAllPermissions)
 		api.GET("/name/:permissionName", h.RequireRole("ADMIN", "USER"), h.GetPermissionByName)
 		api.GET("/search", h.RequireRole("ADMIN", "USER"), h.SearchPermissionsByName)
+		api.GET("/:permissionId", h.RequireRole("ADMIN", "USER"), h.GetPermissionById)
 		api.PUT("/:permissionId", h.RequireRole("ADMIN"), h.UpdatePermission)
-		api.DELETE("/:permissionId", h.RequireRole("ADMIN"), h.DeletePermissionById)
 		api.DELETE("/name/:permissionName", h.RequireRole("ADMIN"), h.DeletePermissionByName)
+		api.DELETE("/:permissionId", h.RequireRole("ADMIN"), h.DeletePermissionById)
 	}
 }
 

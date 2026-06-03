@@ -34,16 +34,15 @@ func (c *DriverInformationController) RegisterRoutes(r *gin.Engine) {
 
 	group.POST("", c.CreateDriver)
 	group.GET("", c.GetAllDrivers)
+	group.GET("/by-id-card", c.SearchByIdCardNumber)
+	group.GET("/by-license-number", c.SearchByLicenseNumber)
+	group.GET("/by-name", c.SearchByName)
 	group.GET("/:driverId", c.GetDriverById)
 	group.PUT("/:driverId", c.UpdateDriver)
 	group.PUT("/:driverId/name", c.UpdateDriverName)
 	group.PUT("/:driverId/contactNumber", c.UpdateDriverContactNumber)
 	group.PUT("/:driverId/idCardNumber", c.UpdateDriverIdCardNumber)
 	group.DELETE("/:driverId", c.DeleteDriver)
-
-	group.GET("/by-id-card", c.SearchByIdCardNumber)
-	group.GET("/by-license-number", c.SearchByLicenseNumber)
-	group.GET("/by-name", c.SearchByName)
 }
 
 // CreateDriver 创建司机信息
@@ -108,7 +107,7 @@ func (c *DriverInformationController) UpdateDriver(ctx *gin.Context) {
 		return
 	}
 
-	updated.DriverId = id
+	updated.DriverID = id
 	if err := c.driverService.CheckAndInsertIdempotency(idempotencyKey, &updated, "update"); err != nil {
 		if err.Error() == "Duplicate request" {
 			ctx.JSON(http.StatusConflict, gin.H{"error": "duplicate request"})
@@ -218,7 +217,7 @@ func (c *DriverInformationController) UpdateDriverIdCardNumber(ctx *gin.Context)
 		ctx.JSON(http.StatusNotFound, gin.H{"error": "driver not found"})
 		return
 	}
-	driver.IdCardNumber = payload.IdCardNumber
+	driver.IDCardNumber = payload.IdCardNumber
 
 	if err := c.driverService.CheckAndInsertIdempotency(idempotencyKey, driver, "update"); err != nil {
 		if err.Error() == "Duplicate request" {

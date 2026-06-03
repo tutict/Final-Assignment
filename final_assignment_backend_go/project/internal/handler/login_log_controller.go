@@ -4,6 +4,7 @@ import (
 	"log"
 	"net/http"
 	"net/url"
+	"strconv"
 	"time"
 
 	"github.com/gin-gonic/gin"
@@ -29,16 +30,15 @@ func (c *LoginLogController) RegisterRoutes(r *gin.Engine) {
 	{
 		group.POST("", c.CreateLoginLog)
 		group.GET("", c.GetAllLoginLogs)
-		group.GET("/:logId", c.GetLoginLogByID)
-		group.PUT("/:logId", c.UpdateLoginLog)
-		group.DELETE("/:logId", c.DeleteLoginLog)
-
 		group.GET("/timeRange", c.GetLoginLogsByTimeRange)
 		group.GET("/username/:username", c.GetLoginLogsByUsername)
 		group.GET("/loginResult/:loginResult", c.GetLoginLogsByLoginResult)
 
 		group.GET("/autocomplete/usernames/me", c.GetUsernameAutocomplete)
 		group.GET("/autocomplete/login-results/me", c.GetLoginResultAutocomplete)
+		group.GET("/:logId", c.GetLoginLogByID)
+		group.PUT("/:logId", c.UpdateLoginLog)
+		group.DELETE("/:logId", c.DeleteLoginLog)
 	}
 }
 
@@ -91,7 +91,12 @@ func (c *LoginLogController) UpdateLoginLog(ctx *gin.Context) {
 		return
 	}
 
-	updated.ID = id
+	parsed, err := strconv.Atoi(id)
+	if err != nil {
+		ctx.JSON(http.StatusBadRequest, gin.H{"error": "invalid log id"})
+		return
+	}
+	updated.LogID = parsed
 	if err := c.service.CheckAndInsertIdempotency(idempotencyKey, &updated, "update"); err != nil {
 		ctx.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return

@@ -30,17 +30,17 @@ func (vc *VehicleController) RegisterRoutes(r *gin.Engine) {
 		v.GET("/autocomplete/license-plate-globally/me", vc.GetLicensePlateAutocompleteGlobally)
 		v.GET("/autocomplete/vehicle-type-globally/me", vc.GetVehicleTypeAutocompleteGlobally)
 		v.POST("", vc.CreateVehicle)
-		v.GET("/:vehicleId", vc.GetVehicleById)
 		v.GET("/license-plate/:licensePlate", vc.GetVehicleByLicensePlate)
 		v.GET("", vc.GetAllVehicles)
 		v.GET("/type/:vehicleType", vc.GetByType)
 		v.GET("/owner/:ownerName", vc.GetByOwnerName)
 		v.GET("/id-card-number/:idCardNumber", vc.GetByIdCardNumber)
 		v.GET("/status/:status", vc.GetByStatus)
-		v.PUT("/:vehicleId", vc.UpdateVehicle)
-		v.DELETE("/:vehicleId", vc.DeleteById)
 		v.DELETE("/license-plate/:licensePlate", vc.DeleteByLicensePlate)
 		v.GET("/exists/:licensePlate", vc.IsLicensePlateExists)
+		v.GET("/:vehicleId", vc.GetVehicleById)
+		v.PUT("/:vehicleId", vc.UpdateVehicle)
+		v.DELETE("/:vehicleId", vc.DeleteById)
 	}
 }
 

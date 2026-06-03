@@ -29,11 +29,11 @@ func (c *BackupRestoreController) RegisterRoutes(r *gin.Engine) {
 
 	group.POST("", c.CreateBackup)
 	group.GET("", c.GetAllBackups)
+	group.GET("/filename/:backupFileName", c.GetBackupByFileName)
+	group.GET("/time/:backupTime", c.GetBackupsByTime)
 	group.GET("/:backupId", c.GetBackupById)
 	group.DELETE("/:backupId", c.DeleteBackup)
 	group.PUT("/:backupId", c.UpdateBackup)
-	group.GET("/filename/:backupFileName", c.GetBackupByFileName)
-	group.GET("/time/:backupTime", c.GetBackupsByTime)
 }
 
 // CreateBackup 创建新的备份记录
