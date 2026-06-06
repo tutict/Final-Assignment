@@ -1,7 +1,7 @@
 package com.tutict.finalassignmentcloud.auth.controller;
 
 import com.tutict.finalassignmentcloud.auth.service.AuthWsService;
-import com.tutict.finalassignmentcloud.entity.SysUser;
+import com.tutict.finalassignmentcloud.dto.response.SysUserResponse;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.media.Content;
@@ -160,7 +160,7 @@ public class AuthController {
                     responseCode = "200",
                     description = "查询成功",
                     content = @Content(mediaType = "application/json",
-                            schema = @Schema(implementation = SysUser.class)))
+                            schema = @Schema(implementation = SysUserResponse.class)))
             ,
             @ApiResponse(
                     responseCode = "403",
@@ -168,9 +168,9 @@ public class AuthController {
                     content = @Content(mediaType = "application/json",
                             schema = @Schema(type = "object", example = "{\"error\":\"Access denied\"}")))
     })
-    public ResponseEntity<List<SysUser>> getAllUsers() {
+    public ResponseEntity<List<SysUserResponse>> getAllUsers() {
         try {
-            List<SysUser> users = authWsService.getAllUsers();
+            List<SysUserResponse> users = authWsService.getAllUsers();
             LOG.log(Level.INFO, "Fetched {0} users", users.size());
             return ResponseEntity.ok(users);
         } catch (Exception ex) {

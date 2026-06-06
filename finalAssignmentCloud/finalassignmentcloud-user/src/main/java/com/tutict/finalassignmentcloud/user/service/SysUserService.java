@@ -102,15 +102,23 @@ public class SysUserService {
     @Transactional
     @CacheEvict(cacheNames = CACHE_NAME, allEntries = true)
     public SysUser updateSysUser(SysUser sysUser) {
-        validateSysUser(sysUser);
+        if (sysUser == null) {
+            throw new IllegalArgumentException("SysUser must not be null");
+        }
         requirePositive(sysUser.getUserId());
-        encodePasswordIfNecessary(sysUser);
-        int rows = sysUserMapper.updateById(sysUser);
+        SysUser existing = sysUserMapper.selectById(sysUser.getUserId());
+        if (existing == null) {
+            throw new IllegalStateException("SysUser not found for id=" + sysUser.getUserId());
+        }
+        mergeForUpdate(existing, sysUser);
+        validateSysUser(existing);
+        encodePasswordIfNecessary(existing);
+        int rows = sysUserMapper.updateById(existing);
         if (rows == 0) {
             throw new IllegalStateException("SysUser not found for id=" + sysUser.getUserId());
         }
-        syncToIndexAfterCommit(sysUser);
-        return sysUser;
+        syncToIndexAfterCommit(existing);
+        return existing;
     }
 
     @Transactional
@@ -457,6 +465,52 @@ public class SysUserService {
         }
         if (isBlank(sysUser.getStatus())) {
             sysUser.setStatus("Active");
+        }
+    }
+
+    private void mergeForUpdate(SysUser existing, SysUser request) {
+        if (!isBlank(request.getUsername())) {
+            existing.setUsername(request.getUsername());
+        }
+        if (!isBlank(request.getPassword())) {
+            existing.setPassword(request.getPassword());
+        }
+        if (request.getRealName() != null) {
+            existing.setRealName(request.getRealName());
+        }
+        if (request.getIdCardNumber() != null) {
+            existing.setIdCardNumber(request.getIdCardNumber());
+        }
+        if (request.getGender() != null) {
+            existing.setGender(request.getGender());
+        }
+        if (request.getContactNumber() != null) {
+            existing.setContactNumber(request.getContactNumber());
+        }
+        if (request.getEmail() != null) {
+            existing.setEmail(request.getEmail());
+        }
+        if (request.getDepartment() != null) {
+            existing.setDepartment(request.getDepartment());
+        }
+        if (request.getPosition() != null) {
+            existing.setPosition(request.getPosition());
+        }
+        if (request.getEmployeeNumber() != null) {
+            existing.setEmployeeNumber(request.getEmployeeNumber());
+        }
+        if (!isBlank(request.getStatus())) {
+            existing.setStatus(request.getStatus());
+        }
+        if (request.getAccountExpiryDate() != null) {
+            existing.setAccountExpiryDate(request.getAccountExpiryDate());
+        }
+        existing.setUpdatedAt(LocalDateTime.now());
+        if (!isBlank(request.getUpdatedBy())) {
+            existing.setUpdatedBy(request.getUpdatedBy());
+        }
+        if (request.getRemarks() != null) {
+            existing.setRemarks(request.getRemarks());
         }
     }
 

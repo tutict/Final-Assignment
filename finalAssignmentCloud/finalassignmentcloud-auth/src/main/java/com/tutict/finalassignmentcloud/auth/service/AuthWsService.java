@@ -5,6 +5,7 @@ import com.tutict.finalassignmentcloud.auth.client.RoleClient;
 import com.tutict.finalassignmentcloud.auth.client.UserClient;
 import com.tutict.finalassignmentcloud.auth.config.login.jwt.TokenProvider;
 import com.tutict.finalassignmentcloud.config.websocket.WsAction;
+import com.tutict.finalassignmentcloud.dto.response.SysUserResponse;
 import com.tutict.finalassignmentcloud.entity.AuditLoginLog;
 import com.tutict.finalassignmentcloud.entity.SysRole;
 import com.tutict.finalassignmentcloud.entity.SysUser;
@@ -14,6 +15,7 @@ import com.tutict.finalassignmentcloud.enums.RoleType;
 import feign.FeignException;
 import lombok.Data;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.security.crypto.password.PasswordEncoder;
@@ -42,18 +44,22 @@ public class AuthWsService {
     private final UserClient userClient;
     private final RoleClient roleClient;
     private final PasswordEncoder passwordEncoder;
+    private final String internalServiceToken;
 
     @Autowired
     public AuthWsService(TokenProvider tokenProvider,
                          AuditLogClient auditLogClient,
                          UserClient userClient,
                          RoleClient roleClient,
-                         PasswordEncoder passwordEncoder) {
+                         PasswordEncoder passwordEncoder,
+                         @Value("${cloud.internal.service-token:${CLOUD_INTERNAL_SERVICE_TOKEN:}}")
+                         String internalServiceToken) {
         this.tokenProvider = tokenProvider;
         this.auditLogClient = auditLogClient;
         this.userClient = userClient;
         this.roleClient = roleClient;
         this.passwordEncoder = passwordEncoder;
+        this.internalServiceToken = internalServiceToken;
     }
 
     @CacheEvict(cacheNames = "AuthCache", allEntries = true)
@@ -135,11 +141,14 @@ public class AuthWsService {
         newUser.setStatus("Active");
         newUser.setCreatedAt(LocalDateTime.now());
         newUser.setUpdatedAt(LocalDateTime.now());
-        SysUser savedUser = userClient.createUser(newUser, idempotencyKey);
+        SysUserResponse savedUser = userClient.createUser(newUser, idempotencyKey);
         logger.info(() -> String.format("User created successfully: %s", registerRequest.getUsername()));
 
         if (savedUser == null || savedUser.getUserId() == null) {
-            savedUser = safeGetByUsername(registerRequest.getUsername());
+            SysUser internalUser = safeGetByUsername(registerRequest.getUsername());
+            if (internalUser != null) {
+                savedUser = SysUserResponse.fromEntity(internalUser);
+            }
         }
         if (savedUser == null) {
             logger.warning(() -> String.format("Unable to load newly created user: %s", registerRequest.getUsername()));
@@ -147,7 +156,7 @@ public class AuthWsService {
         }
 
         SysRole role = resolveOrCreateRole(registerRequest.getRole());
-        assignRole(savedUser, role);
+        assignRole(savedUser.getUserId(), role);
 
         logger.info(() -> String.format("User registered successfully: %s", registerRequest.getUsername()));
         return "CREATED";
@@ -155,9 +164,9 @@ public class AuthWsService {
 
     @CacheEvict(cacheNames = "AuthCache", allEntries = true)
     @WsAction(service = "AuthWsService", action = "getAllUsers")
-    public List<SysUser> getAllUsers() {
+    public List<SysUserResponse> getAllUsers() {
         logger.info("[WS] Fetching all users");
-        List<SysUser> users = userClient.getAllUsers();
+        List<SysUserResponse> users = userClient.getAllUsers();
         if (users.isEmpty()) {
             logger.warning("No users found in the system");
         }
@@ -207,13 +216,13 @@ public class AuthWsService {
         return roleClient.create(newRole, null);
     }
 
-    private void assignRole(SysUser user, SysRole role) {
+    private void assignRole(Long userId, SysRole role) {
         SysUserRole relation = new SysUserRole();
-        relation.setUserId(user.getUserId());
+        relation.setUserId(userId);
         relation.setRoleId(role.getRoleId());
         relation.setCreatedAt(LocalDateTime.now());
         relation.setCreatedBy("AuthWsService");
-        userClient.addUserRole(user.getUserId(), relation, null);
+        userClient.addUserRole(userId, relation, null);
     }
 
     private void recordFailedLogin(String username, String reason) {
@@ -326,7 +335,7 @@ public class AuthWsService {
             return null;
         }
         try {
-            return userClient.getByUsername(username);
+            return userClient.getByUsername(username, internalServiceToken);
         } catch (FeignException.NotFound ex) {
             return null;
         } catch (FeignException ex) {

@@ -23,7 +23,7 @@ public class TokenProvider {
 
     private static final Logger LOG = Logger.getLogger(TokenProvider.class.getName());
 
-    @Value("${jwt.secret.key}")
+    @Value("${jwt.secret.key:${JWT_SECRET_KEY:}}")
     private String base64Secret;
 
     private SecretKey secretKey;
@@ -42,6 +42,7 @@ public class TokenProvider {
 
     @PostConstruct
     public void init() {
+        validateSecret(base64Secret);
         // 将 Base64 编码的密钥解码为 byte 数组
         byte[] keyBytes = Base64.getDecoder().decode(base64Secret);
         // 使用 Keys 工具类生成用于 HMACSHA256 的 SecretKey
@@ -65,6 +66,7 @@ public class TokenProvider {
 
             return Jwts.builder()
                     .subject(username)
+                    .id(UUID.randomUUID().toString())
                     .claim("roles", normalizedRoles) // 将角色加入到 token 中                    .issuedAt(new Date(now))
                     .expiration(expirationDate)
                     .signWith(secretKey)
@@ -93,6 +95,7 @@ public class TokenProvider {
 
         return Jwts.builder()
                 .subject(username)
+                .id(UUID.randomUUID().toString())
                 .claim("roles", normalizedRoles)
                 .claim("roleTypes", roleTypes)
                 .claim("dataScope", dataScope)
@@ -110,11 +113,14 @@ public class TokenProvider {
      */
     public boolean validateToken(String token) {
         try {
-            Jwts.parser()
+            Claims claims = Jwts.parser()
                     .verifyWith(secretKey)
                     .build()
-                    .parseSignedClaims(token);
-            LOG.log(Level.INFO, "Token validated successfully: " + token);
+                    .parseSignedClaims(token)
+                    .getPayload();
+            LOG.log(Level.FINE,
+                    "Token validated successfully: subject={0}, jti={1}, expiration={2}",
+                    new Object[]{claims.getSubject(), claims.getId(), claims.getExpiration()});
             return true;
         } catch (JwtException e) {
             LOG.log(Level.WARNING, "Invalid token: " + e.getMessage(), e);
@@ -358,6 +364,16 @@ public class TokenProvider {
 
     private boolean isRoleDefined(String roleCode) {
         return ROLE_SCHEMA.containsKey(roleCode);
+    }
+
+    private void validateSecret(String secret) {
+        if (secret == null || secret.isBlank()) {
+            throw new IllegalStateException("jwt.secret.key must be provided through JWT_SECRET_KEY or configuration");
+        }
+        String normalized = secret.trim().toLowerCase(Locale.ROOT);
+        if (Set.of("secret", "changeme", "change-me", "default", "root", "password").contains(normalized)) {
+            throw new IllegalStateException("jwt.secret.key must not use a default or weak value");
+        }
     }
 
     @Getter

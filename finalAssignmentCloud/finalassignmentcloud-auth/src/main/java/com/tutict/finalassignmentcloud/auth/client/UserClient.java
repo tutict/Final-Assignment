@@ -1,5 +1,6 @@
 package com.tutict.finalassignmentcloud.auth.client;
 
+import com.tutict.finalassignmentcloud.dto.response.SysUserResponse;
 import com.tutict.finalassignmentcloud.entity.SysUser;
 import com.tutict.finalassignmentcloud.entity.SysUserRole;
 import org.springframework.cloud.openfeign.FeignClient;
@@ -16,23 +17,24 @@ import java.util.List;
 @FeignClient(name = "finalassignmentcloud-user")
 public interface UserClient {
 
-    @GetMapping("/api/users/search/username/{username}")
-    SysUser getByUsername(@PathVariable("username") String username);
+    @GetMapping("/api/users/internal/search/username/{username}")
+    SysUser getByUsername(@PathVariable("username") String username,
+                          @RequestHeader("X-Internal-Service-Token") String serviceToken);
 
     @GetMapping("/api/users")
-    List<SysUser> getAllUsers();
+    List<SysUserResponse> getAllUsers();
 
     @PostMapping("/api/users")
-    SysUser createUser(@RequestBody SysUser request,
-                       @RequestHeader(value = "Idempotency-Key", required = false) String idempotencyKey);
+    SysUserResponse createUser(@RequestBody SysUser request,
+                               @RequestHeader(value = "Idempotency-Key", required = false) String idempotencyKey);
 
     @GetMapping("/api/users/{userId}")
-    SysUser getById(@PathVariable("userId") Long userId);
+    SysUserResponse getById(@PathVariable("userId") Long userId);
 
     @PutMapping("/api/users/{userId}")
-    SysUser updateUser(@PathVariable("userId") Long userId,
-                       @RequestBody SysUser request,
-                       @RequestHeader(value = "Idempotency-Key", required = false) String idempotencyKey);
+    SysUserResponse updateUser(@PathVariable("userId") Long userId,
+                               @RequestBody SysUser request,
+                               @RequestHeader(value = "Idempotency-Key", required = false) String idempotencyKey);
 
     @GetMapping("/api/users/{userId}/roles")
     List<SysUserRole> listUserRoles(@PathVariable("userId") Long userId,

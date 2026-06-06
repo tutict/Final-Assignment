@@ -1,5 +1,6 @@
 package com.tutict.finalassignmentcloud.user.controller;
 
+import com.tutict.finalassignmentcloud.dto.response.SysUserResponse;
 import com.tutict.finalassignmentcloud.entity.SysUser;
 import com.tutict.finalassignmentcloud.entity.SysUserRole;
 import com.tutict.finalassignmentcloud.user.service.SysUserRoleService;
@@ -7,7 +8,9 @@ import com.tutict.finalassignmentcloud.user.service.SysUserService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import jakarta.annotation.security.PermitAll;
 import jakarta.annotation.security.RolesAllowed;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.DeleteMapping;
@@ -27,7 +30,7 @@ import java.util.logging.Logger;
 
 @RestController
 @RequestMapping("/api/users")
-@Tag(name = "User Management", description = "系统用户与角色管理接口")
+@Tag(name = "User Management", description = "System user and role management APIs")
 @SecurityRequirement(name = "bearerAuth")
 @RolesAllowed({"SUPER_ADMIN", "ADMIN"})
 public class UserManagementController {
@@ -36,18 +39,22 @@ public class UserManagementController {
 
     private final SysUserService sysUserService;
     private final SysUserRoleService sysUserRoleService;
+    private final String internalServiceToken;
 
     public UserManagementController(SysUserService sysUserService,
-                                    SysUserRoleService sysUserRoleService) {
+                                    SysUserRoleService sysUserRoleService,
+                                    @Value("${cloud.internal.service-token:${CLOUD_INTERNAL_SERVICE_TOKEN:}}")
+                                    String internalServiceToken) {
         this.sysUserService = sysUserService;
         this.sysUserRoleService = sysUserRoleService;
+        this.internalServiceToken = internalServiceToken;
     }
 
     @PostMapping
-    @Operation(summary = "创建用户")
-    public ResponseEntity<SysUser> createUser(@RequestBody SysUser request,
-                                              @RequestHeader(value = "Idempotency-Key", required = false)
-                                              String idempotencyKey) {
+    @Operation(summary = "Create user")
+    public ResponseEntity<SysUserResponse> createUser(
+            @RequestBody SysUser request,
+            @RequestHeader(value = "Idempotency-Key", required = false) String idempotencyKey) {
         boolean useKey = hasKey(idempotencyKey);
         try {
             if (useKey) {
@@ -60,7 +67,7 @@ public class UserManagementController {
             if (useKey && saved.getUserId() != null) {
                 sysUserService.markHistorySuccess(idempotencyKey, saved.getUserId());
             }
-            return ResponseEntity.status(HttpStatus.CREATED).body(saved);
+            return ResponseEntity.status(HttpStatus.CREATED).body(toResponse(saved));
         } catch (Exception ex) {
             if (useKey) {
                 sysUserService.markHistoryFailure(idempotencyKey, ex.getMessage());
@@ -71,11 +78,11 @@ public class UserManagementController {
     }
 
     @PutMapping("/{userId}")
-    @Operation(summary = "更新用户")
-    public ResponseEntity<SysUser> updateUser(@PathVariable Long userId,
-                                              @RequestBody SysUser request,
-                                              @RequestHeader(value = "Idempotency-Key", required = false)
-                                              String idempotencyKey) {
+    @Operation(summary = "Update user")
+    public ResponseEntity<SysUserResponse> updateUser(
+            @PathVariable Long userId,
+            @RequestBody SysUser request,
+            @RequestHeader(value = "Idempotency-Key", required = false) String idempotencyKey) {
         boolean useKey = hasKey(idempotencyKey);
         try {
             request.setUserId(userId);
@@ -86,7 +93,7 @@ public class UserManagementController {
             if (useKey && updated.getUserId() != null) {
                 sysUserService.markHistorySuccess(idempotencyKey, updated.getUserId());
             }
-            return ResponseEntity.ok(updated);
+            return ResponseEntity.ok(toResponse(updated));
         } catch (Exception ex) {
             if (useKey) {
                 sysUserService.markHistoryFailure(idempotencyKey, ex.getMessage());
@@ -97,7 +104,7 @@ public class UserManagementController {
     }
 
     @DeleteMapping("/{userId}")
-    @Operation(summary = "删除用户")
+    @Operation(summary = "Delete user")
     public ResponseEntity<Void> deleteUser(@PathVariable Long userId) {
         try {
             sysUserService.deleteSysUser(userId);
@@ -109,11 +116,11 @@ public class UserManagementController {
     }
 
     @GetMapping("/{userId}")
-    @Operation(summary = "查询用户详情")
-    public ResponseEntity<SysUser> getUser(@PathVariable Long userId) {
+    @Operation(summary = "Get user")
+    public ResponseEntity<SysUserResponse> getUser(@PathVariable Long userId) {
         try {
             SysUser user = sysUserService.findById(userId);
-            return user == null ? ResponseEntity.notFound().build() : ResponseEntity.ok(user);
+            return user == null ? ResponseEntity.notFound().build() : ResponseEntity.ok(toResponse(user));
         } catch (Exception ex) {
             LOG.log(Level.WARNING, "Get user failed", ex);
             return ResponseEntity.status(resolveStatus(ex)).build();
@@ -121,10 +128,10 @@ public class UserManagementController {
     }
 
     @GetMapping
-    @Operation(summary = "查询全部用户")
-    public ResponseEntity<List<SysUser>> listUsers() {
+    @Operation(summary = "List users")
+    public ResponseEntity<List<SysUserResponse>> listUsers() {
         try {
-            return ResponseEntity.ok(sysUserService.findAll());
+            return ResponseEntity.ok(toResponses(sysUserService.findAll()));
         } catch (Exception ex) {
             LOG.log(Level.WARNING, "List users failed", ex);
             return ResponseEntity.status(resolveStatus(ex)).build();
@@ -132,72 +139,97 @@ public class UserManagementController {
     }
 
     @GetMapping("/search/username/{username}")
-    @Operation(summary = "按用户名查询用户")
-    public ResponseEntity<SysUser> getByUsername(@PathVariable String username) {
+    @Operation(summary = "Get user by username")
+    public ResponseEntity<SysUserResponse> getByUsername(@PathVariable String username) {
         try {
             SysUser user = sysUserService.findByUsername(username);
-            return user == null ? ResponseEntity.notFound().build() : ResponseEntity.ok(user);
+            return user == null ? ResponseEntity.notFound().build() : ResponseEntity.ok(toResponse(user));
         } catch (Exception ex) {
             LOG.log(Level.WARNING, "Get user by username failed", ex);
             return ResponseEntity.status(resolveStatus(ex)).build();
         }
     }
 
+    @GetMapping("/internal/search/username/{username}")
+    @PermitAll
+    @Operation(summary = "Internal credential lookup")
+    public ResponseEntity<SysUser> getInternalByUsername(
+            @PathVariable String username,
+            @RequestHeader(value = "X-Internal-Service-Token", required = false) String serviceToken) {
+        if (!isValidInternalToken(serviceToken)) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
+        }
+        try {
+            SysUser user = sysUserService.findByUsername(username);
+            return user == null ? ResponseEntity.notFound().build() : ResponseEntity.ok(user);
+        } catch (Exception ex) {
+            LOG.log(Level.WARNING, "Internal user lookup failed", ex);
+            return ResponseEntity.status(resolveStatus(ex)).build();
+        }
+    }
+
     @GetMapping("/search/username/prefix")
     @Operation(summary = "Search users by username prefix")
-    public ResponseEntity<List<SysUser>> searchByUsernamePrefix(@RequestParam String username,
-                                                                @RequestParam(defaultValue = "1") int page,
-                                                                @RequestParam(defaultValue = "20") int size) {
-        return ResponseEntity.ok(sysUserService.searchByUsernamePrefix(username, page, size));
+    public ResponseEntity<List<SysUserResponse>> searchByUsernamePrefix(
+            @RequestParam String username,
+            @RequestParam(defaultValue = "1") int page,
+            @RequestParam(defaultValue = "20") int size) {
+        return ResponseEntity.ok(toResponses(sysUserService.searchByUsernamePrefix(username, page, size)));
     }
 
     @GetMapping("/search/username/fuzzy")
     @Operation(summary = "Search users by username fuzzy")
-    public ResponseEntity<List<SysUser>> searchByUsernameFuzzy(@RequestParam String username,
-                                                               @RequestParam(defaultValue = "1") int page,
-                                                               @RequestParam(defaultValue = "20") int size) {
-        return ResponseEntity.ok(sysUserService.searchByUsernameFuzzy(username, page, size));
+    public ResponseEntity<List<SysUserResponse>> searchByUsernameFuzzy(
+            @RequestParam String username,
+            @RequestParam(defaultValue = "1") int page,
+            @RequestParam(defaultValue = "20") int size) {
+        return ResponseEntity.ok(toResponses(sysUserService.searchByUsernameFuzzy(username, page, size)));
     }
 
     @GetMapping("/search/real-name/prefix")
     @Operation(summary = "Search users by real name prefix")
-    public ResponseEntity<List<SysUser>> searchByRealNamePrefix(@RequestParam String realName,
-                                                                @RequestParam(defaultValue = "1") int page,
-                                                                @RequestParam(defaultValue = "20") int size) {
-        return ResponseEntity.ok(sysUserService.searchByRealNamePrefix(realName, page, size));
+    public ResponseEntity<List<SysUserResponse>> searchByRealNamePrefix(
+            @RequestParam String realName,
+            @RequestParam(defaultValue = "1") int page,
+            @RequestParam(defaultValue = "20") int size) {
+        return ResponseEntity.ok(toResponses(sysUserService.searchByRealNamePrefix(realName, page, size)));
     }
 
     @GetMapping("/search/real-name/fuzzy")
     @Operation(summary = "Search users by real name fuzzy")
-    public ResponseEntity<List<SysUser>> searchByRealNameFuzzy(@RequestParam String realName,
-                                                               @RequestParam(defaultValue = "1") int page,
-                                                               @RequestParam(defaultValue = "20") int size) {
-        return ResponseEntity.ok(sysUserService.searchByRealNameFuzzy(realName, page, size));
+    public ResponseEntity<List<SysUserResponse>> searchByRealNameFuzzy(
+            @RequestParam String realName,
+            @RequestParam(defaultValue = "1") int page,
+            @RequestParam(defaultValue = "20") int size) {
+        return ResponseEntity.ok(toResponses(sysUserService.searchByRealNameFuzzy(realName, page, size)));
     }
 
     @GetMapping("/search/id-card")
     @Operation(summary = "Search users by ID card number")
-    public ResponseEntity<List<SysUser>> searchByIdCard(@RequestParam String idCardNumber,
-                                                        @RequestParam(defaultValue = "1") int page,
-                                                        @RequestParam(defaultValue = "20") int size) {
-        return ResponseEntity.ok(sysUserService.searchByIdCardNumber(idCardNumber, page, size));
+    public ResponseEntity<List<SysUserResponse>> searchByIdCard(
+            @RequestParam String idCardNumber,
+            @RequestParam(defaultValue = "1") int page,
+            @RequestParam(defaultValue = "20") int size) {
+        return ResponseEntity.ok(toResponses(sysUserService.searchByIdCardNumber(idCardNumber, page, size)));
     }
 
     @GetMapping("/search/contact")
     @Operation(summary = "Search users by contact number")
-    public ResponseEntity<List<SysUser>> searchByContact(@RequestParam String contactNumber,
-                                                         @RequestParam(defaultValue = "1") int page,
-                                                         @RequestParam(defaultValue = "20") int size) {
-        return ResponseEntity.ok(sysUserService.searchByContactNumber(contactNumber, page, size));
+    public ResponseEntity<List<SysUserResponse>> searchByContact(
+            @RequestParam String contactNumber,
+            @RequestParam(defaultValue = "1") int page,
+            @RequestParam(defaultValue = "20") int size) {
+        return ResponseEntity.ok(toResponses(sysUserService.searchByContactNumber(contactNumber, page, size)));
     }
 
     @GetMapping("/search/status")
-    @Operation(summary = "按状态分页查询用户")
-    public ResponseEntity<List<SysUser>> listByStatus(@RequestParam String status,
-                                                      @RequestParam(defaultValue = "1") int page,
-                                                      @RequestParam(defaultValue = "20") int size) {
+    @Operation(summary = "List users by status")
+    public ResponseEntity<List<SysUserResponse>> listByStatus(
+            @RequestParam String status,
+            @RequestParam(defaultValue = "1") int page,
+            @RequestParam(defaultValue = "20") int size) {
         try {
-            return ResponseEntity.ok(sysUserService.findByStatus(status, page, size));
+            return ResponseEntity.ok(toResponses(sysUserService.findByStatus(status, page, size)));
         } catch (Exception ex) {
             LOG.log(Level.WARNING, "List users by status failed", ex);
             return ResponseEntity.status(resolveStatus(ex)).build();
@@ -205,12 +237,13 @@ public class UserManagementController {
     }
 
     @GetMapping("/search/department")
-    @Operation(summary = "按部门分页查询用户")
-    public ResponseEntity<List<SysUser>> listByDepartment(@RequestParam String department,
-                                                          @RequestParam(defaultValue = "1") int page,
-                                                          @RequestParam(defaultValue = "20") int size) {
+    @Operation(summary = "List users by department")
+    public ResponseEntity<List<SysUserResponse>> listByDepartment(
+            @RequestParam String department,
+            @RequestParam(defaultValue = "1") int page,
+            @RequestParam(defaultValue = "20") int size) {
         try {
-            return ResponseEntity.ok(sysUserService.findByDepartment(department, page, size));
+            return ResponseEntity.ok(toResponses(sysUserService.findByDepartment(department, page, size)));
         } catch (Exception ex) {
             LOG.log(Level.WARNING, "List users by department failed", ex);
             return ResponseEntity.status(resolveStatus(ex)).build();
@@ -219,35 +252,38 @@ public class UserManagementController {
 
     @GetMapping("/search/department/prefix")
     @Operation(summary = "Search users by department prefix")
-    public ResponseEntity<List<SysUser>> searchByDepartmentPrefix(@RequestParam String department,
-                                                                  @RequestParam(defaultValue = "1") int page,
-                                                                  @RequestParam(defaultValue = "20") int size) {
-        return ResponseEntity.ok(sysUserService.searchByDepartmentPrefix(department, page, size));
+    public ResponseEntity<List<SysUserResponse>> searchByDepartmentPrefix(
+            @RequestParam String department,
+            @RequestParam(defaultValue = "1") int page,
+            @RequestParam(defaultValue = "20") int size) {
+        return ResponseEntity.ok(toResponses(sysUserService.searchByDepartmentPrefix(department, page, size)));
     }
 
     @GetMapping("/search/employee-number")
     @Operation(summary = "Search users by employee number")
-    public ResponseEntity<List<SysUser>> searchByEmployeeNumber(@RequestParam String employeeNumber,
-                                                                @RequestParam(defaultValue = "1") int page,
-                                                                @RequestParam(defaultValue = "20") int size) {
-        return ResponseEntity.ok(sysUserService.searchByEmployeeNumber(employeeNumber, page, size));
+    public ResponseEntity<List<SysUserResponse>> searchByEmployeeNumber(
+            @RequestParam String employeeNumber,
+            @RequestParam(defaultValue = "1") int page,
+            @RequestParam(defaultValue = "20") int size) {
+        return ResponseEntity.ok(toResponses(sysUserService.searchByEmployeeNumber(employeeNumber, page, size)));
     }
 
     @GetMapping("/search/last-login-range")
     @Operation(summary = "Search users by last login time range")
-    public ResponseEntity<List<SysUser>> searchByLastLoginRange(@RequestParam String startTime,
-                                                                @RequestParam String endTime,
-                                                                @RequestParam(defaultValue = "1") int page,
-                                                                @RequestParam(defaultValue = "20") int size) {
-        return ResponseEntity.ok(sysUserService.searchByLastLoginTimeRange(startTime, endTime, page, size));
+    public ResponseEntity<List<SysUserResponse>> searchByLastLoginRange(
+            @RequestParam String startTime,
+            @RequestParam String endTime,
+            @RequestParam(defaultValue = "1") int page,
+            @RequestParam(defaultValue = "20") int size) {
+        return ResponseEntity.ok(toResponses(sysUserService.searchByLastLoginTimeRange(startTime, endTime, page, size)));
     }
 
     @PostMapping("/{userId}/roles")
-    @Operation(summary = "绑定用户角色")
-    public ResponseEntity<SysUserRole> addUserRole(@PathVariable Long userId,
-                                                   @RequestBody SysUserRole relation,
-                                                   @RequestHeader(value = "Idempotency-Key", required = false)
-                                                   String idempotencyKey) {
+    @Operation(summary = "Add user role")
+    public ResponseEntity<SysUserRole> addUserRole(
+            @PathVariable Long userId,
+            @RequestBody SysUserRole relation,
+            @RequestHeader(value = "Idempotency-Key", required = false) String idempotencyKey) {
         boolean useKey = hasKey(idempotencyKey);
         try {
             relation.setUserId(userId);
@@ -272,7 +308,7 @@ public class UserManagementController {
     }
 
     @DeleteMapping("/roles/{relationId}")
-    @Operation(summary = "删除用户角色关联")
+    @Operation(summary = "Delete user role relation")
     public ResponseEntity<Void> deleteUserRole(@PathVariable Long relationId) {
         try {
             sysUserRoleService.deleteRelation(relationId);
@@ -284,10 +320,11 @@ public class UserManagementController {
     }
 
     @GetMapping("/{userId}/roles")
-    @Operation(summary = "查询用户角色列表")
-    public ResponseEntity<List<SysUserRole>> listUserRoles(@PathVariable Long userId,
-                                                           @RequestParam(defaultValue = "1") int page,
-                                                           @RequestParam(defaultValue = "20") int size) {
+    @Operation(summary = "List user roles")
+    public ResponseEntity<List<SysUserRole>> listUserRoles(
+            @PathVariable Long userId,
+            @RequestParam(defaultValue = "1") int page,
+            @RequestParam(defaultValue = "20") int size) {
         try {
             return ResponseEntity.ok(sysUserRoleService.findByUserId(userId, page, size));
         } catch (Exception ex) {
@@ -297,11 +334,11 @@ public class UserManagementController {
     }
 
     @PutMapping("/role-bindings/{relationId}")
-    @Operation(summary = "更新用户角色关联")
-    public ResponseEntity<SysUserRole> updateUserRole(@PathVariable Long relationId,
-                                                      @RequestBody SysUserRole relation,
-                                                      @RequestHeader(value = "Idempotency-Key", required = false)
-                                                      String idempotencyKey) {
+    @Operation(summary = "Update user role relation")
+    public ResponseEntity<SysUserRole> updateUserRole(
+            @PathVariable Long relationId,
+            @RequestBody SysUserRole relation,
+            @RequestHeader(value = "Idempotency-Key", required = false) String idempotencyKey) {
         boolean useKey = hasKey(idempotencyKey);
         try {
             relation.setId(relationId);
@@ -323,34 +360,54 @@ public class UserManagementController {
     }
 
     @GetMapping("/role-bindings/{relationId}")
-    @Operation(summary = "查询用户角色关联详情")
+    @Operation(summary = "Get user role relation")
     public ResponseEntity<SysUserRole> getUserRole(@PathVariable Long relationId) {
         SysUserRole relation = sysUserRoleService.findById(relationId);
         return relation == null ? ResponseEntity.notFound().build() : ResponseEntity.ok(relation);
     }
 
     @GetMapping("/role-bindings")
-    @Operation(summary = "分页查询全部用户角色关联")
-    public ResponseEntity<List<SysUserRole>> listRoleBindings(@RequestParam(defaultValue = "1") int page,
-                                                              @RequestParam(defaultValue = "20") int size) {
+    @Operation(summary = "List role bindings")
+    public ResponseEntity<List<SysUserRole>> listRoleBindings(
+            @RequestParam(defaultValue = "1") int page,
+            @RequestParam(defaultValue = "20") int size) {
         return ResponseEntity.ok(sysUserRoleService.findAll(page, size));
     }
 
     @GetMapping("/role-bindings/by-role/{roleId}")
-    @Operation(summary = "按角色查询用户角色关联")
-    public ResponseEntity<List<SysUserRole>> listBindingsByRole(@PathVariable Integer roleId,
-                                                                @RequestParam(defaultValue = "1") int page,
-                                                                @RequestParam(defaultValue = "20") int size) {
+    @Operation(summary = "List role bindings by role")
+    public ResponseEntity<List<SysUserRole>> listBindingsByRole(
+            @PathVariable Integer roleId,
+            @RequestParam(defaultValue = "1") int page,
+            @RequestParam(defaultValue = "20") int size) {
         return ResponseEntity.ok(sysUserRoleService.findByRoleId(roleId, page, size));
     }
 
     @GetMapping("/role-bindings/search")
-    @Operation(summary = "Search user role bindings by userId and roleId")
-    public ResponseEntity<List<SysUserRole>> searchBindings(@RequestParam Long userId,
-                                                            @RequestParam Integer roleId,
-                                                            @RequestParam(defaultValue = "1") int page,
-                                                            @RequestParam(defaultValue = "20") int size) {
+    @Operation(summary = "Search role bindings")
+    public ResponseEntity<List<SysUserRole>> searchBindings(
+            @RequestParam Long userId,
+            @RequestParam Integer roleId,
+            @RequestParam(defaultValue = "1") int page,
+            @RequestParam(defaultValue = "20") int size) {
         return ResponseEntity.ok(sysUserRoleService.findByUserIdAndRoleId(userId, roleId, page, size));
+    }
+
+    private SysUserResponse toResponse(SysUser user) {
+        return SysUserResponse.fromEntity(user);
+    }
+
+    private List<SysUserResponse> toResponses(List<SysUser> users) {
+        if (users == null || users.isEmpty()) {
+            return List.of();
+        }
+        return users.stream()
+                .map(this::toResponse)
+                .toList();
+    }
+
+    private boolean isValidInternalToken(String serviceToken) {
+        return hasKey(internalServiceToken) && internalServiceToken.equals(serviceToken);
     }
 
     private boolean hasKey(String value) {

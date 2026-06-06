@@ -12,6 +12,8 @@ class UserResponse {
     this.employeeNumber,
     this.status,
     this.createTime,
+    this.updatedTime,
+    this.remarks,
   });
 
   final int? userId;
@@ -26,13 +28,15 @@ class UserResponse {
   final String? employeeNumber;
   final String? status;
   final DateTime? createTime;
+  final DateTime? updatedTime;
+  final String? remarks;
 
   factory UserResponse.fromJson(Map<String, dynamic> json) {
     return UserResponse(
       userId: _toInt(json['userId'] ?? json['id']),
       username: json['username'] as String?,
       email: json['email'] as String?,
-      phoneNumber: json['phoneNumber'] as String?,
+      phoneNumber: (json['phoneNumber'] ?? json['contactNumber']) as String?,
       roleName: json['roleName'] as String?,
       realName: json['realName'] as String?,
       gender: json['gender'] as String?,
@@ -40,9 +44,9 @@ class UserResponse {
       position: json['position'] as String?,
       employeeNumber: json['employeeNumber'] as String?,
       status: json['status'] as String?,
-      createTime: json['createTime'] != null
-          ? DateTime.tryParse(json['createTime'].toString())
-          : null,
+      createTime: _parseDateTime(json['createTime'] ?? json['createdAt']),
+      updatedTime: _parseDateTime(json['updatedAt'] ?? json['modifiedTime']),
+      remarks: json['remarks'] as String?,
     );
   }
 
@@ -60,6 +64,8 @@ class UserResponse {
       'employeeNumber': employeeNumber,
       'status': status,
       'createTime': createTime?.toIso8601String(),
+      'updatedTime': updatedTime?.toIso8601String(),
+      'remarks': remarks,
     };
   }
 
@@ -68,5 +74,11 @@ class UserResponse {
     if (value is int) return value;
     if (value is num) return value.toInt();
     return int.tryParse(value.toString());
+  }
+
+  static DateTime? _parseDateTime(dynamic value) {
+    if (value == null) return null;
+    if (value is DateTime) return value;
+    return DateTime.tryParse(value.toString());
   }
 }
