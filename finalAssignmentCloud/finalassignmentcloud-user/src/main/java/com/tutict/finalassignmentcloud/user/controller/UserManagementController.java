@@ -186,6 +186,19 @@ public class UserManagementController {
         return ResponseEntity.ok(toResponses(sysUserService.searchByUsernameFuzzy(username, page, size)));
     }
 
+    @GetMapping("/autocomplete/usernames")
+    @Operation(summary = "Autocomplete usernames")
+    public ResponseEntity<List<String>> autocompleteUsernames(
+            @RequestParam String prefix,
+            @RequestParam(defaultValue = "10") int size) {
+        try {
+            return ResponseEntity.ok(sysUserService.getUsernameAutocompleteSuggestions(prefix, size));
+        } catch (Exception ex) {
+            LOG.log(Level.WARNING, "Autocomplete usernames failed", ex);
+            return ResponseEntity.status(resolveStatus(ex)).build();
+        }
+    }
+
     @GetMapping("/search/real-name/prefix")
     @Operation(summary = "Search users by real name prefix")
     public ResponseEntity<List<SysUserResponse>> searchByRealNamePrefix(
