@@ -48,7 +48,8 @@ public class AppealAcceptanceStateMachineConfig extends StateMachineConfigurerAd
     public void configure(StateMachineTransitionConfigurer<AppealAcceptanceState, AppealAcceptanceEvent> transitions)
             throws Exception {
         transitions
-                // 待受理-> 已受理                .withExternal()
+                // Pending -> accepted
+                .withExternal()
                 .source(AppealAcceptanceState.PENDING)
                 .target(AppealAcceptanceState.ACCEPTED)
                 .event(AppealAcceptanceEvent.ACCEPT)
