@@ -51,7 +51,7 @@ public class DeductionRecordService {
 
     @Transactional
     @CacheEvict(cacheNames = CACHE_NAME, allEntries = true)
-    @WsAction(service = "DeductionRecordService", action = "checkAndInsertIdempotency")
+    @WsAction(service = "DeductionRecordService", action = "checkAndInsertIdempotency", roles = {"SUPER_ADMIN", "ADMIN", "TRAFFIC_POLICE"})
     public void checkAndInsertIdempotency(String idempotencyKey, DeductionRecord deductionRecord, String action) {
         Objects.requireNonNull(deductionRecord, "DeductionRecord must not be null");
         if (sysRequestHistoryMapper.selectByIdempotencyKey(idempotencyKey) != null) {

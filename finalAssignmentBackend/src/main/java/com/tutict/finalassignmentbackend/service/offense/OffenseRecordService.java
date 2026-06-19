@@ -84,7 +84,7 @@ public class OffenseRecordService {
 
     @Transactional
     @CacheEvict(cacheNames = CACHE_NAME, allEntries = true)
-    @WsAction(service = "OffenseRecordService", action = "checkAndInsertIdempotency")
+    @WsAction(service = "OffenseRecordService", action = "checkAndInsertIdempotency", roles = {"SUPER_ADMIN", "ADMIN", "TRAFFIC_POLICE", "APPEAL_REVIEWER"})
     public void checkAndInsertIdempotency(String idempotencyKey, OffenseRecord offenseRecord, String action) {
         Objects.requireNonNull(offenseRecord, "OffenseRecord must not be null");
         if (sysRequestHistoryMapper.selectByIdempotencyKey(idempotencyKey) != null) {

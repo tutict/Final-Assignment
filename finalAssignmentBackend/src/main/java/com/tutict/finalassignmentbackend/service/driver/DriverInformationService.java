@@ -71,7 +71,7 @@ public class DriverInformationService {
 
     @Transactional
     @CacheEvict(cacheNames = CACHE_NAME, allEntries = true)
-    @WsAction(service = "DriverInformationService", action = "checkAndInsertIdempotency")
+    @WsAction(service = "DriverInformationService", action = "checkAndInsertIdempotency", roles = {"SUPER_ADMIN", "ADMIN", "TRAFFIC_POLICE"})
     public void checkAndInsertIdempotency(String idempotencyKey, DriverInformation driverInformation, String action) {
         if (driverInformation == null) {
             throw new IllegalArgumentException("Driver information cannot be null");
@@ -109,7 +109,7 @@ public class DriverInformationService {
 
     @Transactional
     @CacheEvict(cacheNames = CACHE_NAME, allEntries = true)
-    @WsAction(service = "DriverInformationService", action = "updateDriver")
+    @WsAction(service = "DriverInformationService", action = "updateDriver", roles = {"SUPER_ADMIN", "ADMIN", "TRAFFIC_POLICE"})
     public DriverInformation updateDriver(DriverInformation driverInformation) {
         validateDriverId(driverInformation);
         DriverInformation existing = driverInformationMapper.selectById(driverInformation.getDriverId());
@@ -132,7 +132,7 @@ public class DriverInformationService {
 
     @Transactional
     @CacheEvict(cacheNames = CACHE_NAME, allEntries = true)
-    @WsAction(service = "DriverInformationService", action = "deleteDriver")
+    @WsAction(service = "DriverInformationService", action = "deleteDriver", roles = {"SUPER_ADMIN", "ADMIN", "TRAFFIC_POLICE"})
     public void deleteDriver(Long driverId) {
         validateDriverId(driverId);
         int rows = driverInformationMapper.deleteById(driverId);
@@ -148,7 +148,7 @@ public class DriverInformationService {
     }
 
     @Cacheable(cacheNames = CACHE_NAME, key = "#driverId", unless = "#result == null")
-    @WsAction(service = "DriverInformationService", action = "getDriverById")
+    @WsAction(service = "DriverInformationService", action = "getDriverById", roles = {"SUPER_ADMIN", "ADMIN", "TRAFFIC_POLICE"})
     public DriverInformation getDriverById(Long driverId) {
         validateDriverId(driverId);
         return driverInformationSearchRepository.findById(driverId)
@@ -229,7 +229,7 @@ public class DriverInformationService {
     }
 
     @Cacheable(cacheNames = CACHE_NAME, key = "'all'", unless = "#result == null || #result.isEmpty()")
-    @WsAction(service = "DriverInformationService", action = "getAllDrivers")
+    @WsAction(service = "DriverInformationService", action = "getAllDrivers", roles = {"SUPER_ADMIN", "ADMIN", "TRAFFIC_POLICE"})
     public List<DriverInformation> getAllDrivers() {
         List<DriverInformation> fromIndex = StreamSupport.stream(
                         driverInformationSearchRepository.findAll().spliterator(), false)
@@ -247,14 +247,14 @@ public class DriverInformationService {
     }
 
     @Cacheable(cacheNames = CACHE_NAME, key = "'idCard:' + #query + ':' + #page + ':' + #size")
-    @WsAction(service = "DriverInformationService", action = "searchByIdCardNumber")
+    @WsAction(service = "DriverInformationService", action = "searchByIdCardNumber", roles = {"SUPER_ADMIN", "ADMIN", "TRAFFIC_POLICE"})
     public List<DriverInformation> searchByIdCardNumber(String query, int page, int size) {
         validatePagination(page, size);
         return searchBySensitiveColumn("id_card_number", "id_card_number_blind_index", query, page, size);
     }
 
     @Cacheable(cacheNames = CACHE_NAME, key = "'license:' + #query + ':' + #page + ':' + #size")
-    @WsAction(service = "DriverInformationService", action = "searchByDriverLicenseNumber")
+    @WsAction(service = "DriverInformationService", action = "searchByDriverLicenseNumber", roles = {"SUPER_ADMIN", "ADMIN", "TRAFFIC_POLICE"})
     public List<DriverInformation> searchByDriverLicenseNumber(String query, int page, int size) {
         return aggregatedSearch(query, page, size,
                 q -> driverInformationSearchRepository.searchByDriverLicenseNumber(q, pageable(page, size)),
@@ -263,7 +263,7 @@ public class DriverInformationService {
     }
 
     @Cacheable(cacheNames = CACHE_NAME, key = "'name:' + #query + ':' + #page + ':' + #size")
-    @WsAction(service = "DriverInformationService", action = "searchByName")
+    @WsAction(service = "DriverInformationService", action = "searchByName", roles = {"SUPER_ADMIN", "ADMIN", "TRAFFIC_POLICE"})
     public List<DriverInformation> searchByName(String query, int page, int size) {
         List<DriverInformation> results = aggregatedSearch(query, page, size,
                 q -> driverInformationSearchRepository.searchByNamePrefix(q, pageable(page, size)),

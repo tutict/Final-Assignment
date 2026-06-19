@@ -55,7 +55,7 @@ public class SysPermissionService {
 
     @Transactional
     @CacheEvict(cacheNames = CACHE_NAME, allEntries = true)
-    @WsAction(service = "SysPermissionService", action = "checkAndInsertIdempotency")
+    @WsAction(service = "SysPermissionService", action = "checkAndInsertIdempotency", roles = {"SUPER_ADMIN", "ADMIN"})
     public void checkAndInsertIdempotency(String idempotencyKey, SysPermission permission, String action) {
         Objects.requireNonNull(permission, "SysPermission must not be null");
         SysRequestHistory existing = sysRequestHistoryMapper.selectByIdempotencyKey(idempotencyKey);

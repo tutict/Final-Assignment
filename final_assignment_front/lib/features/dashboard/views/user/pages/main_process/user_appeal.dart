@@ -212,8 +212,7 @@ class _UserAppealPageState extends State<UserAppealPage> {
         if (Get.isRegistered<AuthService>()) {
           await Get.find<AuthService>().clearTokens();
         } else {
-          await prefs.remove('jwtToken');
-          await prefs.remove('refreshToken');
+          await AuthTokenStore.instance.clearAll();
         }
         NavigationHelper.offAllNamed(Routes.login);
         return null;

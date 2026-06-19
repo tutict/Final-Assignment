@@ -60,7 +60,7 @@ public class AuditLoginLogService {
 
     @Transactional
     @CacheEvict(cacheNames = CACHE_NAME, allEntries = true)
-    @WsAction(service = "AuditLoginLogService", action = "checkAndInsertIdempotency")
+    @WsAction(service = "AuditLoginLogService", action = "checkAndInsertIdempotency", roles = {"SUPER_ADMIN", "ADMIN"})
     public void checkAndInsertIdempotency(String idempotencyKey, AuditLoginLog loginLog, String action) {
         Objects.requireNonNull(loginLog, "AuditLoginLog must not be null");
         if (sysRequestHistoryMapper.selectByIdempotencyKey(idempotencyKey) != null) {

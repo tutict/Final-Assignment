@@ -52,7 +52,7 @@ public class SysRequestHistoryService {
 
     @Transactional
     @CacheEvict(cacheNames = CACHE_NAME, allEntries = true)
-    @WsAction(service = "SysRequestHistoryService", action = "checkAndInsertIdempotency")
+    @WsAction(service = "SysRequestHistoryService", action = "checkAndInsertIdempotency", roles = {"SUPER_ADMIN", "ADMIN"})
     public void checkAndInsertIdempotency(String idempotencyKey, SysRequestHistory historyPayload, String action) {
         Objects.requireNonNull(historyPayload, "SysRequestHistory must not be null");
         SysRequestHistory existing = sysRequestHistoryMapper.selectByIdempotencyKey(idempotencyKey);

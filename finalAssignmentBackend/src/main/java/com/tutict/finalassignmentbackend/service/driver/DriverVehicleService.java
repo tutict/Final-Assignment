@@ -64,7 +64,7 @@ public class DriverVehicleService {
 
     @Transactional
     @CacheEvict(cacheNames = CACHE_NAME, allEntries = true)
-    @WsAction(service = "DriverVehicleService", action = "checkAndInsertIdempotency")
+    @WsAction(service = "DriverVehicleService", action = "checkAndInsertIdempotency", roles = {"SUPER_ADMIN", "ADMIN", "TRAFFIC_POLICE"})
     public void checkAndInsertIdempotency(String idempotencyKey, DriverVehicle binding, String action) {
         Objects.requireNonNull(binding, "DriverVehicle must not be null");
         SysRequestHistory existing = sysRequestHistoryMapper.selectByIdempotencyKey(idempotencyKey);

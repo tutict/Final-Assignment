@@ -119,10 +119,7 @@ class _LoginScreenState extends State<LoginScreen> {
     await AuthTokenStore.instance.setJwtToken(accessToken);
 
     final refreshToken = _stringValue(result['refreshToken']);
-    if (refreshToken != null) {
-      await prefs.setString('refreshToken', refreshToken);
-      await prefs.setString('refresh_token', refreshToken);
-    }
+    await AuthTokenStore.instance.setRefreshToken(refreshToken);
 
     final data = result['success'] == true && result['data'] is Map
         ? Map<String, dynamic>.from(result['data'] as Map)

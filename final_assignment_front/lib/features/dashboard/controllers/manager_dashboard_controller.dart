@@ -16,6 +16,7 @@ import 'package:flutter/rendering.dart';
 import 'package:get/get.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:final_assignment_front/shared/utils/navigation_helper.dart';
+import 'package:final_assignment_front/utils/services/auth_token_store.dart';
 
 class ManagerDashboardController extends GetxController {
   final caseCardDataList = <CaseCardData>[].obs;
@@ -77,7 +78,7 @@ class ManagerDashboardController extends GetxController {
 
   Future<void> _loadUserFromPrefs() async {
     final prefs = await SharedPreferences.getInstance();
-    final jwtToken = prefs.getString('jwtToken');
+    final jwtToken = await AuthTokenStore.instance.getJwtToken();
     final userName = prefs.getString('userName');
     final userEmail = prefs.getString('userEmail');
     final userRole = prefs.getString('roles') ?? prefs.getString('userRole');

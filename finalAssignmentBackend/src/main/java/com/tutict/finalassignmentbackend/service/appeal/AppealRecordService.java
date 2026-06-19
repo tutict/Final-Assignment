@@ -28,7 +28,7 @@ public class AppealRecordService {
     }
 
     @Transactional
-    @WsAction(service = "AppealRecordService", action = "checkAndInsertIdempotency")
+    @WsAction(service = "AppealRecordService", action = "checkAndInsertIdempotency", roles = {"SUPER_ADMIN", "ADMIN", "APPEAL_REVIEWER"})
     public void checkAndInsertIdempotency(String idempotencyKey, AppealRecord appealRecord, String action) {
         workflowOrchestrator.checkAndInsertIdempotency(idempotencyKey, appealRecord, action);
     }

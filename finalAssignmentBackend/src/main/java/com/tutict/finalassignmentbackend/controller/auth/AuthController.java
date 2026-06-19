@@ -1,6 +1,5 @@
 package com.tutict.finalassignmentbackend.controller.auth;
 
-import com.tutict.finalassignmentbackend.dto.mapper.UserResponseMapper;
 import com.tutict.finalassignmentbackend.dto.request.RefreshRequest;
 import com.tutict.finalassignmentbackend.dto.response.TokenResponse;
 import com.tutict.finalassignmentbackend.dto.response.UserProfileResponse;
@@ -254,9 +253,7 @@ public class AuthController {
     })
     public ResponseEntity<com.tutict.finalassignmentbackend.dto.response.ApiResponse<List<UserResponse>>> getAllUsers() {
         try {
-            List<UserResponse> users = authWsService.getAllUsers().stream()
-                    .map(UserResponseMapper::toResponse)
-                    .toList();
+            List<UserResponse> users = authWsService.getAllUsers();
             LOG.log(Level.INFO, "Fetched {0} users", users.size());
             return ResponseEntity.ok(com.tutict.finalassignmentbackend.dto.response.ApiResponse.ok(users));
         } catch (Exception ex) {

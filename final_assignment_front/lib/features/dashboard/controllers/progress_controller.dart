@@ -5,6 +5,7 @@ import 'package:final_assignment_front/features/model/progress_item.dart';
 import 'package:final_assignment_front/shared/controllers/base_list_controller.dart';
 import 'package:final_assignment_front/core/network/app_exception.dart';
 import 'package:final_assignment_front/utils/ui/ui_utils.dart';
+import 'package:final_assignment_front/utils/services/auth_token_store.dart';
 import 'package:get/get.dart';
 import 'package:jwt_decoder/jwt_decoder.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -51,8 +52,7 @@ class ProgressController extends BaseListController<ProgressItem> {
   bool get isAdmin => _isAdmin.value;
 
   Future<void> _loadUserRole() async {
-    final prefs = await SharedPreferences.getInstance();
-    final token = prefs.getString('jwtToken');
+    final token = await AuthTokenStore.instance.getJwtToken();
     if (token == null || token.isEmpty) {
       _isAdmin.value = false;
       return;

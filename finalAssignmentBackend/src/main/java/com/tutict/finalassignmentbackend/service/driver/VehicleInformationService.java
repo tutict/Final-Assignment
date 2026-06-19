@@ -61,7 +61,7 @@ public class VehicleInformationService {
 
     @Transactional
     @CacheEvict(cacheNames = VEHICLE_INFO_LIST_CACHE, allEntries = true)
-    @WsAction(service = "VehicleInformationService", action = "checkAndInsertIdempotency")
+    @WsAction(service = "VehicleInformationService", action = "checkAndInsertIdempotency", roles = {"SUPER_ADMIN", "ADMIN", "TRAFFIC_POLICE"})
     public void checkAndInsertIdempotency(String idempotencyKey, VehicleInformation vehicleInformation, String action) {
         Objects.requireNonNull(vehicleInformation, "Vehicle information cannot be null");
         SysRequestHistory existing = sysRequestHistoryMapper.selectByIdempotencyKey(idempotencyKey);
@@ -100,7 +100,7 @@ public class VehicleInformationService {
             @CacheEvict(cacheNames = VEHICLE_INFO_CACHE, key = "#vehicleInformation.vehicleId"),
             @CacheEvict(cacheNames = VEHICLE_INFO_LIST_CACHE, allEntries = true)
     })
-    @WsAction(service = "VehicleInformationService", action = "updateVehicleInformation")
+    @WsAction(service = "VehicleInformationService", action = "updateVehicleInformation", roles = {"SUPER_ADMIN", "ADMIN", "TRAFFIC_POLICE"})
     public VehicleInformation updateVehicleInformation(VehicleInformation vehicleInformation) {
         validateVehicleId(vehicleInformation);
         sensitiveDataPersistenceService.prepare(vehicleInformation);
@@ -149,7 +149,7 @@ public class VehicleInformationService {
     }
 
     @Cacheable(cacheNames = VEHICLE_INFO_CACHE, key = "#vehicleId", unless = "#result == null")
-    @WsAction(service = "VehicleInformationService", action = "getVehicleInformationById")
+    @WsAction(service = "VehicleInformationService", action = "getVehicleInformationById", roles = {"SUPER_ADMIN", "ADMIN", "TRAFFIC_POLICE"})
     public VehicleInformation getVehicleInformationById(long vehicleId) {
         validateVehicleId(vehicleId);
         return vehicleInformationSearchRepository.findById(vehicleId)
@@ -164,7 +164,7 @@ public class VehicleInformationService {
     }
 
     @Cacheable(cacheNames = VEHICLE_INFO_LIST_CACHE, key = "'all'", unless = "#result == null || #result.isEmpty()")
-    @WsAction(service = "VehicleInformationService", action = "getAllVehicleInformation")
+    @WsAction(service = "VehicleInformationService", action = "getAllVehicleInformation", roles = {"SUPER_ADMIN", "ADMIN", "TRAFFIC_POLICE"})
     public List<VehicleInformation> getAllVehicleInformation() {
         List<VehicleInformation> fromIndex = StreamSupport.stream(
                         vehicleInformationSearchRepository.findAll().spliterator(), false)

@@ -15,7 +15,6 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:intl/intl.dart';
 import 'package:jwt_decoder/jwt_decoder.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 import 'package:uuid/uuid.dart';
 import 'package:final_assignment_front/shared/utils/navigation_helper.dart';
 import 'package:final_assignment_front/utils/services/auth_token_store.dart';
@@ -127,8 +126,11 @@ class _OperationLogPageState extends State<OperationLogPage> {
         NavigationHelper.offAllNamed(Routes.login);
         return;
       }
-      final prefs = await SharedPreferences.getInstance();
-      final jwtToken = prefs.getString('jwtToken')!;
+      final jwtToken = await AuthTokenStore.instance.getJwtToken();
+      if (jwtToken == null || jwtToken.isEmpty) {
+        setState(() => _errorMessage = '未授权，请重新登录');
+        return;
+      }
       final decodedToken = JwtDecoder.decode(jwtToken);
       final roles = decodedToken['roles'] is List
           ? (decodedToken['roles'] as List).map((r) => r.toString()).toList()
@@ -845,7 +847,8 @@ class _OperationLogPageState extends State<OperationLogPage> {
                                     padding: const EdgeInsets.only(top: 20.0),
                                     child: ElevatedButton(
                                       onPressed: () =>
-                                          NavigationHelper.offAllNamed(Routes.login),
+                                          NavigationHelper.offAllNamed(
+                                              Routes.login),
                                       style: ElevatedButton.styleFrom(
                                         backgroundColor:
                                             themeData.colorScheme.primary,

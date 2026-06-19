@@ -55,7 +55,7 @@ public class OffenseTypeDictService {
 
     @Transactional
     @CacheEvict(cacheNames = CACHE_NAME, allEntries = true)
-    @WsAction(service = "OffenseTypeDictService", action = "checkAndInsertIdempotency")
+    @WsAction(service = "OffenseTypeDictService", action = "checkAndInsertIdempotency", roles = {"SUPER_ADMIN", "ADMIN", "TRAFFIC_POLICE"})
     public void checkAndInsertIdempotency(String idempotencyKey, OffenseTypeDict dict, String action) {
         Objects.requireNonNull(dict, "OffenseTypeDict must not be null");
         if (sysRequestHistoryMapper.selectByIdempotencyKey(idempotencyKey) != null) {

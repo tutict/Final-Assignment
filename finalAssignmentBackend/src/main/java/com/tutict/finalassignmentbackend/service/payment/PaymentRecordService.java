@@ -71,7 +71,7 @@ public class PaymentRecordService {
 
     @Transactional(rollbackFor = Exception.class)
     @CacheEvict(cacheNames = CACHE_NAME, allEntries = true)
-    @WsAction(service = "PaymentRecordService", action = "checkAndInsertIdempotency")
+    @WsAction(service = "PaymentRecordService", action = "checkAndInsertIdempotency", roles = {"SUPER_ADMIN", "ADMIN", "FINANCE"})
     public void checkAndInsertIdempotency(String idempotencyKey, PaymentRecord paymentRecord, String action) {
         Objects.requireNonNull(paymentRecord, "PaymentRecord must not be null");
         insertProcessingHistory(

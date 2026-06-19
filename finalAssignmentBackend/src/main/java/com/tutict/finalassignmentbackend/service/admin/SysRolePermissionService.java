@@ -53,7 +53,7 @@ public class SysRolePermissionService {
 
     @Transactional
     @CacheEvict(cacheNames = CACHE_NAME, allEntries = true)
-    @WsAction(service = "SysRolePermissionService", action = "checkAndInsertIdempotency")
+    @WsAction(service = "SysRolePermissionService", action = "checkAndInsertIdempotency", roles = {"SUPER_ADMIN", "ADMIN"})
     public void checkAndInsertIdempotency(String idempotencyKey, SysRolePermission relation, String action) {
         Objects.requireNonNull(relation, "SysRolePermission must not be null");
         SysRequestHistory existing = sysRequestHistoryMapper.selectByIdempotencyKey(idempotencyKey);

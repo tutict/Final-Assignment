@@ -56,7 +56,7 @@ public class SysBackupRestoreService {
 
     @Transactional
     @CacheEvict(cacheNames = CACHE_NAME, allEntries = true)
-    @WsAction(service = "SysBackupRestoreService", action = "checkAndInsertIdempotency")
+    @WsAction(service = "SysBackupRestoreService", action = "checkAndInsertIdempotency", roles = {"SUPER_ADMIN", "ADMIN"})
     public void checkAndInsertIdempotency(String idempotencyKey, SysBackupRestore backupRestore, String action) {
         Objects.requireNonNull(backupRestore, "SysBackupRestore must not be null");
         SysRequestHistory existing = sysRequestHistoryMapper.selectByIdempotencyKey(idempotencyKey);

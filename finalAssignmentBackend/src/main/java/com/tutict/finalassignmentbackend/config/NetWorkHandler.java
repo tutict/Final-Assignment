@@ -5,6 +5,8 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.tutict.finalassignmentbackend.config.login.jwt.TokenProvider;
 import com.tutict.finalassignmentbackend.config.websocket.WsActionRegistry;
+import com.tutict.finalassignmentbackend.config.websocket.WsTicketService;
+import com.tutict.finalassignmentbackend.dto.response.ApiResponse;
 import io.netty.handler.codec.http.HttpResponseStatus;
 import io.vertx.core.AbstractVerticle;
 import io.vertx.core.MultiMap;
@@ -22,9 +24,11 @@ import org.springframework.context.annotation.Lazy;
 import org.springframework.stereotype.Component;
 
 import java.lang.reflect.Method;
+import java.util.Arrays;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Locale;
 import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
@@ -48,6 +52,7 @@ public class NetWorkHandler extends AbstractVerticle {
 
     private final TokenProvider tokenProvider;
     private final WsActionRegistry wsActionRegistry;
+    private final WsTicketService wsTicketService;
 
     private final ObjectMapper objectMapper;
     private final CorsProperties corsProperties;
@@ -56,10 +61,12 @@ public class NetWorkHandler extends AbstractVerticle {
 
     public NetWorkHandler(TokenProvider tokenProvider,
                           @Lazy WsActionRegistry wsActionRegistry,
+                          WsTicketService wsTicketService,
                           ObjectMapper objectMapper,
                           CorsProperties corsProperties) {
         this.tokenProvider = tokenProvider;
         this.wsActionRegistry = wsActionRegistry;
+        this.wsTicketService = wsTicketService;
         this.objectMapper = objectMapper;
         this.corsProperties = corsProperties;
     }
@@ -80,6 +87,22 @@ public class NetWorkHandler extends AbstractVerticle {
     }
 
     private void setupNetWorksServer(Router router) {
+        router.post("/api/ws-ticket").handler(ctx -> {
+            HttpServerRequest request = ctx.request();
+            String token = extractBearerToken(request);
+            if (token == null || !tokenProvider.validateToken(token)) {
+                ctx.response().setStatusCode(401).setStatusMessage("Unauthorized").end();
+                return;
+            }
+            WsTicketService.Ticket ticket = wsTicketService.issue(
+                    tokenProvider.getUsernameFromToken(token),
+                    tokenProvider.extractRoles(token)
+            );
+            writeJsonResponse(ctx.response(), ApiResponse.ok(Map.of(
+                    "ticket", ticket.value(),
+                    "expiresAt", ticket.expiresAt().toString()
+            )));
+        });
         router.route("/api/*").handler(ctx -> {
             HttpServerRequest request = ctx.request();
             forwardHttpRequest(request);
@@ -87,18 +110,19 @@ public class NetWorkHandler extends AbstractVerticle {
 
         router.route("/eventbus/*").handler(ctx -> {
             HttpServerRequest request = ctx.request();
-            String token = extractTokenFromHandshake(request);
-            if (token == null || !tokenProvider.validateToken(token)) {
+            HandshakePrincipal principal = authenticateWebSocketHandshake(request);
+            if (principal == null) {
                 log.warn("Rejected unauthenticated WebSocket handshake, path={}", request.path());
                 ctx.response().setStatusCode(401).setStatusMessage("Unauthorized").end();
                 return;
             }
 
-            String username = tokenProvider.getUsernameFromToken(token);
+            String username = principal.username();
+            List<String> roles = principal.roles();
             request.toWebSocket().onSuccess(ws -> {
                 log.info("WebSocket 连接已建立, path={}", ws.path());
                 if (ws.path().contains("/eventbus")) {
-                    handleWebSocketConnection(ws, username);
+                    handleWebSocketConnection(ws, username, roles);
                 } else {
                     ws.close((short) 1003, "Unsupported path").onSuccess(success ->
                             log.info("关闭 {} WebSocket 连接成功 {}", ws.path(), success)
@@ -146,22 +170,31 @@ public class NetWorkHandler extends AbstractVerticle {
                 .allowCredentials(true));
     }
 
-    private String extractTokenFromHandshake(HttpServerRequest request) {
+    private HandshakePrincipal authenticateWebSocketHandshake(HttpServerRequest request) {
+        String token = extractBearerToken(request);
+        if (token != null && tokenProvider.validateToken(token)) {
+            return new HandshakePrincipal(
+                    tokenProvider.getUsernameFromToken(token),
+                    tokenProvider.extractRoles(token)
+            );
+        }
+
+        WsTicketService.Ticket ticket = wsTicketService.consume(request.params().get("ws_ticket"));
+        if (ticket != null) {
+            return new HandshakePrincipal(ticket.username(), ticket.roles());
+        }
+
+        return null;
+    }
+
+    private String extractBearerToken(HttpServerRequest request) {
         String authorization = request.getHeader("Authorization");
         if (authorization != null && authorization.startsWith("Bearer ")) {
             return authorization.substring(7);
         }
-
-        String accessToken = request.params().get("access_token");
-        if (accessToken != null && !accessToken.isBlank()) {
-            return accessToken;
-        }
-
-        String token = request.params().get("token");
-        return token != null && !token.isBlank() ? token : null;
+        return null;
     }
-
-    private void handleWebSocketConnection(ServerWebSocket ws, String username) {
+    private void handleWebSocketConnection(ServerWebSocket ws, String username, List<String> roles) {
         registerWebSocket(username, ws);
         ws.frameHandler(frame -> {
             if (frame.isText()) {
@@ -188,6 +221,13 @@ public class NetWorkHandler extends AbstractVerticle {
                     WsActionRegistry.HandlerMethod handler = wsActionRegistry.getHandler(service, action);
                     if (handler == null) {
                         writeWsError(ws, requestId, "No such WsAction for " + service + "#" + action);
+                        return;
+                    }
+
+                    if (!isActionAllowed(handler, roles)) {
+                        log.warn("Rejected unauthorized WsAction service={}, action={}, user={}, roles={}",
+                                service, action, username, roles);
+                        writeWsError(ws, requestId, "Forbidden");
                         return;
                     }
 
@@ -232,6 +272,35 @@ public class NetWorkHandler extends AbstractVerticle {
         });
     }
 
+    private boolean isActionAllowed(WsActionRegistry.HandlerMethod handler, List<String> roles) {
+        if (handler.getWsAction().allowAuthenticated()) {
+            return true;
+        }
+
+        String[] requiredRoles = handler.getWsAction().roles();
+        if (requiredRoles.length == 0) {
+            return false;
+        }
+
+        Set<String> grantedRoles = roles == null
+                ? Set.of()
+                : roles.stream()
+                .map(this::normalizeRole)
+                .filter(role -> !role.isBlank())
+                .collect(Collectors.toSet());
+
+        return Arrays.stream(requiredRoles)
+                .map(this::normalizeRole)
+                .anyMatch(grantedRoles::contains);
+    }
+
+    private String normalizeRole(String role) {
+        if (role == null) {
+            return "";
+        }
+        String normalized = role.trim().toUpperCase(Locale.ROOT);
+        return normalized.startsWith("ROLE_") ? normalized.substring("ROLE_".length()) : normalized;
+    }
     public void pushToUser(String username, Map<String, Object> payload) {
         if (username == null || username.isBlank()) {
             broadcastBusinessEvent(payload);
@@ -277,6 +346,18 @@ public class NetWorkHandler extends AbstractVerticle {
         }
     }
 
+    private void writeJsonResponse(HttpServerResponse response, Object body) {
+        try {
+            response.putHeader("Content-Type", "application/json");
+            response.end(objectMapper.writeValueAsString(body));
+        } catch (JsonProcessingException e) {
+            log.error("Error serializing HTTP response", e);
+            response.setStatusCode(500).setStatusMessage("Internal server error").end();
+        }
+    }
+
+    private record HandshakePrincipal(String username, List<String> roles) {
+    }
     private void writeWsResult(ServerWebSocket ws, String requestId, Object result) {
         Map<String, Object> response = baseWsResponse(requestId);
         response.put("result", result);
