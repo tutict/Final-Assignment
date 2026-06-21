@@ -10,7 +10,7 @@ import com.tutict.finalassignmentcloud.ai.rag.config.RagRetrievalProperties;
 import com.tutict.finalassignmentcloud.ai.rag.dto.RetrievalResult;
 import com.tutict.finalassignmentcloud.ai.rag.query.RagQueryRequest;
 import com.tutict.finalassignmentcloud.ai.rag.query.RagQueryService;
-import com.tutict.finalassignmentbackend.service.ai.AIChatSearchService;
+import com.tutict.finalassignmentcloud.service.ai.AIChatSearchService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.core.io.DefaultResourceLoader;
