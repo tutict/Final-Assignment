@@ -1,7 +1,6 @@
 package com.tutict.finalassignmentcloud.system.appeal.infrastructure.search;
 
 import com.tutict.finalassignmentcloud.entity.appeal.AppealRecord;
-import com.tutict.finalassignmentcloud.entity.elastic.AppealRecordDocument;
 import com.tutict.finalassignmentcloud.repository.AppealRecordSearchRepository;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.support.TransactionSynchronization;
@@ -10,6 +9,10 @@ import org.springframework.transaction.support.TransactionSynchronizationManager
 import java.util.List;
 import java.util.Objects;
 
+/**
+ * Elasticsearch indexer for Appeal records
+ * Simplified version using AppealRecord directly instead of separate Document class
+ */
 @Service
 public class AppealRecordSearchIndexer {
 
@@ -28,9 +31,8 @@ public class AppealRecordSearchIndexer {
     }
 
     public void index(AppealRecord appealRecord) {
-        AppealRecordDocument doc = AppealRecordDocument.fromEntity(appealRecord);
-        if (doc != null) {
-            appealRecordSearchRepository.save(doc);
+        if (appealRecord != null && appealRecord.getAppealId() != null) {
+            appealRecordSearchRepository.save(appealRecord);
         }
     }
 
@@ -39,8 +41,8 @@ public class AppealRecordSearchIndexer {
             return;
         }
         records.stream()
-                .map(AppealRecordDocument::fromEntity)
                 .filter(Objects::nonNull)
+                .filter(record -> record.getAppealId() != null)
                 .forEach(appealRecordSearchRepository::save);
     }
 

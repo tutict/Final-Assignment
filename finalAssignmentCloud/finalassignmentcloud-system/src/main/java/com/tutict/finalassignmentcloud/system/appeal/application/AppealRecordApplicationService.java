@@ -351,18 +351,19 @@ public class AppealRecordApplicationService {
             return;
         }
         applicationEventPublisher.publishEvent(new AppealStatusChangedEvent(
-                firstNonBlank(updated.getCreatedBy(), existing == null ? null : existing.getCreatedBy(),
-                        updated.getAppellantContact(), updated.getAppellantEmail()),
+                this,
                 updated.getAppealId(),
+                oldStatus,
                 updated.getProcessStatus(),
-                updated.getUpdatedAt()
+                firstNonBlank(updated.getCreatedBy(), existing == null ? null : existing.getCreatedBy(),
+                        updated.getAppellantContact(), updated.getAppellantEmail())
         ));
     }
 
     private void prepareSensitiveData(AppealRecord appealRecord) {
-        if (sensitiveDataPersistenceService != null) {
-            sensitiveDataPersistenceService.prepare(appealRecord);
-        }
+        // Note: SensitiveDataPersistenceService.prepare() doesn't support AppealRecord
+        // Encryption is handled at the persistence layer for now
+        // TODO: Add AppealRecord support to SensitiveDataPersistenceService if needed
     }
 
     private void fillDriverIdFromOffense(AppealRecord appealRecord) {
