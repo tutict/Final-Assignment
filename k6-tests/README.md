@@ -53,6 +53,7 @@ BASE_URL=http://your-server:8080 ./run-tests.sh
 | `02-load-test.js` | Normal operations | 9min | 50-100 |
 | `03-stress-test.js` | Peak load | 15min | 100-300 |
 | `06-critical-flows.js` | Business workflows | Variable | 10 |
+| `07-rag-test.js` | RAG retrieval | Variable | 5 |
 | `config.js` | Configuration | - | - |
 | `auth-helper.js` | Authentication | - | - |
 | `data-generators.js` | Test data | - | - |

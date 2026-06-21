@@ -24,11 +24,10 @@
         <!-- AI module temporarily disabled due to compilation issues
              Re-enable after fixing missing classes and Python dependencies
         -->
-        <!--
-        <module>finalassignmentcloud-ai</module>
+        <!-- AI module has compilation issues with GraalPy dependencies -->
+        <!--<module>finalassignmentcloud-ai</module>-->
         <module>finalassignmentcloud-rag</module>
         <module>finalassignmentcloud-search</module>
-        -->
     </modules>
     <properties>
         <java.version>25</java.version>

@@ -7,6 +7,8 @@ export const USER_URL = `${BASE_URL}/api/users`;
 export const TRAFFIC_URL = `${BASE_URL}/api`;
 export const AUDIT_URL = `${BASE_URL}/api/logs`;
 export const SYSTEM_URL = `${BASE_URL}/api/system`;
+export const RAG_URL = `${BASE_URL}/api/rag`;
+export const SEARCH_URL = `${BASE_URL}/api/search`;
 
 // Test user credentials (create these users before running tests)
 export const TEST_USERS = [

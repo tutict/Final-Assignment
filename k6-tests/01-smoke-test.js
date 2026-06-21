@@ -3,7 +3,7 @@
 
 import http from 'k6/http';
 import { check, sleep } from 'k6';
-import { BASE_URL, AUTH_URL, USER_URL, TRAFFIC_URL, AUDIT_URL, SYSTEM_URL, SMOKE_THRESHOLDS } from './config.js';
+import { BASE_URL, AUTH_URL, USER_URL, TRAFFIC_URL, AUDIT_URL, SYSTEM_URL, RAG_URL, SEARCH_URL, SMOKE_THRESHOLDS } from './config.js';
 import { login, getAuthOptions } from './auth-helper.js';
 
 export const options = {
@@ -114,6 +114,25 @@ export default function(data) {
   response = http.get(`${SYSTEM_URL}/settings`, authOptions);
   check(response, {
     'system - list settings': (r) => r.status === 200,
+  });
+
+  sleep(0.5);
+
+  // Test RAG endpoints - Query (may be disabled)
+  response = http.post(`${RAG_URL}/query`, JSON.stringify({
+    query: 'test query',
+    topK: 5
+  }), authOptions);
+  check(response, {
+    'rag - query endpoint accessible': (r) => r.status === 200 || r.status === 409, // 409 if disabled
+  });
+
+  sleep(0.5);
+
+  // Test Search endpoints - Search
+  response = http.get(`${SEARCH_URL}/violations?q=test`, authOptions);
+  check(response, {
+    'search - violations search': (r) => r.status === 200 || r.status === 404,
   });
 
   sleep(1);
