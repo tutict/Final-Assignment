@@ -5,7 +5,7 @@ import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.tutict.finalassignmentcloud.system.appeal.query.dto.AppealPageRequest;
 import com.tutict.finalassignmentcloud.entity.appeal.AppealRecord;
 import com.tutict.finalassignmentcloud.mapper.appeal.AppealRecordMapper;
-import com.tutict.finalassignmentcloud.common.crypto.SensitiveDataPersistenceService;
+import com.tutict.finalassignmentcloud.config.security.crypto.SensitiveDataPersistenceService;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDateTime;

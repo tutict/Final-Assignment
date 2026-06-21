@@ -5,7 +5,7 @@ import com.tutict.finalassignmentcloud.system.appeal.domain.policy.AppealCallerM
 import com.tutict.finalassignmentcloud.system.appeal.domain.policy.AppealUpdateIntentPolicy;
 import com.tutict.finalassignmentcloud.system.appeal.domain.policy.AppealUpdateIntentPolicy.UpdateIntent;
 import com.tutict.finalassignmentcloud.system.appeal.domain.policy.AppealWorkflowDecisionPolicy;
-import com.tutict.finalassignmentcloud.config.statemachine.states.AppealProcessState;
+import com.tutict.finalassignmentcloud.entity.appeal.AppealProcessState;
 import com.tutict.finalassignmentcloud.entity.appeal.AppealRecord;
 import org.springframework.stereotype.Service;
 
