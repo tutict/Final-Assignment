@@ -30,6 +30,17 @@ The backend uses the local MySQL database by default:
 jdbc:mysql://localhost:3306/traffic
 ```
 
+Each startup run writes detailed logs to `artifacts/startup/<timestamp>/`, including:
+
+- `startup.log` for the top-level startup summary and environment snapshot
+- `environment.log`, `docker-compose.log`, and `docker-compose-ps.log` for Docker/Ollama startup
+- `backend.log` and `backend.err.log` for Spring Boot
+- `flutter-pub-get.log`, `flutter-pub-get.err.log`, `flutter.log`, and `flutter.err.log` for Flutter
+
+When a step fails, the scripts print the log directory, recent log tails, port diagnostics, and Docker Compose service status before exiting.
+
+Ctrl-C cleanup is handled by the main startup scripts. Pressing Ctrl-C stops the Flutter process, the Spring Boot process tree, and, by default, the project Docker Compose stack plus the Ollama process started by the script. Set `STOP_LOCAL_SERVICES_ON_EXIT=false` to leave dependencies running, or use `STOP_DOCKER_ON_EXIT=false` / `STOP_OLLAMA_ON_EXIT=false` to control them separately.
+
 ## Common Options
 
 Skip Docker/Ollama and only start backend + frontend:
@@ -65,6 +76,21 @@ Use a different MySQL password:
 
 ```bat
 set DB_PASSWORD=your_password
+scripts\start-all.bat
+```
+
+Tune readiness checks when the first build or startup is slow:
+
+```bat
+set BACKEND_HEALTH_WAIT_SECONDS=180
+set FLUTTER_WAIT_SECONDS=180
+scripts\start-all.bat
+```
+
+Move startup logs to another directory:
+
+```bat
+set STARTUP_LOG_ROOT=C:\tmp\final-assignment-startup
 scripts\start-all.bat
 ```
 

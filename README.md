@@ -110,7 +110,7 @@ set START_LOCAL_SERVICES=false
 scripts\start-all.bat
 ```
 
-更多启动参数见 [scripts/README.md](scripts/README.md)。
+更多启动参数见 [scripts/README.md](scripts/README.md)。启动失败时脚本会打印最近日志、端口占用和 Docker Compose 状态；按 Ctrl-C 会停止前后端，并默认停止本项目 Docker Compose 依赖和本次脚本启动的 Ollama；完整日志位于 `artifacts/startup/<timestamp>/`。
 
 ## 本地依赖
 
