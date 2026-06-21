@@ -98,6 +98,11 @@
                 <groupId>org.springframework.boot</groupId>
                 <artifactId>spring-boot-maven-plugin</artifactId>
             </plugin>
+            <!-- GraalPy plugin disabled due to Windows network/proxy issues
+                 Python crawler functionality is optional - Java AI features are fully functional
+                 To re-enable: uncomment this plugin and run: mvn clean compile
+            -->
+            <!--
             <plugin>
                 <groupId>org.graalvm.python</groupId>
                 <artifactId>graalpy-maven-plugin</artifactId>
@@ -116,6 +121,7 @@
                     </execution>
                 </executions>
             </plugin>
+            -->
         </plugins>
     </build>
 </project>

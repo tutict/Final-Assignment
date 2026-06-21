@@ -2,6 +2,7 @@ package com.tutict.finalassignmentcloud.ai.chat;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.tutict.finalassignmentcloud.ai.chat.response.ChatStreamEvent;
 import org.springframework.http.codec.ServerSentEvent;
 import org.springframework.stereotype.Component;
 import reactor.core.publisher.Flux;

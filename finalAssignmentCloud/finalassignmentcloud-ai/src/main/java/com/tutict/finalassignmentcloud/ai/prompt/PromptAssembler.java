@@ -1,10 +1,15 @@
 package com.tutict.finalassignmentcloud.ai.prompt;
 
-import com.tutict.finalassignmentcloud.ai.rag.dto.RetrievalResult;
+import com.tutict.finalassignmentcloud.ai.chat.context.ContextBuilder;
+import com.tutict.finalassignmentcloud.ai.client.rag.RagRetrievalResult;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
 
+/**
+ * Prompt Assembler
+ * Assembles prompts with context and RAG results
+ */
 @Service
 public class PromptAssembler {
 
@@ -22,7 +27,7 @@ public class PromptAssembler {
     public String assemble(
             String userMessage,
             List<String> conversationWindow,
-            List<RetrievalResult> retrievalResults
+            List<RagRetrievalResult> retrievalResults
     ) {
         return assemble(userMessage, conversationWindow, retrievalResults, "");
     }
