@@ -2,7 +2,7 @@ package com.tutict.finalassignmentcloud.system.appeal.infrastructure.search;
 
 import com.tutict.finalassignmentcloud.entity.appeal.AppealRecord;
 import com.tutict.finalassignmentcloud.entity.elastic.AppealRecordDocument;
-import com.tutict.finalassignmentbackend.repository.AppealRecordSearchRepository;
+import com.tutict.finalassignmentcloud.repository.AppealRecordSearchRepository;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.support.TransactionSynchronization;
 import org.springframework.transaction.support.TransactionSynchronizationManager;

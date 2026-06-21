@@ -1,6 +1,6 @@
 package com.tutict.finalassignmentcloud.system.appeal.domain.policy;
 
-import com.tutict.finalassignmentbackend.config.statemachine.states.AppealProcessState;
+import com.tutict.finalassignmentcloud.entity.appeal.AppealProcessState;
 import com.tutict.finalassignmentcloud.entity.appeal.AppealRecord;
 import org.springframework.stereotype.Service;
 
