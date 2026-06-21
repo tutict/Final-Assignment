@@ -9,14 +9,13 @@ import (
 	"github.com/gin-gonic/gin"
 
 	"final_assignment_backend_go/project/internal/domain"
-	"final_assignment_backend_go/project/internal/service"
 )
 
 type VehicleController struct {
-	vehicleService *service.VehicleService
+	vehicleService VehicleService
 }
 
-func NewVehicleController(vehicleService *service.VehicleService) *VehicleController {
+func NewVehicleController(vehicleService VehicleService) *VehicleController {
 	return &VehicleController{vehicleService: vehicleService}
 }
 

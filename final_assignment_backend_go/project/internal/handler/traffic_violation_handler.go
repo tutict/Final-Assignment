@@ -5,17 +5,15 @@ import (
 	"net/http"
 
 	"github.com/gin-gonic/gin"
-
-	"final_assignment_backend_go/project/internal/service"
 )
 
 // TrafficViolationHandler 负责处理交通违法相关的 HTTP 请求
 type TrafficViolationHandler struct {
-	Service *service.TrafficViolationService
+	Service TrafficViolationService
 }
 
 // NewTrafficViolationHandler 构造函数
-func NewTrafficViolationHandler(s *service.TrafficViolationService) *TrafficViolationHandler {
+func NewTrafficViolationHandler(s TrafficViolationService) *TrafficViolationHandler {
 	return &TrafficViolationHandler{Service: s}
 }
 

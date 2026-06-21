@@ -1,35 +1,122 @@
 package main
 
 import (
+	"context"
 	"encoding/base64"
+	"errors"
 	"log"
 	"net/http"
 	"os"
+	"os/signal"
 	"strings"
+	"syscall"
+	"time"
 
 	config "final_assignment_backend_go/project/configs"
 	authcfg "final_assignment_backend_go/project/configs/auth"
+	"final_assignment_backend_go/project/configs/docker"
+	redisconfig "final_assignment_backend_go/project/configs/redis"
 	"final_assignment_backend_go/project/global_exception"
+	"final_assignment_backend_go/project/internal/ai"
+	"final_assignment_backend_go/project/internal/auth"
+	aiconfig "final_assignment_backend_go/project/internal/config"
 	"final_assignment_backend_go/project/internal/handler"
+	"final_assignment_backend_go/project/internal/provider"
 	"final_assignment_backend_go/project/internal/repo"
 	"final_assignment_backend_go/project/internal/service"
+	gozeroconfig "final_assignment_backend_go/project/internal/gozero/config"
+	gozerorag "final_assignment_backend_go/project/internal/gozero/rag"
 
 	"github.com/gin-gonic/gin"
+	"github.com/zeromicro/go-zero/core/conf"
 	"gorm.io/gorm"
 )
 
 func main() {
+	// 初始化数据库
 	db := config.InitDB()
 	tokenProvider := initTokenProvider()
 
+	// 初始化 Docker 容器
+	runner := docker.NewRunDocker()
+	runner.Init()
+
+	// 初始化 Redis
+	redisCfg := redisconfig.NewRedisConfig()
+	if err := redisCfg.InitRedis(); err != nil {
+		log.Fatalf("Failed to connect to Redis: %v", err)
+	}
+
+	// 加载 go-zero 配置文件
+	var gozeroConf gozeroconfig.Config
+	configFile := "project/etc/gozero-api.yaml"
+	conf.MustLoad(configFile, &gozeroConf)
+
+	// 初始化 RAG Runtime
+	ragRuntime, err := gozerorag.NewRuntime(gozeroConf.Rag)
+	if err != nil {
+		log.Printf("[WARNING] Failed to initialize RAG runtime: %v", err)
+		ragRuntime = gozerorag.DisabledRuntime()
+	}
+	defer ragRuntime.Close()
+
+	// 加载 AI Chat 配置
+	aiChatConfig := aiconfig.LoadFromEnv()
+
+	// 初始化 AI Provider
+	providerFactory := provider.NewFactory(aiChatConfig)
+	aiProvider, err := providerFactory.CreateProvider()
+	if err != nil {
+		log.Printf("[WARNING] Failed to initialize AI provider: %v", err)
+	}
+
+	// 将 RAG Runtime 转换为 AiChatRagQuerier
+	var ragQuerier service.AiChatRagQuerier
+	if ragRuntime.Enabled && ragRuntime.Query != nil {
+		ragQuerier = ragRuntime.Query
+	}
+
+	// 转换配置 - 使用默认值
+	chatServiceConfig := service.AiChatConfig{
+		StreamingEnabled:          true,
+		ProviderPrimary:           aiChatConfig.ProviderType,
+		ProviderTimeout:           30 * time.Second,
+		ProviderStreamingTimeout:  2 * time.Minute,
+		ProviderRetryAttempts:     3,
+		KeepaliveInterval:         aiChatConfig.StreamKeepaliveInterval,
+		PromptContextTokenBudget:  aiChatConfig.RAGTokenBudget,
+		MockDelay:                 100 * time.Millisecond,
+		OllamaEnabled:             aiChatConfig.ProviderType == "ollama",
+		OllamaBaseURL:             aiChatConfig.ProviderURL,
+		OllamaChatModel:           aiChatConfig.ProviderModel,
+		OpenAICompatibleEnabled:   aiChatConfig.ProviderType == "openai",
+		OpenAICompatibleAPIKey:    aiChatConfig.ProviderAPIKey,
+		OpenAICompatibleChatModel: aiChatConfig.ProviderModel,
+	}
+
+	// 初始化 Chat Pipeline
+	var chatPipeline *ai.ChatPipeline
+	if aiProvider != nil {
+		chatPipeline, err = ai.NewChatPipeline(ragQuerier, aiProvider, chatServiceConfig)
+		if err != nil {
+			log.Printf("[WARNING] Failed to initialize chat pipeline: %v", err)
+		}
+	}
+
+	// 初始化 WebSocket Ticket Service (30秒过期时间)
+	wsTicketService := auth.NewWsTicketService(30 * time.Second)
+
+	// 初始化用户和认证服务
 	userService := service.NewUserManagementService(repo.NewUserManagementRepo(db))
 	authService := service.NewAuthWsService(userService, tokenProvider)
 	authHandler := handler.NewAuthHandler(authService)
 
+	// 创建路由
 	router := gin.Default()
 	router.Use(global_exception.GlobalExceptionHandler())
 	router.Use(optionalPrincipal(tokenProvider))
 
+	// 公开路由
 	router.GET("/api/actuator/health", func(c *gin.Context) {
 		c.JSON(http.StatusOK, gin.H{"status": "UP"})
 	})
@@ -37,16 +124,67 @@ func main() {
 	router.POST("/api/auth/register", authHandler.RegisterUser)
 	router.POST("/api/auth/refresh", authHandler.Refresh)
 
+	// AI Chat 路由（如果已初始化）
+	if chatPipeline != nil {
+		aiChatHandler := handler.NewAiChatHandler(chatPipeline)
+		handler.RegisterAiChatRoutes(router, aiChatHandler)
+	}
+
+	// WebSocket Ticket 路由
+	router.POST("/api/ws-ticket", handler.NewWsTicketHandler(wsTicketService).IssueTicket)
+	router.GET("/api/ws-ticket/validate", handler.NewWsTicketHandler(wsTicketService).ValidateTicket)
+	router.GET("/api/ws-ticket/stats", handler.NewWsTicketHandler(wsTicketService).GetStats)
+
+	// RAG 查询路由
+	router.POST("/api/rag/query", ragQueryHandler(ragRuntime))
+
+	// 需要认证的路由
 	router.Use(requiredPrincipal(tokenProvider), accessPolicy())
 	router.POST("/api/auth/logout", authHandler.Logout)
 	router.GET("/api/auth/users", authHandler.GetAllUsers)
 	registerRoutes(router, db, userService)
 
-	addr := ":" + envOrDefault("PORT", "8080")
-	log.Printf("Go backend listening on %s", addr)
-	if err := router.Run(addr); err != nil {
-		log.Fatalf("server stopped: %v", err)
+	// 创建 HTTP 服务器
+	server := &http.Server{
+		Addr:    ":" + envOrDefault("PORT", "8080"),
+		Handler: router,
 	}
+
+	// 在 goroutine 中启动服务器
+	go func() {
+		log.Printf("[INFO] Go backend started on http://localhost%s", server.Addr)
+		log.Println("[INFO] Available endpoints:")
+		log.Println("[INFO]   - GET  /api/actuator/health")
+		log.Println("[INFO]   - POST /api/auth/login")
+		log.Println("[INFO]   - POST /api/auth/register")
+		if chatPipeline != nil {
+			log.Println("[INFO]   - POST /api/ai/chat/stream")
+		}
+		log.Println("[INFO]   - POST /api/ws-ticket")
+		log.Println("[INFO]   - POST /api/rag/query")
+		if err := server.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
+			log.Fatalf("Server failed to start: %v", err)
+		}
+	}()
+
+	// 优雅关闭：监听系统信号
+	quit := make(chan os.Signal, 1)
+	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
+	<-quit
+	log.Println("Shutting down server...")
+
+	// 关闭服务器
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+	if err := server.Shutdown(ctx); err != nil {
+		log.Printf("Server shutdown error: %v", err)
+	}
+
+	// 停止 Docker 容器
+	log.Println("Stopping Docker containers...")
+	runner.StopContainers()
+
+	log.Println("Server stopped gracefully")
 }
 
 func registerRoutes(router *gin.Engine, gormDB *gorm.DB, userService *service.UserManagementService) {
@@ -272,4 +410,36 @@ func envOrDefault(name string, fallback string) string {
 		return value
 	}
 	return fallback
+}
+
+// ragQueryHandler 处理 RAG 查询请求
+func ragQueryHandler(runtime *gozerorag.Runtime) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		var request service.RagQueryRequest
+		if err := c.ShouldBindJSON(&request); err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{
+				"success": false,
+				"error":   "Invalid request format: " + err.Error(),
+			})
+			return
+		}
+
+		if runtime == nil || !runtime.Enabled || runtime.Query == nil {
+			c.JSON(http.StatusOK, service.RagQueryResponse{
+				Results: []service.RagRetrievalResult{},
+			})
+			return
+		}
+
+		result, err := runtime.Query.Query(c.Request.Context(), request)
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{
+				"success": false,
+				"error":   err.Error(),
+			})
+			return
+		}
+
+		c.JSON(http.StatusOK, result)
+	}
 }

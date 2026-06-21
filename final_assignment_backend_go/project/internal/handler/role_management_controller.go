@@ -6,16 +6,15 @@ import (
 	"github.com/gin-gonic/gin"
 
 	"final_assignment_backend_go/project/internal/domain"
-	"final_assignment_backend_go/project/internal/service"
 )
 
 // RoleManagementController 提供角色管理的 HTTP 接口
 type RoleManagementController struct {
-	roleService *service.RoleManagementService
+	roleService RoleManagementService
 }
 
 // NewRoleManagementController 创建新的角色管理控制器实例
-func NewRoleManagementController(roleService *service.RoleManagementService) *RoleManagementController {
+func NewRoleManagementController(roleService RoleManagementService) *RoleManagementController {
 	return &RoleManagementController{roleService: roleService}
 }
 

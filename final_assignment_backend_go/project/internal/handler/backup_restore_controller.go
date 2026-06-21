@@ -8,16 +8,15 @@ import (
 	"github.com/gin-gonic/gin"
 
 	"final_assignment_backend_go/project/internal/domain"
-	"final_assignment_backend_go/project/internal/service"
 )
 
 // BackupRestoreController 控制器层
 type BackupRestoreController struct {
-	backupService *service.BackupRestoreService
+	backupService BackupRestoreService
 }
 
 // NewBackupRestoreController 创建控制器实例
-func NewBackupRestoreController(backupService *service.BackupRestoreService) *BackupRestoreController {
+func NewBackupRestoreController(backupService BackupRestoreService) *BackupRestoreController {
 	return &BackupRestoreController{
 		backupService: backupService,
 	}

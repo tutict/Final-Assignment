@@ -241,6 +241,11 @@ func (n *NetWorkHandler) handleWsMessage(conn *websocket.Conn, raw []byte) {
 	}
 
 	// token check
+	if n.TokenProvider == nil {
+		log.Printf("[%s] token provider not configured", requestID)
+		_ = conn.WriteJSON(map[string]string{"error": "Invalid token"})
+		return
+	}
 	token, err := n.TokenProvider.ValidateToken(in.Token)
 	if in.Token == "" || err != nil || token == nil || !token.Valid {
 		log.Printf("[%s] invalid token, closing ws", requestID)
@@ -257,6 +262,10 @@ func (n *NetWorkHandler) handleWsMessage(conn *websocket.Conn, raw []byte) {
 		return
 	}
 
+	if n.WsRegistry == nil {
+		_ = conn.WriteJSON(map[string]string{"error": "WebSocket registry not configured"})
+		return
+	}
 	handler, ok := n.WsRegistry.GetHandler(service, action)
 	if !ok {
 		_ = conn.WriteJSON(map[string]string{"error": fmt.Sprintf("No such WsAction for %s#%s", service, action)})
@@ -264,6 +273,7 @@ func (n *NetWorkHandler) handleWsMessage(conn *websocket.Conn, raw []byte) {
 	}
 
 	method := handler.Method
+	bean := handler.Bean
 	methodType := method.Type
 	paramCount := methodType.NumIn() - 1
 	if len(in.Args) != paramCount {
@@ -273,7 +283,7 @@ func (n *NetWorkHandler) handleWsMessage(conn *websocket.Conn, raw []byte) {
 
 	// convert args
 	invokeArgs := make([]reflect.Value, paramCount+1)
-	invokeArgs[0] = reflect.ValueOf(handler.Bean)
+	invokeArgs[0] = reflect.ValueOf(bean)
 	for i := 0; i < paramCount; i++ {
 		targetType := methodType.In(i + 1)
 		argRaw := in.Args[i]

@@ -6,16 +6,15 @@ import (
 	"github.com/gin-gonic/gin"
 
 	"final_assignment_backend_go/project/internal/domain"
-	"final_assignment_backend_go/project/internal/service"
 )
 
 // SystemSettingsController 负责系统设置相关 API
 type SystemSettingsController struct {
-	systemSettingsService *service.SystemSettingsService
+	systemSettingsService SystemSettingsService
 }
 
 // NewSystemSettingsController 创建控制器实例
-func NewSystemSettingsController(s *service.SystemSettingsService) *SystemSettingsController {
+func NewSystemSettingsController(s SystemSettingsService) *SystemSettingsController {
 	return &SystemSettingsController{systemSettingsService: s}
 }
 

@@ -8,15 +8,14 @@ import (
 	"github.com/gin-gonic/gin"
 
 	"final_assignment_backend_go/project/internal/domain"
-	"final_assignment_backend_go/project/internal/service"
 )
 
 type FineController struct {
-	FineService *service.FineInformationService
+	FineService FineInformationService
 }
 
 // NewFineController 构造函数
-func NewFineController(fineService *service.FineInformationService) *FineController {
+func NewFineController(fineService FineInformationService) *FineController {
 	return &FineController{FineService: fineService}
 }
 

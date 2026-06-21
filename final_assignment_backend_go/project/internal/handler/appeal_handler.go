@@ -8,18 +8,16 @@ import (
 
 	"github.com/gin-gonic/gin"
 
-	"final_assignment_backend_go/project/internal/service"
-
 	"final_assignment_backend_go/project/internal/domain"
 )
 
 // AppealHandler 对应 Java 的 AppealManagementController
 type AppealHandler struct {
-	appealService *service.AppealService
+	appealService AppealService
 }
 
 // NewAppealHandler 构造函数
-func NewAppealHandler(appealService *service.AppealService) *AppealHandler {
+func NewAppealHandler(appealService AppealService) *AppealHandler {
 	return &AppealHandler{appealService}
 }
 

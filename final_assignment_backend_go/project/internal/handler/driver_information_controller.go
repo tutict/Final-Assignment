@@ -9,18 +9,17 @@ import (
 	"github.com/gin-gonic/gin"
 
 	"final_assignment_backend_go/project/internal/domain"
-	"final_assignment_backend_go/project/internal/service"
 )
 
 type DriverInformationController struct {
-	driverService *service.DriverInformationService
-	userService   *service.UserManagementService
+	driverService DriverInformationService
+	userService   UserManagementService
 }
 
 // NewDriverInformationController 构造函数
 func NewDriverInformationController(
-	driverService *service.DriverInformationService,
-	userService *service.UserManagementService,
+	driverService DriverInformationService,
+	userService UserManagementService,
 ) *DriverInformationController {
 	return &DriverInformationController{
 		driverService: driverService,

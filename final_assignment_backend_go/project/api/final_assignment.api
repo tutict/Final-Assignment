@@ -1,0 +1,1088 @@
+syntax = "v1"
+
+info (
+	title:   "Final Assignment Go API"
+	desc:    "go-zero migration entry aligned with the Spring Boot main backend contracts"
+	author:  "Final Assignment"
+	version: "0.1.0"
+)
+
+type ApiResponse {
+	Success   bool        `json:"success"`
+	Data      interface{} `json:"data,omitempty"`
+	Message   string      `json:"message,omitempty"`
+	ErrorCode string      `json:"errorCode,omitempty"`
+}
+
+type HealthResponse {
+	Status    string `json:"status"`
+	Service   string `json:"service"`
+	Framework string `json:"framework"`
+}
+
+@server (
+	group: system
+)
+service finalAssignmentGoApi {
+	@handler health
+	get /actuator/health returns (ApiResponse)
+
+	@handler apiHealth
+	get /api/health returns (ApiResponse)
+
+	@handler contracts
+	get /api/contracts returns (ApiResponse)
+
+	@handler goZeroContracts
+	get /api/go-zero/contracts returns (ApiResponse)
+
+	@handler routeSpecs
+	get /api/go-zero/routes returns (ApiResponse)
+}
+
+@server (
+	group: auth
+)
+service finalAssignmentGoApi {
+	@handler login
+	post /api/auth/login returns (ApiResponse)
+
+	@handler register
+	post /api/auth/register returns (ApiResponse)
+
+	@handler refresh
+	post /api/auth/refresh returns (ApiResponse)
+
+	@handler logout
+	post /api/auth/logout returns (ApiResponse)
+
+	@handler currentUser
+	get /api/auth/me returns (ApiResponse)
+
+	@handler authUsers
+	get /api/auth/users returns (ApiResponse)
+}
+
+@server (
+	group: vehicles
+)
+service finalAssignmentGoApi {
+	@handler createVehicle
+	post /api/vehicles returns (ApiResponse)
+
+	@handler listVehicles
+	get /api/vehicles returns (ApiResponse)
+
+	@handler searchVehicleByLicense
+	get /api/vehicles/search/license returns (ApiResponse)
+
+	@handler searchVehicleByOwner
+	get /api/vehicles/search/owner returns (ApiResponse)
+
+	@handler searchVehicleByType
+	get /api/vehicles/search/type returns (ApiResponse)
+
+	@handler searchVehicleByOwnerName
+	get /api/vehicles/search/owner/name returns (ApiResponse)
+
+	@handler searchVehicleByStatus
+	get /api/vehicles/search/status returns (ApiResponse)
+
+	@handler searchVehicles
+	get /api/vehicles/search/general returns (ApiResponse)
+
+	@handler globalPlateSuggestions
+	get /api/vehicles/search/license/global returns (ApiResponse)
+
+	@handler plateAutocomplete
+	get /api/vehicles/autocomplete/plates returns (ApiResponse)
+
+	@handler autocompletePlates
+	get /api/vehicles/autocomplete returns (ApiResponse)
+
+	@handler vehicleTypeAutocomplete
+	get /api/vehicles/autocomplete/types returns (ApiResponse)
+
+	@handler vehicleTypeAutocompleteGlobal
+	get /api/vehicles/autocomplete/types/global returns (ApiResponse)
+
+	@handler listVehicleBindings
+	get /api/vehicles/bindings returns (ApiResponse)
+
+	@handler searchVehicleBindingsByRelationship
+	get /api/vehicles/bindings/search/relationship returns (ApiResponse)
+
+	@handler updateVehicle
+	put /api/vehicles/:vehicleId returns (ApiResponse)
+
+	@handler deleteVehicle
+	delete /api/vehicles/:vehicleId returns (ApiResponse)
+
+	@handler getVehicle
+	get /api/vehicles/:vehicleId returns (ApiResponse)
+
+	@handler deleteVehicleByLicense
+	delete /api/vehicles/license/:licensePlate returns (ApiResponse)
+
+	@handler licenseExists
+	get /api/vehicles/exists/:licensePlate returns (ApiResponse)
+
+	@handler bindDriver
+	post /api/vehicles/:vehicleId/drivers returns (ApiResponse)
+
+	@handler listBindings
+	get /api/vehicles/:vehicleId/drivers returns (ApiResponse)
+
+	@handler deleteBinding
+	delete /api/vehicles/bindings/:bindingId returns (ApiResponse)
+
+	@handler updateBinding
+	put /api/vehicles/bindings/:bindingId returns (ApiResponse)
+
+	@handler getBinding
+	get /api/vehicles/bindings/:bindingId returns (ApiResponse)
+
+	@handler listByDriver
+	get /api/vehicles/drivers/:driverId/vehicles returns (ApiResponse)
+
+	@handler listVehicleRecordsByDriver
+	get /api/vehicles/drivers/:driverId/records returns (ApiResponse)
+
+	@handler primaryBinding
+	get /api/vehicles/drivers/:driverId/vehicles/primary returns (ApiResponse)
+}
+
+@server (
+	group: userManagement
+)
+service finalAssignmentGoApi {
+	@handler createUser
+	post /api/users returns (ApiResponse)
+
+	@handler listUsers
+	get /api/users returns (ApiResponse)
+
+	@handler getUserByUsername
+	get /api/users/search/username/:username returns (ApiResponse)
+
+	@handler searchUsernamePrefix
+	get /api/users/search/username/prefix returns (ApiResponse)
+
+	@handler searchUsernameFuzzy
+	get /api/users/search/username/fuzzy returns (ApiResponse)
+
+	@handler searchRealNamePrefix
+	get /api/users/search/real-name/prefix returns (ApiResponse)
+
+	@handler searchRealNameFuzzy
+	get /api/users/search/real-name/fuzzy returns (ApiResponse)
+
+	@handler searchUserIdCard
+	get /api/users/search/id-card returns (ApiResponse)
+
+	@handler searchUserContact
+	get /api/users/search/contact returns (ApiResponse)
+
+	@handler listUsersByStatus
+	get /api/users/search/status returns (ApiResponse)
+
+	@handler listUsersByDepartment
+	get /api/users/search/department returns (ApiResponse)
+
+	@handler searchUserDepartmentPrefix
+	get /api/users/search/department/prefix returns (ApiResponse)
+
+	@handler searchUserEmployeeNumber
+	get /api/users/search/employee-number returns (ApiResponse)
+
+	@handler searchUsersByLastLoginRange
+	get /api/users/search/last-login-range returns (ApiResponse)
+
+	@handler deleteUserRoleBinding
+	delete /api/users/roles/:relationId returns (ApiResponse)
+
+	@handler updateUserRoleBinding
+	put /api/users/role-bindings/:relationId returns (ApiResponse)
+
+	@handler getUserRoleBinding
+	get /api/users/role-bindings/:relationId returns (ApiResponse)
+
+	@handler listUserRoleBindings
+	get /api/users/role-bindings returns (ApiResponse)
+
+	@handler listUserBindingsByRole
+	get /api/users/role-bindings/by-role/:roleId returns (ApiResponse)
+
+	@handler searchUserRoleBindings
+	get /api/users/role-bindings/search returns (ApiResponse)
+
+	@handler updateUser
+	put /api/users/:userId returns (ApiResponse)
+
+	@handler deleteUser
+	delete /api/users/:userId returns (ApiResponse)
+
+	@handler getUser
+	get /api/users/:userId returns (ApiResponse)
+
+	@handler addUserRole
+	post /api/users/:userId/roles returns (ApiResponse)
+
+	@handler listUserRoles
+	get /api/users/:userId/roles returns (ApiResponse)
+}
+
+@server (
+	group: roles
+)
+service finalAssignmentGoApi {
+	@handler createRole
+	post /api/roles returns (ApiResponse)
+
+	@handler listRoles
+	get /api/roles returns (ApiResponse)
+
+	@handler getRoleByCode
+	get /api/roles/by-code/:roleCode returns (ApiResponse)
+
+	@handler searchRoleCodePrefix
+	get /api/roles/search/code/prefix returns (ApiResponse)
+
+	@handler getRoleByName
+	get /api/roles/name/:roleName returns (ApiResponse)
+
+	@handler deleteRoleByName
+	delete /api/roles/name/:roleName returns (ApiResponse)
+
+	@handler searchRoles
+	get /api/roles/search returns (ApiResponse)
+
+	@handler searchRoleCodeFuzzy
+	get /api/roles/search/code/fuzzy returns (ApiResponse)
+
+	@handler searchRoleNamePrefix
+	get /api/roles/search/name/prefix returns (ApiResponse)
+
+	@handler searchRoleNameFuzzy
+	get /api/roles/search/name/fuzzy returns (ApiResponse)
+
+	@handler listRolesByType
+	get /api/roles/search/type returns (ApiResponse)
+
+	@handler listRolesByDataScope
+	get /api/roles/search/data-scope returns (ApiResponse)
+
+	@handler listRolesByStatus
+	get /api/roles/search/status returns (ApiResponse)
+
+	@handler deleteRolePermission
+	delete /api/roles/permissions/:relationId returns (ApiResponse)
+
+	@handler updateRolePermission
+	put /api/roles/permissions/:relationId returns (ApiResponse)
+
+	@handler getRolePermission
+	get /api/roles/permissions/:relationId returns (ApiResponse)
+
+	@handler listRolePermissions
+	get /api/roles/permissions returns (ApiResponse)
+
+	@handler listRolePermissionsByPermission
+	get /api/roles/permissions/by-permission/:permissionId returns (ApiResponse)
+
+	@handler searchRolePermissions
+	get /api/roles/permissions/search returns (ApiResponse)
+
+	@handler updateRole
+	put /api/roles/:roleId returns (ApiResponse)
+
+	@handler deleteRole
+	delete /api/roles/:roleId returns (ApiResponse)
+
+	@handler getRole
+	get /api/roles/:roleId returns (ApiResponse)
+
+	@handler addRolePermission
+	post /api/roles/:roleId/permissions returns (ApiResponse)
+
+	@handler listRolePermissionsByRole
+	get /api/roles/:roleId/permissions returns (ApiResponse)
+}
+
+@server (
+	group: permissions
+)
+service finalAssignmentGoApi {
+	@handler createPermission
+	post /api/permissions returns (ApiResponse)
+
+	@handler listPermissions
+	get /api/permissions returns (ApiResponse)
+
+	@handler listPermissionsByParent
+	get /api/permissions/parent/:parentId returns (ApiResponse)
+
+	@handler searchPermissionCodePrefix
+	get /api/permissions/search/code/prefix returns (ApiResponse)
+
+	@handler getPermissionByName
+	get /api/permissions/name/:permissionName returns (ApiResponse)
+
+	@handler deletePermissionByName
+	delete /api/permissions/name/:permissionName returns (ApiResponse)
+
+	@handler searchPermissions
+	get /api/permissions/search returns (ApiResponse)
+
+	@handler searchPermissionCodeFuzzy
+	get /api/permissions/search/code/fuzzy returns (ApiResponse)
+
+	@handler searchPermissionNamePrefix
+	get /api/permissions/search/name/prefix returns (ApiResponse)
+
+	@handler searchPermissionNameFuzzy
+	get /api/permissions/search/name/fuzzy returns (ApiResponse)
+
+	@handler listPermissionsByType
+	get /api/permissions/search/type returns (ApiResponse)
+
+	@handler listPermissionsByApiPath
+	get /api/permissions/search/api-path returns (ApiResponse)
+
+	@handler listPermissionsByMenuPath
+	get /api/permissions/search/menu-path returns (ApiResponse)
+
+	@handler listPermissionsByVisible
+	get /api/permissions/search/visible returns (ApiResponse)
+
+	@handler listPermissionsByExternal
+	get /api/permissions/search/external returns (ApiResponse)
+
+	@handler listPermissionsByStatus
+	get /api/permissions/search/status returns (ApiResponse)
+
+	@handler updatePermission
+	put /api/permissions/:permissionId returns (ApiResponse)
+
+	@handler deletePermission
+	delete /api/permissions/:permissionId returns (ApiResponse)
+
+	@handler getPermission
+	get /api/permissions/:permissionId returns (ApiResponse)
+}
+
+@server (
+	group: systemSettings
+)
+service finalAssignmentGoApi {
+	@handler createSetting
+	post /api/system/settings returns (ApiResponse)
+
+	@handler listSettings
+	get /api/system/settings returns (ApiResponse)
+
+	@handler getSettingByKey
+	get /api/system/settings/key/:settingKey returns (ApiResponse)
+
+	@handler listSettingsByCategory
+	get /api/system/settings/category/:category returns (ApiResponse)
+
+	@handler searchSettingKeyPrefix
+	get /api/system/settings/search/key/prefix returns (ApiResponse)
+
+	@handler searchSettingKeyFuzzy
+	get /api/system/settings/search/key/fuzzy returns (ApiResponse)
+
+	@handler searchSettingsByType
+	get /api/system/settings/search/type returns (ApiResponse)
+
+	@handler searchSettingsByEditable
+	get /api/system/settings/search/editable returns (ApiResponse)
+
+	@handler searchSettingsByEncrypted
+	get /api/system/settings/search/encrypted returns (ApiResponse)
+
+	@handler createDict
+	post /api/system/settings/dicts returns (ApiResponse)
+
+	@handler listDicts
+	get /api/system/settings/dicts returns (ApiResponse)
+
+	@handler searchDictsByType
+	get /api/system/settings/dicts/search/type returns (ApiResponse)
+
+	@handler searchDictsByCode
+	get /api/system/settings/dicts/search/code returns (ApiResponse)
+
+	@handler searchDictLabelPrefix
+	get /api/system/settings/dicts/search/label/prefix returns (ApiResponse)
+
+	@handler searchDictLabelFuzzy
+	get /api/system/settings/dicts/search/label/fuzzy returns (ApiResponse)
+
+	@handler searchDictsByParent
+	get /api/system/settings/dicts/search/parent returns (ApiResponse)
+
+	@handler searchDefaultDicts
+	get /api/system/settings/dicts/search/default returns (ApiResponse)
+
+	@handler searchDictsByStatus
+	get /api/system/settings/dicts/search/status returns (ApiResponse)
+
+	@handler updateDict
+	put /api/system/settings/dicts/:dictId returns (ApiResponse)
+
+	@handler deleteDict
+	delete /api/system/settings/dicts/:dictId returns (ApiResponse)
+
+	@handler getDict
+	get /api/system/settings/dicts/:dictId returns (ApiResponse)
+
+	@handler updateSetting
+	put /api/system/settings/:settingId returns (ApiResponse)
+
+	@handler deleteSetting
+	delete /api/system/settings/:settingId returns (ApiResponse)
+
+	@handler getSetting
+	get /api/system/settings/:settingId returns (ApiResponse)
+}
+
+@server (
+	group: backupRestore
+)
+service finalAssignmentGoApi {
+	@handler createBackup
+	post /api/system/backup returns (ApiResponse)
+
+	@handler listBackups
+	get /api/system/backup returns (ApiResponse)
+
+	@handler searchBackupsByType
+	get /api/system/backup/search/type returns (ApiResponse)
+
+	@handler searchBackupsByFileName
+	get /api/system/backup/search/file-name returns (ApiResponse)
+
+	@handler searchBackupsByHandler
+	get /api/system/backup/search/handler returns (ApiResponse)
+
+	@handler searchBackupsByRestoreStatus
+	get /api/system/backup/search/restore-status returns (ApiResponse)
+
+	@handler searchBackupsByStatus
+	get /api/system/backup/search/status returns (ApiResponse)
+
+	@handler searchBackupsByBackupTimeRange
+	get /api/system/backup/search/backup-time-range returns (ApiResponse)
+
+	@handler searchBackupsByRestoreTimeRange
+	get /api/system/backup/search/restore-time-range returns (ApiResponse)
+
+	@handler updateBackup
+	put /api/system/backup/:backupId returns (ApiResponse)
+
+	@handler deleteBackup
+	delete /api/system/backup/:backupId returns (ApiResponse)
+
+	@handler getBackup
+	get /api/system/backup/:backupId returns (ApiResponse)
+}
+
+@server (
+	group: loginLogs
+)
+service finalAssignmentGoApi {
+	@handler createLoginLog
+	post /api/logs/login returns (ApiResponse)
+
+	@handler listLoginLogs
+	get /api/logs/login returns (ApiResponse)
+
+	@handler searchLoginLogsByUsername
+	get /api/logs/login/search/username returns (ApiResponse)
+
+	@handler searchLoginLogsByResult
+	get /api/logs/login/search/result returns (ApiResponse)
+
+	@handler searchLoginLogsByTimeRange
+	get /api/logs/login/search/time-range returns (ApiResponse)
+
+	@handler searchLoginLogsByIp
+	get /api/logs/login/search/ip returns (ApiResponse)
+
+	@handler searchLoginLogsByLocation
+	get /api/logs/login/search/location returns (ApiResponse)
+
+	@handler searchLoginLogsByDeviceType
+	get /api/logs/login/search/device-type returns (ApiResponse)
+
+	@handler searchLoginLogsByBrowserType
+	get /api/logs/login/search/browser-type returns (ApiResponse)
+
+	@handler searchLoginLogsByLogoutTimeRange
+	get /api/logs/login/search/logout-time-range returns (ApiResponse)
+
+	@handler updateLoginLog
+	put /api/logs/login/:logId returns (ApiResponse)
+
+	@handler deleteLoginLog
+	delete /api/logs/login/:logId returns (ApiResponse)
+
+	@handler getLoginLog
+	get /api/logs/login/:logId returns (ApiResponse)
+}
+
+@server (
+	group: operationLogs
+)
+service finalAssignmentGoApi {
+	@handler createOperationLog
+	post /api/logs/operation returns (ApiResponse)
+
+	@handler listOperationLogs
+	get /api/logs/operation returns (ApiResponse)
+
+	@handler searchOperationLogsByModule
+	get /api/logs/operation/search/module returns (ApiResponse)
+
+	@handler searchOperationLogsByType
+	get /api/logs/operation/search/type returns (ApiResponse)
+
+	@handler searchOperationLogsByUser
+	get /api/logs/operation/search/user/:userId returns (ApiResponse)
+
+	@handler searchOperationLogsByTimeRange
+	get /api/logs/operation/search/time-range returns (ApiResponse)
+
+	@handler searchOperationLogsByUsername
+	get /api/logs/operation/search/username returns (ApiResponse)
+
+	@handler searchOperationLogsByRequestUrl
+	get /api/logs/operation/search/request-url returns (ApiResponse)
+
+	@handler searchOperationLogsByRequestMethod
+	get /api/logs/operation/search/request-method returns (ApiResponse)
+
+	@handler searchOperationLogsByResult
+	get /api/logs/operation/search/result returns (ApiResponse)
+
+	@handler updateOperationLog
+	put /api/logs/operation/:logId returns (ApiResponse)
+
+	@handler deleteOperationLog
+	delete /api/logs/operation/:logId returns (ApiResponse)
+
+	@handler getOperationLog
+	get /api/logs/operation/:logId returns (ApiResponse)
+}
+
+@server (
+	group: systemLogs
+)
+service finalAssignmentGoApi {
+	@handler systemLogsOverview
+	get /api/system/logs/overview returns (ApiResponse)
+
+	@handler recentLoginLogs
+	get /api/system/logs/login/recent returns (ApiResponse)
+
+	@handler recentOperationLogs
+	get /api/system/logs/operation/recent returns (ApiResponse)
+
+	@handler searchRequestsByIdempotency
+	get /api/system/logs/requests/search/idempotency returns (ApiResponse)
+
+	@handler searchRequestsByMethod
+	get /api/system/logs/requests/search/method returns (ApiResponse)
+
+	@handler searchRequestsByUrl
+	get /api/system/logs/requests/search/url returns (ApiResponse)
+
+	@handler searchRequestsByBusinessType
+	get /api/system/logs/requests/search/business-type returns (ApiResponse)
+
+	@handler searchRequestsByBusinessId
+	get /api/system/logs/requests/search/business-id returns (ApiResponse)
+
+	@handler searchRequestsByStatus
+	get /api/system/logs/requests/search/status returns (ApiResponse)
+
+	@handler searchRequestsByUser
+	get /api/system/logs/requests/search/user returns (ApiResponse)
+
+	@handler searchRequestsByIp
+	get /api/system/logs/requests/search/ip returns (ApiResponse)
+
+	@handler searchRequestsByTimeRange
+	get /api/system/logs/requests/search/time-range returns (ApiResponse)
+
+	@handler getRequestHistory
+	get /api/system/logs/requests/:historyId returns (ApiResponse)
+}
+
+@server (
+	group: drivers
+)
+service finalAssignmentGoApi {
+	@handler createDriver
+	post /api/drivers returns (ApiResponse)
+
+	@handler listDrivers
+	get /api/drivers returns (ApiResponse)
+
+	@handler searchDriversByIdCard
+	get /api/drivers/search/id-card returns (ApiResponse)
+
+	@handler searchDriversByLicense
+	get /api/drivers/search/license returns (ApiResponse)
+
+	@handler searchDriversByName
+	get /api/drivers/search/name returns (ApiResponse)
+
+	@handler searchDrivers
+	get /api/drivers/search returns (ApiResponse)
+
+	@handler updateDriver
+	put /api/drivers/:driverId returns (ApiResponse)
+
+	@handler deleteDriver
+	delete /api/drivers/:driverId returns (ApiResponse)
+
+	@handler getDriver
+	get /api/drivers/:driverId returns (ApiResponse)
+}
+
+@server (
+	group: offenses
+)
+service finalAssignmentGoApi {
+	@handler createOffense
+	post /api/offenses returns (ApiResponse)
+
+	@handler listOffenses
+	get /api/offenses returns (ApiResponse)
+
+	@handler listOffensesByDriver
+	get /api/offenses/driver/:driverId returns (ApiResponse)
+
+	@handler listOffensesByVehicle
+	get /api/offenses/vehicle/:vehicleId returns (ApiResponse)
+
+	@handler searchOffensesByCode
+	get /api/offenses/search/code returns (ApiResponse)
+
+	@handler searchOffensesByStatus
+	get /api/offenses/search/status returns (ApiResponse)
+
+	@handler searchOffensesByTimeRange
+	get /api/offenses/search/time-range returns (ApiResponse)
+
+	@handler searchOffensesByNumber
+	get /api/offenses/search/number returns (ApiResponse)
+
+	@handler searchOffensesByLocation
+	get /api/offenses/search/location returns (ApiResponse)
+
+	@handler searchOffensesByProvince
+	get /api/offenses/search/province returns (ApiResponse)
+
+	@handler searchOffensesByCity
+	get /api/offenses/search/city returns (ApiResponse)
+
+	@handler searchOffensesByNotification
+	get /api/offenses/search/notification returns (ApiResponse)
+
+	@handler searchOffensesByAgency
+	get /api/offenses/search/agency returns (ApiResponse)
+
+	@handler searchOffensesByFineRange
+	get /api/offenses/search/fine-range returns (ApiResponse)
+
+	@handler getOffenseDetails
+	get /api/offenses/:offenseId/details returns (ApiResponse)
+
+	@handler updateOffense
+	put /api/offenses/:offenseId returns (ApiResponse)
+
+	@handler deleteOffense
+	delete /api/offenses/:offenseId returns (ApiResponse)
+
+	@handler getOffense
+	get /api/offenses/:offenseId returns (ApiResponse)
+}
+
+@server (
+	group: offenseTypes
+)
+service finalAssignmentGoApi {
+	@handler createOffenseType
+	post /api/offense-types returns (ApiResponse)
+
+	@handler listOffenseTypes
+	get /api/offense-types returns (ApiResponse)
+
+	@handler searchOffenseTypesByCodePrefix
+	get /api/offense-types/search/code/prefix returns (ApiResponse)
+
+	@handler searchOffenseTypesByCodeFuzzy
+	get /api/offense-types/search/code/fuzzy returns (ApiResponse)
+
+	@handler searchOffenseTypesByNamePrefix
+	get /api/offense-types/search/name/prefix returns (ApiResponse)
+
+	@handler searchOffenseTypesByNameFuzzy
+	get /api/offense-types/search/name/fuzzy returns (ApiResponse)
+
+	@handler searchOffenseTypesByCategory
+	get /api/offense-types/search/category returns (ApiResponse)
+
+	@handler searchOffenseTypesBySeverity
+	get /api/offense-types/search/severity returns (ApiResponse)
+
+	@handler searchOffenseTypesByStatus
+	get /api/offense-types/search/status returns (ApiResponse)
+
+	@handler searchOffenseTypesByFineRange
+	get /api/offense-types/search/fine-range returns (ApiResponse)
+
+	@handler searchOffenseTypesByPointsRange
+	get /api/offense-types/search/points-range returns (ApiResponse)
+
+	@handler updateOffenseType
+	put /api/offense-types/:typeId returns (ApiResponse)
+
+	@handler deleteOffenseType
+	delete /api/offense-types/:typeId returns (ApiResponse)
+
+	@handler getOffenseType
+	get /api/offense-types/:typeId returns (ApiResponse)
+}
+
+@server (
+	group: fines
+)
+service finalAssignmentGoApi {
+	@handler createFine
+	post /api/fines returns (ApiResponse)
+
+	@handler listFines
+	get /api/fines returns (ApiResponse)
+
+	@handler listFinesByOffense
+	get /api/fines/offense/:offenseId returns (ApiResponse)
+
+	@handler listFinesByDriver
+	get /api/fines/driver/:driverId returns (ApiResponse)
+
+	@handler searchFinesByHandler
+	get /api/fines/search/handler returns (ApiResponse)
+
+	@handler searchFinesByStatus
+	get /api/fines/search/status returns (ApiResponse)
+
+	@handler searchFinesByDateRange
+	get /api/fines/search/date-range returns (ApiResponse)
+
+	@handler updateFine
+	put /api/fines/:fineId returns (ApiResponse)
+
+	@handler deleteFine
+	delete /api/fines/:fineId returns (ApiResponse)
+
+	@handler getFine
+	get /api/fines/:fineId returns (ApiResponse)
+}
+
+@server (
+	group: deductions
+)
+service finalAssignmentGoApi {
+	@handler createDeduction
+	post /api/deductions returns (ApiResponse)
+
+	@handler listDeductions
+	get /api/deductions returns (ApiResponse)
+
+	@handler listDeductionsByDriver
+	get /api/deductions/driver/:driverId returns (ApiResponse)
+
+	@handler listDeductionsByOffense
+	get /api/deductions/offense/:offenseId returns (ApiResponse)
+
+	@handler searchDeductionsByHandler
+	get /api/deductions/search/handler returns (ApiResponse)
+
+	@handler searchDeductionsByStatus
+	get /api/deductions/search/status returns (ApiResponse)
+
+	@handler searchDeductionsByTimeRange
+	get /api/deductions/search/time-range returns (ApiResponse)
+
+	@handler updateDeduction
+	put /api/deductions/:deductionId returns (ApiResponse)
+
+	@handler deleteDeduction
+	delete /api/deductions/:deductionId returns (ApiResponse)
+
+	@handler getDeduction
+	get /api/deductions/:deductionId returns (ApiResponse)
+}
+
+@server (
+	group: appeals
+)
+service finalAssignmentGoApi {
+	@handler createAppeal
+	post /api/appeals returns (ApiResponse)
+
+	@handler listAppeals
+	get /api/appeals returns (ApiResponse)
+
+	@handler getMyAppeals
+	get /api/appeals/my returns (ApiResponse)
+
+	@handler searchAppealsByNumberPrefix
+	get /api/appeals/search/number/prefix returns (ApiResponse)
+
+	@handler searchAppealsByNumberFuzzy
+	get /api/appeals/search/number/fuzzy returns (ApiResponse)
+
+	@handler searchAppealsByAppellantNamePrefix
+	get /api/appeals/search/appellant/name/prefix returns (ApiResponse)
+
+	@handler searchAppealsByAppellantNameFuzzy
+	get /api/appeals/search/appellant/name/fuzzy returns (ApiResponse)
+
+	@handler searchAppealsByAppellantIdCard
+	get /api/appeals/search/appellant/id-card returns (ApiResponse)
+
+	@handler searchAppealsByAcceptanceStatus
+	get /api/appeals/search/acceptance-status returns (ApiResponse)
+
+	@handler searchAppealsByProcessStatus
+	get /api/appeals/search/process-status returns (ApiResponse)
+
+	@handler searchAppealsByTimeRange
+	get /api/appeals/search/time-range returns (ApiResponse)
+
+	@handler searchAppealsByHandler
+	get /api/appeals/search/handler returns (ApiResponse)
+
+	@handler listAppealReviews
+	get /api/appeals/reviews returns (ApiResponse)
+
+	@handler searchAppealReviewsByReviewer
+	get /api/appeals/reviews/search/reviewer returns (ApiResponse)
+
+	@handler searchAppealReviewsByReviewerDept
+	get /api/appeals/reviews/search/reviewer-dept returns (ApiResponse)
+
+	@handler searchAppealReviewsByTimeRange
+	get /api/appeals/reviews/search/time-range returns (ApiResponse)
+
+	@handler countAppealReviews
+	get /api/appeals/reviews/count returns (ApiResponse)
+
+	@handler updateAppealReview
+	put /api/appeals/reviews/:reviewId returns (ApiResponse)
+
+	@handler deleteAppealReview
+	delete /api/appeals/reviews/:reviewId returns (ApiResponse)
+
+	@handler getAppealReview
+	get /api/appeals/reviews/:reviewId returns (ApiResponse)
+
+	@handler createAppealReview
+	post /api/appeals/:appealId/reviews returns (ApiResponse)
+
+	@handler updateAppeal
+	put /api/appeals/:appealId returns (ApiResponse)
+
+	@handler deleteAppeal
+	delete /api/appeals/:appealId returns (ApiResponse)
+
+	@handler getAppeal
+	get /api/appeals/:appealId returns (ApiResponse)
+}
+
+@server (
+	group: payments
+)
+service finalAssignmentGoApi {
+	@handler createPayment
+	post /api/payments returns (ApiResponse)
+
+	@handler listPayments
+	get /api/payments returns (ApiResponse)
+
+	@handler listPaymentsByFine
+	get /api/payments/fine/:fineId returns (ApiResponse)
+
+	@handler listPaymentsByDriver
+	get /api/payments/driver/:driverId returns (ApiResponse)
+
+	@handler createDriverPayment
+	post /api/payments/driver/:driverId returns (ApiResponse)
+
+	@handler searchPaymentsByPayer
+	get /api/payments/search/payer returns (ApiResponse)
+
+	@handler searchPaymentsByStatus
+	get /api/payments/search/status returns (ApiResponse)
+
+	@handler searchPaymentsByTransaction
+	get /api/payments/search/transaction returns (ApiResponse)
+
+	@handler searchPaymentsByPaymentNumber
+	get /api/payments/search/payment-number returns (ApiResponse)
+
+	@handler searchPaymentsByPayerName
+	get /api/payments/search/payer-name returns (ApiResponse)
+
+	@handler searchPaymentsByPaymentMethod
+	get /api/payments/search/payment-method returns (ApiResponse)
+
+	@handler searchPaymentsByPaymentChannel
+	get /api/payments/search/payment-channel returns (ApiResponse)
+
+	@handler searchPaymentsByTimeRange
+	get /api/payments/search/time-range returns (ApiResponse)
+
+	@handler updatePaymentStatus
+	put /api/payments/:paymentId/status/:state returns (ApiResponse)
+
+	@handler updatePayment
+	put /api/payments/:paymentId returns (ApiResponse)
+
+	@handler deletePayment
+	delete /api/payments/:paymentId returns (ApiResponse)
+
+	@handler getPayment
+	get /api/payments/:paymentId returns (ApiResponse)
+}
+
+@server (
+	group: progress
+)
+service finalAssignmentGoApi {
+	@handler createProgress
+	post /api/progress returns (ApiResponse)
+
+	@handler listProgress
+	get /api/progress returns (ApiResponse)
+
+	@handler getProgressByTimeRange
+	get /api/progress/timeRange returns (ApiResponse)
+
+	@handler getProgressByStatus
+	get /api/progress/status returns (ApiResponse)
+
+	@handler getProgressByStatusPath
+	get /api/progress/status/:status returns (ApiResponse)
+
+	@handler getProgressByIdempotency
+	get /api/progress/idempotency/:key returns (ApiResponse)
+
+	@handler updateProgress
+	put /api/progress/:historyId returns (ApiResponse)
+
+	@handler deleteProgress
+	delete /api/progress/:historyId returns (ApiResponse)
+
+	@handler getProgress
+	get /api/progress/:historyId returns (ApiResponse)
+}
+
+@server (
+	group: violations
+)
+service finalAssignmentGoApi {
+	@handler listViolations
+	get /api/violations returns (ApiResponse)
+
+	@handler listViolationsByStatus
+	get /api/violations/status returns (ApiResponse)
+
+	@handler getViolation
+	get /api/violations/:offenseId returns (ApiResponse)
+}
+
+@server (
+	group: workflow
+)
+service finalAssignmentGoApi {
+	@handler triggerOffenseEvent
+	post /api/workflow/offenses/:offenseId/events/:event returns (ApiResponse)
+
+	@handler triggerPaymentEvent
+	post /api/workflow/payments/:paymentId/events/:event returns (ApiResponse)
+
+	@handler triggerAppealEvent
+	post /api/workflow/appeals/:appealId/events/:event returns (ApiResponse)
+}
+
+@server (
+	group: offenseDetailsView
+)
+service finalAssignmentGoApi {
+	@handler getOffenseDetailsView
+	get /api/view/offenses/:offenseId returns (ApiResponse)
+}
+
+@server (
+	group: aiChat
+)
+service finalAssignmentGoApi {
+	@handler aiChatStream
+	post /api/ai/chat/stream returns (ApiResponse)
+
+	@handler aiChatLegacy
+	get /api/ai/chat returns (ApiResponse)
+
+	@handler aiChatActions
+	get /api/ai/chat/actions returns (ApiResponse)
+}
+
+@server (
+	group: ragQuery
+)
+service finalAssignmentGoApi {
+	@handler ragQuery
+	post /api/rag/query returns (ApiResponse)
+}
+
+@server (
+	group: ragAdmin
+)
+service finalAssignmentGoApi {
+	@handler ragOverview
+	get /api/rag/admin/overview returns (ApiResponse)
+
+	@handler listRagDocuments
+	get /api/rag/admin/documents returns (ApiResponse)
+
+	@handler uploadRagDocument
+	post /api/rag/admin/documents/upload returns (ApiResponse)
+
+	@handler createManualRagDocument
+	post /api/rag/admin/documents/manual returns (ApiResponse)
+
+	@handler runRagBackfill
+	post /api/rag/admin/backfill returns (ApiResponse)
+
+	@handler runRagBackfillBatches
+	post /api/rag/admin/backfill/run returns (ApiResponse)
+
+	@handler runRagEmbeddingBatch
+	post /api/rag/admin/embedding/run returns (ApiResponse)
+
+	@handler requeueRagEmbeddingTasks
+	post /api/rag/admin/embedding/requeue returns (ApiResponse)
+
+	@handler migrateRagIndex
+	post /api/rag/admin/index/migrate returns (ApiResponse)
+
+	@handler deleteRagDocument
+	delete /api/rag/admin/documents/:documentId returns (ApiResponse)
+}

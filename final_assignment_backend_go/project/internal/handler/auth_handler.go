@@ -13,7 +13,7 @@ import (
 )
 
 type AuthHandler struct {
-	service *service.AuthWsService
+	service AuthService
 	logger  *Logger
 }
 
@@ -36,7 +36,7 @@ func (l *Logger) Error(msg string, args ...interface{}) {
 	fmt.Println(logLine)
 }
 
-func NewAuthHandler(s *service.AuthWsService) *AuthHandler {
+func NewAuthHandler(s AuthService) *AuthHandler {
 	return &AuthHandler{service: s, logger: &Logger{}}
 }
 

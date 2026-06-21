@@ -8,12 +8,10 @@ import (
 	"github.com/gin-gonic/gin"
 
 	"final_assignment_backend_go/project/internal/domain"
-
-	"final_assignment_backend_go/project/internal/service"
 )
 
 type OffenseInformationController struct {
-	Service *service.OffenseInformationService
+	Service OffenseInformationService
 }
 
 // RegisterRoutes 注册路由

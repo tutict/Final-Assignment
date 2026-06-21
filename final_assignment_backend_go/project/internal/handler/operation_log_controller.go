@@ -9,11 +9,10 @@ import (
 	"github.com/gin-gonic/gin"
 
 	"final_assignment_backend_go/project/internal/domain"
-	"final_assignment_backend_go/project/internal/service"
 )
 
 type OperationLogController struct {
-	Service *service.OperationLogService
+	Service OperationLogService
 }
 
 // RegisterRoutes 注册 operation log 的所有接口
