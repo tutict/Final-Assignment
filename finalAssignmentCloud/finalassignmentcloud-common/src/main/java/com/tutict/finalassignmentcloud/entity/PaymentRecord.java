@@ -100,6 +100,42 @@ public class PaymentRecord implements Serializable {
     private String bankAccount;
 
     /**
+     * 缴款人身份证密文
+     */
+    @TableField("payer_id_card_ciphertext")
+    private String payerIdCardCiphertext;
+
+    /**
+     * 缴款人身份证盲索引
+     */
+    @TableField("payer_id_card_blind_index")
+    private String payerIdCardBlindIndex;
+
+    /**
+     * 缴款人联系电话密文
+     */
+    @TableField("payer_contact_ciphertext")
+    private String payerContactCiphertext;
+
+    /**
+     * 缴款人联系电话盲索引
+     */
+    @TableField("payer_contact_blind_index")
+    private String payerContactBlindIndex;
+
+    /**
+     * 银行账号密文
+     */
+    @TableField("bank_account_ciphertext")
+    private String bankAccountCiphertext;
+
+    /**
+     * 银行账号盲索引
+     */
+    @TableField("bank_account_blind_index")
+    private String bankAccountBlindIndex;
+
+    /**
      * 交易流水号
      */
     @TableField("transaction_id")

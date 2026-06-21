@@ -63,6 +63,30 @@ public class AppealRecord implements Serializable {
     private String appellantContact;
 
     /**
+     * 申诉人身份证密文
+     */
+    @TableField("appellant_id_card_ciphertext")
+    private String appellantIdCardCiphertext;
+
+    /**
+     * 申诉人身份证盲索引
+     */
+    @TableField("appellant_id_card_blind_index")
+    private String appellantIdCardBlindIndex;
+
+    /**
+     * 申诉人联系电话密文
+     */
+    @TableField("appellant_contact_ciphertext")
+    private String appellantContactCiphertext;
+
+    /**
+     * 申诉人联系电话盲索引
+     */
+    @TableField("appellant_contact_blind_index")
+    private String appellantContactBlindIndex;
+
+    /**
      * 申诉人电子邮箱
      */
     @TableField("appellant_email")

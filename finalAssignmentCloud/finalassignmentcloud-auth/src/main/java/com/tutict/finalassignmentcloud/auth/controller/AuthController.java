@@ -1,5 +1,6 @@
 package com.tutict.finalassignmentcloud.auth.controller;
 
+import com.tutict.finalassignmentcloud.auth.config.websocket.WsTicketService;
 import com.tutict.finalassignmentcloud.auth.service.AuthWsService;
 import com.tutict.finalassignmentcloud.dto.response.UserProfileResponse;
 import com.tutict.finalassignmentcloud.entity.SysUser;
@@ -41,9 +42,11 @@ public class AuthController {
     private static final ExecutorService VIRTUAL_THREAD_EXECUTOR = Executors.newVirtualThreadPerTaskExecutor();
 
     private final AuthWsService authWsService;
+    private final WsTicketService wsTicketService;
 
-    public AuthController(AuthWsService authWsService) {
+    public AuthController(AuthWsService authWsService, WsTicketService wsTicketService) {
         this.authWsService = authWsService;
+        this.wsTicketService = wsTicketService;
     }
 
     @PostMapping("/login")
@@ -192,5 +195,37 @@ public class AuthController {
         }
         UserProfileResponse profile = authWsService.getCurrentUserProfile(authentication);
         return ResponseEntity.ok(com.tutict.finalassignmentcloud.dto.response.ApiResponse.ok(profile));
+    }
+
+    @PostMapping("/ws-ticket")
+    @SecurityRequirement(name = "bearerAuth")
+    @Operation(
+            summary = "签发WebSocket连接票据",
+            description = "为已认证用户签发一次性WebSocket连接票据，有效期30秒"
+    )
+    @ApiResponses({
+            @ApiResponse(
+                    responseCode = "200",
+                    description = "票据签发成功",
+                    content = @Content(mediaType = "application/json")),
+            @ApiResponse(
+                    responseCode = "401",
+                    description = "未认证",
+                    content = @Content(mediaType = "application/json"))
+    })
+    public ResponseEntity<com.tutict.finalassignmentcloud.dto.response.ApiResponse<Map<String, String>>> issueWsTicket(
+            Authentication authentication) {
+        if (authentication == null) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+                    .body(com.tutict.finalassignmentcloud.dto.response.ApiResponse.error("UNAUTHORIZED", "Unauthorized"));
+        }
+        List<String> roles = authentication.getAuthorities().stream()
+                .map(authority -> authority.getAuthority())
+                .toList();
+        WsTicketService.Ticket ticket = wsTicketService.issue(authentication.getName(), roles);
+        return ResponseEntity.ok(com.tutict.finalassignmentcloud.dto.response.ApiResponse.ok(Map.of(
+                "ticket", ticket.value(),
+                "expiresAt", ticket.expiresAt().toString()
+        )));
     }
 }

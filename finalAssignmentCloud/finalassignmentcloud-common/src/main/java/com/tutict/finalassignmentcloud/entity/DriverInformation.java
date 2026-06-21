@@ -64,6 +64,30 @@ public class DriverInformation implements Serializable {
     private String contactNumber;
 
     /**
+     * 身份证号密文
+     */
+    @TableField("id_card_number_ciphertext")
+    private String idCardNumberCiphertext;
+
+    /**
+     * 身份证号盲索引
+     */
+    @TableField("id_card_number_blind_index")
+    private String idCardNumberBlindIndex;
+
+    /**
+     * 联系电话密文
+     */
+    @TableField("contact_number_ciphertext")
+    private String contactNumberCiphertext;
+
+    /**
+     * 联系电话盲索引
+     */
+    @TableField("contact_number_blind_index")
+    private String contactNumberBlindIndex;
+
+    /**
      * 电子邮箱
      */
     @TableField("email")

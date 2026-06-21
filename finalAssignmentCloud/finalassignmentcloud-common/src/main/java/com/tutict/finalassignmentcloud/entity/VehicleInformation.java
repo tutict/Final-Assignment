@@ -100,6 +100,30 @@ public class VehicleInformation implements Serializable {
     private String ownerContact;
 
     /**
+     * 车主身份证密文
+     */
+    @TableField("owner_id_card_ciphertext")
+    private String ownerIdCardCiphertext;
+
+    /**
+     * 车主身份证盲索引
+     */
+    @TableField("owner_id_card_blind_index")
+    private String ownerIdCardBlindIndex;
+
+    /**
+     * 车主联系电话密文
+     */
+    @TableField("owner_contact_ciphertext")
+    private String ownerContactCiphertext;
+
+    /**
+     * 车主联系电话盲索引
+     */
+    @TableField("owner_contact_blind_index")
+    private String ownerContactBlindIndex;
+
+    /**
      * 车主地址
      */
     @TableField("owner_address")

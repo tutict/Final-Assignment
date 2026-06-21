@@ -2,6 +2,9 @@ package com.tutict.finalassignmentcloud.ai.service;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.tutict.finalassignmentcloud.ai.client.rag.RagRetrievalResult;
+import com.tutict.finalassignmentcloud.ai.prompt.AgentConstraintService;
+import com.tutict.finalassignmentcloud.ai.prompt.AiAgentRole;
+import com.tutict.finalassignmentcloud.ai.prompt.AiAgentRoleResolver;
 import com.tutict.finalassignmentcloud.model.ai.ChatActionResponse;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -25,13 +28,19 @@ public class ChatAgent {
     private final OllamaChatModel chatModel;
     private final AIChatSearchService aiChatSearchService;
     private final RagRetrievalService ragRetrievalService;
+    private final AiAgentRoleResolver roleResolver;
+    private final AgentConstraintService constraintService;
 
     public ChatAgent(OllamaChatModel chatModel,
                      AIChatSearchService aiChatSearchService,
-                     RagRetrievalService ragRetrievalService) {
+                     RagRetrievalService ragRetrievalService,
+                     AiAgentRoleResolver roleResolver,
+                     AgentConstraintService constraintService) {
         this.chatModel = chatModel;
         this.aiChatSearchService = aiChatSearchService;
         this.ragRetrievalService = ragRetrievalService;
+        this.roleResolver = roleResolver;
+        this.constraintService = constraintService;
     }
 
     public Flux<ChatResponse> streamChat(String message, String massage, boolean webSearch) {
@@ -75,9 +84,15 @@ public class ChatAgent {
     }
 
     private Prompt buildPrompt(String userMessage, boolean webSearch, Map<String, Object> metadata) {
-        StringBuilder promptBuilder = new StringBuilder(
-                "你是一名专业的交通违法查询助手，请用简洁准确的中文回答，并尽量使用结构化的编号或要点。"
-        ).append("\n\n");
+        AiAgentRole role = roleResolver.resolve(metadata);
+        String constraints = constraintService.constraintsFor(role);
+
+        StringBuilder promptBuilder = new StringBuilder()
+                .append("你是一名专业的交通违法查询助手，请用简洁准确的中文回答，并尽量使用结构化的编号或要点。")
+                .append("\n\n")
+                .append("# 权限约束\n")
+                .append(constraints)
+                .append("\n\n");
 
         if (webSearch) {
             List<Map<String, String>> searchResults = aiChatSearchService.search(userMessage);
@@ -93,10 +108,16 @@ public class ChatAgent {
     }
 
     private Prompt buildActionPrompt(String userMessage, boolean webSearch, Map<String, Object> metadata) {
-        StringBuilder promptBuilder = new StringBuilder(
-                "你是一个交通违法业务助手，需要输出可执行的页面动作方案。"
-        ).append("\n")
+        AiAgentRole role = roleResolver.resolve(metadata);
+        String constraints = constraintService.constraintsFor(role);
+
+        StringBuilder promptBuilder = new StringBuilder()
+                .append("你是一个交通违法业务助手，需要输出可执行的页面动作方案。")
+                .append("\n")
                 .append("请严格输出 JSON，不要使用 Markdown，不要输出额外解释。")
+                .append("\n\n")
+                .append("# 权限约束\n")
+                .append(constraints)
                 .append("\n\n");
 
         if (webSearch) {
