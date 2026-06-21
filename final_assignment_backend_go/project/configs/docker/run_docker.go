@@ -19,7 +19,6 @@ type RunDocker struct {
 	redisContainer         *redis.RedisContainer
 	redpandaContainer      testcontainers.Container
 	elasticsearchContainer *elasticsearch.ElasticsearchContainer
-	manticoreContainer     testcontainers.Container
 }
 
 // NewRunDocker 初始化一个新的实例
@@ -32,7 +31,6 @@ func (r *RunDocker) Init() {
 	r.startRedis()
 	r.startRedpanda()
 	r.startElasticsearch()
-	// r.startManticoreSearch()
 }
 
 // startRedis 启动 Redis 容器
@@ -125,41 +123,6 @@ func (r *RunDocker) startElasticsearch() {
 	r.elasticsearchContainer = container
 }
 
-// startManticoreSearch 启动 Manticore Search 容器
-func (r *RunDocker) startManticoreSearch() {
-	log.Println("[INFO] Starting Manticore Search container...")
-
-	req := testcontainers.ContainerRequest{
-		Image:        "manticoresearch/manticore:dev",
-		ExposedPorts: []string{"9306/tcp", "9308/tcp"},
-		Env:          map[string]string{"EXTRA": "1"},
-		WaitingFor: wait.ForHTTP("/search").
-			WithPort("9308/tcp").
-			WithStartupTimeout(2 * time.Minute),
-	}
-
-	container, err := testcontainers.GenericContainer(r.ctx, testcontainers.GenericContainerRequest{
-		ContainerRequest: req,
-		Started:          true,
-	})
-	if err != nil {
-		log.Printf("[ERROR] Failed to start Manticore: %v\n", err)
-		return
-	}
-
-	host, _ := container.Host(r.ctx)
-	port, _ := container.MappedPort(r.ctx, "9308/tcp")
-	url := fmt.Sprintf("http://%s:%s", host, port.Port())
-
-	err = os.Setenv("MANTICORE_URL", url)
-	if err != nil {
-		return
-	}
-	log.Printf("[INFO] Manticore started at: %s\n", url)
-
-	r.manticoreContainer = container
-}
-
 // StopContainers 停止所有容器
 func (r *RunDocker) StopContainers() {
 	if r.redisContainer != nil {
@@ -183,13 +146,5 @@ func (r *RunDocker) StopContainers() {
 			return
 		}
 		log.Println("[INFO] Elasticsearch container stopped")
-	}
-	if r.manticoreContainer != nil {
-
-		err := r.manticoreContainer.Terminate(r.ctx)
-		if err != nil {
-			return
-		}
-		log.Println("[INFO] Manticore container stopped")
 	}
 }

@@ -5,6 +5,35 @@ import "github.com/zeromicro/go-zero/rest"
 type Config struct {
 	rest.RestConf
 	Rag RagConf `json:",optional"`
+	Ai  AiConf  `json:",optional"`
+}
+
+type AiConf struct {
+	StreamingEnabled                     bool     `json:",optional"`
+	ProviderPrimary                      string   `json:",optional"`
+	ProviderFallback                     string   `json:",optional"`
+	ProviderTimeoutMillis                int      `json:",optional"`
+	ProviderStreamingTimeoutMillis       int      `json:",optional"`
+	ProviderRetryAttempts                int      `json:",optional"`
+	CircuitBreakerFailureThreshold       int      `json:",optional"`
+	KeepaliveMillis                      int      `json:",optional"`
+	PromptContextTokenBudget             int      `json:",optional"`
+	MockTokens                           []string `json:",optional"`
+	MockDelayMillis                      int      `json:",optional"`
+	OllamaEnabled                        bool     `json:",optional"`
+	OllamaBaseURL                        string   `json:",optional"`
+	OllamaChatModel                      string   `json:",optional"`
+	OpenAICompatibleEnabled              bool     `json:",optional"`
+	OpenAICompatibleBaseURL              string   `json:",optional"`
+	OpenAICompatibleAPIKey               string   `json:",optional"`
+	OpenAICompatibleChatModel            string   `json:",optional"`
+	OpenAICompatiblePath                 string   `json:",optional"`
+	OpenAICompatibleModelsPath           string   `json:",optional"`
+	ProviderUnavailableFallbackMessage   string   `json:",optional"`
+	PromptInjectionWarning               string   `json:",optional"`
+	DriverAgentConstraints               string   `json:",optional"`
+	AdminAgentConstraints                string   `json:",optional"`
+	SuperAdminAgentConstraints           string   `json:",optional"`
 }
 
 type RagConf struct {

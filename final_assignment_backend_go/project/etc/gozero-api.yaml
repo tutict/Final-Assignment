@@ -4,12 +4,12 @@ Port: 8081
 Timeout: 3000
 MaxBytes: 1048576
 Rag:
-  Enabled: false
-  IndexingEnabled: false
-  EmbeddingEnabled: false
-  RetrievalEnabled: false
-  MySQLDSN: ""
-  ElasticsearchAddresses: []
+  Enabled: true
+  IndexingEnabled: true
+  EmbeddingEnabled: true
+  RetrievalEnabled: true
+  MySQLDSN: "root:root@tcp(localhost:3306)/rag_db?charset=utf8mb4&parseTime=True&loc=Local"
+  ElasticsearchAddresses: ["${ELASTICSEARCH_URL}"]
   ElasticsearchUsername: ""
   ElasticsearchPassword: ""
   ElasticsearchIndex: rag_chunk
@@ -30,4 +30,4 @@ Rag:
   RRFRankConstant: 60
   RerankEnabled: true
   RerankLexicalWeight: 0.15
-  AutoMigrate: false
+  AutoMigrate: true
