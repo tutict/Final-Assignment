@@ -1,6 +1,9 @@
 package com.tutict.finalassignmentbackend.ai.chat;
 
 import com.tutict.finalassignmentbackend.ai.prompt.ContextBuilder;
+import com.tutict.finalassignmentbackend.ai.prompt.AgentConstraintService;
+import com.tutict.finalassignmentbackend.ai.prompt.AiAgentRole;
+import com.tutict.finalassignmentbackend.ai.prompt.AiAgentRoleResolver;
 import com.tutict.finalassignmentbackend.ai.prompt.PromptAssembler;
 import com.tutict.finalassignmentbackend.ai.prompt.PromptTemplateService;
 import com.tutict.finalassignmentbackend.ai.rag.config.RagRetrievalProperties;
@@ -10,6 +13,7 @@ import com.tutict.finalassignmentbackend.ai.rag.query.RagQueryService;
 import com.tutict.finalassignmentbackend.service.ai.AIChatSearchService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.ObjectProvider;
+import org.springframework.core.io.DefaultResourceLoader;
 import org.springframework.stereotype.Service;
 import reactor.core.publisher.Flux;
 
@@ -27,6 +31,8 @@ public class ChatPipeline {
     private final RagQueryService ragQueryService;
     private final RagRetrievalProperties ragRetrievalProperties;
     private final AIChatSearchService aiChatSearchService;
+    private final AiAgentRoleResolver aiAgentRoleResolver;
+    private final AgentConstraintService agentConstraintService;
 
     @Autowired
     public ChatPipeline(
@@ -34,14 +40,18 @@ public class ChatPipeline {
             PromptAssembler promptAssembler,
             ObjectProvider<RagQueryService> ragQueryService,
             ObjectProvider<RagRetrievalProperties> ragRetrievalProperties,
-            ObjectProvider<AIChatSearchService> aiChatSearchService
+            ObjectProvider<AIChatSearchService> aiChatSearchService,
+            AiAgentRoleResolver aiAgentRoleResolver,
+            AgentConstraintService agentConstraintService
     ) {
         this(
                 chatStreamService,
                 promptAssembler,
                 ragQueryServiceIfEnabled(ragQueryService, ragRetrievalProperties),
                 ragRetrievalProperties.getIfAvailable(),
-                aiChatSearchService.getIfAvailable()
+                aiChatSearchService.getIfAvailable(),
+                aiAgentRoleResolver,
+                agentConstraintService
         );
     }
 
@@ -51,7 +61,9 @@ public class ChatPipeline {
                 new PromptAssembler(new PromptTemplateService(), new ContextBuilder(1200)),
                 null,
                 disabledRagProperties(),
-                null
+                null,
+                new AiAgentRoleResolver(),
+                new AgentConstraintService(new DefaultResourceLoader(), AgentConstraintService.DEFAULT_BASE_PATH)
         );
     }
 
@@ -61,7 +73,15 @@ public class ChatPipeline {
             RagQueryService ragQueryService,
             RagRetrievalProperties ragRetrievalProperties
     ) {
-        this(chatStreamService, promptAssembler, ragQueryService, ragRetrievalProperties, null);
+        this(
+                chatStreamService,
+                promptAssembler,
+                ragQueryService,
+                ragRetrievalProperties,
+                null,
+                new AiAgentRoleResolver(),
+                new AgentConstraintService(new DefaultResourceLoader(), AgentConstraintService.DEFAULT_BASE_PATH)
+        );
     }
 
     ChatPipeline(
@@ -69,13 +89,17 @@ public class ChatPipeline {
             PromptAssembler promptAssembler,
             RagQueryService ragQueryService,
             RagRetrievalProperties ragRetrievalProperties,
-            AIChatSearchService aiChatSearchService
+            AIChatSearchService aiChatSearchService,
+            AiAgentRoleResolver aiAgentRoleResolver,
+            AgentConstraintService agentConstraintService
     ) {
         this.chatStreamService = chatStreamService;
         this.promptAssembler = promptAssembler;
         this.ragQueryService = ragQueryService;
         this.ragRetrievalProperties = ragRetrievalProperties;
         this.aiChatSearchService = aiChatSearchService;
+        this.aiAgentRoleResolver = aiAgentRoleResolver;
+        this.agentConstraintService = agentConstraintService;
     }
 
     public Flux<ChatStreamEvent> stream(AiChatStreamRequest request) {
@@ -100,10 +124,12 @@ public class ChatPipeline {
         List<RetrievalResult> retrievalResults = new ArrayList<>();
         retrievalResults.addAll(retrieve(userMessage, metadata));
         retrievalResults.addAll(webResults);
+        AiAgentRole agentRole = aiAgentRoleResolver.resolve(metadata);
         String prompt = promptAssembler.assemble(
                 userMessage,
                 conversationWindow(metadata),
-                retrievalResults
+                retrievalResults,
+                agentConstraintService.constraintsFor(agentRole)
         );
         return chatStreamService.stream(new AiChatStreamRequest(
                 prompt,
@@ -175,7 +201,7 @@ public class ChatPipeline {
                 userMessage,
                 intValue(metadata, "ragTopK", "topK"),
                 stringValue(metadata, "userId"),
-                stringList(metadata, "roles"),
+                aiAgentRoleResolver.resolveRoleCodes(metadata),
                 stringValue(metadata, "department")
         ));
     }
@@ -245,23 +271,6 @@ public class ChatPipeline {
             }
         }
         return null;
-    }
-
-    private static List<String> stringList(Map<String, Object> metadata, String... keys) {
-        Object value = value(metadata, keys);
-        if (value instanceof Collection<?> collection) {
-            List<String> values = new ArrayList<>();
-            for (Object item : collection) {
-                if (item != null && !item.toString().isBlank()) {
-                    values.add(item.toString());
-                }
-            }
-            return List.copyOf(values);
-        }
-        if (value != null && !value.toString().isBlank()) {
-            return List.of(value.toString());
-        }
-        return List.of();
     }
 
     private static String stringValue(Map<String, Object> metadata, String... keys) {

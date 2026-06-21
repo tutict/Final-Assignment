@@ -55,7 +55,7 @@ public class SysRoleService {
 
     @Transactional
     @CacheEvict(cacheNames = CACHE_NAME, allEntries = true)
-    @WsAction(service = "SysRoleService", action = "checkAndInsertIdempotency")
+    @WsAction(service = "SysRoleService", action = "checkAndInsertIdempotency", roles = {"SUPER_ADMIN", "ADMIN"})
     public void checkAndInsertIdempotency(String idempotencyKey, SysRole sysRole, String action) {
         Objects.requireNonNull(sysRole, "SysRole must not be null");
         SysRequestHistory existing = sysRequestHistoryMapper.selectByIdempotencyKey(idempotencyKey);
@@ -317,13 +317,20 @@ public class SysRoleService {
         if (sysRole == null) {
             return;
         }
+        Runnable sync = () -> {
+            SysRoleDocument doc = SysRoleDocument.fromEntity(sysRole);
+            if (doc != null) {
+                sysRoleSearchRepository.save(doc);
+            }
+        };
+        if (!TransactionSynchronizationManager.isSynchronizationActive()) {
+            sync.run();
+            return;
+        }
         TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
             @Override
             public void afterCommit() {
-                SysRoleDocument doc = SysRoleDocument.fromEntity(sysRole);
-                if (doc != null) {
-                    sysRoleSearchRepository.save(doc);
-                }
+                sync.run();
             }
         });
     }
@@ -332,17 +339,24 @@ public class SysRoleService {
         if (records == null || records.isEmpty()) {
             return;
         }
+        Runnable sync = () -> {
+            List<SysRoleDocument> documents = records.stream()
+                    .filter(Objects::nonNull)
+                    .map(SysRoleDocument::fromEntity)
+                    .filter(Objects::nonNull)
+                    .collect(Collectors.toList());
+            if (!documents.isEmpty()) {
+                sysRoleSearchRepository.saveAll(documents);
+            }
+        };
+        if (!TransactionSynchronizationManager.isSynchronizationActive()) {
+            sync.run();
+            return;
+        }
         TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
             @Override
             public void afterCommit() {
-                List<SysRoleDocument> documents = records.stream()
-                        .filter(Objects::nonNull)
-                        .map(SysRoleDocument::fromEntity)
-                        .filter(Objects::nonNull)
-                        .collect(Collectors.toList());
-                if (!documents.isEmpty()) {
-                    sysRoleSearchRepository.saveAll(documents);
-                }
+                sync.run();
             }
         });
     }

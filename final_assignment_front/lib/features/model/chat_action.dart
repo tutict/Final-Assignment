@@ -4,7 +4,7 @@ class ChatAction {
   final String? target;
   final String? value;
 
-  ChatAction({
+  const ChatAction({
     this.type,
     this.label,
     this.target,

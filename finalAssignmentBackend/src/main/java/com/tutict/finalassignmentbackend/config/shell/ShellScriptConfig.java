@@ -147,7 +147,7 @@ public class ShellScriptConfig {
                 exit /b 1
 
                 :docker_ready
-                docker compose -f "%COMPOSE_FILE%" up -d --wait --wait-timeout __DOCKER_TIMEOUT__
+                docker compose -f "%COMPOSE_FILE%" up -d --remove-orphans --wait --wait-timeout __DOCKER_TIMEOUT__
                 endlocal
                 """.replace("__DOCKER_DESKTOP_PATH__", dockerDesktopPath)
                 .replace("__COMPOSE_FILE__", composeFile.toAbsolutePath().toString())
@@ -202,7 +202,7 @@ public class ShellScriptConfig {
                   WAIT_SECONDS=$((WAIT_SECONDS + 2))
                 done
 
-                docker compose -f "$COMPOSE_FILE" up -d --wait --wait-timeout __DOCKER_TIMEOUT__
+                docker compose -f "$COMPOSE_FILE" up -d --remove-orphans --wait --wait-timeout __DOCKER_TIMEOUT__
                 """.replace("__COMPOSE_FILE__", composeFile.toAbsolutePath().toString())
                 .replace("__START_DOCKER_BLOCK__", startDockerBlock)
                 .replace("__DOCKER_TIMEOUT__", Integer.toString(DOCKER_READY_TIMEOUT_SECONDS));
@@ -286,11 +286,12 @@ public class ShellScriptConfig {
 
     private static String dockerComposeContent(Environment environment) {
         String redisImage = environment.getProperty("app.docker.images.redis", "redis:7");
-        String redpandaImage = environment.getProperty("app.docker.images.redpanda", "redpandadata/redpanda:v24.1.2");
+        String redpandaImage = environment.getProperty(
+                "app.docker.images.redpanda",
+                "docker.redpanda.com/redpandadata/redpanda:v26.1.9");
         String elasticsearchImage = environment.getProperty(
                 "app.docker.images.elasticsearch",
-                "docker.elastic.co/elasticsearch/elasticsearch:8.17.3");
-        String manticoreImage = environment.getProperty("app.docker.images.manticore", "manticoresearch/manticore:dev");
+                "docker.elastic.co/elasticsearch/elasticsearch:9.4.1");
 
         return """
                 services:
@@ -355,26 +356,13 @@ public class ShellScriptConfig {
                       timeout: 10s
                       retries: 12
 
-                  manticore:
-                    image: __MANTICORE_IMAGE__
-                    container_name: final-assignment-manticore
-                    environment:
-                      EXTRA: "1"
-                    ports:
-                      - "9306:9306"
-                      - "9308:9308"
-                    volumes:
-                      - manticore-data:/var/lib/manticore
-
                 volumes:
                   redis-data:
                   redpanda-data:
                   elasticsearch-data:
-                  manticore-data:
                 """.replace("__REDIS_IMAGE__", redisImage)
                 .replace("__REDPANDA_IMAGE__", redpandaImage)
-                .replace("__ELASTICSEARCH_IMAGE__", elasticsearchImage)
-                .replace("__MANTICORE_IMAGE__", manticoreImage);
+                .replace("__ELASTICSEARCH_IMAGE__", elasticsearchImage);
     }
 
     private static void executeScriptWithRetry(Path script, Platform platform, Path logFile) {

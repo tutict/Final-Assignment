@@ -434,7 +434,14 @@ class ApiClient {
       setJwtToken(token);
     }
 
-    final wsUri = _buildWsUri(_normalizeWsPath(path), queryParams, token);
+    final wsTicket = AppConfig.isWeb && token != null && token.isNotEmpty
+        ? await _issueWsTicket(token)
+        : null;
+    final wsUri = _buildWsUri(
+      _normalizeWsPath(path),
+      queryParams,
+      wsTicket,
+    );
     final headers = <String, dynamic>{};
     if (!AppConfig.isWeb && token != null && token.isNotEmpty) {
       headers['Authorization'] = 'Bearer $token';
@@ -468,6 +475,29 @@ class ApiClient {
     }
   }
 
+  Future<String> _issueWsTicket(String token) async {
+    final response = await client.post(
+      Uri.parse('${AppConfig.apiBaseUrl}/api/ws-ticket'),
+      headers: {'Authorization': 'Bearer $token'},
+    ).timeout(const Duration(seconds: 10));
+    if (response.statusCode != 200 || response.body.isEmpty) {
+      throw AppException.http(
+        response.statusCode,
+        'Failed to issue WebSocket ticket',
+      );
+    }
+
+    final decoded = jsonDecode(response.body);
+    final payload = decoded is Map<String, dynamic> && decoded['data'] is Map
+        ? Map<String, dynamic>.from(decoded['data'] as Map)
+        : decoded as Map<String, dynamic>;
+    final ticket = payload['ticket']?.toString();
+    if (ticket == null || ticket.isEmpty) {
+      throw AppException.http(500, 'WebSocket ticket response is invalid');
+    }
+    return ticket;
+  }
+
   Uri _buildWsUri(
     String path,
     Iterable<QueryParam> queryParams,
@@ -479,7 +509,7 @@ class ApiClient {
       ...base.queryParameters,
       for (final p in queryParams)
         if (p.value.isNotEmpty) p.name: p.value,
-      if (token != null && token.isNotEmpty) 'access_token': token,
+      if (token != null && token.isNotEmpty) 'ws_ticket': token,
     };
     return base.replace(
       path: wsPath,
@@ -708,8 +738,8 @@ class ApiClient {
 
   String _sanitizeWsUrl(String value) {
     return value.replaceAll(
-      RegExp(r'access_token=[^&]+'),
-      'access_token=***',
+      RegExp(r'(access_token|ws_ticket)=[^&]+'),
+      r'$1=***',
     );
   }
 

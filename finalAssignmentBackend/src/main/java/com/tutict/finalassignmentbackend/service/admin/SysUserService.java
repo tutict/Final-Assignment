@@ -11,6 +11,7 @@ import com.tutict.finalassignmentbackend.entity.elastic.SysUserDocument;
 import com.tutict.finalassignmentbackend.mapper.system.SysRequestHistoryMapper;
 import com.tutict.finalassignmentbackend.mapper.admin.SysUserMapper;
 import com.tutict.finalassignmentbackend.repository.SysUserSearchRepository;
+import com.tutict.finalassignmentbackend.security.crypto.SensitiveDataPersistenceService;
 import com.tutict.finalassignmentbackend.service.messaging.KafkaMessageSender;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.cache.annotation.CacheEvict;
@@ -46,6 +47,7 @@ public class SysUserService {
     private final KafkaMessageSender kafkaMessageSender;
     private final ObjectMapper objectMapper;
     private final PasswordEncoder passwordEncoder;
+    private final SensitiveDataPersistenceService sensitiveDataPersistenceService;
 
     @Autowired
     public SysUserService(SysUserMapper sysUserMapper,
@@ -53,18 +55,20 @@ public class SysUserService {
                           SysUserSearchRepository sysUserSearchRepository,
                           KafkaMessageSender kafkaMessageSender,
                           ObjectMapper objectMapper,
-                          PasswordEncoder passwordEncoder) {
+                          PasswordEncoder passwordEncoder,
+                          SensitiveDataPersistenceService sensitiveDataPersistenceService) {
         this.sysUserMapper = sysUserMapper;
         this.sysRequestHistoryMapper = sysRequestHistoryMapper;
         this.sysUserSearchRepository = sysUserSearchRepository;
         this.kafkaMessageSender = kafkaMessageSender;
         this.objectMapper = objectMapper;
         this.passwordEncoder = passwordEncoder;
+        this.sensitiveDataPersistenceService = sensitiveDataPersistenceService;
     }
 
     @Transactional
     @CacheEvict(cacheNames = CACHE_NAME, allEntries = true)
-    @WsAction(service = "SysUserService", action = "checkAndInsertIdempotency")
+    @WsAction(service = "SysUserService", action = "checkAndInsertIdempotency", roles = {"SUPER_ADMIN", "ADMIN"})
     public void checkAndInsertIdempotency(String idempotencyKey, SysUser sysUser, String action) {
         Objects.requireNonNull(sysUser, "SysUser must not be null");
         SysRequestHistory existing = sysRequestHistoryMapper.selectByIdempotencyKey(idempotencyKey);
@@ -81,6 +85,7 @@ public class SysUserService {
         sysRequestHistoryMapper.insert(history);
 
         encodePasswordIfNecessary(sysUser);
+        sensitiveDataPersistenceService.prepare(sysUser);
         sendKafkaMessage("sys_user_" + action, idempotencyKey, sysUser);
 
         history.setBusinessStatus("SUCCESS");
@@ -95,6 +100,7 @@ public class SysUserService {
     public SysUser createSysUser(SysUser sysUser) {
         validateSysUser(sysUser);
         encodePasswordIfNecessary(sysUser);
+        sensitiveDataPersistenceService.prepare(sysUser);
         sysUserMapper.insert(sysUser);
         syncToIndexAfterCommit(sysUser);
         return sysUser;
@@ -106,6 +112,7 @@ public class SysUserService {
         validateSysUser(sysUser);
         requirePositive(sysUser.getUserId());
         encodePasswordIfNecessary(sysUser);
+        sensitiveDataPersistenceService.prepare(sysUser);
         int rows = sysUserMapper.updateById(sysUser);
         if (rows == 0) {
             throw new IllegalStateException("SysUser not found for id=" + sysUser.getUserId());
@@ -239,13 +246,7 @@ public class SysUserService {
             return List.of();
         }
         validatePagination(page, size);
-        List<SysUser> index = mapHits(sysUserSearchRepository.searchByIdCardNumber(idCardNumber, pageable(page, size)));
-        if (!index.isEmpty()) {
-            return index;
-        }
-        QueryWrapper<SysUser> wrapper = new QueryWrapper<>();
-        wrapper.likeRight("id_card_number", idCardNumber);
-        return fetchFromDatabase(wrapper, page, size);
+        return searchBySensitiveColumn("id_card_number", "id_card_number_blind_index", idCardNumber, page, size);
     }
 
     @Cacheable(cacheNames = CACHE_NAME, key = "'contact:' + #contactNumber + ':' + #page + ':' + #size",
@@ -255,13 +256,7 @@ public class SysUserService {
             return List.of();
         }
         validatePagination(page, size);
-        List<SysUser> index = mapHits(sysUserSearchRepository.searchByContactNumber(contactNumber, pageable(page, size)));
-        if (!index.isEmpty()) {
-            return index;
-        }
-        QueryWrapper<SysUser> wrapper = new QueryWrapper<>();
-        wrapper.likeRight("contact_number", contactNumber);
-        return fetchFromDatabase(wrapper, page, size);
+        return searchBySensitiveColumn("contact_number", "contact_number_blind_index", contactNumber, page, size);
     }
 
     @Cacheable(cacheNames = CACHE_NAME, key = "'deptPrefix:' + #department + ':' + #page + ':' + #size",
@@ -504,6 +499,25 @@ public class SysUserService {
         List<SysUser> records = mpPage.getRecords();
         syncBatchToIndexAfterCommit(records);
         return records;
+    }
+
+    private List<SysUser> searchBySensitiveColumn(String plaintextColumn,
+                                                  String blindIndexColumn,
+                                                  String value,
+                                                  int page,
+                                                  int size) {
+        String blindIndex = sensitiveDataPersistenceService.blindIndex(value);
+        if (!isBlank(blindIndex)) {
+            QueryWrapper<SysUser> blindWrapper = new QueryWrapper<>();
+            blindWrapper.eq(blindIndexColumn, blindIndex);
+            List<SysUser> exact = fetchFromDatabase(blindWrapper, page, size);
+            if (!exact.isEmpty()) {
+                return exact;
+            }
+        }
+        QueryWrapper<SysUser> wrapper = new QueryWrapper<>();
+        wrapper.likeRight(plaintextColumn, value);
+        return fetchFromDatabase(wrapper, page, size);
     }
 
     private List<SysUser> mapHits(org.springframework.data.elasticsearch.core.SearchHits<SysUserDocument> hits) {

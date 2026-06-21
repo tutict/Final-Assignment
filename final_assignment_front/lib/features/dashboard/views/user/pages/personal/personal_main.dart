@@ -7,6 +7,7 @@ import 'package:final_assignment_front/features/dashboard/controllers/user_dashb
 import 'package:final_assignment_front/features/dashboard/views/user/widgets/user_page_app_bar.dart';
 import 'package:final_assignment_front/features/model/driver_information.dart';
 import 'package:final_assignment_front/utils/services/api_client.dart';
+import 'package:final_assignment_front/utils/services/auth_token_store.dart';
 import 'package:final_assignment_front/utils/ui/ui_utils.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
@@ -61,9 +62,7 @@ class _PersonalMainPageState extends State<PersonalMainPage> {
     });
 
     try {
-      final prefs = await SharedPreferences.getInstance();
-      final jwtToken =
-          prefs.getString('jwtToken') ?? prefs.getString('jwt_token');
+      final jwtToken = await AuthTokenStore.instance.getJwtToken();
       if (jwtToken == null || jwtToken.isEmpty) {
         throw Exception('未登录，请重新登录');
       }
@@ -98,6 +97,7 @@ class _PersonalMainPageState extends State<PersonalMainPage> {
       });
 
       dashboardController.updateCurrentUser(_displayName, _email);
+      final prefs = await SharedPreferences.getInstance();
       await prefs.setString('driverId', driverId.toString());
       await prefs.setString('driver_id', driverId.toString());
     } catch (error) {

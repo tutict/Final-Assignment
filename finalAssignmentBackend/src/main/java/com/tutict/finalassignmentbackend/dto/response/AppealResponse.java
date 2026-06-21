@@ -24,6 +24,16 @@ public class AppealResponse {
     private String processStatus;
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
+    private String driverName;
+    private String driverLicenseNumber;
+    private String driverIdCardNumber;
+    private String licensePlate;
+    private String vehicleType;
+    private String offenseNumber;
+    private String offenseCode;
+    private String offenseType;
+    private String offenseLocation;
+    private LocalDateTime offenseTime;
 
     public static AppealResponse from(AppealRecord record) {
         if (record == null) {
@@ -44,6 +54,16 @@ public class AppealResponse {
                 .processStatus(record.getProcessStatus())
                 .createdAt(record.getCreatedAt())
                 .updatedAt(record.getUpdatedAt())
+                .driverName(record.getDriverName())
+                .driverLicenseNumber(record.getDriverLicenseNumber())
+                .driverIdCardNumber(record.getDriverIdCardNumber())
+                .licensePlate(record.getLicensePlate())
+                .vehicleType(record.getVehicleType())
+                .offenseNumber(record.getOffenseNumber())
+                .offenseCode(record.getOffenseCode())
+                .offenseType(record.getOffenseType())
+                .offenseLocation(record.getOffenseLocation())
+                .offenseTime(record.getOffenseTime())
                 .build();
     }
 }

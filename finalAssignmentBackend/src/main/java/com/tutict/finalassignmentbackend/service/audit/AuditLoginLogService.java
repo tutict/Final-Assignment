@@ -3,6 +3,7 @@ package com.tutict.finalassignmentbackend.service.audit;
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.tutict.finalassignmentbackend.common.PageLimits;
 import com.tutict.finalassignmentbackend.config.websocket.WsAction;
 import com.tutict.finalassignmentbackend.entity.audit.AuditLoginLog;
 import com.tutict.finalassignmentbackend.entity.system.SysRequestHistory;
@@ -59,7 +60,7 @@ public class AuditLoginLogService {
 
     @Transactional
     @CacheEvict(cacheNames = CACHE_NAME, allEntries = true)
-    @WsAction(service = "AuditLoginLogService", action = "checkAndInsertIdempotency")
+    @WsAction(service = "AuditLoginLogService", action = "checkAndInsertIdempotency", roles = {"SUPER_ADMIN", "ADMIN"})
     public void checkAndInsertIdempotency(String idempotencyKey, AuditLoginLog loginLog, String action) {
         Objects.requireNonNull(loginLog, "AuditLoginLog must not be null");
         if (sysRequestHistoryMapper.selectByIdempotencyKey(idempotencyKey) != null) {
@@ -150,6 +151,15 @@ public class AuditLoginLogService {
     }
 
     @Transactional(readOnly = true)
+    @Cacheable(cacheNames = CACHE_NAME, key = "'page:' + #page + ':' + #size", unless = "#result == null || #result.isEmpty()")
+    public List<AuditLoginLog> findPage(int page, int size) {
+        validatePagination(page, size);
+        QueryWrapper<AuditLoginLog> wrapper = new QueryWrapper<>();
+        wrapper.orderByDesc("login_time");
+        return fetchFromDatabase(wrapper, page, size);
+    }
+
+    @Transactional(readOnly = true)
     public long count() {
         return auditLoginLogMapper.selectCount(null);
     }
@@ -158,7 +168,7 @@ public class AuditLoginLogService {
     public List<AuditLoginLog> findRecent(int limit) {
         QueryWrapper<AuditLoginLog> wrapper = new QueryWrapper<>();
         wrapper.orderByDesc("login_time");
-        Page<AuditLoginLog> mpPage = new Page<>(1, Math.max(limit, 1));
+        Page<AuditLoginLog> mpPage = new Page<>(1, PageLimits.normalizeLimit(limit));
         auditLoginLogMapper.selectPage(mpPage, wrapper);
         List<AuditLoginLog> records = mpPage.getRecords();
         syncBatchToIndexAfterCommit(records);
@@ -371,7 +381,7 @@ public class AuditLoginLogService {
     }
 
     private List<AuditLoginLog> fetchFromDatabase(QueryWrapper<AuditLoginLog> wrapper, int page, int size) {
-        Page<AuditLoginLog> mpPage = new Page<>(Math.max(page, 1), Math.max(size, 1));
+        Page<AuditLoginLog> mpPage = new Page<>(PageLimits.normalizePage(page), PageLimits.normalizeSize(size));
         auditLoginLogMapper.selectPage(mpPage, wrapper);
         List<AuditLoginLog> records = mpPage.getRecords();
         syncBatchToIndexAfterCommit(records);
@@ -389,7 +399,7 @@ public class AuditLoginLogService {
     }
 
     private Pageable pageable(int page, int size) {
-        return PageRequest.of(Math.max(page - 1, 0), Math.max(size, 1));
+        return PageRequest.of(PageLimits.normalizeZeroBasedPage(page), PageLimits.normalizeSize(size));
     }
 
     private void validateLoginLog(AuditLoginLog loginLog) {

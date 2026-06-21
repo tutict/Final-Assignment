@@ -6,13 +6,10 @@ import org.springframework.context.ConfigurableApplicationContext;
 import org.springframework.core.env.ConfigurableEnvironment;
 import org.springframework.core.env.MapPropertySource;
 import org.springframework.core.env.MutablePropertySources;
-import org.testcontainers.containers.GenericContainer;
-import org.testcontainers.containers.wait.strategy.Wait;
 import org.testcontainers.elasticsearch.ElasticsearchContainer;
 import org.testcontainers.redpanda.RedpandaContainer;
 import org.testcontainers.utility.DockerImageName;
 
-import java.time.Duration;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.Map;
@@ -23,13 +20,12 @@ public class RunDocker implements ApplicationContextInitializer<ConfigurableAppl
 
     private static final Logger log = Logger.getLogger(RunDocker.class.getName());
     private static final String PROPERTY_SOURCE_NAME = "docker";
-    private static final String DEFAULT_MANTICORE_IMAGE = "manticoresearch/manticore:dev";
+    private static final String DEFAULT_ELASTICSEARCH_IMAGE = "docker.elastic.co/elasticsearch/elasticsearch:9.4.1";
     private static volatile boolean shutdownHookRegistered = false;
 
     private static RedisContainer redisContainer;
     private static RedpandaContainer redpandaContainer;
     private static ElasticsearchContainer elasticsearchContainer;
-    private static GenericContainer<?> manticoreContainer;
 
     @Override
     public void initialize(ConfigurableApplicationContext applicationContext) {
@@ -53,7 +49,6 @@ public class RunDocker implements ApplicationContextInitializer<ConfigurableAppl
         if (isDevServiceEnabled(environment, "elasticsearch", true)) {
             startElasticsearch(applicationContext);
         }
-        // startManticoreSearch(applicationContext);
         registerShutdownHook();
     }
 
@@ -89,7 +84,7 @@ public class RunDocker implements ApplicationContextInitializer<ConfigurableAppl
     private void startRedpanda(ConfigurableApplicationContext applicationContext) {
         try {
             if (redpandaContainer == null || !redpandaContainer.isRunning()) {
-                redpandaContainer = new RedpandaContainer("redpandadata/redpanda:v24.1.2");
+                redpandaContainer = new RedpandaContainer("docker.redpanda.com/redpandadata/redpanda:v26.1.9");
                 redpandaContainer.start();
             }
             String bootstrapServers = redpandaContainer.getBootstrapServers();
@@ -103,15 +98,17 @@ public class RunDocker implements ApplicationContextInitializer<ConfigurableAppl
 
     private void startElasticsearch(ConfigurableApplicationContext applicationContext) {
         try {
-            // å£°æ˜Žè‡ªå®šä¹‰é•œåƒä¸Žå®˜æ–¹é•œåƒå…¼å®¹
-            DockerImageName myImage = DockerImageName.parse("tutict/elasticsearch-with-plugins:8.17.3-for-my-work")
+            // Allow the local Elasticsearch image to be overridden by configuration.
+            String image = applicationContext.getEnvironment()
+                    .getProperty("app.docker.images.elasticsearch", DEFAULT_ELASTICSEARCH_IMAGE);
+            DockerImageName elasticsearchImage = DockerImageName.parse(image)
                     .asCompatibleSubstituteFor("docker.elastic.co/elasticsearch/elasticsearch");
 
-            // ä½¿ç”¨è‡ªå®šä¹‰é•œåƒå¯åŠ¨å®¹å™¨ï¼Œä»…è®¾ç½®å•èŠ‚ç‚¹æ¨¡å¼
+            // Start a single-node local Elasticsearch instance for dev services.
             if (elasticsearchContainer == null || !elasticsearchContainer.isRunning()) {
-                elasticsearchContainer = new ElasticsearchContainer(myImage)
+                elasticsearchContainer = new ElasticsearchContainer(elasticsearchImage)
                         .withEnv("xpack.security.enabled", "false")
-                        .withEnv("discovery.type", "single-node"); // å¯ç”¨å•èŠ‚ç‚¹æ¨¡å¼?
+                        .withEnv("discovery.type", "single-node");
                 elasticsearchContainer.start();
             }
 
@@ -120,30 +117,6 @@ public class RunDocker implements ApplicationContextInitializer<ConfigurableAppl
             log.log(Level.INFO, "Elasticsearch started at: http://{0}", elasticsearchUrl);
         } catch (Exception e) {
             log.log(Level.SEVERE, "Failed to start Elasticsearch container: {0}", e.getMessage());
-        }
-    }
-
-    public void startManticoreSearch(ConfigurableApplicationContext applicationContext) {
-        String manticoreImage = applicationContext.getEnvironment()
-                .getProperty("manticore.image", DEFAULT_MANTICORE_IMAGE);
-        try (GenericContainer<?> container = new GenericContainer<>(DockerImageName.parse(manticoreImage))
-                .withExposedPorts(9306, 9308)
-                .withEnv("EXTRA", "1")
-                .waitingFor(Wait.forHttp("/search")
-                        .forPort(9308)
-                        .withStartupTimeout(Duration.ofSeconds(120)))) {
-            container.start();
-
-            manticoreContainer = container;
-            String manticoreHost = manticoreContainer.getHost();
-            Integer httpPort = manticoreContainer.getMappedPort(9308);
-            String manticoreUrl = String.format("http://%s:%d", manticoreHost, httpPort);
-
-            setProperty(applicationContext, "manticore.host", manticoreUrl);
-            log.log(Level.INFO, "Manticore container started successfully at {0}", new Object[]{manticoreUrl});
-        } catch (Exception e) {
-            log.log(Level.SEVERE, "Failed to start Manticore container: {0}", new Object[]{e.getMessage()});
-            throw new RuntimeException("Manticore startup failed", e);
         }
     }
 
@@ -172,10 +145,6 @@ public class RunDocker implements ApplicationContextInitializer<ConfigurableAppl
         if (elasticsearchContainer != null && elasticsearchContainer.isRunning()) {
             elasticsearchContainer.stop();
             log.log(Level.INFO, "Elasticsearch container stopped");
-        }
-        if (manticoreContainer != null && manticoreContainer.isRunning()) {
-            manticoreContainer.stop();
-            log.log(Level.INFO, "Manticore container stopped and closed");
         }
     }
 

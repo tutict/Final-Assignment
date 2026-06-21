@@ -1,6 +1,7 @@
 package com.tutict.finalassignmentbackend.entity.payment;
 
 import com.baomidou.mybatisplus.annotation.*;
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import lombok.Data;
 
 import java.io.Serial;
@@ -81,11 +82,27 @@ public class PaymentRecord implements Serializable {
     @TableField("payer_id_card")
     private String payerIdCard;
 
+    @TableField("payer_id_card_ciphertext")
+    @JsonIgnore
+    private String payerIdCardCiphertext;
+
+    @TableField("payer_id_card_blind_index")
+    @JsonIgnore
+    private String payerIdCardBlindIndex;
+
     /**
      * 缴款人联系电话
      */
     @TableField("payer_contact")
     private String payerContact;
+
+    @TableField("payer_contact_ciphertext")
+    @JsonIgnore
+    private String payerContactCiphertext;
+
+    @TableField("payer_contact_blind_index")
+    @JsonIgnore
+    private String payerContactBlindIndex;
 
     /**
      * 银行名称
@@ -98,6 +115,14 @@ public class PaymentRecord implements Serializable {
      */
     @TableField("bank_account")
     private String bankAccount;
+
+    @TableField("bank_account_ciphertext")
+    @JsonIgnore
+    private String bankAccountCiphertext;
+
+    @TableField("bank_account_blind_index")
+    @JsonIgnore
+    private String bankAccountBlindIndex;
 
     /**
      * 交易流水号

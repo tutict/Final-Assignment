@@ -15,13 +15,13 @@ import 'package:final_assignment_front/features/dashboard/views/shared/widgets/d
 import 'package:final_assignment_front/features/dashboard/views/shared/widgets/dashboard_top_bar_actions.dart';
 import 'package:final_assignment_front/features/dashboard/views/shared/widgets/sidebar_settings_button.dart';
 import 'package:final_assignment_front/features/dashboard/views/manager/pages/offense_screen.dart';
-import 'package:final_assignment_front/shared_components/offense_card.dart';
-import 'package:final_assignment_front/shared_components/list_profil_image.dart';
-import 'package:final_assignment_front/shared_components/police_card.dart';
-import 'package:final_assignment_front/shared_components/progress_report_card.dart';
-import 'package:final_assignment_front/shared_components/responsive_builder.dart';
-import 'package:final_assignment_front/shared_components/selection_button.dart';
-import 'package:final_assignment_front/shared/widgets/index.dart';
+import 'package:final_assignment_front/utils/components/offense_card.dart';
+import 'package:final_assignment_front/utils/components/list_profil_image.dart';
+import 'package:final_assignment_front/utils/components/police_card.dart';
+import 'package:final_assignment_front/utils/components/progress_report_card.dart';
+import 'package:final_assignment_front/utils/components/responsive_builder.dart';
+import 'package:final_assignment_front/utils/components/selection_button.dart';
+import 'package:final_assignment_front/utils/widgets/index.dart';
 import 'package:final_assignment_front/utils/helpers/app_helpers.dart';
 import 'package:final_assignment_front/utils/navigation/page_resolver.dart';
 import 'package:fl_chart/fl_chart.dart';
@@ -1744,7 +1744,7 @@ class DashboardScreen extends GetView<ManagerDashboardController> {
                   barTouchData: BarTouchData(
                     enabled: true,
                     touchTooltipData: BarTouchTooltipData(
-                      tooltipRoundedRadius: 8,
+                      tooltipBorderRadius: BorderRadius.circular(8),
                       tooltipPadding: const EdgeInsets.all(8),
                       tooltipMargin: 8,
                       getTooltipColor: (_) => theme.colorScheme.primaryContainer
@@ -1806,7 +1806,7 @@ class DashboardScreen extends GetView<ManagerDashboardController> {
                   lineTouchData: LineTouchData(
                     enabled: true,
                     touchTooltipData: LineTouchTooltipData(
-                      tooltipRoundedRadius: 8,
+                      tooltipBorderRadius: BorderRadius.circular(8),
                       tooltipPadding: const EdgeInsets.all(8),
                       getTooltipColor: (_) => theme
                           .colorScheme.secondaryContainer

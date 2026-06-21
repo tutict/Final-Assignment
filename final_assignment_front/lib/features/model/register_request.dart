@@ -9,12 +9,14 @@ class RegisterRequest {
     required this.username,
     required this.password,
     required this.idempotencyKey,
-  }) : role = 'USER';
+    this.role = 'USER',
+  });
 
   /// 从 JSON 创建 [RegisterRequest] 实例
   factory RegisterRequest.fromJson(Map<String, dynamic> json) {
     final username = json['username'] as String?;
     final password = json['password'] as String?;
+    final role = json['role'] as String?;
     final idempotencyKey = json['idempotencyKey'] as String?;
 
     // 验证必填字段是否存在
@@ -25,6 +27,7 @@ class RegisterRequest {
     return RegisterRequest(
       username: username,
       password: password,
+      role: role ?? 'USER',
       idempotencyKey: idempotencyKey,
     );
   }

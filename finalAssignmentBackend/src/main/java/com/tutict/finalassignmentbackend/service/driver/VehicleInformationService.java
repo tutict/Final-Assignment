@@ -1,6 +1,7 @@
 package com.tutict.finalassignmentbackend.service.driver;
 
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
+import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.tutict.finalassignmentbackend.config.websocket.WsAction;
 import com.tutict.finalassignmentbackend.entity.system.SysRequestHistory;
 import com.tutict.finalassignmentbackend.entity.driver.VehicleInformation;
@@ -8,6 +9,7 @@ import com.tutict.finalassignmentbackend.entity.elastic.VehicleInformationDocume
 import com.tutict.finalassignmentbackend.mapper.system.SysRequestHistoryMapper;
 import com.tutict.finalassignmentbackend.mapper.driver.VehicleInformationMapper;
 import com.tutict.finalassignmentbackend.repository.VehicleInformationSearchRepository;
+import com.tutict.finalassignmentbackend.security.crypto.SensitiveDataPersistenceService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.cache.annotation.Cacheable;
@@ -42,21 +44,24 @@ public class VehicleInformationService {
     private final SysRequestHistoryMapper sysRequestHistoryMapper;
     private final KafkaTemplate<String, VehicleInformation> kafkaTemplate;
     private final VehicleInformationSearchRepository vehicleInformationSearchRepository;
+    private final SensitiveDataPersistenceService sensitiveDataPersistenceService;
 
     @Autowired
     public VehicleInformationService(VehicleInformationMapper vehicleInformationMapper,
                                      SysRequestHistoryMapper sysRequestHistoryMapper,
                                      KafkaTemplate<String, VehicleInformation> kafkaTemplate,
-                                     VehicleInformationSearchRepository vehicleInformationSearchRepository) {
+                                     VehicleInformationSearchRepository vehicleInformationSearchRepository,
+                                     SensitiveDataPersistenceService sensitiveDataPersistenceService) {
         this.vehicleInformationMapper = vehicleInformationMapper;
         this.sysRequestHistoryMapper = sysRequestHistoryMapper;
         this.kafkaTemplate = kafkaTemplate;
         this.vehicleInformationSearchRepository = vehicleInformationSearchRepository;
+        this.sensitiveDataPersistenceService = sensitiveDataPersistenceService;
     }
 
     @Transactional
     @CacheEvict(cacheNames = VEHICLE_INFO_LIST_CACHE, allEntries = true)
-    @WsAction(service = "VehicleInformationService", action = "checkAndInsertIdempotency")
+    @WsAction(service = "VehicleInformationService", action = "checkAndInsertIdempotency", roles = {"SUPER_ADMIN", "ADMIN", "TRAFFIC_POLICE"})
     public void checkAndInsertIdempotency(String idempotencyKey, VehicleInformation vehicleInformation, String action) {
         Objects.requireNonNull(vehicleInformation, "Vehicle information cannot be null");
         SysRequestHistory existing = sysRequestHistoryMapper.selectByIdempotencyKey(idempotencyKey);
@@ -71,6 +76,7 @@ public class VehicleInformationService {
         history.setCreatedAt(LocalDateTime.now());
         sysRequestHistoryMapper.insert(history);
 
+        sensitiveDataPersistenceService.prepare(vehicleInformation);
         sendKafkaMessage(action, idempotencyKey, vehicleInformation);
 
         history.setBusinessStatus("SUCCESS");
@@ -83,6 +89,7 @@ public class VehicleInformationService {
     @CacheEvict(cacheNames = VEHICLE_INFO_LIST_CACHE, allEntries = true)
     public VehicleInformation createVehicleInformation(VehicleInformation vehicleInformation) {
         validateVehicle(vehicleInformation);
+        sensitiveDataPersistenceService.prepare(vehicleInformation);
         vehicleInformationMapper.insert(vehicleInformation);
         syncToIndexAfterCommit(vehicleInformation);
         return vehicleInformation;
@@ -93,9 +100,10 @@ public class VehicleInformationService {
             @CacheEvict(cacheNames = VEHICLE_INFO_CACHE, key = "#vehicleInformation.vehicleId"),
             @CacheEvict(cacheNames = VEHICLE_INFO_LIST_CACHE, allEntries = true)
     })
-    @WsAction(service = "VehicleInformationService", action = "updateVehicleInformation")
+    @WsAction(service = "VehicleInformationService", action = "updateVehicleInformation", roles = {"SUPER_ADMIN", "ADMIN", "TRAFFIC_POLICE"})
     public VehicleInformation updateVehicleInformation(VehicleInformation vehicleInformation) {
         validateVehicleId(vehicleInformation);
+        sensitiveDataPersistenceService.prepare(vehicleInformation);
         int rows = vehicleInformationMapper.updateById(vehicleInformation);
         if (rows == 0) {
             throw new IllegalStateException("Vehicle not found with ID: " + vehicleInformation.getVehicleId());
@@ -141,7 +149,7 @@ public class VehicleInformationService {
     }
 
     @Cacheable(cacheNames = VEHICLE_INFO_CACHE, key = "#vehicleId", unless = "#result == null")
-    @WsAction(service = "VehicleInformationService", action = "getVehicleInformationById")
+    @WsAction(service = "VehicleInformationService", action = "getVehicleInformationById", roles = {"SUPER_ADMIN", "ADMIN", "TRAFFIC_POLICE"})
     public VehicleInformation getVehicleInformationById(long vehicleId) {
         validateVehicleId(vehicleId);
         return vehicleInformationSearchRepository.findById(vehicleId)
@@ -156,7 +164,7 @@ public class VehicleInformationService {
     }
 
     @Cacheable(cacheNames = VEHICLE_INFO_LIST_CACHE, key = "'all'", unless = "#result == null || #result.isEmpty()")
-    @WsAction(service = "VehicleInformationService", action = "getAllVehicleInformation")
+    @WsAction(service = "VehicleInformationService", action = "getAllVehicleInformation", roles = {"SUPER_ADMIN", "ADMIN", "TRAFFIC_POLICE"})
     public List<VehicleInformation> getAllVehicleInformation() {
         List<VehicleInformation> fromIndex = StreamSupport.stream(
                         vehicleInformationSearchRepository.findAll().spliterator(), false)
@@ -229,9 +237,7 @@ public class VehicleInformationService {
     @Cacheable(cacheNames = VEHICLE_INFO_LIST_CACHE, key = "'idcard:' + #idCardNumber")
     public List<VehicleInformation> getVehicleInformationByIdCardNumber(String idCardNumber) {
         validateInput(idCardNumber, "Invalid ID card number");
-        QueryWrapper<VehicleInformation> wrapper = new QueryWrapper<>();
-        wrapper.eq("owner_id_card", idCardNumber);
-        return vehicleInformationMapper.selectList(wrapper);
+        return searchOwnerIdCardExact(idCardNumber, 1, Integer.MAX_VALUE);
     }
 
     @Cacheable(cacheNames = VEHICLE_INFO_LIST_CACHE, key = "'status:' + #status")
@@ -261,15 +267,7 @@ public class VehicleInformationService {
     public List<VehicleInformation> searchByOwnerIdCard(String ownerIdCard, int page, int size) {
         validateInput(ownerIdCard, "Invalid owner id card");
         validatePagination(page, size);
-        SearchHits<VehicleInformationDocument> hits = vehicleInformationSearchRepository
-                .searchByOwnerIdCard(ownerIdCard, pageable(page, size));
-        List<VehicleInformation> fromIndex = mapVehicleHits(hits);
-        if (!fromIndex.isEmpty()) {
-            return fromIndex;
-        }
-        QueryWrapper<VehicleInformation> wrapper = new QueryWrapper<>();
-        wrapper.likeRight("owner_id_card", ownerIdCard);
-        return vehicleInformationMapper.selectList(wrapper);
+        return searchOwnerIdCardExact(ownerIdCard, page, size);
     }
 
     @Cacheable(cacheNames = VEHICLE_INFO_LIST_CACHE, key = "'statusSearch:' + #status + ':' + #page + ':' + #size")
@@ -312,10 +310,16 @@ public class VehicleInformationService {
     public List<String> getLicensePlateAutocompleteSuggestions(String prefix, int maxSuggestions, String idCardNumber) {
         validateInput(idCardNumber, "Invalid ID card number");
         validateInput(prefix, "Invalid license plate prefix");
-        Pageable pageable = PageRequest.of(0, Math.max(maxSuggestions, 1));
-        SearchHits<VehicleInformationDocument> hits = vehicleInformationSearchRepository
-                .findCompletionSuggestions(idCardNumber, prefix, pageable);
-        return mapLicensePlateSuggestions(hits);
+        QueryWrapper<VehicleInformation> wrapper = ownerIdCardScopedWrapper(idCardNumber);
+        wrapper.select("license_plate")
+                .likeRight("license_plate", prefix)
+                .last("LIMIT " + Math.max(maxSuggestions, 1));
+        return vehicleInformationMapper.selectList(wrapper).stream()
+                .map(VehicleInformation::getLicensePlate)
+                .filter(Objects::nonNull)
+                .map(plate -> URLDecoder.decode(plate, StandardCharsets.UTF_8))
+                .distinct()
+                .collect(Collectors.toList());
     }
 
     @Cacheable(cacheNames = VEHICLE_INFO_LIST_CACHE, key = "'autocomplete:global:' + #prefix + ':' + #limit")
@@ -335,10 +339,16 @@ public class VehicleInformationService {
     public List<String> getVehicleTypeAutocompleteSuggestions(String idCardNumber, String prefix, int maxSuggestions) {
         validateInput(idCardNumber, "Invalid ID card number");
         validateInput(prefix, "Invalid vehicle type prefix");
-        Pageable pageable = PageRequest.of(0, Math.max(maxSuggestions, 1));
-        SearchHits<VehicleInformationDocument> hits = vehicleInformationSearchRepository
-                .searchByVehicleTypePrefix(prefix, idCardNumber, pageable);
-        return mapVehicleTypeSuggestions(hits);
+        QueryWrapper<VehicleInformation> wrapper = ownerIdCardScopedWrapper(idCardNumber);
+        wrapper.select("DISTINCT vehicle_type")
+                .likeRight("vehicle_type", prefix)
+                .last("LIMIT " + Math.max(maxSuggestions, 1));
+        return vehicleInformationMapper.selectList(wrapper).stream()
+                .map(VehicleInformation::getVehicleType)
+                .filter(Objects::nonNull)
+                .map(type -> URLDecoder.decode(type, StandardCharsets.UTF_8))
+                .distinct()
+                .collect(Collectors.toList());
     }
 
     @Cacheable(cacheNames = VEHICLE_INFO_LIST_CACHE, key = "'autocomplete:type:global:' + #prefix + ':' + #maxSuggestions")
@@ -397,6 +407,43 @@ public class VehicleInformationService {
                 .map(SearchHit::getContent)
                 .map(VehicleInformationDocument::toEntity)
                 .collect(Collectors.toList());
+    }
+
+    private List<VehicleInformation> searchOwnerIdCardExact(String ownerIdCard, int page, int size) {
+        String blindIndex = sensitiveDataPersistenceService.blindIndex(ownerIdCard);
+        if (blindIndex != null && !blindIndex.isBlank()) {
+            QueryWrapper<VehicleInformation> blindWrapper = new QueryWrapper<>();
+            blindWrapper.eq("owner_id_card_blind_index", blindIndex);
+            List<VehicleInformation> exact = fetchFromDatabase(blindWrapper, page, size);
+            if (!exact.isEmpty()) {
+                return exact;
+            }
+        }
+        QueryWrapper<VehicleInformation> wrapper = new QueryWrapper<>();
+        wrapper.likeRight("owner_id_card", ownerIdCard);
+        return fetchFromDatabase(wrapper, page, size);
+    }
+
+    private QueryWrapper<VehicleInformation> ownerIdCardScopedWrapper(String idCardNumber) {
+        String blindIndex = sensitiveDataPersistenceService.blindIndex(idCardNumber);
+        QueryWrapper<VehicleInformation> wrapper = new QueryWrapper<>();
+        if (blindIndex != null && !blindIndex.isBlank()) {
+            wrapper.eq("owner_id_card_blind_index", blindIndex);
+            return wrapper;
+        }
+        wrapper.eq("owner_id_card", idCardNumber.trim());
+        return wrapper;
+    }
+
+    private List<VehicleInformation> fetchFromDatabase(QueryWrapper<VehicleInformation> wrapper, int page, int size) {
+        Page<VehicleInformation> mpPage = new Page<>(Math.max(page, 1), Math.max(size, 1));
+        vehicleInformationMapper.selectPage(mpPage, wrapper);
+        List<VehicleInformation> records = mpPage.getRecords();
+        records.stream()
+                .map(VehicleInformationDocument::fromEntity)
+                .filter(Objects::nonNull)
+                .forEach(vehicleInformationSearchRepository::save);
+        return records;
     }
 
     private Pageable pageable(int page, int size) {

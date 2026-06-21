@@ -9,9 +9,15 @@ import java.lang.annotation.Target;
 @Target(ElementType.METHOD)
 public @interface WsAction {
 
-    // 调用的服务
+    // WebSocket service name.
     String service();
 
-    // 调用的服务中的方法
+    // WebSocket action name within the service.
     String action();
+
+    // Required role codes. Empty means deny unless allowAuthenticated is true.
+    String[] roles() default {};
+
+    // Use only for legacy actions that need a valid token but no specific role.
+    boolean allowAuthenticated() default false;
 }

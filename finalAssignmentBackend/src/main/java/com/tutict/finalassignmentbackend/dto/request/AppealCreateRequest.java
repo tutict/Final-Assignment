@@ -27,8 +27,7 @@ public class AppealCreateRequest {
     @Pattern(regexp = "^1[3-9]\\d{9}$", message = "手机号格式不正确")
     private String contact;
 
-    @NotBlank(message = "申诉类型不能为空")
-    private String appealType;
+    private String appealType = "Other";
 
     @NotBlank(message = "申诉理由不能为空")
     @Size(min = 10, max = 500, message = "申诉理由 10~500 字")

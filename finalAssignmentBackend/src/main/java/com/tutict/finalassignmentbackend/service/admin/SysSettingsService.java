@@ -55,7 +55,7 @@ public class SysSettingsService {
 
     @Transactional
     @CacheEvict(cacheNames = CACHE_NAME, allEntries = true)
-    @WsAction(service = "SysSettingsService", action = "checkAndInsertIdempotency")
+    @WsAction(service = "SysSettingsService", action = "checkAndInsertIdempotency", roles = {"SUPER_ADMIN", "ADMIN"})
     public void checkAndInsertIdempotency(String idempotencyKey, SysSettings settings, String action) {
         Objects.requireNonNull(settings, "SysSettings must not be null");
         SysRequestHistory existing = sysRequestHistoryMapper.selectByIdempotencyKey(idempotencyKey);

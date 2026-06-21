@@ -84,7 +84,7 @@ public class OffenseRecordService {
 
     @Transactional
     @CacheEvict(cacheNames = CACHE_NAME, allEntries = true)
-    @WsAction(service = "OffenseRecordService", action = "checkAndInsertIdempotency")
+    @WsAction(service = "OffenseRecordService", action = "checkAndInsertIdempotency", roles = {"SUPER_ADMIN", "ADMIN", "TRAFFIC_POLICE", "APPEAL_REVIEWER"})
     public void checkAndInsertIdempotency(String idempotencyKey, OffenseRecord offenseRecord, String action) {
         Objects.requireNonNull(offenseRecord, "OffenseRecord must not be null");
         if (sysRequestHistoryMapper.selectByIdempotencyKey(idempotencyKey) != null) {
@@ -186,6 +186,7 @@ public class OffenseRecordService {
     }
 
     @Transactional(rollbackFor = Exception.class)
+    @CacheEvict(cacheNames = CACHE_NAME, allEntries = true)
     public OffenseRecord updateProcessStatus(Long offenseId, OffenseProcessState newState) {
         MutationSideEffectPolicy policy = semanticIntentClassifier.classifyWorkflow();
         requirePositive(offenseId, "Offense ID");
@@ -332,17 +333,16 @@ public class OffenseRecordService {
     @Cacheable(cacheNames = CACHE_NAME, key = "#offenseId", unless = "#result == null")
     public OffenseRecord findById(Long offenseId) {
         requirePositive(offenseId, "Offense ID");
+        OffenseRecord entity = offenseRecordMapper.selectById(offenseId);
+        if (entity != null) {
+            MutationSideEffectPolicy policy = semanticIntentClassifier.classifyReadRepair();
+            logReadRepairGovernance(entity.getOffenseId(), 1);
+            sideEffectCoordinator.readRepairNow(policy, () -> offenseInformationSearchRepository.save(OffenseRecordDocument.fromEntity(entity)));
+            return entity;
+        }
         return offenseInformationSearchRepository.findById(offenseId)
                 .map(OffenseRecordDocument::toEntity)
-                .orElseGet(() -> {
-                    OffenseRecord entity = offenseRecordMapper.selectById(offenseId);
-                    if (entity != null) {
-                        MutationSideEffectPolicy policy = semanticIntentClassifier.classifyReadRepair();
-                        logReadRepairGovernance(entity.getOffenseId(), 1);
-                        sideEffectCoordinator.readRepairNow(policy, () -> offenseInformationSearchRepository.save(OffenseRecordDocument.fromEntity(entity)));
-                    }
-                    return entity;
-                });
+                .orElse(null);
     }
 
     @Transactional(readOnly = true)

@@ -147,9 +147,7 @@ class AuthService extends GetxService {
   }
 
   Future<bool> _refreshJwtTokenInternal() async {
-    final prefs = await SharedPreferences.getInstance();
-    final refreshToken =
-        prefs.getString('refresh_token') ?? prefs.getString('refreshToken');
+    final refreshToken = await AuthTokenStore.instance.getRefreshToken();
     if (refreshToken == null || refreshToken.isEmpty) {
       developer.log('No refresh token found');
       return false;
@@ -189,8 +187,7 @@ class AuthService extends GetxService {
       await AuthTokenStore.instance.setJwtToken(newJwt);
       final newRefreshToken = data['refreshToken']?.toString();
       if (newRefreshToken != null && newRefreshToken.isNotEmpty) {
-        await prefs.setString('refreshToken', newRefreshToken);
-        await prefs.setString('refresh_token', newRefreshToken);
+        await AuthTokenStore.instance.setRefreshToken(newRefreshToken);
       }
       developer.log('JWT token refreshed successfully');
       return true;
@@ -243,10 +240,8 @@ class AuthService extends GetxService {
   }
 
   Future<void> clearTokens() async {
-    await AuthTokenStore.instance.clearJwtToken();
+    await AuthTokenStore.instance.clearAll();
     final prefs = await SharedPreferences.getInstance();
-    await prefs.remove('refreshToken');
-    await prefs.remove('refresh_token');
     await prefs.remove('authUserId');
     await prefs.remove('auth_user_id');
     await prefs.remove('driverId');

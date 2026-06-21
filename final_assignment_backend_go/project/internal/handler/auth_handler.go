@@ -3,6 +3,7 @@ package handler
 import (
 	"fmt"
 	"net/http"
+	"strings"
 	"sync"
 	"time"
 
@@ -89,6 +90,36 @@ func (h *AuthHandler) RegisterUser(c *gin.Context) {
 	c.JSON(http.StatusCreated, gin.H{"status": status})
 }
 
+func (h *AuthHandler) Refresh(c *gin.Context) {
+	token := bearerToken(c.GetHeader("Authorization"))
+	if token == "" {
+		var req struct {
+			RefreshToken string `json:"refreshToken"`
+			Token        string `json:"token"`
+		}
+		if err := c.ShouldBindJSON(&req); err == nil {
+			token = req.RefreshToken
+			if token == "" {
+				token = req.Token
+			}
+		}
+	}
+	if token == "" {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "refresh token is required"})
+		return
+	}
+	result, err := h.service.Refresh(token)
+	if err != nil {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "invalid refresh token"})
+		return
+	}
+	c.JSON(http.StatusOK, result)
+}
+
+func (h *AuthHandler) Logout(c *gin.Context) {
+	c.JSON(http.StatusOK, gin.H{"status": "logged out"})
+}
+
 // GetAllUsers GET /api/auth/users
 // 注意：这里简化掉了 JWT 权限控制，可以配合 Gin 中间件实现
 func (h *AuthHandler) GetAllUsers(c *gin.Context) {
@@ -100,4 +131,14 @@ func (h *AuthHandler) GetAllUsers(c *gin.Context) {
 	}
 	h.logger.Info("Fetched %d users successfully", len(users))
 	c.JSON(http.StatusOK, users)
+}
+
+func bearerToken(header string) string {
+	if header == "" {
+		return ""
+	}
+	if strings.HasPrefix(header, "Bearer ") {
+		return strings.TrimSpace(strings.TrimPrefix(header, "Bearer "))
+	}
+	return strings.TrimSpace(header)
 }

@@ -1,10 +1,10 @@
 import 'package:flutter/material.dart';
 
 class ThemeStyles {
-  static const double buttonBorderRadius = 18.0;
-  static const double cardBorderRadius = 26.0;
-  static const double inputBorderRadius = 18.0;
-  static const double chipBorderRadius = 20.0;
+  static const double buttonBorderRadius = 14.0;
+  static const double cardBorderRadius = 8.0;
+  static const double inputBorderRadius = 14.0;
+  static const double chipBorderRadius = 14.0;
   static const double buttonElevation = 0.0;
   static const double inputBorderWidth = 1.2;
   static const double inputFocusedBorderWidth = 1.8;
@@ -35,23 +35,23 @@ class ThemePalette {
 
 class BasicThemeColors {
   static const light = ThemePalette(
-    seed: Color(0xFF1565C0),
-    scaffold: Color(0xFFF3F7FC),
+    seed: Color(0xFF0F172A),
+    scaffold: Color(0xFFF8FAFC),
     surface: Color(0xFFFFFFFF),
-    surfaceAlt: Color(0xFFE8F0FA),
-    surfaceTint: Color(0xFF90CAF9),
-    outline: Color(0xFFB3C3D9),
-    shadow: Color(0x1A0D233F),
+    surfaceAlt: Color(0xFFE8ECF1),
+    surfaceTint: Color(0xFFDCE9F9),
+    outline: Color(0xFFE2E8F0),
+    shadow: Color(0x120F172A),
   );
 
   static const dark = ThemePalette(
     seed: Color(0xFF6CB6FF),
-    scaffold: Color(0xFF0B1421),
-    surface: Color(0xFF132033),
-    surfaceAlt: Color(0xFF1A2A40),
-    surfaceTint: Color(0xFF1F3C64),
-    outline: Color(0xFF3D5370),
-    shadow: Color(0x66000000),
+    scaffold: Color(0xFF020617),
+    surface: Color(0xFF0E1223),
+    surfaceAlt: Color(0xFF172033),
+    surfaceTint: Color(0xFF1F3556),
+    outline: Color(0xFF334155),
+    shadow: Color(0x70000000),
   );
 }
 
@@ -118,21 +118,21 @@ class AppTheme {
         fontSize: 38,
         fontWeight: FontWeight.w800,
         height: 1.08,
-        letterSpacing: -1.2,
+        letterSpacing: 0,
         color: textColor,
       ),
       displayMedium: TextStyle(
         fontSize: 32,
         fontWeight: FontWeight.w800,
         height: 1.1,
-        letterSpacing: -0.8,
+        letterSpacing: 0,
         color: textColor,
       ),
       displaySmall: TextStyle(
         fontSize: 28,
         fontWeight: FontWeight.w700,
         height: 1.14,
-        letterSpacing: -0.4,
+        letterSpacing: 0,
         color: textColor,
       ),
       headlineLarge: TextStyle(
@@ -157,7 +157,7 @@ class AppTheme {
         fontSize: 20,
         fontWeight: FontWeight.w700,
         height: 1.26,
-        letterSpacing: -0.2,
+        letterSpacing: 0,
         color: textColor,
       ),
       titleMedium: TextStyle(
@@ -496,7 +496,7 @@ class AppTheme {
         surfaceTintColor: palette.surfaceTint.withValues(alpha: 0.1),
         elevation: 0,
         shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(28),
+          borderRadius: BorderRadius.circular(16),
           side: BorderSide(
             color: colorScheme.outlineVariant.withValues(alpha: 0.35),
           ),
@@ -510,7 +510,7 @@ class AppTheme {
         modalBackgroundColor: palette.surface,
         elevation: 0,
         shape: const RoundedRectangleBorder(
-          borderRadius: BorderRadius.vertical(top: Radius.circular(30)),
+          borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
         ),
       ),
       snackBarTheme: SnackBarThemeData(
@@ -523,7 +523,7 @@ class AppTheme {
         ),
         actionTextColor: colorScheme.primary,
         shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(20),
+          borderRadius: BorderRadius.circular(8),
         ),
         elevation: 0,
       ),
@@ -532,7 +532,7 @@ class AppTheme {
         foregroundColor: colorScheme.onPrimary,
         elevation: 0,
         shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(20),
+          borderRadius: BorderRadius.circular(14),
         ),
       ),
       dividerTheme: DividerThemeData(
@@ -546,7 +546,7 @@ class AppTheme {
         tileColor: Colors.transparent,
         contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
         shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(18),
+          borderRadius: BorderRadius.circular(8),
         ),
       ),
       checkboxTheme: CheckboxThemeData(
@@ -602,7 +602,7 @@ class AppTheme {
         surfaceTintColor: palette.surfaceTint.withValues(alpha: 0.08),
         elevation: 0,
         shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(20),
+          borderRadius: BorderRadius.circular(12),
           side: BorderSide(
             color: colorScheme.outlineVariant.withValues(alpha: 0.32),
           ),
@@ -612,7 +612,7 @@ class AppTheme {
       tooltipTheme: TooltipThemeData(
         decoration: BoxDecoration(
           color: isLight ? const Color(0xFF102033) : const Color(0xFFE8EEF8),
-          borderRadius: BorderRadius.circular(14),
+          borderRadius: BorderRadius.circular(8),
         ),
         textStyle: textTheme.bodySmall?.copyWith(
           color: isLight ? Colors.white : const Color(0xFF102033),

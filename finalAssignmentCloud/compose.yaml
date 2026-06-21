@@ -12,8 +12,10 @@ services:
     image: mysql:8.4
     container_name: finalassignmentcloud-mysql-0
     environment:
-      - MYSQL_ROOT_PASSWORD=root
+      - MYSQL_ROOT_PASSWORD=${MYSQL_SHARD_0_ROOT_PASSWORD:?set MYSQL_SHARD_0_ROOT_PASSWORD}
       - MYSQL_DATABASE=traffic_0
+      - MYSQL_USER=${MYSQL_APP_USERNAME:?set MYSQL_APP_USERNAME}
+      - MYSQL_PASSWORD=${MYSQL_APP_PASSWORD:?set MYSQL_APP_PASSWORD}
       - TZ=Asia/Shanghai
     ports:
       - "3307:3306"
@@ -22,8 +24,10 @@ services:
     image: mysql:8.4
     container_name: finalassignmentcloud-mysql-1
     environment:
-      - MYSQL_ROOT_PASSWORD=root
+      - MYSQL_ROOT_PASSWORD=${MYSQL_SHARD_1_ROOT_PASSWORD:?set MYSQL_SHARD_1_ROOT_PASSWORD}
       - MYSQL_DATABASE=traffic_1
+      - MYSQL_USER=${MYSQL_APP_USERNAME:?set MYSQL_APP_USERNAME}
+      - MYSQL_PASSWORD=${MYSQL_APP_PASSWORD:?set MYSQL_APP_PASSWORD}
       - TZ=Asia/Shanghai
     ports:
       - "3308:3306"

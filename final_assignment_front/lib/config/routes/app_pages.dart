@@ -1,6 +1,8 @@
 import 'package:final_assignment_front/features/dashboard/views/manager/manager_dashboard_screen.dart';
+import 'package:final_assignment_front/features/dashboard/views/manager/pages/main_process/deduction_management_page.dart';
 import 'package:final_assignment_front/features/dashboard/views/manager/pages/main_process/manager_appeal_management_page.dart';
 import 'package:final_assignment_front/features/dashboard/views/manager/pages/main_process/driver_list_page.dart';
+import 'package:final_assignment_front/features/dashboard/views/manager/pages/main_process/fine_list_page.dart';
 import 'package:final_assignment_front/features/dashboard/views/manager/pages/main_process/offense_list.dart';
 import 'package:final_assignment_front/features/dashboard/views/manager/pages/main_process/vehicle_list.dart';
 import 'package:final_assignment_front/features/dashboard/views/manager/pages/progress_management.dart';
@@ -56,7 +58,9 @@ class AppPages {
   static const newsDetailScreen = Routes.newsDetailScreen;
   static const appealManagement = Routes.appealManagement;
   static const backupAndRestore = Routes.backupAndRestore;
+  static const deductionManagement = Routes.deductionManagement;
   static const driverList = Routes.driverList;
+  static const fineList = Routes.fineList;
   static const managerPersonalPage = Routes.managerPersonalPage;
   static const managerSetting = Routes.managerSetting;
   static const offenseList = Routes.offenseList;
@@ -130,6 +134,16 @@ class AppPages {
     GetPage(
       name: RoutePaths.driverList,
       page: () => const DriverListPage(),
+      binding: DashboardBinding(),
+    ),
+    GetPage(
+      name: RoutePaths.deductionManagement,
+      page: () => const DeductionManagementPage(),
+      binding: DashboardBinding(),
+    ),
+    GetPage(
+      name: RoutePaths.fineList,
+      page: () => const FineListPage(),
       binding: DashboardBinding(),
     ),
     GetPage(

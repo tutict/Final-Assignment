@@ -31,16 +31,16 @@ func (c *UserManagementController) RegisterRoutes(r *gin.RouterGroup) {
 	users.PUT("/me", c.UpdateCurrentUser)
 	users.PUT("/me/password", c.UpdatePassword)
 	users.GET("", c.GetAllUsers)
-	users.GET("/:userId", c.GetUserByID)
 	users.GET("/username/:username", c.GetUserByUsername)
 	users.GET("/role/:roleName", c.GetUsersByRole)
 	users.GET("/status/:status", c.GetUsersByStatus)
-	users.PUT("/:userId", c.UpdateUser)
-	users.DELETE("/:userId", c.DeleteUser)
 	users.DELETE("/username/:username", c.DeleteUserByUsername)
 	users.GET("/autocomplete/usernames/me", c.GetUsernameSuggestions)
 	users.GET("/autocomplete/statuses/me", c.GetStatusSuggestions)
 	users.GET("/autocomplete/phone-numbers/me", c.GetPhoneSuggestions)
+	users.GET("/:userId", c.GetUserByID)
+	users.PUT("/:userId", c.UpdateUser)
+	users.DELETE("/:userId", c.DeleteUser)
 }
 
 // --------------------------

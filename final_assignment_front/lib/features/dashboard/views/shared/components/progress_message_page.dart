@@ -1,5 +1,5 @@
 import 'package:final_assignment_front/features/model/progress_item.dart';
-import 'package:final_assignment_front/shared/widgets/index.dart';
+import 'package:final_assignment_front/utils/widgets/index.dart';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 

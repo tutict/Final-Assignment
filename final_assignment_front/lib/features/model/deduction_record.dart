@@ -15,6 +15,16 @@ class DeductionRecordModel {
   final DateTime? createdAt;
   final DateTime? updatedAt;
   final String? remarks;
+  final String? driverName;
+  final String? driverLicenseNumber;
+  final String? driverIdCardNumber;
+  final String? licensePlate;
+  final String? vehicleType;
+  final String? offenseNumber;
+  final String? offenseCode;
+  final String? offenseType;
+  final String? offenseLocation;
+  final DateTime? offenseTime;
 
   const DeductionRecordModel({
     this.deductionId,
@@ -33,6 +43,16 @@ class DeductionRecordModel {
     this.createdAt,
     this.updatedAt,
     this.remarks,
+    this.driverName,
+    this.driverLicenseNumber,
+    this.driverIdCardNumber,
+    this.licensePlate,
+    this.vehicleType,
+    this.offenseNumber,
+    this.offenseCode,
+    this.offenseType,
+    this.offenseLocation,
+    this.offenseTime,
   });
 
   DeductionRecordModel copyWith({
@@ -52,6 +72,16 @@ class DeductionRecordModel {
     DateTime? createdAt,
     DateTime? updatedAt,
     String? remarks,
+    String? driverName,
+    String? driverLicenseNumber,
+    String? driverIdCardNumber,
+    String? licensePlate,
+    String? vehicleType,
+    String? offenseNumber,
+    String? offenseCode,
+    String? offenseType,
+    String? offenseLocation,
+    DateTime? offenseTime,
   }) {
     return DeductionRecordModel(
       deductionId: deductionId ?? this.deductionId,
@@ -70,6 +100,16 @@ class DeductionRecordModel {
       createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
       remarks: remarks ?? this.remarks,
+      driverName: driverName ?? this.driverName,
+      driverLicenseNumber: driverLicenseNumber ?? this.driverLicenseNumber,
+      driverIdCardNumber: driverIdCardNumber ?? this.driverIdCardNumber,
+      licensePlate: licensePlate ?? this.licensePlate,
+      vehicleType: vehicleType ?? this.vehicleType,
+      offenseNumber: offenseNumber ?? this.offenseNumber,
+      offenseCode: offenseCode ?? this.offenseCode,
+      offenseType: offenseType ?? this.offenseType,
+      offenseLocation: offenseLocation ?? this.offenseLocation,
+      offenseTime: offenseTime ?? this.offenseTime,
     );
   }
 
@@ -101,6 +141,18 @@ class DeductionRecordModel {
           ? DateTime.tryParse(json['updatedAt'])
           : null,
       remarks: json['remarks'],
+      driverName: json['driverName'],
+      driverLicenseNumber: json['driverLicenseNumber'],
+      driverIdCardNumber: json['driverIdCardNumber'],
+      licensePlate: json['licensePlate'],
+      vehicleType: json['vehicleType'],
+      offenseNumber: json['offenseNumber'],
+      offenseCode: json['offenseCode'],
+      offenseType: json['offenseType'],
+      offenseLocation: json['offenseLocation'],
+      offenseTime: json['offenseTime'] != null
+          ? DateTime.tryParse(json['offenseTime'])
+          : null,
     );
   }
 
@@ -121,5 +173,15 @@ class DeductionRecordModel {
         'createdAt': createdAt?.toIso8601String(),
         'updatedAt': updatedAt?.toIso8601String(),
         'remarks': remarks,
+        'driverName': driverName,
+        'driverLicenseNumber': driverLicenseNumber,
+        'driverIdCardNumber': driverIdCardNumber,
+        'licensePlate': licensePlate,
+        'vehicleType': vehicleType,
+        'offenseNumber': offenseNumber,
+        'offenseCode': offenseCode,
+        'offenseType': offenseType,
+        'offenseLocation': offenseLocation,
+        'offenseTime': offenseTime?.toIso8601String(),
       };
 }

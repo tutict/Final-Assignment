@@ -40,9 +40,7 @@ public class ServiceTokenProvider {
     private final SecretKey secretKey;
 
     public ServiceTokenProvider(String base64Secret) {
-        if (base64Secret == null || base64Secret.isBlank()) {
-            throw new IllegalStateException("jwt.secret.key must be provided through configuration or JWT_SECRET_KEY");
-        }
+        validateSecret(base64Secret);
         byte[] keyBytes = Base64.getDecoder().decode(base64Secret);
         this.secretKey = Keys.hmacShaKeyFor(keyBytes);
     }
@@ -116,6 +114,16 @@ public class ServiceTokenProvider {
                 .map(code -> code.trim().toUpperCase(Locale.ROOT))
                 .filter(code -> !code.isEmpty())
                 .collect(Collectors.toList());
+    }
+
+    private void validateSecret(String secret) {
+        if (secret == null || secret.isBlank()) {
+            throw new IllegalStateException("jwt.secret.key must be provided through configuration or JWT_SECRET_KEY");
+        }
+        String normalized = secret.trim().toLowerCase(Locale.ROOT);
+        if (Set.of("secret", "changeme", "change-me", "default", "root", "password").contains(normalized)) {
+            throw new IllegalStateException("jwt.secret.key must not use a default or weak value");
+        }
     }
 
     private record RoleMetadata(RoleType roleType, DataScope dataScope) {

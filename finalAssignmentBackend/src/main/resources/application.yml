@@ -33,16 +33,31 @@ rag:
     enabled: ${RAG_INDEXING_ENABLED:true}
     batch-size: 200
   embedding:
-    enabled: false
+    enabled: ${RAG_EMBEDDING_ENABLED:true}
+    provider: ${RAG_EMBEDDING_PROVIDER:ollama}
+    model: ${RAG_EMBEDDING_MODEL:nomic-embed-text}
+    dimensions: ${RAG_EMBEDDING_DIMENSIONS:768}
+    batch-size: ${RAG_EMBEDDING_BATCH_SIZE:25}
+    max-attempts: ${RAG_EMBEDDING_MAX_ATTEMPTS:3}
+    retry-delay: ${RAG_EMBEDDING_RETRY_DELAY:PT1M}
+    poll-interval-ms: ${RAG_EMBEDDING_POLL_INTERVAL_MS:30000}
   index:
     name: rag_chunk_v1
     alias: rag_chunk_current
+    text-analyzer: ${RAG_INDEX_TEXT_ANALYZER:standard}
+    number-of-shards: ${RAG_INDEX_SHARDS:1}
+    number-of-replicas: ${RAG_INDEX_REPLICAS:0}
+    refresh-interval: ${RAG_INDEX_REFRESH_INTERVAL:30s}
   retrieval:
-    enabled: false
+    enabled: ${RAG_RETRIEVAL_ENABLED:false}
     top-k: 10
     vector-weight: 0.6
     bm25-weight: 0.4
     min-score: 0.2
+    candidate-multiplier: ${RAG_RETRIEVAL_CANDIDATE_MULTIPLIER:3}
+    rrf-rank-constant: ${RAG_RETRIEVAL_RRF_RANK_CONSTANT:60}
+    rerank-enabled: ${RAG_RERANK_ENABLED:true}
+    rerank-lexical-weight: ${RAG_RERANK_LEXICAL_WEIGHT:0.15}
 
 jwt:
   # Production must inject this through JWT_SECRET. TokenProvider refuses CHANGE_ME_IN_PRODUCTION.
@@ -65,6 +80,9 @@ spring:
   datasource:
     username: ${DB_USERNAME:root}
     password: ${DB_PASSWORD}
+    hikari:
+      pool-name: final-assignment-hikari
+      register-mbeans: true
   kafka:
     producer:
       acks: all
@@ -76,6 +94,32 @@ spring:
 backend:
   url: ${BACKEND_URL}
 
+app:
+  pagination:
+    max-size: ${APP_PAGINATION_MAX_SIZE:100}
+  mybatis:
+    slow-query-threshold-ms: ${APP_SLOW_QUERY_THRESHOLD_MS:300}
+  security:
+    login:
+      window: ${LOGIN_RATE_LIMIT_WINDOW:PT1M}
+      lock-duration: ${LOGIN_LOCK_DURATION:PT2M}
+      max-account-attempts: ${LOGIN_MAX_ACCOUNT_ATTEMPTS:8}
+      max-ip-attempts: ${LOGIN_MAX_IP_ATTEMPTS:40}
+      failure-penalty-after: ${LOGIN_FAILURE_PENALTY_AFTER:2}
+      max-consecutive-failures: ${LOGIN_MAX_CONSECUTIVE_FAILURES:8}
+      failure-penalty-base: ${LOGIN_FAILURE_PENALTY_BASE:PT0.75S}
+      failure-penalty-max: ${LOGIN_FAILURE_PENALTY_MAX:PT10S}
+    sensitive-data:
+      encryption:
+        enabled: ${SENSITIVE_DATA_ENCRYPTION_ENABLED:false}
+        key: ${SENSITIVE_DATA_ENCRYPTION_KEY:}
+      blind-index:
+        key: ${SENSITIVE_DATA_BLIND_INDEX_KEY:}
+  cdc:
+    elasticsearch:
+      enabled: ${CDC_ELASTICSEARCH_ENABLED:false}
+      group-id: ${CDC_ELASTICSEARCH_GROUP_ID:mysql-cdc-elasticsearch-indexer}
+      topic-pattern: '${CDC_ELASTICSEARCH_TOPIC_PATTERN:traffic\.traffic\.(driver_information|vehicle_information|sys_user)}'
 kafka:
   groups:
     audit-login-log: ${KAFKA_GROUP_AUDIT_LOGIN_LOG:auditLoginLogGroup}
@@ -183,6 +227,9 @@ management:
   endpoint:
     health:
       show-details: when-authorized
+  metrics:
+    enable:
+      hikaricp: true
 
 logging:
   pattern:

@@ -1,35 +1,40 @@
 {
   "index": {
+    "number_of_shards": 1,
+    "number_of_replicas": 0,
     "max_ngram_diff": 20
   },
   "analysis": {
     "analyzer": {
       "ik_max_word": {
         "type": "custom",
-        "tokenizer": "ik_max_word",
+        "tokenizer": "standard",
         "filter": [
           "cjk_width",
           "lowercase",
           "stop_filter",
-          "synonym_filter"
+          "synonym_filter",
+          "cjk_bigram_filter"
         ]
       },
       "ik_smart_search": {
         "type": "custom",
-        "tokenizer": "ik_smart",
+        "tokenizer": "standard",
         "filter": [
           "cjk_width",
           "lowercase",
           "stop_filter",
-          "synonym_filter"
+          "synonym_filter",
+          "cjk_bigram_filter"
         ]
       },
       "pinyin_analyzer": {
         "type": "custom",
-        "tokenizer": "ik_max_word",
+        "tokenizer": "standard",
         "filter": [
-          "pinyin_filter",
+          "cjk_width",
           "lowercase",
+          "asciifolding",
           "unique_filter"
         ]
       },
@@ -52,11 +57,12 @@
       },
       "fuzzy_ngram_analyzer": {
         "type": "custom",
-        "tokenizer": "ik_max_word",
+        "tokenizer": "standard",
         "filter": [
           "cjk_width",
           "lowercase",
           "stop_filter",
+          "cjk_bigram_filter",
           "ngram_filter"
         ]
       }
@@ -72,62 +78,51 @@
       }
     },
     "filter": {
+      "cjk_bigram_filter": {
+        "type": "cjk_bigram",
+        "output_unigrams": true
+      },
       "stop_filter": {
         "type": "stop",
         "stopwords": [
-          "的",
-          "了",
-          "在",
-          "是",
-          "和",
-          "与",
-          "及",
-          "或",
-          "并",
-          "对",
-          "为",
-          "到",
-          "从",
-          "把",
-          "被",
-          "将",
-          "等"
+          "\u7684",
+          "\u4e86",
+          "\u5728",
+          "\u662f",
+          "\u548c",
+          "\u53ca",
+          "\u4e0e",
+          "\u6216",
+          "\u5e76",
+          "\u5bf9",
+          "\u5230",
+          "\u4ece",
+          "\u88ab",
+          "\u5c06",
+          "\u7b49"
         ]
       },
       "synonym_filter": {
         "type": "synonym",
         "lenient": true,
         "synonyms": [
-          "启用,开启,打开 => 启用",
-          "禁用,关闭,停用 => 禁用",
-          "创建,新增,添加,录入 => 创建",
-          "更新,修改,变更,编辑 => 更新",
-          "删除,移除,清除,作废 => 删除",
-          "车辆,机动车,汽车 => 车辆",
-          "车牌,号牌,牌照 => 车牌",
-          "驾驶证,驾照 => 驾驶证",
-          "违法,违章,违规 => 违法",
-          "罚款,罚金 => 罚款",
-          "扣分,记分 => 扣分",
-          "申诉,复议,申辩 => 申诉",
-          "缴费,支付,付款 => 支付",
-          "审核,审批,复核 => 审核",
-          "用户,账号,账户 => 用户",
-          "角色,权限组 => 角色"
+          "\u542f\u7528,\u5f00\u542f,\u6253\u5f00 => \u542f\u7528",
+          "\u7981\u7528,\u5173\u95ed,\u505c\u7528 => \u7981\u7528",
+          "\u521b\u5efa,\u65b0\u589e,\u6dfb\u52a0,\u5f55\u5165 => \u521b\u5efa",
+          "\u66f4\u65b0,\u4fee\u6539,\u53d8\u66f4,\u7f16\u8f91 => \u66f4\u65b0",
+          "\u5220\u9664,\u79fb\u9664,\u6e05\u9664,\u4f5c\u5e9f => \u5220\u9664",
+          "\u8f66\u8f86,\u673a\u52a8\u8f66,\u6c7d\u8f66 => \u8f66\u8f86",
+          "\u8f66\u724c,\u53f7\u724c,\u724c\u7167 => \u8f66\u724c",
+          "\u9a7e\u9a76\u8bc1,\u9a7e\u7167 => \u9a7e\u9a76\u8bc1",
+          "\u8fdd\u6cd5,\u8fdd\u7ae0,\u8fdd\u89c4 => \u8fdd\u6cd5",
+          "\u7f5a\u6b3e,\u7f5a\u91d1 => \u7f5a\u6b3e",
+          "\u6263\u5206,\u8bb0\u5206 => \u6263\u5206",
+          "\u7533\u8bc9,\u590d\u8bae,\u7533\u8fa9 => \u7533\u8bc9",
+          "\u7f34\u8d39,\u652f\u4ed8,\u4ed8\u6b3e => \u652f\u4ed8",
+          "\u5ba1\u6838,\u5ba1\u6279,\u590d\u6838 => \u5ba1\u6838",
+          "\u7528\u6237,\u8d26\u53f7,\u8d26\u6237 => \u7528\u6237",
+          "\u89d2\u8272,\u6743\u9650\u7ec4 => \u89d2\u8272"
         ]
-      },
-      "pinyin_filter": {
-        "type": "pinyin",
-        "keep_first_letter": true,
-        "keep_separate_first_letter": false,
-        "keep_full_pinyin": true,
-        "keep_joined_full_pinyin": true,
-        "keep_original": true,
-        "keep_none_chinese": true,
-        "keep_none_chinese_together": true,
-        "limit_first_letter_length": 16,
-        "lowercase": true,
-        "remove_duplicated_term": true
       },
       "edge_ngram_filter": {
         "type": "edge_ngram",

@@ -2,6 +2,7 @@ package com.tutict.finalassignmentbackend.rag.chunk;
 
 import com.tutict.finalassignmentbackend.rag.config.RagProperties;
 import com.tutict.finalassignmentbackend.rag.dto.RagSourceDocument;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.stereotype.Component;
 
@@ -20,6 +21,7 @@ public class ChineseTextChunker implements Chunker {
     private final int chunkSize;
     private final int overlap;
 
+    @Autowired
     public ChineseTextChunker(RagProperties properties) {
         this(properties.getChunk().getSize(), properties.getChunk().getOverlap());
     }

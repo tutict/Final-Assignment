@@ -8,14 +8,15 @@ import 'package:final_assignment_front/features/api/role_management_controller_a
 import 'package:final_assignment_front/features/dashboard/models/profile.dart';
 import 'package:final_assignment_front/features/model/offense_information.dart';
 import 'package:final_assignment_front/shared/utils/error_handler.dart';
-import 'package:final_assignment_front/shared_components/case_card.dart';
-import 'package:final_assignment_front/shared_components/project_card.dart';
+import 'package:final_assignment_front/utils/components/case_card.dart';
+import 'package:final_assignment_front/utils/components/project_card.dart';
 import 'package:final_assignment_front/utils/helpers/app_helpers.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 import 'package:get/get.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:final_assignment_front/shared/utils/navigation_helper.dart';
+import 'package:final_assignment_front/utils/services/auth_token_store.dart';
 
 class ManagerDashboardController extends GetxController {
   final caseCardDataList = <CaseCardData>[].obs;
@@ -77,7 +78,7 @@ class ManagerDashboardController extends GetxController {
 
   Future<void> _loadUserFromPrefs() async {
     final prefs = await SharedPreferences.getInstance();
-    final jwtToken = prefs.getString('jwtToken');
+    final jwtToken = await AuthTokenStore.instance.getJwtToken();
     final userName = prefs.getString('userName');
     final userEmail = prefs.getString('userEmail');
     final userRole = prefs.getString('roles') ?? prefs.getString('userRole');

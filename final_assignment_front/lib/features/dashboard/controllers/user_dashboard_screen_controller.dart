@@ -8,14 +8,15 @@ import 'package:final_assignment_front/features/api/driver_information_controlle
 import 'package:final_assignment_front/features/api/offense_information_controller_api.dart';
 import 'package:final_assignment_front/features/api/role_management_controller_api.dart';
 import 'package:final_assignment_front/features/dashboard/models/profile.dart';
-import 'package:final_assignment_front/shared_components/case_card.dart';
-import 'package:final_assignment_front/shared_components/project_card.dart';
+import 'package:final_assignment_front/utils/components/case_card.dart';
+import 'package:final_assignment_front/utils/components/project_card.dart';
 import 'package:final_assignment_front/utils/helpers/app_helpers.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 import 'package:get/get.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:final_assignment_front/shared/utils/navigation_helper.dart';
+import 'package:final_assignment_front/utils/services/auth_token_store.dart';
 
 /// UserDashboardController 管理用户主页的主线控制器，包含主要的进入流程、数据处理和界面的控制。
 
@@ -92,8 +93,7 @@ class UserDashboardController extends GetxController {
     isLoading.value = true;
     try {
       final prefs = await SharedPreferences.getInstance();
-      final jwtToken =
-          prefs.getString('jwtToken') ?? prefs.getString('jwt_token');
+      final jwtToken = await AuthTokenStore.instance.getJwtToken();
       final userName = _readableName(
         prefs.getString('userName') ??
             prefs.getString('username') ??

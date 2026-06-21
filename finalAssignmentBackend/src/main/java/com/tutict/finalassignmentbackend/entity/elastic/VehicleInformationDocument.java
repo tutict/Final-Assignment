@@ -1,6 +1,7 @@
 package com.tutict.finalassignmentbackend.entity.elastic;
 
 import com.tutict.finalassignmentbackend.entity.driver.VehicleInformation;
+import com.tutict.finalassignmentbackend.security.privacy.SensitiveDataMasker;
 import java.io.Serial;
 import java.io.Serializable;
 import java.time.LocalDate;
@@ -220,8 +221,8 @@ public class VehicleInformationDocument implements Serializable {
         doc.setEngineNumber(entity.getEngineNumber());
         doc.setFrameNumber(entity.getFrameNumber());
         doc.setOwnerName(entity.getOwnerName());
-        doc.setOwnerIdCard(entity.getOwnerIdCard());
-        doc.setOwnerContact(entity.getOwnerContact());
+        doc.setOwnerIdCard(SensitiveDataMasker.idCard(entity.getOwnerIdCard()));
+        doc.setOwnerContact(SensitiveDataMasker.phone(entity.getOwnerContact()));
         doc.setOwnerAddress(entity.getOwnerAddress());
         doc.setFirstRegistrationDate(entity.getFirstRegistrationDate());
         doc.setRegistrationDate(entity.getRegistrationDate());

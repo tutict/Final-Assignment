@@ -1,9 +1,15 @@
 import 'dart:async';
+import 'dart:convert';
 
+import 'package:final_assignment_front/config/routes/app_routes.dart';
 import 'package:final_assignment_front/core/auth/role_utils.dart';
 import 'package:final_assignment_front/core/utils/app_logger.dart';
+import 'package:final_assignment_front/features/ai/business_chat_agent.dart';
 import 'package:final_assignment_front/features/ai/ai_chat_api.dart';
 import 'package:final_assignment_front/features/api/chat_controller_api.dart';
+import 'package:final_assignment_front/features/model/chat_action.dart';
+import 'package:final_assignment_front/shared/utils/navigation_helper.dart';
+import 'package:final_assignment_front/utils/services/chat_action_executor.dart';
 import 'package:final_assignment_front/utils/ui/ui_utils.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
@@ -14,12 +20,16 @@ class ChatMessage {
     this.formalContent = '',
     required this.isUser,
     this.isSystem = false,
+    this.actions = const [],
+    this.needConfirm = false,
   });
 
   final String thinkContent;
   final String formalContent;
   final bool isUser;
   final bool isSystem;
+  final List<ChatAction> actions;
+  final bool needConfirm;
 }
 
 enum ChatLoadingState { idle, thinking, searching, generating }
@@ -32,6 +42,7 @@ class ChatController extends GetxController {
   final searchResults = <String>[].obs;
   final TextEditingController textController = TextEditingController();
   final ChatControllerApi chatApi = ChatControllerApi();
+  final BusinessChatAgent businessAgent = const BusinessChatAgent();
 
   final RxString userRole = 'USER'.obs;
   final RxBool enableWordStreaming = true.obs;
@@ -81,7 +92,22 @@ class ChatController extends GetxController {
       _showContextLimitHint();
     }
 
+    final businessAction =
+        businessAgent.resolve(message: text, role: userRole.value);
     messages.add(ChatMessage(formalContent: text, isUser: true));
+    textController.clear();
+
+    if (businessAction != null && businessAction.actions.isNotEmpty) {
+      messages.add(ChatMessage(
+        formalContent: businessAction.answer ?? '已识别到可执行业务动作，请点击下方按钮继续。',
+        isUser: false,
+        isSystem: true,
+        actions: businessAction.actions,
+        needConfirm: businessAction.needConfirm,
+      ));
+      return;
+    }
+
     loadingState.value = webSearchEnabled.value
         ? ChatLoadingState.searching
         : ChatLoadingState.thinking;
@@ -91,7 +117,6 @@ class ChatController extends GetxController {
           : 'THINKING: Thinking...',
       isUser: false,
     ));
-    textController.clear();
 
     final cancelToken = CancelToken();
     _activeCancelToken = cancelToken;
@@ -344,6 +369,54 @@ class ChatController extends GetxController {
 
   void stopStreaming() {
     _cancelActiveStream();
+  }
+
+  Future<void> executeAction(ChatAction action,
+      {bool needConfirm = false}) async {
+    final executor = ChatActionExecutor(
+      context: Get.context,
+      onNavigate: _navigateByAction,
+      onFillForm: _navigateByAction,
+    );
+    await executor.executeActions([action], needConfirm: needConfirm);
+  }
+
+  Future<void> _navigateByAction(ChatAction action) async {
+    final target = action.target?.trim();
+    if (target == null || target.isEmpty) {
+      Get.snackbar('无法执行', '该动作没有配置目标页面');
+      return;
+    }
+
+    await NavigationHelper.toNamed(
+      target,
+      arguments: _decodeActionArguments(action),
+      fallback: RoleUtils.canAccessAdminDashboard(userRole.value)
+          ? Routes.dashboard
+          : Routes.userDashboard,
+    );
+  }
+
+  Map<String, dynamic> _decodeActionArguments(ChatAction action) {
+    final result = <String, dynamic>{
+      'agentAction': action.toJson(),
+    };
+    final value = action.value;
+    if (value == null || value.trim().isEmpty) {
+      return result;
+    }
+
+    try {
+      final decoded = jsonDecode(value);
+      if (decoded is Map<String, dynamic>) {
+        result.addAll(decoded);
+      } else {
+        result['agentPrefill'] = {'value': decoded};
+      }
+    } catch (_) {
+      result['agentPrefill'] = {'value': value};
+    }
+    return result;
   }
 
   void _cancelActiveStream() {

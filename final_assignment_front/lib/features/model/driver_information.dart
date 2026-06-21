@@ -27,6 +27,12 @@ class DriverInformation {
   final DateTime? deletedAt;
   final String? remarks;
   final String? idempotencyKey;
+  final String? username;
+  final String? accountStatus;
+  final int? vehicleCount;
+  final int? offenseCount;
+  final int? unpaidFineCount;
+  final int? appealCount;
 
   const DriverInformation({
     this.driverId,
@@ -55,6 +61,12 @@ class DriverInformation {
     this.deletedAt,
     this.remarks,
     this.idempotencyKey,
+    this.username,
+    this.accountStatus,
+    this.vehicleCount,
+    this.offenseCount,
+    this.unpaidFineCount,
+    this.appealCount,
   });
 
   DriverInformation copyWith({
@@ -84,6 +96,12 @@ class DriverInformation {
     DateTime? deletedAt,
     String? remarks,
     String? idempotencyKey,
+    String? username,
+    String? accountStatus,
+    int? vehicleCount,
+    int? offenseCount,
+    int? unpaidFineCount,
+    int? appealCount,
   }) {
     return DriverInformation(
       driverId: driverId ?? this.driverId,
@@ -113,6 +131,12 @@ class DriverInformation {
       deletedAt: deletedAt ?? this.deletedAt,
       remarks: remarks ?? this.remarks,
       idempotencyKey: idempotencyKey ?? this.idempotencyKey,
+      username: username ?? this.username,
+      accountStatus: accountStatus ?? this.accountStatus,
+      vehicleCount: vehicleCount ?? this.vehicleCount,
+      offenseCount: offenseCount ?? this.offenseCount,
+      unpaidFineCount: unpaidFineCount ?? this.unpaidFineCount,
+      appealCount: appealCount ?? this.appealCount,
     );
   }
 
@@ -145,6 +169,12 @@ class DriverInformation {
       deletedAt: _parseDateTime(json['deletedAt']),
       remarks: json['remarks'],
       idempotencyKey: json['idempotencyKey'],
+      username: json['username'],
+      accountStatus: json['accountStatus'],
+      vehicleCount: _toInt(json['vehicleCount']),
+      offenseCount: _toInt(json['offenseCount']),
+      unpaidFineCount: _toInt(json['unpaidFineCount']),
+      appealCount: _toInt(json['appealCount']),
     );
   }
 
@@ -182,6 +212,12 @@ class DriverInformation {
       'deletedAt': deletedAt?.toIso8601String(),
       'remarks': remarks,
       'idempotencyKey': idempotencyKey,
+      'username': username,
+      'accountStatus': accountStatus,
+      'vehicleCount': vehicleCount,
+      'offenseCount': offenseCount,
+      'unpaidFineCount': unpaidFineCount,
+      'appealCount': appealCount,
     };
   }
 
@@ -229,4 +265,14 @@ class DriverInformation {
   }
 
   static DateTime? _parseDateTime(dynamic value) => _parseDate(value);
+
+  static int? _toInt(dynamic value) {
+    if (value == null) return null;
+    if (value is int) return value;
+    if (value is num) return value.toInt();
+    if (value is String && value.isNotEmpty) {
+      return int.tryParse(value);
+    }
+    return null;
+  }
 }

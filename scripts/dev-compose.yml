@@ -15,7 +15,7 @@ services:
       retries: 10
 
   redpanda:
-    image: ${REDPANDA_IMAGE:-redpandadata/redpanda:v24.1.2}
+    image: ${REDPANDA_IMAGE:-docker.redpanda.com/redpandadata/redpanda:v26.1.9}
     container_name: final-assignment-redpanda
     command:
       - redpanda
@@ -31,12 +31,13 @@ services:
       - "0"
       - --check=false
       - --kafka-addr
-      - PLAINTEXT://0.0.0.0:9092
+      - INTERNAL://0.0.0.0:29092,OUTSIDE://0.0.0.0:9092
       - --advertise-kafka-addr
-      - PLAINTEXT://localhost:9092
+      - INTERNAL://redpanda:29092,OUTSIDE://localhost:9092
     ports:
       - "9092:9092"
-      - "9644:9644"
+      - "${REDPANDA_ADMIN_HOST_PORT:-9644}:9644"
+      - "${REDPANDA_PANDAPROXY_HOST_PORT:-8082}:8082"
     volumes:
       - redpanda-data:/var/lib/redpanda/data
     healthcheck:
@@ -46,14 +47,14 @@ services:
       retries: 12
 
   elasticsearch:
-    image: ${ELASTICSEARCH_IMAGE:-docker.elastic.co/elasticsearch/elasticsearch:8.17.3}
+    image: ${ELASTICSEARCH_IMAGE:-docker.elastic.co/elasticsearch/elasticsearch:9.4.1}
     container_name: final-assignment-elasticsearch
     environment:
       discovery.type: single-node
       xpack.security.enabled: "false"
-      ES_JAVA_OPTS: -Xms512m -Xmx512m
+      ES_JAVA_OPTS: -Xms768m -Xmx768m
     ports:
-      - "9200:9200"
+      - "${ELASTICSEARCH_HOST_PORT:-9200}:9200"
     volumes:
       - elasticsearch-data:/usr/share/elasticsearch/data
     healthcheck:
@@ -62,19 +63,33 @@ services:
       timeout: 10s
       retries: 12
 
-  manticore:
-    image: ${MANTICORE_IMAGE:-manticoresearch/manticore:dev}
-    container_name: final-assignment-manticore
+  debezium-connect:
+    image: ${DEBEZIUM_CONNECT_IMAGE:-quay.io/debezium/connect:3.5.1.Final}
+    container_name: final-assignment-debezium-connect
+    depends_on:
+      redpanda:
+        condition: service_healthy
     environment:
-      EXTRA: "1"
+      BOOTSTRAP_SERVERS: redpanda:29092
+      GROUP_ID: final-assignment-connect
+      CONFIG_STORAGE_TOPIC: final_assignment_connect_configs
+      OFFSET_STORAGE_TOPIC: final_assignment_connect_offsets
+      STATUS_STORAGE_TOPIC: final_assignment_connect_status
+      KEY_CONVERTER: org.apache.kafka.connect.json.JsonConverter
+      VALUE_CONVERTER: org.apache.kafka.connect.json.JsonConverter
+      KEY_CONVERTER_SCHEMAS_ENABLE: "false"
+      VALUE_CONVERTER_SCHEMAS_ENABLE: "false"
+      CONNECT_REST_ADVERTISED_HOST_NAME: debezium-connect
+      CONNECT_PLUGIN_PATH: /kafka/connect,/debezium-connector
     ports:
-      - "9306:9306"
-      - "9308:9308"
-    volumes:
-      - manticore-data:/var/lib/manticore
+      - "8083:8083"
+    healthcheck:
+      test: ["CMD-SHELL", "curl -fsS http://localhost:8083/connectors || exit 1"]
+      interval: 15s
+      timeout: 10s
+      retries: 20
 
 volumes:
   redis-data:
   redpanda-data:
   elasticsearch-data:
-  manticore-data:

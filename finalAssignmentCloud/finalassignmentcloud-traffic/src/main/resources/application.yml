@@ -44,14 +44,14 @@ spring:
         type: com.zaxxer.hikari.HikariDataSource
         driver-class-name: com.mysql.cj.jdbc.Driver
         jdbc-url: jdbc:mysql://localhost:3307/traffic_0?useSSL=false&serverTimezone=Asia/Shanghai
-        username: root
-        password: root
+        username: ${TRAFFIC_DS0_USERNAME:${MYSQL_APP_USERNAME:${DB_USERNAME}}}
+        password: ${TRAFFIC_DS0_PASSWORD:${MYSQL_APP_PASSWORD:${DB_PASSWORD}}}
       ds1:
         type: com.zaxxer.hikari.HikariDataSource
         driver-class-name: com.mysql.cj.jdbc.Driver
         jdbc-url: jdbc:mysql://localhost:3308/traffic_1?useSSL=false&serverTimezone=Asia/Shanghai
-        username: root
-        password: root
+        username: ${TRAFFIC_DS1_USERNAME:${MYSQL_APP_USERNAME:${DB_USERNAME}}}
+        password: ${TRAFFIC_DS1_PASSWORD:${MYSQL_APP_PASSWORD:${DB_PASSWORD}}}
     rules:
       sharding:
         tables:

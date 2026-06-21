@@ -3,6 +3,7 @@ package com.tutict.finalassignmentbackend.service.system;
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.tutict.finalassignmentbackend.common.PageLimits;
 import com.tutict.finalassignmentbackend.config.websocket.WsAction;
 import com.tutict.finalassignmentbackend.entity.system.SysRequestHistory;
 import com.tutict.finalassignmentbackend.entity.elastic.SysRequestHistoryDocument;
@@ -51,7 +52,7 @@ public class SysRequestHistoryService {
 
     @Transactional
     @CacheEvict(cacheNames = CACHE_NAME, allEntries = true)
-    @WsAction(service = "SysRequestHistoryService", action = "checkAndInsertIdempotency")
+    @WsAction(service = "SysRequestHistoryService", action = "checkAndInsertIdempotency", roles = {"SUPER_ADMIN", "ADMIN"})
     public void checkAndInsertIdempotency(String idempotencyKey, SysRequestHistory historyPayload, String action) {
         Objects.requireNonNull(historyPayload, "SysRequestHistory must not be null");
         SysRequestHistory existing = sysRequestHistoryMapper.selectByIdempotencyKey(idempotencyKey);
@@ -147,11 +148,12 @@ public class SysRequestHistoryService {
     @Cacheable(cacheNames = CACHE_NAME, key = "'username:' + #username + ':' + #page + ':' + #size", unless = "#result == null || #result.isEmpty()")
     public List<SysRequestHistory> findByUsername(String username, int page, int size) {
         if (isBlank(username)) {
-            return findAll();
+            return findRecent(size);
         }
         validatePagination(page, size);
-        long offset = (long) (page - 1) * size;
-        List<SysRequestHistory> records = sysRequestHistoryMapper.selectByUsername(username, offset, size);
+        int normalizedSize = PageLimits.normalizeSize(size);
+        long offset = (long) PageLimits.normalizeZeroBasedPage(page) * normalizedSize;
+        List<SysRequestHistory> records = sysRequestHistoryMapper.selectByUsername(username, offset, normalizedSize);
         syncBatchToIndexAfterCommit(records);
         return records;
     }
@@ -165,7 +167,7 @@ public class SysRequestHistoryService {
     public List<SysRequestHistory> findRecent(int limit) {
         QueryWrapper<SysRequestHistory> wrapper = new QueryWrapper<>();
         wrapper.orderByDesc("updated_at");
-        Page<SysRequestHistory> mpPage = new Page<>(1, Math.max(limit, 1));
+        Page<SysRequestHistory> mpPage = new Page<>(1, PageLimits.normalizeLimit(limit));
         sysRequestHistoryMapper.selectPage(mpPage, wrapper);
         List<SysRequestHistory> records = mpPage.getRecords();
         syncBatchToIndexAfterCommit(records);
@@ -415,7 +417,7 @@ public class SysRequestHistoryService {
     }
 
     private List<SysRequestHistory> fetchFromDatabase(QueryWrapper<SysRequestHistory> wrapper, int page, int size) {
-        Page<SysRequestHistory> mpPage = new Page<>(Math.max(page, 1), Math.max(size, 1));
+        Page<SysRequestHistory> mpPage = new Page<>(PageLimits.normalizePage(page), PageLimits.normalizeSize(size));
         sysRequestHistoryMapper.selectPage(mpPage, wrapper);
         List<SysRequestHistory> records = mpPage.getRecords();
         syncBatchToIndexAfterCommit(records);
@@ -433,7 +435,7 @@ public class SysRequestHistoryService {
     }
 
     private org.springframework.data.domain.Pageable pageable(int page, int size) {
-        return org.springframework.data.domain.PageRequest.of(Math.max(page - 1, 0), Math.max(size, 1));
+        return org.springframework.data.domain.PageRequest.of(PageLimits.normalizeZeroBasedPage(page), PageLimits.normalizeSize(size));
     }
 
     private void validateHistory(SysRequestHistory history) {

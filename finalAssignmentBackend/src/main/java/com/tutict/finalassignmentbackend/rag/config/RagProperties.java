@@ -3,6 +3,8 @@ package com.tutict.finalassignmentbackend.rag.config;
 import org.springframework.boot.context.properties.ConfigurationProperties;
 import org.springframework.stereotype.Component;
 
+import java.time.Duration;
+
 @Component
 @ConfigurationProperties(prefix = "rag")
 public class RagProperties {
@@ -97,6 +99,13 @@ public class RagProperties {
 
     public static class Embedding {
         private boolean enabled = false;
+        private String provider = "ollama";
+        private String model = "nomic-embed-text";
+        private int dimensions = 768;
+        private int batchSize = 25;
+        private int maxAttempts = 3;
+        private Duration retryDelay = Duration.ofMinutes(1);
+        private long pollIntervalMs = 30000;
 
         public boolean isEnabled() {
             return enabled;
@@ -105,11 +114,71 @@ public class RagProperties {
         public void setEnabled(boolean enabled) {
             this.enabled = enabled;
         }
+
+        public String getProvider() {
+            return provider;
+        }
+
+        public void setProvider(String provider) {
+            this.provider = provider;
+        }
+
+        public String getModel() {
+            return model;
+        }
+
+        public void setModel(String model) {
+            this.model = model;
+        }
+
+        public int getDimensions() {
+            return dimensions;
+        }
+
+        public void setDimensions(int dimensions) {
+            this.dimensions = dimensions;
+        }
+
+        public int getBatchSize() {
+            return batchSize;
+        }
+
+        public void setBatchSize(int batchSize) {
+            this.batchSize = batchSize;
+        }
+
+        public int getMaxAttempts() {
+            return maxAttempts;
+        }
+
+        public void setMaxAttempts(int maxAttempts) {
+            this.maxAttempts = maxAttempts;
+        }
+
+        public Duration getRetryDelay() {
+            return retryDelay;
+        }
+
+        public void setRetryDelay(Duration retryDelay) {
+            this.retryDelay = retryDelay;
+        }
+
+        public long getPollIntervalMs() {
+            return pollIntervalMs;
+        }
+
+        public void setPollIntervalMs(long pollIntervalMs) {
+            this.pollIntervalMs = pollIntervalMs;
+        }
     }
 
     public static class Index {
         private String name = "rag_chunk_v1";
         private String alias = "rag_chunk_current";
+        private String textAnalyzer = "standard";
+        private int numberOfShards = 1;
+        private int numberOfReplicas = 0;
+        private String refreshInterval = "30s";
 
         public String getName() {
             return name;
@@ -125,6 +194,38 @@ public class RagProperties {
 
         public void setAlias(String alias) {
             this.alias = alias;
+        }
+
+        public String getTextAnalyzer() {
+            return textAnalyzer;
+        }
+
+        public void setTextAnalyzer(String textAnalyzer) {
+            this.textAnalyzer = textAnalyzer;
+        }
+
+        public int getNumberOfShards() {
+            return numberOfShards;
+        }
+
+        public void setNumberOfShards(int numberOfShards) {
+            this.numberOfShards = numberOfShards;
+        }
+
+        public int getNumberOfReplicas() {
+            return numberOfReplicas;
+        }
+
+        public void setNumberOfReplicas(int numberOfReplicas) {
+            this.numberOfReplicas = numberOfReplicas;
+        }
+
+        public String getRefreshInterval() {
+            return refreshInterval;
+        }
+
+        public void setRefreshInterval(String refreshInterval) {
+            this.refreshInterval = refreshInterval;
         }
     }
 }

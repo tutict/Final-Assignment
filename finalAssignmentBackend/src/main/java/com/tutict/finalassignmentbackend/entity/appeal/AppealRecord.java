@@ -1,6 +1,7 @@
 package com.tutict.finalassignmentbackend.entity.appeal;
 
 import com.baomidou.mybatisplus.annotation.*;
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import lombok.Data;
 
 import java.io.Serial;
@@ -56,11 +57,27 @@ public class AppealRecord implements Serializable {
     @TableField("appellant_id_card")
     private String appellantIdCard;
 
+    @TableField("appellant_id_card_ciphertext")
+    @JsonIgnore
+    private String appellantIdCardCiphertext;
+
+    @TableField("appellant_id_card_blind_index")
+    @JsonIgnore
+    private String appellantIdCardBlindIndex;
+
     /**
      * 申诉人联系电话
      */
     @TableField("appellant_contact")
     private String appellantContact;
+
+    @TableField("appellant_contact_ciphertext")
+    @JsonIgnore
+    private String appellantContactCiphertext;
+
+    @TableField("appellant_contact_blind_index")
+    @JsonIgnore
+    private String appellantContactBlindIndex;
 
     /**
      * 申诉人电子邮箱
@@ -188,4 +205,34 @@ public class AppealRecord implements Serializable {
      */
     @TableField("remarks")
     private String remarks;
+
+    @TableField(exist = false)
+    private String driverName;
+
+    @TableField(exist = false)
+    private String driverLicenseNumber;
+
+    @TableField(exist = false)
+    private String driverIdCardNumber;
+
+    @TableField(exist = false)
+    private String licensePlate;
+
+    @TableField(exist = false)
+    private String vehicleType;
+
+    @TableField(exist = false)
+    private String offenseNumber;
+
+    @TableField(exist = false)
+    private String offenseCode;
+
+    @TableField(exist = false)
+    private String offenseType;
+
+    @TableField(exist = false)
+    private String offenseLocation;
+
+    @TableField(exist = false)
+    private LocalDateTime offenseTime;
 }

@@ -1,6 +1,6 @@
 package com.tutict.finalassignmentbackend.kafkaListener;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
+import com.tutict.finalassignmentbackend.common.idempotency.IdempotentKafkaMessageProcessor;
 import com.tutict.finalassignmentbackend.entity.appeal.AppealReview;
 import com.tutict.finalassignmentbackend.service.appeal.AppealReviewService;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -15,93 +15,83 @@ import java.util.logging.Level;
 import java.util.logging.Logger;
 
 @Service
-// Kafka 监听器，处理消息
 public class AppealReviewKafkaListener {
 
     private static final Logger log = Logger.getLogger(AppealReviewKafkaListener.class.getName());
 
     private final AppealReviewService appealReviewService;
-    private final ObjectMapper objectMapper;
+    private final IdempotentKafkaMessageProcessor messageProcessor;
 
-    // 构造器注入依赖
     @Autowired
     public AppealReviewKafkaListener(AppealReviewService appealReviewService,
-                                     ObjectMapper objectMapper) {
+                                     IdempotentKafkaMessageProcessor messageProcessor) {
         this.appealReviewService = appealReviewService;
-        this.objectMapper = objectMapper;
+        this.messageProcessor = messageProcessor;
     }
 
-    // 监听 Kafka 消息
     @KafkaListener(topics = "${kafka.topics.appeal-review.create:appeal_review_create}", groupId = "${kafka.groups.appeal-review:appealReviewGroup}", concurrency = "3")
     public void onAppealReviewCreate(@Header(value = KafkaHeaders.RECEIVED_KEY, required = false) byte[] rawKey,
                                      @Payload String message,
-                                      Acknowledgment ack) {
+                                     Acknowledgment ack) {
         log.log(Level.INFO, "Received Kafka message for AppealReview create (payload omitted)");
-        processMessage(asKey(rawKey), message, "create");
-        ack.acknowledge();
+        processMessage(asKey(rawKey), message, "create", ack);
     }
 
-    // 监听 Kafka 消息
     @KafkaListener(topics = "${kafka.topics.appeal-review.update:appeal_review_update}", groupId = "${kafka.groups.appeal-review:appealReviewGroup}", concurrency = "3")
     public void onAppealReviewUpdate(@Header(value = KafkaHeaders.RECEIVED_KEY, required = false) byte[] rawKey,
                                      @Payload String message,
-                                      Acknowledgment ack) {
+                                     Acknowledgment ack) {
         log.log(Level.INFO, "Received Kafka message for AppealReview update (payload omitted)");
-        processMessage(asKey(rawKey), message, "update");
-        ack.acknowledge();
+        processMessage(asKey(rawKey), message, "update", ack);
     }
 
-    // 统一处理消息并执行业务逻辑
-    private void processMessage(String idempotencyKey, String message, String action) {
+    private void processMessage(String idempotencyKey, String message, String action, Acknowledgment ack) {
         if (isBlank(idempotencyKey)) {
             log.warning("Received appeal review event without idempotency key, skipping");
+            acknowledge(ack);
             return;
         }
-        AppealReview payload = deserializeMessage(message);
-        if (payload == null) {
-            log.warning("Received appeal review event with empty payload, skipping");
-            return;
-        }
-        try {
-            if (appealReviewService.shouldSkipProcessing(idempotencyKey)) {
-                log.log(Level.INFO, "Skipping duplicate appeal review event (key={0}, action={1})",
-                        new Object[]{idempotencyKey, action});
-                return;
-            }
-            AppealReview result;
-            if ("create".equalsIgnoreCase(action)) {
-                payload.setReviewId(null);
-                result = appealReviewService.createReview(payload);
-            } else if ("update".equalsIgnoreCase(action)) {
-                result = appealReviewService.updateReview(payload);
-            } else {
-                log.log(Level.WARNING, "Unsupported appeal review action: {0}", action);
-                return;
-            }
-            appealReviewService.markHistorySuccess(idempotencyKey,
-                    result.getReviewId() != null ? result.getReviewId() : null);
-        } catch (Exception ex) {
-            appealReviewService.markHistoryFailure(idempotencyKey, ex.getMessage());
-            log.log(Level.SEVERE,
-                    String.format("Error processing appeal review event (key=%s, action=%s)", idempotencyKey, action),
-                    ex);
-            throw ex;
-        }
+        messageProcessor.process(
+                idempotencyKey,
+                message,
+                ack,
+                "AppealReview",
+                action,
+                appealReviewService::shouldSkipProcessing,
+                payload -> processPayload(payload, action),
+                (key, result) -> {
+                    if (result != null && result.getReviewId() != null) {
+                        appealReviewService.markHistorySuccess(key, result.getReviewId());
+                    }
+                },
+                (key, ex) -> appealReviewService.markHistoryFailure(key, ex.getMessage())
+        );
     }
-    private AppealReview deserializeMessage(String message) {
-        try {
-            return objectMapper.readValue(message, AppealReview.class);
-        } catch (Exception ex) {
-            log.log(Level.SEVERE, "Failed to deserialize Kafka message (payload omitted)", ex);
-            throw new IllegalArgumentException("Failed to deserialize Kafka message", ex);
+
+    private AppealReview processPayload(String message, String action) {
+        AppealReview payload = messageProcessor.deserialize(message, AppealReview.class);
+        if ("create".equalsIgnoreCase(action)) {
+            payload.setReviewId(null);
+            return appealReviewService.createReview(payload);
         }
+        if ("update".equalsIgnoreCase(action)) {
+            return appealReviewService.updateReview(payload);
+        }
+        log.log(Level.WARNING, "Unsupported appeal review action: {0}", action);
+        return null;
     }
+
     private String asKey(byte[] rawKey) {
         return rawKey == null ? null : new String(rawKey);
     }
 
-    // 判空
     private boolean isBlank(String value) {
         return value == null || value.trim().isEmpty();
+    }
+
+    private void acknowledge(Acknowledgment acknowledgment) {
+        if (acknowledgment != null) {
+            acknowledgment.acknowledge();
+        }
     }
 }

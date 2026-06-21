@@ -12,6 +12,7 @@ import static org.hamcrest.Matchers.nullValue;
 
 import com.tutict.finalassignmentbackend.integration.BaseIntegrationTest;
 import com.tutict.finalassignmentbackend.integration.TestDataFactory;
+import io.restassured.response.Response;
 import java.time.Duration;
 import java.util.List;
 import org.junit.jupiter.api.DisplayName;
@@ -51,33 +52,40 @@ class BusinessRegressionTest extends BaseIntegrationTest {
         userToken = loginAsUser();
         assertThat(adminToken).isNotBlank();
         assertThat(userToken).isNotBlank();
+
+        Response profile = authSpec(userToken)
+            .get("/api/auth/me");
+        profile.then().statusCode(200)
+            .body("success", equalTo(true));
+        driverId = extractLong(profile, "data.driverId");
+        assertThat(driverId).isNotNull();
     }
 
     @Test
     @Order(3)
     @DisplayName("【Phase 2-1】创建驾驶员")
     void create_driver() {
-        driverId = authSpec(adminToken)
+        Response response = authSpec(adminToken)
             .header("Idempotency-Key", newIdempotencyKey())
             .body(TestDataFactory.validDriver())
-            .post("/api/drivers")
-            .then().statusCode(anyOf(is(200), is(201)))
-            .body("success", equalTo(true))
-            .extract().path("data.driverId");
-        assertThat(driverId).isNotNull();
+            .post("/api/drivers");
+        response.then().statusCode(anyOf(is(200), is(201)))
+            .body("success", equalTo(true));
+        Long createdDriverId = extractLong(response, "data.driverId");
+        assertThat(createdDriverId).isNotNull();
     }
 
     @Test
     @Order(4)
     @DisplayName("【Phase 2-2】创建车辆，关联驾驶员")
     void create_vehicle_linked_to_driver() {
-        vehicleId = authSpec(adminToken)
+        Response response = authSpec(adminToken)
             .header("Idempotency-Key", newIdempotencyKey())
             .body(TestDataFactory.validVehicle(driverId))
-            .post("/api/vehicles")
-            .then().statusCode(anyOf(is(200), is(201)))
-            .body("data.driverId", equalTo(driverId.intValue()))
-            .extract().path("data.vehicleId");
+            .post("/api/vehicles");
+        response.then().statusCode(anyOf(is(200), is(201)))
+            .body("data.driverId", equalTo(driverId.intValue()));
+        vehicleId = extractLong(response, "data.vehicleId");
         assertThat(vehicleId).isNotNull();
     }
 
@@ -85,13 +93,13 @@ class BusinessRegressionTest extends BaseIntegrationTest {
     @Order(5)
     @DisplayName("【Phase 3-1】创建违法记录，初始状态 Pending")
     void create_offense_with_pending_status() {
-        offenseId = authSpec(adminToken)
+        Response response = authSpec(adminToken)
             .header("Idempotency-Key", newIdempotencyKey())
             .body(TestDataFactory.validOffense(driverId, vehicleId))
-            .post("/api/offenses")
-            .then().statusCode(anyOf(is(200), is(201)))
-            .body("data.processStatus", equalTo("Pending"))
-            .extract().path("data.offenseId");
+            .post("/api/offenses");
+        response.then().statusCode(anyOf(is(200), is(201)))
+            .body("data.processStatus", equalTo("Pending"));
+        offenseId = extractLong(response, "data.offenseId");
         assertThat(offenseId).isNotNull();
     }
 
@@ -99,13 +107,13 @@ class BusinessRegressionTest extends BaseIntegrationTest {
     @Order(6)
     @DisplayName("【Phase 3-2】创建关联罚单")
     void create_fine_for_offense() {
-        fineId = authSpec(adminToken)
+        Response response = authSpec(adminToken)
             .header("Idempotency-Key", newIdempotencyKey())
             .body(TestDataFactory.validFine(offenseId))
-            .post("/api/fines")
-            .then().statusCode(anyOf(is(200), is(201)))
-            .body("data.status", equalTo("Unpaid"))
-            .extract().path("data.fineId");
+            .post("/api/fines");
+        response.then().statusCode(anyOf(is(200), is(201)))
+            .body("data.status", equalTo("Unpaid"));
+        fineId = extractLong(response, "data.fineId");
         assertThat(fineId).isNotNull();
     }
 
@@ -113,12 +121,12 @@ class BusinessRegressionTest extends BaseIntegrationTest {
     @Order(7)
     @DisplayName("【Phase 4-1】用户提交申诉")
     void user_submits_appeal() {
-        appealId = authSpec(userToken)
+        Response response = authSpec(userToken)
             .header("Idempotency-Key", newIdempotencyKey())
             .body(TestDataFactory.validAppeal(offenseId))
-            .post("/api/appeals")
-            .then().statusCode(anyOf(is(200), is(201)))
-            .extract().path("data.appealId");
+            .post("/api/appeals");
+        response.then().statusCode(anyOf(is(200), is(201)));
+        appealId = extractLong(response, "data.appealId");
         assertThat(appealId).isNotNull();
     }
 
@@ -160,13 +168,13 @@ class BusinessRegressionTest extends BaseIntegrationTest {
     @Order(10)
     @DisplayName("【Phase 5-1】创建支付记录")
     void create_payment_record() {
-        paymentId = authSpec(adminToken)
+        Response response = authSpec(adminToken)
             .header("Idempotency-Key", newIdempotencyKey())
             .body(TestDataFactory.validPayment(fineId))
-            .post("/api/payments")
-            .then().statusCode(anyOf(is(200), is(201)))
-            .body("data.idempotencyKey", nullValue())
-            .extract().path("data.paymentId");
+            .post("/api/payments");
+        response.then().statusCode(anyOf(is(200), is(201)))
+            .body("data.idempotencyKey", nullValue());
+        paymentId = extractLong(response, "data.paymentId");
         assertThat(paymentId).isNotNull();
     }
 
@@ -255,11 +263,11 @@ class BusinessRegressionTest extends BaseIntegrationTest {
     @Order(15)
     @DisplayName("【Phase 6-4】Kafka Consumer 处理后数据库状态一致（最终一致性验证）")
     void kafka_consumer_ensures_eventual_consistency() {
-        Long newOffenseId = authSpec(adminToken)
+        Response response = authSpec(adminToken)
             .header("Idempotency-Key", newIdempotencyKey())
             .body(TestDataFactory.validOffense(driverId, vehicleId))
-            .post("/api/offenses")
-            .then().extract().path("data.offenseId");
+            .post("/api/offenses");
+        Long newOffenseId = extractLong(response, "data.offenseId");
 
         assertThat(newOffenseId).isNotNull();
 

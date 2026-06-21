@@ -1,6 +1,6 @@
 package com.tutict.finalassignmentbackend.kafkaListener;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
+import com.tutict.finalassignmentbackend.common.idempotency.IdempotentKafkaMessageProcessor;
 import com.tutict.finalassignmentbackend.entity.admin.SysUser;
 import com.tutict.finalassignmentbackend.service.admin.SysUserService;
 import org.apache.kafka.clients.consumer.ConsumerRecord;
@@ -21,13 +21,14 @@ public class SysUserKafkaListener {
     private static final Logger log = Logger.getLogger(SysUserKafkaListener.class.getName());
 
     private final SysUserService sysUserService;
-    private final ObjectMapper objectMapper;
+    private final IdempotentKafkaMessageProcessor messageProcessor;
 
     // 构造器注入依赖
     @Autowired
-    public SysUserKafkaListener(SysUserService sysUserService, ObjectMapper objectMapper) {
+    public SysUserKafkaListener(SysUserService sysUserService,
+                                IdempotentKafkaMessageProcessor messageProcessor) {
         this.sysUserService = sysUserService;
-        this.objectMapper = objectMapper;
+        this.messageProcessor = messageProcessor;
     }
 
     // 监听 Kafka 消息
@@ -45,31 +46,26 @@ public class SysUserKafkaListener {
     }
 
     private void processRecord(ConsumerRecord<String, String> record, String action, Acknowledgment ack) {
-        String idempotencyKey = record.key();
-        if (idempotencyKey != null && sysUserService.shouldSkipProcessing(idempotencyKey)) {
-            log.log(Level.INFO, "Skipping duplicate SysUser message: key={0}", idempotencyKey);
-            ack.acknowledge();
-            return;
-        }
-        try {
-            SysUser entity = processMessage(record.value(), action);
-            if (idempotencyKey != null) {
-                sysUserService.markHistorySuccess(idempotencyKey, entity.getUserId());
-            }
-            ack.acknowledge();
-        } catch (Exception e) {
-            if (idempotencyKey != null) {
-                sysUserService.markHistoryFailure(idempotencyKey, e.getMessage());
-            }
-            log.log(Level.SEVERE, "SysUser message processing failed", e);
-            throw e;
-        }
+        messageProcessor.process(
+                record,
+                ack,
+                "SysUser",
+                action,
+                sysUserService::shouldSkipProcessing,
+                payload -> processMessage(payload, action),
+                (key, entity) -> {
+                    if (entity != null && entity.getUserId() != null) {
+                        sysUserService.markHistorySuccess(key, entity.getUserId());
+                    }
+                },
+                (key, ex) -> sysUserService.markHistoryFailure(key, ex.getMessage())
+        );
     }
 
     // 统一处理消息并执行业务逻辑
     private SysUser processMessage(String message, String action) {
         try {
-            SysUser entity = deserializeMessage(message);
+            SysUser entity = messageProcessor.deserialize(message, SysUser.class);
             if ("create".equals(action)) {
                 entity.setUserId(null);
                 entity = sysUserService.createSysUser(entity);
@@ -77,21 +73,13 @@ public class SysUserKafkaListener {
                 entity = sysUserService.updateSysUser(entity);
             } else {
                 log.log(Level.WARNING, "Unsupported action: {0}", action);
-                return entity;
+                return null;
             }
             log.info(String.format("SysUser %s action processed successfully", action));
             return entity;
         } catch (Exception e) {
             log.log(Level.SEVERE, String.format("Error processing %s SysUser message (payload omitted)", action), e);
             throw new RuntimeException(String.format("Failed to process %s SysUser message", action), e);
-        }
-    }
-    private SysUser deserializeMessage(String message) {
-        try {
-            return objectMapper.readValue(message, SysUser.class);
-        } catch (Exception e) {
-            log.log(Level.SEVERE, "Failed to deserialize message (payload omitted)");
-            throw new RuntimeException("Failed to deserialize message", e);
         }
     }
 }

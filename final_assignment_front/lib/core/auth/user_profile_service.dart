@@ -74,10 +74,7 @@ class UserProfileService extends GetxService {
 
     if (data == null) {
       AppLogger.error('Profile endpoint not found - may be using Cloud auth');
-      await AuthTokenStore.instance.clearJwtToken();
-      final prefs = await SharedPreferences.getInstance();
-      await prefs.remove('refreshToken');
-      await prefs.remove('refresh_token');
+      await AuthTokenStore.instance.clearAll();
       invalidate();
       NavigationHelper.offAllNamed(Routes.login);
       throw StateError('Profile endpoint not found');

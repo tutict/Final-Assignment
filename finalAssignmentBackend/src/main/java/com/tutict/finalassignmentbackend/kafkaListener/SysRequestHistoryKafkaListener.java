@@ -1,6 +1,6 @@
 package com.tutict.finalassignmentbackend.kafkaListener;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
+import com.tutict.finalassignmentbackend.common.idempotency.IdempotentKafkaMessageProcessor;
 import com.tutict.finalassignmentbackend.entity.system.SysRequestHistory;
 import com.tutict.finalassignmentbackend.service.system.SysRequestHistoryService;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -15,93 +15,83 @@ import java.util.logging.Level;
 import java.util.logging.Logger;
 
 @Service
-// Kafka 监听器，处理消息
 public class SysRequestHistoryKafkaListener {
 
     private static final Logger log = Logger.getLogger(SysRequestHistoryKafkaListener.class.getName());
 
     private final SysRequestHistoryService sysRequestHistoryService;
-    private final ObjectMapper objectMapper;
+    private final IdempotentKafkaMessageProcessor messageProcessor;
 
-    // 构造器注入依赖
     @Autowired
     public SysRequestHistoryKafkaListener(SysRequestHistoryService sysRequestHistoryService,
-                                          ObjectMapper objectMapper) {
+                                          IdempotentKafkaMessageProcessor messageProcessor) {
         this.sysRequestHistoryService = sysRequestHistoryService;
-        this.objectMapper = objectMapper;
+        this.messageProcessor = messageProcessor;
     }
 
-    // 监听 Kafka 消息
     @KafkaListener(topics = "${kafka.topics.sys-request-history.create:sys_request_history_create}", groupId = "${kafka.groups.sys-request-history:sysRequestHistoryGroup}", concurrency = "3")
     public void onSysRequestHistoryCreateReceived(@Header(value = KafkaHeaders.RECEIVED_KEY, required = false) byte[] rawKey,
                                                   @Payload String message,
-                                      Acknowledgment ack) {
+                                                  Acknowledgment ack) {
         log.log(Level.INFO, "Received Kafka message for sys request history create (payload omitted)");
-        processMessage(asKey(rawKey), message, "create");
-        ack.acknowledge();
+        processMessage(asKey(rawKey), message, "create", ack);
     }
 
-    // 监听 Kafka 消息
     @KafkaListener(topics = "${kafka.topics.sys-request-history.update:sys_request_history_update}", groupId = "${kafka.groups.sys-request-history:sysRequestHistoryGroup}", concurrency = "3")
     public void onSysRequestHistoryUpdateReceived(@Header(value = KafkaHeaders.RECEIVED_KEY, required = false) byte[] rawKey,
                                                   @Payload String message,
-                                      Acknowledgment ack) {
+                                                  Acknowledgment ack) {
         log.log(Level.INFO, "Received Kafka message for sys request history update (payload omitted)");
-        processMessage(asKey(rawKey), message, "update");
-        ack.acknowledge();
+        processMessage(asKey(rawKey), message, "update", ack);
     }
 
-    // 统一处理消息并执行业务逻辑
-    private void processMessage(String idempotencyKey, String message, String action) {
+    private void processMessage(String idempotencyKey, String message, String action, Acknowledgment ack) {
         if (isBlank(idempotencyKey)) {
             log.warning("Received SysRequestHistory event without idempotency key, skipping");
+            acknowledge(ack);
             return;
         }
-        try {
-            SysRequestHistory payload = deserializeMessage(message);
-            if (payload == null) {
-                log.warning("Received SysRequestHistory event with empty payload, skipping");
-                return;
-            }
-            if (sysRequestHistoryService.shouldSkipProcessing(idempotencyKey)) {
-                log.log(Level.INFO, "Skipping duplicate SysRequestHistory event (key={0}, action={1})",
-                        new Object[]{idempotencyKey, action});
-                return;
-            }
-            SysRequestHistory result;
-            if ("create".equalsIgnoreCase(action)) {
-                payload.setId(null);
-                result = sysRequestHistoryService.createSysRequestHistory(payload);
-            } else if ("update".equalsIgnoreCase(action)) {
-                result = sysRequestHistoryService.updateSysRequestHistory(payload);
-            } else {
-                log.log(Level.WARNING, "Unsupported SysRequestHistory action: {0}", action);
-                return;
-            }
-            sysRequestHistoryService.markHistorySuccess(idempotencyKey, result.getId());
-            log.info(String.format("SysRequestHistory %s action processed successfully (key=%s)", action, idempotencyKey));
-        } catch (Exception ex) {
-            sysRequestHistoryService.markHistoryFailure(idempotencyKey, ex.getMessage());
-            log.log(Level.SEVERE,
-                    String.format("Error processing %s SysRequestHistory message (key=%s, payload omitted)", action, idempotencyKey),
-                    ex);
-            throw ex;
-        }
+        messageProcessor.process(
+                idempotencyKey,
+                message,
+                ack,
+                "SysRequestHistory",
+                action,
+                sysRequestHistoryService::shouldSkipProcessing,
+                payload -> processPayload(payload, action),
+                (key, result) -> {
+                    if (result != null && result.getId() != null) {
+                        sysRequestHistoryService.markHistorySuccess(key, result.getId());
+                    }
+                },
+                (key, ex) -> sysRequestHistoryService.markHistoryFailure(key, ex.getMessage())
+        );
     }
-    private SysRequestHistory deserializeMessage(String message) {
-        try {
-            return objectMapper.readValue(message, SysRequestHistory.class);
-        } catch (Exception ex) {
-            log.log(Level.SEVERE, "Failed to deserialize Kafka message (payload omitted)", ex);
-            throw new IllegalArgumentException("Failed to deserialize Kafka message", ex);
+
+    private SysRequestHistory processPayload(String message, String action) {
+        SysRequestHistory payload = messageProcessor.deserialize(message, SysRequestHistory.class);
+        if ("create".equalsIgnoreCase(action)) {
+            payload.setId(null);
+            return sysRequestHistoryService.createSysRequestHistory(payload);
         }
+        if ("update".equalsIgnoreCase(action)) {
+            return sysRequestHistoryService.updateSysRequestHistory(payload);
+        }
+        log.log(Level.WARNING, "Unsupported SysRequestHistory action: {0}", action);
+        return null;
     }
+
     private String asKey(byte[] rawKey) {
         return rawKey == null ? null : new String(rawKey);
     }
 
-    // 判空
     private boolean isBlank(String value) {
         return value == null || value.trim().isEmpty();
+    }
+
+    private void acknowledge(Acknowledgment acknowledgment) {
+        if (acknowledgment != null) {
+            acknowledgment.acknowledge();
+        }
     }
 }

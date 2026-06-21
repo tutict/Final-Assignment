@@ -122,19 +122,19 @@ class _SidebarSettingsSheetState extends State<_SidebarSettingsSheet> {
   static final List<_ThemePreset> _presets = [
     _ThemePreset(
       label: 'Basic',
-      description: '稳重蓝色',
+      description: '政务蓝灰',
       lightColor: AppTheme.basicLight.colorScheme.primary,
       darkColor: AppTheme.basicDark.colorScheme.primary,
     ),
     _ThemePreset(
       label: 'Ionic',
-      description: '清爽青色',
+      description: '清爽青蓝',
       lightColor: AppTheme.ionicLightTheme.colorScheme.primary,
       darkColor: AppTheme.ionicDarkTheme.colorScheme.primary,
     ),
     _ThemePreset(
       label: 'Material',
-      description: '醒目洋红',
+      description: '强调洋红',
       lightColor: AppTheme.materialLightTheme.colorScheme.primary,
       darkColor: AppTheme.materialDarkTheme.colorScheme.primary,
     ),
@@ -220,7 +220,7 @@ class _SidebarSettingsSheetState extends State<_SidebarSettingsSheet> {
                         ),
                       ),
                       Text(
-                        '调整显示主题并清理本地缓存',
+                        '调整界面主题，清理本地图片和网络缓存',
                         style: theme.textTheme.bodySmall?.copyWith(
                           color: scheme.onSurfaceVariant,
                           letterSpacing: 0,

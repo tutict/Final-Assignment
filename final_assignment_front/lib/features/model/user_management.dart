@@ -191,6 +191,7 @@ class UserManagement {
       'password': password,
       'email': email,
       'phoneNumber': contactNumber,
+      'contactNumber': contactNumber,
       'realName': realName,
       'gender': gender,
       'department': department,
@@ -215,6 +216,8 @@ class UserManagement {
       employeeNumber: response.employeeNumber,
       status: response.status,
       createdTime: response.createTime,
+      modifiedTime: response.updatedTime,
+      remarks: response.remarks,
     );
   }
 

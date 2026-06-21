@@ -1,6 +1,6 @@
 package com.tutict.finalassignmentbackend.kafkaListener;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
+import com.tutict.finalassignmentbackend.common.idempotency.IdempotentKafkaMessageProcessor;
 import com.tutict.finalassignmentbackend.entity.payment.PaymentRecord;
 import com.tutict.finalassignmentbackend.payment.governance.PaymentGovernanceClassifier;
 import com.tutict.finalassignmentbackend.payment.governance.PaymentGovernanceLogFactory;
@@ -18,57 +18,46 @@ import java.util.logging.Level;
 import java.util.logging.Logger;
 
 @Service
-// Kafka 监听器，处理消息
 public class PaymentRecordKafkaListener {
 
     private static final Logger log = Logger.getLogger(PaymentRecordKafkaListener.class.getName());
 
     private final PaymentRecordService paymentRecordService;
-    private final ObjectMapper objectMapper;
+    private final IdempotentKafkaMessageProcessor messageProcessor;
     private final PaymentGovernanceClassifier paymentGovernanceClassifier;
 
-    // 构造器注入依赖
     @Autowired
     public PaymentRecordKafkaListener(PaymentRecordService paymentRecordService,
-                                      ObjectMapper objectMapper) {
+                                      IdempotentKafkaMessageProcessor messageProcessor) {
         this.paymentRecordService = paymentRecordService;
-        this.objectMapper = objectMapper;
+        this.messageProcessor = messageProcessor;
         this.paymentGovernanceClassifier = new PaymentGovernanceClassifier();
     }
 
-    // 监听 Kafka 消息
     @KafkaListener(topics = "${kafka.topics.payment.create:payment_record_create}", groupId = "${kafka.groups.payment:paymentRecordGroup}", concurrency = "3")
     public void onPaymentRecordCreate(@Header(value = KafkaHeaders.RECEIVED_KEY, required = false) byte[] rawKey,
                                       @Payload String message,
                                       Acknowledgment ack) {
         log.log(Level.INFO, "Received Kafka message for PaymentRecord create (payload omitted)");
-        processMessage(asKey(rawKey), message, "create");
-        ack.acknowledge();
+        processMessage(asKey(rawKey), message, "create", ack);
     }
 
-    // 监听 Kafka 消息
     @KafkaListener(topics = "${kafka.topics.payment.update:payment_record_update}", groupId = "${kafka.groups.payment:paymentRecordGroup}", concurrency = "3")
     public void onPaymentRecordUpdate(@Header(value = KafkaHeaders.RECEIVED_KEY, required = false) byte[] rawKey,
                                       @Payload String message,
                                       Acknowledgment ack) {
         log.log(Level.INFO, "Received Kafka message for PaymentRecord update (payload omitted)");
-        processMessage(asKey(rawKey), message, "update");
-        ack.acknowledge();
+        processMessage(asKey(rawKey), message, "update", ack);
     }
 
-    // 统一处理消息并执行业务逻辑
-    private void processMessage(String idempotencyKey, String message, String action) {
+    private void processMessage(String idempotencyKey, String message, String action, Acknowledgment ack) {
         if (isBlank(idempotencyKey)) {
             log.warning("Received PaymentRecord event without idempotency key, skipping");
+            acknowledge(ack);
             return;
         }
 
-        PaymentRecord payload = deserializeMessage(message);
-        if (payload == null) {
-            log.warning("Received PaymentRecord event with empty payload, skipping");
-            return;
-        }
-
+        PaymentRecord payload = messageProcessor.deserialize(message, PaymentRecord.class);
         try {
             if (paymentRecordService.shouldSkipProcessing(idempotencyKey)) {
                 logPaymentGovernance(PaymentGovernanceLogFactory.noOpSuppressed(
@@ -78,27 +67,9 @@ public class PaymentRecordKafkaListener {
                         action,
                         idempotencyKey
                 ));
+                acknowledge(ack);
                 return;
             }
-            logPaymentGovernance(PaymentGovernanceLogFactory.shadowClassification(
-                    PaymentGovernanceSource.KAFKA,
-                    paymentGovernanceClassifier.classifyKafkaMutation(action, false),
-                    payload,
-                    action
-            ));
-
-            PaymentRecord result;
-            if ("create".equalsIgnoreCase(action)) {
-                payload.setPaymentId(null);
-                result = paymentRecordService.createPaymentRecord(payload);
-            } else if ("update".equalsIgnoreCase(action)) {
-                result = paymentRecordService.updatePaymentRecord(payload);
-            } else {
-                log.log(Level.WARNING, "Unsupported PaymentRecord action: {0}", action);
-                return;
-            }
-
-            paymentRecordService.markHistorySuccess(idempotencyKey, result.getPaymentId());
         } catch (Exception ex) {
             paymentRecordService.markHistoryFailure(idempotencyKey, ex.getMessage());
             log.log(Level.SEVERE,
@@ -106,22 +77,55 @@ public class PaymentRecordKafkaListener {
                     ex);
             throw ex;
         }
+
+        messageProcessor.process(
+                idempotencyKey,
+                message,
+                ack,
+                "PaymentRecord",
+                action,
+                key -> false,
+                ignored -> processPayload(payload, action),
+                (key, result) -> {
+                    if (result != null && result.getPaymentId() != null) {
+                        paymentRecordService.markHistorySuccess(key, result.getPaymentId());
+                    }
+                },
+                (key, ex) -> paymentRecordService.markHistoryFailure(key, ex.getMessage())
+        );
     }
-    private PaymentRecord deserializeMessage(String message) {
-        try {
-            return objectMapper.readValue(message, PaymentRecord.class);
-        } catch (Exception ex) {
-            log.log(Level.SEVERE, "Failed to deserialize Kafka message (payload omitted)", ex);
-            throw new IllegalArgumentException("Failed to deserialize Kafka message", ex);
+
+    private PaymentRecord processPayload(PaymentRecord payload, String action) {
+        logPaymentGovernance(PaymentGovernanceLogFactory.shadowClassification(
+                PaymentGovernanceSource.KAFKA,
+                paymentGovernanceClassifier.classifyKafkaMutation(action, false),
+                payload,
+                action
+        ));
+
+        if ("create".equalsIgnoreCase(action)) {
+            payload.setPaymentId(null);
+            return paymentRecordService.createPaymentRecord(payload);
         }
+        if ("update".equalsIgnoreCase(action)) {
+            return paymentRecordService.updatePaymentRecord(payload);
+        }
+        log.log(Level.WARNING, "Unsupported PaymentRecord action: {0}", action);
+        return null;
     }
+
     private String asKey(byte[] rawKey) {
         return rawKey == null ? null : new String(rawKey);
     }
 
-    // 判空
     private boolean isBlank(String value) {
         return value == null || value.trim().isEmpty();
+    }
+
+    private void acknowledge(Acknowledgment acknowledgment) {
+        if (acknowledgment != null) {
+            acknowledgment.acknowledge();
+        }
     }
 
     private void logPaymentGovernance(String payload) {

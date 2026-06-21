@@ -10,6 +10,7 @@ import com.tutict.finalassignmentbackend.dto.response.PageResponse;
 import com.tutict.finalassignmentbackend.dto.response.UserProfileResponse;
 import com.tutict.finalassignmentbackend.entity.offense.OffenseRecord;
 import com.tutict.finalassignmentbackend.service.auth.AuthWsService;
+import com.tutict.finalassignmentbackend.service.business.BusinessRecordViewService;
 import com.tutict.finalassignmentbackend.service.offense.OffenseDetailService;
 import com.tutict.finalassignmentbackend.service.offense.OffenseRecordService;
 import io.swagger.v3.oas.annotations.Operation;
@@ -56,18 +57,21 @@ public class OffenseInformationController {
     private final AuthWsService authWsService;
     private final OffenseRecordService offenseRecordService;
     private final OffenseDetailService offenseDetailService;
+    private final BusinessRecordViewService businessRecordViewService;
 
     @Autowired
     public OffenseInformationController(AuthWsService authWsService,
                                         OffenseRecordService offenseRecordService,
-                                        OffenseDetailService offenseDetailService) {
+                                        OffenseDetailService offenseDetailService,
+                                        BusinessRecordViewService businessRecordViewService) {
         this.authWsService = authWsService;
         this.offenseRecordService = offenseRecordService;
         this.offenseDetailService = offenseDetailService;
+        this.businessRecordViewService = businessRecordViewService;
     }
 
     public OffenseInformationController(OffenseRecordService offenseRecordService) {
-        this(null, offenseRecordService, null);
+        this(null, offenseRecordService, null, null);
     }
 
     @PostMapping
@@ -146,7 +150,7 @@ public class OffenseInformationController {
             if (record == null) {
                 throw new com.tutict.finalassignmentbackend.exception.EntityNotFoundException("Offense not found: " + offenseId);
             }
-            return ResponseEntity.ok(ApiResponse.ok(record));
+            return ResponseEntity.ok(ApiResponse.ok(enrich(record)));
         } catch (Exception ex) {
             LOG.log(Level.WARNING, "Get offense failed", ex);
             if (ex instanceof RuntimeException) {
@@ -174,7 +178,7 @@ public class OffenseInformationController {
             int from = Math.min(normalizedPage * normalizedSize, records.size());
             int to = Math.min(from + normalizedSize, records.size());
             return ResponseEntity.ok(ApiResponse.ok(PageResponse.of(
-                    records.subList(from, to), records.size(), normalizedPage, normalizedSize)));
+                    enrich(records.subList(from, to)), records.size(), normalizedPage, normalizedSize)));
         } catch (Exception ex) {
             LOG.log(Level.WARNING, "List offenses failed", ex);
             if (ex instanceof RuntimeException) {
@@ -195,7 +199,7 @@ public class OffenseInformationController {
             if (!canAccessDriver(authentication, driverId)) {
                 throw new org.springframework.security.access.AccessDeniedException("Forbidden");
             }
-            return ResponseEntity.ok(ApiResponse.ok(offenseRecordService.findByDriverId(driverId, page, size)));
+            return ResponseEntity.ok(ApiResponse.ok(enrich(offenseRecordService.findByDriverId(driverId, page, size))));
         } catch (Exception ex) {
             LOG.log(Level.WARNING, "List offenses by driver failed", ex);
             if (ex instanceof RuntimeException) {
@@ -211,7 +215,7 @@ public class OffenseInformationController {
                                                          @RequestParam(defaultValue = "1") int page,
                                                          @RequestParam(defaultValue = "20") int size) {
         try {
-            return ResponseEntity.ok(ApiResponse.ok(offenseRecordService.findByVehicleId(vehicleId, page, size)));
+            return ResponseEntity.ok(ApiResponse.ok(enrich(offenseRecordService.findByVehicleId(vehicleId, page, size))));
         } catch (Exception ex) {
             LOG.log(Level.WARNING, "List offenses by vehicle failed", ex);
             if (ex instanceof RuntimeException) {
@@ -227,7 +231,7 @@ public class OffenseInformationController {
                                                             @RequestParam(defaultValue = "1") int page,
                                                             @RequestParam(defaultValue = "20") int size) {
         try {
-            return ResponseEntity.ok(ApiResponse.ok(offenseRecordService.searchByOffenseCode(offenseCode, page, size)));
+            return ResponseEntity.ok(ApiResponse.ok(enrich(offenseRecordService.searchByOffenseCode(offenseCode, page, size))));
         } catch (Exception ex) {
             LOG.log(Level.WARNING, "Search offense by code failed", ex);
             if (ex instanceof RuntimeException) {
@@ -243,7 +247,7 @@ public class OffenseInformationController {
                                                               @RequestParam(defaultValue = "1") int page,
                                                               @RequestParam(defaultValue = "20") int size) {
         try {
-            return ResponseEntity.ok(ApiResponse.ok(offenseRecordService.searchByProcessStatus(status, page, size)));
+            return ResponseEntity.ok(ApiResponse.ok(enrich(offenseRecordService.searchByProcessStatus(status, page, size))));
         } catch (Exception ex) {
             LOG.log(Level.WARNING, "Search offense by status failed", ex);
             if (ex instanceof RuntimeException) {
@@ -260,7 +264,7 @@ public class OffenseInformationController {
                                                                  @RequestParam(defaultValue = "1") int page,
                                                                  @RequestParam(defaultValue = "20") int size) {
         try {
-            return ResponseEntity.ok(ApiResponse.ok(offenseRecordService.searchByOffenseTimeRange(startTime, endTime, page, size)));
+            return ResponseEntity.ok(ApiResponse.ok(enrich(offenseRecordService.searchByOffenseTimeRange(startTime, endTime, page, size))));
         } catch (Exception ex) {
             LOG.log(Level.WARNING, "Search offense by time range failed", ex);
             if (ex instanceof RuntimeException) {
@@ -276,7 +280,7 @@ public class OffenseInformationController {
                                                               @RequestParam(defaultValue = "1") int page,
                                                               @RequestParam(defaultValue = "20") int size) {
         try {
-            return ResponseEntity.ok(ApiResponse.ok(offenseRecordService.searchByOffenseNumber(offenseNumber, page, size)));
+            return ResponseEntity.ok(ApiResponse.ok(enrich(offenseRecordService.searchByOffenseNumber(offenseNumber, page, size))));
         } catch (Exception ex) {
             LOG.log(Level.WARNING, "Search offense by number failed", ex);
             if (ex instanceof RuntimeException) {
@@ -292,7 +296,7 @@ public class OffenseInformationController {
                                                                  @RequestParam(defaultValue = "1") int page,
                                                                  @RequestParam(defaultValue = "20") int size) {
         try {
-            return ResponseEntity.ok(ApiResponse.ok(offenseRecordService.searchByOffenseLocation(offenseLocation, page, size)));
+            return ResponseEntity.ok(ApiResponse.ok(enrich(offenseRecordService.searchByOffenseLocation(offenseLocation, page, size))));
         } catch (Exception ex) {
             LOG.log(Level.WARNING, "Search offense by location failed", ex);
             if (ex instanceof RuntimeException) {
@@ -308,7 +312,7 @@ public class OffenseInformationController {
                                                                  @RequestParam(defaultValue = "1") int page,
                                                                  @RequestParam(defaultValue = "20") int size) {
         try {
-            return ResponseEntity.ok(ApiResponse.ok(offenseRecordService.searchByOffenseProvince(offenseProvince, page, size)));
+            return ResponseEntity.ok(ApiResponse.ok(enrich(offenseRecordService.searchByOffenseProvince(offenseProvince, page, size))));
         } catch (Exception ex) {
             LOG.log(Level.WARNING, "Search offense by province failed", ex);
             if (ex instanceof RuntimeException) {
@@ -324,7 +328,7 @@ public class OffenseInformationController {
                                                             @RequestParam(defaultValue = "1") int page,
                                                             @RequestParam(defaultValue = "20") int size) {
         try {
-            return ResponseEntity.ok(ApiResponse.ok(offenseRecordService.searchByOffenseCity(offenseCity, page, size)));
+            return ResponseEntity.ok(ApiResponse.ok(enrich(offenseRecordService.searchByOffenseCity(offenseCity, page, size))));
         } catch (Exception ex) {
             LOG.log(Level.WARNING, "Search offense by city failed", ex);
             if (ex instanceof RuntimeException) {
@@ -340,7 +344,7 @@ public class OffenseInformationController {
                                                                     @RequestParam(defaultValue = "1") int page,
                                                                     @RequestParam(defaultValue = "20") int size) {
         try {
-            return ResponseEntity.ok(ApiResponse.ok(offenseRecordService.searchByNotificationStatus(notificationStatus, page, size)));
+            return ResponseEntity.ok(ApiResponse.ok(enrich(offenseRecordService.searchByNotificationStatus(notificationStatus, page, size))));
         } catch (Exception ex) {
             LOG.log(Level.WARNING, "Search offense by notification status failed", ex);
             if (ex instanceof RuntimeException) {
@@ -356,7 +360,7 @@ public class OffenseInformationController {
                                                               @RequestParam(defaultValue = "1") int page,
                                                               @RequestParam(defaultValue = "20") int size) {
         try {
-            return ResponseEntity.ok(ApiResponse.ok(offenseRecordService.searchByEnforcementAgency(enforcementAgency, page, size)));
+            return ResponseEntity.ok(ApiResponse.ok(enrich(offenseRecordService.searchByEnforcementAgency(enforcementAgency, page, size))));
         } catch (Exception ex) {
             LOG.log(Level.WARNING, "Search offense by enforcement agency failed", ex);
             if (ex instanceof RuntimeException) {
@@ -373,7 +377,7 @@ public class OffenseInformationController {
                                                                  @RequestParam(defaultValue = "1") int page,
                                                                  @RequestParam(defaultValue = "20") int size) {
         try {
-            return ResponseEntity.ok(ApiResponse.ok(offenseRecordService.searchByFineAmountRange(minAmount, maxAmount, page, size)));
+            return ResponseEntity.ok(ApiResponse.ok(enrich(offenseRecordService.searchByFineAmountRange(minAmount, maxAmount, page, size))));
         } catch (Exception ex) {
             LOG.log(Level.WARNING, "Search offense by fine amount range failed", ex);
             if (ex instanceof RuntimeException) {
@@ -385,6 +389,14 @@ public class OffenseInformationController {
 
     private boolean hasKey(String value) {
         return value != null && !value.isBlank();
+    }
+
+    private OffenseRecord enrich(OffenseRecord record) {
+        return businessRecordViewService == null ? record : businessRecordViewService.enrichOffense(record);
+    }
+
+    private List<OffenseRecord> enrich(List<OffenseRecord> records) {
+        return businessRecordViewService == null ? records : businessRecordViewService.enrichOffenses(records);
     }
 
     private boolean canAccessDriver(Authentication authentication, Long driverId) {

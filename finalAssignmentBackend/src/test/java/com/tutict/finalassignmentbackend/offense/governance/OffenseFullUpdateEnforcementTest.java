@@ -1,6 +1,7 @@
 package com.tutict.finalassignmentbackend.offense.governance;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.tutict.finalassignmentbackend.common.idempotency.IdempotentKafkaMessageProcessor;
 import com.tutict.finalassignmentbackend.config.statemachine.states.OffenseProcessState;
 import com.tutict.finalassignmentbackend.entity.offense.OffenseRecord;
 import com.tutict.finalassignmentbackend.kafkaListener.OffenseRecordKafkaListener;
@@ -12,6 +13,7 @@ import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
 import org.springframework.kafka.core.KafkaTemplate;
+import org.springframework.kafka.support.Acknowledgment;
 import org.springframework.transaction.support.TransactionSynchronization;
 import org.springframework.transaction.support.TransactionSynchronizationManager;
 
@@ -148,16 +150,17 @@ class OffenseFullUpdateEnforcementTest {
     void staleKafkaListenerSuppressionDoesNotMarkSuccessOrFailure() throws Exception {
         OffenseRecordService service = mock(OffenseRecordService.class);
         ObjectMapper objectMapper = mock(ObjectMapper.class);
-        OffenseRecordKafkaListener listener = new OffenseRecordKafkaListener(service, objectMapper);
+        IdempotentKafkaMessageProcessor messageProcessor = new IdempotentKafkaMessageProcessor(objectMapper);
+        OffenseRecordKafkaListener listener = new OffenseRecordKafkaListener(service, messageProcessor);
         OffenseRecord payload = baseRecord(50L);
         when(objectMapper.readValue("{}", OffenseRecord.class)).thenReturn(payload);
         when(service.shouldSkipProcessing("stale-key")).thenReturn(false);
         when(service.updateKafkaFullUpdate(payload)).thenThrow(new StaleFullUpdateRejectedException(50L));
 
         Method method = OffenseRecordKafkaListener.class.getDeclaredMethod(
-                "processMessage", String.class, String.class, String.class);
+                "processMessage", String.class, String.class, String.class, Acknowledgment.class);
         method.setAccessible(true);
-        method.invoke(listener, "stale-key", "{}", "update");
+        method.invoke(listener, "stale-key", "{}", "update", null);
 
         verify(service).updateKafkaFullUpdate(payload);
         verify(service, never()).markHistorySuccess(any(), any());

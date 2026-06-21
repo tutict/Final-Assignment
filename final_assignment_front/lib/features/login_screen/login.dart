@@ -11,7 +11,7 @@ import 'package:final_assignment_front/features/api/auth_controller_api.dart';
 import 'package:final_assignment_front/features/model/login_request.dart';
 import 'package:final_assignment_front/features/model/register_request.dart';
 import 'package:final_assignment_front/shared/utils/navigation_helper.dart';
-import 'package:final_assignment_front/shared_components/local_captcha_main.dart';
+import 'package:final_assignment_front/utils/components/local_captcha_main.dart';
 import 'package:final_assignment_front/utils/services/auth_token_store.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
@@ -119,10 +119,7 @@ class _LoginScreenState extends State<LoginScreen> {
     await AuthTokenStore.instance.setJwtToken(accessToken);
 
     final refreshToken = _stringValue(result['refreshToken']);
-    if (refreshToken != null) {
-      await prefs.setString('refreshToken', refreshToken);
-      await prefs.setString('refresh_token', refreshToken);
-    }
+    await AuthTokenStore.instance.setRefreshToken(refreshToken);
 
     final data = result['success'] == true && result['data'] is Map
         ? Map<String, dynamic>.from(result['data'] as Map)
@@ -638,7 +635,7 @@ class _LoginScreenState extends State<LoginScreen> {
     return DecoratedBox(
       decoration: BoxDecoration(
         color: colorScheme.surface.withValues(alpha: _isDarkMode ? 0.92 : 0.96),
-        borderRadius: BorderRadius.circular(28),
+        borderRadius: BorderRadius.circular(16),
         border: Border.all(
           color: colorScheme.outlineVariant.withValues(alpha: 0.55),
         ),

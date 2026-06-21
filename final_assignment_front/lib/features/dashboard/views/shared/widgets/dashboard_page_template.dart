@@ -129,30 +129,175 @@ class DashboardPageTemplate extends StatelessWidget {
   Widget _resolveContent() {
     if (isLoading) {
       return loadingWidget ??
-          Center(
-            child: CircularProgressIndicator(
-              valueColor:
-                  AlwaysStoppedAnimation<Color>(theme.colorScheme.primary),
+          _StatusFrame(
+            minHeightFactor: 0.52,
+            child: _PageStatusSurface(
+              icon: Icons.sync_rounded,
+              title: '正在加载',
+              detail: '正在同步页面数据，请稍候。',
+              progress: true,
+              theme: theme,
             ),
           );
     }
 
     if (errorMessage != null && errorMessage!.trim().isNotEmpty) {
-      return Center(
-        child: Text(
-          errorMessage!.trim(),
-          style: theme.textTheme.bodyLarge?.copyWith(
-            color: theme.colorScheme.error,
-          ),
-          textAlign: TextAlign.center,
+      return _StatusFrame(
+        minHeightFactor: 0.52,
+        child: _PageStatusSurface(
+          icon: Icons.error_outline_rounded,
+          title: '操作未完成',
+          detail: errorMessage!.trim(),
+          theme: theme,
+          severity: _PageStatusSeverity.error,
+          action: onRefresh == null
+              ? null
+              : OutlinedButton.icon(
+                  onPressed: () => onRefresh!(),
+                  icon: const Icon(Icons.refresh_rounded),
+                  label: const Text('重试'),
+                ),
         ),
       );
     }
 
-    if (showEmptyState && emptyState != null) {
-      return emptyState!;
+    if (showEmptyState) {
+      return emptyState ??
+          _StatusFrame(
+            minHeightFactor: 0.46,
+            child: _PageStatusSurface(
+              icon: Icons.inbox_outlined,
+              title: '暂无数据',
+              detail: '当前筛选条件下没有可显示的记录。',
+              theme: theme,
+              severity: _PageStatusSeverity.empty,
+            ),
+          );
     }
 
     return body;
+  }
+}
+
+class _StatusFrame extends StatelessWidget {
+  const _StatusFrame({
+    required this.child,
+    this.minHeightFactor = 0.5,
+  });
+
+  final Widget child;
+  final double minHeightFactor;
+
+  @override
+  Widget build(BuildContext context) {
+    final height = MediaQuery.sizeOf(context).height * minHeightFactor;
+    final constrainedHeight = height.clamp(260.0, 520.0).toDouble();
+    return SizedBox(
+      width: double.infinity,
+      height: constrainedHeight,
+      child: Center(child: child),
+    );
+  }
+}
+
+enum _PageStatusSeverity { neutral, error, empty }
+
+class _PageStatusSurface extends StatelessWidget {
+  const _PageStatusSurface({
+    required this.icon,
+    required this.title,
+    required this.detail,
+    required this.theme,
+    this.progress = false,
+    this.severity = _PageStatusSeverity.neutral,
+    this.action,
+  });
+
+  final IconData icon;
+  final String title;
+  final String detail;
+  final ThemeData theme;
+  final bool progress;
+  final _PageStatusSeverity severity;
+  final Widget? action;
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = theme.colorScheme;
+    final dark = theme.brightness == Brightness.dark;
+    final accent = switch (severity) {
+      _PageStatusSeverity.error => scheme.error,
+      _PageStatusSeverity.empty => scheme.onSurfaceVariant,
+      _PageStatusSeverity.neutral => scheme.primary,
+    };
+
+    return ConstrainedBox(
+      constraints: const BoxConstraints(maxWidth: 420),
+      child: Container(
+        padding: const EdgeInsets.all(22),
+        decoration: BoxDecoration(
+          color: scheme.surface.withValues(alpha: dark ? 0.92 : 0.98),
+          borderRadius: BorderRadius.circular(8),
+          border: Border.all(
+            color: scheme.outlineVariant.withValues(alpha: dark ? 0.38 : 0.55),
+          ),
+          boxShadow: [
+            BoxShadow(
+              color: theme.shadowColor.withValues(alpha: dark ? 0.18 : 0.08),
+              blurRadius: 18,
+              offset: const Offset(0, 10),
+            ),
+          ],
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(
+              width: 50,
+              height: 50,
+              decoration: BoxDecoration(
+                color: accent.withValues(alpha: dark ? 0.20 : 0.10),
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: progress
+                  ? Padding(
+                      padding: const EdgeInsets.all(13),
+                      child: CircularProgressIndicator(
+                        strokeWidth: 2.6,
+                        color: accent,
+                      ),
+                    )
+                  : Icon(icon, color: accent, size: 26),
+            ),
+            const SizedBox(height: 16),
+            Text(
+              title,
+              textAlign: TextAlign.center,
+              style: theme.textTheme.titleMedium?.copyWith(
+                color: scheme.onSurface,
+                fontWeight: FontWeight.w800,
+                letterSpacing: 0,
+              ),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              detail,
+              textAlign: TextAlign.center,
+              style: theme.textTheme.bodyMedium?.copyWith(
+                color: severity == _PageStatusSeverity.error
+                    ? scheme.error
+                    : scheme.onSurfaceVariant,
+                height: 1.45,
+                letterSpacing: 0,
+              ),
+            ),
+            if (action != null) ...[
+              const SizedBox(height: 16),
+              action!,
+            ],
+          ],
+        ),
+      ),
+    );
   }
 }

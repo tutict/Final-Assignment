@@ -45,6 +45,13 @@ class VehicleInformation {
   /// 不是车辆当前状态；当前状态以 [status] 为准，避免与 [currentStatus] 混淆。
   /// 对应后端字段：currentStatus
   final String? plateStatusSnapshot;
+  final String? driverName;
+  final String? driverLicenseNumber;
+  final String? driverIdCardNumber;
+  final String? driverContactNumber;
+  final int? offenseCount;
+  final int? unpaidFineCount;
+  final int? appealCount;
 
   const VehicleInformation({
     this.vehicleId,
@@ -74,6 +81,13 @@ class VehicleInformation {
     this.deletedAt,
     this.remarks,
     this.plateStatusSnapshot,
+    this.driverName,
+    this.driverLicenseNumber,
+    this.driverIdCardNumber,
+    this.driverContactNumber,
+    this.offenseCount,
+    this.unpaidFineCount,
+    this.appealCount,
   });
 
   /// 兼容旧版字段：idCardNumber -> ownerIdCard
@@ -115,6 +129,13 @@ class VehicleInformation {
     DateTime? deletedAt,
     String? remarks,
     String? plateStatusSnapshot,
+    String? driverName,
+    String? driverLicenseNumber,
+    String? driverIdCardNumber,
+    String? driverContactNumber,
+    int? offenseCount,
+    int? unpaidFineCount,
+    int? appealCount,
   }) {
     return VehicleInformation(
       vehicleId: vehicleId ?? this.vehicleId,
@@ -145,6 +166,13 @@ class VehicleInformation {
       deletedAt: deletedAt ?? this.deletedAt,
       remarks: remarks ?? this.remarks,
       plateStatusSnapshot: plateStatusSnapshot ?? this.plateStatusSnapshot,
+      driverName: driverName ?? this.driverName,
+      driverLicenseNumber: driverLicenseNumber ?? this.driverLicenseNumber,
+      driverIdCardNumber: driverIdCardNumber ?? this.driverIdCardNumber,
+      driverContactNumber: driverContactNumber ?? this.driverContactNumber,
+      offenseCount: offenseCount ?? this.offenseCount,
+      unpaidFineCount: unpaidFineCount ?? this.unpaidFineCount,
+      appealCount: appealCount ?? this.appealCount,
     );
   }
 
@@ -177,6 +205,13 @@ class VehicleInformation {
       deletedAt: _parseDateTime(json['deletedAt']),
       remarks: json['remarks'],
       plateStatusSnapshot: json['currentStatus'],
+      driverName: json['driverName'],
+      driverLicenseNumber: json['driverLicenseNumber'],
+      driverIdCardNumber: json['driverIdCardNumber'],
+      driverContactNumber: json['driverContactNumber'],
+      offenseCount: _toInt(json['offenseCount']),
+      unpaidFineCount: _toInt(json['unpaidFineCount']),
+      appealCount: _toInt(json['appealCount']),
     );
   }
 
@@ -219,6 +254,13 @@ class VehicleInformation {
       'updatedBy': updatedBy,
       'deletedAt': deletedAt?.toIso8601String(),
       'remarks': remarks,
+      'driverName': driverName,
+      'driverLicenseNumber': driverLicenseNumber,
+      'driverIdCardNumber': driverIdCardNumber,
+      'driverContactNumber': driverContactNumber,
+      'offenseCount': offenseCount,
+      'unpaidFineCount': unpaidFineCount,
+      'appealCount': appealCount,
     };
   }
 
@@ -262,5 +304,15 @@ class VehicleInformation {
 
   static DateTime? _parseDateTime(dynamic value) {
     return _parseDate(value);
+  }
+
+  static int? _toInt(dynamic value) {
+    if (value == null) return null;
+    if (value is int) return value;
+    if (value is num) return value.toInt();
+    if (value is String && value.isNotEmpty) {
+      return int.tryParse(value);
+    }
+    return null;
   }
 }

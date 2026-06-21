@@ -1,20 +1,21 @@
 package vertx
 
 import (
+	"context"
 	"log"
 	"os"
 	"os/signal"
 	"syscall"
 
-	"final_assignment_backend_go/project/configs"
+	config "final_assignment_backend_go/project/configs"
 )
 
 type Vertx struct {
-	handler *NetWorkHandler
+	handler *config.NetWorkHandler
 	stopCh  chan struct{}
 }
 
-func NewVertx(handler *NetWorkHandler) *Vertx {
+func NewVertx(handler *config.NetWorkHandler) *Vertx {
 	return &Vertx{
 		handler: handler,
 		stopCh:  make(chan struct{}),
@@ -31,7 +32,7 @@ func (v *Vertx) Start() {
 
 func (v *Vertx) Shutdown() {
 	log.Println("[Vertx] Shutting down Vertx instance...")
-	v.handler.Stop()
+	_ = v.handler.Stop(context.Background())
 	close(v.stopCh)
 	log.Println("[Vertx] Vertx instance closed successfully.")
 }

@@ -54,6 +54,31 @@ CREATE TABLE IF NOT EXISTS sys_user_role (
     UNIQUE KEY uk_sys_user_role_user_role (user_id, role_id)
 );
 
+CREATE TABLE IF NOT EXISTS sys_permission (
+    permission_id INT PRIMARY KEY AUTO_INCREMENT,
+    parent_id INT NULL,
+    permission_code VARCHAR(64) NOT NULL,
+    permission_name VARCHAR(128) NOT NULL,
+    permission_type VARCHAR(32) NULL,
+    permission_description VARCHAR(255) NULL,
+    menu_path VARCHAR(255) NULL,
+    menu_icon VARCHAR(64) NULL,
+    component VARCHAR(255) NULL,
+    api_path VARCHAR(255) NULL,
+    api_method VARCHAR(16) NULL,
+    is_visible BOOLEAN NULL,
+    is_external BOOLEAN NULL,
+    sort_order INT NULL,
+    status VARCHAR(32) NULL,
+    created_at DATETIME NULL,
+    updated_at DATETIME NULL,
+    created_by VARCHAR(100) NULL,
+    updated_by VARCHAR(100) NULL,
+    deleted_at DATETIME NULL,
+    remarks VARCHAR(500) NULL,
+    UNIQUE KEY uk_sys_permission_code (permission_code)
+);
+
 CREATE TABLE IF NOT EXISTS refresh_tokens (
     id BIGINT PRIMARY KEY AUTO_INCREMENT,
     token VARCHAR(255) NOT NULL,
@@ -311,21 +336,39 @@ ON DUPLICATE KEY UPDATE
     status = VALUES(status),
     updated_at = NOW();
 
+INSERT INTO sys_permission (
+    permission_code, permission_name, permission_type, permission_description,
+    api_path, api_method, is_visible, is_external, sort_order, status,
+    created_at, updated_at, created_by
+)
+VALUES
+    ('READ_OFFENSE', 'READ_OFFENSE', 'API', 'Read offense records', '/api/offenses', 'GET', TRUE, FALSE, 1, 'Active', NOW(), NOW(), 'test-seed'),
+    ('READ_DRIVER', 'READ_DRIVER', 'API', 'Read driver records', '/api/drivers', 'GET', TRUE, FALSE, 2, 'Active', NOW(), NOW(), 'test-seed'),
+    ('READ_VEHICLE', 'READ_VEHICLE', 'API', 'Read vehicle records', '/api/vehicles', 'GET', TRUE, FALSE, 3, 'Active', NOW(), NOW(), 'test-seed')
+ON DUPLICATE KEY UPDATE
+    permission_name = VALUES(permission_name),
+    permission_type = VALUES(permission_type),
+    permission_description = VALUES(permission_description),
+    api_path = VALUES(api_path),
+    api_method = VALUES(api_method),
+    status = VALUES(status),
+    updated_at = NOW();
+
 INSERT INTO sys_user (
     username, password, salt, real_name, contact_number, email, status,
     login_failures, password_update_time, created_at, updated_at, created_by
 )
 VALUES
     ('admin',
-     '$2a$12$PW3K2/TxmVth2CmbBw5fFuIXRtYj5vPIyqXJLAMC0KQUKSV7oPPNW',
+     '$2a$12$iP8//JMEbxOt9MkARmMSP.Gs7i2h/oeC4k9HuV9t6NolT8hl.yrjW',
      NULL, '测试管理员', '13800138001', 'admin@test.com', 'Active',
      0, NOW(), NOW(), NOW(), 'test-seed'),
     ('testuser',
-     '$2a$12$cnyYWbDEKRb9MJeYZ8BMfOAcHGz/BSfN4Ou5.R6P8uSuen71DhT8y',
+     '$2a$12$CFLH0Udf.VAOEODXhuH5Y.ABOF.7lX6U6dBb2RK79DtCFr8FhnZxS',
      NULL, '测试用户', '13800138002', 'user@test.com', 'Active',
      0, NOW(), NOW(), NOW(), 'test-seed'),
     ('superadmin',
-     '$2a$12$ymiLs1eRyOcHP0.3E12xd.O8/hmX5ADn1du61kX6DuJEGXcSLEiCW',
+     '$2a$12$i62XLZap1a8S9PqU1BKALuR8LrK6cEAQzKfwOx7OTRcpf1OJiG2qO',
      NULL, '测试超级管理员', '13800138003', 'super@test.com', 'Active',
      0, NOW(), NOW(), NOW(), 'test-seed')
 ON DUPLICATE KEY UPDATE

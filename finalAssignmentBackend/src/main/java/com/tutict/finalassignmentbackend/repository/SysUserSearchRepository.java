@@ -33,7 +33,9 @@ public interface SysUserSearchRepository extends ElasticsearchRepository<SysUser
               "match": {
                 "username": {
                   "query": "?0",
-                  "fuzziness": "AUTO"
+                  "fuzziness": "AUTO:4,7",
+                  "prefix_length": 1,
+                  "max_expansions": 25
                 }
               }
             }
@@ -64,7 +66,9 @@ public interface SysUserSearchRepository extends ElasticsearchRepository<SysUser
               "match": {
                 "realName": {
                   "query": "?0",
-                  "fuzziness": "AUTO"
+                  "fuzziness": "AUTO:4,7",
+                  "prefix_length": 1,
+                  "max_expansions": 25
                 }
               }
             }

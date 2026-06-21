@@ -13,6 +13,9 @@ class AppConfig {
   static const wsBaseUrlOverride =
       String.fromEnvironment('WS_BASE_URL', defaultValue: '');
 
+  static const devBackendHost =
+      String.fromEnvironment('DEV_BACKEND_HOST', defaultValue: '');
+
   static const aiBasePath =
       String.fromEnvironment('AI_BASE_PATH', defaultValue: '/api/ai');
 
@@ -25,7 +28,7 @@ class AppConfig {
 
   static const prodApiBaseUrl = String.fromEnvironment(
     'PROD_API_BASE_URL',
-    defaultValue: 'https://api.example.com',
+    defaultValue: '',
   );
 
   static bool get isWeb => kIsWeb;
@@ -36,24 +39,16 @@ class AppConfig {
   static bool get isProd => env == AppEnv.prod;
 
   static String get apiBaseUrl {
+    if (isProd) {
+      return _requiredProdBaseUrl();
+    }
+
     if (apiBaseUrlOverride.isNotEmpty) {
       return _withoutTrailingSlash(apiBaseUrlOverride);
     }
 
-    if (isProd) {
-      return _withoutTrailingSlash(prodApiBaseUrl);
-    }
-
     const port = apiPort + apiPortOffset;
-
-    if (kIsWeb) {
-      final host = Uri.base.host.isEmpty ? 'localhost' : Uri.base.host;
-      final scheme =
-          Uri.base.scheme.startsWith('http') ? Uri.base.scheme : 'http';
-      return '$scheme://$host:$port';
-    }
-
-    return 'http://localhost:$port';
+    return '$_devApiScheme://$_devHost:$port';
   }
 
   static String get wsBaseUrl {
@@ -62,19 +57,58 @@ class AppConfig {
     }
 
     if (isProd) {
-      final prodUrl = _withoutTrailingSlash(prodApiBaseUrl);
-      return prodUrl.startsWith('https')
-          ? prodUrl.replaceFirst('https', 'wss')
-          : prodUrl.replaceFirst('http', 'ws');
+      return _toWsBaseUrl(_requiredProdBaseUrl());
+    }
+
+    return '$_devWsScheme://$_devHost:$wsPort';
+  }
+
+  static String get _devHost {
+    if (devBackendHost.isNotEmpty) {
+      return devBackendHost;
     }
 
     if (kIsWeb) {
-      final host = Uri.base.host.isEmpty ? 'localhost' : Uri.base.host;
-      final scheme = Uri.base.scheme == 'https' ? 'wss' : 'ws';
-      return '$scheme://$host:$wsPort';
+      return Uri.base.host.isEmpty ? 'localhost' : Uri.base.host;
     }
 
-    return 'ws://localhost:$wsPort';
+    return defaultTargetPlatform == TargetPlatform.android
+        ? '10.0.2.2'
+        : 'localhost';
+  }
+
+  static String get _devApiScheme {
+    if (!kIsWeb) return 'http';
+    return Uri.base.scheme.startsWith('http') ? Uri.base.scheme : 'http';
+  }
+
+  static String get _devWsScheme {
+    if (!kIsWeb) return 'ws';
+    return Uri.base.scheme == 'https' ? 'wss' : 'ws';
+  }
+
+  static String _requiredProdBaseUrl() {
+    final configuredBaseUrl =
+        apiBaseUrlOverride.isNotEmpty ? apiBaseUrlOverride : prodApiBaseUrl;
+    if (configuredBaseUrl.isEmpty ||
+        configuredBaseUrl.contains('api.example.com')) {
+      throw StateError(
+        'Production builds must define PROD_API_BASE_URL or API_BASE_URL.',
+      );
+    }
+    return _withoutTrailingSlash(configuredBaseUrl);
+  }
+
+  static String _toWsBaseUrl(String httpBaseUrl) {
+    if (httpBaseUrl.startsWith('https://')) {
+      return httpBaseUrl.replaceFirst('https://', 'wss://');
+    }
+    if (httpBaseUrl.startsWith('http://')) {
+      return httpBaseUrl.replaceFirst('http://', 'ws://');
+    }
+    throw StateError(
+      'Production API base URL must start with http:// or https://.',
+    );
   }
 
   static String _withoutTrailingSlash(String value) {

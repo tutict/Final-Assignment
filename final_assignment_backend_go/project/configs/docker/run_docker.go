@@ -13,29 +13,27 @@ import (
 	"github.com/testcontainers/testcontainers-go/wait"
 )
 
-// RunDocker 结构体用于管理所有容器
+// RunDocker 缁撴瀯浣撶敤浜庣鐞嗘墍鏈夊鍣?
 type RunDocker struct {
 	ctx                    context.Context
 	redisContainer         *redis.RedisContainer
 	redpandaContainer      testcontainers.Container
 	elasticsearchContainer *elasticsearch.ElasticsearchContainer
-	manticoreContainer     testcontainers.Container
 }
 
-// NewRunDocker 初始化一个新的实例
+// NewRunDocker 鍒濆鍖栦竴涓柊鐨勫疄渚?
 func NewRunDocker() *RunDocker {
 	return &RunDocker{ctx: context.Background()}
 }
 
-// Init 启动所有容器
+// Init 鍚姩鎵€鏈夊鍣?
 func (r *RunDocker) Init() {
 	r.startRedis()
 	r.startRedpanda()
 	r.startElasticsearch()
-	// r.startManticoreSearch()
 }
 
-// startRedis 启动 Redis 容器
+// startRedis 鍚姩 Redis 瀹瑰櫒
 func (r *RunDocker) startRedis() {
 	log.Println("[INFO] Starting Redis container...")
 	container, err := redis.RunContainer(r.ctx,
@@ -64,11 +62,11 @@ func (r *RunDocker) startRedis() {
 	r.redisContainer = container
 }
 
-// startRedpanda 启动 Redpanda 容器
+// startRedpanda 鍚姩 Redpanda 瀹瑰櫒
 func (r *RunDocker) startRedpanda() {
 	log.Println("[INFO] Starting Redpanda container...")
 	req := testcontainers.ContainerRequest{
-		Image:        "redpandadata/redpanda:v24.1.2",
+		Image:        "docker.redpanda.com/redpandadata/redpanda:v26.1.9",
 		ExposedPorts: []string{"9092/tcp"},
 		WaitingFor:   wait.ForLog("Started Kafka API server").WithStartupTimeout(2 * time.Minute),
 	}
@@ -95,12 +93,12 @@ func (r *RunDocker) startRedpanda() {
 	r.redpandaContainer = container
 }
 
-// startElasticsearch 启动 Elasticsearch 容器
+// startElasticsearch 鍚姩 Elasticsearch 瀹瑰櫒
 func (r *RunDocker) startElasticsearch() {
 	log.Println("[INFO] Starting Elasticsearch container...")
 
 	container, err := elasticsearch.RunContainer(r.ctx,
-		testcontainers.WithImage("tutict/elasticsearch-with-plugins:8.17.3-for-my-work"),
+		testcontainers.WithImage("docker.elastic.co/elasticsearch/elasticsearch:9.4.1"),
 		testcontainers.WithEnv(map[string]string{
 			"xpack.security.enabled": "false",
 			"discovery.type":         "single-node",
@@ -125,42 +123,7 @@ func (r *RunDocker) startElasticsearch() {
 	r.elasticsearchContainer = container
 }
 
-// startManticoreSearch 启动 Manticore Search 容器
-func (r *RunDocker) startManticoreSearch() {
-	log.Println("[INFO] Starting Manticore Search container...")
-
-	req := testcontainers.ContainerRequest{
-		Image:        "manticoresearch/manticore:dev",
-		ExposedPorts: []string{"9306/tcp", "9308/tcp"},
-		Env:          map[string]string{"EXTRA": "1"},
-		WaitingFor: wait.ForHTTP("/search").
-			WithPort("9308/tcp").
-			WithStartupTimeout(2 * time.Minute),
-	}
-
-	container, err := testcontainers.GenericContainer(r.ctx, testcontainers.GenericContainerRequest{
-		ContainerRequest: req,
-		Started:          true,
-	})
-	if err != nil {
-		log.Printf("[ERROR] Failed to start Manticore: %v\n", err)
-		return
-	}
-
-	host, _ := container.Host(r.ctx)
-	port, _ := container.MappedPort(r.ctx, "9308/tcp")
-	url := fmt.Sprintf("http://%s:%s", host, port.Port())
-
-	err = os.Setenv("MANTICORE_URL", url)
-	if err != nil {
-		return
-	}
-	log.Printf("[INFO] Manticore started at: %s\n", url)
-
-	r.manticoreContainer = container
-}
-
-// StopContainers 停止所有容器
+// StopContainers 鍋滄鎵€鏈夊鍣?
 func (r *RunDocker) StopContainers() {
 	if r.redisContainer != nil {
 		err := r.redisContainer.Terminate(r.ctx)
@@ -183,13 +146,5 @@ func (r *RunDocker) StopContainers() {
 			return
 		}
 		log.Println("[INFO] Elasticsearch container stopped")
-	}
-	if r.manticoreContainer != nil {
-
-		err := r.manticoreContainer.Terminate(r.ctx)
-		if err != nil {
-			return
-		}
-		log.Println("[INFO] Manticore container stopped")
 	}
 }

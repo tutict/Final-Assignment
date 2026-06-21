@@ -9,6 +9,7 @@ import com.tutict.finalassignmentbackend.dto.response.PageResponse;
 import com.tutict.finalassignmentbackend.dto.response.UserProfileResponse;
 import com.tutict.finalassignmentbackend.entity.driver.DriverInformation;
 import com.tutict.finalassignmentbackend.service.auth.AuthWsService;
+import com.tutict.finalassignmentbackend.service.business.BusinessRecordViewService;
 import com.tutict.finalassignmentbackend.service.driver.DriverInformationService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
@@ -35,7 +36,6 @@ import java.util.Objects;
 import java.util.Set;
 import java.util.logging.Level;
 import java.util.logging.Logger;
-import java.util.stream.Collectors;
 
 @RestController
 @RequestMapping("/api/drivers")
@@ -53,16 +53,19 @@ public class DriverInformationController {
 
     private final AuthWsService authWsService;
     private final DriverInformationService driverInformationService;
+    private final BusinessRecordViewService businessRecordViewService;
 
     @Autowired
     public DriverInformationController(AuthWsService authWsService,
-                                       DriverInformationService driverInformationService) {
+                                       DriverInformationService driverInformationService,
+                                       BusinessRecordViewService businessRecordViewService) {
         this.authWsService = authWsService;
         this.driverInformationService = driverInformationService;
+        this.businessRecordViewService = businessRecordViewService;
     }
 
     public DriverInformationController(DriverInformationService driverInformationService) {
-        this(null, driverInformationService);
+        this(null, driverInformationService, null);
     }
 
     @PostMapping
@@ -158,7 +161,7 @@ public class DriverInformationController {
             if (driver == null) {
                 throw new com.tutict.finalassignmentbackend.exception.EntityNotFoundException("Driver not found: " + driverId);
             }
-            return ResponseEntity.ok(driver);
+            return ResponseEntity.ok(enrich(driver));
         } catch (Exception ex) {
             LOG.log(Level.WARNING, "Get driver failed", ex);
             if (ex instanceof RuntimeException) {
@@ -170,12 +173,10 @@ public class DriverInformationController {
 
     @GetMapping
     @Operation(summary = "查询全部驾驶员")
-    public ResponseEntity<ApiResponse<PageResponse<DriverResponse>>> list(@RequestParam(defaultValue = "0") int page,
-                                                                          @RequestParam(defaultValue = "20") int size) {
+    public ResponseEntity<ApiResponse<PageResponse<DriverInformation>>> list(@RequestParam(defaultValue = "0") int page,
+                                                                             @RequestParam(defaultValue = "20") int size) {
         try {
-            List<DriverResponse> drivers = driverInformationService.getAllDrivers().stream()
-                    .map(DriverResponse::from)
-                    .collect(Collectors.toList());
+            List<DriverInformation> drivers = enrich(driverInformationService.getAllDrivers());
             int normalizedPage = Math.max(page, 0);
             int normalizedSize = Math.max(size, 1);
             int from = Math.min(normalizedPage * normalizedSize, drivers.size());
@@ -197,7 +198,7 @@ public class DriverInformationController {
                                                                   @RequestParam(defaultValue = "1") int page,
                                                                   @RequestParam(defaultValue = "20") int size) {
         try {
-            return ResponseEntity.ok(driverInformationService.searchByIdCardNumber(keywords, page, size));
+            return ResponseEntity.ok(enrich(driverInformationService.searchByIdCardNumber(keywords, page, size)));
         } catch (Exception ex) {
             LOG.log(Level.WARNING, "Search driver by id card failed", ex);
             if (ex instanceof RuntimeException) {
@@ -213,7 +214,7 @@ public class DriverInformationController {
                                                                    @RequestParam(defaultValue = "1") int page,
                                                                    @RequestParam(defaultValue = "20") int size) {
         try {
-            return ResponseEntity.ok(driverInformationService.searchByDriverLicenseNumber(keywords, page, size));
+            return ResponseEntity.ok(enrich(driverInformationService.searchByDriverLicenseNumber(keywords, page, size)));
         } catch (Exception ex) {
             LOG.log(Level.WARNING, "Search driver by license failed", ex);
             if (ex instanceof RuntimeException) {
@@ -229,7 +230,7 @@ public class DriverInformationController {
                                                                 @RequestParam(defaultValue = "1") int page,
                                                                 @RequestParam(defaultValue = "20") int size) {
         try {
-            return ResponseEntity.ok(driverInformationService.searchByName(keywords, page, size));
+            return ResponseEntity.ok(enrich(driverInformationService.searchByName(keywords, page, size)));
         } catch (Exception ex) {
             LOG.log(Level.WARNING, "Search driver by name failed", ex);
             if (ex instanceof RuntimeException) {
@@ -245,12 +246,21 @@ public class DriverInformationController {
     public ResponseEntity<ApiResponse<List<DriverResponse>>> searchDrivers(@RequestParam(required = false) String name,
                                                                            @RequestParam(required = false) String keywords,
                                                                            @RequestParam(defaultValue = "0") int page,
-                                                                           @RequestParam(defaultValue = "20") int size) {
+                                                                           @RequestParam(defaultValue = "20") int size,
+                                                                           Authentication authentication) {
         try {
             String searchTerm = name != null ? name : keywords;
-            List<DriverResponse> results = driverInformationService.searchByName(searchTerm, page + 1, size).stream()
+            if (!isElevated(authentication)) {
+                DriverInformation current = currentUserDriver(authentication);
+                List<DriverResponse> scoped = current == null || !matchesSearch(current, searchTerm)
+                        ? List.of()
+                        : List.of(DriverResponse.from(enrich(current)));
+                return ResponseEntity.ok(ApiResponse.ok(scoped));
+            }
+            List<DriverResponse> results = enrich(driverInformationService.searchByName(searchTerm, page + 1, size))
+                    .stream()
                     .map(DriverResponse::from)
-                    .collect(Collectors.toList());
+                    .toList();
             return ResponseEntity.ok(ApiResponse.ok(results));
         } catch (Exception ex) {
             LOG.log(Level.WARNING, "Search driver by name failed", ex);
@@ -265,12 +275,48 @@ public class DriverInformationController {
         return value != null && !value.isBlank();
     }
 
+    private DriverInformation enrich(DriverInformation driver) {
+        return businessRecordViewService == null ? driver : businessRecordViewService.enrichDriver(driver);
+    }
+
+    private List<DriverInformation> enrich(List<DriverInformation> drivers) {
+        return businessRecordViewService == null ? drivers : businessRecordViewService.enrichDrivers(drivers);
+    }
+
+    private DriverInformation currentUserDriver(Authentication authentication) {
+        if (authentication == null || authWsService == null) {
+            return null;
+        }
+        UserProfileResponse profile = authWsService.getCurrentUserProfile(authentication.getName());
+        if (profile == null || profile.getDriverId() == null) {
+            return null;
+        }
+        return driverInformationService.getDriverById(profile.getDriverId());
+    }
+
+    private boolean matchesSearch(DriverInformation driver, String searchTerm) {
+        if (driver == null) {
+            return false;
+        }
+        if (searchTerm == null || searchTerm.isBlank()) {
+            return true;
+        }
+        String normalized = searchTerm.toLowerCase();
+        return containsIgnoreCase(driver.getName(), normalized)
+                || containsIgnoreCase(driver.getDriverLicenseNumber(), normalized)
+                || containsIgnoreCase(driver.getIdCardNumber(), normalized)
+                || containsIgnoreCase(driver.getContactNumber(), normalized);
+    }
+
+    private boolean containsIgnoreCase(String value, String normalizedNeedle) {
+        return value != null && value.toLowerCase().contains(normalizedNeedle);
+    }
+
     private boolean canAccessDriver(Authentication authentication, Long driverId) {
         if (authentication == null || driverId == null) {
             return false;
         }
-        boolean elevated = SecurityRoleUtils.hasAnyRole(authentication, ELEVATED_ROLES);
-        if (elevated) {
+        if (isElevated(authentication)) {
             return true;
         }
         boolean regularUser = SecurityRoleUtils.hasRole(authentication, "USER");
@@ -282,6 +328,11 @@ public class DriverInformationController {
         }
         UserProfileResponse profile = authWsService.getCurrentUserProfile(authentication.getName());
         return Objects.equals(profile.getDriverId(), driverId);
+    }
+
+    private boolean isElevated(Authentication authentication) {
+        return authentication != null
+                && SecurityRoleUtils.hasAnyRole(authentication, ELEVATED_ROLES);
     }
 
     private HttpStatus resolveStatus(Exception ex) {

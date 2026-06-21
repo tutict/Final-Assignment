@@ -13,10 +13,11 @@ import 'package:final_assignment_front/features/dashboard/controllers/user_dashb
 import 'package:final_assignment_front/features/dashboard/views/shared/widgets/dashboard_page_template.dart';
 import 'package:final_assignment_front/features/dashboard/views/user/pages/main_process/user_business_page_chrome.dart';
 import 'package:final_assignment_front/shared/dialogs/app_dialog.dart';
-import 'package:final_assignment_front/shared/widgets/index.dart';
+import 'package:final_assignment_front/utils/widgets/index.dart';
 import 'package:get/get.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:jwt_decoder/jwt_decoder.dart';
+import 'package:final_assignment_front/utils/services/auth_token_store.dart';
 
 // Utility methods for validation
 bool isValidLicensePlate(String value) {
@@ -41,6 +42,14 @@ String generateIdempotencyKey() {
 String formatDate(DateTime? date) {
   if (date == null) return '无';
   return "${date.year}-${date.month.toString().padLeft(2, '0')}-${date.day.toString().padLeft(2, '0')}";
+}
+
+Future<String> _requireJwtToken([String message = '未找到 JWT，请重新登录']) async {
+  final token = await AuthTokenStore.instance.getJwtToken();
+  if (token == null || token.isEmpty) {
+    throw Exception(message);
+  }
+  return token;
 }
 
 class VehicleManagementPage extends StatefulWidget {
@@ -82,9 +91,7 @@ class _VehicleManagementState extends State<VehicleManagementPage> {
       _errorMessage = '';
     });
     try {
-      final prefs = await SharedPreferences.getInstance();
-      final jwtToken = prefs.getString('jwtToken');
-      if (jwtToken == null) throw Exception('未找到 JWT，请重新登录');
+      final jwtToken = await _requireJwtToken();
       final decodedToken = JwtDecoder.decode(jwtToken);
       final username = decodedToken['sub'] ?? '';
       if (username.isEmpty) throw Exception('JWT 中未找到用户名');
@@ -524,9 +531,7 @@ class _AddVehiclePageState extends State<AddVehiclePage> {
   Future<void> _initialize() async {
     setState(() => _isLoading = true);
     try {
-      final prefs = await SharedPreferences.getInstance();
-      final jwtToken = prefs.getString('jwtToken');
-      if (jwtToken == null) throw Exception('未找到 JWT');
+      final jwtToken = await _requireJwtToken();
       final decodedToken = JwtDecoder.decode(jwtToken);
       final username = decodedToken['sub'] ?? '';
       if (username.isEmpty) throw Exception('JWT 中未找到用户名');
@@ -926,9 +931,7 @@ class _EditVehiclePageState extends State<EditVehiclePage> {
   }
 
   Future<void> _initializeFields() async {
-    final prefs = await SharedPreferences.getInstance();
-    final jwtToken = prefs.getString('jwtToken');
-    if (jwtToken == null) throw Exception('未找到 JWT');
+    final jwtToken = await _requireJwtToken();
     final decodedToken = JwtDecoder.decode(jwtToken);
     final username = decodedToken['sub'] ?? '';
     if (username.isEmpty) throw Exception('JWT 中未找到用户名');
@@ -1263,9 +1266,7 @@ class _VehicleDetailPageState extends State<VehicleDetailPage> {
   Future<void> _initialize() async {
     setState(() => _isLoading = true);
     try {
-      final prefs = await SharedPreferences.getInstance();
-      final jwtToken = prefs.getString('jwtToken');
-      if (jwtToken == null) throw Exception('未找到 JWT，请重新登录');
+      final jwtToken = await _requireJwtToken();
       final decodedToken = JwtDecoder.decode(jwtToken);
       final username = decodedToken['sub'] ?? '';
       if (username.isEmpty) throw Exception('JWT 中未找到用户名');
@@ -1298,9 +1299,7 @@ class _VehicleDetailPageState extends State<VehicleDetailPage> {
 
   Future<void> _checkUserRole() async {
     try {
-      final prefs = await SharedPreferences.getInstance();
-      final jwtToken = prefs.getString('jwtToken');
-      if (jwtToken == null) throw Exception('未找到 JWT，请重新登录');
+      final jwtToken = await _requireJwtToken();
       final decodedToken = JwtDecoder.decode(jwtToken);
       final roles = decodedToken['roles']?.toString().split(',') ?? [];
       setState(() {

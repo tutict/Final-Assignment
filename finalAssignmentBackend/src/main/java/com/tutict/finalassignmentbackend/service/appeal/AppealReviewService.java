@@ -55,7 +55,7 @@ public class AppealReviewService {
 
     @Transactional
     @CacheEvict(cacheNames = CACHE_NAME, allEntries = true)
-    @WsAction(service = "AppealReviewService", action = "checkAndInsertIdempotency")
+    @WsAction(service = "AppealReviewService", action = "checkAndInsertIdempotency", roles = {"SUPER_ADMIN", "ADMIN", "APPEAL_REVIEWER"})
     public void checkAndInsertIdempotency(String idempotencyKey, AppealReview appealReview, String action) {
         Objects.requireNonNull(appealReview, "AppealReview must not be null");
         if (sysRequestHistoryMapper.selectByIdempotencyKey(idempotencyKey) != null) {

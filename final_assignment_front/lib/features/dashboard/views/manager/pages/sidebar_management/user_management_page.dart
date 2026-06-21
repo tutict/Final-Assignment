@@ -9,7 +9,7 @@ import 'package:final_assignment_front/features/dashboard/views/shared/widgets/d
 import 'package:final_assignment_front/features/api/user_management_controller_api.dart';
 import 'package:final_assignment_front/features/model/user_management.dart';
 import 'package:final_assignment_front/shared/dialogs/app_dialog.dart';
-import 'package:final_assignment_front/shared/widgets/index.dart';
+import 'package:final_assignment_front/utils/widgets/index.dart';
 import 'package:final_assignment_front/core/network/app_exception.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
@@ -598,6 +598,7 @@ class _UserManagementPageState extends State<UserManagementPage> {
                       final registerRequest = RegisterRequest(
                         username: username,
                         password: passwordController.text,
+                        role: selectedRole ?? 'USER',
                         idempotencyKey: idempotencyKey,
                       );
                       _logger.info(
@@ -641,7 +642,7 @@ class _UserManagementPageState extends State<UserManagementPage> {
     final usernameController = TextEditingController(text: user.username);
     final contactNumberController =
         TextEditingController(text: user.contactNumber);
-    final passwordController = TextEditingController(text: user.password);
+    final passwordController = TextEditingController();
     final emailController = TextEditingController(text: user.email);
     final remarksController = TextEditingController(text: user.remarks);
     String? selectedStatus = user.status ?? 'Active';
@@ -715,8 +716,11 @@ class _UserManagementPageState extends State<UserManagementPage> {
                       obscureText: true,
                       maxLength: 255,
                       validator: (value) {
-                        if (value == null || value.isEmpty) return '密码不能为空';
-                        if (value.length > 255) return '密码不能超过255个字符';
+                        if (value != null &&
+                            value.isNotEmpty &&
+                            value.length > 255) {
+                          return '密码不能超过255个字符';
+                        }
                         return null;
                       },
                     ),
@@ -805,6 +809,9 @@ class _UserManagementPageState extends State<UserManagementPage> {
                       final updatedUser = UserManagement(
                         userId: user.userId,
                         username: username,
+                        password: passwordController.text.trim().isEmpty
+                            ? null
+                            : passwordController.text.trim(),
                         contactNumber: contactNumberController.text.isEmpty
                             ? null
                             : contactNumberController.text,

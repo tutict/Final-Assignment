@@ -12,6 +12,7 @@ import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.annotation.security.RolesAllowed;
+import org.springframework.cache.annotation.Cacheable;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -47,6 +48,7 @@ public class SystemLogsController {
 
     @GetMapping("/overview")
     @Operation(summary = "获取系统日志概览")
+    @Cacheable(cacheNames = "superAdminLogViewCache", key = "'overview'")
     public ResponseEntity<ApiResponse<LogOverviewResponse>> overview() {
         try {
             LogOverviewResponse result = LogOverviewResponse.builder()
@@ -66,6 +68,7 @@ public class SystemLogsController {
 
     @GetMapping("/login/recent")
     @Operation(summary = "最近的登录日志")
+    @Cacheable(cacheNames = "superAdminLogViewCache", key = "'recentLogin:' + #limit")
     public ResponseEntity<List<AuditLoginLog>> recentLoginLogs(@RequestParam(defaultValue = "10") int limit) {
         try {
             return ResponseEntity.ok(auditLoginLogService.findRecent(normalizeLimit(limit)));
@@ -77,6 +80,7 @@ public class SystemLogsController {
 
     @GetMapping("/operation/recent")
     @Operation(summary = "最近的操作日志")
+    @Cacheable(cacheNames = "superAdminLogViewCache", key = "'recentOperation:' + #limit")
     public ResponseEntity<List<AuditOperationLog>> recentOperationLogs(@RequestParam(defaultValue = "10") int limit) {
         try {
             return ResponseEntity.ok(auditOperationLogService.findRecent(normalizeLimit(limit)));

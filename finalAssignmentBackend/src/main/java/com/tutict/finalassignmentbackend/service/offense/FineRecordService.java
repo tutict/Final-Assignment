@@ -61,7 +61,7 @@ public class FineRecordService {
 
     @Transactional
     @CacheEvict(cacheNames = CACHE_NAME, allEntries = true)
-    @WsAction(service = "FineRecordService", action = "checkAndInsertIdempotency")
+    @WsAction(service = "FineRecordService", action = "checkAndInsertIdempotency", roles = {"SUPER_ADMIN", "ADMIN", "TRAFFIC_POLICE", "FINANCE"})
     public void checkAndInsertIdempotency(String idempotencyKey, FineRecord fineRecord, String action) {
         Objects.requireNonNull(fineRecord, "FineRecord must not be null");
         if (sysRequestHistoryMapper.selectByIdempotencyKey(idempotencyKey) != null) {

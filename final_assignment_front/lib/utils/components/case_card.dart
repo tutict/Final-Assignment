@@ -2,7 +2,7 @@ import 'package:final_assignment_front/shared/eva_icons_compat.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:final_assignment_front/constants/app_constants.dart';
-import 'package:final_assignment_front/shared_components/list_profil_image.dart';
+import 'package:final_assignment_front/utils/components/list_profil_image.dart';
 import 'package:final_assignment_front/utils/helpers/app_helpers.dart';
 
 /// 数据类，用于存储案例卡片的相关信息。

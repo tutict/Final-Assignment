@@ -2,7 +2,7 @@ package com.tutict.finalassignmentbackend.ai.rag.retrieval;
 
 import com.tutict.finalassignmentbackend.ai.rag.config.RagRetrievalProperties;
 import com.tutict.finalassignmentbackend.ai.rag.dto.RetrievalResult;
-import com.tutict.finalassignmentbackend.ai.rag.rerank.NoopRerankProvider;
+import com.tutict.finalassignmentbackend.ai.rag.rerank.LightweightRerankProvider;
 import org.junit.jupiter.api.Test;
 
 import java.util.List;
@@ -25,7 +25,7 @@ class HybridRetrieverTest {
         HybridRetriever retriever = new HybridRetriever(
                 searchService,
                 new AclFilterService(),
-                new NoopRerankProvider(),
+                new LightweightRerankProvider(properties),
                 properties
         );
 
@@ -34,16 +34,43 @@ class HybridRetrieverTest {
         );
 
         assertThat(results).extracting(RetrievalResult::chunkId).containsExactly("a", "c");
-        assertThat(results.getFirst().finalScore()).isEqualTo(0.9 * 0.4 + 0.8 * 0.6);
+        assertThat(Math.abs(results.getFirst().finalScore() - rrfScore(1, 0.4, 60) - rrfScore(1, 0.6, 60)))
+                .isLessThan(0.0001);
+    }
+
+    @Test
+    void keepsBm25ResultsWhenEmbeddingProviderFails() {
+        RagRetrievalProperties properties = properties();
+        EmbeddingSearchService searchService = new EmbeddingSearchService(
+                new ThrowingEmbeddingProvider(),
+                new FakeBackend(List.of(result("bm25", 1, 0, "PUBLIC")), List.of())
+        );
+        HybridRetriever retriever = new HybridRetriever(
+                searchService,
+                new AclFilterService(),
+                new LightweightRerankProvider(properties),
+                properties
+        );
+
+        List<RetrievalResult> results = retriever.retrieve(
+                new RetrievalQuery("query", new AclFilterService.AccessContext("u1", java.util.Set.of(), null), 5)
+        );
+
+        assertThat(results).extracting(RetrievalResult::chunkId).containsExactly("bm25");
     }
 
     private static float[] vector() {
         return new float[]{1, 0, 0};
     }
 
+    private static double rrfScore(int rank, double weight, int rankConstant) {
+        return 100.0 * weight / (rankConstant + rank);
+    }
+
     private static RagRetrievalProperties properties() {
         RagRetrievalProperties properties = new RagRetrievalProperties();
         properties.setMinScore(0);
+        properties.setRerankEnabled(false);
         return properties;
     }
 
@@ -99,7 +126,7 @@ class ScoreFusionTest {
         HybridRetriever retriever = new HybridRetriever(
                 new EmbeddingSearchService(new StaticEmbeddingProvider(new float[]{1}), new FakeBackend(List.of(), List.of())),
                 new AclFilterService(),
-                new NoopRerankProvider(),
+                new LightweightRerankProvider(properties),
                 properties
         );
 
@@ -111,12 +138,43 @@ class ScoreFusionTest {
         );
 
         assertThat(results).hasSize(1);
-        assertThat(results.getFirst().finalScore()).isEqualTo(0.5 * 0.4 + 0.9 * 0.6);
+        assertThat(Math.abs(results.getFirst().finalScore() - rrfScore(1, 0.4, 60) - rrfScore(1, 0.6, 60)))
+                .isLessThan(0.0001);
     }
 
     private static RetrievalResult result(String chunkId, double bm25, double vector) {
         return new RetrievalResult(chunkId, "d", "content", "title", "BUSINESS", "t", "1",
                 "content", "/r", bm25, vector, 0, Map.of("aclScope", "PUBLIC"));
+    }
+
+    private static double rrfScore(int rank, double weight, int rankConstant) {
+        return 100.0 * weight / (rankConstant + rank);
+    }
+}
+
+class RerankProviderTest {
+
+    @Test
+    void boostsLexicalMatchesAfterHybridFusion() {
+        RagRetrievalProperties properties = new RagRetrievalProperties();
+        properties.setRerankEnabled(true);
+        properties.setRerankLexicalWeight(0.5);
+        LightweightRerankProvider rerankProvider = new LightweightRerankProvider(properties);
+
+        List<RetrievalResult> results = rerankProvider.rerank(
+                "parking fine",
+                List.of(
+                        result("a", "accident handling", "accident quick process guide", 1.0),
+                        result("b", "parking fine payment", "online payment portal and process steps", 0.95)
+                )
+        );
+
+        assertThat(results).extracting(RetrievalResult::chunkId).containsExactly("b", "a");
+    }
+
+    private static RetrievalResult result(String chunkId, String title, String content, double score) {
+        return new RetrievalResult(chunkId, "d", content, title, "BUSINESS", "t", "1",
+                "content", "/r", 0, 0, score, Map.of("aclScope", "PUBLIC"));
     }
 }
 
@@ -139,6 +197,18 @@ class EmbeddingSearchServiceTest {
         assertThat(embeddingProvider.lastText()).isEqualTo("hello");
         assertThat(bm25).extracting(RetrievalResult::chunkId).containsExactly("bm25");
         assertThat(vectorResults).extracting(RetrievalResult::chunkId).containsExactly("vector");
+    }
+
+    @Test
+    void searchFailuresReturnEmptyResults() {
+        EmbeddingSearchService service = new EmbeddingSearchService(
+                new FakeEmbeddingProvider(),
+                new ThrowingSearchBackend()
+        );
+        AclFilterService.AclFilter filter = new AclFilterService.AclFilter("u1", java.util.Set.of(), null);
+
+        assertThat(service.bm25Search("hello", filter, 5)).isEmpty();
+        assertThat(service.vectorSearch(new float[]{1, 0, 0}, filter, 5)).isEmpty();
     }
 
     private static RetrievalResult result(String chunkId, double bm25, double vector) {
@@ -179,6 +249,19 @@ record StaticEmbeddingProvider(float[] vector) implements EmbeddingProvider {
     }
 }
 
+final class ThrowingEmbeddingProvider implements EmbeddingProvider {
+
+    @Override
+    public int dimensions() {
+        return 3;
+    }
+
+    @Override
+    public float[] embed(String text) {
+        throw new IllegalStateException("embedding unavailable");
+    }
+}
+
 record FakeBackend(
         List<RetrievalResult> bm25Results,
         List<RetrievalResult> vectorResults
@@ -200,5 +283,26 @@ record FakeBackend(
             int limit
     ) {
         return vectorResults.stream().limit(limit).toList();
+    }
+}
+
+final class ThrowingSearchBackend implements RagSearchBackend {
+
+    @Override
+    public List<RetrievalResult> bm25Search(
+            String normalizedQuery,
+            AclFilterService.AclFilter aclFilter,
+            int limit
+    ) {
+        throw new IllegalStateException("search unavailable");
+    }
+
+    @Override
+    public List<RetrievalResult> vectorSearch(
+            float[] queryVector,
+            AclFilterService.AclFilter aclFilter,
+            int limit
+    ) {
+        throw new IllegalStateException("search unavailable");
     }
 }

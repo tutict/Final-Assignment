@@ -1,6 +1,6 @@
 package com.tutict.finalassignmentbackend.kafkaListener;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
+import com.tutict.finalassignmentbackend.common.idempotency.IdempotentKafkaMessageProcessor;
 import com.tutict.finalassignmentbackend.entity.admin.SysPermission;
 import com.tutict.finalassignmentbackend.service.admin.SysPermissionService;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -15,93 +15,83 @@ import java.util.logging.Level;
 import java.util.logging.Logger;
 
 @Service
-// Kafka 监听器，处理消息
 public class SysPermissionKafkaListener {
 
     private static final Logger log = Logger.getLogger(SysPermissionKafkaListener.class.getName());
 
     private final SysPermissionService sysPermissionService;
-    private final ObjectMapper objectMapper;
+    private final IdempotentKafkaMessageProcessor messageProcessor;
 
-    // 构造器注入依赖
     @Autowired
     public SysPermissionKafkaListener(SysPermissionService sysPermissionService,
-                                      ObjectMapper objectMapper) {
+                                      IdempotentKafkaMessageProcessor messageProcessor) {
         this.sysPermissionService = sysPermissionService;
-        this.objectMapper = objectMapper;
+        this.messageProcessor = messageProcessor;
     }
 
-    // 监听 Kafka 消息
     @KafkaListener(topics = "${kafka.topics.sys-permission.create:sys_permission_create}", groupId = "${kafka.groups.sys-permission:sysPermissionGroup}", concurrency = "3")
     public void onSysPermissionCreateReceived(@Header(value = KafkaHeaders.RECEIVED_KEY, required = false) byte[] rawKey,
                                               @Payload String message,
-                                      Acknowledgment ack) {
+                                              Acknowledgment ack) {
         log.log(Level.INFO, "Received Kafka message for sys permission create (payload omitted)");
-        processMessage(asKey(rawKey), message, "create");
-        ack.acknowledge();
+        processMessage(asKey(rawKey), message, "create", ack);
     }
 
-    // 监听 Kafka 消息
     @KafkaListener(topics = "${kafka.topics.sys-permission.update:sys_permission_update}", groupId = "${kafka.groups.sys-permission:sysPermissionGroup}", concurrency = "3")
     public void onSysPermissionUpdateReceived(@Header(value = KafkaHeaders.RECEIVED_KEY, required = false) byte[] rawKey,
                                               @Payload String message,
-                                      Acknowledgment ack) {
+                                              Acknowledgment ack) {
         log.log(Level.INFO, "Received Kafka message for sys permission update (payload omitted)");
-        processMessage(asKey(rawKey), message, "update");
-        ack.acknowledge();
+        processMessage(asKey(rawKey), message, "update", ack);
     }
 
-    // 统一处理消息并执行业务逻辑
-    private void processMessage(String idempotencyKey, String message, String action) {
+    private void processMessage(String idempotencyKey, String message, String action, Acknowledgment ack) {
         if (isBlank(idempotencyKey)) {
             log.warning("Received SysPermission event without idempotency key, skipping");
+            acknowledge(ack);
             return;
         }
-        try {
-            SysPermission payload = deserializeMessage(message);
-            if (payload == null) {
-                log.warning("Received SysPermission event with empty payload, skipping");
-                return;
-            }
-            if (sysPermissionService.shouldSkipProcessing(idempotencyKey)) {
-                log.log(Level.INFO, "Skipping duplicate SysPermission event (key={0}, action={1})",
-                        new Object[]{idempotencyKey, action});
-                return;
-            }
-            SysPermission result;
-            if ("create".equalsIgnoreCase(action)) {
-                payload.setPermissionId(null);
-                result = sysPermissionService.createSysPermission(payload);
-            } else if ("update".equalsIgnoreCase(action)) {
-                result = sysPermissionService.updateSysPermission(payload);
-            } else {
-                log.log(Level.WARNING, "Unsupported SysPermission action: {0}", action);
-                return;
-            }
-            sysPermissionService.markHistorySuccess(idempotencyKey, result.getPermissionId());
-            log.info(String.format("SysPermission %s action processed successfully (key=%s)", action, idempotencyKey));
-        } catch (Exception ex) {
-            sysPermissionService.markHistoryFailure(idempotencyKey, ex.getMessage());
-            log.log(Level.SEVERE,
-                    String.format("Error processing %s SysPermission message (key=%s, payload omitted)", action, idempotencyKey),
-                    ex);
-            throw ex;
-        }
+        messageProcessor.process(
+                idempotencyKey,
+                message,
+                ack,
+                "SysPermission",
+                action,
+                sysPermissionService::shouldSkipProcessing,
+                payload -> processPayload(payload, action),
+                (key, result) -> {
+                    if (result != null && result.getPermissionId() != null) {
+                        sysPermissionService.markHistorySuccess(key, result.getPermissionId());
+                    }
+                },
+                (key, ex) -> sysPermissionService.markHistoryFailure(key, ex.getMessage())
+        );
     }
-    private SysPermission deserializeMessage(String message) {
-        try {
-            return objectMapper.readValue(message, SysPermission.class);
-        } catch (Exception ex) {
-            log.log(Level.SEVERE, "Failed to deserialize Kafka message (payload omitted)", ex);
-            throw new IllegalArgumentException("Failed to deserialize Kafka message", ex);
+
+    private SysPermission processPayload(String message, String action) {
+        SysPermission payload = messageProcessor.deserialize(message, SysPermission.class);
+        if ("create".equalsIgnoreCase(action)) {
+            payload.setPermissionId(null);
+            return sysPermissionService.createSysPermission(payload);
         }
+        if ("update".equalsIgnoreCase(action)) {
+            return sysPermissionService.updateSysPermission(payload);
+        }
+        log.log(Level.WARNING, "Unsupported SysPermission action: {0}", action);
+        return null;
     }
+
     private String asKey(byte[] rawKey) {
         return rawKey == null ? null : new String(rawKey);
     }
 
-    // 判空
     private boolean isBlank(String value) {
         return value == null || value.trim().isEmpty();
+    }
+
+    private void acknowledge(Acknowledgment acknowledgment) {
+        if (acknowledgment != null) {
+            acknowledgment.acknowledge();
+        }
     }
 }

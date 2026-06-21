@@ -55,7 +55,7 @@ public class SysDictService {
 
     @Transactional
     @CacheEvict(cacheNames = CACHE_NAME, allEntries = true)
-    @WsAction(service = "SysDictService", action = "checkAndInsertIdempotency")
+    @WsAction(service = "SysDictService", action = "checkAndInsertIdempotency", roles = {"SUPER_ADMIN", "ADMIN"})
     public void checkAndInsertIdempotency(String idempotencyKey, SysDict sysDict, String action) {
         Objects.requireNonNull(sysDict, "SysDict must not be null");
         if (sysRequestHistoryMapper.selectByIdempotencyKey(idempotencyKey) != null) {

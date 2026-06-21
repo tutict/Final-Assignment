@@ -1,6 +1,6 @@
 package com.tutict.finalassignmentbackend.kafkaListener;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
+import com.tutict.finalassignmentbackend.common.idempotency.IdempotentKafkaMessageProcessor;
 import com.tutict.finalassignmentbackend.entity.offense.OffenseRecord;
 import com.tutict.finalassignmentbackend.offense.governance.OffenseGovernanceDecision;
 import com.tutict.finalassignmentbackend.offense.governance.OffenseGovernanceLogFactory;
@@ -19,55 +19,46 @@ import java.util.logging.Level;
 import java.util.logging.Logger;
 
 @Service
-// Kafka 监听器，处理消息
 public class OffenseRecordKafkaListener {
 
     private static final Logger log = Logger.getLogger(OffenseRecordKafkaListener.class.getName());
 
     private final OffenseRecordService offenseRecordService;
-    private final ObjectMapper objectMapper;
+    private final IdempotentKafkaMessageProcessor messageProcessor;
     private final SemanticIntentClassifier semanticIntentClassifier;
 
-    // 构造器注入依赖
     @Autowired
     public OffenseRecordKafkaListener(OffenseRecordService offenseRecordService,
-                                      ObjectMapper objectMapper) {
+                                      IdempotentKafkaMessageProcessor messageProcessor) {
         this.offenseRecordService = offenseRecordService;
-        this.objectMapper = objectMapper;
+        this.messageProcessor = messageProcessor;
         this.semanticIntentClassifier = new SemanticIntentClassifier();
     }
 
-    // 监听 Kafka 消息
     @KafkaListener(topics = "${kafka.topics.offense.create:offense_record_create}", groupId = "${kafka.groups.offense:offenseRecordGroup}", concurrency = "3")
     public void onOffenseRecordCreate(@Header(value = KafkaHeaders.RECEIVED_KEY, required = false) byte[] rawKey,
                                       @Payload String message,
                                       Acknowledgment ack) {
         log.log(Level.INFO, "Received Kafka message for OffenseRecord create (payload omitted)");
-        processMessage(asKey(rawKey), message, "create");
-        ack.acknowledge();
+        processMessage(asKey(rawKey), message, "create", ack);
     }
 
-    // 监听 Kafka 消息
     @KafkaListener(topics = "${kafka.topics.offense.update:offense_record_update}", groupId = "${kafka.groups.offense:offenseRecordGroup}", concurrency = "3")
     public void onOffenseRecordUpdate(@Header(value = KafkaHeaders.RECEIVED_KEY, required = false) byte[] rawKey,
                                       @Payload String message,
                                       Acknowledgment ack) {
         log.log(Level.INFO, "Received Kafka message for OffenseRecord update (payload omitted)");
-        processMessage(asKey(rawKey), message, "update");
-        ack.acknowledge();
+        processMessage(asKey(rawKey), message, "update", ack);
     }
 
-    // 统一处理消息并执行业务逻辑
-    private void processMessage(String idempotencyKey, String message, String action) {
+    private void processMessage(String idempotencyKey, String message, String action, Acknowledgment ack) {
         if (isBlank(idempotencyKey)) {
             log.warning("Received OffenseRecord event without idempotency key, skipping");
+            acknowledge(ack);
             return;
         }
-        OffenseRecord payload = deserializeMessage(message);
-        if (payload == null) {
-            log.warning("Received OffenseRecord event with empty payload, skipping");
-            return;
-        }
+
+        OffenseRecord payload = messageProcessor.deserialize(message, OffenseRecord.class);
         try {
             boolean duplicate = offenseRecordService.shouldSkipProcessing(idempotencyKey);
             semanticIntentClassifier.classifyKafkaAction(action, duplicate);
@@ -79,24 +70,9 @@ public class OffenseRecordKafkaListener {
                         )
                         .withAttribute("kafkaKey", idempotencyKey)
                         .withAttribute("action", action));
+                acknowledge(ack);
                 return;
             }
-
-            OffenseRecord result;
-            if ("create".equalsIgnoreCase(action)) {
-                payload.setOffenseId(null);
-                result = offenseRecordService.createOffenseRecord(payload);
-            } else if ("update".equalsIgnoreCase(action)) {
-                result = offenseRecordService.updateKafkaFullUpdate(payload);
-            } else {
-                log.log(Level.WARNING, "Unsupported OffenseRecord action: {0}", action);
-                return;
-            }
-            offenseRecordService.markHistorySuccess(idempotencyKey, result.getOffenseId());
-        } catch (StaleFullUpdateRejectedException ex) {
-            logGovernance(Level.WARNING, ex.decision()
-                    .withAttribute("kafkaKey", idempotencyKey)
-                    .withAttribute("action", action));
         } catch (Exception ex) {
             offenseRecordService.markHistoryFailure(idempotencyKey, ex.getMessage());
             log.log(Level.SEVERE,
@@ -104,22 +80,55 @@ public class OffenseRecordKafkaListener {
                     ex);
             throw ex;
         }
+
+        messageProcessor.process(
+                idempotencyKey,
+                message,
+                ack,
+                "OffenseRecord",
+                action,
+                key -> false,
+                ignored -> processPayload(payload, idempotencyKey, action),
+                (key, result) -> {
+                    if (result != null && result.getOffenseId() != null) {
+                        offenseRecordService.markHistorySuccess(key, result.getOffenseId());
+                    }
+                },
+                (key, ex) -> offenseRecordService.markHistoryFailure(key, ex.getMessage())
+        );
     }
-    private OffenseRecord deserializeMessage(String message) {
+
+    private OffenseRecord processPayload(OffenseRecord payload, String idempotencyKey, String action) {
         try {
-            return objectMapper.readValue(message, OffenseRecord.class);
-        } catch (Exception ex) {
-            log.log(Level.SEVERE, "Failed to deserialize Kafka message (payload omitted)", ex);
-            throw new IllegalArgumentException("Failed to deserialize Kafka message", ex);
+            if ("create".equalsIgnoreCase(action)) {
+                payload.setOffenseId(null);
+                return offenseRecordService.createOffenseRecord(payload);
+            }
+            if ("update".equalsIgnoreCase(action)) {
+                return offenseRecordService.updateKafkaFullUpdate(payload);
+            }
+            log.log(Level.WARNING, "Unsupported OffenseRecord action: {0}", action);
+            return null;
+        } catch (StaleFullUpdateRejectedException ex) {
+            logGovernance(Level.WARNING, ex.decision()
+                    .withAttribute("kafkaKey", idempotencyKey)
+                    .withAttribute("action", action));
+            return null;
         }
     }
+
     private String asKey(byte[] rawKey) {
         return rawKey == null ? null : new String(rawKey);
     }
 
-    // 判空
     private boolean isBlank(String value) {
         return value == null || value.trim().isEmpty();
+    }
+
+    private void acknowledge(Acknowledgment acknowledgment) {
+        if (acknowledgment != null) {
+            acknowledgment.acknowledge();
+        }
     }
 
     private void logGovernance(Level level, OffenseGovernanceDecision decision) {

@@ -152,7 +152,7 @@ public class ProgressItemController {
         }
     }
 
-    @GetMapping("/timeRange")
+    @GetMapping(value = "/timeRange", params = {"startTime", "endTime"})
     @Operation(summary = "List request histories by created time range")
     public ResponseEntity<List<SysRequestHistory>> getByTimeRange(
             @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime startTime,
@@ -166,6 +166,13 @@ public class ProgressItemController {
             }
             throw new RuntimeException(ex);
         }
+    }
+
+    @GetMapping("/timeRange")
+    @Deprecated
+    public ResponseEntity<ApiResponse<Void>> getByTimeRangeDeprecated() {
+        return ResponseEntity.status(HttpStatus.GONE)
+                .body(ApiResponse.error("GONE", "此接口已废弃，请使用 /api/progress/timeRange?startTime=...&endTime=..."));
     }
 
     @GetMapping("/status")

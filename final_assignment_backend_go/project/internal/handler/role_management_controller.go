@@ -25,12 +25,12 @@ func (ctrl *RoleManagementController) RegisterRoutes(router *gin.Engine) {
 
 	roleGroup.POST("", ctrl.CreateRole)                        // 创建角色
 	roleGroup.GET("", ctrl.GetAllRoles)                        // 获取所有角色
-	roleGroup.GET("/:roleId", ctrl.GetRoleById)                // 根据 ID 获取
 	roleGroup.GET("/name/:roleName", ctrl.GetRoleByName)       // 根据名称获取
 	roleGroup.GET("/search", ctrl.GetRolesByNameLike)          // 模糊查询
+	roleGroup.DELETE("/name/:roleName", ctrl.DeleteRoleByName) // 删除角色（按名称）
+	roleGroup.GET("/:roleId", ctrl.GetRoleById)                // 根据 ID 获取
 	roleGroup.PUT("/:roleId", ctrl.UpdateRole)                 // 更新角色
 	roleGroup.DELETE("/:roleId", ctrl.DeleteRole)              // 删除角色（按ID）
-	roleGroup.DELETE("/name/:roleName", ctrl.DeleteRoleByName) // 删除角色（按名称）
 }
 
 // CreateRole 创建新的角色记录（仅限 ADMIN）
@@ -132,7 +132,7 @@ func (ctrl *RoleManagementController) UpdateRole(c *gin.Context) {
 		return
 	}
 
-	updatedRole.RoleId = existingRole.RoleId
+	updatedRole.RoleID = existingRole.RoleID
 
 	if err := ctrl.roleService.CheckAndInsertIdempotency(idempotencyKey, &updatedRole, "update"); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})

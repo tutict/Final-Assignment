@@ -68,6 +68,29 @@ public class RagBackfillJob {
         return new RagBackfillResult(counter.processed, counter.failed, hasMore, true);
     }
 
+    public RagBackfillRunResult runBatches(int startPage, int size, int maxPages) {
+        if (!properties.isEnabled() || !properties.getIndexing().isEnabled()) {
+            return new RagBackfillRunResult(0, 0, 0, false, false);
+        }
+        int effectiveStartPage = Math.max(1, startPage);
+        int effectiveMaxPages = Math.min(Math.max(1, maxPages), 100);
+        int processed = 0;
+        int failed = 0;
+        boolean hasMore = false;
+        int pages = 0;
+        for (int offset = 0; offset < effectiveMaxPages; offset++) {
+            RagBackfillResult result = runBatch(effectiveStartPage + offset, size);
+            pages++;
+            processed += result.processedDocuments();
+            failed += result.failedDocuments();
+            hasMore = result.hasMore();
+            if (!hasMore) {
+                break;
+            }
+        }
+        return new RagBackfillRunResult(processed, failed, pages, hasMore, true);
+    }
+
     private <T> void process(List<T> records, RagSourceExtractor<T> extractor, BatchCounter counter) {
         for (T record : records) {
             try {
@@ -87,6 +110,15 @@ public class RagBackfillJob {
     public record RagBackfillResult(
             int processedDocuments,
             int failedDocuments,
+            boolean hasMore,
+            boolean enabled
+    ) {
+    }
+
+    public record RagBackfillRunResult(
+            int processedDocuments,
+            int failedDocuments,
+            int processedPages,
             boolean hasMore,
             boolean enabled
     ) {

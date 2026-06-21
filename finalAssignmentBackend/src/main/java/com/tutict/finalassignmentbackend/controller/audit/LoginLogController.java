@@ -132,9 +132,10 @@ public class LoginLogController {
 
     @GetMapping
     @Operation(summary = "查询全部登录日志")
-    public ResponseEntity<List<AuditLoginLog>> list() {
+    public ResponseEntity<List<AuditLoginLog>> list(@RequestParam(defaultValue = "1") int page,
+                                                    @RequestParam(defaultValue = "20") int size) {
         try {
-            return ResponseEntity.ok(auditLoginLogService.findAll());
+            return ResponseEntity.ok(auditLoginLogService.findPage(page, size));
         } catch (Exception ex) {
             LOG.log(Level.WARNING, "List login logs failed", ex);
             if (ex instanceof RuntimeException) {

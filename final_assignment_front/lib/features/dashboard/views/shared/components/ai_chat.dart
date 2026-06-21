@@ -1,7 +1,8 @@
 import 'package:final_assignment_front/features/dashboard/bindings/chat_binding.dart';
 import 'package:final_assignment_front/features/dashboard/controllers/chat_controller.dart';
-import 'package:final_assignment_front/shared_components/manager_predefined_questions.dart';
-import 'package:final_assignment_front/shared_components/user_predefined_questions.dart';
+import 'package:final_assignment_front/features/model/chat_action.dart';
+import 'package:final_assignment_front/utils/components/manager_predefined_questions.dart';
+import 'package:final_assignment_front/utils/components/user_predefined_questions.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 
@@ -205,6 +206,7 @@ class _MessageList extends StatelessWidget {
               return _ThinkingBubble(maxWidth: constraints.maxWidth * 0.86);
             }
             return _MessageBubble(
+              controller: controller,
               message: msg,
               maxWidth: constraints.maxWidth * 0.88,
             );
@@ -270,10 +272,12 @@ class _ThinkingBubble extends StatelessWidget {
 
 class _MessageBubble extends StatelessWidget {
   const _MessageBubble({
+    required this.controller,
     required this.message,
     required this.maxWidth,
   });
 
+  final ChatController controller;
   final ChatMessage message;
   final double maxWidth;
 
@@ -347,10 +351,91 @@ class _MessageBubble extends StatelessWidget {
                   letterSpacing: 0,
                 ),
               ),
+            if (message.actions.isNotEmpty)
+              _MessageActionBar(
+                controller: controller,
+                message: message,
+                foregroundColor: foregroundColor,
+              ),
           ],
         ),
       ),
     );
+  }
+}
+
+class _MessageActionBar extends StatelessWidget {
+  const _MessageActionBar({
+    required this.controller,
+    required this.message,
+    required this.foregroundColor,
+  });
+
+  final ChatController controller;
+  final ChatMessage message;
+  final Color foregroundColor;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final scheme = theme.colorScheme;
+
+    return Padding(
+      padding: const EdgeInsets.only(top: 10),
+      child: Wrap(
+        spacing: 8,
+        runSpacing: 8,
+        children: [
+          for (final action in message.actions)
+            OutlinedButton.icon(
+              onPressed: () => controller.executeAction(
+                action,
+                needConfirm: message.needConfirm,
+              ),
+              icon: Icon(_iconForAction(action), size: 16),
+              label: Text(_labelForAction(action)),
+              style: OutlinedButton.styleFrom(
+                foregroundColor: foregroundColor,
+                side: BorderSide(
+                  color: scheme.primary.withValues(alpha: 0.72),
+                ),
+                backgroundColor: scheme.primary.withValues(alpha: 0.10),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 12,
+                  vertical: 10,
+                ),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                textStyle: theme.textTheme.labelMedium?.copyWith(
+                  fontWeight: FontWeight.w800,
+                  letterSpacing: 0,
+                ),
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+
+  IconData _iconForAction(ChatAction action) {
+    return switch (action.type?.toUpperCase()) {
+      'FILL_FORM' => Icons.edit_note_rounded,
+      'CALL_API' => Icons.cloud_sync_rounded,
+      'SHOW_MODAL' => Icons.open_in_new_rounded,
+      _ => Icons.arrow_forward_rounded,
+    };
+  }
+
+  String _labelForAction(ChatAction action) {
+    final label = action.label?.trim();
+    if (label != null && label.isNotEmpty) return label;
+    return switch (action.type?.toUpperCase()) {
+      'FILL_FORM' => '填写表单',
+      'CALL_API' => '执行操作',
+      'SHOW_MODAL' => '查看详情',
+      _ => '打开页面',
+    };
   }
 }
 
@@ -392,7 +477,7 @@ class _AssistantEmptyState extends StatelessWidget {
             ),
             const SizedBox(height: 18),
             Text(
-              '超级管理员智能助手',
+              '超级管理员助手',
               style: theme.textTheme.headlineSmall?.copyWith(
                 color: scheme.onSurface,
                 fontWeight: FontWeight.w900,
@@ -401,7 +486,7 @@ class _AssistantEmptyState extends StatelessWidget {
             ),
             const SizedBox(height: 8),
             Text(
-              '辅助审查操作日志、定位异常链路、整理 RAG 资料录入和系统治理事项。',
+              '审查操作日志、维护 RAG 资料、分析异常链路和系统治理事项。',
               style: theme.textTheme.bodyMedium?.copyWith(
                 color: scheme.onSurfaceVariant,
                 height: 1.42,
@@ -445,7 +530,7 @@ class _AssistantEmptyState extends StatelessWidget {
             ),
             const SizedBox(height: 18),
             Text(
-              '\u7ba1\u7406\u4e1a\u52a1\u667a\u80fd\u52a9\u624b',
+              '管理员业务助手',
               style: theme.textTheme.headlineSmall?.copyWith(
                 color: scheme.onSurface,
                 fontWeight: FontWeight.w900,
@@ -454,7 +539,7 @@ class _AssistantEmptyState extends StatelessWidget {
             ),
             const SizedBox(height: 8),
             Text(
-              '\u534f\u52a9\u5b9a\u4f4d\u5f85\u529e\u3001\u7edf\u8ba1\u5904\u7406\u8fdb\u5ea6\u3001\u68b3\u7406\u7533\u8bc9\u5ba1\u6838\u548c\u6570\u636e\u7ba1\u7406\u53e3\u5f84\u3002',
+              '定位待办、查看处理进度、梳理申诉审批和数据管理口径。',
               style: theme.textTheme.bodyMedium?.copyWith(
                 color: scheme.onSurfaceVariant,
                 height: 1.42,
@@ -467,19 +552,19 @@ class _AssistantEmptyState extends StatelessWidget {
               runSpacing: 8,
               children: [
                 _CapabilityChip(
-                  label: '\u5f85\u529e\u5b9a\u4f4d',
+                  label: '待办定位',
                   icon: Icons.manage_search_outlined,
                 ),
                 _CapabilityChip(
-                  label: '\u7533\u8bc9\u5ba1\u6838',
+                  label: '申诉审核',
                   icon: Icons.fact_check_outlined,
                 ),
                 _CapabilityChip(
-                  label: '\u6570\u636e\u7edf\u8ba1',
+                  label: '数据统计',
                   icon: Icons.query_stats_rounded,
                 ),
                 _CapabilityChip(
-                  label: '\u4e1a\u52a1\u7ba1\u7406',
+                  label: '业务管理',
                   icon: Icons.admin_panel_settings_outlined,
                 ),
               ],
@@ -509,7 +594,7 @@ class _AssistantEmptyState extends StatelessWidget {
           ),
           const SizedBox(height: 18),
           Text(
-            '交通业务智能助手',
+            '驾驶员业务助手',
             style: theme.textTheme.headlineSmall?.copyWith(
               color: scheme.onSurface,
               fontWeight: FontWeight.w900,
@@ -518,7 +603,7 @@ class _AssistantEmptyState extends StatelessWidget {
           ),
           const SizedBox(height: 8),
           Text(
-            '可以帮你梳理违法查询、罚款缴纳、申诉材料和事故快处流程。',
+            '查询违法、缴纳罚款、准备申诉材料并了解事故快处流程。',
             style: theme.textTheme.bodyMedium?.copyWith(
               color: scheme.onSurfaceVariant,
               height: 1.42,
@@ -773,16 +858,20 @@ class _ComposerIconButton extends StatelessWidget {
 
     return Tooltip(
       message: tooltip,
-      child: Material(
-        color: backgroundColor,
-        borderRadius: BorderRadius.circular(8),
-        child: InkWell(
-          onTap: onPressed,
+      child: Semantics(
+        button: true,
+        label: tooltip,
+        child: Material(
+          color: backgroundColor,
           borderRadius: BorderRadius.circular(8),
-          child: SizedBox(
-            width: 44,
-            height: 44,
-            child: Icon(icon, color: foregroundColor, size: 20),
+          child: InkWell(
+            onTap: onPressed,
+            borderRadius: BorderRadius.circular(8),
+            child: SizedBox(
+              width: 44,
+              height: 44,
+              child: Icon(icon, color: foregroundColor, size: 20),
+            ),
           ),
         ),
       ),

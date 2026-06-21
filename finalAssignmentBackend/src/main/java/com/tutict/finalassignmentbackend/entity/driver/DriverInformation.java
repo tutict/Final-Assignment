@@ -1,6 +1,7 @@
 package com.tutict.finalassignmentbackend.entity.driver;
 
 import com.baomidou.mybatisplus.annotation.*;
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import lombok.Data;
 
 import java.io.Serial;
@@ -45,6 +46,14 @@ public class DriverInformation implements Serializable {
     @TableField("id_card_number")
     private String idCardNumber;
 
+    @TableField("id_card_number_ciphertext")
+    @JsonIgnore
+    private String idCardNumberCiphertext;
+
+    @TableField("id_card_number_blind_index")
+    @JsonIgnore
+    private String idCardNumberBlindIndex;
+
     /**
      * 性别 (Male, Female)
      */
@@ -62,6 +71,14 @@ public class DriverInformation implements Serializable {
      */
     @TableField("contact_number")
     private String contactNumber;
+
+    @TableField("contact_number_ciphertext")
+    @JsonIgnore
+    private String contactNumberCiphertext;
+
+    @TableField("contact_number_blind_index")
+    @JsonIgnore
+    private String contactNumberBlindIndex;
 
     /**
      * 电子邮箱
@@ -165,4 +182,22 @@ public class DriverInformation implements Serializable {
      */
     @TableField("remarks")
     private String remarks;
+
+    @TableField(exist = false)
+    private String username;
+
+    @TableField(exist = false)
+    private String accountStatus;
+
+    @TableField(exist = false)
+    private Long vehicleCount;
+
+    @TableField(exist = false)
+    private Long offenseCount;
+
+    @TableField(exist = false)
+    private Long unpaidFineCount;
+
+    @TableField(exist = false)
+    private Long appealCount;
 }

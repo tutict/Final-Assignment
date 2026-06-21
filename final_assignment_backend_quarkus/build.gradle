@@ -43,7 +43,6 @@ dependencies {
     implementation 'io.quarkus:quarkus-rest'
     implementation 'io.quarkus:quarkus-rest-client'
     implementation 'io.quarkus:quarkus-rest-jsonb'
-    implementation 'com.manticoresearch:manticoresearch:8.1.0'
     implementation 'org.graalvm.polyglot:polyglot:25.0.1'
     implementation 'org.testcontainers:testcontainers:2.0.2'
     implementation 'io.quarkiverse.satoken:quarkus-satoken-resteasy:1.31.1'

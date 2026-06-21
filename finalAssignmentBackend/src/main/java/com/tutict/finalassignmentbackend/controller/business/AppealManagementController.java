@@ -13,6 +13,7 @@ import com.tutict.finalassignmentbackend.exception.EntityNotFoundException;
 import com.tutict.finalassignmentbackend.service.appeal.AppealRecordService;
 import com.tutict.finalassignmentbackend.service.appeal.AppealReviewService;
 import com.tutict.finalassignmentbackend.service.auth.AuthWsService;
+import com.tutict.finalassignmentbackend.service.business.BusinessRecordViewService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -55,13 +56,16 @@ public class AppealManagementController {
     private final AuthWsService authWsService;
     private final AppealRecordService appealRecordService;
     private final AppealReviewService appealReviewService;
+    private final BusinessRecordViewService businessRecordViewService;
 
     public AppealManagementController(AuthWsService authWsService,
                                       AppealRecordService appealRecordService,
-                                      AppealReviewService appealReviewService) {
+                                      AppealReviewService appealReviewService,
+                                      BusinessRecordViewService businessRecordViewService) {
         this.authWsService = authWsService;
         this.appealRecordService = appealRecordService;
         this.appealReviewService = appealReviewService;
+        this.businessRecordViewService = businessRecordViewService;
     }
 
     @PostMapping
@@ -116,7 +120,7 @@ public class AppealManagementController {
         List<AppealRecord> records = profile.getDriverId() != null
                 ? appealRecordService.findByDriverId(profile.getDriverId(), page, size)
                 : appealRecordService.findByCreatedBy(authentication.getName(), page, size);
-        List<AppealResponse> content = toResponses(records);
+        List<AppealResponse> content = toResponses(enrich(records));
         return ResponseEntity.ok(ApiResponse.ok(PageResponse.of(content, content.size(), page, size)));
     }
 
@@ -124,11 +128,13 @@ public class AppealManagementController {
     @RolesAllowed({"ADMIN", "APPEAL_REVIEWER", "SUPER_ADMIN"})
     @Operation(summary = "List appeals by offense")
     public ResponseEntity<ApiResponse<List<AppealResponse>>> listAppeals(
-            @RequestParam Long offenseId,
+            @RequestParam(required = false) Long offenseId,
             @RequestParam(defaultValue = "1") int page,
             @RequestParam(defaultValue = "20") int size) {
-        return ResponseEntity.ok(ApiResponse.ok(
-                toResponses(appealRecordService.findByOffenseId(offenseId, page, size))));
+        List<AppealRecord> records = offenseId == null
+                ? businessRecordViewService.listAppeals(page, size)
+                : appealRecordService.findByOffenseId(offenseId, page, size);
+        return ResponseEntity.ok(ApiResponse.ok(toResponses(enrich(records))));
     }
 
     @GetMapping("/{appealId}")
@@ -139,7 +145,7 @@ public class AppealManagementController {
         if (record == null) {
             throw new EntityNotFoundException("Appeal not found: " + appealId);
         }
-        return ResponseEntity.ok(ApiResponse.ok(AppealResponse.from(record)));
+        return ResponseEntity.ok(ApiResponse.ok(AppealResponse.from(enrich(record))));
     }
 
     @PutMapping("/{appealId}")
@@ -188,7 +194,7 @@ public class AppealManagementController {
             @RequestParam(defaultValue = "1") int page,
             @RequestParam(defaultValue = "20") int size) {
         return ResponseEntity.ok(ApiResponse.ok(
-                toResponses(appealRecordService.searchByAppealNumberPrefix(appealNumber, page, size))));
+                toResponses(enrich(appealRecordService.searchByAppealNumberPrefix(appealNumber, page, size)))));
     }
 
     @GetMapping("/search/number/fuzzy")
@@ -199,7 +205,7 @@ public class AppealManagementController {
             @RequestParam(defaultValue = "1") int page,
             @RequestParam(defaultValue = "20") int size) {
         return ResponseEntity.ok(ApiResponse.ok(
-                toResponses(appealRecordService.searchByAppealNumberFuzzy(appealNumber, page, size))));
+                toResponses(enrich(appealRecordService.searchByAppealNumberFuzzy(appealNumber, page, size)))));
     }
 
     @GetMapping("/search/appellant/name/prefix")
@@ -210,7 +216,7 @@ public class AppealManagementController {
             @RequestParam(defaultValue = "1") int page,
             @RequestParam(defaultValue = "20") int size) {
         return ResponseEntity.ok(ApiResponse.ok(
-                toResponses(appealRecordService.searchByAppellantNamePrefix(appellantName, page, size))));
+                toResponses(enrich(appealRecordService.searchByAppellantNamePrefix(appellantName, page, size)))));
     }
 
     @GetMapping("/search/appellant/name/fuzzy")
@@ -221,7 +227,7 @@ public class AppealManagementController {
             @RequestParam(defaultValue = "1") int page,
             @RequestParam(defaultValue = "20") int size) {
         return ResponseEntity.ok(ApiResponse.ok(
-                toResponses(appealRecordService.searchByAppellantNameFuzzy(appellantName, page, size))));
+                toResponses(enrich(appealRecordService.searchByAppellantNameFuzzy(appellantName, page, size)))));
     }
 
     @GetMapping("/search/appellant/id-card")
@@ -232,7 +238,7 @@ public class AppealManagementController {
             @RequestParam(defaultValue = "1") int page,
             @RequestParam(defaultValue = "20") int size) {
         return ResponseEntity.ok(ApiResponse.ok(
-                toResponses(appealRecordService.searchByAppellantIdCard(appellantIdCard, page, size))));
+                toResponses(enrich(appealRecordService.searchByAppellantIdCard(appellantIdCard, page, size)))));
     }
 
     @GetMapping("/search/acceptance-status")
@@ -243,7 +249,7 @@ public class AppealManagementController {
             @RequestParam(defaultValue = "1") int page,
             @RequestParam(defaultValue = "20") int size) {
         return ResponseEntity.ok(ApiResponse.ok(
-                toResponses(appealRecordService.searchByAcceptanceStatus(acceptanceStatus, page, size))));
+                toResponses(enrich(appealRecordService.searchByAcceptanceStatus(acceptanceStatus, page, size)))));
     }
 
     @GetMapping("/search/process-status")
@@ -254,7 +260,7 @@ public class AppealManagementController {
             @RequestParam(defaultValue = "1") int page,
             @RequestParam(defaultValue = "20") int size) {
         return ResponseEntity.ok(ApiResponse.ok(
-                toResponses(appealRecordService.searchByProcessStatus(processStatus, page, size))));
+                toResponses(enrich(appealRecordService.searchByProcessStatus(processStatus, page, size)))));
     }
 
     @GetMapping("/search/time-range")
@@ -266,7 +272,7 @@ public class AppealManagementController {
             @RequestParam(defaultValue = "1") int page,
             @RequestParam(defaultValue = "20") int size) {
         return ResponseEntity.ok(ApiResponse.ok(
-                toResponses(appealRecordService.searchByAppealTimeRange(startTime, endTime, page, size))));
+                toResponses(enrich(appealRecordService.searchByAppealTimeRange(startTime, endTime, page, size)))));
     }
 
     @GetMapping("/search/handler")
@@ -277,7 +283,7 @@ public class AppealManagementController {
             @RequestParam(defaultValue = "1") int page,
             @RequestParam(defaultValue = "20") int size) {
         return ResponseEntity.ok(ApiResponse.ok(
-                toResponses(appealRecordService.searchByAcceptanceHandler(acceptanceHandler, page, size))));
+                toResponses(enrich(appealRecordService.searchByAcceptanceHandler(acceptanceHandler, page, size)))));
     }
 
     @PostMapping("/{appealId}/reviews")
@@ -429,6 +435,14 @@ public class AppealManagementController {
         }
         UserProfileResponse profile = authWsService.getCurrentUserProfile(authentication.getName());
         return Objects.equals(profile.getDriverId(), driverId);
+    }
+
+    private AppealRecord enrich(AppealRecord record) {
+        return businessRecordViewService.enrichAppeal(record);
+    }
+
+    private List<AppealRecord> enrich(List<AppealRecord> records) {
+        return businessRecordViewService.enrichAppeals(records);
     }
 
     private List<AppealResponse> toResponses(List<AppealRecord> records) {

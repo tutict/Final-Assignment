@@ -2,9 +2,11 @@ package com.tutict.finalassignmentbackend.service.auth;
 
 import com.tutict.finalassignmentbackend.config.login.jwt.TokenProvider;
 import com.tutict.finalassignmentbackend.config.websocket.WsAction;
+import com.tutict.finalassignmentbackend.dto.mapper.UserResponseMapper;
 import com.tutict.finalassignmentbackend.dto.request.RefreshRequest;
 import com.tutict.finalassignmentbackend.dto.response.TokenResponse;
 import com.tutict.finalassignmentbackend.dto.response.UserProfileResponse;
+import com.tutict.finalassignmentbackend.dto.response.UserResponse;
 import com.tutict.finalassignmentbackend.entity.audit.AuditLoginLog;
 import com.tutict.finalassignmentbackend.entity.driver.DriverInformation;
 import com.tutict.finalassignmentbackend.entity.system.SysRequestHistory;
@@ -94,7 +96,7 @@ public class AuthWsService {
     }
 
     @CacheEvict(cacheNames = "AuthCache", allEntries = true)
-    @WsAction(service = "AuthWsService", action = "login")
+    @WsAction(service = "AuthWsService", action = "login", allowAuthenticated = true)
     public Map<String, Object> login(LoginRequest loginRequest) {
         validateLoginRequest(loginRequest);
 
@@ -214,7 +216,7 @@ public class AuthWsService {
 
     @Transactional
     @CacheEvict(cacheNames = {"AuthCache", "usernameExistsCache"}, allEntries = true)
-    @WsAction(service = "AuthWsService", action = "registerUser")
+    @WsAction(service = "AuthWsService", action = "registerUser", roles = {"SUPER_ADMIN", "ADMIN"})
     public String registerUser(RegisterRequest registerRequest) {
         validateRegisterRequest(registerRequest);
         logger.info(() -> String.format("Registering user: %s", registerRequest.getUsername()));
@@ -265,14 +267,16 @@ public class AuthWsService {
     }
 
     @CacheEvict(cacheNames = "AuthCache", allEntries = true)
-    @WsAction(service = "AuthWsService", action = "getAllUsers")
-    public List<SysUser> getAllUsers() {
+    @WsAction(service = "AuthWsService", action = "getAllUsers", roles = {"SUPER_ADMIN", "ADMIN"})
+    public List<UserResponse> getAllUsers() {
         logger.info("[WS] Fetching all users");
         List<SysUser> users = sysUserService.getAllUsers();
         if (users.isEmpty()) {
             logger.warning("No users found in the system");
         }
-        return users;
+        return users.stream()
+                .map(UserResponseMapper::toResponse)
+                .toList();
     }
 
     private SysRequestHistory createRegisterHistory(RegisterRequest registerRequest) {

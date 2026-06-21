@@ -27,9 +27,40 @@ class UserManagementControllerApi with BaseApiClient {
         size: 20,
       );
     }
-    return unwrapPageResponse(
-      jsonDecode(decodeBodyBytes(response)) as Map<String, dynamic>,
-      UserResponse.fromJson,
+    final decoded = unwrapPayload(jsonDecode(decodeBodyBytes(response)));
+    if (decoded is List) {
+      final users = decoded
+          .map((item) => UserResponse.fromJson(
+                Map<String, dynamic>.from(item as Map),
+              ))
+          .toList();
+      return PageResult<UserResponse>(
+        content: users,
+        total: users.length,
+        page: 1,
+        size: users.length,
+      );
+    }
+    if (decoded is Map) {
+      final page = Map<String, dynamic>.from(decoded);
+      final content = page['content'] ?? page['records'] ?? page['items'];
+      if (content is List) {
+        return PageResult<UserResponse>(
+          content: content
+              .map((item) => UserResponse.fromJson(
+                    Map<String, dynamic>.from(item as Map),
+                  ))
+              .toList(),
+          total: _toInt(page['total'] ?? page['totalElements']) ??
+              content.length,
+          page: _toInt(page['page'] ?? page['number']) ?? 1,
+          size: _toInt(page['size'] ?? page['pageSize']) ?? content.length,
+        );
+      }
+    }
+    throw AppException.http(
+      response.statusCode,
+      'Expected users list response, got ${decoded.runtimeType}',
     );
   }
 
@@ -57,10 +88,12 @@ class UserManagementControllerApi with BaseApiClient {
       }
       throw AppException.http(response.statusCode, 'Empty response body');
     }
-    final userResponse = unwrapApiResponse(
-      jsonDecode(decodeBodyBytes(response)) as Map<String, dynamic>,
-      (data) => UserResponse.fromJson(Map<String, dynamic>.from(data as Map)),
-    );
+    final decoded = unwrapPayload(jsonDecode(decodeBodyBytes(response)));
+    final payload = decoded is Map && decoded.containsKey('data')
+        ? decoded['data']
+        : decoded;
+    final userResponse =
+        UserResponse.fromJson(Map<String, dynamic>.from(payload as Map));
     return UserManagement.fromUserResponse(userResponse);
   }
 
@@ -611,5 +644,12 @@ class UserManagementControllerApi with BaseApiClient {
       return <String>[];
     }
     return result.map((item) => item.toString()).toList();
+  }
+
+  int? _toInt(dynamic value) {
+    if (value == null) return null;
+    if (value is int) return value;
+    if (value is num) return value.toInt();
+    return int.tryParse(value.toString());
   }
 }

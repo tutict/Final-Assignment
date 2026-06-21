@@ -1,4 +1,10 @@
+import 'dart:convert';
+import 'dart:typed_data';
+
+import 'package:final_assignment_front/core/network/app_exception.dart';
 import 'package:final_assignment_front/utils/services/api_client.dart';
+import 'package:final_assignment_front/utils/services/auth_token_store.dart';
+import 'package:http/http.dart' as http;
 
 class RagManagementControllerApi with BaseApiClient {
   RagManagementControllerApi() : _apiClient = ApiClient();
@@ -62,6 +68,62 @@ class RagManagementControllerApi with BaseApiClient {
     );
   }
 
+  Future<RagIndexResult> uploadDocument({
+    required String fileName,
+    required Uint8List bytes,
+    String? sourceId,
+    String? sourceVersion,
+    String? title,
+    String aclScope = 'PUBLIC',
+    String route = '',
+    String metadataJson = '{}',
+  }) async {
+    await initializeWithJwt();
+    final token = await AuthTokenStore.instance.getJwtToken();
+    final request = http.MultipartRequest(
+      'POST',
+      Uri.parse('${_apiClient.basePath}/api/rag/admin/documents/upload'),
+    );
+    if (token != null && token.isNotEmpty) {
+      request.headers['Authorization'] = 'Bearer $token';
+    }
+    request.fields.addAll({
+      if (sourceId != null && sourceId.trim().isNotEmpty)
+        'sourceId': sourceId.trim(),
+      if (sourceVersion != null && sourceVersion.trim().isNotEmpty)
+        'sourceVersion': sourceVersion.trim(),
+      if (title != null && title.trim().isNotEmpty) 'title': title.trim(),
+      'aclScope': aclScope,
+      if (route.trim().isNotEmpty) 'route': route.trim(),
+      'metadataJson': metadataJson.trim().isEmpty ? '{}' : metadataJson.trim(),
+    });
+    request.files.add(
+      http.MultipartFile.fromBytes(
+        'file',
+        bytes,
+        filename: fileName,
+      ),
+    );
+
+    final streamedResponse =
+        await request.send().timeout(const Duration(seconds: 60));
+    final response = await http.Response.fromStream(streamedResponse);
+    if (AppException.isErrorStatus(response.statusCode)) {
+      throw AppException.fromResponse(response);
+    }
+
+    final decoded = jsonDecode(utf8.decode(response.bodyBytes));
+    final data = decoded is Map<String, dynamic> ? decoded['data'] : null;
+    if (data is! Map<String, dynamic>) {
+      throw const AppException(
+        type: AppErrorType.serverError,
+        message: 'Invalid RAG upload response',
+        statusCode: 500,
+      );
+    }
+    return RagIndexResult.fromJson(data);
+  }
+
   Future<void> runBackfill({int page = 1, int size = 200}) {
     return requestVoid(
       'POST',
@@ -121,7 +183,10 @@ class RagDocumentDto {
     required this.status,
     required this.aclScope,
     required this.route,
+    required this.metadataJson,
+    required this.contentHash,
     required this.updatedAt,
+    required this.indexedAt,
   });
 
   factory RagDocumentDto.fromJson(Map<String, dynamic> json) {
@@ -135,7 +200,10 @@ class RagDocumentDto {
       status: (json['status'] ?? '').toString(),
       aclScope: (json['aclScope'] ?? '').toString(),
       route: (json['route'] ?? '').toString(),
+      metadataJson: (json['metadataJson'] ?? '').toString(),
+      contentHash: (json['contentHash'] ?? '').toString(),
       updatedAt: (json['updatedAt'] ?? '').toString(),
+      indexedAt: (json['indexedAt'] ?? '').toString(),
     );
   }
 
@@ -148,7 +216,10 @@ class RagDocumentDto {
   final String status;
   final String aclScope;
   final String route;
+  final String metadataJson;
+  final String contentHash;
   final String updatedAt;
+  final String indexedAt;
 }
 
 class RagIndexResult {
