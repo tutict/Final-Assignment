@@ -1,6 +1,6 @@
 package com.tutict.finalassignmentcloud.system.appeal.domain.policy;
 
-import com.tutict.finalassignmentbackend.config.statemachine.states.AppealProcessState;
+import com.tutict.finalassignmentcloud.entity.appeal.AppealProcessState;
 
 import java.util.EnumMap;
 import java.util.EnumSet;

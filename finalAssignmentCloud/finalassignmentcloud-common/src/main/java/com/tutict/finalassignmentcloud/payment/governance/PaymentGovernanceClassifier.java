@@ -1,6 +1,6 @@
 package com.tutict.finalassignmentcloud.payment.governance;
 
-import com.tutict.finalassignmentcloud.config.statemachine.states.PaymentState;
+import com.tutict.finalassignmentcloud.entity.payment.PaymentState;
 
 import java.util.Arrays;
 import java.util.EnumSet;

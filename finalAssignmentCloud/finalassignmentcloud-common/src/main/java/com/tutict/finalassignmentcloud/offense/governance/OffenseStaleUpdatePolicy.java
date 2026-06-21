@@ -1,6 +1,6 @@
 package com.tutict.finalassignmentcloud.offense.governance;
 
-import com.tutict.finalassignmentcloud.config.statemachine.states.OffenseProcessState;
+import com.tutict.finalassignmentcloud.entity.offense.OffenseProcessState;
 
 import java.time.LocalDateTime;
 

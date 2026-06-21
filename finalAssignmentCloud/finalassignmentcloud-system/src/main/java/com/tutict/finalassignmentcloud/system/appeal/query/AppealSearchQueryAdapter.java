@@ -5,7 +5,7 @@ import com.tutict.finalassignmentcloud.system.appeal.query.dto.AppealPageRequest
 import com.tutict.finalassignmentcloud.system.appeal.read.AppealReadAssembler;
 import com.tutict.finalassignmentcloud.system.appeal.read.AppealReadModel;
 import com.tutict.finalassignmentcloud.entity.elastic.AppealRecordDocument;
-import com.tutict.finalassignmentbackend.repository.AppealRecordSearchRepository;
+import com.tutict.finalassignmentcloud.repository.AppealRecordSearchRepository;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.elasticsearch.core.SearchHit;
