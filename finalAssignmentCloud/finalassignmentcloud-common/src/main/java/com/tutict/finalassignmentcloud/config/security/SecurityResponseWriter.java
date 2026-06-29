@@ -27,6 +27,16 @@ public final class SecurityResponseWriter {
         write(response, HttpStatus.FORBIDDEN, "FORBIDDEN", "\u60a8\u6ca1\u6709\u6743\u9650\u6267\u884c\u6b64\u64cd\u4f5c");
     }
 
+    /**
+     * \u901a\u7528 JSON \u9519\u8bef\u54cd\u5e94\uff0c\u4f9b\u975e Spring Security \u5165\u53e3\uff08\u5982\u5185\u90e8 service token \u8fc7\u6ee4\u5668\uff09\u590d\u7528\u3002
+     */
+    public static void writeStatus(HttpServletResponse response,
+                                   HttpStatus status,
+                                   String errorCode,
+                                   String message) throws IOException {
+        write(response, status, errorCode, message);
+    }
+
     private static void write(HttpServletResponse response,
                               HttpStatus status,
                               String errorCode,

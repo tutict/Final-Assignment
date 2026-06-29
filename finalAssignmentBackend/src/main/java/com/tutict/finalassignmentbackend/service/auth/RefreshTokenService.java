@@ -23,14 +23,14 @@ public class RefreshTokenService {
     private static final int REFRESH_TOKEN_BYTES = 32;
 
     private final RefreshTokenMapper refreshTokenMapper;
-    private final PasswordEncoder passwordEncoder;
+    private final PqcTokenCrypto pqcTokenCrypto;
     private final long refreshExpirationSeconds;
 
     public RefreshTokenService(RefreshTokenMapper refreshTokenMapper,
-                               PasswordEncoder passwordEncoder,
+                               PqcTokenCrypto pqcTokenCrypto,
                                @Value("${jwt.refresh-token-expiration:604800}") long refreshExpirationSeconds) {
         this.refreshTokenMapper = refreshTokenMapper;
-        this.passwordEncoder = passwordEncoder;
+        this.pqcTokenCrypto = pqcTokenCrypto;
         this.refreshExpirationSeconds = refreshExpirationSeconds;
     }
 
@@ -47,7 +47,7 @@ public class RefreshTokenService {
         LocalDateTime now = LocalDateTime.now();
 
         RefreshToken entity = new RefreshToken();
-        entity.setToken(passwordEncoder.encode(raw));
+        entity.setToken(pqcTokenCrypto.encrypt(raw));
         entity.setUserId(userId);
         entity.setExpiresAt(now.plusSeconds(refreshExpirationSeconds));
         entity.setRevoked(false);
@@ -108,7 +108,15 @@ public class RefreshTokenService {
         List<RefreshToken> candidates = refreshTokenMapper.selectList(query);
 
         return candidates.stream()
-                .filter(candidate -> passwordEncoder.matches(raw, candidate.getToken()))
+                .filter(candidate -> {
+                    String decrypted;
+                    try {
+                        decrypted = pqcTokenCrypto.decrypt(candidate.getToken());
+                    } catch (Exception ex) {
+                        return false; // 旧 BCrypt 哈希或损坏数据，无法解密
+                    }
+                    return pqcTokenCrypto.constantTimeEquals(raw, decrypted);
+                })
                 .findFirst()
                 .orElseThrow(() -> new BadCredentialsException("Invalid refresh token"));
     }

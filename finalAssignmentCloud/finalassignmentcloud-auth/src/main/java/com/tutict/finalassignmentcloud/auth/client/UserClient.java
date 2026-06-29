@@ -1,6 +1,5 @@
 package com.tutict.finalassignmentcloud.auth.client;
 
-import com.tutict.finalassignmentcloud.dto.response.SysUserResponse;
 import com.tutict.finalassignmentcloud.entity.SysUser;
 import com.tutict.finalassignmentcloud.entity.SysUserRole;
 import org.springframework.cloud.openfeign.FeignClient;
@@ -14,27 +13,30 @@ import org.springframework.web.bind.annotation.RequestParam;
 
 import java.util.List;
 
+/**
+ * 内部 service-to-service 调用统一返回完整 {@link SysUser}（含 password 哈希），与服务端实际返回一致。
+ * service token（X-Internal-Service-Token）由全局 feign 拦截器注入，方法签名不再携带该参数。
+ */
 @FeignClient(name = "finalassignmentcloud-user")
 public interface UserClient {
 
     @GetMapping("/api/users/internal/search/username/{username}")
-    SysUser getByUsername(@PathVariable("username") String username,
-                          @RequestHeader("X-Internal-Service-Token") String serviceToken);
+    SysUser getByUsername(@PathVariable("username") String username);
 
     @GetMapping("/api/users")
-    List<SysUserResponse> getAllUsers();
+    List<SysUser> getAllUsers();
 
     @PostMapping("/api/users")
-    SysUserResponse createUser(@RequestBody SysUser request,
-                               @RequestHeader(value = "Idempotency-Key", required = false) String idempotencyKey);
+    SysUser createUser(@RequestBody SysUser request,
+                       @RequestHeader(value = "Idempotency-Key", required = false) String idempotencyKey);
 
     @GetMapping("/api/users/{userId}")
-    SysUserResponse getById(@PathVariable("userId") Long userId);
+    SysUser getById(@PathVariable("userId") Long userId);
 
     @PutMapping("/api/users/{userId}")
-    SysUserResponse updateUser(@PathVariable("userId") Long userId,
-                               @RequestBody SysUser request,
-                               @RequestHeader(value = "Idempotency-Key", required = false) String idempotencyKey);
+    SysUser updateUser(@PathVariable("userId") Long userId,
+                       @RequestBody SysUser request,
+                       @RequestHeader(value = "Idempotency-Key", required = false) String idempotencyKey);
 
     @GetMapping("/api/users/{userId}/roles")
     List<SysUserRole> listUserRoles(@PathVariable("userId") Long userId,

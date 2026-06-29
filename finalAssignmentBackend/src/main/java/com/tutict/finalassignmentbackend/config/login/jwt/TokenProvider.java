@@ -1,5 +1,8 @@
 package com.tutict.finalassignmentbackend.config.login.jwt;
 
+import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.tutict.finalassignmentbackend.config.security.pqc.PqcProviderInitializer;
 import com.tutict.finalassignmentbackend.enums.DataScope;
 import com.tutict.finalassignmentbackend.enums.RoleType;
 import io.jsonwebtoken.Claims;
@@ -14,10 +17,14 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
 import javax.crypto.SecretKey;
+import java.io.StringReader;
 import java.nio.charset.StandardCharsets;
 import java.security.KeyFactory;
+import java.security.KeyPair;
+import java.security.KeyPairGenerator;
 import java.security.PrivateKey;
 import java.security.PublicKey;
+import java.security.Signature;
 import java.security.spec.PKCS8EncodedKeySpec;
 import java.security.spec.X509EncodedKeySpec;
 import java.util.Arrays;
@@ -35,12 +42,22 @@ import java.util.logging.Level;
 import java.util.logging.Logger;
 import java.util.stream.Collectors;
 
+import org.bouncycastle.asn1.pkcs.PrivateKeyInfo;
+import org.bouncycastle.asn1.x509.SubjectPublicKeyInfo;
+import org.bouncycastle.cert.X509CertificateHolder;
+import org.bouncycastle.jce.provider.BouncyCastleProvider;
+import org.bouncycastle.openssl.PEMParser;
+import org.bouncycastle.openssl.jcajce.JcaPEMKeyConverter;
+
 @Service
 public class TokenProvider {
 
     private static final Logger LOG = Logger.getLogger(TokenProvider.class.getName());
     private static final String FORBIDDEN_DEFAULT_SECRET = "CHANGE_ME_IN_PRODUCTION";
     private static final int MIN_HS256_SECRET_BYTES = 32;
+    private static final String BC = BouncyCastleProvider.PROVIDER_NAME;
+    private static final String ML_DSA_ALGORITHM = "ML-DSA-65";   // BC KeyPairGenerator / Signature
+    private static final String ML_DSA_JWT_ALG = "ML-DSA-65";     // JWT header alg
 
     @Value("${jwt.secret:}")
     private String secret;
@@ -54,6 +71,12 @@ public class TokenProvider {
     @Value("${jwt.public-key:}")
     private String publicKeyPem;
 
+    @Value("${jwt.ml-dsa.private-key:}")
+    private String mlDsaPrivateKeyPem;
+
+    @Value("${jwt.ml-dsa.public-key:}")
+    private String mlDsaPublicKeyPem;
+
     @Value("${jwt.access-token-expiration:3600}")
     private long accessTokenExpirationSeconds;
 
@@ -61,6 +84,9 @@ public class TokenProvider {
     private SecretKey secretKey;
     private PrivateKey privateKey;
     private PublicKey publicKey;
+    private PrivateKey mlDsaPrivateKey;
+    private PublicKey mlDsaPublicKey;
+    private final ObjectMapper objectMapper = new ObjectMapper();
 
     private static final Map<String, RoleMetadata> ROLE_SCHEMA;
 
@@ -81,10 +107,10 @@ public class TokenProvider {
             throw new IllegalStateException("jwt.access-token-expiration must be greater than 0 seconds");
         }
         this.algorithm = JwtAlgorithm.from(configuredAlgorithm);
-        if (algorithm == JwtAlgorithm.RS256) {
-            initRsaKeys();
-        } else {
-            initHmacSecret();
+        switch (algorithm) {
+            case RS256 -> initRsaKeys();
+            case ML_DSA_65 -> initMlDsaKeys();
+            default -> initHmacSecret();
         }
         LOG.info(() -> String.format("TokenProvider initialized with %s, access token ttl=%ss",
                 algorithm, accessTokenExpirationSeconds));
@@ -105,11 +131,9 @@ public class TokenProvider {
     }
 
     public long getExpirationMs(String token) {
-        Date expiration = parseClaims(token).getExpiration();
-        if (expiration == null) {
-            return 0L;
-        }
-        return Math.max(expiration.getTime() - System.currentTimeMillis(), 0L);
+        Map<String, Object> claims = claims(token);
+        long expMs = claimExpMs(claims);
+        return Math.max(expMs - System.currentTimeMillis(), 0L);
     }
 
     public long getAccessTokenExpirationSeconds() {
@@ -118,7 +142,7 @@ public class TokenProvider {
 
     public boolean validateToken(String token) {
         try {
-            parseClaims(token);
+            claims(token);
             LOG.log(Level.FINE, "Token validated successfully");
             return true;
         } catch (JwtException | IllegalArgumentException e) {
@@ -129,7 +153,7 @@ public class TokenProvider {
 
     public List<String> extractRoles(String token) {
         try {
-            String roles = parseClaims(token).get("roles", String.class);
+            String roles = claimStr(claims(token), "roles");
             if (roles != null && !roles.isEmpty()) {
                 return normalizeRoleCodes(roles).stream()
                         .filter(this::isRoleDefined)
@@ -144,12 +168,12 @@ public class TokenProvider {
     }
 
     public String getUsernameFromToken(String token) {
-        return parseClaims(token).getSubject();
+        return claimStr(claims(token), "sub");
     }
 
     public List<RoleType> extractRoleTypes(String token) {
         try {
-            String roleTypes = parseClaims(token).get("roleTypes", String.class);
+            String roleTypes = claimStr(claims(token), "roleTypes");
             if (roleTypes != null && !roleTypes.isEmpty()) {
                 return Arrays.stream(roleTypes.split(","))
                         .map(String::trim)
@@ -166,7 +190,7 @@ public class TokenProvider {
 
     public DataScope extractDataScope(String token) {
         try {
-            String dataScope = parseClaims(token).get("dataScope", String.class);
+            String dataScope = claimStr(claims(token), "dataScope");
             return DataScope.fromCode(dataScope);
         } catch (JwtException | IllegalArgumentException e) {
             LOG.log(Level.WARNING, "Failed to extract data scope from token: " + e.getMessage(), e);
@@ -258,8 +282,13 @@ public class TokenProvider {
         return DataScope.isValid(dataScope);
     }
 
+    // ---- token build / parse ----
+
     private String buildAccessToken(String username, String roles, String roleTypes, String dataScope) {
         long now = System.currentTimeMillis();
+        if (algorithm == JwtAlgorithm.ML_DSA_65) {
+            return buildMlDsaAccessToken(username, roles, roleTypes, dataScope, now);
+        }
         Date issuedAt = new Date(now);
         Date expirationDate = new Date(now + accessTokenExpirationSeconds * 1000L);
 
@@ -278,6 +307,80 @@ public class TokenProvider {
         }
 
         return sign(builder).compact();
+    }
+
+    /**
+     * 用 ML-DSA-65（FIPS 204）手写 JWT 签名，因为 jjwt 不支持该 alg。
+     * token = base64url(header) "." base64url(payload) "." base64url(signature)，
+     * 签名输入为 header.payload 的 ASCII 字节。
+     */
+    private String buildMlDsaAccessToken(String username, String roles, String roleTypes, String dataScope, long nowMs) {
+        Map<String, Object> header = new LinkedHashMap<>();
+        header.put("alg", ML_DSA_JWT_ALG);
+        header.put("typ", "JWT");
+
+        long iat = nowMs / 1000L;
+        Map<String, Object> payload = new LinkedHashMap<>();
+        payload.put("sub", username);
+        payload.put("jti", UUID.randomUUID().toString());
+        payload.put("roles", roles);
+        payload.put("iat", iat);
+        payload.put("exp", iat + accessTokenExpirationSeconds);
+        if (roleTypes != null) {
+            payload.put("roleTypes", roleTypes);
+        }
+        if (dataScope != null) {
+            payload.put("dataScope", dataScope);
+        }
+
+        try {
+            String headerB64 = base64UrlEncode(objectMapper.writeValueAsBytes(header));
+            String payloadB64 = base64UrlEncode(objectMapper.writeValueAsBytes(payload));
+            String signingInput = headerB64 + "." + payloadB64;
+            byte[] signature = mlDsaSign(signingInput.getBytes(StandardCharsets.US_ASCII));
+            return signingInput + "." + base64UrlEncode(signature);
+        } catch (Exception ex) {
+            throw new IllegalStateException("Failed to build ML-DSA token", ex);
+        }
+    }
+
+    private byte[] mlDsaSign(byte[] signingInput) throws Exception {
+        Signature signer = Signature.getInstance(ML_DSA_ALGORITHM, BC);
+        signer.initSign(mlDsaPrivateKey);
+        signer.update(signingInput);
+        return signer.sign();
+    }
+
+    private Map<String, Object> claims(String token) {
+        if (algorithm == JwtAlgorithm.ML_DSA_65) {
+            return parseMlDsaClaims(token);
+        }
+        return parseClaims(token);
+    }
+
+    private Map<String, Object> parseMlDsaClaims(String token) {
+        int firstDot = token.indexOf('.');
+        int secondDot = token.indexOf('.', firstDot + 1);
+        if (firstDot < 0 || secondDot < 0) {
+            throw new IllegalArgumentException("Invalid ML-DSA token structure");
+        }
+        String signingInput = token.substring(0, secondDot); // header.payload
+        byte[] signature = base64UrlDecode(token.substring(secondDot + 1));
+        try {
+            Signature verifier = Signature.getInstance(ML_DSA_ALGORITHM, BC);
+            verifier.initVerify(mlDsaPublicKey);
+            verifier.update(signingInput.getBytes(StandardCharsets.US_ASCII));
+            if (!verifier.verify(signature)) {
+                throw new IllegalArgumentException("Invalid ML-DSA signature");
+            }
+            byte[] payload = base64UrlDecode(token.substring(firstDot + 1, secondDot));
+            return objectMapper.readValue(payload, new TypeReference<Map<String, Object>>() {
+            });
+        } catch (RuntimeException ex) {
+            throw ex;
+        } catch (Exception ex) {
+            throw new IllegalArgumentException("Failed to parse ML-DSA token: " + ex.getMessage(), ex);
+        }
     }
 
     private JwtBuilder sign(JwtBuilder builder) {
@@ -299,6 +402,8 @@ public class TokenProvider {
                 .getPayload();
     }
 
+    // ---- key init ----
+
     private void initHmacSecret() {
         if (secret == null || secret.isBlank() || FORBIDDEN_DEFAULT_SECRET.equals(secret)) {
             throw new IllegalStateException("jwt.secret must be provided through JWT_SECRET and cannot use CHANGE_ME_IN_PRODUCTION");
@@ -319,6 +424,25 @@ public class TokenProvider {
         }
     }
 
+    private void initMlDsaKeys() {
+        PqcProviderInitializer.ensureBouncyCastle();
+        try {
+            if (isPresent(mlDsaPrivateKeyPem) && isPresent(mlDsaPublicKeyPem)) {
+                this.mlDsaPrivateKey = loadPemPrivateKey(mlDsaPrivateKeyPem);
+                this.mlDsaPublicKey = loadPemPublicKey(mlDsaPublicKeyPem);
+            } else {
+                KeyPairGenerator kpg = KeyPairGenerator.getInstance(ML_DSA_ALGORITHM, BC);
+                KeyPair kp = kpg.generateKeyPair();
+                this.mlDsaPrivateKey = kp.getPrivate();
+                this.mlDsaPublicKey = kp.getPublic();
+                LOG.warning("No ML-DSA keys configured (jwt.ml-dsa.private-key/public-key); "
+                        + "generated ephemeral keypair. Tokens will NOT survive a restart.");
+            }
+        } catch (Exception ex) {
+            throw new IllegalStateException("Failed to initialize ML-DSA keys", ex);
+        }
+    }
+
     private PrivateKey loadPrivateKey(String pem) throws Exception {
         byte[] encoded = decodePem(pem, "PRIVATE KEY");
         return KeyFactory.getInstance("RSA").generatePrivate(new PKCS8EncodedKeySpec(encoded));
@@ -327,6 +451,30 @@ public class TokenProvider {
     private PublicKey loadPublicKey(String pem) throws Exception {
         byte[] encoded = decodePem(pem, "PUBLIC KEY");
         return KeyFactory.getInstance("RSA").generatePublic(new X509EncodedKeySpec(encoded));
+    }
+
+    private PrivateKey loadPemPrivateKey(String pem) throws Exception {
+        try (PEMParser parser = new PEMParser(new StringReader(pem))) {
+            Object obj = parser.readObject();
+            if (obj instanceof PrivateKeyInfo pki) {
+                return new JcaPEMKeyConverter().setProvider(BC).getPrivateKey(pki);
+            }
+            throw new IllegalArgumentException("PEM is not a PKCS#8 private key: " + obj);
+        }
+    }
+
+    private PublicKey loadPemPublicKey(String pem) throws Exception {
+        try (PEMParser parser = new PEMParser(new StringReader(pem))) {
+            Object obj = parser.readObject();
+            JcaPEMKeyConverter conv = new JcaPEMKeyConverter().setProvider(BC);
+            if (obj instanceof SubjectPublicKeyInfo spki) {
+                return conv.getPublicKey(spki);
+            }
+            if (obj instanceof X509CertificateHolder cert) {
+                return conv.getPublicKey(cert.getSubjectPublicKeyInfo());
+            }
+            throw new IllegalArgumentException("PEM is not a public key: " + obj);
+        }
     }
 
     private byte[] decodePem(String pem, String type) {
@@ -342,6 +490,36 @@ public class TokenProvider {
                 .replace("-----END " + type + "-----", "")
                 .replaceAll("\\s", "");
         return Base64.getDecoder().decode(base64);
+    }
+
+    // ---- helpers ----
+
+    private static String base64UrlEncode(byte[] bytes) {
+        return Base64.getUrlEncoder().withoutPadding().encodeToString(bytes);
+    }
+
+    private static byte[] base64UrlDecode(String s) {
+        return Base64.getUrlDecoder().decode(s);
+    }
+
+    private static String claimStr(Map<String, Object> claims, String key) {
+        Object value = claims.get(key);
+        return value == null ? null : String.valueOf(value);
+    }
+
+    private static long claimExpMs(Map<String, Object> claims) {
+        Object value = claims.get("exp");
+        if (value instanceof Date d) {
+            return d.getTime();
+        }
+        if (value instanceof Number n) {
+            return n.longValue() * 1000L;
+        }
+        return 0L;
+    }
+
+    private static boolean isPresent(String s) {
+        return s != null && !s.isBlank();
     }
 
     private List<String> normalizeRoleCodes(String roleCodes) {
@@ -371,13 +549,15 @@ public class TokenProvider {
 
     private enum JwtAlgorithm {
         HS256,
-        RS256;
+        RS256,
+        ML_DSA_65;
 
         static JwtAlgorithm from(String value) {
             if (value == null || value.isBlank()) {
                 return HS256;
             }
-            return JwtAlgorithm.valueOf(value.trim().toUpperCase(Locale.ROOT));
+            String normalized = value.trim().toUpperCase(Locale.ROOT).replace('-', '_');
+            return JwtAlgorithm.valueOf(normalized);
         }
     }
 

@@ -1,5 +1,6 @@
 package com.tutict.finalassignmentcloud.user.config;
 
+import com.tutict.finalassignmentcloud.config.security.InternalServiceTokenFilter;
 import com.tutict.finalassignmentcloud.config.security.SecurityResponseWriter;
 import com.tutict.finalassignmentcloud.config.security.ServiceJwtAuthenticationFilter;
 import com.tutict.finalassignmentcloud.config.security.ServiceTokenProvider;
@@ -21,8 +22,10 @@ public class ServiceSecurityConfig {
 
     @Bean
     public ServiceTokenProvider serviceTokenProvider(
-            @Value("${jwt.secret.key:${JWT_SECRET_KEY:}}") String base64Secret) {
-        return new ServiceTokenProvider(base64Secret);
+            @Value("${jwt.secret.key:${JWT_SECRET_KEY:}}") String base64Secret,
+            @Value("${jwt.algorithm:HS256}") String algorithm,
+            @Value("${jwt.ml-dsa.public-key:}") String mlDsaPublicKeyPem) {
+        return new ServiceTokenProvider(base64Secret, algorithm, mlDsaPublicKeyPem);
     }
 
     @Bean
@@ -31,8 +34,15 @@ public class ServiceSecurityConfig {
     }
 
     @Bean
+    public InternalServiceTokenFilter internalServiceTokenFilter(
+            @Value("${internal.service-token:${INTERNAL_SERVICE_TOKEN:}}") String token) {
+        return new InternalServiceTokenFilter(token);
+    }
+
+    @Bean
     public SecurityFilterChain serviceSecurityFilterChain(HttpSecurity http,
-                                                          ServiceJwtAuthenticationFilter jwtAuthenticationFilter)
+                                                          ServiceJwtAuthenticationFilter jwtAuthenticationFilter,
+                                                          InternalServiceTokenFilter internalServiceTokenFilter)
             throws Exception {
         http
                 .csrf(AbstractHttpConfigurer::disable)
@@ -44,6 +54,7 @@ public class ServiceSecurityConfig {
                 .exceptionHandling(ex -> ex
                         .authenticationEntryPoint(SecurityResponseWriter::writeUnauthorized)
                         .accessDeniedHandler(SecurityResponseWriter::writeForbidden))
+                .addFilterBefore(internalServiceTokenFilter, ServiceJwtAuthenticationFilter.class)
                 .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class);
         return http.build();
     }

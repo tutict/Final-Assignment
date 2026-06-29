@@ -138,6 +138,17 @@
             <version>0.13.0</version>
             <scope>runtime</scope>
         </dependency>
+        <!-- Post-quantum cryptography: ML-DSA (FIPS 204) for JWT signing -->
+        <dependency>
+            <groupId>org.bouncycastle</groupId>
+            <artifactId>bcprov-jdk18on</artifactId>
+            <version>1.81</version>
+        </dependency>
+        <dependency>
+            <groupId>org.bouncycastle</groupId>
+            <artifactId>bcpkix-jdk18on</artifactId>
+            <version>1.81</version>
+        </dependency>
     </dependencies>
     <build>
         <plugins>

@@ -1,8 +1,12 @@
 package com.tutict.finalassignmentcloud.auth.config.login.jwt;
 
+import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.tutict.finalassignmentcloud.config.security.pqc.PqcProviderInitializer;
 import com.tutict.finalassignmentcloud.enums.DataScope;
 import com.tutict.finalassignmentcloud.enums.RoleType;
 import io.jsonwebtoken.Claims;
+import io.jsonwebtoken.JwtBuilder;
 import io.jsonwebtoken.JwtException;
 import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.security.Keys;
@@ -13,20 +17,51 @@ import org.springframework.stereotype.Service;
 import jakarta.annotation.PostConstruct;
 
 import javax.crypto.SecretKey;
+import java.io.StringReader;
+import java.nio.charset.StandardCharsets;
+import java.security.KeyPair;
+import java.security.KeyPairGenerator;
+import java.security.PrivateKey;
+import java.security.PublicKey;
+import java.security.Signature;
 import java.util.*;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import java.util.stream.Collectors;
 
+import org.bouncycastle.asn1.pkcs.PrivateKeyInfo;
+import org.bouncycastle.asn1.x509.SubjectPublicKeyInfo;
+import org.bouncycastle.cert.X509CertificateHolder;
+import org.bouncycastle.jce.provider.BouncyCastleProvider;
+import org.bouncycastle.openssl.PEMParser;
+import org.bouncycastle.openssl.jcajce.JcaPEMKeyConverter;
+
 @Service
 public class TokenProvider {
 
     private static final Logger LOG = Logger.getLogger(TokenProvider.class.getName());
+    private static final String BC = BouncyCastleProvider.PROVIDER_NAME;
+    private static final String ML_DSA_ALGORITHM = "ML-DSA-65";
+    private static final String ML_DSA_JWT_ALG = "ML-DSA-65";
+    private static final long ACCESS_TOKEN_TTL_MS = 86400000L; // 24 小时
 
     @Value("${jwt.secret.key:${JWT_SECRET_KEY:}}")
     private String base64Secret;
 
+    @Value("${jwt.algorithm:HS256}")
+    private String configuredAlgorithm;
+
+    @Value("${jwt.ml-dsa.private-key:}")
+    private String mlDsaPrivateKeyPem;
+
+    @Value("${jwt.ml-dsa.public-key:}")
+    private String mlDsaPublicKeyPem;
+
     private SecretKey secretKey;
+    private JwtAlgorithm algorithm;
+    private PrivateKey mlDsaPrivateKey;
+    private PublicKey mlDsaPublicKey;
+    private final ObjectMapper objectMapper = new ObjectMapper();
 
     private static final Map<String, RoleMetadata> ROLE_SCHEMA;
 
@@ -43,106 +78,46 @@ public class TokenProvider {
 
     @PostConstruct
     public void init() {
-        validateSecret(base64Secret);
-        // 将 Base64 编码的密钥解码为 byte 数组
-        byte[] keyBytes = Base64.getDecoder().decode(base64Secret);
-        // 使用 Keys 工具类生成用于 HMACSHA256 的 SecretKey
-        this.secretKey = Keys.hmacShaKeyFor(keyBytes);
-        LOG.info("TokenProvider initialized with HS256 secret key");
+        PqcProviderInitializer.ensureBouncyCastle();
+        this.algorithm = JwtAlgorithm.from(configuredAlgorithm);
+        if (algorithm == JwtAlgorithm.ML_DSA_65) {
+            initMlDsaKeys();
+        } else {
+            initHmacSecret();
+        }
+        LOG.info("TokenProvider initialized with " + algorithm);
     }
 
-    /**
-     * 创建 JWT 令牌，并将角色作为 claim 存入
-     *
-     * @param username 用户名（主体）
-     * @param roles    用户角色，如 "USER" 或 "ADMIN"，多个角色以逗号分隔
-     * @return 生成 JWT 令牌
-     */
     public String createToken(String username, String roles) {
         if (validateRoleCodes(roles)) {
             String normalizedRoles = String.join(",", normalizeRoleCodes(roles));
-
-            long now = System.currentTimeMillis();
-            Date expirationDate = new Date(now + 86400000L); // 令牌有效期 24 小时
-
-            return Jwts.builder()
-                    .subject(username)
-                    .id(UUID.randomUUID().toString())
-                    .claim("roles", normalizedRoles) // 将角色加入到 token 中                    .issuedAt(new Date(now))
-                    .expiration(expirationDate)
-                    .signWith(secretKey)
-                    .compact();
+            return buildAccessToken(username, normalizedRoles, null, null);
         }
         throw new IllegalArgumentException("Invalid role codes provided for token creation");
     }
 
-    /**
-     * 创建增强版 JWT 令牌，包含角色编码、角色类型和数据权限范围
-     *
-     * @param username  用户名（主体）
-     * @param roleCodes 角色编码列表，多个角色以逗号分隔
-     * @param roleTypes 角色类型列表，多个类型以逗号分隔
-     * @param dataScope 数据权限范围
-     * @return 生成 JWT 令牌
-     */
     public String createEnhancedToken(String username, String roleCodes, String roleTypes, String dataScope) {
         if (!validateRoleClaims(roleCodes, roleTypes, dataScope)) {
             throw new IllegalArgumentException("Role claims do not match the database schema");
         }
         String normalizedRoles = String.join(",", normalizeRoleCodes(roleCodes));
-
-        long now = System.currentTimeMillis();
-        Date expirationDate = new Date(now + 86400000L); // 令牌有效期 24 小时
-
-        return Jwts.builder()
-                .subject(username)
-                .id(UUID.randomUUID().toString())
-                .claim("roles", normalizedRoles)
-                .claim("roleTypes", roleTypes)
-                .claim("dataScope", dataScope)
-                .issuedAt(new Date(now))
-                .expiration(expirationDate)
-                .signWith(secretKey)
-                .compact();
+        return buildAccessToken(username, normalizedRoles, roleTypes, dataScope);
     }
 
-    /**
-     * 验证 JWT 令牌
-     *
-     * @param token 令牌字符串
-     * @return 若令牌有效返回true，否则返回false
-     */
     public boolean validateToken(String token) {
         try {
-            Claims claims = Jwts.parser()
-                    .verifyWith(secretKey)
-                    .build()
-                    .parseSignedClaims(token)
-                    .getPayload();
-            LOG.log(Level.FINE,
-                    "Token validated successfully: subject={0}, jti={1}, expiration={2}",
-                    new Object[]{claims.getSubject(), claims.getId(), claims.getExpiration()});
+            claims(token);
+            LOG.log(Level.FINE, "Token validated successfully");
             return true;
-        } catch (JwtException e) {
+        } catch (JwtException | IllegalArgumentException e) {
             LOG.log(Level.WARNING, "Invalid token: " + e.getMessage(), e);
             return false;
         }
     }
 
-    /**
-     * 从 JWT 中提取角色列表
-     *
-     * @param token 令牌字符串
-     * @return Spring Security authority 列表，例如 ["ROLE_USER", "ROLE_" + "ADMIN"]
-     */
     public List<String> extractRoles(String token) {
         try {
-            Claims claims = Jwts.parser()
-                    .verifyWith(secretKey)
-                    .build()
-                    .parseSignedClaims(token)
-                    .getPayload();
-            String roles = claims.get("roles", String.class);
+            String roles = claimStr(claims(token), "roles");
             if (roles != null && !roles.isEmpty()) {
                 return normalizeRoleCodes(roles).stream()
                         .filter(this::isRoleDefined)
@@ -150,35 +125,19 @@ public class TokenProvider {
                         .collect(Collectors.toList());
             }
             return List.of();
-        } catch (JwtException e) {
+        } catch (JwtException | IllegalArgumentException e) {
             LOG.log(Level.WARNING, "Failed to extract roles from token: " + e.getMessage(), e);
             return List.of();
         }
     }
 
     public String getUsernameFromToken(String token) {
-        Claims claims = Jwts.parser()
-                .verifyWith(secretKey)
-                .build()
-                .parseSignedClaims(token)
-                .getPayload();
-        return claims.getSubject();
+        return claimStr(claims(token), "sub");
     }
 
-    /**
-     * 从 JWT 中提取角色类型列表
-     *
-     * @param token 令牌字符串
-     * @return 角色类型枚举列表
-     */
     public List<RoleType> extractRoleTypes(String token) {
         try {
-            Claims claims = Jwts.parser()
-                    .verifyWith(secretKey)
-                    .build()
-                    .parseSignedClaims(token)
-                    .getPayload();
-            String roleTypes = claims.get("roleTypes", String.class);
+            String roleTypes = claimStr(claims(token), "roleTypes");
             if (roleTypes != null && !roleTypes.isEmpty()) {
                 return Arrays.stream(roleTypes.split(","))
                         .map(String::trim)
@@ -187,72 +146,34 @@ public class TokenProvider {
                         .collect(Collectors.toList());
             }
             return List.of();
-        } catch (JwtException e) {
+        } catch (JwtException | IllegalArgumentException e) {
             LOG.log(Level.WARNING, "Failed to extract role types from token: " + e.getMessage(), e);
             return List.of();
         }
     }
 
-    /**
-     * 从 JWT 中提取数据权限范围
-     *
-     * @param token 令牌字符串
-     * @return 数据权限范围枚举，如果未设置则返回null
-     */
     public DataScope extractDataScope(String token) {
         try {
-            Claims claims = Jwts.parser()
-                    .verifyWith(secretKey)
-                    .build()
-                    .parseSignedClaims(token)
-                    .getPayload();
-            String dataScope = claims.get("dataScope", String.class);
+            String dataScope = claimStr(claims(token), "dataScope");
             return DataScope.fromCode(dataScope);
-        } catch (JwtException e) {
+        } catch (JwtException | IllegalArgumentException e) {
             LOG.log(Level.WARNING, "Failed to extract data scope from token: " + e.getMessage(), e);
             return null;
         }
     }
 
-    /**
-     * 检查用户是否具有指定的角色类型
-     *
-     * @param token    令牌字符串
-     * @param roleType 要检查的角色类型
-     * @return 如果用户具有该角色类型则返回 true
-     */
     public boolean hasRoleType(String token, RoleType roleType) {
-        List<RoleType> roleTypes = extractRoleTypes(token);
-        return roleTypes.contains(roleType);
+        return extractRoleTypes(token).contains(roleType);
     }
 
-    /**
-     * 检查用户是否具有系统角色
-     *
-     * @param token 令牌字符串
-     * @return 如果用户具有系统角色则返回true
-     */
     public boolean hasSystemRole(String token) {
         return hasRoleType(token, RoleType.SYSTEM);
     }
 
-    /**
-     * 检查用户是否具有业务角色
-     *
-     * @param token 令牌字符串
-     * @return 如果用户具有业务角色则返回true
-     */
     public boolean hasBusinessRole(String token) {
         return hasRoleType(token, RoleType.BUSINESS);
     }
 
-    /**
-     * 检查用户的数据权限是否包含指定的权限范围
-     *
-     * @param token              令牌字符串
-     * @param requiredDataScope 需要的数据权限范围
-     * @return 如果用户的数据权限包含所需权限则返回true
-     */
     public boolean hasDataScopePermission(String token, DataScope requiredDataScope) {
         DataScope userDataScope = extractDataScope(token);
         if (userDataScope == null) {
@@ -261,12 +182,6 @@ public class TokenProvider {
         return userDataScope.includes(requiredDataScope);
     }
 
-    /**
-     * 验证角色编码列表的有效性
-     *
-     * @param roleCodes 角色编码字符串，多个角色以逗号分隔
-     * @return 如果所有角色编码都不为空则返回 true
-     */
     public boolean validateRoleCodes(String roleCodes) {
         List<String> normalized = normalizeRoleCodes(roleCodes);
         if (normalized.isEmpty()) {
@@ -279,14 +194,6 @@ public class TokenProvider {
         return valid;
     }
 
-    /**
-     * 同时校验角色编码、类型以及数据权限是否符合数据库模型
-     *
-     * @param roleCodes 角色编码列表
-     * @param roleTypes 角色类型列表
-     * @param dataScope 数据权限范围
-     * @return 如果所有声明与数据库 schema 匹配则返回true
-     */
     public boolean validateRoleClaims(String roleCodes, String roleTypes, String dataScope) {
         if (!validateRoleCodes(roleCodes)) {
             return false;
@@ -329,12 +236,6 @@ public class TokenProvider {
         return true;
     }
 
-    /**
-     * 验证角色类型列表的有效性
-     *
-     * @param roleTypes 角色类型字符串，多个类型以逗号分隔
-     * @return 如果所有角色类型都有效则返回true
-     */
     public boolean validateRoleTypes(String roleTypes) {
         if (roleTypes == null || roleTypes.trim().isEmpty()) {
             return false;
@@ -344,15 +245,179 @@ public class TokenProvider {
                 .allMatch(RoleType::isValid);
     }
 
-    /**
-     * 验证数据权限范围的有效性
-     *
-     * @param dataScope 数据权限范围代码
-     * @return 如果数据权限范围有效则返回true
-     */
     public boolean validateDataScope(String dataScope) {
         return DataScope.isValid(dataScope);
     }
+
+    // ---- token build / parse ----
+
+    private String buildAccessToken(String username, String roles, String roleTypes, String dataScope) {
+        long now = System.currentTimeMillis();
+        if (algorithm == JwtAlgorithm.ML_DSA_65) {
+            return buildMlDsaAccessToken(username, roles, roleTypes, dataScope, now);
+        }
+        Date expirationDate = new Date(now + ACCESS_TOKEN_TTL_MS);
+        JwtBuilder builder = Jwts.builder()
+                .subject(username)
+                .id(UUID.randomUUID().toString())
+                .claim("roles", roles)
+                .issuedAt(new Date(now))
+                .expiration(expirationDate);
+        if (roleTypes != null) {
+            builder.claim("roleTypes", roleTypes);
+        }
+        if (dataScope != null) {
+            builder.claim("dataScope", dataScope);
+        }
+        return builder.signWith(secretKey).compact();
+    }
+
+    private String buildMlDsaAccessToken(String username, String roles, String roleTypes, String dataScope, long nowMs) {
+        Map<String, Object> header = new LinkedHashMap<>();
+        header.put("alg", ML_DSA_JWT_ALG);
+        header.put("typ", "JWT");
+
+        long iat = nowMs / 1000L;
+        Map<String, Object> payload = new LinkedHashMap<>();
+        payload.put("sub", username);
+        payload.put("jti", UUID.randomUUID().toString());
+        payload.put("roles", roles);
+        payload.put("iat", iat);
+        payload.put("exp", iat + ACCESS_TOKEN_TTL_MS / 1000L);
+        if (roleTypes != null) {
+            payload.put("roleTypes", roleTypes);
+        }
+        if (dataScope != null) {
+            payload.put("dataScope", dataScope);
+        }
+
+        try {
+            String headerB64 = base64UrlEncode(objectMapper.writeValueAsBytes(header));
+            String payloadB64 = base64UrlEncode(objectMapper.writeValueAsBytes(payload));
+            String signingInput = headerB64 + "." + payloadB64;
+            byte[] signature = mlDsaSign(signingInput.getBytes(StandardCharsets.US_ASCII));
+            return signingInput + "." + base64UrlEncode(signature);
+        } catch (Exception ex) {
+            throw new IllegalStateException("Failed to build ML-DSA token", ex);
+        }
+    }
+
+    private byte[] mlDsaSign(byte[] signingInput) throws Exception {
+        Signature signer = Signature.getInstance(ML_DSA_ALGORITHM, BC);
+        signer.initSign(mlDsaPrivateKey);
+        signer.update(signingInput);
+        return signer.sign();
+    }
+
+    private Map<String, Object> claims(String token) {
+        if (algorithm == JwtAlgorithm.ML_DSA_65) {
+            return parseMlDsaClaims(token);
+        }
+        return parseClaims(token);
+    }
+
+    private Map<String, Object> parseMlDsaClaims(String token) {
+        int firstDot = token.indexOf('.');
+        int secondDot = token.indexOf('.', firstDot + 1);
+        if (firstDot < 0 || secondDot < 0) {
+            throw new IllegalArgumentException("Invalid ML-DSA token structure");
+        }
+        String signingInput = token.substring(0, secondDot);
+        byte[] signature = base64UrlDecode(token.substring(secondDot + 1));
+        try {
+            Signature verifier = Signature.getInstance(ML_DSA_ALGORITHM, BC);
+            verifier.initVerify(mlDsaPublicKey);
+            verifier.update(signingInput.getBytes(StandardCharsets.US_ASCII));
+            if (!verifier.verify(signature)) {
+                throw new IllegalArgumentException("Invalid ML-DSA signature");
+            }
+            byte[] payload = base64UrlDecode(token.substring(firstDot + 1, secondDot));
+            return objectMapper.readValue(payload, new TypeReference<Map<String, Object>>() {
+            });
+        } catch (RuntimeException ex) {
+            throw ex;
+        } catch (Exception ex) {
+            throw new IllegalArgumentException("Failed to parse ML-DSA token: " + ex.getMessage(), ex);
+        }
+    }
+
+    private Claims parseClaims(String token) {
+        return Jwts.parser()
+                .verifyWith(secretKey)
+                .build()
+                .parseSignedClaims(token)
+                .getPayload();
+    }
+
+    // ---- key init ----
+
+    private void initHmacSecret() {
+        validateSecret(base64Secret);
+        byte[] keyBytes = Base64.getDecoder().decode(base64Secret);
+        this.secretKey = Keys.hmacShaKeyFor(keyBytes);
+    }
+
+    private void initMlDsaKeys() {
+        try {
+            if (isPresent(mlDsaPrivateKeyPem) && isPresent(mlDsaPublicKeyPem)) {
+                this.mlDsaPrivateKey = loadPemPrivateKey(mlDsaPrivateKeyPem);
+                this.mlDsaPublicKey = loadPemPublicKey(mlDsaPublicKeyPem);
+            } else {
+                KeyPairGenerator kpg = KeyPairGenerator.getInstance(ML_DSA_ALGORITHM, BC);
+                KeyPair kp = kpg.generateKeyPair();
+                this.mlDsaPrivateKey = kp.getPrivate();
+                this.mlDsaPublicKey = kp.getPublic();
+                LOG.warning("No ML-DSA keys configured (jwt.ml-dsa.private-key/public-key); "
+                        + "generated ephemeral keypair. Tokens will NOT survive a restart.");
+            }
+        } catch (Exception ex) {
+            throw new IllegalStateException("Failed to initialize ML-DSA keys", ex);
+        }
+    }
+
+    private PrivateKey loadPemPrivateKey(String pem) throws Exception {
+        try (PEMParser parser = new PEMParser(new StringReader(pem))) {
+            Object obj = parser.readObject();
+            if (obj instanceof PrivateKeyInfo pki) {
+                return new JcaPEMKeyConverter().setProvider(BC).getPrivateKey(pki);
+            }
+            throw new IllegalArgumentException("PEM is not a PKCS#8 private key: " + obj);
+        }
+    }
+
+    private PublicKey loadPemPublicKey(String pem) throws Exception {
+        try (PEMParser parser = new PEMParser(new StringReader(pem))) {
+            Object obj = parser.readObject();
+            JcaPEMKeyConverter conv = new JcaPEMKeyConverter().setProvider(BC);
+            if (obj instanceof SubjectPublicKeyInfo spki) {
+                return conv.getPublicKey(spki);
+            }
+            if (obj instanceof X509CertificateHolder cert) {
+                return conv.getPublicKey(cert.getSubjectPublicKeyInfo());
+            }
+            throw new IllegalArgumentException("PEM is not a public key: " + obj);
+        }
+    }
+
+    // ---- helpers ----
+
+    private static String base64UrlEncode(byte[] bytes) {
+        return Base64.getUrlEncoder().withoutPadding().encodeToString(bytes);
+    }
+
+    private static byte[] base64UrlDecode(String s) {
+        return Base64.getUrlDecoder().decode(s);
+    }
+
+    private static String claimStr(Map<String, Object> claims, String key) {
+        Object value = claims.get(key);
+        return value == null ? null : String.valueOf(value);
+    }
+
+    private static boolean isPresent(String s) {
+        return s != null && !s.isBlank();
+    }
+
     private List<String> normalizeRoleCodes(String roleCodes) {
         if (roleCodes == null) {
             return List.of();
@@ -374,6 +439,19 @@ public class TokenProvider {
         String normalized = secret.trim().toLowerCase(Locale.ROOT);
         if (Set.of("secret", "changeme", "change-me", "default", "root", "password").contains(normalized)) {
             throw new IllegalStateException("jwt.secret.key must not use a default or weak value");
+        }
+    }
+
+    private enum JwtAlgorithm {
+        HS256,
+        ML_DSA_65;
+
+        static JwtAlgorithm from(String value) {
+            if (value == null || value.isBlank()) {
+                return HS256;
+            }
+            String normalized = value.trim().toUpperCase(Locale.ROOT).replace('-', '_');
+            return JwtAlgorithm.valueOf(normalized);
         }
     }
 

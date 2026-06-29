@@ -22,8 +22,10 @@ public class ServiceSecurityConfig {
 
     @Bean
     public ServiceTokenProvider serviceTokenProvider(
-            @Value("${jwt.secret.key:${JWT_SECRET_KEY:}}") String base64Secret) {
-        return new ServiceTokenProvider(base64Secret);
+            @Value("${jwt.secret.key:${JWT_SECRET_KEY:}}") String base64Secret,
+            @Value("${jwt.algorithm:HS256}") String algorithm,
+            @Value("${jwt.ml-dsa.public-key:}") String mlDsaPublicKeyPem) {
+        return new ServiceTokenProvider(base64Secret, algorithm, mlDsaPublicKeyPem);
     }
 
     @Bean

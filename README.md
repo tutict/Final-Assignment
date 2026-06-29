@@ -168,6 +168,21 @@ SENSITIVE_DATA_ENCRYPTION_KEY=<base64-32-byte-key-or-strong-secret>
 SENSITIVE_DATA_BLIND_INDEX_KEY=<separate-base64-32-byte-key-or-strong-secret>
 ```
 
+后量子认证（可选，默认 HS256，不影响既有行为）：
+
+```properties
+# 切 ML-DSA-65 启用后量子 JWT 签名；留空则仍为 HS256
+JWT_ALGORITHM=ML-DSA-65
+# ML-DSA 密钥（PEM，PKCS#8 私钥 / SPKI 公钥）。留空则启动生成临时密钥（重启失效，仅演示）
+JWT_ML_DSA_PRIVATE_KEY=
+JWT_ML_DSA_PUBLIC_KEY=
+# 仅单体后端：refresh token 静态加密用的 ML-KEM-768 密钥（PEM）。留空则启动生成临时密钥
+JWT_ML_KEM_PRIVATE_KEY=
+JWT_ML_KEM_PUBLIC_KEY=
+```
+
+> 说明：JDK 25 自带 `SunEC` 不提供 ML-KEM/ML-DSA，已引入 Bouncy Castle。ML-DSA 签 JWT 因 jjwt 暂不支持，走自建 signing input + BC `Signature`；refresh token 由 ML-KEM 信封 + AES-256-GCM 静态加密存储。切换算法后既有 refresh token 失效，用户需重新登录；`refresh_tokens.token` 列已扩为 `TEXT`（见 `finalAssignmentBackend/src/main/resources/db/refresh_tokens_alter_token_text.sql`）。
+
 CDC 到 Elasticsearch：
 
 ```properties
@@ -525,6 +540,15 @@ KAFKA_BOOTSTRAP_SERVERS=localhost:9092
 # JWT
 JWT_SECRET=replace_with_a_real_secret
 JWT_EXPIRATION=3600000
+
+# 内部服务间鉴权（auth 与 user 服务必填，启动时 fail-fast 校验非空/非弱值）
+# auth 经 feign 调用 user 的 /api/users/internal/** 端点时带 X-Internal-Service-Token 头
+INTERNAL_SERVICE_TOKEN=replace_with_a_strong_internal_token
+
+# 后量子 JWT 签名（可选，默认 HS256）
+# 切 ML-DSA-65 时，auth 与所有下游服务需配置同一 ML-DSA 公钥以验签
+JWT_ALGORITHM=HS256
+JWT_ML_DSA_PUBLIC_KEY=
 
 # RAG（可选）
 RAG_ENABLED=true

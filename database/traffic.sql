@@ -661,7 +661,7 @@ CREATE TABLE `sys_role_permission` (
 DROP TABLE IF EXISTS `refresh_tokens`;
 CREATE TABLE `refresh_tokens` (
     `id` BIGINT NOT NULL AUTO_INCREMENT,
-    `token` VARCHAR(255) NOT NULL,
+    `token` TEXT NOT NULL,
     `user_id` BIGINT UNSIGNED NOT NULL,
     `expires_at` DATETIME NOT NULL,
     `revoked` BOOLEAN NOT NULL DEFAULT FALSE,
