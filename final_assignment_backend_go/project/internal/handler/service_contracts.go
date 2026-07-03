@@ -25,6 +25,7 @@ type AppealService interface {
 type AuthService interface {
 	GetAllUsers() ([]domain.UserManagement, error)
 	Login(service.LoginRequest) (map[string]any, error)
+	Refresh(string) (map[string]any, error)
 	RegisterUser(service.RegisterRequest) (string, error)
 }
 
@@ -165,10 +166,10 @@ type SystemSettingsService interface {
 }
 
 type TrafficViolationService interface {
-	GetAppealReasonCounts(string, string) (any, error)
-	GetFinePaymentStatus(string) (any, error)
-	GetTimeSeriesData(string, string) (any, error)
-	GetViolationTypeCounts(string, string, string) (any, error)
+	GetAppealReasonCounts(string, string) (map[string]int64, error)
+	GetFinePaymentStatus(string) (map[string]int64, error)
+	GetTimeSeriesData(string, string) ([]map[string]interface{}, error)
+	GetViolationTypeCounts(string, string, string) (map[string]int64, error)
 }
 
 type UserManagementService interface {

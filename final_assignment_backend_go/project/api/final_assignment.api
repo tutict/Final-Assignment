@@ -64,6 +64,14 @@ service finalAssignmentGoApi {
 }
 
 @server (
+	group: wsTicket
+)
+service finalAssignmentGoApi {
+	@handler issueTicket
+	post /api/ws-ticket returns (ApiResponse)
+}
+
+@server (
 	group: vehicles
 )
 service finalAssignmentGoApi {

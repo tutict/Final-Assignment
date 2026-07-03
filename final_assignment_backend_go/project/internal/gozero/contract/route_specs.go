@@ -16,6 +16,7 @@ func RegisteredRouteSpecs() []RouteSpec {
 	routes := []RouteSpec{}
 	routes = append(routes, SystemRouteSpecs()...)
 	routes = append(routes, AuthRouteSpecs()...)
+	routes = append(routes, WsTicketRouteSpecs()...)
 	routes = append(routes, AdminRouteSpecs()...)
 	routes = append(routes, VehicleRouteSpecs()...)
 	routes = append(routes, BusinessRouteSpecs()...)
@@ -42,6 +43,12 @@ func AuthRouteSpecs() []RouteSpec {
 		authRoute(http.MethodPost, "/api/auth/logout", "logout", `@PostMapping("/logout")`),
 		authRoute(http.MethodGet, "/api/auth/me", "getCurrentUser", `@GetMapping("/me")`),
 		authRoute(http.MethodGet, "/api/auth/users", "getAllUsers", `@GetMapping("/users")`),
+	}
+}
+
+func WsTicketRouteSpecs() []RouteSpec {
+	return []RouteSpec{
+		routeSpec(http.MethodPost, "/api/ws-ticket", "ws-ticket-auth", "issueTicket", "WsTicketController", `@PostMapping`),
 	}
 }
 

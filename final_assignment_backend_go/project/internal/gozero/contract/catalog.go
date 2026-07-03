@@ -228,5 +228,16 @@ func SpringGroups() []SpringAPIGroup {
 				"Spring Boot exposes document upload, manual indexing, backfill, embedding, index migration and deletion endpoints.",
 			},
 		},
+		{
+			Domain:         "ws-ticket-auth",
+			Controller:     "WsTicketController",
+			BasePath:       "/api/ws-ticket",
+			SourcePackage:  "controller.auth",
+			GoLegacyPath:   "/api/ws-ticket",
+			MigrationState: "contract-cataloged",
+			Notes: []string{
+				"Spring Boot exposes a single-use WebSocket ticket issuance endpoint for authenticated principals.",
+			},
+		},
 	}
 }
