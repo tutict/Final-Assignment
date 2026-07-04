@@ -139,6 +139,22 @@ public class FineInformationController {
     }
 
     @GET
+    @Path("/driver/{driverId}")
+    @RunOnVirtualThread
+    public Response byDriver(@PathParam("driverId") Long driverId,
+                             @QueryParam("page") Integer page,
+                             @QueryParam("size") Integer size) {
+        try {
+            int resolvedPage = page == null ? 1 : page;
+            int resolvedSize = size == null ? 20 : size;
+            return Response.ok(fineRecordService.findByDriverId(driverId, resolvedPage, resolvedSize)).build();
+        } catch (Exception ex) {
+            LOG.log(Level.WARNING, "List fines by driver failed", ex);
+            return Response.status(resolveStatus(ex)).build();
+        }
+    }
+
+    @GET
     @Path("/search/handler")
     @RunOnVirtualThread
     public Response searchByHandler(@QueryParam("handler") String handler,

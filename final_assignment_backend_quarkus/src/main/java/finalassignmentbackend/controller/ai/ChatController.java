@@ -1,16 +1,17 @@
 package finalassignmentbackend.controller.ai;
 
-import dev.langchain4j.data.message.AiMessage;
 import dev.langchain4j.data.message.UserMessage;
-import dev.langchain4j.model.StreamingResponseHandler;
-import dev.langchain4j.model.chat.ChatLanguageModel;
-import dev.langchain4j.model.output.Response;
-import finalassignmentbackend.service.AIChatSearchService;
+import dev.langchain4j.model.chat.StreamingChatModel;
+import dev.langchain4j.model.chat.request.ChatRequest;
+import dev.langchain4j.model.chat.response.ChatResponse;
+import dev.langchain4j.model.chat.response.StreamingChatResponseHandler;
+import finalassignmentbackend.service.ai.AIChatSearchService;
 import io.smallrye.mutiny.Multi;
-import io.smallrye.mutiny.Uni;
 import jakarta.inject.Inject;
+import jakarta.ws.rs.Consumes;
 import jakarta.ws.rs.DefaultValue;
 import jakarta.ws.rs.GET;
+import jakarta.ws.rs.POST;
 import jakarta.ws.rs.Path;
 import jakarta.ws.rs.Produces;
 import jakarta.ws.rs.QueryParam;
@@ -21,22 +22,17 @@ import java.util.Map;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
-// Quarkus REST控制器类，用于处理AI聊天请求
 @Path("/api/ai")
 public class ChatController {
 
-    // 日志记录器，用于记录聊天请求处理过程中的信息
     private static final Logger LOG = Logger.getLogger(ChatController.class.getName());
 
-    // 注入LangChain4j的ChatLanguageModel用于生成聊天响应
     @Inject
-    ChatLanguageModel chatModel;
+    StreamingChatModel chatModel;
 
-    // 注入AIChatSearchService用于执行网络搜索
     @Inject
     AIChatSearchService aiChatSearchService;
 
-    // 处理聊天请求的端点，支持流式响应
     @GET
     @Path("/chat")
     @Produces(MediaType.SERVER_SENT_EVENTS)
@@ -44,82 +40,116 @@ public class ChatController {
             @QueryParam("message") String message,
             @QueryParam("massage") String massage,
             @QueryParam("webSearch") @DefaultValue("false") boolean webSearch) {
-
-        // 验证和选择用户消息
-        String userMessage = (message != null && !message.isBlank())
-                ? message
-                : (massage != null ? massage : "");
+        String userMessage = resolveMessage(message, massage);
         if (userMessage.isBlank()) {
-            throw new IllegalArgumentException("缺少请求参数：message 或 massage 必须提供其一");
+            throw new IllegalArgumentException("Either message or massage must be provided");
         }
         if (massage != null && !massage.isBlank()) {
-            LOG.log(Level.WARNING, "使用了已废弃的参数 'massage'，建议使用 'message'");
+            LOG.warning("Deprecated query parameter 'massage' was used; prefer 'message'.");
         }
 
-        LOG.log(Level.INFO, "收到聊天请求: message={0}, webSearch={1}",
-                new Object[]{userMessage, webSearch});
+        String promptText = buildPrompt(userMessage, webSearch);
+        ChatRequest request = ChatRequest.builder()
+                .messages(UserMessage.from(promptText))
+                .build();
 
-        // 系统提示，定义AI助手的角色和输出格式
-        String systemPrompt = "你是一个专业的交通违法查询助手。请用简洁、准确的中文回答，" +
-                "仅提供结构化输出，如编号列表或要点。";
-        StringBuilder promptBuilder = new StringBuilder(systemPrompt).append("\n\n");
+        return Multi.createFrom().emitter(emitter -> chatModel.chat(request, new StreamingChatResponseHandler() {
+            @Override
+            public void onPartialResponse(String partialResponse) {
+                emitter.emit(partialResponse);
+            }
 
-        // 如果启用网络搜索，附加搜索结果
-        if (webSearch) {
-            List<Map<String, String>> results = aiChatSearchService.search(userMessage);
-            StringBuilder sb = getStringBuilder(results);
-            promptBuilder.append("以下是搜索结果：\n")
-                    .append(sb)
-                    .append("\n");
-        }
+            @Override
+            public void onCompleteResponse(ChatResponse completeResponse) {
+                emitter.complete();
+                LOG.log(Level.INFO, "AI chat stream completed");
+            }
 
-        // 附加用户问题
-        promptBuilder.append("用户问题：").append(userMessage);
-        String finalPrompt = promptBuilder.toString();
-
-        // 创建UserMessage对象
-        UserMessage prompt = new UserMessage(finalPrompt);
-
-        // 使用Multi来处理流式响应
-        return Multi.createFrom().emitter(emitter -> {
-            chatModel.generate(prompt, new StreamingResponseHandler<>() {
-                @Override
-                public void onNext(String token) {
-                    // 每次收到新令牌时发送到客户端
-                    emitter.emit(token);
-                }
-
-                @Override
-                public void onComplete(Response<AiMessage> response) {
-                    // 流式响应完成
-                    emitter.complete();
-                    LOG.log(Level.INFO, "聊天响应流完成: {0}", response.content().text());
-                }
-
-                @Override
-                public void onError(Throwable error) {
-                    // 处理流式响应中的错误
-                    emitter.fail(error);
-                    LOG.log(Level.SEVERE, "聊天响应流错误: {0}", error.getMessage());
-                }
-            });
-        });
+            @Override
+            public void onError(Throwable error) {
+                emitter.fail(error);
+                LOG.log(Level.SEVERE, "AI chat stream failed", error);
+            }
+        }));
     }
 
-    // 构建搜索结果的字符串表示
-    private static StringBuilder getStringBuilder(List<Map<String, String>> results) {
-        StringBuilder sb = new StringBuilder();
-        if (results.isEmpty()) {
-            sb.append("没找到任何相关消息");
-        } else {
-            for (int i = 0; i < results.size(); i++) {
-                Map<String, String> item = results.get(i);
-                sb.append(String.format("%d. %s\n   %s\n",
-                        i + 1,
-                        item.getOrDefault("title", "<无标题>"),
-                        item.getOrDefault("abstract", "<无摘要>")));
-            }
+    @POST
+    @Path("/chat/stream")
+    @Consumes(MediaType.APPLICATION_JSON)
+    @Produces(MediaType.SERVER_SENT_EVENTS)
+    public Multi<String> chatStream(Map<String, Object> request) {
+        String message = stringValue(request, "message");
+        String massage = stringValue(request, "massage");
+        boolean webSearch = booleanValue(request, "webSearch");
+        return chat(message, massage, webSearch);
+    }
+
+    @GET
+    @Path("/chat/actions")
+    @Produces(MediaType.APPLICATION_JSON)
+    public Map<String, Object> getChatActions(
+            @QueryParam("message") String message,
+            @QueryParam("massage") String massage,
+            @QueryParam("webSearch") @DefaultValue("false") boolean webSearch) {
+        String userMessage = resolveMessage(message, massage);
+        String answer = userMessage.isBlank()
+                ? "Please provide message or massage."
+                : "Quarkus AI chat route is available; action suggestions are not implemented yet.";
+        return Map.of(
+                "answer", answer,
+                "actions", List.of(),
+                "needConfirm", false,
+                "webSearch", webSearch
+        );
+    }
+
+    private String buildPrompt(String userMessage, boolean webSearch) {
+        StringBuilder promptBuilder = new StringBuilder()
+                .append("You are a professional traffic violation query assistant. Answer in concise, accurate Chinese with structured bullets where useful.\n\n");
+
+        if (webSearch) {
+            List<Map<String, String>> results = aiChatSearchService.search(userMessage);
+            promptBuilder.append("Search results:\n")
+                    .append(formatSearchResults(results))
+                    .append('\n');
         }
-        return sb;
+
+        return promptBuilder.append("User question: ").append(userMessage).toString();
+    }
+
+    private static String resolveMessage(String message, String massage) {
+        return message != null && !message.isBlank() ? message : (massage == null ? "" : massage);
+    }
+
+    private static String stringValue(Map<String, Object> request, String key) {
+        if (request == null || request.get(key) == null) {
+            return null;
+        }
+        return String.valueOf(request.get(key));
+    }
+
+    private static boolean booleanValue(Map<String, Object> request, String key) {
+        if (request == null || request.get(key) == null) {
+            return false;
+        }
+        Object value = request.get(key);
+        return value instanceof Boolean bool ? bool : Boolean.parseBoolean(String.valueOf(value));
+    }
+
+    private static String formatSearchResults(List<Map<String, String>> results) {
+        if (results == null || results.isEmpty()) {
+            return "No relevant search results found.";
+        }
+        StringBuilder builder = new StringBuilder();
+        for (int i = 0; i < results.size(); i++) {
+            Map<String, String> item = results.get(i);
+            builder.append(i + 1)
+                    .append(". ")
+                    .append(item.getOrDefault("title", "Untitled"))
+                    .append("\n   ")
+                    .append(item.getOrDefault("abstract", "No summary"))
+                    .append('\n');
+        }
+        return builder.toString();
     }
 }

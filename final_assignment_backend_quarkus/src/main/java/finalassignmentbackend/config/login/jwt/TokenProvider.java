@@ -41,6 +41,9 @@ public class TokenProvider {
 
     private SecretKey secretKey;
 
+    // access token 有效期（与 createToken/createEnhancedToken 的签发保持一致）
+    private static final long ACCESS_TOKEN_EXPIRATION_SECONDS = Duration.ofDays(1).toSeconds();
+
     private static final Map<String, RoleMetadata> ROLE_SCHEMA;
 
     static {
@@ -50,6 +53,7 @@ public class TokenProvider {
         schema.put("TRAFFIC_POLICE", new RoleMetadata(RoleType.BUSINESS, DataScope.DEPARTMENT));
         schema.put("FINANCE", new RoleMetadata(RoleType.BUSINESS, DataScope.DEPARTMENT));
         schema.put("APPEAL_REVIEWER", new RoleMetadata(RoleType.BUSINESS, DataScope.DEPARTMENT));
+        schema.put("USER", new RoleMetadata(RoleType.BUSINESS, DataScope.DEPARTMENT));
         ROLE_SCHEMA = Collections.unmodifiableMap(schema);
     }
 
@@ -70,7 +74,7 @@ public class TokenProvider {
                 .subject(username)
                 .claim("roles", normalizedRoles)
                 .issuedAt(now)
-                .expiresAt(now.plus(Duration.ofDays(1)))
+                .expiresAt(now.plusSeconds(ACCESS_TOKEN_EXPIRATION_SECONDS))
                 .sign(secretKey);
     }
 
@@ -86,14 +90,14 @@ public class TokenProvider {
                 .claim("roleTypes", roleTypes)
                 .claim("dataScope", dataScope)
                 .issuedAt(now)
-                .expiresAt(now.plus(Duration.ofDays(1)))
+                .expiresAt(now.plusSeconds(ACCESS_TOKEN_EXPIRATION_SECONDS))
                 .sign(secretKey);
     }
 
     public boolean validateToken(String token) {
         try {
             jwtParser.verify(token, secretKey);
-            LOG.log(Level.INFO, "Token validated successfully: {0}", token);
+            LOG.log(Level.FINE, "Token validated successfully");
             return true;
         } catch (ParseException e) {
             LOG.log(Level.WARNING, "Invalid token: {0}", e.getMessage());
@@ -108,7 +112,6 @@ public class TokenProvider {
             if (roles != null && !roles.isEmpty()) {
                 return normalizeRoleCodes(roles).stream()
                         .filter(this::isRoleDefined)
-                        .map(role -> "ROLE_" + role)
                         .collect(Collectors.toList());
             }
             return List.of();
@@ -124,6 +127,28 @@ public class TokenProvider {
         } catch (ParseException e) {
             LOG.log(Level.WARNING, "Failed to extract subject from token: {0}", e.getMessage());
             return null;
+        }
+    }
+
+    /**
+     * access token 的固定有效期（秒），供登录/刷新响应返回 expiresIn。
+     */
+    public long getAccessTokenExpirationSeconds() {
+        return ACCESS_TOKEN_EXPIRATION_SECONDS;
+    }
+
+    /**
+     * 返回该 token 距离过期的剩余毫秒数；无法解析或已过期时返回 0。
+     * 用于登出时把 access token 加入黑名单，TTL 与其剩余寿命一致。
+     */
+    public long getExpirationMs(String token) {
+        try {
+            JsonWebToken jwt = jwtParser.verify(token, secretKey);
+            long remainingMs = jwt.getExpirationTime() * 1000L - System.currentTimeMillis();
+            return Math.max(0L, remainingMs);
+        } catch (ParseException e) {
+            LOG.log(Level.WARNING, "Failed to read expiration from token: {0}", e.getMessage());
+            return 0L;
         }
     }
 

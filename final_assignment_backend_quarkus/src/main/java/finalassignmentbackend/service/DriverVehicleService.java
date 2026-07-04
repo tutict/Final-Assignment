@@ -34,7 +34,7 @@ public class DriverVehicleService {
 
     @Transactional
     @CacheInvalidate(cacheName = "driverVehicleCache")
-    @WsAction(service = "DriverVehicleService", action = "checkAndInsertIdempotency")
+    @WsAction(service = "DriverVehicleService", action = "checkAndInsertIdempotency", roles = {"SUPER_ADMIN", "ADMIN", "TRAFFIC_POLICE"})
     public void checkAndInsertIdempotency(String idempotencyKey, DriverVehicle relation, String action) {
         Objects.requireNonNull(relation, "DriverVehicle relation must not be null");
         if (isBlank(idempotencyKey)) {

@@ -3,8 +3,10 @@ package finalassignmentbackend.service;
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import finalassignmentbackend.config.websocket.WsAction;
+import finalassignmentbackend.entity.FineRecord;
 import finalassignmentbackend.entity.PaymentRecord;
 import finalassignmentbackend.entity.SysRequestHistory;
+import finalassignmentbackend.mapper.FineRecordMapper;
 import finalassignmentbackend.mapper.PaymentRecordMapper;
 import finalassignmentbackend.mapper.SysRequestHistoryMapper;
 import io.quarkus.cache.CacheInvalidate;
@@ -31,11 +33,14 @@ public class PaymentRecordService {
     PaymentRecordMapper paymentRecordMapper;
 
     @Inject
+    FineRecordMapper fineRecordMapper;
+
+    @Inject
     SysRequestHistoryMapper sysRequestHistoryMapper;
 
     @Transactional
     @CacheInvalidate(cacheName = "paymentRecordCache")
-    @WsAction(service = "PaymentRecordService", action = "checkAndInsertIdempotency")
+    @WsAction(service = "PaymentRecordService", action = "checkAndInsertIdempotency", roles = {"SUPER_ADMIN", "ADMIN", "FINANCE"})
     public void checkAndInsertIdempotency(String idempotencyKey, PaymentRecord record, String action) {
         Objects.requireNonNull(record, "Payment record must not be null");
         if (isBlank(idempotencyKey)) {
@@ -102,6 +107,18 @@ public class PaymentRecordService {
         validatePagination(page, size);
         QueryWrapper<PaymentRecord> wrapper = new QueryWrapper<>();
         wrapper.eq("fine_id", fineId)
+                .orderByDesc("payment_time");
+        return fetchFromDatabase(wrapper, page, size);
+    }
+
+    @CacheResult(cacheName = "paymentRecordCache")
+    public List<PaymentRecord> findByDriverId(Long driverId, int page, int size) {
+        if (driverId == null || driverId <= 0) {
+            return List.of();
+        }
+        validatePagination(page, size);
+        QueryWrapper<PaymentRecord> wrapper = new QueryWrapper<>();
+        wrapper.eq("driver_id", driverId)
                 .orderByDesc("payment_time");
         return fetchFromDatabase(wrapper, page, size);
     }
@@ -295,6 +312,14 @@ public class PaymentRecordService {
         }
         if (record.getPaymentStatus() == null || record.getPaymentStatus().isBlank()) {
             record.setPaymentStatus("Pending");
+        }
+        FineRecord fine = fineRecordMapper.selectById(record.getFineId());
+        if (fine != null) {
+            if (record.getDriverId() == null) {
+                record.setDriverId(fine.getDriverId());
+            } else if (fine.getDriverId() != null && !Objects.equals(record.getDriverId(), fine.getDriverId())) {
+                throw new IllegalArgumentException("Payment driver does not match fine owner");
+            }
         }
     }
 

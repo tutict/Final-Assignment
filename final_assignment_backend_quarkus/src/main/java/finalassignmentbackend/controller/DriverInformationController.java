@@ -170,6 +170,24 @@ public class DriverInformationController {
         }
     }
 
+    @GET
+    @Path("/search")
+    @RunOnVirtualThread
+    public Response searchDrivers(@QueryParam("keywords") String keywords,
+                                  @QueryParam("q") String q,
+                                  @QueryParam("page") Integer page,
+                                  @QueryParam("size") Integer size) {
+        try {
+            String resolvedKeywords = keywords != null && !keywords.isBlank() ? keywords : q;
+            int resolvedPage = page == null ? 1 : page;
+            int resolvedSize = size == null ? 20 : size;
+            return Response.ok(driverInformationService.searchDrivers(resolvedKeywords, resolvedPage, resolvedSize)).build();
+        } catch (Exception ex) {
+            LOG.log(Level.WARNING, "Search drivers failed", ex);
+            return Response.status(resolveStatus(ex)).build();
+        }
+    }
+
     private boolean hasKey(String value) {
         return value != null && !value.isBlank();
     }

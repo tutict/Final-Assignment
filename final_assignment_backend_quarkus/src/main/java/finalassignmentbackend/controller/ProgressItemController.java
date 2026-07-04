@@ -19,6 +19,7 @@ import jakarta.ws.rs.core.Response;
 import org.eclipse.microprofile.openapi.annotations.tags.Tag;
 
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.logging.Level;
 import java.util.logging.Logger;
@@ -151,6 +152,32 @@ public class ProgressItemController {
                     .build();
         } catch (Exception ex) {
             LOG.log(Level.WARNING, "Get request history by idempotency key failed", ex);
+            return Response.status(resolveStatus(ex)).build();
+        }
+    }
+
+    @GET
+    @Path("/status/{status}")
+    @Deprecated
+    public Response getByStatusDeprecated(@PathParam("status") String status) {
+        return Response.status(Response.Status.GONE)
+                .entity(Map.of("code", "GONE", "message", "此接口已废弃，请使用 /api/progress/status?status={status}"))
+                .build();
+    }
+
+    @GET
+    @Path("/timeRange")
+    @RunOnVirtualThread
+    public Response getByTimeRange(@QueryParam("startTime") String startTime,
+                                   @QueryParam("endTime") String endTime,
+                                   @QueryParam("page") Integer page,
+                                   @QueryParam("size") Integer size) {
+        try {
+            int resolvedPage = page == null ? 1 : page;
+            int resolvedSize = size == null ? 20 : size;
+            return Response.ok(sysRequestHistoryService.searchByCreatedAtRange(startTime, endTime, resolvedPage, resolvedSize)).build();
+        } catch (Exception ex) {
+            LOG.log(Level.WARNING, "List request histories by time range failed", ex);
             return Response.status(resolveStatus(ex)).build();
         }
     }

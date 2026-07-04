@@ -18,6 +18,7 @@ import jakarta.ws.rs.core.MediaType;
 import jakarta.ws.rs.core.Response;
 import org.eclipse.microprofile.openapi.annotations.tags.Tag;
 
+import java.util.Map;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
@@ -108,6 +109,33 @@ public class PermissionManagementController {
             LOG.log(Level.WARNING, "Get permission failed", ex);
             return Response.status(resolveStatus(ex)).build();
         }
+    }
+
+    @GET
+    @Path("/name/{permissionName}")
+    @Deprecated
+    public Response getByNameDeprecated(@PathParam("permissionName") String permissionName) {
+        return Response.status(Response.Status.GONE)
+                .entity(Map.of("code", "GONE", "message", "此接口已废弃，请使用 /api/permissions/{permissionId}"))
+                .build();
+    }
+
+    @DELETE
+    @Path("/name/{permissionName}")
+    @Deprecated
+    public Response deleteByNameDeprecated(@PathParam("permissionName") String permissionName) {
+        return Response.status(Response.Status.GONE)
+                .entity(Map.of("code", "GONE", "message", "此接口已废弃"))
+                .build();
+    }
+
+    @GET
+    @Path("/search")
+    @Deprecated
+    public Response searchDeprecated(@QueryParam("name") String name) {
+        return Response.status(Response.Status.GONE)
+                .entity(Map.of("code", "GONE", "message", "此接口已废弃，请使用 /api/permissions/search/name/fuzzy?permissionName="))
+                .build();
     }
 
     @GET

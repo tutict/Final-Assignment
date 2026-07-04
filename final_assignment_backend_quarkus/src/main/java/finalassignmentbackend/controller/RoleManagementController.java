@@ -21,6 +21,7 @@ import jakarta.ws.rs.core.Response;
 import org.eclipse.microprofile.openapi.annotations.tags.Tag;
 
 import java.util.List;
+import java.util.Map;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
@@ -138,6 +139,33 @@ public class RoleManagementController {
             LOG.log(Level.WARNING, "Get role by code failed", ex);
             return Response.status(resolveStatus(ex)).build();
         }
+    }
+
+    @GET
+    @Path("/name/{roleName}")
+    @Deprecated
+    public Response getByNameDeprecated(@PathParam("roleName") String roleName) {
+        return Response.status(Response.Status.GONE)
+                .entity(Map.of("code", "GONE", "message", "此接口已废弃，请使用 /api/roles/by-code/{roleCode}"))
+                .build();
+    }
+
+    @DELETE
+    @Path("/name/{roleName}")
+    @Deprecated
+    public Response deleteByNameDeprecated(@PathParam("roleName") String roleName) {
+        return Response.status(Response.Status.GONE)
+                .entity(Map.of("code", "GONE", "message", "此接口已废弃，请使用 /api/roles/{roleId}"))
+                .build();
+    }
+
+    @GET
+    @Path("/search")
+    @Deprecated
+    public Response searchByNameDeprecated(@QueryParam("roleName") String roleName) {
+        return Response.status(Response.Status.GONE)
+                .entity(Map.of("code", "GONE", "message", "此接口已废弃，请使用 /api/roles/search/name/fuzzy?roleName="))
+                .build();
     }
 
     @GET

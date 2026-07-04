@@ -34,7 +34,7 @@ public class OffenseTypeDictService {
 
     @Transactional
     @CacheInvalidate(cacheName = "offenseTypeDictCache")
-    @WsAction(service = "OffenseTypeDictService", action = "checkAndInsertIdempotency")
+    @WsAction(service = "OffenseTypeDictService", action = "checkAndInsertIdempotency", roles = {"SUPER_ADMIN", "ADMIN", "TRAFFIC_POLICE"})
     public void checkAndInsertIdempotency(String idempotencyKey, OffenseTypeDict dict, String action) {
         Objects.requireNonNull(dict, "OffenseTypeDict must not be null");
         if (isBlank(idempotencyKey)) {

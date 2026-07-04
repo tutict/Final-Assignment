@@ -34,7 +34,7 @@ public class SysUserRoleService {
 
     @Transactional
     @CacheInvalidate(cacheName = "sysUserRoleCache")
-    @WsAction(service = "SysUserRoleService", action = "checkAndInsertIdempotency")
+    @WsAction(service = "SysUserRoleService", action = "checkAndInsertIdempotency", roles = {"SUPER_ADMIN", "ADMIN"})
     public void checkAndInsertIdempotency(String idempotencyKey, SysUserRole relation, String action) {
         Objects.requireNonNull(relation, "SysUserRole relation must not be null");
         if (isBlank(idempotencyKey)) {

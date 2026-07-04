@@ -9,9 +9,13 @@ import java.lang.annotation.Target;
 @Target(ElementType.METHOD)
 public @interface WsAction {
 
-    // 调用的service
     String service();
 
-    // 调用的service中的方法
     String action();
+
+    /** Required role codes. Empty means deny unless allowAuthenticated is true. */
+    String[] roles() default {};
+
+    /** Use only for legacy actions that require a valid token but no specific role. */
+    boolean allowAuthenticated() default false;
 }

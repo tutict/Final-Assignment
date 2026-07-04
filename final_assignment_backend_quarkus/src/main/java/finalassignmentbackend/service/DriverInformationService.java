@@ -34,7 +34,7 @@ public class DriverInformationService {
 
     @Transactional
     @CacheInvalidate(cacheName = "driverCache")
-    @WsAction(service = "DriverInformationService", action = "checkAndInsertIdempotency")
+    @WsAction(service = "DriverInformationService", action = "checkAndInsertIdempotency", roles = {"SUPER_ADMIN", "ADMIN", "TRAFFIC_POLICE"})
     public void checkAndInsertIdempotency(String idempotencyKey, DriverInformation driverInformation, String action) {
         Objects.requireNonNull(driverInformation, "Driver information must not be null");
         if (isBlank(idempotencyKey)) {
@@ -74,7 +74,7 @@ public class DriverInformationService {
 
     @Transactional
     @CacheInvalidate(cacheName = "driverCache")
-    @WsAction(service = "DriverInformationService", action = "deleteDriver")
+    @WsAction(service = "DriverInformationService", action = "deleteDriver", roles = {"SUPER_ADMIN", "ADMIN", "TRAFFIC_POLICE"})
     public void deleteDriver(Long driverId) {
         validateDriverId(driverId);
         int rows = driverInformationMapper.deleteById(driverId);
@@ -84,14 +84,14 @@ public class DriverInformationService {
     }
 
     @CacheResult(cacheName = "driverCache")
-    @WsAction(service = "DriverInformationService", action = "getDriverById")
+    @WsAction(service = "DriverInformationService", action = "getDriverById", roles = {"SUPER_ADMIN", "ADMIN", "TRAFFIC_POLICE"})
     public DriverInformation getDriverById(Long driverId) {
         validateDriverId(driverId);
         return driverInformationMapper.selectById(driverId);
     }
 
     @CacheResult(cacheName = "driverCache")
-    @WsAction(service = "DriverInformationService", action = "getAllDrivers")
+    @WsAction(service = "DriverInformationService", action = "getAllDrivers", roles = {"SUPER_ADMIN", "ADMIN", "TRAFFIC_POLICE"})
     public List<DriverInformation> getAllDrivers() {
         return driverInformationMapper.selectList(null);
     }
@@ -162,6 +162,20 @@ public class DriverInformationService {
         history.setRequestParams(truncate(reason));
         history.setUpdatedAt(LocalDateTime.now());
         sysRequestHistoryMapper.updateById(history);
+    }
+
+    @CacheResult(cacheName = "driverCache")
+    public List<DriverInformation> searchDrivers(String keywords, int page, int size) {
+        if (isBlank(keywords)) {
+            return List.of();
+        }
+        validatePagination(page, size);
+        QueryWrapper<DriverInformation> wrapper = new QueryWrapper<>();
+        wrapper.like("name", keywords)
+                .or().likeRight("id_card_number", keywords)
+                .or().likeRight("driver_license_number", keywords)
+                .orderByDesc("updated_at");
+        return fetchFromDatabase(wrapper, page, size);
     }
 
     private SysRequestHistory buildHistory(String key) {

@@ -28,6 +28,9 @@ dependencies {
     implementation 'io.quarkiverse.mybatis:quarkus-mybatis-plus:2.4.2'
     implementation 'org.mindrot:jbcrypt:0.4'
     implementation 'io.quarkus:quarkus-security'
+    // Post-quantum cryptography: ML-KEM (FIPS 203) for refresh-token-at-rest encryption
+    implementation 'org.bouncycastle:bcprov-jdk18on:1.81'
+    implementation 'org.bouncycastle:bcpkix-jdk18on:1.81'
     implementation 'io.quarkus:quarkus-jdbc-mysql'
     implementation 'io.quarkus:quarkus-cache'
     implementation 'io.quarkus:quarkus-redis-cache'
@@ -45,7 +48,6 @@ dependencies {
     implementation 'io.quarkus:quarkus-rest-jsonb'
     implementation 'org.graalvm.polyglot:polyglot:25.0.1'
     implementation 'org.testcontainers:testcontainers:2.0.2'
-    implementation 'io.quarkiverse.satoken:quarkus-satoken-resteasy:1.31.1'
     compileOnly 'org.projectlombok:lombok:1.18.42'
     runtimeOnly 'org.graalvm.polyglot:python:25.0.1'
     annotationProcessor 'org.projectlombok:lombok:1.18.42'

@@ -2,6 +2,11 @@ package finalassignmentbackend.service;
 
 import finalassignmentbackend.config.login.jwt.TokenProvider;
 import finalassignmentbackend.config.websocket.WsAction;
+import finalassignmentbackend.dto.RefreshRequest;
+import finalassignmentbackend.dto.TokenResponse;
+import finalassignmentbackend.dto.UserProfileResponse;
+import finalassignmentbackend.dto.UserResponse;
+import io.quarkus.security.AuthenticationFailedException;
 import finalassignmentbackend.entity.AuditLoginLog;
 import finalassignmentbackend.entity.SysRole;
 import finalassignmentbackend.entity.SysUser;
@@ -14,9 +19,11 @@ import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
 import jakarta.transaction.Transactional;
 import lombok.Data;
+import org.mindrot.jbcrypt.BCrypt;
 
 import java.time.LocalDateTime;
 import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
@@ -47,7 +54,13 @@ public class AuthWsService {
     @Inject
     SysUserRoleService sysUserRoleService;
 
-    @WsAction(service = "AuthWsService", action = "login")
+    @Inject
+    RefreshTokenService refreshTokenService;
+
+    @Inject
+    TokenBlacklistService tokenBlacklistService;
+
+    @WsAction(service = "AuthWsService", action = "login", allowAuthenticated = true)
     public Map<String, Object> login(LoginRequest loginRequest) {
         validateLoginRequest(loginRequest);
 
@@ -62,20 +75,11 @@ public class AuthWsService {
                 recordFailedLogin(loginRequest.getUsername(), "NO_ROLES_ASSIGNED");
                 throw new RuntimeException("No roles assigned to user.");
             }
-            String rolesString = String.join(",", roles);
-            String roleCodesCsv = String.join(",", aggregation.getRoleCodes());
-            String roleTypesCsv = String.join(",", aggregation.getRoleTypes());
+            String rolesString = String.join(",", aggregation.getRoleCodes());
             String dataScopeCode = aggregation.getDataScope().getCode();
 
-            boolean claimsSupported = tokenProvider.validateRoleClaims(roleCodesCsv, roleTypesCsv, dataScopeCode);
-
-            String jwtToken;
-            if (claimsSupported) {
-                jwtToken = tokenProvider.createEnhancedToken(user.getUsername(), roleCodesCsv, roleTypesCsv, dataScopeCode);
-            } else {
-                logger.warning(() -> String.format("Role claims incomplete, fallback to basic token for user=%s", user.getUsername()));
-                jwtToken = tokenProvider.createToken(user.getUsername(), rolesString);
-            }
+            String jwtToken = issueAccessToken(user, aggregation, rolesString);
+            String refreshToken = refreshTokenService.createRefreshToken(user.getUserId());
 
             boolean systemRole = tokenProvider.hasSystemRole(jwtToken);
             boolean businessRole = tokenProvider.hasBusinessRole(jwtToken);
@@ -83,17 +87,25 @@ public class AuthWsService {
 
             logger.info(() -> String.format("User authenticated successfully (WS): %s with roles: %s",
                     loginRequest.getUsername(), rolesString));
-            return Map.of(
-                    "jwtToken", jwtToken,
-                    "username", user.getUsername(),
-                    "roles", roles,
-                    "roleCodes", aggregation.getRoleCodes(),
-                    "roleTypes", aggregation.getRoleTypes(),
-                    "dataScope", dataScopeCode,
-                    "systemRole", systemRole,
-                    "businessRole", businessRole,
-                    "departmentScope", hasDepartmentScope
-            );
+
+            Map<String, Object> result = new LinkedHashMap<>();
+            result.put("jwtToken", jwtToken);
+            result.put("accessToken", jwtToken);
+            result.put("refreshToken", refreshToken);
+            result.put("tokenType", "Bearer");
+            result.put("expiresIn", tokenProvider.getAccessTokenExpirationSeconds());
+            result.put("refreshTokenExpiresIn", refreshTokenService.getRefreshTokenExpirationSeconds());
+            result.put("username", user.getUsername());
+            result.put("authUserId", user.getUserId());
+            result.put("roles", aggregation.getRoleCodes());
+            result.put("roleNames", roles);
+            result.put("roleCodes", aggregation.getRoleCodes());
+            result.put("roleTypes", aggregation.getRoleTypes());
+            result.put("dataScope", dataScopeCode);
+            result.put("systemRole", systemRole);
+            result.put("businessRole", businessRole);
+            result.put("departmentScope", hasDepartmentScope);
+            return result;
         }
 
         logger.severe(() -> String.format("Authentication failed (WS) for user: %s", loginRequest.getUsername()));
@@ -102,7 +114,7 @@ public class AuthWsService {
     }
 
     @Transactional
-    @WsAction(service = "AuthWsService", action = "registerUser")
+    @WsAction(service = "AuthWsService", action = "registerUser", roles = {"SUPER_ADMIN", "ADMIN"})
     public String registerUser(RegisterRequest registerRequest) {
         validateRegisterRequest(registerRequest);
         logger.info(() -> String.format("Attempting to register user: %s", registerRequest.getUsername()));
@@ -121,7 +133,7 @@ public class AuthWsService {
 
         SysUser newUser = new SysUser();
         newUser.setUsername(registerRequest.getUsername());
-        newUser.setPassword(registerRequest.getPassword());
+        newUser.setPassword(BCrypt.hashpw(registerRequest.getPassword(), BCrypt.gensalt()));
         newUser.setStatus("Active");
         newUser.setCreatedAt(LocalDateTime.now());
         newUser.setUpdatedAt(LocalDateTime.now());
@@ -132,22 +144,137 @@ public class AuthWsService {
             throw new RuntimeException("User creation failed");
         }
 
-        SysRole role = resolveOrCreateRole(registerRequest.getRole());
+        SysRole role = resolveOrCreateRole("USER");
         assignRole(savedUser, role);
 
         logger.info(() -> String.format("User registered successfully: %s", registerRequest.getUsername()));
         return "CREATED";
     }
 
-    @WsAction(service = "AuthWsService", action = "getAllUsers")
+    @WsAction(service = "AuthWsService", action = "getAllUsers", roles = {"SUPER_ADMIN", "ADMIN"})
     @CacheResult(cacheName = "userCache")
-    public List<SysUser> getAllUsers() {
+    public List<UserResponse> getAllUsers() {
         logger.info("[WS] Fetching all users");
         List<SysUser> users = sysUserService.findAll();
         if (users.isEmpty()) {
             logger.warning("No users found in the system");
         }
-        return users;
+        return users.stream().map(UserResponse::from).toList();
+    }
+
+    /**
+     * 用有效的 refresh token 换取新的 access token，并轮换 refresh token（旧的即刻失效）。
+     */
+    @Transactional
+    public TokenResponse refresh(RefreshRequest request) {
+        if (request == null || isBlank(request.getRefreshToken())) {
+            throw new AuthenticationFailedException("Refresh token is required");
+        }
+        Long userId = refreshTokenService.validateRefreshToken(request.getRefreshToken());
+        SysUser user = sysUserService.findById(userId);
+        if (user == null) {
+            throw new AuthenticationFailedException("Refresh token user no longer exists");
+        }
+
+        RoleAggregation aggregation = aggregateRoles(user.getUserId());
+        if (aggregation.getRoleNames().isEmpty()) {
+            throw new RuntimeException("No roles assigned to user.");
+        }
+        String accessToken = issueAccessToken(user, aggregation, String.join(",", aggregation.getRoleCodes()));
+        String newRefreshToken = refreshTokenService.rotateRefreshToken(userId, request.getRefreshToken());
+
+        return TokenResponse.builder()
+                .accessToken(accessToken)
+                .refreshToken(newRefreshToken)
+                .expiresIn(tokenProvider.getAccessTokenExpirationSeconds())
+                .tokenType("Bearer")
+                .build();
+    }
+
+    /**
+     * 登出：撤销该用户所有 refresh token，并把当前 access token 加入黑名单直至其自然过期。
+     */
+    @Transactional
+    public void logout(String username, String bearerToken) {
+        if (isBlank(username)) {
+            throw new AuthenticationFailedException("Authenticated user is required");
+        }
+        SysUser user = sysUserService.findByUsername(username);
+        if (user == null) {
+            throw new AuthenticationFailedException("Authenticated user no longer exists");
+        }
+
+        refreshTokenService.revokeUserTokens(user.getUserId());
+
+        String token = extractBearerToken(bearerToken);
+        long remaining = tokenProvider.getExpirationMs(token);
+        tokenBlacklistService.blacklist(token, remaining);
+    }
+
+    /**
+     * 返回当前登录用户的档案（身份 + 角色）。
+     * 注：driver 关联依赖尚未移植的 DriverInformationService.findOrCreateLinkedDriver（P1），暂返回 null。
+     */
+    public UserProfileResponse getCurrentUserProfile(String username) {
+        if (isBlank(username)) {
+            throw new RuntimeException("User not found");
+        }
+        SysUser user = sysUserService.findByUsername(username);
+        if (user == null) {
+            throw new RuntimeException("User not found: " + username);
+        }
+        RoleAggregation aggregation = aggregateRoles(user.getUserId());
+        return UserProfileResponse.builder()
+                .authUserId(user.getUserId())
+                .username(user.getUsername())
+                .displayName(resolveDisplayName(user))
+                .email(user.getEmail())
+                .phoneNumber(maskPhone(user.getContactNumber()))
+                .roles(aggregation.getRoleCodes())
+                .driverId(null)
+                .driverName(null)
+                .build();
+    }
+
+    private String issueAccessToken(SysUser user, RoleAggregation aggregation, String rolesString) {
+        String roleCodesCsv = String.join(",", aggregation.getRoleCodes());
+        String roleTypesCsv = String.join(",", aggregation.getRoleTypes());
+        String dataScopeCode = aggregation.getDataScope().getCode();
+        boolean claimsSupported = tokenProvider.validateRoleClaims(roleCodesCsv, roleTypesCsv, dataScopeCode);
+        if (claimsSupported) {
+            return tokenProvider.createEnhancedToken(user.getUsername(), roleCodesCsv, roleTypesCsv, dataScopeCode);
+        }
+        logger.warning(() -> String.format("Role claims incomplete, fallback to basic token for user=%s", user.getUsername()));
+        return tokenProvider.createToken(user.getUsername(), rolesString);
+    }
+
+    private String extractBearerToken(String bearerToken) {
+        if (isBlank(bearerToken) || !bearerToken.startsWith("Bearer ")) {
+            throw new AuthenticationFailedException("Bearer access token is required");
+        }
+        return bearerToken.substring(7);
+    }
+
+    private String resolveDisplayName(SysUser user) {
+        if (user == null) {
+            return null;
+        }
+        return (user.getRealName() != null && !user.getRealName().isBlank()) ? user.getRealName() : user.getUsername();
+    }
+
+    private String maskPhone(String phoneNumber) {
+        if (isBlank(phoneNumber)) {
+            return phoneNumber;
+        }
+        String trimmed = phoneNumber.trim();
+        if (trimmed.length() < 7) {
+            return trimmed.charAt(0) + "****";
+        }
+        return trimmed.substring(0, 3) + "****" + trimmed.substring(trimmed.length() - 4);
+    }
+
+    private boolean isBlank(String value) {
+        return value == null || value.isBlank();
     }
 
     private void validateLoginRequest(LoginRequest loginRequest) {
@@ -171,7 +298,14 @@ public class AuthWsService {
     }
 
     private boolean authenticateUser(SysUser user, String password) {
-        return Objects.equals(user.getPassword(), password);
+        String storedPassword = user.getPassword();
+        if (storedPassword == null) {
+            return false;
+        }
+        if (storedPassword.startsWith("$2a$") || storedPassword.startsWith("$2b$") || storedPassword.startsWith("$2y$")) {
+            return BCrypt.checkpw(password, storedPassword);
+        }
+        return Objects.equals(storedPassword, password);
     }
 
     private SysRole resolveOrCreateRole(String requestedRole) {

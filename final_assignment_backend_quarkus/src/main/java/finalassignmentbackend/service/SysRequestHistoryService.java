@@ -31,7 +31,7 @@ public class SysRequestHistoryService {
 
     @Transactional
     @CacheInvalidate(cacheName = "sysRequestHistoryCache")
-    @WsAction(service = "SysRequestHistoryService", action = "checkAndInsertIdempotency")
+    @WsAction(service = "SysRequestHistoryService", action = "checkAndInsertIdempotency", roles = {"SUPER_ADMIN", "ADMIN"})
     public void checkAndInsertIdempotency(String idempotencyKey, SysRequestHistory historyPayload, String action) {
         Objects.requireNonNull(historyPayload, "SysRequestHistory must not be null");
         if (isBlank(idempotencyKey)) {

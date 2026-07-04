@@ -33,6 +33,9 @@ public class OffenseInformationController {
     @Inject
     OffenseRecordService offenseRecordService;
 
+    @Inject
+    OffenseDetailsController offenseDetailsController;
+
     @POST
     @RunOnVirtualThread
     public Response create(OffenseRecord request,
@@ -314,6 +317,13 @@ public class OffenseInformationController {
             LOG.log(Level.WARNING, "Search offense by fine amount range failed", ex);
             return Response.status(resolveStatus(ex)).build();
         }
+    }
+
+    @GET
+    @Path("/{offenseId}/details")
+    @RunOnVirtualThread
+    public Response getDetails(@PathParam("offenseId") Long offenseId) {
+        return offenseDetailsController.getDetails(offenseId);
     }
 
     private boolean hasKey(String value) {

@@ -425,6 +425,37 @@ public class VehicleInformationController {
         }
     }
 
+    @GET
+    @Path("/drivers/{driverId}/records")
+    @RunOnVirtualThread
+    public Response listVehicleRecordsByDriver(@PathParam("driverId") Long driverId,
+                                               @QueryParam("page") Integer page,
+                                               @QueryParam("size") Integer size) {
+        try {
+            int resolvedPage = page == null ? 1 : page;
+            int resolvedSize = size == null ? 20 : size;
+            return Response.ok(vehicleInformationService.getVehicleInformationByDriverId(driverId, resolvedPage, resolvedSize)).build();
+        } catch (Exception ex) {
+            LOG.log(Level.WARNING, "List vehicle records by driver failed", ex);
+            return Response.status(resolveStatus(ex)).build();
+        }
+    }
+
+    @GET
+    @Path("/autocomplete")
+    @RunOnVirtualThread
+    public Response autocompletePlates(@QueryParam("prefix") String prefix,
+                                       @QueryParam("limit") Integer limit,
+                                       @QueryParam("size") Integer size) {
+        try {
+            int resolvedLimit = limit != null ? limit : (size == null ? 10 : size);
+            return Response.ok(Map.of("data", vehicleInformationService.suggestPlates(prefix, resolvedLimit))).build();
+        } catch (Exception ex) {
+            LOG.log(Level.WARNING, "Fetch plate autocomplete failed", ex);
+            return Response.status(resolveStatus(ex)).build();
+        }
+    }
+
     private boolean hasKey(String value) {
         return value != null && !value.isBlank();
     }

@@ -35,7 +35,7 @@ public class AppealManagementService {
 
     @Transactional
     @CacheInvalidate(cacheName = "appealCache")
-    @WsAction(service = "AppealManagementService", action = "checkAndInsertIdempotency")
+    @WsAction(service = "AppealManagementService", action = "checkAndInsertIdempotency", roles = {"SUPER_ADMIN", "ADMIN", "APPEAL_REVIEWER"})
     public void checkAndInsertIdempotency(String idempotencyKey, AppealRecord appealRecord, String action) {
         Objects.requireNonNull(appealRecord, "Appeal record cannot be null");
         if (isBlank(idempotencyKey)) {
@@ -92,7 +92,7 @@ public class AppealManagementService {
 
     @Transactional
     @CacheInvalidate(cacheName = "appealCache")
-    @WsAction(service = "AppealManagementService", action = "deleteAppeal")
+    @WsAction(service = "AppealManagementService", action = "deleteAppeal", roles = {"SUPER_ADMIN", "ADMIN", "APPEAL_REVIEWER"})
     public void deleteAppeal(Long appealId) {
         validateAppealId(appealId);
         int rows = appealRecordMapper.deleteById(appealId);
@@ -102,14 +102,14 @@ public class AppealManagementService {
     }
 
     @CacheResult(cacheName = "appealCache")
-    @WsAction(service = "AppealManagementService", action = "getAppealById")
+    @WsAction(service = "AppealManagementService", action = "getAppealById", roles = {"SUPER_ADMIN", "ADMIN", "APPEAL_REVIEWER"})
     public AppealRecord getAppealById(Long appealId) {
         validateAppealId(appealId);
         return appealRecordMapper.selectById(appealId);
     }
 
     @CacheResult(cacheName = "appealCache")
-    @WsAction(service = "AppealManagementService", action = "findByOffenseId")
+    @WsAction(service = "AppealManagementService", action = "findByOffenseId", roles = {"SUPER_ADMIN", "ADMIN", "APPEAL_REVIEWER"})
     public List<AppealRecord> findByOffenseId(Long offenseId, int page, int size) {
         validatePagination(page, size);
         QueryWrapper<AppealRecord> wrapper = new QueryWrapper<>();
@@ -258,6 +258,30 @@ public class AppealManagementService {
         history.setRequestParams(truncate(reason));
         history.setUpdatedAt(LocalDateTime.now());
         sysRequestHistoryMapper.updateById(history);
+    }
+
+    @CacheResult(cacheName = "appealCache")
+    public List<AppealRecord> findByDriverId(Long driverId, int page, int size) {
+        if (driverId == null || driverId <= 0) {
+            return List.of();
+        }
+        validatePagination(page, size);
+        QueryWrapper<AppealRecord> wrapper = new QueryWrapper<>();
+        wrapper.eq("driver_id", driverId)
+                .orderByDesc("appeal_time");
+        return fetchFromDatabase(wrapper, page, size);
+    }
+
+    @CacheResult(cacheName = "appealCache")
+    public List<AppealRecord> findByCreatedBy(String createdBy, int page, int size) {
+        if (isBlank(createdBy)) {
+            return List.of();
+        }
+        validatePagination(page, size);
+        QueryWrapper<AppealRecord> wrapper = new QueryWrapper<>();
+        wrapper.eq("created_by", createdBy)
+                .orderByDesc("appeal_time");
+        return fetchFromDatabase(wrapper, page, size);
     }
 
     private SysRequestHistory buildHistory(String key) {

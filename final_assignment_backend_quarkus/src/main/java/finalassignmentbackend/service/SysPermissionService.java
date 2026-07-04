@@ -34,7 +34,7 @@ public class SysPermissionService {
 
     @Transactional
     @CacheInvalidate(cacheName = "sysPermissionCache")
-    @WsAction(service = "SysPermissionService", action = "checkAndInsertIdempotency")
+    @WsAction(service = "SysPermissionService", action = "checkAndInsertIdempotency", roles = {"SUPER_ADMIN", "ADMIN"})
     public void checkAndInsertIdempotency(String idempotencyKey, SysPermission permission, String action) {
         Objects.requireNonNull(permission, "SysPermission must not be null");
         if (isBlank(idempotencyKey)) {

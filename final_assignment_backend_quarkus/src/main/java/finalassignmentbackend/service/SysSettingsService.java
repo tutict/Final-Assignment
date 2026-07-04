@@ -34,7 +34,7 @@ public class SysSettingsService {
 
     @Transactional
     @CacheInvalidate(cacheName = "sysSettingsCache")
-    @WsAction(service = "SysSettingsService", action = "checkAndInsertIdempotency")
+    @WsAction(service = "SysSettingsService", action = "checkAndInsertIdempotency", roles = {"SUPER_ADMIN", "ADMIN"})
     public void checkAndInsertIdempotency(String idempotencyKey, SysSettings settings, String action) {
         Objects.requireNonNull(settings, "SysSettings must not be null");
         if (isBlank(idempotencyKey)) {

@@ -35,7 +35,7 @@ public class DeductionRecordService {
 
     @Transactional
     @CacheInvalidate(cacheName = "deductionRecordCache")
-    @WsAction(service = "DeductionRecordService", action = "checkAndInsertIdempotency")
+    @WsAction(service = "DeductionRecordService", action = "checkAndInsertIdempotency", roles = {"SUPER_ADMIN", "ADMIN", "TRAFFIC_POLICE"})
     public void checkAndInsertIdempotency(String idempotencyKey, DeductionRecord record, String action) {
         Objects.requireNonNull(record, "Deduction record must not be null");
         if (isBlank(idempotencyKey)) {

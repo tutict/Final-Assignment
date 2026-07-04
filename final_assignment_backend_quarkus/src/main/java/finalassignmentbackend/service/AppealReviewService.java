@@ -35,7 +35,7 @@ public class AppealReviewService {
 
     @Transactional
     @CacheInvalidate(cacheName = "appealReviewCache")
-    @WsAction(service = "AppealReviewService", action = "checkAndInsertIdempotency")
+    @WsAction(service = "AppealReviewService", action = "checkAndInsertIdempotency", roles = {"SUPER_ADMIN", "ADMIN", "APPEAL_REVIEWER"})
     public void checkAndInsertIdempotency(String idempotencyKey, AppealReview review, String action) {
         Objects.requireNonNull(review, "Appeal review cannot be null");
         if (isBlank(idempotencyKey)) {

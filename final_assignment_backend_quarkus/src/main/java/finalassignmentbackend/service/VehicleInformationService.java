@@ -7,6 +7,7 @@ import finalassignmentbackend.entity.SysRequestHistory;
 import finalassignmentbackend.entity.VehicleInformation;
 import finalassignmentbackend.mapper.SysRequestHistoryMapper;
 import finalassignmentbackend.mapper.VehicleInformationMapper;
+import finalassignmentbackend.mapper.DriverVehicleMapper;
 import io.quarkus.cache.CacheInvalidate;
 import io.quarkus.cache.CacheResult;
 import io.quarkus.runtime.annotations.RegisterForReflection;
@@ -33,11 +34,14 @@ public class VehicleInformationService {
     VehicleInformationMapper vehicleInformationMapper;
 
     @Inject
+    DriverVehicleMapper driverVehicleMapper;
+
+    @Inject
     SysRequestHistoryMapper sysRequestHistoryMapper;
 
     @Transactional
     @CacheInvalidate(cacheName = "vehicleCache")
-    @WsAction(service = "VehicleInformationService", action = "checkAndInsertIdempotency")
+    @WsAction(service = "VehicleInformationService", action = "checkAndInsertIdempotency", roles = {"SUPER_ADMIN", "ADMIN", "TRAFFIC_POLICE"})
     public void checkAndInsertIdempotency(String idempotencyKey, VehicleInformation vehicleInformation, String action) {
         Objects.requireNonNull(vehicleInformation, "Vehicle information must not be null");
         if (isBlank(idempotencyKey)) {
@@ -77,7 +81,7 @@ public class VehicleInformationService {
 
     @Transactional
     @CacheInvalidate(cacheName = "vehicleCache")
-    @WsAction(service = "VehicleInformationService", action = "deleteVehicleInformation")
+    @WsAction(service = "VehicleInformationService", action = "deleteVehicleInformation", roles = {"SUPER_ADMIN", "ADMIN", "TRAFFIC_POLICE"})
     public void deleteVehicleInformation(Long vehicleId) {
         validateVehicleId(vehicleId);
         int rows = vehicleInformationMapper.deleteById(vehicleId);
@@ -88,7 +92,7 @@ public class VehicleInformationService {
 
     @Transactional
     @CacheInvalidate(cacheName = "vehicleCache")
-    @WsAction(service = "VehicleInformationService", action = "deleteVehicleInformationByLicensePlate")
+    @WsAction(service = "VehicleInformationService", action = "deleteVehicleInformationByLicensePlate", roles = {"SUPER_ADMIN", "ADMIN", "TRAFFIC_POLICE"})
     public void deleteVehicleInformationByLicensePlate(String licensePlate) {
         validateInput(licensePlate, "Invalid license plate number");
         QueryWrapper<VehicleInformation> queryWrapper = new QueryWrapper<>();
@@ -97,20 +101,20 @@ public class VehicleInformationService {
     }
 
     @CacheResult(cacheName = "vehicleCache")
-    @WsAction(service = "VehicleInformationService", action = "getVehicleInformationById")
+    @WsAction(service = "VehicleInformationService", action = "getVehicleInformationById", roles = {"SUPER_ADMIN", "ADMIN", "TRAFFIC_POLICE"})
     public VehicleInformation getVehicleInformationById(Long vehicleId) {
         validateVehicleId(vehicleId);
         return vehicleInformationMapper.selectById(vehicleId);
     }
 
     @CacheResult(cacheName = "vehicleCache")
-    @WsAction(service = "VehicleInformationService", action = "getAllVehicleInformation")
+    @WsAction(service = "VehicleInformationService", action = "getAllVehicleInformation", roles = {"SUPER_ADMIN", "ADMIN", "TRAFFIC_POLICE"})
     public List<VehicleInformation> getAllVehicleInformation() {
         return vehicleInformationMapper.selectList(null);
     }
 
     @CacheResult(cacheName = "vehicleCache")
-    @WsAction(service = "VehicleInformationService", action = "getVehicleInformationByLicensePlate")
+    @WsAction(service = "VehicleInformationService", action = "getVehicleInformationByLicensePlate", roles = {"SUPER_ADMIN", "ADMIN", "TRAFFIC_POLICE"})
     public VehicleInformation getVehicleInformationByLicensePlate(String licensePlate) {
         validateInput(licensePlate, "Invalid license plate number");
         QueryWrapper<VehicleInformation> queryWrapper = new QueryWrapper<>();
@@ -119,7 +123,7 @@ public class VehicleInformationService {
     }
 
     @CacheResult(cacheName = "vehicleCache")
-    @WsAction(service = "VehicleInformationService", action = "getVehicleInformationByIdCardNumber")
+    @WsAction(service = "VehicleInformationService", action = "getVehicleInformationByIdCardNumber", roles = {"SUPER_ADMIN", "ADMIN", "TRAFFIC_POLICE"})
     public List<VehicleInformation> getVehicleInformationByIdCardNumber(String idCardNumber) {
         validateInput(idCardNumber, "Invalid id card number");
         QueryWrapper<VehicleInformation> queryWrapper = new QueryWrapper<>();
@@ -128,7 +132,7 @@ public class VehicleInformationService {
     }
 
     @CacheResult(cacheName = "vehicleCache")
-    @WsAction(service = "VehicleInformationService", action = "getVehicleInformationByType")
+    @WsAction(service = "VehicleInformationService", action = "getVehicleInformationByType", roles = {"SUPER_ADMIN", "ADMIN", "TRAFFIC_POLICE"})
     public List<VehicleInformation> getVehicleInformationByType(String vehicleType) {
         validateInput(vehicleType, "Invalid vehicle type");
         QueryWrapper<VehicleInformation> queryWrapper = new QueryWrapper<>();
@@ -137,7 +141,7 @@ public class VehicleInformationService {
     }
 
     @CacheResult(cacheName = "vehicleCache")
-    @WsAction(service = "VehicleInformationService", action = "getVehicleInformationByOwnerName")
+    @WsAction(service = "VehicleInformationService", action = "getVehicleInformationByOwnerName", roles = {"SUPER_ADMIN", "ADMIN", "TRAFFIC_POLICE"})
     public List<VehicleInformation> getVehicleInformationByOwnerName(String ownerName) {
         validateInput(ownerName, "Invalid owner name");
         QueryWrapper<VehicleInformation> queryWrapper = new QueryWrapper<>();
@@ -146,7 +150,7 @@ public class VehicleInformationService {
     }
 
     @CacheResult(cacheName = "vehicleCache")
-    @WsAction(service = "VehicleInformationService", action = "getVehicleInformationByStatus")
+    @WsAction(service = "VehicleInformationService", action = "getVehicleInformationByStatus", roles = {"SUPER_ADMIN", "ADMIN", "TRAFFIC_POLICE"})
     public List<VehicleInformation> getVehicleInformationByStatus(String status) {
         validateInput(status, "Invalid status");
         QueryWrapper<VehicleInformation> queryWrapper = new QueryWrapper<>();
@@ -155,7 +159,7 @@ public class VehicleInformationService {
     }
 
     @CacheResult(cacheName = "vehicleCache")
-    @WsAction(service = "VehicleInformationService", action = "searchVehicles")
+    @WsAction(service = "VehicleInformationService", action = "searchVehicles", roles = {"SUPER_ADMIN", "ADMIN", "TRAFFIC_POLICE"})
     public List<VehicleInformation> searchVehicles(String keywords, int page, int size) {
         if (isBlank(keywords)) {
             return List.of();
@@ -170,7 +174,7 @@ public class VehicleInformationService {
     }
 
     @CacheResult(cacheName = "vehicleCache")
-    @WsAction(service = "VehicleInformationService", action = "getVehicleInformationByLicensePlateGlobally")
+    @WsAction(service = "VehicleInformationService", action = "getVehicleInformationByLicensePlateGlobally", roles = {"SUPER_ADMIN", "ADMIN", "TRAFFIC_POLICE"})
     public List<String> getVehicleInformationByLicensePlateGlobally(String prefix, int size) {
         if (isBlank(prefix)) {
             return List.of();
@@ -186,7 +190,7 @@ public class VehicleInformationService {
     }
 
     @CacheResult(cacheName = "vehicleCache")
-    @WsAction(service = "VehicleInformationService", action = "getLicensePlateAutocompleteSuggestions")
+    @WsAction(service = "VehicleInformationService", action = "getLicensePlateAutocompleteSuggestions", roles = {"SUPER_ADMIN", "ADMIN", "TRAFFIC_POLICE"})
     public List<String> getLicensePlateAutocompleteSuggestions(String prefix, int size, String idCard) {
         if (isBlank(prefix) || isBlank(idCard)) {
             return List.of();
@@ -203,7 +207,7 @@ public class VehicleInformationService {
     }
 
     @CacheResult(cacheName = "vehicleCache")
-    @WsAction(service = "VehicleInformationService", action = "getVehicleTypeAutocompleteSuggestions")
+    @WsAction(service = "VehicleInformationService", action = "getVehicleTypeAutocompleteSuggestions", roles = {"SUPER_ADMIN", "ADMIN", "TRAFFIC_POLICE"})
     public List<String> getVehicleTypeAutocompleteSuggestions(String idCard, String prefix, int size) {
         if (isBlank(idCard) || isBlank(prefix)) {
             return List.of();
@@ -220,7 +224,7 @@ public class VehicleInformationService {
     }
 
     @CacheResult(cacheName = "vehicleCache")
-    @WsAction(service = "VehicleInformationService", action = "getVehicleTypesByPrefixGlobally")
+    @WsAction(service = "VehicleInformationService", action = "getVehicleTypesByPrefixGlobally", roles = {"SUPER_ADMIN", "ADMIN", "TRAFFIC_POLICE"})
     public List<String> getVehicleTypesByPrefixGlobally(String prefix, int size) {
         if (isBlank(prefix)) {
             return List.of();
@@ -236,7 +240,7 @@ public class VehicleInformationService {
     }
 
     @CacheResult(cacheName = "vehicleCache")
-    @WsAction(service = "VehicleInformationService", action = "isLicensePlateExists")
+    @WsAction(service = "VehicleInformationService", action = "isLicensePlateExists", roles = {"SUPER_ADMIN", "ADMIN", "TRAFFIC_POLICE"})
     public boolean isLicensePlateExists(String licensePlate) {
         validateInput(licensePlate, "Invalid license plate number");
         QueryWrapper<VehicleInformation> queryWrapper = new QueryWrapper<>();
@@ -274,6 +278,42 @@ public class VehicleInformationService {
         history.setRequestParams(truncate(reason));
         history.setUpdatedAt(LocalDateTime.now());
         sysRequestHistoryMapper.updateById(history);
+    }
+
+    @CacheResult(cacheName = "vehicleCache")
+    public List<VehicleInformation> getVehicleInformationByDriverId(Long driverId, int page, int size) {
+        if (driverId == null || driverId <= 0) {
+            return List.of();
+        }
+        validatePagination(page, size);
+        QueryWrapper<finalassignmentbackend.entity.DriverVehicle> relationWrapper = new QueryWrapper<>();
+        relationWrapper.eq("driver_id", driverId);
+        List<Long> vehicleIds = driverVehicleMapper.selectList(relationWrapper).stream()
+                .map(finalassignmentbackend.entity.DriverVehicle::getVehicleId)
+                .filter(Objects::nonNull)
+                .distinct()
+                .collect(Collectors.toList());
+        if (vehicleIds.isEmpty()) {
+            return List.of();
+        }
+        QueryWrapper<VehicleInformation> wrapper = new QueryWrapper<>();
+        wrapper.in("vehicle_id", vehicleIds).orderByDesc("updated_at");
+        return fetchFromDatabase(wrapper, page, size);
+    }
+
+    @CacheResult(cacheName = "vehicleCache")
+    public List<String> suggestPlates(String prefix, int limit) {
+        if (isBlank(prefix)) {
+            return List.of();
+        }
+        QueryWrapper<VehicleInformation> queryWrapper = new QueryWrapper<>();
+        queryWrapper.likeRight("license_plate", prefix)
+                .last("LIMIT " + Math.max(limit, 1));
+        return vehicleInformationMapper.selectList(queryWrapper).stream()
+                .map(VehicleInformation::getLicensePlate)
+                .filter(Objects::nonNull)
+                .distinct()
+                .collect(Collectors.toList());
     }
 
     private SysRequestHistory buildHistory(String key) {

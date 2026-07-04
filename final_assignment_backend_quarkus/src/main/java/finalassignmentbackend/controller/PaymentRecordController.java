@@ -225,6 +225,27 @@ public class PaymentRecordController {
         }
     }
 
+    @GET
+    @Path("/driver/{driverId}")
+    @RunOnVirtualThread
+    public Response findByDriver(@PathParam("driverId") Long driverId,
+                                 @QueryParam("page") Integer page,
+                                 @QueryParam("size") Integer size) {
+        int resolvedPage = page == null ? 1 : page;
+        int resolvedSize = size == null ? 20 : size;
+        return Response.ok(paymentRecordService.findByDriverId(driverId, resolvedPage, resolvedSize)).build();
+    }
+
+
+    @POST
+    @Path("/driver/{driverId}")
+    @RunOnVirtualThread
+    public Response createDriverPayment(@PathParam("driverId") Long driverId,
+                                        PaymentRecord request,
+                                        @HeaderParam("Idempotency-Key") String idempotencyKey) {
+        request.setDriverId(driverId);
+        return createPayment(request, idempotencyKey);
+    }
     private boolean hasKey(String value) {
         return value != null && !value.isBlank();
     }

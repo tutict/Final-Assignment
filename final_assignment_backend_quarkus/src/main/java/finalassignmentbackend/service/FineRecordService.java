@@ -36,7 +36,7 @@ public class FineRecordService {
 
     @Transactional
     @CacheInvalidate(cacheName = "fineRecordCache")
-    @WsAction(service = "FineRecordService", action = "checkAndInsertIdempotency")
+    @WsAction(service = "FineRecordService", action = "checkAndInsertIdempotency", roles = {"SUPER_ADMIN", "ADMIN", "TRAFFIC_POLICE", "FINANCE"})
     public void checkAndInsertIdempotency(String idempotencyKey, FineRecord record, String action) {
         Objects.requireNonNull(record, "Fine record must not be null");
         if (isBlank(idempotencyKey)) {
@@ -103,6 +103,18 @@ public class FineRecordService {
         validatePagination(page, size);
         QueryWrapper<FineRecord> wrapper = new QueryWrapper<>();
         wrapper.eq("offense_id", offenseId)
+                .orderByDesc("fine_date");
+        return fetchFromDatabase(wrapper, page, size);
+    }
+
+    @CacheResult(cacheName = "fineRecordCache")
+    public List<FineRecord> findByDriverId(Long driverId, int page, int size) {
+        if (driverId == null || driverId <= 0) {
+            return List.of();
+        }
+        validatePagination(page, size);
+        QueryWrapper<FineRecord> wrapper = new QueryWrapper<>();
+        wrapper.eq("driver_id", driverId)
                 .orderByDesc("fine_date");
         return fetchFromDatabase(wrapper, page, size);
     }

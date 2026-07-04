@@ -34,7 +34,7 @@ public class SysDictService {
 
     @Transactional
     @CacheInvalidate(cacheName = "sysDictCache")
-    @WsAction(service = "SysDictService", action = "checkAndInsertIdempotency")
+    @WsAction(service = "SysDictService", action = "checkAndInsertIdempotency", roles = {"SUPER_ADMIN", "ADMIN"})
     public void checkAndInsertIdempotency(String idempotencyKey, SysDict dict, String action) {
         Objects.requireNonNull(dict, "SysDict must not be null");
         if (isBlank(idempotencyKey)) {

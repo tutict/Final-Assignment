@@ -18,6 +18,8 @@ import jakarta.ws.rs.QueryParam;
 import jakarta.ws.rs.HeaderParam;
 import jakarta.ws.rs.core.MediaType;
 import jakarta.ws.rs.core.Response;
+import jakarta.ws.rs.core.Context;
+import jakarta.ws.rs.core.SecurityContext;
 import org.eclipse.microprofile.openapi.annotations.tags.Tag;
 
 import java.util.List;
@@ -368,6 +370,25 @@ public class AppealManagementController {
             return Response.ok(Map.of("reviewLevel", reviewLevel, "count", total)).build();
         } catch (Exception ex) {
             LOG.log(Level.WARNING, "Count appeal reviews failed", ex);
+            return Response.status(resolveStatus(ex)).build();
+        }
+    }
+
+    @GET
+    @Path("/my")
+    @RunOnVirtualThread
+    public Response getMyAppeals(@Context SecurityContext securityContext,
+                                 @QueryParam("page") Integer page,
+                                 @QueryParam("size") Integer size) {
+        try {
+            String username = securityContext != null && securityContext.getUserPrincipal() != null
+                    ? securityContext.getUserPrincipal().getName()
+                    : null;
+            int resolvedPage = page == null ? 1 : page;
+            int resolvedSize = size == null ? 20 : size;
+            return Response.ok(appealManagementService.findByCreatedBy(username, resolvedPage, resolvedSize)).build();
+        } catch (Exception ex) {
+            LOG.log(Level.WARNING, "List current user's appeals failed", ex);
             return Response.status(resolveStatus(ex)).build();
         }
     }

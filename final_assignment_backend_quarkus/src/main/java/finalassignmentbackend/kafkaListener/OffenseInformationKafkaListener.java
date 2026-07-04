@@ -37,7 +37,8 @@ public class OffenseInformationKafkaListener {
     @RunOnVirtualThread
     public void onOffenseUpdateReceived(String message) {
         log.log(Level.INFO, "Received Kafka update message: {0}", message);
-        processMessage(message, "update", offenseRecordService::updateOffenseRecord);
+        // 走治理合并入口：陈旧检测 + 护栏合并 + 乐观锁（对齐 Spring updateKafkaFullUpdate）
+        processMessage(message, "update", offenseRecordService::updateKafkaFullUpdate);
     }
 
     private void processMessage(String message, String action, MessageProcessor<OffenseRecord> processor) {

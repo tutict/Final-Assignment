@@ -35,7 +35,7 @@ public class SysBackupRestoreService {
 
     @Transactional
     @CacheInvalidate(cacheName = "sysBackupRestoreCache")
-    @WsAction(service = "SysBackupRestoreService", action = "checkAndInsertIdempotency")
+    @WsAction(service = "SysBackupRestoreService", action = "checkAndInsertIdempotency", roles = {"SUPER_ADMIN", "ADMIN"})
     public void checkAndInsertIdempotency(String idempotencyKey, SysBackupRestore record, String action) {
         Objects.requireNonNull(record, "SysBackupRestore must not be null");
         if (isBlank(idempotencyKey)) {

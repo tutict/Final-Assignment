@@ -35,7 +35,7 @@ public class AuditOperationLogService {
 
     @Transactional
     @CacheInvalidate(cacheName = "auditOperationLogCache")
-    @WsAction(service = "AuditOperationLogService", action = "checkAndInsertIdempotency")
+    @WsAction(service = "AuditOperationLogService", action = "checkAndInsertIdempotency", roles = {"SUPER_ADMIN", "ADMIN"})
     public void checkAndInsertIdempotency(String idempotencyKey, AuditOperationLog logRecord, String action) {
         Objects.requireNonNull(logRecord, "AuditOperationLog must not be null");
         if (isBlank(idempotencyKey)) {
