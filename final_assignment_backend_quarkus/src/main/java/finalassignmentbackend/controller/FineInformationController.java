@@ -3,6 +3,7 @@ package finalassignmentbackend.controller;
 import finalassignmentbackend.entity.FineRecord;
 import finalassignmentbackend.service.FineRecordService;
 import io.smallrye.common.annotation.RunOnVirtualThread;
+import jakarta.annotation.security.RolesAllowed;
 import jakarta.inject.Inject;
 import jakarta.ws.rs.Consumes;
 import jakarta.ws.rs.DELETE;
@@ -14,8 +15,10 @@ import jakarta.ws.rs.PathParam;
 import jakarta.ws.rs.Produces;
 import jakarta.ws.rs.QueryParam;
 import jakarta.ws.rs.HeaderParam;
+import jakarta.ws.rs.core.Context;
 import jakarta.ws.rs.core.MediaType;
 import jakarta.ws.rs.core.Response;
+import jakarta.ws.rs.core.SecurityContext;
 import org.eclipse.microprofile.openapi.annotations.tags.Tag;
 
 import java.util.List;
@@ -26,12 +29,19 @@ import java.util.logging.Logger;
 @Produces(MediaType.APPLICATION_JSON)
 @Consumes(MediaType.APPLICATION_JSON)
 @Tag(name = "Fine Management", description = "Fine record management")
+@RolesAllowed({"SUPER_ADMIN", "ADMIN", "TRAFFIC_POLICE", "FINANCE", "USER"})
 public class FineInformationController {
 
     private static final Logger LOG = Logger.getLogger(FineInformationController.class.getName());
 
     @Inject
     FineRecordService fineRecordService;
+
+    @Inject
+    DriverAccessGuard driverAccessGuard;
+
+    @Context
+    SecurityContext securityContext;
 
     @POST
     @RunOnVirtualThread
@@ -147,6 +157,9 @@ public class FineInformationController {
         try {
             int resolvedPage = page == null ? 1 : page;
             int resolvedSize = size == null ? 20 : size;
+            if (!driverAccessGuard.canAccessDriver(securityContext, driverId)) {
+                return Response.status(Response.Status.FORBIDDEN).entity(java.util.Map.of("error", "Forbidden")).build();
+            }
             return Response.ok(fineRecordService.findByDriverId(driverId, resolvedPage, resolvedSize)).build();
         } catch (Exception ex) {
             LOG.log(Level.WARNING, "List fines by driver failed", ex);

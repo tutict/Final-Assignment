@@ -5,6 +5,7 @@ import finalassignmentbackend.entity.AppealReview;
 import finalassignmentbackend.service.AppealManagementService;
 import finalassignmentbackend.service.AppealReviewService;
 import io.smallrye.common.annotation.RunOnVirtualThread;
+import jakarta.annotation.security.RolesAllowed;
 import jakarta.inject.Inject;
 import jakarta.ws.rs.Consumes;
 import jakarta.ws.rs.DELETE;
@@ -31,6 +32,7 @@ import java.util.logging.Logger;
 @Produces(MediaType.APPLICATION_JSON)
 @Consumes(MediaType.APPLICATION_JSON)
 @Tag(name = "Appeal Management", description = "Appeal Management Controller for managing appeals")
+@RolesAllowed({"SUPER_ADMIN", "ADMIN", "TRAFFIC_POLICE", "APPEAL_REVIEWER", "USER"})
 public class AppealManagementController {
 
     private static final Logger LOG = Logger.getLogger(AppealManagementController.class.getName());
@@ -39,7 +41,15 @@ public class AppealManagementController {
     AppealManagementService appealManagementService;
 
     @Inject
+    DriverAccessGuard driverAccessGuard;
+
+    @Context
+    SecurityContext securityContext;
+
+    @Inject
     AppealReviewService appealReviewService;
+
+
 
     @POST
     @RunOnVirtualThread

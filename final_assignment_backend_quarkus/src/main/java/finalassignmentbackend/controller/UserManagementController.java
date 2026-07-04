@@ -5,6 +5,7 @@ import finalassignmentbackend.entity.SysUserRole;
 import finalassignmentbackend.service.SysUserRoleService;
 import finalassignmentbackend.service.SysUserService;
 import io.smallrye.common.annotation.RunOnVirtualThread;
+import jakarta.annotation.security.RolesAllowed;
 import jakarta.inject.Inject;
 import jakarta.ws.rs.Consumes;
 import jakarta.ws.rs.DELETE;
@@ -28,6 +29,7 @@ import java.util.logging.Logger;
 @Produces(MediaType.APPLICATION_JSON)
 @Consumes(MediaType.APPLICATION_JSON)
 @Tag(name = "User Management", description = "System user management")
+@RolesAllowed({"SUPER_ADMIN", "ADMIN"})
 public class UserManagementController {
 
     private static final Logger LOG = Logger.getLogger(UserManagementController.class.getName());

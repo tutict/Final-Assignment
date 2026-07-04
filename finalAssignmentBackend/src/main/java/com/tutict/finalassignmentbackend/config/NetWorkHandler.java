@@ -7,6 +7,7 @@ import com.tutict.finalassignmentbackend.config.login.jwt.TokenProvider;
 import com.tutict.finalassignmentbackend.config.websocket.WsActionRegistry;
 import com.tutict.finalassignmentbackend.config.websocket.WsTicketService;
 import com.tutict.finalassignmentbackend.dto.response.ApiResponse;
+import com.tutict.finalassignmentbackend.service.auth.TokenBlacklistService;
 import io.netty.handler.codec.http.HttpResponseStatus;
 import io.vertx.core.AbstractVerticle;
 import io.vertx.core.MultiMap;
@@ -53,6 +54,7 @@ public class NetWorkHandler extends AbstractVerticle {
     private final TokenProvider tokenProvider;
     private final WsActionRegistry wsActionRegistry;
     private final WsTicketService wsTicketService;
+    private final TokenBlacklistService tokenBlacklistService;
 
     private final ObjectMapper objectMapper;
     private final CorsProperties corsProperties;
@@ -62,11 +64,13 @@ public class NetWorkHandler extends AbstractVerticle {
     public NetWorkHandler(TokenProvider tokenProvider,
                           @Lazy WsActionRegistry wsActionRegistry,
                           WsTicketService wsTicketService,
+                          TokenBlacklistService tokenBlacklistService,
                           ObjectMapper objectMapper,
                           CorsProperties corsProperties) {
         this.tokenProvider = tokenProvider;
         this.wsActionRegistry = wsActionRegistry;
         this.wsTicketService = wsTicketService;
+        this.tokenBlacklistService = tokenBlacklistService;
         this.objectMapper = objectMapper;
         this.corsProperties = corsProperties;
     }
@@ -90,7 +94,7 @@ public class NetWorkHandler extends AbstractVerticle {
         router.post("/api/ws-ticket").handler(ctx -> {
             HttpServerRequest request = ctx.request();
             String token = extractBearerToken(request);
-            if (token == null || !tokenProvider.validateToken(token)) {
+            if (token == null || tokenBlacklistService.isBlacklisted(token) || !tokenProvider.validateToken(token)) {
                 ctx.response().setStatusCode(401).setStatusMessage("Unauthorized").end();
                 return;
             }
@@ -172,7 +176,7 @@ public class NetWorkHandler extends AbstractVerticle {
 
     private HandshakePrincipal authenticateWebSocketHandshake(HttpServerRequest request) {
         String token = extractBearerToken(request);
-        if (token != null && tokenProvider.validateToken(token)) {
+        if (token != null && !tokenBlacklistService.isBlacklisted(token) && tokenProvider.validateToken(token)) {
             return new HandshakePrincipal(
                     tokenProvider.getUsernameFromToken(token),
                     tokenProvider.extractRoles(token)

@@ -3,6 +3,7 @@ package finalassignmentbackend.controller;
 import finalassignmentbackend.entity.AuditOperationLog;
 import finalassignmentbackend.service.AuditOperationLogService;
 import io.smallrye.common.annotation.RunOnVirtualThread;
+import jakarta.annotation.security.RolesAllowed;
 import jakarta.inject.Inject;
 import jakarta.ws.rs.Consumes;
 import jakarta.ws.rs.DELETE;
@@ -26,6 +27,7 @@ import java.util.logging.Logger;
 @Produces(MediaType.APPLICATION_JSON)
 @Consumes(MediaType.APPLICATION_JSON)
 @Tag(name = "Operation Audit", description = "Operation audit log management")
+@RolesAllowed({"SUPER_ADMIN", "ADMIN"})
 public class OperationLogController {
 
     private static final Logger LOG = Logger.getLogger(OperationLogController.class.getName());

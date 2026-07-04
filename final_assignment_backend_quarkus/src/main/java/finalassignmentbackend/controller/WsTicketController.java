@@ -2,7 +2,9 @@ package finalassignmentbackend.controller;
 
 import finalassignmentbackend.config.login.jwt.TokenProvider;
 import finalassignmentbackend.config.websocket.WsTicketService;
+import finalassignmentbackend.service.TokenBlacklistService;
 import io.smallrye.common.annotation.RunOnVirtualThread;
+import jakarta.annotation.security.RolesAllowed;
 import jakarta.inject.Inject;
 import jakarta.ws.rs.HeaderParam;
 import jakarta.ws.rs.POST;
@@ -18,6 +20,7 @@ import java.util.Map;
 
 @Path("/api/ws-ticket")
 @Produces(MediaType.APPLICATION_JSON)
+@RolesAllowed({"SUPER_ADMIN", "ADMIN", "TRAFFIC_POLICE", "FINANCE", "APPEAL_REVIEWER", "USER"})
 public class WsTicketController {
 
     @Inject
@@ -26,12 +29,15 @@ public class WsTicketController {
     @Inject
     TokenProvider tokenProvider;
 
+    @Inject
+    TokenBlacklistService tokenBlacklistService;
+
     @POST
     @RunOnVirtualThread
     public Response issue(@HeaderParam("Authorization") String authorization,
                           @Context SecurityContext securityContext) {
         String token = extractBearerToken(authorization);
-        if (token != null && tokenProvider.validateToken(token)) {
+        if (token != null && !tokenBlacklistService.isBlacklisted(token) && tokenProvider.validateToken(token)) {
             WsTicketService.Ticket ticket = wsTicketService.issue(
                     tokenProvider.getUsernameFromToken(token),
                     tokenProvider.extractRoles(token)

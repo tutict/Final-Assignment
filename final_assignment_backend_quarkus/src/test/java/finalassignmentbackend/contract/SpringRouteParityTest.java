@@ -22,15 +22,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
  * the two route sets (HTTP method + path, with {@code {var}} path parameters
  * preserved verbatim).
  *
- * <p>The Quarkus port is intentionally incomplete (no RAG, no WebSocket ticket,
- * a trimmed AI-chat surface, etc.), so the current gaps are recorded as a
- * baseline snapshot. The test fails when the gap set <em>changes</em>:
- * <ul>
- *   <li>a Spring route that used to be covered is now missing here (regression), or</li>
- *   <li>a previously-missing route was ported (the snapshot must be updated).</li>
- * </ul>
- * This keeps the gap explicit and prevents silent drift, the way the Go parity
- * test does for the Go backend.
+ * <p>The public route surface should stay aligned with Spring. The test fails when a\r\n * Spring route becomes missing again, or when Quarkus exposes a route that is not\r\n * tracked in the extra-route baseline.
  *
  * <p>If the Spring source tree is not present (e.g. building this module in
  * isolation), the test is skipped via {@link Assumptions#abort(String)}.
@@ -65,32 +57,7 @@ class SpringRouteParityTest {
      * Quarkus port. When a route here gets ported, remove it from this set;
      * when a new Spring route is missing here, add it (or port it).
      */
-    private static final Set<String> KNOWN_SPRING_ROUTES_MISSING_FROM_QUARKUS = Set.of(
-            "DELETE /api/rag/admin/documents/{documentId}",
-            "GET /api/ai/chat/actions",
-            "GET /api/appeals/my",
-            "GET /api/auth/me",
-            "GET /api/drivers/search",
-            "GET /api/fines/driver/{driverId}",
-            "GET /api/offenses/{offenseId}/details",
-            "GET /api/payments/driver/{driverId}",
-            "GET /api/rag/admin/documents",
-            "GET /api/rag/admin/overview",
-            "GET /api/vehicles/autocomplete",
-            "GET /api/vehicles/drivers/{driverId}/records",
-            "POST /api/ai/chat/stream",
-            "POST /api/auth/logout",
-            "POST /api/auth/refresh",
-            "POST /api/payments/driver/{driverId}",
-            "POST /api/rag/admin/backfill",
-            "POST /api/rag/admin/backfill/run",
-            "POST /api/rag/admin/documents/manual",
-            "POST /api/rag/admin/documents/upload",
-            "POST /api/rag/admin/embedding/requeue",
-            "POST /api/rag/admin/embedding/run",
-            "POST /api/rag/admin/index/migrate",
-            "POST /api/rag/query",
-            "POST /api/ws-ticket");
+    private static final Set<String> KNOWN_SPRING_ROUTES_MISSING_FROM_QUARKUS = Set.of();
 
     /**
      * Baseline snapshot of Quarkus routes that have no Spring counterpart.

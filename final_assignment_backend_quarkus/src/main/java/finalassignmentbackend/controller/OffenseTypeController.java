@@ -3,6 +3,7 @@ package finalassignmentbackend.controller;
 import finalassignmentbackend.entity.OffenseTypeDict;
 import finalassignmentbackend.service.OffenseTypeDictService;
 import io.smallrye.common.annotation.RunOnVirtualThread;
+import jakarta.annotation.security.RolesAllowed;
 import jakarta.inject.Inject;
 import jakarta.ws.rs.Consumes;
 import jakarta.ws.rs.DELETE;
@@ -25,6 +26,7 @@ import java.util.logging.Logger;
 @Produces(MediaType.APPLICATION_JSON)
 @Consumes(MediaType.APPLICATION_JSON)
 @Tag(name = "Offense Type Dictionary", description = "Offense type dictionary management")
+@RolesAllowed({"SUPER_ADMIN", "ADMIN", "TRAFFIC_POLICE"})
 public class OffenseTypeController {
 
     private static final Logger LOG = Logger.getLogger(OffenseTypeController.class.getName());

@@ -3,6 +3,7 @@ package finalassignmentbackend.controller;
 import finalassignmentbackend.entity.SysPermission;
 import finalassignmentbackend.service.SysPermissionService;
 import io.smallrye.common.annotation.RunOnVirtualThread;
+import jakarta.annotation.security.RolesAllowed;
 import jakarta.inject.Inject;
 import jakarta.ws.rs.Consumes;
 import jakarta.ws.rs.DELETE;
@@ -26,6 +27,7 @@ import java.util.logging.Logger;
 @Produces(MediaType.APPLICATION_JSON)
 @Consumes(MediaType.APPLICATION_JSON)
 @Tag(name = "Permission Management", description = "System permission management")
+@RolesAllowed({"SUPER_ADMIN", "ADMIN"})
 public class PermissionManagementController {
 
     private static final Logger LOG = Logger.getLogger(PermissionManagementController.class.getName());

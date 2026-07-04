@@ -3,6 +3,7 @@ package finalassignmentbackend.controller;
 import finalassignmentbackend.entity.SysBackupRestore;
 import finalassignmentbackend.service.SysBackupRestoreService;
 import io.smallrye.common.annotation.RunOnVirtualThread;
+import jakarta.annotation.security.RolesAllowed;
 import jakarta.inject.Inject;
 import jakarta.ws.rs.Consumes;
 import jakarta.ws.rs.DELETE;
@@ -27,6 +28,7 @@ import java.util.stream.Collectors;
 @Produces(MediaType.APPLICATION_JSON)
 @Consumes(MediaType.APPLICATION_JSON)
 @Tag(name = "Backup & Restore", description = "System backup and restore management")
+@RolesAllowed({"SUPER_ADMIN", "ADMIN"})
 public class BackupRestoreController {
 
     private static final Logger LOG = Logger.getLogger(BackupRestoreController.class.getName());

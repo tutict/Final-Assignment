@@ -88,7 +88,7 @@ class _VehicleListState extends State<VehicleList> {
 
   Future<bool> _validateJwtToken() async {
     String? jwtToken = (await AuthTokenStore.instance.getJwtToken());
-    AppLogger.debug('Retrieved JWT: $jwtToken');
+    AppLogger.debug('JWT token loaded for vehicle list request');
     if (jwtToken == null || jwtToken.isEmpty) {
       AppLogger.debug('JWT token not found or empty');
       setState(() => _errorMessage = '未授权，请重新登录');
@@ -96,7 +96,6 @@ class _VehicleListState extends State<VehicleList> {
     }
     try {
       final decodedToken = JwtDecoder.decode(jwtToken);
-      AppLogger.debug('Decoded JWT: $decodedToken');
       if (JwtDecoder.isExpired(jwtToken)) {
         AppLogger.debug('JWT token is expired: ${decodedToken['exp']}');
         final refreshed = await Get.find<AuthService>().refreshJwtToken();
@@ -106,7 +105,6 @@ class _VehicleListState extends State<VehicleList> {
           return false;
         }
         final newDecodedToken = JwtDecoder.decode(jwtToken);
-        AppLogger.debug('New JWT decoded: $newDecodedToken');
         if (JwtDecoder.isExpired(jwtToken)) {
           setState(() => _errorMessage = '新登录信息已过期，请重新登录');
           return false;

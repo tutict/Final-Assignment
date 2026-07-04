@@ -14,6 +14,7 @@ import finalassignmentbackend.service.OffenseRecordService;
 import finalassignmentbackend.service.PaymentRecordService;
 import finalassignmentbackend.service.statemachine.StateMachineService;
 import io.smallrye.common.annotation.RunOnVirtualThread;
+import jakarta.annotation.security.RolesAllowed;
 import jakarta.inject.Inject;
 import jakarta.ws.rs.POST;
 import jakarta.ws.rs.Path;
@@ -29,6 +30,7 @@ import java.util.logging.Logger;
 @Path("/api/workflow")
 @Produces(MediaType.APPLICATION_JSON)
 @Tag(name = "Workflow Engine", description = "State machine driven workflow endpoints")
+@RolesAllowed({"SUPER_ADMIN", "ADMIN", "TRAFFIC_POLICE", "FINANCE", "USER"})
 public class WorkflowController {
 
     private static final Logger LOG = Logger.getLogger(WorkflowController.class.getName());

@@ -7,6 +7,7 @@ import finalassignmentbackend.service.AuditLoginLogService;
 import finalassignmentbackend.service.AuditOperationLogService;
 import finalassignmentbackend.service.SysRequestHistoryService;
 import io.smallrye.common.annotation.RunOnVirtualThread;
+import jakarta.annotation.security.RolesAllowed;
 import jakarta.inject.Inject;
 import jakarta.ws.rs.GET;
 import jakarta.ws.rs.Path;
@@ -27,6 +28,7 @@ import java.util.stream.Collectors;
 @Path("/api/system/logs")
 @Produces(MediaType.APPLICATION_JSON)
 @Tag(name = "System Logs", description = "System log aggregation endpoints")
+@RolesAllowed({"SUPER_ADMIN", "ADMIN"})
 public class SystemLogsController {
 
     private static final Logger LOG = Logger.getLogger(SystemLogsController.class.getName());

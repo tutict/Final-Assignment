@@ -40,6 +40,9 @@ public class JwtAuthenticationFilter implements ContainerRequestFilter {
 
         String jwt = getJwtFromRequest(requestContext);
         if (jwt == null) {
+            requestContext.abortWith(Response.status(Response.Status.UNAUTHORIZED)
+                    .entity("{\"error\":\"Missing bearer token\"}")
+                    .build());
             return;
         }
 
@@ -53,6 +56,9 @@ public class JwtAuthenticationFilter implements ContainerRequestFilter {
 
         if (!tokenProvider.validateToken(jwt)) {
             logger.log(Level.WARNING, "Invalid JWT for request {0}", requestContext.getUriInfo().getRequestUri());
+            requestContext.abortWith(Response.status(Response.Status.UNAUTHORIZED)
+                    .entity("{\"error\":\"Invalid token\"}")
+                    .build());
             return;
         }
 

@@ -738,7 +738,7 @@ class ApiClient {
 
   String _sanitizeWsUrl(String value) {
     return value.replaceAll(
-      RegExp(r'(access_token|ws_ticket)=[^&]+'),
+      RegExp(r'(ws_ticket)=[^&]+'),
       r'$1=***',
     );
   }

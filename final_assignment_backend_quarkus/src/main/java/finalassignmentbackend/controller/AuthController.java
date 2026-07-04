@@ -7,7 +7,6 @@ import finalassignmentbackend.dto.UserResponse;
 import finalassignmentbackend.service.AuthWsService;
 import finalassignmentbackend.service.AuthWsService.LoginRequest;
 import finalassignmentbackend.service.AuthWsService.RegisterRequest;
-import io.quarkus.security.Authenticated;
 import io.smallrye.common.annotation.RunOnVirtualThread;
 import jakarta.annotation.security.PermitAll;
 import jakarta.annotation.security.RolesAllowed;
@@ -119,7 +118,7 @@ public class AuthController {
 
     @POST
     @Path("/logout")
-    @Authenticated
+    @RolesAllowed({"SUPER_ADMIN", "ADMIN", "TRAFFIC_POLICE", "FINANCE", "APPEAL_REVIEWER", "USER"})
     @RunOnVirtualThread
     public Response logout(@Context SecurityContext securityContext,
                            @HeaderParam("Authorization") String authorization) {
@@ -139,7 +138,7 @@ public class AuthController {
 
     @GET
     @Path("/me")
-    @Authenticated
+    @RolesAllowed({"SUPER_ADMIN", "ADMIN", "TRAFFIC_POLICE", "FINANCE", "APPEAL_REVIEWER", "USER"})
     @RunOnVirtualThread
     public Response getCurrentUser(@Context SecurityContext securityContext) {
         try {

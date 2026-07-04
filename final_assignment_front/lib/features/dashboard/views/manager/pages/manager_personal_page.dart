@@ -84,7 +84,7 @@ class _ManagerPersonalPageState extends State<ManagerPersonalPage> {
       final jwtToken = (await AuthTokenStore.instance.getJwtToken());
       AppLogger.debug('JWT token loaded for manager profile request');
       if (jwtToken == null || jwtToken.isEmpty) {
-        throw Exception('JWT Token not found in SharedPreferences');
+        throw Exception('JWT token not found; please log in again');
       }
 
       await userApi.initializeWithJwt();

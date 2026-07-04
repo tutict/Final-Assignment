@@ -1,6 +1,7 @@
 package finalassignmentbackend.controller;
 
 import finalassignmentbackend.service.SearchService;
+import jakarta.annotation.security.RolesAllowed;
 import jakarta.inject.Inject;
 import jakarta.ws.rs.GET;
 import jakarta.ws.rs.Path;
@@ -10,6 +11,7 @@ import jakarta.ws.rs.core.MediaType;
 import jakarta.ws.rs.core.Response;
 
 @Path("/search")
+@RolesAllowed({"SUPER_ADMIN", "ADMIN", "TRAFFIC_POLICE", "FINANCE", "APPEAL_REVIEWER", "USER"})
 @Produces(MediaType.APPLICATION_JSON)
 public class SearchResourceController {
 

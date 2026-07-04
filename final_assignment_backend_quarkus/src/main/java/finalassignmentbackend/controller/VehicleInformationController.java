@@ -5,6 +5,7 @@ import finalassignmentbackend.entity.VehicleInformation;
 import finalassignmentbackend.service.DriverVehicleService;
 import finalassignmentbackend.service.VehicleInformationService;
 import io.smallrye.common.annotation.RunOnVirtualThread;
+import jakarta.annotation.security.RolesAllowed;
 import jakarta.inject.Inject;
 import jakarta.ws.rs.Consumes;
 import jakarta.ws.rs.DELETE;
@@ -16,8 +17,10 @@ import jakarta.ws.rs.PathParam;
 import jakarta.ws.rs.Produces;
 import jakarta.ws.rs.QueryParam;
 import jakarta.ws.rs.HeaderParam;
+import jakarta.ws.rs.core.Context;
 import jakarta.ws.rs.core.MediaType;
 import jakarta.ws.rs.core.Response;
+import jakarta.ws.rs.core.SecurityContext;
 import org.eclipse.microprofile.openapi.annotations.tags.Tag;
 
 import java.util.List;
@@ -29,6 +32,7 @@ import java.util.logging.Logger;
 @Produces(MediaType.APPLICATION_JSON)
 @Consumes(MediaType.APPLICATION_JSON)
 @Tag(name = "Vehicle Information", description = "Vehicle information and binding management")
+@RolesAllowed({"SUPER_ADMIN", "ADMIN", "TRAFFIC_POLICE", "FINANCE", "USER"})
 public class VehicleInformationController {
 
     private static final Logger LOG = Logger.getLogger(VehicleInformationController.class.getName());
@@ -37,7 +41,15 @@ public class VehicleInformationController {
     VehicleInformationService vehicleInformationService;
 
     @Inject
+    DriverAccessGuard driverAccessGuard;
+
+    @Context
+    SecurityContext securityContext;
+
+    @Inject
     DriverVehicleService driverVehicleService;
+
+
 
     @POST
     @RunOnVirtualThread
@@ -434,6 +446,9 @@ public class VehicleInformationController {
         try {
             int resolvedPage = page == null ? 1 : page;
             int resolvedSize = size == null ? 20 : size;
+            if (!driverAccessGuard.canAccessDriver(securityContext, driverId)) {
+                return Response.status(Response.Status.FORBIDDEN).entity(java.util.Map.of("error", "Forbidden")).build();
+            }
             return Response.ok(vehicleInformationService.getVehicleInformationByDriverId(driverId, resolvedPage, resolvedSize)).build();
         } catch (Exception ex) {
             LOG.log(Level.WARNING, "List vehicle records by driver failed", ex);

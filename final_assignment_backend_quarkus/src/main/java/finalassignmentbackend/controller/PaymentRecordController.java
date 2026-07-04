@@ -3,6 +3,7 @@ package finalassignmentbackend.controller;
 import finalassignmentbackend.entity.PaymentRecord;
 import finalassignmentbackend.service.PaymentRecordService;
 import io.smallrye.common.annotation.RunOnVirtualThread;
+import jakarta.annotation.security.RolesAllowed;
 import jakarta.inject.Inject;
 import jakarta.ws.rs.Consumes;
 import jakarta.ws.rs.DELETE;
@@ -14,8 +15,10 @@ import jakarta.ws.rs.PathParam;
 import jakarta.ws.rs.Produces;
 import jakarta.ws.rs.QueryParam;
 import jakarta.ws.rs.HeaderParam;
+import jakarta.ws.rs.core.Context;
 import jakarta.ws.rs.core.MediaType;
 import jakarta.ws.rs.core.Response;
+import jakarta.ws.rs.core.SecurityContext;
 import org.eclipse.microprofile.openapi.annotations.tags.Tag;
 
 import java.util.logging.Level;
@@ -25,12 +28,19 @@ import java.util.logging.Logger;
 @Produces(MediaType.APPLICATION_JSON)
 @Consumes(MediaType.APPLICATION_JSON)
 @Tag(name = "Payment Management", description = "Payment record management")
+@RolesAllowed({"SUPER_ADMIN", "ADMIN", "TRAFFIC_POLICE", "FINANCE", "USER"})
 public class PaymentRecordController {
 
     private static final Logger LOG = Logger.getLogger(PaymentRecordController.class.getName());
 
     @Inject
     PaymentRecordService paymentRecordService;
+
+    @Inject
+    DriverAccessGuard driverAccessGuard;
+
+    @Context
+    SecurityContext securityContext;
 
     @POST
     @RunOnVirtualThread
@@ -243,6 +253,9 @@ public class PaymentRecordController {
     public Response createDriverPayment(@PathParam("driverId") Long driverId,
                                         PaymentRecord request,
                                         @HeaderParam("Idempotency-Key") String idempotencyKey) {
+        if (!driverAccessGuard.canAccessDriver(securityContext, driverId)) {
+            return Response.status(Response.Status.FORBIDDEN).entity(java.util.Map.of("error", "Forbidden")).build();
+        }
         request.setDriverId(driverId);
         return createPayment(request, idempotencyKey);
     }

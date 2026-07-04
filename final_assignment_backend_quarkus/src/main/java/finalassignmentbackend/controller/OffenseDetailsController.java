@@ -11,6 +11,7 @@ import finalassignmentbackend.service.FineRecordService;
 import finalassignmentbackend.service.OffenseRecordService;
 import finalassignmentbackend.service.PaymentRecordService;
 import io.smallrye.common.annotation.RunOnVirtualThread;
+import jakarta.annotation.security.RolesAllowed;
 import jakarta.inject.Inject;
 import jakarta.ws.rs.GET;
 import jakarta.ws.rs.Path;
@@ -31,6 +32,7 @@ import java.util.logging.Logger;
 @Path("/api/view/offenses")
 @Produces(MediaType.APPLICATION_JSON)
 @Tag(name = "Offense Details View", description = "Offense details aggregation for views")
+@RolesAllowed({"SUPER_ADMIN", "ADMIN", "TRAFFIC_POLICE", "FINANCE", "USER"})
 public class OffenseDetailsController {
 
     private static final Logger LOG = Logger.getLogger(OffenseDetailsController.class.getName());

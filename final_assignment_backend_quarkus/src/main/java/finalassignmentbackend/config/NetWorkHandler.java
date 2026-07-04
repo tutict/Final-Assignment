@@ -6,6 +6,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import finalassignmentbackend.config.login.jwt.TokenProvider;
 import finalassignmentbackend.config.websocket.WsActionRegistry;
 import finalassignmentbackend.config.websocket.WsTicketService;
+import finalassignmentbackend.service.TokenBlacklistService;
 import io.netty.handler.codec.http.HttpResponseStatus;
 import io.vertx.core.MultiMap;
 import io.vertx.core.buffer.Buffer;
@@ -62,6 +63,9 @@ public class NetWorkHandler extends AbstractVerticle {
     @Inject
     ObjectMapper objectMapper;
 
+    @Inject
+    TokenBlacklistService tokenBlacklistService;
+
     private final Map<String, Set<ServerWebSocket>> webSocketsByUsername = new ConcurrentHashMap<>();
     private WebClient webClient;
 
@@ -95,7 +99,7 @@ public class NetWorkHandler extends AbstractVerticle {
         router.post("/api/ws-ticket").handler(ctx -> {
             HttpServerRequest request = ctx.request();
             String token = extractBearerToken(request);
-            if (token == null || !tokenProvider.validateToken(token)) {
+            if (token == null || tokenBlacklistService.isBlacklisted(token) || !tokenProvider.validateToken(token)) {
                 ctx.response().setStatusCode(401).setStatusMessage("Unauthorized").end();
                 return;
             }
@@ -149,7 +153,7 @@ public class NetWorkHandler extends AbstractVerticle {
 
     private HandshakePrincipal authenticateWebSocketHandshake(HttpServerRequest request) {
         String token = extractBearerToken(request);
-        if (token != null && tokenProvider.validateToken(token)) {
+        if (token != null && !tokenBlacklistService.isBlacklisted(token) && tokenProvider.validateToken(token)) {
             return new HandshakePrincipal(tokenProvider.getUsernameFromToken(token), tokenProvider.extractRoles(token));
         }
 

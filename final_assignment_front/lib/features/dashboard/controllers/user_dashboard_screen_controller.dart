@@ -106,8 +106,8 @@ class UserDashboardController extends GetxController {
       final userRole = prefs.getString('userRole');
 
       developer.log(
-          'Loading user from prefs: jwtToken=$jwtToken, userName=$userName, userEmail=$userEmail, userRole=$userRole');
-
+        'Loading user from prefs: hasJwtToken=${jwtToken != null && jwtToken.isNotEmpty}, userName=$userName, userEmail=$userEmail, userRole=$userRole',
+      );
       if (jwtToken != null && jwtToken.isNotEmpty && userName.isNotEmpty) {
         _authRedirectScheduled = false;
         final resolvedEmail = userEmail ?? userName;
