@@ -31,13 +31,17 @@ Flutter characterization-test gap for the behaviors this change touches.
 `AuthService` (final_assignment_front/lib/core/auth/auth_service.dart) —
 single product file:
 
-1. New internal outcome classification for one refresh attempt:
+1. New library-level outcome classification for one refresh attempt (public
+   `SessionRefreshStatus` + `refreshSession()` — a deliberate seam so the
+   recorded api_client Case-2 residual can adopt it later):
    - `success` — 200 with parsable access token; rotation persisted (unchanged).
    - `rejected` (terminal) — HTTP 400/401/403; or no stored refresh token.
      Existing 404 Cloud-auth special case keeps its current inline behavior
      and classifies as rejected.
    - `transient` — HTTP 408/429/5xx; request timeout; network/socket errors;
-     response parse failures (200 without a usable token).
+     response parse failures (200 without a usable token). Unlisted statuses
+     also default to transient — fail-safe by design: only an explicit
+     server refusal (the terminal set) may destroy stored tokens.
 2. `ensureValidSession` mapping:
    - success → valid (unchanged).
    - rejected → clearTokens once + optional redirect (unchanged behavior).
@@ -56,9 +60,11 @@ single product file:
   new by this change.
 - Terminal rejection (server explicitly refuses the refresh token) still
   destroys local session state exactly as before — no weakening of cleanup.
-- Blacklist, logout, storage (secure-storage/web-memory), redirect-guard and
-  single-flight behaviors are untouched and pinned by new characterization
-  tests.
+- Logout cleanup and refresh single-flight are pinned by new characterization
+  tests. Blacklist (server-side), token storage (secure-storage/web-memory),
+  and the redirect guard are untouched by the diff — verified by review, not
+  newly test-pinned (storage remains covered by the pre-existing
+  token-security regression tests).
 - The change must not create a retry loop: transient classification performs
   NO automatic re-attempt; the next attempt happens at the next caller-driven
   ensureValidSession.
@@ -81,6 +87,14 @@ and recorded as residual.
   LoginThrottleContractIntegrationTest.java (new, characterization of the 429
   transient-signal shape, isolated context with tight guard limits via test
   properties so it cannot pollute the shared-context IP budget)
+- Governance/evidence documents under docs/experiments/looppilot-phase8-exp005/
+  and .looppilot/ may receive factual corrections during the change (e.g. the
+  BASELINE-OBSERVATIONS root-cause correction) — evidence honesty outranks
+  scope-list stability for these non-product files.
+
+The pre-existing uncommitted `.gitignore` modification remains excluded:
+staging uses explicit paths only (never `git add -A`), and rollback of this
+change never touches it.
 
 ## Excluded scope (recorded residuals, no implementation)
 

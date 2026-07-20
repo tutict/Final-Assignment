@@ -47,31 +47,47 @@ docs/mmgh-behavioral-evidence.md, .looppilot/ templates
 src/test are **not executed** by `mvn test`. A green `mvn test` therefore never
 meant "all tests pass"; new tests must match the include pattern to run.
 
-### Root cause of the 76 baseline failures (observed, pre-existing on main)
+### Root cause of the 76 baseline failures (observed; CORRECTED during EXP-005)
 
-- `BaseIntegrationTest.USE_TESTCONTAINERS` defaults to **false**; the test
-  profile targets local services (MySQL localhost:3306 `traffic_test`,
-  Redis localhost:6379; Kafka listeners auto-startup=false). The Spring context
-  started and endpoints answered — local services were reachable, so this is
-  NOT a Docker/Testcontainers failure.
-- Dominant cascade: `BaseIntegrationTest.loginAs:71` fails in `setUp` with
-  observed statuses **429** (and consequent 401/NullPointer downstream).
-  Verified chain: `LoginAttemptGuard` counts every inspected attempt per IP
-  (`inspectKey` increments `windowAttempts` before deciding, line 110) with
-  `max-ip-attempts` default 40/min; `recordSuccess` invalidates only the
-  account key (line 77), so **successful logins still consume the IP budget**;
-  `application-test.yml` sets **no** `app.security.login.*` overrides; each of
-  the ~87 test methods logs in at least once from 127.0.0.1 → IP budget
-  exhausts → 2-minute lock → cascading 429/401 setup failures.
+Composite, both pre-existing on main; neither caused by EXP-005:
+
+1. **Primary trigger — EII-2, local test-DB schema drift.** The persistent
+   local MySQL `traffic_test.refresh_tokens` table still had
+   `token varchar(255)` (created by a pre-PQC schema; 842 residual rows),
+   while the current login path inserts a ~1.4 KB PQC-era refresh token.
+   The seed script itself declares `token TEXT NOT NULL`, but its
+   `CREATE TABLE IF NOT EXISTS` can never upgrade an existing table. Every
+   login therefore failed with DataIntegrityViolationException → 401.
+   Evidence: MyBatis DEBUG log shows the oversized INSERT parameter;
+   `SHOW CREATE TABLE` (via JDBC) showed varchar(255) before repair.
+2. **Amplifier — LoginAttemptGuard lockout.** The guard counts every login
+   inspection per IP (max 40/min; `inspectKey` increments before deciding,
+   LoginAttemptGuard.java:110) and counts the schema-drift failures per
+   account (8 consecutive failures → 2-min lock), while `recordSuccess`
+   clears only the account key (:77). ~87 test methods logging in from
+   127.0.0.1 turned the 401 storm into a 429 lock cascade.
+   `application-test.yml` sets no `app.security.login.*` overrides.
+
+The initial baseline write-up attributed the cascade primarily to the rate
+limiter; the schema-drift trigger was identified later from the full MyBatis
+parameter log while diagnosing EXP-005's own characterization tests, and is
+recorded here as a correction (evidence-honesty over narrative stability).
+
+Environment repair performed (test environment only, no repo file changed):
+`ALTER TABLE refresh_tokens MODIFY token TEXT NOT NULL` on the local
+`traffic_test` DB — reconciling the stale local table with the schema the
+repository's own seed script declares. Post-repair full-suite numbers are
+recorded in RESULTS.md as the corrected-environment baseline.
+
 - Independent non-cascade failures also observed (pre-existing):
   `deprecated_paths_return_404_or_410` — `/api/roles/name/ADMIN` returns 401,
   expected 404/410; `error_responses_use_unified_api_response_format` failed;
   `refresh_token_rotation_invalidates_old_token` NullPointer (line 109) —
   consistent with the cascade exhausting login before the refresh chain.
-- Classification: pre-existing baseline failure on untouched main. The
-  rate-limiter/test-suite interplay is a repository test-design vs product
-  configuration mismatch — not an Execution Infrastructure Incident (services
-  and tools operated normally) and not proof of a product login defect.
+- Classification: pre-existing baseline failures on untouched main.
+  EII-2 is an Execution-Infrastructure-class incident (stale local
+  dependency-service state), not a product login defect; the guard interplay
+  is a repository test-design vs product-configuration mismatch.
 
 Duration: `mvn test` ≈ 6.5 min wall clock. No skipped tests. No dependency
 download failures. Environment variables: none required beyond defaults
@@ -113,6 +129,19 @@ No dependency upgrades are planned or performed in EXP-005.
   Linux-engine named pipe missing). Recovery: started Docker Desktop;
   daemon 28.4.0 confirmed up. Impact: none on final evidence (integration
   tests turned out not to use Testcontainers by default), recorded for H5.
+- **EII-2** — Local test-DB schema drift: `traffic_test.refresh_tokens.token`
+  was `varchar(255)` (pre-PQC legacy, 842 residual rows) while current logins
+  insert ~1.4 KB PQC-era tokens → every test login failed
+  DataIntegrityViolation→401, which the login guard then amplified into 429
+  lockouts. Detected while running EXP-005's own characterization tests;
+  verified via MyBatis DEBUG parameters + JDBC `SHOW CREATE TABLE`.
+  Recovery: `ALTER TABLE refresh_tokens MODIFY token TEXT NOT NULL`
+  (aligning the local DB with the schema the repo's own seed script
+  declares; test environment only, no repository file changed).
+  Classification: Execution-Infrastructure-class (stale local dependency
+  state), NOT a product defect — but it exposes a repo-level hardening gap
+  (`CREATE TABLE IF NOT EXISTS` seeds can never migrate an existing local
+  table), recorded for RESULTS.
 
 ## Excluded implementations (evidence of exclusion)
 

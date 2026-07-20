@@ -36,16 +36,16 @@ and a heuristic-transfer verdict for H1–H6.
 
 ## Current Progress
 
-- Five-candidate audit complete (FINAL-ASSIGNMENT-CROSS-LAYER-AUDIT.md);
-  preliminary-vs-deep divergence on Candidate B detected and resolved by
-  Supervisor line-level verification (worker-reliability evidence).
-- Selected bounded change: A-slice session-recovery classification
-  (CHANGE-CONTRACT.md). B and D recorded as future Full-Loop-shaped work.
-- Baselines recorded (BASELINE-OBSERVATIONS.md): mvn compile/package green,
-  mvn test 76/87 pre-existing red (LoginAttemptGuard cascade), Flutter
-  10/10 green, web build green, 4 pre-existing format deviations, EII-1
-  Docker recovered.
-- Next: RED tests → implementation → GREEN → reviews → validation → RESULTS.
+- COMPLETE. Bounded change delivered, triple-reviewed (0 Major/Blocker),
+  reverified, validated; RESULTS/SCORECARD/OBSERVATIONS recorded; H1–H6 all
+  supported with tensions disclosed. See HANDOFF.md for residual risks and
+  the EXP-006 recommendation.
+- Commits: e7ae9029, 0d6c93cb, + review/results commit; experiment branch
+  only; main untouched; pre-existing .gitignore modification preserved
+  uncommitted.
+- Incidents: EII-1 (Docker, recovered), EII-2 (local test-DB schema drift;
+  repaired via the repo's own shipped migration).
+- Next: (optional, new instruction required) EXP-006 strict A/B.
 
 ## Blockers
 
