@@ -2,6 +2,7 @@ package com.tutict.finalassignmentbackend.appeal.application.workflow;
 
 import com.tutict.finalassignmentbackend.appeal.application.AppealRecordApplicationService;
 import com.tutict.finalassignmentbackend.config.statemachine.states.AppealProcessState;
+import com.tutict.finalassignmentbackend.appeal.application.AppealCreationResult;
 import com.tutict.finalassignmentbackend.entity.appeal.AppealRecord;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -21,8 +22,12 @@ public class AppealWorkflowOrchestrator {
     }
 
     @Transactional
-    public boolean tryStartIdempotentCreate(String idempotencyKey, AppealRecord appealRecord, Long userId) {
-        return applicationService.tryStartIdempotentCreate(idempotencyKey, appealRecord, userId);
+    public AppealCreationResult createAppealIdempotently(
+            String idempotencyKey,
+            AppealRecord appealRecord,
+            Long userId
+    ) {
+        return applicationService.createAppealIdempotently(idempotencyKey, appealRecord, userId);
     }
 
     @Transactional

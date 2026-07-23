@@ -407,6 +407,7 @@ class AppealCreationOperation {
 
   String? _retryKey;
   Future<AppealRecordModel?>? _pending;
+  bool _cancelRequested = false;
 
   String? get retryKey => _retryKey;
   bool get isPending => _pending != null;
@@ -423,9 +424,12 @@ class AppealCreationOperation {
   }
 
   void cancel() {
-    if (_pending == null) {
-      _retryKey = null;
+    if (_pending != null) {
+      _cancelRequested = true;
+      return;
     }
+    _retryKey = null;
+    _cancelRequested = false;
   }
 
   Future<AppealRecordModel?> _perform(
@@ -443,6 +447,10 @@ class AppealCreationOperation {
       rethrow;
     } finally {
       _pending = null;
+      if (_cancelRequested) {
+        _retryKey = null;
+        _cancelRequested = false;
+      }
     }
   }
 

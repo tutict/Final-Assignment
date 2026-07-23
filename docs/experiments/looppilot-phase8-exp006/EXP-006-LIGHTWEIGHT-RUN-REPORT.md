@@ -8,22 +8,29 @@
 - Scope: authenticated `POST /api/appeals` idempotent retry across Spring and Flutter
 - Database configured for integration verification: `traffic_exp006_lightweight`
 - Pre-review correction cycles used: 2 of 2
-- Post-review correction cycles used: 0 of 1
+- Post-review correction cycles used: 1 of 1
 - Hard trigger or escalation: none
-- Final independent review: pending after the frozen commit
+- Initial independent review: Standards FAIL and Spec FAIL
+- Rework review: pending against the new frozen commit
 
 ## Implemented behavior
 
-The Spring path now claims an appeal-creation idempotency record before the business
-write. The claim is scoped by idempotency key and authenticated user, a failed claim
-may be reopened, and an already pending or successful claim returns HTTP 208 with a
-successful `ApiResponse` whose `data` is null. Appeal creation and the success state
-transition execute in the controller transaction.
+The Spring application service now owns the transaction and the complete
+claim/create/success decision. It returns an explicit `CREATED`, `DUPLICATE`, or
+`COLLISION` result. The controller is limited to authentication context, request
+mapping and validation, and protocol response adaptation; it has no transaction and
+does not directly create the appeal or update request history.
+
+The claim is user-aware without a schema change. An existing key owned by another
+authenticated user returns HTTP 409 `IDEMPOTENCY_KEY_COLLISION`; it does not return a
+false HTTP 208 and cannot reopen the other user's failed claim. A same-user failed
+claim may be reopened, while a pending or successful same-user claim is a duplicate.
 
 The Flutter API accepts the nullable HTTP 208 response. An appeal creation operation
 reuses one pending Future and one key, retains the key after transient failures,
-releases it after success or terminal failure, and can release a retained key when
-cancelled. The appeal dialog closes only after a successful result.
+releases it after success or terminal failure, and releases it after cancellation.
+Every appeal-dialog route completion, including action, barrier, system back, and a
+pending request that completes after dismissal, passes through the same cleanup path.
 
 No database schema, dependency, authentication, unrelated feature, release, or
 deployment change was made.
@@ -32,16 +39,15 @@ deployment change was made.
 
 | Command | Observed result |
 | --- | --- |
-| `mvn -DskipTests compile` | Passed; Maven reported BUILD SUCCESS. |
-| `mvn -Dtest=AppealRecordApplicationServiceTest test` | Passed: 20 tests, 0 failures, 0 errors, 0 skipped. |
-| `mvn -Dtest=AppealCreationIdempotencyContractTest test` | Passed: 1 test, 0 failures, 0 errors, 0 skipped. The controller fixture observed first-create HTTP 201/non-null data, same-key duplicate HTTP 208/success/null data, one business create call, one success transition, and authenticated identity propagation. |
-| `mvn -Dtest=AppealIntegrationTest test` | Failed before appeal creation in all 8 tests. Vehicle setup returned HTTP 409 because the configured database requires `vehicle_information.owner_id_card`, while the existing fixture omits it. |
-| `mvn test` | Failed in the integration portion. The appeal integration tests hit the same vehicle-fixture/schema mismatch; other integration suites also observed HTTP 429 rate-limiter contamination and some HTTP 409 setup failures. Focused unit and contract tests passed within this run. |
+| `mvn -DskipTests compile` | Passed after rework; Maven reported BUILD SUCCESS. |
+| `mvn "-Dtest=AppealRecordApplicationServiceTest,AppealCreationIdempotencyContractTest" test` | Passed after rework: 23 tests, 0 failures, 0 errors, 0 skipped. This comprised 21 application/idempotency tests and 2 controller contract tests. |
+| `mvn -Dtest=AppealIntegrationTest test` | Failed before appeal creation in all 8 tests. Vehicle setup now passed, but offense setup returned HTTP 409 because the fixture value `processStatus=Pending` is not accepted by the configured database enum (`Data truncated for column 'process_status'`). |
+| `mvn test` | Not rerun after rework because the focused integration prerequisite remained blocked. The pre-review whole-suite run had already failed in integration setup and also observed shared HTTP 429 rate-limiter contamination. |
 | `mvn -DskipTests package` | Passed; Maven reported BUILD SUCCESS and produced the backend package with tests skipped. |
 | `dart format --output=none --set-exit-if-changed lib test` | Failed because three unrelated existing files would be reformatted: `field_validation_error.dart`, `user_management_controller_api.dart`, and `profile_tile.dart`. The check did not modify them. |
 | `flutter analyze` | Failed on one unrelated existing warning: unused local variable `newDecodedToken` in `vehicle_list.dart:107`. No analyzer issue was reported for changed files. |
-| `flutter test test/features/appeal/appeal_creation_contract_test.dart` | Passed: 5 tests. |
-| `flutter test` | Passed: 15 tests. |
+| `flutter test test/features/appeal/appeal_creation_contract_test.dart` | Passed after rework: 7 tests, including two widget dismissal tests. |
+| `flutter test` | Passed after rework: 17 tests. |
 | `flutter build web --release` | Passed; release Web output was built and the Wasm dry run succeeded. |
 | `git diff --check` | Passed; only line-ending conversion warnings were printed. |
 
@@ -49,40 +55,61 @@ Focused Flutter tests directly observed that the retry key is sent as the
 `Idempotency-Key` header, an authenticated 208/null response is accepted without a
 type error, concurrent submission shares the same Future, transient failure retains
 the key, terminal failure releases it, duplicate success releases it, a new operation
-uses a new key, and cancellation releases a retained key.
+uses a new key, and cancellation releases a retained key. Widget tests observed both
+barrier dismissal while a request was pending (cleanup completed when that request
+later failed) and system-back dismissal of a retained transient key.
 
-Focused Spring tests directly observed the application service passing the fixed
-cross-layer fixture key `appeal-cross-layer-key` into the request-history claim with
-the authenticated user ID. The Flutter fixture used the same literal key and observed
-it in the outgoing header. This is fixture-level cross-layer evidence; it is not a
-database row-count observation.
+Focused Spring tests directly observed the application service owning the
+claim/create/success decision and passing the fixed cross-layer fixture key
+`appeal-cross-layer-key` into request-history claim data with the authenticated user
+ID. They also observed that another user's failed history returns `COLLISION` without
+calling reopen. Controller tests observed 201/208 adaptation and a different user's
+409 collision response.
+
+The Flutter trace used the same literal `appeal-cross-layer-key` on both attempts and
+observed it in both outgoing headers. Its first attempt raises a modeled transport
+read failure and the retry accepts 208/null. This is explicitly modeled
+response-read-loss evidence, not proof of a live HTTP response being dropped.
+
+The Spring integration test contains the same fixed-key trace, discards the first
+response before retry, and asserts one appeal row and one request-history row. That
+trace did not execute because offense setup failed first. Therefore the shared fixture
+is observed in focused Spring/Flutter tests, while its database row-count portion is
+unverified.
 
 ## Acceptance evidence status
 
-- Observed in focused tests: same-key duplicate controller response semantics;
-  nullable Flutter parsing; pending-call reuse; key retention after transient failure;
-  key release after success, terminal failure, and cancellation; new-key behavior for
-  a new operation; authenticated identity propagation into the idempotency claim.
-- Inferred from the reviewed implementation and focused tests: the insert-if-absent
-  claim plus failed-state compare-and-set prevents the same authenticated user and key
-  from starting more than one non-failed business operation.
+- Observed in focused tests (fixed mapping): S2, S3, S4, S6, and F1-F9. Evidence
+  includes same-key duplicate controller response semantics, user collision handling,
+  nullable Flutter parsing, pending-call reuse, transient retention, release on
+  success/terminal/cancel/dismissal, new-operation key behavior, and authenticated
+  identity propagation into the claim.
+- Inferred from implementation plus focused tests: the insert-if-absent claim,
+  user-qualified failed-state compare-and-set, and user-qualified success transition
+  prevent a different authenticated user from reopening or completing the key.
 - Expected but not observed against the configured database: exactly one appeal row
-  and one request-history row after first request, response loss, and same-key retry;
+  and one request-history row after first request, modeled response read loss, and
+  same-key retry;
   failed-key reopening in a real transaction; and complete compatibility with existing
   appeal integration behavior.
-- Unverified: database-backed S1, S5, S7, and full-regression S8 acceptance evidence.
-  The prerequisite fixture/schema incident prevented the database path from reaching
-  the appeal endpoint, and the whole Spring suite was not green.
+- Unverified (fixed mapping): database-backed S1, S5, S7, and full-regression S8.
+  The current prerequisite fixture/database mismatch prevented the database path from
+  reaching the appeal endpoint. Modeled read-loss evidence does not promote S5 to a
+  live end-to-end observation.
 
 ## Execution infrastructure incidents
 
-The configured integration database schema and the repository vehicle fixture are
-not aligned: `vehicle_information.owner_id_card` is mandatory in the database but is
-not populated by the existing fixture. This caused the focused appeal integration
-suite to fail during setup, before the changed endpoint executed. The whole Spring
-suite additionally encountered shared rate-limiter state (HTTP 429) and other setup
-conflicts. These outcomes are recorded as execution-infrastructure evidence, not as
-product passes or protocol findings.
+The earlier vehicle fixture blocker was corrected in the scoped appeal integration
+fixture by supplying the fields required by the configured database. The current
+observed blocker is the next prerequisite: offense creation attempts to store fixture
+`processStatus=Pending`, which the configured database enum rejects. All 8 appeal
+integration tests consequently failed in `@BeforeEach` before the changed endpoint
+executed. This supersedes the stale vehicle-blocker statement; it does not establish a
+database-backed product pass.
+
+The pre-review whole Spring suite additionally encountered shared rate-limiter state
+(HTTP 429) and other setup conflicts. These outcomes are recorded as execution
+infrastructure incidents, not as Product or Protocol Findings.
 
 An initial Maven invocation also encountered a transient GraalPy environment problem
 (`pip` unavailable). Later Maven compile, focused tests, and package commands processed
@@ -91,10 +118,12 @@ that step successfully without repository configuration changes.
 ## Residual risks
 
 - The database-backed single-row invariant remains unverified in this run.
-- The exact response-loss retry scenario remains unverified end to end.
-- Full Spring regression is not green in the observed environment.
-- Independent Standards and Spec review must occur against the frozen commit before
-  any approval or integration claim.
+- A modeled response-read-loss retry passed in Flutter, but a live dropped-response
+  retry and the database half of that trace remain unverified.
+- Full Spring regression was not rerun after rework and is not green in the observed
+  environment.
+- Independent Standards and Spec re-review must occur against the new frozen commit
+  before any approval or integration claim.
 
 This report does not authorize or claim a pull request, merge, release, deployment,
 migration, or traffic change.

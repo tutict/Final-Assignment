@@ -12,6 +12,7 @@ import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:final_assignment_front/features/model/appeal_record.dart';
 import 'package:final_assignment_front/features/api/appeal_management_controller_api.dart';
+import 'package:final_assignment_front/features/dashboard/views/user/components/appeal_creation_dialog.dart';
 import 'package:final_assignment_front/features/api/driver_information_controller_api.dart';
 import 'package:final_assignment_front/features/api/offense_information_controller_api.dart';
 import 'package:final_assignment_front/features/api/user_management_controller_api.dart';
@@ -451,8 +452,9 @@ class _UserAppealPageState extends State<UserAppealPage> {
       return;
     }
 
-    showDialog(
+    showAppealCreationDialog(
       context: context,
+      operation: appealCreationOperation,
       builder: (ctx) => Obx(() {
         final themeData =
             controller?.currentBodyTheme.value ?? Theme.of(context);
@@ -651,12 +653,8 @@ class _UserAppealPageState extends State<UserAppealPage> {
                         mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                         children: [
                           TextButton(
-                            onPressed: isSubmitting
-                                ? null
-                                : () {
-                                    appealCreationOperation.cancel();
-                                    Navigator.pop(ctx);
-                                  },
+                            onPressed:
+                                isSubmitting ? null : () => Navigator.pop(ctx),
                             child: Text(
                               '取消',
                               style: themeData.textTheme.labelMedium?.copyWith(
@@ -700,9 +698,10 @@ class _UserAppealPageState extends State<UserAppealPage> {
                                     );
                                     final submitted =
                                         await _submitAppeal(newAppeal);
-                                    setState(
-                                        () => isSubmitting = false); // 重新启用按钮
-                                    if (mounted && submitted) {
+                                    if (mounted) {
+                                      setState(() => isSubmitting = false);
+                                    }
+                                    if (ctx.mounted && submitted) {
                                       Navigator.pop(ctx);
                                     }
                                   },
@@ -740,7 +739,9 @@ class _UserAppealPageState extends State<UserAppealPage> {
       idCardController.dispose();
       contactController.dispose();
       reasonController.dispose();
-      setState(() => isSubmitting = false); // 确保关闭对话框后重置状态
+      if (mounted) {
+        setState(() => isSubmitting = false);
+      }
     });
   }
 

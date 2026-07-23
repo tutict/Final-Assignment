@@ -34,6 +34,8 @@ import org.springframework.jdbc.core.JdbcTemplate;
 @TestMethodOrder(MethodOrderer.OrderAnnotation.class)
 class AppealIntegrationTest extends BaseIntegrationTest {
 
+    private static final String CROSS_LAYER_KEY = "appeal-cross-layer-key";
+
     @Autowired
     private JdbcTemplate jdbcTemplate;
 
@@ -84,20 +86,21 @@ class AppealIntegrationTest extends BaseIntegrationTest {
 
     @Test
     @Order(3)
-    @DisplayName("重复申诉：相同 Idempotency-Key 返回 208")
-    void duplicate_appeal_submission_returns_208() {
-        String key = newIdempotencyKey();
+    @DisplayName("[MODELED response-read-loss] 固定 key 重试返回 208 且仅创建一行")
+    void modeled_response_read_loss_retry_creates_exactly_one_row() {
+        String key = CROSS_LAYER_KEY;
         String secondOperationKey = newIdempotencyKey();
+        jdbcTemplate.update(
+            "DELETE FROM sys_request_history WHERE idempotency_key = ?",
+            key
+        );
         Map<String, Object> body = new HashMap<>(TestDataFactory.validAppeal(offenseId));
         body.put("appealReason", "Idempotency contract marker " + key);
         Integer rowsBefore = jdbcTemplate.queryForObject("SELECT COUNT(*) FROM appeal_record", Integer.class);
 
+        // Modeled evidence: the first response is deliberately ignored before retrying.
         Response first = authSpec(userToken).header("Idempotency-Key", key)
             .body(body).post("/api/appeals");
-        first.then()
-            .statusCode(201)
-            .body("success", equalTo(true))
-            .body("data.appealId", notNullValue());
 
         authSpec(userToken).header("Idempotency-Key", key)
             .body(body).post("/api/appeals")
@@ -106,6 +109,11 @@ class AppealIntegrationTest extends BaseIntegrationTest {
             .body("success", equalTo(true))
             .body("data", equalTo(null));
 
+        first.then()
+            .statusCode(201)
+            .body("success", equalTo(true))
+            .body("data.appealId", notNullValue());
+
         assertThat(jdbcTemplate.queryForObject("SELECT COUNT(*) FROM appeal_record", Integer.class))
             .isEqualTo(rowsBefore + 1);
         assertThat(jdbcTemplate.queryForObject(
@@ -113,6 +121,21 @@ class AppealIntegrationTest extends BaseIntegrationTest {
             Integer.class,
             key
         )).isEqualTo(1);
+
+        authSpec(adminToken).header("Idempotency-Key", key)
+            .body(body).post("/api/appeals")
+            .then()
+            .statusCode(409)
+            .body("success", equalTo(false))
+            .body("errorCode", equalTo("IDEMPOTENCY_KEY_COLLISION"));
+
+        assertThat(jdbcTemplate.queryForObject(
+            "SELECT COUNT(*) FROM sys_request_history WHERE idempotency_key = ?",
+            Integer.class,
+            key
+        )).isEqualTo(1);
+        assertThat(jdbcTemplate.queryForObject("SELECT COUNT(*) FROM appeal_record", Integer.class))
+            .isEqualTo(rowsBefore + 1);
         assertThat(jdbcTemplate.queryForObject(
             """
                     SELECT COUNT(*)
@@ -265,6 +288,8 @@ class AppealIntegrationTest extends BaseIntegrationTest {
 
         Map<String, Object> vehicle = new HashMap<>(TestDataFactory.validVehicle(driverId));
         vehicle.put("licensePlate", "京A" + newIdempotencyKey().substring(0, 8));
+        vehicle.put("ownerIdCard", "110101199001011234");
+        vehicle.put("ownerContact", "13800138000");
         Long vehicleId = extractLong(authSpec(adminTok)
             .header("Idempotency-Key", newIdempotencyKey())
             .body(vehicle)

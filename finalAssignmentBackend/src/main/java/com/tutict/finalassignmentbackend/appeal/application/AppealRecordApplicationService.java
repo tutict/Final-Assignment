@@ -145,14 +145,29 @@ public class AppealRecordApplicationService {
     }
 
     @Transactional
-    public boolean tryStartIdempotentCreate(String idempotencyKey, AppealRecord appealRecord, Long userId) {
+    public AppealCreationResult createAppealIdempotently(
+            String idempotencyKey,
+            AppealRecord appealRecord,
+            Long userId
+    ) {
         Objects.requireNonNull(appealRecord, "Appeal record cannot be null");
+        Objects.requireNonNull(userId, "Authenticated user ID cannot be null");
         prepareSensitiveData(appealRecord);
-        boolean started = idempotencyService.tryStartAppealCreation(idempotencyKey, userId);
-        if (started) {
-            eventPublisher.publishAppealRecordAfterCommit("appeal_create", idempotencyKey, appealRecord);
+        if (idempotencyKey == null || idempotencyKey.isBlank()) {
+            return AppealCreationResult.created(createAppeal(appealRecord));
         }
-        return started;
+        AppealIdempotencyService.ClaimResult claim =
+                idempotencyService.claimAppealCreation(idempotencyKey, userId);
+        if (claim == AppealIdempotencyService.ClaimResult.COLLISION) {
+            return AppealCreationResult.collision();
+        }
+        if (claim == AppealIdempotencyService.ClaimResult.DUPLICATE) {
+            return AppealCreationResult.duplicate();
+        }
+        eventPublisher.publishAppealRecordAfterCommit("appeal_create", idempotencyKey, appealRecord);
+        AppealRecord saved = createAppeal(appealRecord);
+        idempotencyService.markAppealCreationSuccess(idempotencyKey, saved.getAppealId(), userId);
+        return AppealCreationResult.created(saved);
     }
 
     @Transactional

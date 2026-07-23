@@ -1,6 +1,7 @@
 package com.tutict.finalassignmentbackend.controller.business;
 
 import com.tutict.finalassignmentbackend.config.security.SecurityRoleUtils;
+import com.tutict.finalassignmentbackend.appeal.application.AppealCreationResult;
 import com.tutict.finalassignmentbackend.dto.mapper.AppealRecordRequestMapper;
 import com.tutict.finalassignmentbackend.dto.request.AppealCreateRequest;
 import com.tutict.finalassignmentbackend.dto.response.ApiResponse;
@@ -22,7 +23,6 @@ import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
-import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -72,7 +72,6 @@ public class AppealManagementController {
     @PostMapping
     @RolesAllowed({"USER", "ADMIN", "APPEAL_REVIEWER", "SUPER_ADMIN"})
     @Operation(summary = "Create appeal")
-    @Transactional
     public ResponseEntity<ApiResponse<AppealResponse>> createAppeal(
             @Valid @RequestBody AppealCreateRequest request,
             @RequestHeader(value = "Idempotency-Key", required = false) String idempotencyKey,
@@ -89,29 +88,22 @@ public class AppealManagementController {
             }
             appealRecord.setDriverId(profile.getDriverId());
         }
-        try {
-            if (useIdempotency) {
-                if (!appealRecordService.tryStartIdempotentCreate(
-                        idempotencyKey,
-                        appealRecord,
-                        profile.getAuthUserId()
-                )) {
-                    LOG.log(Level.INFO, "Appeal create skipped by idempotency key {0}", idempotencyKey);
-                    return ResponseEntity.status(HttpStatus.ALREADY_REPORTED).body(ApiResponse.ok(null));
-                }
-            }
-            AppealRecord saved = appealRecordService.createAppeal(appealRecord);
-            if (useIdempotency && saved.getAppealId() != null) {
-                appealRecordService.markHistorySuccess(idempotencyKey, saved.getAppealId());
-            }
-            return ResponseEntity.status(HttpStatus.CREATED).body(ApiResponse.ok(AppealResponse.from(saved)));
-        } catch (RuntimeException ex) {
-            if (useIdempotency) {
-                appealRecordService.markHistoryFailure(idempotencyKey, ex.getMessage());
-            }
-            LOG.log(Level.SEVERE, "Create appeal failed", ex);
-            throw ex;
+        AppealCreationResult result = appealRecordService.createAppealIdempotently(
+                idempotencyKey,
+                appealRecord,
+                profile.getAuthUserId()
+        );
+        if (result.status() == AppealCreationResult.Status.COLLISION) {
+            return ResponseEntity.status(HttpStatus.CONFLICT)
+                    .body(ApiResponse.error("IDEMPOTENCY_KEY_COLLISION",
+                            "Idempotency key belongs to another authenticated user"));
         }
+        if (result.status() == AppealCreationResult.Status.DUPLICATE) {
+            LOG.log(Level.INFO, "Appeal create skipped by idempotency key {0}", idempotencyKey);
+            return ResponseEntity.status(HttpStatus.ALREADY_REPORTED).body(ApiResponse.ok(null));
+        }
+        return ResponseEntity.status(HttpStatus.CREATED)
+                .body(ApiResponse.ok(AppealResponse.from(result.appeal())));
     }
 
     @GetMapping("/my")

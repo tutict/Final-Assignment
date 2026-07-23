@@ -36,9 +36,24 @@ public interface SysRequestHistoryMapper extends BaseMapper<SysRequestHistory> {
                 updated_at = CURRENT_TIMESTAMP
             WHERE idempotency_key = #{idempotencyKey}
               AND business_status = 'FAILED'
+              AND user_id = #{userId}
             """)
     int reopenFailedAppealCreation(@Param("idempotencyKey") String idempotencyKey,
                                    @Param("userId") Long userId);
+
+    @Update("""
+            UPDATE sys_request_history
+            SET business_status = 'SUCCESS',
+                business_id = #{appealId},
+                request_params = 'DONE',
+                updated_at = CURRENT_TIMESTAMP
+            WHERE idempotency_key = #{idempotencyKey}
+              AND user_id = #{userId}
+              AND business_status = 'PROCESSING'
+            """)
+    int markAppealCreationSuccess(@Param("idempotencyKey") String idempotencyKey,
+                                  @Param("appealId") Long appealId,
+                                  @Param("userId") Long userId);
 
     @Select("SELECT * FROM sys_request_history WHERE idempotency_key = #{idempotencyKey} LIMIT 1")
     SysRequestHistory selectByIdempotencyKey(@Param("idempotencyKey") String idempotencyKey);

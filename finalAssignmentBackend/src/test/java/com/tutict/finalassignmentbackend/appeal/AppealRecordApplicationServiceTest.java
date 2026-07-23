@@ -2,6 +2,7 @@ package com.tutict.finalassignmentbackend.appeal;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.tutict.finalassignmentbackend.appeal.application.AppealRecordApplicationService;
+import com.tutict.finalassignmentbackend.appeal.application.AppealCreationResult;
 import com.tutict.finalassignmentbackend.appeal.application.workflow.AppealWorkflowOrchestrator;
 import com.tutict.finalassignmentbackend.appeal.cache.AppealCachePolicy;
 import com.tutict.finalassignmentbackend.appeal.domain.AppealRecordDomainService;
@@ -433,9 +434,10 @@ class AppealRecordApplicationServiceTest {
                 org.mockito.ArgumentMatchers.any(SysRequestHistory.class)
         )).thenReturn(1);
 
-        boolean started = service.tryStartAppealCreation("appeal-cross-layer-key", 77L);
+        AppealIdempotencyService.ClaimResult started =
+                service.claimAppealCreation("appeal-cross-layer-key", 77L);
 
-        assertThat(started).isTrue();
+        assertThat(started).isEqualTo(AppealIdempotencyService.ClaimResult.STARTED);
         verify(mapper).insertAppealCreationHistoryIfAbsent(history.capture());
         assertThat(history.getValue().getIdempotencyKey()).isEqualTo("appeal-cross-layer-key");
         assertThat(history.getValue().getRequestMethod()).isEqualTo("POST");
@@ -456,20 +458,45 @@ class AppealRecordApplicationServiceTest {
         when(mapper.insertAppealCreationHistoryIfAbsent(
                 org.mockito.ArgumentMatchers.any(SysRequestHistory.class)
         )).thenReturn(0);
+        SysRequestHistory failed = new SysRequestHistory();
+        failed.setUserId(77L);
+        failed.setBusinessStatus("FAILED");
+        SysRequestHistory pending = new SysRequestHistory();
+        pending.setUserId(77L);
+        pending.setBusinessStatus("PROCESSING");
+        when(mapper.selectByIdempotencyKey("failed-key")).thenReturn(failed);
+        when(mapper.selectByIdempotencyKey("pending-key")).thenReturn(pending);
         when(mapper.reopenFailedAppealCreation("failed-key", 77L)).thenReturn(1);
-        when(mapper.reopenFailedAppealCreation("pending-key", 77L)).thenReturn(0);
 
-        assertThat(service.tryStartAppealCreation("failed-key", 77L)).isTrue();
-        assertThat(service.tryStartAppealCreation("pending-key", 77L)).isFalse();
+        assertThat(service.claimAppealCreation("failed-key", 77L))
+                .isEqualTo(AppealIdempotencyService.ClaimResult.STARTED);
+        assertThat(service.claimAppealCreation("pending-key", 77L))
+                .isEqualTo(AppealIdempotencyService.ClaimResult.DUPLICATE);
     }
 
     @Test
-    void idempotencyRegistrationDoesNotReportSuccessBeforeAppealPersistence() {
+    void failedAppealCreationHistoryOwnedByAnotherUserIsCollisionAndIsNotReopened() {
+        SysRequestHistoryMapper mapper = mock(SysRequestHistoryMapper.class);
+        AppealIdempotencyService service = new AppealIdempotencyService(mapper, new AppealBusinessPolicy());
+        SysRequestHistory history = new SysRequestHistory();
+        history.setUserId(88L);
+        history.setBusinessStatus("FAILED");
+        when(mapper.insertAppealCreationHistoryIfAbsent(
+                org.mockito.ArgumentMatchers.any(SysRequestHistory.class)
+        )).thenReturn(0);
+        when(mapper.selectByIdempotencyKey("owned-by-other")).thenReturn(history);
+
+        assertThat(service.claimAppealCreation("owned-by-other", 77L))
+                .isEqualTo(AppealIdempotencyService.ClaimResult.COLLISION);
+        verify(mapper, never()).reopenFailedAppealCreation("owned-by-other", 77L);
+    }
+
+    @Test
+    void applicationServiceOwnsClaimCreateAndSuccessDecision() {
         AppealRecordMapper appealRecordMapper = mock(AppealRecordMapper.class);
         TransactionalDomainEventPublisher eventPublisher = mock(TransactionalDomainEventPublisher.class);
         AppealIdempotencyService idempotencyService = mock(AppealIdempotencyService.class);
         AppealRecord appeal = appealRecord();
-        appeal.setAppealId(null);
         AppealRecordApplicationService service = new AppealRecordApplicationService(
                 appealRecordMapper,
                 new AppealRecordDomainService(),
@@ -481,12 +508,15 @@ class AppealRecordApplicationServiceTest {
                 new AppealUpdateMergeCoordinator()
         );
 
-        when(idempotencyService.tryStartAppealCreation("appeal-contract-key", 77L)).thenReturn(true);
+        when(idempotencyService.claimAppealCreation("appeal-contract-key", 77L))
+                .thenReturn(AppealIdempotencyService.ClaimResult.STARTED);
 
-        boolean started = service.tryStartIdempotentCreate("appeal-contract-key", appeal, 77L);
+        AppealCreationResult result = service.createAppealIdempotently(
+                "appeal-contract-key", appeal, 77L);
 
-        assertThat(started).isTrue();
-        verify(idempotencyService).tryStartAppealCreation("appeal-contract-key", 77L);
+        assertThat(result.status()).isEqualTo(AppealCreationResult.Status.CREATED);
+        verify(idempotencyService).claimAppealCreation("appeal-contract-key", 77L);
+        verify(idempotencyService).markAppealCreationSuccess("appeal-contract-key", 10L, 77L);
         verify(idempotencyService, never()).markPendingSuccess(
                 org.mockito.ArgumentMatchers.anyString(),
                 org.mockito.ArgumentMatchers.any()

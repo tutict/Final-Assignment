@@ -8,6 +8,7 @@ import org.springframework.stereotype.Service;
 import java.time.LocalDateTime;
 import java.util.logging.Level;
 import java.util.logging.Logger;
+import java.util.Objects;
 
 @Service
 public class AppealIdempotencyService {
@@ -33,16 +34,38 @@ public class AppealIdempotencyService {
         sysRequestHistoryMapper.insert(buildHistory(idempotencyKey));
     }
 
-    public boolean tryStartAppealCreation(String idempotencyKey, Long userId) {
+    public ClaimResult claimAppealCreation(String idempotencyKey, Long userId) {
+        Objects.requireNonNull(idempotencyKey, "Idempotency key cannot be null");
+        Objects.requireNonNull(userId, "Authenticated user ID cannot be null");
         SysRequestHistory history = buildHistory(idempotencyKey);
         history.setRequestMethod("POST");
         history.setRequestUrl("/api/appeals");
         history.setBusinessType("AppealRecord");
         history.setUserId(userId);
         if (sysRequestHistoryMapper.insertAppealCreationHistoryIfAbsent(history) == 1) {
-            return true;
+            return ClaimResult.STARTED;
         }
-        return sysRequestHistoryMapper.reopenFailedAppealCreation(idempotencyKey, userId) == 1;
+        SysRequestHistory existing = sysRequestHistoryMapper.selectByIdempotencyKey(idempotencyKey);
+        if (existing == null || !Objects.equals(existing.getUserId(), userId)) {
+            return ClaimResult.COLLISION;
+        }
+        if ("FAILED".equals(existing.getBusinessStatus())
+                && sysRequestHistoryMapper.reopenFailedAppealCreation(idempotencyKey, userId) == 1) {
+            return ClaimResult.STARTED;
+        }
+        return ClaimResult.DUPLICATE;
+    }
+
+    public void markAppealCreationSuccess(String idempotencyKey, Long appealId, Long userId) {
+        if (sysRequestHistoryMapper.markAppealCreationSuccess(idempotencyKey, appealId, userId) != 1) {
+            throw new IllegalStateException("Appeal idempotency claim was lost before success");
+        }
+    }
+
+    public enum ClaimResult {
+        STARTED,
+        DUPLICATE,
+        COLLISION
     }
 
     public boolean shouldSkipProcessing(String idempotencyKey) {

@@ -1,5 +1,6 @@
 package com.tutict.finalassignmentbackend.appeal;
 
+import com.tutict.finalassignmentbackend.appeal.application.AppealCreationResult;
 import com.tutict.finalassignmentbackend.controller.business.AppealManagementController;
 import com.tutict.finalassignmentbackend.dto.request.AppealCreateRequest;
 import com.tutict.finalassignmentbackend.dto.response.ApiResponse;
@@ -52,16 +53,11 @@ class AppealCreationIdempotencyContractTest {
                 .driverId(41L)
                 .build();
         when(authService.getCurrentUserProfile("contract-user")).thenReturn(profile);
-        when(appealService.tryStartIdempotentCreate(
-                eq("K1"),
-                any(AppealRecord.class),
-                eq(77L)
-        )).thenReturn(true, false);
-        when(appealService.createAppeal(any(AppealRecord.class))).thenAnswer(invocation -> {
-            AppealRecord saved = invocation.getArgument(0);
-            saved.setAppealId(501L);
-            return saved;
-        });
+        AppealRecord saved = new AppealRecord();
+        saved.setAppealId(501L);
+        when(appealService.createAppealIdempotently(
+                eq("K1"), any(AppealRecord.class), eq(77L)
+        )).thenReturn(AppealCreationResult.created(saved), AppealCreationResult.duplicate());
 
         ResponseEntity<ApiResponse<AppealResponse>> first = controller.createAppeal(
                 request(),
@@ -82,16 +78,47 @@ class AppealCreationIdempotencyContractTest {
         assertThat(duplicate.getBody()).isNotNull();
         assertThat(duplicate.getBody().isSuccess()).isTrue();
         assertThat(duplicate.getBody().getData()).isNull();
-        verify(appealService, times(1)).createAppeal(any(AppealRecord.class));
-        verify(appealService, times(1)).markHistorySuccess("K1", 501L);
-
         ArgumentCaptor<AppealRecord> appeal = ArgumentCaptor.forClass(AppealRecord.class);
-        verify(appealService, times(2)).tryStartIdempotentCreate(eq("K1"), appeal.capture(), eq(77L));
+        verify(appealService, times(2)).createAppealIdempotently(eq("K1"), appeal.capture(), eq(77L));
         assertThat(appeal.getAllValues()).allSatisfy(value -> {
             assertThat(value.getCreatedBy()).isEqualTo("contract-user");
             assertThat(value.getUpdatedBy()).isEqualTo("contract-user");
             assertThat(value.getDriverId()).isEqualTo(41L);
         });
+    }
+
+    @Test
+    void keyOwnedByAnotherAuthenticatedUserReturnsConflictInsteadOfFalse208() {
+        AuthWsService authService = mock(AuthWsService.class);
+        AppealRecordService appealService = mock(AppealRecordService.class);
+        AppealManagementController controller = new AppealManagementController(
+                authService,
+                appealService,
+                mock(AppealReviewService.class),
+                mock(BusinessRecordViewService.class)
+        );
+        Authentication authentication = new UsernamePasswordAuthenticationToken(
+                "other-user",
+                "unused",
+                List.of(new SimpleGrantedAuthority("ROLE_USER"))
+        );
+        UserProfileResponse profile = UserProfileResponse.builder()
+                .authUserId(88L)
+                .username("other-user")
+                .driverId(42L)
+                .build();
+        when(authService.getCurrentUserProfile("other-user")).thenReturn(profile);
+        when(appealService.createAppealIdempotently(
+                eq("K1"), any(AppealRecord.class), eq(88L)
+        )).thenReturn(AppealCreationResult.collision());
+
+        ResponseEntity<ApiResponse<AppealResponse>> collision = controller.createAppeal(
+                request(), "K1", authentication);
+
+        assertThat(collision.getStatusCode()).isEqualTo(HttpStatus.CONFLICT);
+        assertThat(collision.getBody()).isNotNull();
+        assertThat(collision.getBody().isSuccess()).isFalse();
+        assertThat(collision.getBody().getErrorCode()).isEqualTo("IDEMPOTENCY_KEY_COLLISION");
     }
 
     private static AppealCreateRequest request() {
