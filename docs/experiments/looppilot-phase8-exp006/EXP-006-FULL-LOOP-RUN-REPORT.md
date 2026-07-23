@@ -42,8 +42,8 @@ remained excluded.
 | Response-read loss | Not modeled or observed | Unverified; no live TCP claim |
 | Integrated Spec/Standards/specialist review | Not reached | Observed skipped barrier |
 | Final pre-commit `git diff --check` | Passed | Observed |
-| Commit/push/remote match | Authorized only for failed-run evidence preservation; pending at this report snapshot | Observed |
-| Clean worktree | Pending preservation commit at this report snapshot | Observed |
+| Commit/push/remote match | Preservation commit `b575d143112e9a946a5f1450e2083b29fa2c84ac` pushed; local/remote matched before this metadata update | Observed |
+| Clean worktree | Clean after preservation push; this metadata update is the only pending change | Observed |
 
 ## Acceptance
 
@@ -61,8 +61,8 @@ EII-001 through EII-009 are preserved in the Loop integration incident record.
 They are execution/coordination incidents, not Product Findings. No implementation
 Review occurred, so the lack of Product Findings is not evidence of quality.
 
-Partial product/test edits remain unintegrated. The Supervisor authorized an exact
-failed-run preservation commit/push after this snapshot; that action does not
-approve either Task or convert the partial code into product delivery. This report
-does not claim release or deployment readiness and grants no release, deployment,
+Partial product/test edits remain unintegrated. The Supervisor authorized the exact
+failed-run preservation commit/push recorded above; that action does not approve
+either Task or convert the partial code into product delivery. This report does
+not claim release or deployment readiness and grants no release, deployment,
 migration, or traffic-change authority.

@@ -66,8 +66,10 @@ and workflow compatibility.
 - Branch: `experiment/looppilot-final-assignment-exp-006-full-loop`.
 - Fixed base and current HEAD at blocked closure:
   `ba3b49d83e1f73aeab8392fd5a5292d6961b058e`.
-- Worktree: dirty with Full Loop artifacts and preserved partial product/test
-  edits.
+- Worktree was clean after the authorized preservation push.
+- Preservation commit: `b575d143112e9a946a5f1450e2083b29fa2c84ac`, pushed to the
+  experiment branch. A subsequent metadata-only commit records these final Git
+  facts; neither commit is Task integration or Loop acceptance.
 - Commit/push policy: the Supervisor explicitly authorized committing and pushing
   this exact failed-run boundary, including clearly unintegrated partial edits and
   tests, for evidence preservation. Such a commit is not Task integration, Loop

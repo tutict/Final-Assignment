@@ -18,8 +18,13 @@ deployment permission.
 - TASK-003 is blocked/partial after EII-005/EII-007/EII-009; its frontend
   edits/tests remain unreviewed and unintegrated.
 - TASK-004 did not start because TASK-002 and TASK-003 are incomplete.
-- HEAD remains the fixed base; partial product/test and Full Loop artifact changes
-  are uncommitted and the worktree is not clean.
+- The fixed product base remains `ba3b49d83e1f73aeab8392fd5a5292d6961b058e`;
+  preservation commit `b575d143112e9a946a5f1450e2083b29fa2c84ac` contains the
+  blocked-run artifacts and partial edits, with no uncommitted changes after its
+  push.
+- Failed-run preservation commit `b575d143112e9a946a5f1450e2083b29fa2c84ac` was
+  authorized and pushed; it preserves the blocked boundary and does not authorize
+  product integration or acceptance.
 
 ## Resume Point
 
