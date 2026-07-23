@@ -33,6 +33,18 @@ public class AppealIdempotencyService {
         sysRequestHistoryMapper.insert(buildHistory(idempotencyKey));
     }
 
+    public boolean tryStartAppealCreation(String idempotencyKey, Long userId) {
+        SysRequestHistory history = buildHistory(idempotencyKey);
+        history.setRequestMethod("POST");
+        history.setRequestUrl("/api/appeals");
+        history.setBusinessType("AppealRecord");
+        history.setUserId(userId);
+        if (sysRequestHistoryMapper.insertAppealCreationHistoryIfAbsent(history) == 1) {
+            return true;
+        }
+        return sysRequestHistoryMapper.reopenFailedAppealCreation(idempotencyKey, userId) == 1;
+    }
+
     public boolean shouldSkipProcessing(String idempotencyKey) {
         SysRequestHistory history = sysRequestHistoryMapper.selectByIdempotencyKey(idempotencyKey);
         return businessPolicy.shouldSkipProcessedRequest(history);

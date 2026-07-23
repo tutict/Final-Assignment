@@ -22,6 +22,7 @@ import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -71,6 +72,7 @@ public class AppealManagementController {
     @PostMapping
     @RolesAllowed({"USER", "ADMIN", "APPEAL_REVIEWER", "SUPER_ADMIN"})
     @Operation(summary = "Create appeal")
+    @Transactional
     public ResponseEntity<ApiResponse<AppealResponse>> createAppeal(
             @Valid @RequestBody AppealCreateRequest request,
             @RequestHeader(value = "Idempotency-Key", required = false) String idempotencyKey,
@@ -89,11 +91,14 @@ public class AppealManagementController {
         }
         try {
             if (useIdempotency) {
-                if (appealRecordService.shouldSkipProcessing(idempotencyKey)) {
+                if (!appealRecordService.tryStartIdempotentCreate(
+                        idempotencyKey,
+                        appealRecord,
+                        profile.getAuthUserId()
+                )) {
                     LOG.log(Level.INFO, "Appeal create skipped by idempotency key {0}", idempotencyKey);
                     return ResponseEntity.status(HttpStatus.ALREADY_REPORTED).body(ApiResponse.ok(null));
                 }
-                appealRecordService.checkAndInsertIdempotency(idempotencyKey, appealRecord, "create");
             }
             AppealRecord saved = appealRecordService.createAppeal(appealRecord);
             if (useIdempotency && saved.getAppealId() != null) {

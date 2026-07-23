@@ -397,7 +397,7 @@ class AppealRecordApplicationServiceTest {
 
         assertThat(returned).isSameAs(existing);
         verify(idempotencyService).checkAndInsert("key-noop");
-        verify(idempotencyService).markPendingSuccess("key-noop", 10L);
+        verify(idempotencyService, never()).markPendingSuccess("key-noop", 10L);
         verify(eventPublisher, never()).publishAppealRecordAfterCommit(
                 org.mockito.ArgumentMatchers.anyString(),
                 org.mockito.ArgumentMatchers.anyString(),
@@ -422,6 +422,80 @@ class AppealRecordApplicationServiceTest {
 
         verify(mapper).insert(org.mockito.ArgumentMatchers.any(SysRequestHistory.class));
         assertThat(shouldSkip).isTrue();
+    }
+
+    @Test
+    void appealCreationClaimsOneHistoryRowWithAuthenticatedIdentity() {
+        SysRequestHistoryMapper mapper = mock(SysRequestHistoryMapper.class);
+        AppealIdempotencyService service = new AppealIdempotencyService(mapper, new AppealBusinessPolicy());
+        ArgumentCaptor<SysRequestHistory> history = ArgumentCaptor.forClass(SysRequestHistory.class);
+        when(mapper.insertAppealCreationHistoryIfAbsent(
+                org.mockito.ArgumentMatchers.any(SysRequestHistory.class)
+        )).thenReturn(1);
+
+        boolean started = service.tryStartAppealCreation("appeal-cross-layer-key", 77L);
+
+        assertThat(started).isTrue();
+        verify(mapper).insertAppealCreationHistoryIfAbsent(history.capture());
+        assertThat(history.getValue().getIdempotencyKey()).isEqualTo("appeal-cross-layer-key");
+        assertThat(history.getValue().getRequestMethod()).isEqualTo("POST");
+        assertThat(history.getValue().getRequestUrl()).isEqualTo("/api/appeals");
+        assertThat(history.getValue().getBusinessType()).isEqualTo("AppealRecord");
+        assertThat(history.getValue().getBusinessStatus()).isEqualTo("PROCESSING");
+        assertThat(history.getValue().getUserId()).isEqualTo(77L);
+        verify(mapper, never()).reopenFailedAppealCreation(
+                org.mockito.ArgumentMatchers.anyString(),
+                org.mockito.ArgumentMatchers.any()
+        );
+    }
+
+    @Test
+    void failedAppealCreationHistoryCanBeClaimedForRetryButPendingCannot() {
+        SysRequestHistoryMapper mapper = mock(SysRequestHistoryMapper.class);
+        AppealIdempotencyService service = new AppealIdempotencyService(mapper, new AppealBusinessPolicy());
+        when(mapper.insertAppealCreationHistoryIfAbsent(
+                org.mockito.ArgumentMatchers.any(SysRequestHistory.class)
+        )).thenReturn(0);
+        when(mapper.reopenFailedAppealCreation("failed-key", 77L)).thenReturn(1);
+        when(mapper.reopenFailedAppealCreation("pending-key", 77L)).thenReturn(0);
+
+        assertThat(service.tryStartAppealCreation("failed-key", 77L)).isTrue();
+        assertThat(service.tryStartAppealCreation("pending-key", 77L)).isFalse();
+    }
+
+    @Test
+    void idempotencyRegistrationDoesNotReportSuccessBeforeAppealPersistence() {
+        AppealRecordMapper appealRecordMapper = mock(AppealRecordMapper.class);
+        TransactionalDomainEventPublisher eventPublisher = mock(TransactionalDomainEventPublisher.class);
+        AppealIdempotencyService idempotencyService = mock(AppealIdempotencyService.class);
+        AppealRecord appeal = appealRecord();
+        appeal.setAppealId(null);
+        AppealRecordApplicationService service = new AppealRecordApplicationService(
+                appealRecordMapper,
+                new AppealRecordDomainService(),
+                mock(AppealRecordSearchIndexer.class),
+                eventPublisher,
+                mock(AppealCachePolicy.class),
+                idempotencyService,
+                new AppealWorkflowDecisionPolicy(),
+                new AppealUpdateMergeCoordinator()
+        );
+
+        when(idempotencyService.tryStartAppealCreation("appeal-contract-key", 77L)).thenReturn(true);
+
+        boolean started = service.tryStartIdempotentCreate("appeal-contract-key", appeal, 77L);
+
+        assertThat(started).isTrue();
+        verify(idempotencyService).tryStartAppealCreation("appeal-contract-key", 77L);
+        verify(idempotencyService, never()).markPendingSuccess(
+                org.mockito.ArgumentMatchers.anyString(),
+                org.mockito.ArgumentMatchers.any()
+        );
+        verify(eventPublisher).publishAppealRecordAfterCommit(
+                "appeal_create",
+                "appeal-contract-key",
+                appeal
+        );
     }
 
     @Test

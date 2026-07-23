@@ -50,6 +50,7 @@ class UserAppealPage extends StatefulWidget {
 
 class _UserAppealPageState extends State<UserAppealPage> {
   late AppealManagementControllerApi appealApi;
+  late AppealCreationOperation appealCreationOperation;
   late DriverInformationControllerApi driverApi;
   final OffenseInformationControllerApi offenseApi =
       OffenseInformationControllerApi();
@@ -77,6 +78,7 @@ class _UserAppealPageState extends State<UserAppealPage> {
   void initState() {
     super.initState();
     appealApi = AppealManagementControllerApi();
+    appealCreationOperation = AppealCreationOperation(appealApi);
     driverApi = DriverInformationControllerApi();
     _scrollController = ScrollController();
     _startBusinessEventSubscription();
@@ -409,18 +411,16 @@ class _UserAppealPageState extends State<UserAppealPage> {
         .toList();
   }
 
-  Future<void> _submitAppeal(
-      AppealRecordModel appeal, String idempotencyKey) async {
+  Future<bool> _submitAppeal(AppealRecordModel appeal) async {
     try {
-      developer.log('Submitting appeal with idempotencyKey: $idempotencyKey');
-      await appealApi.createAppeal(
-          appealRecord: appeal, idempotencyKey: idempotencyKey);
-      developer.log('Appeal submitted successfully: ${appeal.toJson()}');
+      await appealCreationOperation.submit(appeal);
       _showSnackBar('申诉提交成功！');
       await _fetchUserAppeals();
+      return true;
     } catch (e) {
       developer.log('Appeal submission failed: $e');
       _showSnackBar('申诉提交失败: $e', isError: true);
+      return false;
     }
   }
 
@@ -651,7 +651,12 @@ class _UserAppealPageState extends State<UserAppealPage> {
                         mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                         children: [
                           TextButton(
-                            onPressed: () => Navigator.pop(ctx),
+                            onPressed: isSubmitting
+                                ? null
+                                : () {
+                                    appealCreationOperation.cancel();
+                                    Navigator.pop(ctx);
+                                  },
                             child: Text(
                               '取消',
                               style: themeData.textTheme.labelMedium?.copyWith(
@@ -693,15 +698,13 @@ class _UserAppealPageState extends State<UserAppealPage> {
                                           AppealProcessStatus.unprocessed.code,
                                       processResult: '',
                                     );
-                                    final idempotencyKey =
-                                        generateIdempotencyKey();
-                                    developer.log(
-                                        'Preparing to submit appeal with key: $idempotencyKey');
-                                    await _submitAppeal(
-                                        newAppeal, idempotencyKey);
+                                    final submitted =
+                                        await _submitAppeal(newAppeal);
                                     setState(
                                         () => isSubmitting = false); // 重新启用按钮
-                                    if (mounted) Navigator.pop(ctx);
+                                    if (mounted && submitted) {
+                                      Navigator.pop(ctx);
+                                    }
                                   },
                             style:
                                 themeData.elevatedButtonTheme.style?.copyWith(

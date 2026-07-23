@@ -11,7 +11,9 @@ import static org.hamcrest.Matchers.notNullValue;
 
 import com.tutict.finalassignmentbackend.integration.BaseIntegrationTest;
 import com.tutict.finalassignmentbackend.integration.TestDataFactory;
+import io.restassured.response.Response;
 import java.time.Duration;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ExecutorService;
@@ -25,10 +27,15 @@ import org.junit.jupiter.api.MethodOrderer;
 import org.junit.jupiter.api.Order;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestMethodOrder;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.jdbc.core.JdbcTemplate;
 
 @DisplayName("申诉业务流集成测试")
 @TestMethodOrder(MethodOrderer.OrderAnnotation.class)
 class AppealIntegrationTest extends BaseIntegrationTest {
+
+    @Autowired
+    private JdbcTemplate jdbcTemplate;
 
     private String adminToken;
     private String userToken;
@@ -80,17 +87,52 @@ class AppealIntegrationTest extends BaseIntegrationTest {
     @DisplayName("重复申诉：相同 Idempotency-Key 返回 208")
     void duplicate_appeal_submission_returns_208() {
         String key = newIdempotencyKey();
-        Map<String, Object> body = TestDataFactory.validAppeal(offenseId);
+        String secondOperationKey = newIdempotencyKey();
+        Map<String, Object> body = new HashMap<>(TestDataFactory.validAppeal(offenseId));
+        body.put("appealReason", "Idempotency contract marker " + key);
+        Integer rowsBefore = jdbcTemplate.queryForObject("SELECT COUNT(*) FROM appeal_record", Integer.class);
 
-        authSpec(userToken).header("Idempotency-Key", key)
-            .body(body).post("/api/appeals")
-            .then().statusCode(anyOf(is(200), is(201)));
+        Response first = authSpec(userToken).header("Idempotency-Key", key)
+            .body(body).post("/api/appeals");
+        first.then()
+            .statusCode(201)
+            .body("success", equalTo(true))
+            .body("data.appealId", notNullValue());
 
         authSpec(userToken).header("Idempotency-Key", key)
             .body(body).post("/api/appeals")
             .then()
             .statusCode(208)
-            .body("success", equalTo(true));
+            .body("success", equalTo(true))
+            .body("data", equalTo(null));
+
+        assertThat(jdbcTemplate.queryForObject("SELECT COUNT(*) FROM appeal_record", Integer.class))
+            .isEqualTo(rowsBefore + 1);
+        assertThat(jdbcTemplate.queryForObject(
+            "SELECT COUNT(*) FROM sys_request_history WHERE idempotency_key = ?",
+            Integer.class,
+            key
+        )).isEqualTo(1);
+        assertThat(jdbcTemplate.queryForObject(
+            """
+                    SELECT COUNT(*)
+                    FROM sys_request_history h
+                    JOIN sys_user u ON u.user_id = h.user_id
+                    WHERE h.idempotency_key = ? AND u.username = 'testuser'
+                    """,
+            Integer.class,
+            key
+        )).isEqualTo(1);
+
+        authSpec(userToken).header("Idempotency-Key", secondOperationKey)
+            .body(body).post("/api/appeals")
+            .then()
+            .statusCode(201)
+            .body("success", equalTo(true))
+            .body("data.appealId", notNullValue());
+
+        assertThat(jdbcTemplate.queryForObject("SELECT COUNT(*) FROM appeal_record", Integer.class))
+            .isEqualTo(rowsBefore + 2);
     }
 
     @Test
@@ -221,9 +263,11 @@ class AppealIntegrationTest extends BaseIntegrationTest {
         Long driverId = extractLong(authSpec(userToken)
             .get("/api/auth/me"), "data.driverId");
 
+        Map<String, Object> vehicle = new HashMap<>(TestDataFactory.validVehicle(driverId));
+        vehicle.put("licensePlate", "京A" + newIdempotencyKey().substring(0, 8));
         Long vehicleId = extractLong(authSpec(adminTok)
             .header("Idempotency-Key", newIdempotencyKey())
-            .body(TestDataFactory.validVehicle(driverId))
+            .body(vehicle)
             .post("/api/vehicles"), "data.vehicleId");
 
         return extractLong(authSpec(adminTok)

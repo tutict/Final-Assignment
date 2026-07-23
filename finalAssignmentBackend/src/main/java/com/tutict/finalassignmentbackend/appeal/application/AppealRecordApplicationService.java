@@ -139,10 +139,20 @@ public class AppealRecordApplicationService {
         if (eventMetadata.republishesKafka()) {
             eventPublisher.publishAppealRecordAfterCommit("appeal_" + action, idempotencyKey, appealRecord);
         }
-        idempotencyService.markPendingSuccess(idempotencyKey, appealRecord.getAppealId());
         if (eventMetadata.evictsCache()) {
             cachePolicy.onWrite();
         }
+    }
+
+    @Transactional
+    public boolean tryStartIdempotentCreate(String idempotencyKey, AppealRecord appealRecord, Long userId) {
+        Objects.requireNonNull(appealRecord, "Appeal record cannot be null");
+        prepareSensitiveData(appealRecord);
+        boolean started = idempotencyService.tryStartAppealCreation(idempotencyKey, userId);
+        if (started) {
+            eventPublisher.publishAppealRecordAfterCommit("appeal_create", idempotencyKey, appealRecord);
+        }
+        return started;
     }
 
     @Transactional

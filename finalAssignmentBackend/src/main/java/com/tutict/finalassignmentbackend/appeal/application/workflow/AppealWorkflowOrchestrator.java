@@ -21,6 +21,11 @@ public class AppealWorkflowOrchestrator {
     }
 
     @Transactional
+    public boolean tryStartIdempotentCreate(String idempotencyKey, AppealRecord appealRecord, Long userId) {
+        return applicationService.tryStartIdempotentCreate(idempotencyKey, appealRecord, userId);
+    }
+
+    @Transactional
     public AppealRecord createAppeal(AppealRecord appealRecord) {
         return applicationService.createAppeal(appealRecord);
     }

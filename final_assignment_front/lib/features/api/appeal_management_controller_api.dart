@@ -14,17 +14,18 @@ class AppealManagementControllerApi with BaseApiClient {
 
   Future<void> initializeWithJwt() => initializeClientWithJwt();
 
-  Future<AppealRecordModel> createAppeal({
+  Future<AppealRecordModel?> createAppeal({
     required AppealRecordModel appealRecord,
     String? idempotencyKey,
   }) {
-    return requestObject(
+    return requestNullableObject(
       'POST',
       '/api/appeals',
       AppealRecordModel.fromJson,
       body: appealRecord.toJson(),
       contentType: BaseApiClient.defaultContentType,
       idempotencyKey: idempotencyKey,
+      nullStatusCodes: const {208},
     );
   }
 
@@ -376,5 +377,86 @@ class AppealManagementControllerApi with BaseApiClient {
       emptyStatusCodes: treatNotFoundAsEmpty ? const {204, 404} : const {204},
       passThroughStatusCodes: treatNotFoundAsEmpty ? const {404} : const {},
     );
+  }
+}
+
+class AppealCreationOperation {
+  AppealCreationOperation(
+    AppealManagementControllerApi api, {
+    String Function()? keyFactory,
+  })  : _send = ((appeal, key) => api.createAppeal(
+              appealRecord: appeal,
+              idempotencyKey: key,
+            )),
+        _keyFactory = keyFactory ?? api.generateIdempotencyKey;
+
+  AppealCreationOperation.withTransport({
+    required Future<AppealRecordModel?> Function(
+      AppealRecordModel appeal,
+      String idempotencyKey,
+    ) send,
+    required String Function() keyFactory,
+  })  : _send = send,
+        _keyFactory = keyFactory;
+
+  final Future<AppealRecordModel?> Function(
+    AppealRecordModel appeal,
+    String idempotencyKey,
+  ) _send;
+  final String Function() _keyFactory;
+
+  String? _retryKey;
+  Future<AppealRecordModel?>? _pending;
+
+  String? get retryKey => _retryKey;
+  bool get isPending => _pending != null;
+
+  Future<AppealRecordModel?> submit(AppealRecordModel appeal) {
+    final pending = _pending;
+    if (pending != null) {
+      return pending;
+    }
+    final key = _retryKey ??= _keyFactory();
+    final request = _perform(appeal, key);
+    _pending = request;
+    return request;
+  }
+
+  void cancel() {
+    if (_pending == null) {
+      _retryKey = null;
+    }
+  }
+
+  Future<AppealRecordModel?> _perform(
+    AppealRecordModel appeal,
+    String key,
+  ) async {
+    try {
+      final result = await _send(appeal, key);
+      _retryKey = null;
+      return result;
+    } catch (error) {
+      if (_isTerminal(error)) {
+        _retryKey = null;
+      }
+      rethrow;
+    } finally {
+      _pending = null;
+    }
+  }
+
+  bool _isTerminal(Object error) {
+    if (error is! AppException) {
+      return true;
+    }
+    return switch (error.type) {
+      AppErrorType.network ||
+      AppErrorType.timeout ||
+      AppErrorType.serviceUnavailable ||
+      AppErrorType.serverError =>
+        false,
+      _ => true,
+    };
   }
 }
