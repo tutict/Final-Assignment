@@ -1,6 +1,7 @@
 package com.tutict.finalassignmentbackend.appeal.application.workflow;
 
 import com.tutict.finalassignmentbackend.appeal.application.AppealRecordApplicationService;
+import com.tutict.finalassignmentbackend.appeal.application.AppealCreateResult;
 import com.tutict.finalassignmentbackend.config.statemachine.states.AppealProcessState;
 import com.tutict.finalassignmentbackend.entity.appeal.AppealRecord;
 import org.springframework.stereotype.Service;
@@ -23,6 +24,11 @@ public class AppealWorkflowOrchestrator {
     @Transactional
     public AppealRecord createAppeal(AppealRecord appealRecord) {
         return applicationService.createAppeal(appealRecord);
+    }
+
+    @Transactional
+    public AppealCreateResult createAppealWithIdempotency(AppealRecord appealRecord, String idempotencyKey) {
+        return applicationService.createAppealWithIdempotency(appealRecord, idempotencyKey);
     }
 
     @Transactional

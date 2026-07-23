@@ -5,6 +5,7 @@ import com.tutict.finalassignmentbackend.appeal.cache.AppealCachePolicy;
 import com.tutict.finalassignmentbackend.appeal.domain.AppealRecordDomainService;
 import com.tutict.finalassignmentbackend.appeal.domain.AppealUpdateMergeCoordinator;
 import com.tutict.finalassignmentbackend.appeal.domain.idempotency.AppealIdempotencyService;
+import com.tutict.finalassignmentbackend.appeal.domain.idempotency.AppealDuplicateRequestException;
 import com.tutict.finalassignmentbackend.appeal.domain.policy.AppealCallerMetadata;
 import com.tutict.finalassignmentbackend.appeal.domain.policy.AppealEventIntentPolicy;
 import com.tutict.finalassignmentbackend.appeal.domain.policy.AppealEventMetadata;
@@ -147,6 +148,28 @@ public class AppealRecordApplicationService {
 
     @Transactional
     public AppealRecord createAppeal(AppealRecord appealRecord) {
+        return createAppealInCurrentTransaction(appealRecord);
+    }
+
+    /**
+     * Atomically reserves the request key, creates the row, and records the
+     * completed business id. A duplicate reservation is a successful no-op;
+     * any other failure rolls back both the history row and appeal row.
+     */
+    @Transactional(rollbackFor = Exception.class)
+    public AppealCreateResult createAppealWithIdempotency(AppealRecord appealRecord, String idempotencyKey) {
+        Objects.requireNonNull(appealRecord, "Appeal record cannot be null");
+        try {
+            idempotencyService.reserve(idempotencyKey);
+            AppealRecord created = createAppealInCurrentTransaction(appealRecord);
+            idempotencyService.markHistorySuccess(idempotencyKey, created.getAppealId());
+            return AppealCreateResult.created(created);
+        } catch (AppealDuplicateRequestException duplicate) {
+            return AppealCreateResult.alreadyProcessed();
+        }
+    }
+
+    private AppealRecord createAppealInCurrentTransaction(AppealRecord appealRecord) {
         fillDriverIdFromOffense(appealRecord);
         normalizeCreateDefaults(appealRecord);
         domainService.validateAppeal(appealRecord);

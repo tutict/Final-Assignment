@@ -2,11 +2,13 @@ package com.tutict.finalassignmentbackend.appeal;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.tutict.finalassignmentbackend.appeal.application.AppealRecordApplicationService;
+import com.tutict.finalassignmentbackend.appeal.application.AppealCreateResult;
 import com.tutict.finalassignmentbackend.appeal.application.workflow.AppealWorkflowOrchestrator;
 import com.tutict.finalassignmentbackend.appeal.cache.AppealCachePolicy;
 import com.tutict.finalassignmentbackend.appeal.domain.AppealRecordDomainService;
 import com.tutict.finalassignmentbackend.appeal.domain.AppealUpdateMergeCoordinator;
 import com.tutict.finalassignmentbackend.appeal.domain.idempotency.AppealIdempotencyService;
+import com.tutict.finalassignmentbackend.appeal.domain.idempotency.AppealDuplicateRequestException;
 import com.tutict.finalassignmentbackend.appeal.domain.policy.AppealEventIntentPolicy;
 import com.tutict.finalassignmentbackend.appeal.domain.policy.AppealEventMetadata;
 import com.tutict.finalassignmentbackend.appeal.domain.policy.AppealEventType;
@@ -36,6 +38,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
@@ -69,6 +72,66 @@ class AppealRecordApplicationServiceTest {
         verify(searchIndexer).indexAfterCommit(appeal);
         verify(cachePolicy).onWrite();
         verifyNoInteractions(eventPublisher);
+    }
+
+    @Test
+    void keyedCreateReservesInsertsAndCompletesInOneApplicationOperation() {
+        AppealRecordMapper appealRecordMapper = mock(AppealRecordMapper.class);
+        AppealRecordSearchIndexer searchIndexer = mock(AppealRecordSearchIndexer.class);
+        TransactionalDomainEventPublisher eventPublisher = mock(TransactionalDomainEventPublisher.class);
+        AppealCachePolicy cachePolicy = mock(AppealCachePolicy.class);
+        AppealIdempotencyService idempotencyService = mock(AppealIdempotencyService.class);
+        AppealRecordApplicationService service = new AppealRecordApplicationService(
+                appealRecordMapper,
+                new AppealRecordDomainService(),
+                searchIndexer,
+                eventPublisher,
+                cachePolicy,
+                idempotencyService,
+                new AppealWorkflowDecisionPolicy(),
+                new AppealUpdateMergeCoordinator()
+        );
+        AppealRecord appeal = appealRecord();
+
+        AppealCreateResult result = service.createAppealWithIdempotency(appeal, "create-key");
+
+        assertThat(result.duplicate()).isFalse();
+        assertThat(result.appeal()).isSameAs(appeal);
+        verify(idempotencyService).reserve("create-key");
+        verify(appealRecordMapper).insert(appeal);
+        verify(idempotencyService).markHistorySuccess("create-key", appeal.getAppealId());
+        verify(searchIndexer).indexAfterCommit(appeal);
+        verify(cachePolicy).onWrite();
+    }
+
+    @Test
+    void keyedCreateReturnsDuplicateWithoutInsertingAnotherAppeal() {
+        AppealRecordMapper appealRecordMapper = mock(AppealRecordMapper.class);
+        AppealRecordSearchIndexer searchIndexer = mock(AppealRecordSearchIndexer.class);
+        TransactionalDomainEventPublisher eventPublisher = mock(TransactionalDomainEventPublisher.class);
+        AppealCachePolicy cachePolicy = mock(AppealCachePolicy.class);
+        AppealIdempotencyService idempotencyService = mock(AppealIdempotencyService.class);
+        AppealRecordApplicationService service = new AppealRecordApplicationService(
+                appealRecordMapper,
+                new AppealRecordDomainService(),
+                searchIndexer,
+                eventPublisher,
+                cachePolicy,
+                idempotencyService,
+                new AppealWorkflowDecisionPolicy(),
+                new AppealUpdateMergeCoordinator()
+        );
+        doThrow(new AppealDuplicateRequestException("duplicate"))
+                .when(idempotencyService).reserve("create-key");
+
+        AppealCreateResult result = service.createAppealWithIdempotency(appealRecord(), "create-key");
+
+        assertThat(result.duplicate()).isTrue();
+        assertThat(result.appeal()).isNull();
+        verify(appealRecordMapper, never()).insert(org.mockito.ArgumentMatchers.any(AppealRecord.class));
+        verify(idempotencyService, never()).markHistorySuccess(
+                org.mockito.ArgumentMatchers.anyString(), org.mockito.ArgumentMatchers.anyLong());
+        verifyNoInteractions(searchIndexer, cachePolicy, eventPublisher);
     }
 
     @Test

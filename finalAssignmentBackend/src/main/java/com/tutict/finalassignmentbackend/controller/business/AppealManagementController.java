@@ -2,6 +2,7 @@ package com.tutict.finalassignmentbackend.controller.business;
 
 import com.tutict.finalassignmentbackend.config.security.SecurityRoleUtils;
 import com.tutict.finalassignmentbackend.dto.mapper.AppealRecordRequestMapper;
+import com.tutict.finalassignmentbackend.appeal.application.AppealCreateResult;
 import com.tutict.finalassignmentbackend.dto.request.AppealCreateRequest;
 import com.tutict.finalassignmentbackend.dto.response.ApiResponse;
 import com.tutict.finalassignmentbackend.dto.response.AppealResponse;
@@ -89,21 +90,18 @@ public class AppealManagementController {
         }
         try {
             if (useIdempotency) {
-                if (appealRecordService.shouldSkipProcessing(idempotencyKey)) {
+                AppealCreateResult result = appealRecordService.createAppealWithIdempotency(
+                        appealRecord, idempotencyKey);
+                if (result.duplicate()) {
                     LOG.log(Level.INFO, "Appeal create skipped by idempotency key {0}", idempotencyKey);
                     return ResponseEntity.status(HttpStatus.ALREADY_REPORTED).body(ApiResponse.ok(null));
                 }
-                appealRecordService.checkAndInsertIdempotency(idempotencyKey, appealRecord, "create");
+                return ResponseEntity.status(HttpStatus.CREATED)
+                        .body(ApiResponse.ok(AppealResponse.from(result.appeal())));
             }
             AppealRecord saved = appealRecordService.createAppeal(appealRecord);
-            if (useIdempotency && saved.getAppealId() != null) {
-                appealRecordService.markHistorySuccess(idempotencyKey, saved.getAppealId());
-            }
             return ResponseEntity.status(HttpStatus.CREATED).body(ApiResponse.ok(AppealResponse.from(saved)));
         } catch (RuntimeException ex) {
-            if (useIdempotency) {
-                appealRecordService.markHistoryFailure(idempotencyKey, ex.getMessage());
-            }
             LOG.log(Level.SEVERE, "Create appeal failed", ex);
             throw ex;
         }

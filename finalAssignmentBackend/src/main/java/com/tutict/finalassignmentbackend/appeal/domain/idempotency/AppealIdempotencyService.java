@@ -4,6 +4,8 @@ import com.tutict.finalassignmentbackend.appeal.domain.policy.AppealBusinessPoli
 import com.tutict.finalassignmentbackend.entity.system.SysRequestHistory;
 import com.tutict.finalassignmentbackend.mapper.system.SysRequestHistoryMapper;
 import org.springframework.stereotype.Service;
+import org.springframework.dao.DataIntegrityViolationException;
+import org.springframework.util.StringUtils;
 
 import java.time.LocalDateTime;
 import java.util.logging.Level;
@@ -26,11 +28,27 @@ public class AppealIdempotencyService {
     }
 
     public void checkAndInsert(String idempotencyKey) {
+        reserve(idempotencyKey);
+    }
+
+    /**
+     * Reserves a key using the database unique constraint as the concurrency
+     * boundary. The caller must invoke this in the same transaction as the
+     * appeal insert so a failed create releases the reservation on rollback.
+     */
+    public void reserve(String idempotencyKey) {
+        if (!StringUtils.hasText(idempotencyKey)) {
+            throw new IllegalArgumentException("Idempotency-Key must not be blank");
+        }
         SysRequestHistory history = sysRequestHistoryMapper.selectByIdempotencyKey(idempotencyKey);
         if (businessPolicy.isDuplicateRequest(history)) {
-            throw new RuntimeException("Duplicate appeal request detected");
+            throw duplicate();
         }
-        sysRequestHistoryMapper.insert(buildHistory(idempotencyKey));
+        try {
+            sysRequestHistoryMapper.insert(buildHistory(idempotencyKey));
+        } catch (DataIntegrityViolationException ex) {
+            throw duplicate(ex);
+        }
     }
 
     public boolean shouldSkipProcessing(String idempotencyKey) {
@@ -83,6 +101,14 @@ public class AppealIdempotencyService {
         history.setCreatedAt(LocalDateTime.now());
         history.setUpdatedAt(LocalDateTime.now());
         return history;
+    }
+
+    private AppealDuplicateRequestException duplicate() {
+        return new AppealDuplicateRequestException("Duplicate appeal request detected");
+    }
+
+    private AppealDuplicateRequestException duplicate(Throwable cause) {
+        return new AppealDuplicateRequestException("Duplicate appeal request detected", cause);
     }
 
 }

@@ -12,6 +12,8 @@ import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:final_assignment_front/features/model/appeal_record.dart';
 import 'package:final_assignment_front/features/api/appeal_management_controller_api.dart';
+import 'package:final_assignment_front/features/appeal/appeal_submission_coordinator.dart';
+import 'package:uuid/uuid.dart';
 import 'package:final_assignment_front/features/api/driver_information_controller_api.dart';
 import 'package:final_assignment_front/features/api/offense_information_controller_api.dart';
 import 'package:final_assignment_front/features/api/user_management_controller_api.dart';
@@ -28,9 +30,7 @@ import 'dart:developer' as developer;
 import 'package:final_assignment_front/shared/utils/navigation_helper.dart';
 import 'package:final_assignment_front/utils/services/auth_token_store.dart';
 
-String generateIdempotencyKey() {
-  return DateTime.now().millisecondsSinceEpoch.toString();
-}
+String generateIdempotencyKey() => const Uuid().v4();
 
 String formatDateTime(DateTime? dateTime) {
   if (dateTime == null) return '未提供';
@@ -409,19 +409,19 @@ class _UserAppealPageState extends State<UserAppealPage> {
         .toList();
   }
 
-  Future<void> _submitAppeal(
-      AppealRecordModel appeal, String idempotencyKey) async {
-    try {
-      developer.log('Submitting appeal with idempotencyKey: $idempotencyKey');
-      await appealApi.createAppeal(
-          appealRecord: appeal, idempotencyKey: idempotencyKey);
-      developer.log('Appeal submitted successfully: ${appeal.toJson()}');
-      _showSnackBar('申诉提交成功！');
+  Future<AppealSubmissionResult> _submitAppeal(
+      AppealSubmissionCoordinator submission, AppealRecordModel appeal) async {
+    final result = await submission.submit(appeal);
+    if (result.cancelled) {
+      return result;
+    } else if (result.succeeded) {
+      _showSnackBar(result.wasAlreadyProcessed ? '申诉已处理！' : '申诉提交成功！');
       await _fetchUserAppeals();
-    } catch (e) {
-      developer.log('Appeal submission failed: $e');
-      _showSnackBar('申诉提交失败: $e', isError: true);
+    } else {
+      final message = result.error?.message ?? '请求未完成';
+      _showSnackBar('申诉提交失败: $message', isError: true);
     }
+    return result;
   }
 
   void _showSubmitAppealDialog() async {
@@ -451,12 +451,20 @@ class _UserAppealPageState extends State<UserAppealPage> {
       return;
     }
 
+    final submission = AppealSubmissionCoordinator(
+      createAppeal: (appeal, key) => appealApi.createAppeal(
+        appealRecord: appeal,
+        idempotencyKey: key,
+      ),
+    );
     showDialog(
       context: context,
-      builder: (ctx) => Obx(() {
-        final themeData =
-            controller?.currentBodyTheme.value ?? Theme.of(context);
-        return Dialog(
+      barrierDismissible: false,
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setDialogState) => Obx(() {
+          final themeData =
+              controller?.currentBodyTheme.value ?? Theme.of(context);
+          return Dialog(
           backgroundColor: themeData.colorScheme.surfaceContainer,
           shape:
               RoundedRectangleBorder(borderRadius: BorderRadius.circular(16.0)),
@@ -651,7 +659,12 @@ class _UserAppealPageState extends State<UserAppealPage> {
                         mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                         children: [
                           TextButton(
-                            onPressed: () => Navigator.pop(ctx),
+                            onPressed: isSubmitting
+                                ? null
+                                : () {
+                                    submission.cancel();
+                                    Navigator.pop(ctx);
+                                  },
                             child: Text(
                               '取消',
                               style: themeData.textTheme.labelMedium?.copyWith(
@@ -663,7 +676,7 @@ class _UserAppealPageState extends State<UserAppealPage> {
                             onPressed: isSubmitting
                                 ? null
                                 : () async {
-                                    setState(() => isSubmitting = true); // 禁用按钮
+                                    setDialogState(() => isSubmitting = true);
                                     final String name =
                                         nameController.text.trim();
                                     final String idCard =
@@ -675,7 +688,8 @@ class _UserAppealPageState extends State<UserAppealPage> {
 
                                     if (!(formKey.currentState?.validate() ??
                                         false)) {
-                                      setState(() => isSubmitting = false);
+                                      setDialogState(
+                                          () => isSubmitting = false);
                                       return;
                                     }
 
@@ -693,15 +707,13 @@ class _UserAppealPageState extends State<UserAppealPage> {
                                           AppealProcessStatus.unprocessed.code,
                                       processResult: '',
                                     );
-                                    final idempotencyKey =
-                                        generateIdempotencyKey();
-                                    developer.log(
-                                        'Preparing to submit appeal with key: $idempotencyKey');
-                                    await _submitAppeal(
-                                        newAppeal, idempotencyKey);
-                                    setState(
-                                        () => isSubmitting = false); // 重新启用按钮
-                                    if (mounted) Navigator.pop(ctx);
+                                    final result = await _submitAppeal(
+                                        submission, newAppeal);
+                                    if (!mounted) return;
+                                    setDialogState(() => isSubmitting = false);
+                                    if (result.succeeded && ctx.mounted) {
+                                      Navigator.pop(ctx);
+                                    }
                                   },
                             style:
                                 themeData.elevatedButtonTheme.style?.copyWith(
@@ -730,14 +742,15 @@ class _UserAppealPageState extends State<UserAppealPage> {
               ),
             ),
           ),
-        );
-      }),
+          );
+        }),
+      ),
     ).whenComplete(() {
       nameController.dispose();
       idCardController.dispose();
       contactController.dispose();
       reasonController.dispose();
-      setState(() => isSubmitting = false); // 确保关闭对话框后重置状态
+      submission.cancel();
     });
   }
 

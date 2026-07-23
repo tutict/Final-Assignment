@@ -14,11 +14,11 @@ class AppealManagementControllerApi with BaseApiClient {
 
   Future<void> initializeWithJwt() => initializeClientWithJwt();
 
-  Future<AppealRecordModel> createAppeal({
+  Future<AppealRecordModel?> createAppeal({
     required AppealRecordModel appealRecord,
     String? idempotencyKey,
   }) {
-    return requestObject(
+    return requestNullableObject(
       'POST',
       '/api/appeals',
       AppealRecordModel.fromJson,

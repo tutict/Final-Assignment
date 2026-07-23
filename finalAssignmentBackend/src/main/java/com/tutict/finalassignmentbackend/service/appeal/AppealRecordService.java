@@ -1,6 +1,7 @@
 package com.tutict.finalassignmentbackend.service.appeal;
 
 import com.tutict.finalassignmentbackend.appeal.application.workflow.AppealWorkflowOrchestrator;
+import com.tutict.finalassignmentbackend.appeal.application.AppealCreateResult;
 import com.tutict.finalassignmentbackend.appeal.query.AppealRecordQueryService;
 import com.tutict.finalassignmentbackend.config.statemachine.states.AppealProcessState;
 import com.tutict.finalassignmentbackend.config.websocket.WsAction;
@@ -36,6 +37,11 @@ public class AppealRecordService {
     @Transactional
     public AppealRecord createAppeal(AppealRecord appealRecord) {
         return workflowOrchestrator.createAppeal(appealRecord);
+    }
+
+    @Transactional
+    public AppealCreateResult createAppealWithIdempotency(AppealRecord appealRecord, String idempotencyKey) {
+        return workflowOrchestrator.createAppealWithIdempotency(appealRecord, idempotencyKey);
     }
 
     @Transactional
