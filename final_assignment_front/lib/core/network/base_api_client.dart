@@ -581,6 +581,9 @@ mixin BaseApiClient {
     Set<int>? successStatusCodes,
     Map<int, String> statusMessages = const {},
   }) {
+    if (response.statusCode == 208) {
+      return null as T;
+    }
     ensureSuccess(
       response,
       successStatusCodes: successStatusCodes,

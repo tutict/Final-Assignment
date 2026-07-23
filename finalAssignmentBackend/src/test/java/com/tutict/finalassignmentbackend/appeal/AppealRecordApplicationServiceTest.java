@@ -30,6 +30,8 @@ import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
 import org.springframework.cache.Cache;
 import org.springframework.cache.concurrent.ConcurrentMapCacheManager;
+import org.springframework.dao.DataIntegrityViolationException;
+import org.springframework.dao.DuplicateKeyException;
 import org.springframework.kafka.core.KafkaTemplate;
 
 import java.time.LocalDateTime;
@@ -485,6 +487,60 @@ class AppealRecordApplicationServiceTest {
 
         verify(mapper).insert(org.mockito.ArgumentMatchers.any(SysRequestHistory.class));
         assertThat(shouldSkip).isTrue();
+    }
+
+    @Test
+    void idempotencyServiceRejectsOverlongKeyBeforePersistence() {
+        SysRequestHistoryMapper mapper = mock(SysRequestHistoryMapper.class);
+        AppealIdempotencyService service = new AppealIdempotencyService(mapper, new AppealBusinessPolicy());
+
+        assertThatThrownBy(() -> service.reserve("k".repeat(65)))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("64");
+
+        verifyNoInteractions(mapper);
+    }
+
+    @Test
+    void idempotencyServiceMapsDuplicateKeyViolationToDuplicateOutcome() {
+        SysRequestHistoryMapper mapper = mock(SysRequestHistoryMapper.class);
+        AppealIdempotencyService service = new AppealIdempotencyService(mapper, new AppealBusinessPolicy());
+        when(mapper.selectByIdempotencyKey("create-key")).thenReturn(null);
+        doThrow(new DuplicateKeyException("duplicate key"))
+                .when(mapper).insert(org.mockito.ArgumentMatchers.any(SysRequestHistory.class));
+
+        assertThatThrownBy(() -> service.reserve("create-key"))
+                .isInstanceOf(AppealDuplicateRequestException.class);
+    }
+
+    @Test
+    void keyedCreatePropagatesNonDuplicateIntegrityFailureWithoutBusinessInsert() {
+        AppealRecordMapper appealRecordMapper = mock(AppealRecordMapper.class);
+        AppealRecordSearchIndexer searchIndexer = mock(AppealRecordSearchIndexer.class);
+        TransactionalDomainEventPublisher eventPublisher = mock(TransactionalDomainEventPublisher.class);
+        AppealCachePolicy cachePolicy = mock(AppealCachePolicy.class);
+        SysRequestHistoryMapper historyMapper = mock(SysRequestHistoryMapper.class);
+        DataIntegrityViolationException failure = new DataIntegrityViolationException("not a duplicate key");
+        when(historyMapper.selectByIdempotencyKey("create-key")).thenReturn(null);
+        doThrow(failure).when(historyMapper).insert(org.mockito.ArgumentMatchers.any(SysRequestHistory.class));
+        AppealIdempotencyService idempotencyService =
+                new AppealIdempotencyService(historyMapper, new AppealBusinessPolicy());
+        AppealRecordApplicationService service = new AppealRecordApplicationService(
+                appealRecordMapper,
+                new AppealRecordDomainService(),
+                searchIndexer,
+                eventPublisher,
+                cachePolicy,
+                idempotencyService,
+                new AppealWorkflowDecisionPolicy(),
+                new AppealUpdateMergeCoordinator()
+        );
+
+        assertThatThrownBy(() -> service.createAppealWithIdempotency(appealRecord(), "create-key"))
+                .isSameAs(failure);
+
+        verify(appealRecordMapper, never()).insert(org.mockito.ArgumentMatchers.any(AppealRecord.class));
+        verifyNoInteractions(searchIndexer, cachePolicy, eventPublisher);
     }
 
     @Test

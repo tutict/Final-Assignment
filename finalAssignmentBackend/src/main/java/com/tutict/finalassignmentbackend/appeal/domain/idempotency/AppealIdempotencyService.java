@@ -3,8 +3,8 @@ package com.tutict.finalassignmentbackend.appeal.domain.idempotency;
 import com.tutict.finalassignmentbackend.appeal.domain.policy.AppealBusinessPolicy;
 import com.tutict.finalassignmentbackend.entity.system.SysRequestHistory;
 import com.tutict.finalassignmentbackend.mapper.system.SysRequestHistoryMapper;
+import org.springframework.dao.DuplicateKeyException;
 import org.springframework.stereotype.Service;
-import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.util.StringUtils;
 
 import java.time.LocalDateTime;
@@ -14,6 +14,7 @@ import java.util.logging.Logger;
 @Service
 public class AppealIdempotencyService {
 
+    private static final int MAX_IDEMPOTENCY_KEY_LENGTH = 64;
     private static final Logger log = Logger.getLogger(AppealIdempotencyService.class.getName());
 
     private final SysRequestHistoryMapper sysRequestHistoryMapper;
@@ -40,13 +41,16 @@ public class AppealIdempotencyService {
         if (!StringUtils.hasText(idempotencyKey)) {
             throw new IllegalArgumentException("Idempotency-Key must not be blank");
         }
+        if (idempotencyKey.length() > MAX_IDEMPOTENCY_KEY_LENGTH) {
+            throw new IllegalArgumentException("Idempotency-Key must not exceed 64 characters");
+        }
         SysRequestHistory history = sysRequestHistoryMapper.selectByIdempotencyKey(idempotencyKey);
         if (businessPolicy.isDuplicateRequest(history)) {
             throw duplicate();
         }
         try {
             sysRequestHistoryMapper.insert(buildHistory(idempotencyKey));
-        } catch (DataIntegrityViolationException ex) {
+        } catch (DuplicateKeyException ex) {
             throw duplicate(ex);
         }
     }

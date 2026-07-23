@@ -10,6 +10,7 @@ import 'package:http/http.dart' as http;
 
 void main() {
   const appeal = AppealRecordModel(offenseId: 7);
+  const crossLayerFixtureKey = 'EXP006-CROSS-LAYER-KEY-0001';
 
   test('shares a pending request and key across duplicate triggers', () async {
     final gate = Completer<AppealRecordModel?>();
@@ -62,6 +63,49 @@ void main() {
       expect(keys, ['key-1', 'key-1', 'key-2']);
     },
   );
+
+  test('models a lost response retry and treats 208 null as terminal success',
+      () async {
+    var calls = 0;
+    final keys = <String>[];
+    final coordinator = AppealSubmissionCoordinator(
+      keyFactory: () => crossLayerFixtureKey,
+      createAppeal: (_, key) {
+        calls++;
+        keys.add(key);
+        if (calls == 1) {
+          return Future<AppealRecordModel?>.error(
+            const AppException(
+              type: AppErrorType.network,
+              message: 'response lost after server accepted request',
+            ),
+          );
+        }
+        return Future.value(
+          _ProbeApiClient().parseNullableResponse<AppealRecordModel>(
+            http.Response(
+              '{"success":true,"data":null}',
+              208,
+              headers: {'content-type': 'application/json'},
+            ),
+            AppealRecordModel.fromJson,
+          ),
+        );
+      },
+    );
+
+    final first = await coordinator.submit(appeal);
+    expect(first.retryable, isTrue);
+    expect(coordinator.activeIdempotencyKey, crossLayerFixtureKey);
+
+    final second = await coordinator.submit(appeal);
+    expect(second.succeeded, isTrue);
+    expect(second.wasAlreadyProcessed, isTrue);
+    expect(coordinator.activeIdempotencyKey, isNull);
+    expect(coordinator.isPending, isFalse);
+    expect(keys, [crossLayerFixtureKey, crossLayerFixtureKey]);
+    expect(calls, 2);
+  });
 
   test('terminal failure and cancellation release the key', () async {
     final pending = Completer<AppealRecordModel?>();

@@ -23,26 +23,33 @@ import org.springframework.jdbc.core.JdbcTemplate;
 @DisplayName("Authenticated appeal create idempotency contract")
 class AppealIdempotencyContractTest extends BaseIntegrationTest {
 
+    private static final String CROSS_LAYER_FIXTURE_KEY = "EXP006-CROSS-LAYER-KEY-0001";
+
     @Autowired
     private JdbcTemplate jdbcTemplate;
 
     private String userToken;
+    private Long userDriverId;
     private Long offenseId;
 
     @BeforeEach
     void setUp() {
         userToken = loginAsUser();
+        userDriverId = extractLong(authSpec(userToken).get("/api/auth/me"), "data.driverId");
         offenseId = createPrerequisiteOffense();
     }
 
     @Test
     void sequentialRetryReturns208AndLeavesOneTraceableAppeal() {
-        String key = newIdempotencyKey();
+        jdbcTemplate.update("DELETE FROM sys_request_history WHERE idempotency_key = ?", CROSS_LAYER_FIXTURE_KEY);
+        String key = CROSS_LAYER_FIXTURE_KEY;
         Map<String, Object> body = appealBody();
+        body.put("driverId", -1L);
 
         Response created = postAppeal(key, body);
         Long appealId = extractLong(created, "data.appealId");
         created.then().statusCode(201).body("success", equalTo(true));
+        assertAuthenticatedIdentity(appealId);
 
         postAppeal(key, body).then()
                 .statusCode(208)
@@ -50,6 +57,12 @@ class AppealIdempotencyContractTest extends BaseIntegrationTest {
                 .body("data", nullValue());
 
         assertTrace(key, appealId, 1);
+
+        String secondKey = newIdempotencyKey();
+        Response secondCreated = postAppeal(secondKey, appealBody());
+        Long secondAppealId = extractLong(secondCreated, "data.appealId");
+        secondCreated.then().statusCode(201).body("success", equalTo(true));
+        assertTrace(secondKey, secondAppealId, 2);
     }
 
     @Test
@@ -96,6 +109,31 @@ class AppealIdempotencyContractTest extends BaseIntegrationTest {
         assertTrace(key, appealId, 1);
     }
 
+    @Test
+    void overlongKeyIsRejectedBeforeReservationAndBusinessInsert() {
+        String key = "k".repeat(65);
+
+        Response rejected = postAppeal(key, appealBody());
+
+        rejected.then().statusCode(400).body("success", equalTo(false));
+        assertThat(historyCount(key)).isZero();
+        assertThat(appealCount()).isZero();
+    }
+
+    @Test
+    void nonDuplicateIntegrityFailureIsNotReportedAs208AndRollsBackBusinessInsert() {
+        String key = newIdempotencyKey();
+        Map<String, Object> body = appealBody();
+        body.put("appellantName", "x".repeat(1000));
+
+        Response rejected = postAppeal(key, body);
+
+        assertThat(rejected.statusCode()).isEqualTo(409);
+        assertThat(rejected.statusCode()).isNotEqualTo(208);
+        assertThat(historyCount(key)).isZero();
+        assertThat(appealCount()).isZero();
+    }
+
     private Response postAppeal(String key, Map<String, Object> body) {
         return authSpec(userToken)
                 .header("Idempotency-Key", key)
@@ -120,6 +158,16 @@ class AppealIdempotencyContractTest extends BaseIntegrationTest {
         assertThat(history.get("request_params")).isEqualTo("DONE");
     }
 
+    private void assertAuthenticatedIdentity(Long appealId) {
+        Map<String, Object> appeal = jdbcTemplate.queryForMap("""
+                SELECT created_by, driver_id
+                FROM appeal_record
+                WHERE appeal_id = ?
+                """, appealId);
+        assertThat(appeal.get("created_by")).isEqualTo("testuser");
+        assertThat(((Number) appeal.get("driver_id")).longValue()).isEqualTo(userDriverId);
+    }
+
     private int appealCount() {
         return jdbcTemplate.queryForObject(
                 "SELECT COUNT(*) FROM appeal_record WHERE offense_id = ?", Integer.class, offenseId);
@@ -132,14 +180,13 @@ class AppealIdempotencyContractTest extends BaseIntegrationTest {
 
     private Long createPrerequisiteOffense() {
         String adminToken = loginAsAdmin();
-        Long driverId = extractLong(authSpec(userToken).get("/api/auth/me"), "data.driverId");
-        Map<String, Object> vehicle = new HashMap<>(TestDataFactory.validVehicle(driverId));
+        Map<String, Object> vehicle = new HashMap<>(TestDataFactory.validVehicle(userDriverId));
         vehicle.put("ownerIdCard", "110101199001011234");
         Long vehicleId = extractLong(authSpec(adminToken)
                 .header("Idempotency-Key", newIdempotencyKey())
                 .body(vehicle)
                 .post("/api/vehicles"), "data.vehicleId");
-        Map<String, Object> offense = new HashMap<>(TestDataFactory.validOffense(driverId, vehicleId));
+        Map<String, Object> offense = new HashMap<>(TestDataFactory.validOffense(userDriverId, vehicleId));
         offense.put("offenseCode", ensureOffenseCode());
         offense.put("offenseNumber", "EXP006-" + System.nanoTime());
         offense.put("processStatus", "Unprocessed");
