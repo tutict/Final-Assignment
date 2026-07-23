@@ -10,21 +10,22 @@ class AppealManagementControllerApi with BaseApiClient {
   final ApiClient apiClient;
 
   AppealManagementControllerApi([ApiClient? apiClient])
-      : apiClient = apiClient ?? defaultApiClient;
+    : apiClient = apiClient ?? defaultApiClient;
 
   Future<void> initializeWithJwt() => initializeClientWithJwt();
 
-  Future<AppealRecordModel> createAppeal({
+  Future<AppealRecordModel?> createAppeal({
     required AppealRecordModel appealRecord,
     String? idempotencyKey,
   }) {
-    return requestObject(
+    return requestNullableObject(
       'POST',
       '/api/appeals',
       AppealRecordModel.fromJson,
       body: appealRecord.toJson(),
       contentType: BaseApiClient.defaultContentType,
       idempotencyKey: idempotencyKey,
+      nullStatusCodes: const {208},
     );
   }
 
@@ -70,14 +71,8 @@ class AppealManagementControllerApi with BaseApiClient {
     );
   }
 
-  Future<List<AppealRecordModel>> listMyAppeals({
-    int page = 0,
-    int size = 20,
-  }) {
-    return _listAppeals(
-      '/api/appeals/my',
-      {'page': page, 'size': size},
-    );
+  Future<List<AppealRecordModel>> listMyAppeals({int page = 0, int size = 20}) {
+    return _listAppeals('/api/appeals/my', {'page': page, 'size': size});
   }
 
   Future<List<AppealRecordModel>> listAppeals({
@@ -88,22 +83,21 @@ class AppealManagementControllerApi with BaseApiClient {
     if (offenseId <= 0) {
       throw AppException.http(400, 'Missing required param: offenseId');
     }
-    return _listAppeals(
-      '/api/appeals',
-      {'offenseId': offenseId, 'page': page, 'size': size},
-      treatNotFoundAsEmpty: true,
-    );
+    return _listAppeals('/api/appeals', {
+      'offenseId': offenseId,
+      'page': page,
+      'size': size,
+    }, treatNotFoundAsEmpty: true);
   }
 
   Future<List<AppealRecordModel>> listAllAppeals({
     int page = 1,
     int size = 20,
   }) {
-    return _listAppeals(
-      '/api/appeals',
-      {'page': page, 'size': size},
-      treatNotFoundAsEmpty: true,
-    );
+    return _listAppeals('/api/appeals', {
+      'page': page,
+      'size': size,
+    }, treatNotFoundAsEmpty: true);
   }
 
   Future<List<AppealRecordModel>> searchAppealsByNumberPrefix({
@@ -267,8 +261,11 @@ class AppealManagementControllerApi with BaseApiClient {
   }
 
   Future<List<AppealReviewModel>> listAppealReviews() {
-    return _listReviews('/api/appeals/reviews', const {},
-        treatNotFoundAsEmpty: true);
+    return _listReviews(
+      '/api/appeals/reviews',
+      const {},
+      treatNotFoundAsEmpty: true,
+    );
   }
 
   Future<List<AppealReviewModel>> searchAppealReviewsByReviewer({
