@@ -18,13 +18,19 @@ deployment permission.
 - TASK-003 is blocked/partial after EII-005/EII-007/EII-009; its frontend
   edits/tests remain unreviewed and unintegrated.
 - TASK-004 did not start because TASK-002 and TASK-003 are incomplete.
-- The fixed product base remains `ba3b49d83e1f73aeab8392fd5a5292d6961b058e`;
-  preservation commit `b575d143112e9a946a5f1450e2083b29fa2c84ac` contains the
-  blocked-run artifacts and partial edits, with no uncommitted changes after its
-  push.
-- Failed-run preservation commit `b575d143112e9a946a5f1450e2083b29fa2c84ac` was
-  authorized and pushed; it preserves the blocked boundary and does not authorize
-  product integration or acceptance.
+- Fixed product base: `ba3b49d83e1f73aeab8392fd5a5292d6961b058e`.
+- Failed-run preservation commit:
+  `b575d143112e9a946a5f1450e2083b29fa2c84ac`, authorized and pushed.
+- Reviewed metadata HEAD before the post-review correction:
+  `a4f36d463d5429f3a7cbefffaf1766df697524db`.
+- The final metadata correction is the commit containing this Checkpoint; its
+  exact SHA is verified against the remote and reported after commit because a
+  commit cannot contain its own SHA.
+- Preservation commits do not authorize product integration or acceptance.
+- The preserved partial Flutter tests include a modeled response-read-loss
+  scenario, but they have no Delivery and were not independently reviewed,
+  executed, or accepted. They provide no acceptance evidence and make no live
+  transport-loss claim.
 
 ## Resume Point
 

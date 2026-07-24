@@ -29,7 +29,11 @@ remained excluded.
 
 | Check | Result | Evidence classification |
 |---|---|---|
-| Branch/base | `experiment/looppilot-final-assignment-exp-006-full-loop` at `ba3b49d...` | Observed |
+| Branch | `experiment/looppilot-final-assignment-exp-006-full-loop` | Observed |
+| Fixed product base | `ba3b49d83e1f73aeab8392fd5a5292d6961b058e` | Observed |
+| Failed-run preservation commit | `b575d143112e9a946a5f1450e2083b29fa2c84ac` | Observed pushed evidence boundary |
+| Reviewed metadata HEAD | `a4f36d463d5429f3a7cbefffaf1766df697524db` | Observed before this post-review correction |
+| Final metadata correction | Commit containing this report; exact SHA verified/reported after commit | Observed boundary; a commit cannot contain its own SHA |
 | Initial worktree | Clean before Full Loop artifacts | Observed |
 | Toolchain | Java 25; Maven 3.9.12; Flutter 3.44.4; Dart 3.12.2 | Observed |
 | MySQL service | MySQL80 running | Observed |
@@ -39,11 +43,11 @@ remained excluded.
 | Flutter implementation/tests | Partial/unreviewed; no Delivery/result | Observed blocked state |
 | Database fixture/row counts | Not run | Unverified |
 | Cross-layer key trace | Not run | Unverified |
-| Response-read loss | Not modeled or observed | Unverified; no live TCP claim |
+| Response-read loss | Modeled only in preserved unintegrated partial Flutter tests | No Delivery; not independently reviewed, executed, or accepted; no acceptance evidence and no live transport-loss claim |
 | Integrated Spec/Standards/specialist review | Not reached | Observed skipped barrier |
 | Final pre-commit `git diff --check` | Passed | Observed |
-| Commit/push/remote match | Preservation commit `b575d143112e9a946a5f1450e2083b29fa2c84ac` pushed; local/remote matched before this metadata update | Observed |
-| Clean worktree | Clean after preservation push; this metadata update is the only pending change | Observed |
+| Commit/push/remote match | Preservation commit pushed and reviewed metadata HEAD matched local/remote before this correction | Observed; final correction is verified after commit |
+| Clean worktree | Clean at reviewed metadata HEAD; final correction cleanliness is verified after commit | Observed before correction |
 
 ## Acceptance
 
@@ -53,7 +57,13 @@ remained excluded.
   no submitted test result.
 - Fixed cross-layer fixture: **NOT ACCEPTED**; no Flutter key = Spring header =
   request history = retry trace or one-row proof exists.
-- Functional, Engineering, and Delivery Acceptance: **NOT MET**.
+- Functional Acceptance: **NOT MET**.
+- Engineering Acceptance: **NOT MET**.
+- Product Delivery Acceptance: **NOT MET** because implementation Deliveries,
+  TASK-004 integration evidence, and independent implementation review are absent.
+- Evidence preservation: **ACHIEVED** for the preservation commit/push,
+  local/remote match, and clean worktree. These Git facts do not satisfy product
+  Delivery Acceptance.
 
 ## Incidents and Limitations
 
@@ -66,3 +76,8 @@ failed-run preservation commit/push recorded above; that action does not approve
 either Task or convert the partial code into product delivery. This report does
 not claim release or deployment readiness and grants no release, deployment,
 migration, or traffic-change authority.
+
+The preserved partial Flutter tests contain a modeled response-read-loss scenario.
+They have no Delivery, were not independently reviewed, were not executed or
+accepted, and provide no acceptance evidence. No live transport-level response
+loss was tested or claimed.
