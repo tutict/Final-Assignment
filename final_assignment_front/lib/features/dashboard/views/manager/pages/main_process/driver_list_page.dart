@@ -215,14 +215,14 @@ class _DriverListPageState extends State<DriverListPage> {
                       name.isNotEmpty ? name[0] : '?',
                       style: TextStyle(
                         color: themeData.colorScheme.onPrimaryContainer,
-                        fontWeight: FontWeight.bold,
+                        fontWeight: FontWeight.w800,
                       ),
                     ),
                   ),
                   title: Text(
                     name,
                     style: themeData.textTheme.titleMedium?.copyWith(
-                      fontWeight: FontWeight.bold,
+                      fontWeight: FontWeight.w800,
                       color: themeData.colorScheme.onSurface,
                     ),
                   ),
@@ -605,7 +605,7 @@ class _AddDriverPageState extends State<AddDriverPage> {
                                       style: themeData.textTheme.labelLarge
                                           ?.copyWith(
                                         color: themeData.colorScheme.onPrimary,
-                                        fontWeight: FontWeight.bold,
+                                        fontWeight: FontWeight.w800,
                                       ),
                                     ),
                             ),
@@ -1000,7 +1000,7 @@ class _EditDriverPageState extends State<EditDriverPage> {
                                 '保存',
                                 style: themeData.textTheme.labelLarge?.copyWith(
                                   color: themeData.colorScheme.onPrimary,
-                                  fontWeight: FontWeight.bold,
+                                  fontWeight: FontWeight.w800,
                                 ),
                               ),
                             ),
@@ -1247,7 +1247,7 @@ class _DriverDetailPageState extends State<DriverDetailPage> {
           Text(
             '$label: ',
             style: themeData.textTheme.titleMedium?.copyWith(
-              fontWeight: FontWeight.bold,
+              fontWeight: FontWeight.w800,
               color: themeData.colorScheme.onSurface,
             ),
           ),
@@ -1342,7 +1342,7 @@ class AppUtils {
                 title,
                 style: themeData.textTheme.titleLarge?.copyWith(
                     color: themeData.colorScheme.onSurface,
-                    fontWeight: FontWeight.bold),
+                    fontWeight: FontWeight.w800),
               ),
               content: Text(
                 content,

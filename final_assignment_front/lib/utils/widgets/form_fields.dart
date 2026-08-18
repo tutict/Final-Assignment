@@ -104,7 +104,7 @@ class AppTextFormField extends StatelessWidget {
       prefixText: prefixText,
       prefixStyle: TextStyle(
         color: theme.colorScheme.onSurface,
-        fontWeight: FontWeight.bold,
+        fontWeight: FontWeight.w800,
       ),
       border: OutlineInputBorder(
         borderRadius: BorderRadius.circular(12.0),

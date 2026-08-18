@@ -510,7 +510,7 @@ class UserOffenseDetailPage extends StatelessWidget {
           Text(
             '$label: ',
             style: themeData.textTheme.bodyLarge?.copyWith(
-              fontWeight: FontWeight.bold,
+              fontWeight: FontWeight.w800,
               color: themeData.colorScheme.onSurface,
             ),
           ),

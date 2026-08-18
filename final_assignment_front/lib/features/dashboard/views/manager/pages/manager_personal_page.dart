@@ -318,7 +318,7 @@ class _ManagerPersonalPageState extends State<ManagerPersonalPage> {
                     '编辑 $field',
                     style: themeData.textTheme.titleMedium?.copyWith(
                       color: themeData.colorScheme.onSurface,
-                      fontWeight: FontWeight.bold,
+                      fontWeight: FontWeight.w800,
                     ),
                     textAlign: TextAlign.center,
                   ),
@@ -378,7 +378,7 @@ class _ManagerPersonalPageState extends State<ManagerPersonalPage> {
                           style: themeData.textTheme.labelMedium?.copyWith(
                             color: themeData.colorScheme.onPrimary,
                             fontSize: 14,
-                            fontWeight: FontWeight.bold,
+                            fontWeight: FontWeight.w800,
                           ),
                         ),
                       ),

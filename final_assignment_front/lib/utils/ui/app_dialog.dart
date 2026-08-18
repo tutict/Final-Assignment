@@ -37,7 +37,7 @@ class AppDialog {
                   child: Text(
                     title,
                     style: themeData.textTheme.titleMedium
-                        ?.copyWith(fontWeight: FontWeight.bold),
+                        ?.copyWith(fontWeight: FontWeight.w800),
                   ),
                 ),
               ],
@@ -135,7 +135,7 @@ class AppDialog {
               ? Text(
                   title,
                   style: themeData.textTheme.titleLarge?.copyWith(
-                    fontWeight: FontWeight.bold,
+                    fontWeight: FontWeight.w800,
                   ),
                 )
               : null,

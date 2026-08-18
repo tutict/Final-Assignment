@@ -1115,7 +1115,7 @@ class _AddFinePageState extends State<AddFinePage> {
                             padding: const EdgeInsets.symmetric(
                                 vertical: 14.0, horizontal: 20.0),
                             textStyle: themeData.textTheme.labelLarge
-                                ?.copyWith(fontWeight: FontWeight.bold),
+                                ?.copyWith(fontWeight: FontWeight.w800),
                           ),
                           child: Text(widget.isEditMode ? '保存' : '提交'),
                         ),
@@ -1312,7 +1312,7 @@ class _FineDetailPageState extends State<FineDetailPage> {
           Text(
             '$label: ',
             style: themeData.textTheme.bodyLarge?.copyWith(
-              fontWeight: FontWeight.bold,
+              fontWeight: FontWeight.w800,
               color: themeData.colorScheme.onSurface,
             ),
           ),

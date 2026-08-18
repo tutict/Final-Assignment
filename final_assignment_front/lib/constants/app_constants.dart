@@ -26,7 +26,7 @@ const List<BoxShadow> kBoxShadows = [
 
 const TextStyle kTitleTextStyle = TextStyle(
   fontSize: 24,
-  fontWeight: FontWeight.bold,
+  fontWeight: FontWeight.w800,
   color: Colors.black87,
 );
 

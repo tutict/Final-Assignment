@@ -136,7 +136,7 @@ class OffenseScreen extends GetView<OffenseController> {
         Text(
           title,
           style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                fontWeight: FontWeight.bold,
+                fontWeight: FontWeight.w800,
                 fontSize: 20,
               ),
         ),
@@ -307,7 +307,7 @@ class OffenseScreen extends GetView<OffenseController> {
                     '${DateFormat('yyyy-MM-dd').format(date)}\n罚款: ${rod.toY.toInt()}',
                     TextStyle(
                       color: theme.colorScheme.onPrimaryContainer,
-                      fontWeight: FontWeight.bold,
+                      fontWeight: FontWeight.w800,
                       fontSize: 14,
                     ),
                   );
@@ -369,7 +369,7 @@ class OffenseScreen extends GetView<OffenseController> {
                     '${DateFormat('yyyy-MM-dd').format(date)}\n$label: ${spot.y.toInt()}',
                     TextStyle(
                       color: theme.colorScheme.onSecondaryContainer,
-                      fontWeight: FontWeight.bold,
+                      fontWeight: FontWeight.w800,
                       fontSize: 14,
                     ),
                   );
@@ -464,7 +464,7 @@ class OffensePieChart extends StatelessWidget {
                   '总数',
                   style: TextStyle(
                     fontSize: 16,
-                    fontWeight: FontWeight.bold,
+                    fontWeight: FontWeight.w800,
                     color: theme.colorScheme.onSurface,
                   ),
                 ),
@@ -472,7 +472,7 @@ class OffensePieChart extends StatelessWidget {
                   totalCount.toString(),
                   style: TextStyle(
                     fontSize: 20,
-                    fontWeight: FontWeight.bold,
+                    fontWeight: FontWeight.w800,
                     color: theme.colorScheme.onSurface,
                   ),
                 ),
@@ -502,7 +502,7 @@ class OffensePieChart extends StatelessWidget {
         title: '$percentage%',
         titleStyle: TextStyle(
           fontSize: 14,
-          fontWeight: FontWeight.bold,
+          fontWeight: FontWeight.w800,
           color: theme.colorScheme.onPrimary,
         ),
         badgeWidget: _buildBadgeWidget(entry.key, colors[index], theme),
@@ -530,7 +530,7 @@ class OffensePieChart extends StatelessWidget {
         style: TextStyle(
           fontSize: 12,
           color: theme.colorScheme.onPrimary,
-          fontWeight: FontWeight.bold,
+          fontWeight: FontWeight.w800,
         ),
       ),
     );
@@ -580,7 +580,7 @@ class OffenseBarChart extends StatelessWidget {
                   '${dataList[groupIndex].key}\n${rod.toY.toInt()} 次',
                   TextStyle(
                     color: theme.colorScheme.onPrimaryContainer,
-                    fontWeight: FontWeight.bold,
+                    fontWeight: FontWeight.w800,
                     fontSize: 14,
                   ),
                 );

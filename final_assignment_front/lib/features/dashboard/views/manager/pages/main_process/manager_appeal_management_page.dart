@@ -487,7 +487,7 @@ class _AppealManagementAdminState extends State<ManagerAppealManagementPage> {
           '申诉人: ${appeal.appellantName ?? "未知"} (ID: ${appeal.appealId ?? "无"})',
           style: themeData.textTheme.titleMedium?.copyWith(
             color: themeData.colorScheme.onSurface,
-            fontWeight: FontWeight.bold,
+            fontWeight: FontWeight.w800,
           ),
         ),
         subtitle: Padding(
@@ -830,7 +830,7 @@ class _AppealDetailPageState extends State<AppealDetailPage> {
                   '驳回申诉',
                   style: themeData.textTheme.titleLarge?.copyWith(
                     color: themeData.colorScheme.onSurface,
-                    fontWeight: FontWeight.bold,
+                    fontWeight: FontWeight.w800,
                   ),
                   textAlign: TextAlign.center,
                 ),
@@ -919,7 +919,7 @@ class _AppealDetailPageState extends State<AppealDetailPage> {
                         '确认驳回',
                         style: themeData.textTheme.labelLarge?.copyWith(
                           color: themeData.colorScheme.onError,
-                          fontWeight: FontWeight.bold,
+                          fontWeight: FontWeight.w800,
                         ),
                       ),
                     ),
@@ -966,7 +966,7 @@ class _AppealDetailPageState extends State<AppealDetailPage> {
           Text(
             '$label: ',
             style: themeData.textTheme.titleMedium?.copyWith(
-              fontWeight: FontWeight.bold,
+              fontWeight: FontWeight.w800,
               color: themeData.colorScheme.onSurface,
             ),
           ),
@@ -1091,14 +1091,9 @@ class _AppealDetailPageState extends State<AppealDetailPage> {
                                         size: 20),
                                     label: const Text('通过'),
                                     style: ElevatedButton.styleFrom(
-                                      backgroundColor: Colors.green,
+                                      backgroundColor:
+                                          const Color(0xFF41B86A),
                                       foregroundColor: Colors.white,
-                                      shape: RoundedRectangleBorder(
-                                          borderRadius:
-                                              BorderRadius.circular(12.0)),
-                                      padding: const EdgeInsets.symmetric(
-                                          horizontal: 20.0, vertical: 12.0),
-                                      elevation: 2,
                                     ),
                                   ),
                                   ElevatedButton.icon(
@@ -1112,12 +1107,6 @@ class _AppealDetailPageState extends State<AppealDetailPage> {
                                           themeData.colorScheme.error,
                                       foregroundColor:
                                           themeData.colorScheme.onError,
-                                      shape: RoundedRectangleBorder(
-                                          borderRadius:
-                                              BorderRadius.circular(12.0)),
-                                      padding: const EdgeInsets.symmetric(
-                                          horizontal: 20.0, vertical: 12.0),
-                                      elevation: 2,
                                     ),
                                   ),
                                 ],

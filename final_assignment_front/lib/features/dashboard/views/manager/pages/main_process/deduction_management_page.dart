@@ -481,7 +481,7 @@ class _DeductionManagementState extends State<DeductionManagementPage> {
                       '扣分: ${deduction.deductedPoints ?? 0}',
                       style: themeData.textTheme.titleMedium?.copyWith(
                         color: themeData.colorScheme.primary,
-                        fontWeight: FontWeight.bold,
+                        fontWeight: FontWeight.w800,
                       ),
                     ),
                     subtitle: Text(
@@ -993,7 +993,7 @@ class _AddDeductionPageState extends State<AddDeductionPage> {
                             padding: const EdgeInsets.symmetric(
                                 vertical: 14.0, horizontal: 20.0),
                             textStyle: themeData.textTheme.labelLarge
-                                ?.copyWith(fontWeight: FontWeight.bold),
+                                ?.copyWith(fontWeight: FontWeight.w800),
                           ),
                           child: const Text('提交'),
                         ),
@@ -1439,7 +1439,7 @@ class _EditDeductionPageState extends State<EditDeductionPage> {
                             padding: const EdgeInsets.symmetric(
                                 vertical: 14.0, horizontal: 20.0),
                             textStyle: themeData.textTheme.labelLarge
-                                ?.copyWith(fontWeight: FontWeight.bold),
+                                ?.copyWith(fontWeight: FontWeight.w800),
                           ),
                           child: const Text('保存'),
                         ),

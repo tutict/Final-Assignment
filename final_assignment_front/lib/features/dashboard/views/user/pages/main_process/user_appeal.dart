@@ -476,7 +476,7 @@ class _UserAppealPageState extends State<UserAppealPage> {
                         '提交申诉',
                         style: themeData.textTheme.titleMedium?.copyWith(
                           color: themeData.colorScheme.onSurface,
-                          fontWeight: FontWeight.bold,
+                          fontWeight: FontWeight.w800,
                         ),
                         textAlign: TextAlign.center,
                       ),
@@ -974,7 +974,7 @@ class _UserAppealDetailPageState extends State<UserAppealDetailPage> {
           Text(
             '$label: ',
             style: themeData.textTheme.bodyLarge?.copyWith(
-              fontWeight: FontWeight.bold,
+              fontWeight: FontWeight.w800,
               color: themeData.colorScheme.onSurface,
             ),
           ),
@@ -1190,7 +1190,7 @@ class _UserAppealDetailPageState extends State<UserAppealDetailPage> {
                           '相关反馈',
                           style: themeData.textTheme.titleLarge?.copyWith(
                             color: themeData.colorScheme.onSurface,
-                            fontWeight: FontWeight.bold,
+                            fontWeight: FontWeight.w800,
                           ),
                         ),
                         const SizedBox(height: 12),

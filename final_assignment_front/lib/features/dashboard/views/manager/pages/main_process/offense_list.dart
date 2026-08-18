@@ -904,7 +904,7 @@ class _AddOffensePageState extends State<AddOffensePage> {
                             padding: const EdgeInsets.symmetric(
                                 vertical: 14.0, horizontal: 20.0),
                             textStyle: themeData.textTheme.labelLarge
-                                ?.copyWith(fontWeight: FontWeight.bold),
+                                ?.copyWith(fontWeight: FontWeight.w800),
                           ),
                           child: const Text('提交'),
                         ),
@@ -1041,7 +1041,7 @@ class _OffenseDetailPageState extends State<OffenseDetailPage> {
         children: [
           Text('$label: ',
               style: themeData.textTheme.bodyLarge?.copyWith(
-                  fontWeight: FontWeight.bold,
+                  fontWeight: FontWeight.w800,
                   color: themeData.colorScheme.onSurface)),
           Expanded(
             child: Text(value,
@@ -1440,7 +1440,7 @@ class _EditOffensePageState extends State<EditOffensePage> {
                             padding: const EdgeInsets.symmetric(
                                 vertical: 14.0, horizontal: 20.0),
                             textStyle: themeData.textTheme.labelLarge
-                                ?.copyWith(fontWeight: FontWeight.bold),
+                                ?.copyWith(fontWeight: FontWeight.w800),
                           ),
                           child: const Text('保存'),
                         ),

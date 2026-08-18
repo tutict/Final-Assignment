@@ -69,7 +69,7 @@ class ActiveProjectCard extends StatelessWidget {
     return Text(
       title,
       style: theme.textTheme.titleLarge?.copyWith(
-        fontWeight: FontWeight.bold,
+        fontWeight: FontWeight.w800,
         color: theme.colorScheme.onSurface,
         fontSize: 18, // Increased for better visibility
       ),

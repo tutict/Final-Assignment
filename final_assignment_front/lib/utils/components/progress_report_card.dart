@@ -72,7 +72,7 @@ class ProgressReportCard extends StatelessWidget {
                   data.title,
                   style: Theme.of(context).textTheme.titleMedium!.copyWith(
                         fontSize: 20,
-                        fontWeight: FontWeight.bold,
+                        fontWeight: FontWeight.w800,
                         color: Colors.white,
                       ),
                 ),
@@ -114,7 +114,7 @@ class _ProgressRichText extends StatelessWidget {
       text: TextSpan(
         style: Theme.of(context).textTheme.bodyMedium!.copyWith(
               color: isLight ? Colors.white : Colors.white70,
-              fontWeight: FontWeight.bold,
+              fontWeight: FontWeight.w800,
               fontSize: 14, // 减小字体大小
             ),
         children: [
@@ -157,7 +157,7 @@ class _Indicator extends StatelessWidget {
             "${(percent * 100).toStringAsFixed(1)} %",
             style: Theme.of(context).textTheme.titleSmall!.copyWith(
                   fontSize: 16, // 减小完成度字体
-                  fontWeight: FontWeight.bold,
+                  fontWeight: FontWeight.w800,
                   color: Colors.white,
                 ),
           ),

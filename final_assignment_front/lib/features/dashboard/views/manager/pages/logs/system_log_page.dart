@@ -249,7 +249,7 @@ class _SystemLogPageState extends State<SystemLogPage> {
               '系统概览',
               style: themeData.textTheme.titleMedium?.copyWith(
                 color: themeData.colorScheme.onSurface,
-                fontWeight: FontWeight.bold,
+                fontWeight: FontWeight.w800,
               ),
             ),
             const SizedBox(height: 12),
@@ -285,7 +285,7 @@ class _SystemLogPageState extends State<SystemLogPage> {
                           value?.toString() ?? '0',
                           style: themeData.textTheme.titleMedium?.copyWith(
                             color: themeData.colorScheme.primary,
-                            fontWeight: FontWeight.bold,
+                            fontWeight: FontWeight.w800,
                           ),
                         ),
                       ],
@@ -336,7 +336,7 @@ class _SystemLogPageState extends State<SystemLogPage> {
               '近期登录日志',
               style: themeData.textTheme.titleMedium?.copyWith(
                 color: themeData.colorScheme.onSurface,
-                fontWeight: FontWeight.bold,
+                fontWeight: FontWeight.w800,
               ),
             ),
             const SizedBox(height: 12),
@@ -410,7 +410,7 @@ class _SystemLogPageState extends State<SystemLogPage> {
               '近期操作日志',
               style: themeData.textTheme.titleMedium?.copyWith(
                 color: themeData.colorScheme.onSurface,
-                fontWeight: FontWeight.bold,
+                fontWeight: FontWeight.w800,
               ),
             ),
             const SizedBox(height: 12),

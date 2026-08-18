@@ -45,7 +45,7 @@ class OffensePieChart extends StatelessWidget {
                   'Total',
                   style: TextStyle(
                     fontSize: 16,
-                    fontWeight: FontWeight.bold,
+                    fontWeight: FontWeight.w800,
                     color: Colors.black,
                   ),
                 ),
@@ -53,7 +53,7 @@ class OffensePieChart extends StatelessWidget {
                   totalCount.toString(),
                   style: const TextStyle(
                     fontSize: 20,
-                    fontWeight: FontWeight.bold,
+                    fontWeight: FontWeight.w800,
                     color: Colors.black,
                   ),
                 ),
@@ -86,7 +86,7 @@ class OffensePieChart extends StatelessWidget {
         // 显示百分比
         titleStyle: const TextStyle(
           fontSize: 14,
-          fontWeight: FontWeight.bold,
+          fontWeight: FontWeight.w800,
           color: Colors.white,
         ),
         badgeWidget: _buildBadgeWidget(entry.key, colors[index]),
@@ -116,7 +116,7 @@ class OffensePieChart extends StatelessWidget {
         style: const TextStyle(
           fontSize: 12,
           color: Colors.white,
-          fontWeight: FontWeight.bold,
+          fontWeight: FontWeight.w800,
         ),
       ),
     );

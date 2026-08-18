@@ -810,7 +810,7 @@ class _AddVehiclePageState extends State<AddVehiclePage> {
                                         ?.copyWith(
                                             color:
                                                 themeData.colorScheme.onSurface,
-                                            fontWeight: FontWeight.bold)),
+                                            fontWeight: FontWeight.w800)),
                               if (widget.onVehicleAdded != null)
                                 const SizedBox(height: 16),
                               _buildTextField(
@@ -863,7 +863,7 @@ class _AddVehiclePageState extends State<AddVehiclePage> {
                           padding: const EdgeInsets.symmetric(
                               vertical: 14.0, horizontal: 20.0),
                           textStyle: themeData.textTheme.labelLarge
-                              ?.copyWith(fontWeight: FontWeight.bold),
+                              ?.copyWith(fontWeight: FontWeight.w800),
                         ),
                         child: const Text('提交'),
                       ),
@@ -1221,7 +1221,7 @@ class _EditVehiclePageState extends State<EditVehiclePage> {
                           padding: const EdgeInsets.symmetric(
                               vertical: 14.0, horizontal: 20.0),
                           textStyle: themeData.textTheme.labelLarge
-                              ?.copyWith(fontWeight: FontWeight.bold),
+                              ?.copyWith(fontWeight: FontWeight.w800),
                         ),
                         child: const Text('保存'),
                       ),
@@ -1338,7 +1338,7 @@ class _VehicleDetailPageState extends State<VehicleDetailPage> {
         children: [
           Text('$label: ',
               style: themeData.textTheme.bodyLarge?.copyWith(
-                  fontWeight: FontWeight.bold,
+                  fontWeight: FontWeight.w800,
                   color: themeData.colorScheme.onSurface)),
           Expanded(
               child: Text(value,

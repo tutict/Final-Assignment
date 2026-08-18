@@ -2,8 +2,8 @@
 
 import 'package:final_assignment_front/features/api/feedback_controller_api.dart';
 import 'package:final_assignment_front/features/dashboard/controllers/user_dashboard_screen_controller.dart';
-import 'package:final_assignment_front/features/dashboard/views/user/widgets/user_page_app_bar.dart';
-import 'package:final_assignment_front/utils/widgets/index.dart';
+import 'package:final_assignment_front/features/dashboard/views/shared/widgets/dashboard_chrome.dart';
+import 'package:final_assignment_front/features/dashboard/views/shared/widgets/dashboard_page_template.dart';
 import 'package:final_assignment_front/utils/ui/ui_utils.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
@@ -58,11 +58,6 @@ class _ConsultationFeedbackState extends State<ConsultationFeedback> {
   bool _isLoading = false;
 
   @override
-  void initState() {
-    super.initState();
-  }
-
-  @override
   void dispose() {
     _feedbackController.dispose();
     super.dispose();
@@ -112,63 +107,42 @@ class _ConsultationFeedbackState extends State<ConsultationFeedback> {
   @override
   Widget build(BuildContext context) {
     return Obx(() {
-      final themeData = _dashboardController.currentBodyTheme.value;
-      return Scaffold(
-        backgroundColor: themeData.colorScheme.surface,
-        appBar: UserPageAppBar(
-          theme: themeData,
-          title: '咨询与反馈',
-          onThemeToggle: _dashboardController.toggleBodyTheme,
-        ),
+      final theme = _dashboardController.currentBodyTheme.value;
+      return DashboardPageTemplate(
+        theme: theme,
+        title: '咨询与反馈',
+        pageType: DashboardPageType.user,
+        onThemeToggle: _dashboardController.toggleBodyTheme,
         body: Padding(
-          padding: const EdgeInsets.all(16.0),
+          padding: const EdgeInsets.all(20),
           child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              Text(
-                '请输入您的反馈或咨询内容：',
-                style: themeData.textTheme.titleMedium?.copyWith(
-                  fontWeight: FontWeight.bold,
-                  color: themeData.colorScheme.onSurface,
-                ),
+              DashboardSectionHeader(
+                title: '请输入您的反馈或咨询内容',
+                subtitle: '提交后将由管理员审核处理。',
               ),
               const SizedBox(height: 16),
-              TextField(
-                controller: _feedbackController,
-                maxLines: 5,
-                decoration: InputDecoration(
-                  hintText: '请输入反馈内容...',
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(12),
+              DashboardPanel(
+                padding: const EdgeInsets.all(16),
+                child: TextField(
+                  controller: _feedbackController,
+                  maxLines: 5,
+                  decoration: const InputDecoration(
+                    hintText: '请输入反馈内容...',
+                    border: InputBorder.none,
                   ),
-                  filled: true,
-                  fillColor: themeData.colorScheme.surfaceContainer,
-                ),
-                style: themeData.textTheme.bodyMedium?.copyWith(
-                  color: themeData.colorScheme.onSurface,
+                  style: theme.textTheme.bodyMedium?.copyWith(
+                    color: theme.colorScheme.onSurface,
+                  ),
                 ),
               ),
               const SizedBox(height: 20),
               _isLoading
-                  ? const LoadingView()
-                  : SizedBox(
-                      width: double.infinity,
-                      child: ElevatedButton(
-                        onPressed: _submitFeedback,
-                        style: ElevatedButton.styleFrom(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 32,
-                            vertical: 14,
-                          ),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(12),
-                          ),
-                        ),
-                        child: const Text(
-                          '提交反馈',
-                          style: TextStyle(fontSize: 16),
-                        ),
-                      ),
+                  ? const Center(child: CircularProgressIndicator())
+                  : ElevatedButton(
+                      onPressed: _submitFeedback,
+                      child: const Text('提交反馈'),
                     ),
             ],
           ),
@@ -244,99 +218,33 @@ class _FeedbackApprovalPageState extends State<FeedbackApprovalPage> {
   @override
   Widget build(BuildContext context) {
     return Obx(() {
-      final themeData = dashboardController.currentBodyTheme.value;
-      return Scaffold(
-        backgroundColor: themeData.colorScheme.surface,
-        appBar: UserPageAppBar(
-          theme: themeData,
-          title: '反馈审批',
-          onThemeToggle: dashboardController.toggleBodyTheme,
-          onRefresh: _fetchFeedbackRequests,
-        ),
-        body: Padding(
-          padding: const EdgeInsets.all(16.0),
-          child: _isLoading
-              ? const LoadingView()
-              : _errorMessage.isNotEmpty
-                  ? ErrorStateView(
-                      message: _errorMessage,
-                      onRetry: _fetchFeedbackRequests,
-                    )
-                  : _feedbackRequests.isEmpty
-                      ? const EmptyStateView(
-                          message: '暂无反馈请求',
-                          icon: Icons.feedback_outlined,
-                        )
-                      : ListView.builder(
-                          itemCount: _feedbackRequests.length,
-                          itemBuilder: (context, index) {
-                            final feedback = _feedbackRequests[index];
-                            return Card(
-                              elevation: 3,
-                              color: themeData.colorScheme.surfaceContainer,
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(12),
-                              ),
-                              child: ListTile(
-                                title: Text(
-                                  '用户: ${feedback.username}',
-                                  style:
-                                      themeData.textTheme.titleMedium?.copyWith(
-                                    color: themeData.colorScheme.onSurface,
-                                    fontWeight: FontWeight.w600,
-                                  ),
-                                ),
-                                subtitle: Text(
-                                  '反馈: ${feedback.feedback}\n状态: ${_translateStatus(feedback.status)}',
-                                  style:
-                                      themeData.textTheme.bodyMedium?.copyWith(
-                                    color:
-                                        themeData.colorScheme.onSurfaceVariant,
-                                  ),
-                                ),
-                                trailing: feedback.status == 'Pending'
-                                    ? Row(
-                                        mainAxisSize: MainAxisSize.min,
-                                        children: [
-                                          IconButton(
-                                            icon: Icon(Icons.check,
-                                                color: themeData
-                                                    .colorScheme.primary),
-                                            onPressed: () {
-                                              if (feedback.feedbackId != 0) {
-                                                _updateFeedbackRequest(
-                                                    feedback.feedbackId,
-                                                    'Approved');
-                                              } else {
-                                                AppSnackbar.showError(context,
-                                                    message: '无效的反馈ID');
-                                              }
-                                            },
-                                            tooltip: '批准',
-                                          ),
-                                          IconButton(
-                                            icon: Icon(Icons.close,
-                                                color: themeData
-                                                    .colorScheme.error),
-                                            onPressed: () {
-                                              if (feedback.feedbackId != 0) {
-                                                _updateFeedbackRequest(
-                                                    feedback.feedbackId,
-                                                    'Rejected');
-                                              } else {
-                                                AppSnackbar.showError(context,
-                                                    message: '无效的反馈ID');
-                                              }
-                                            },
-                                            tooltip: '拒绝',
-                                          ),
-                                        ],
-                                      )
-                                    : null,
-                              ),
-                            );
-                          },
-                        ),
+      final theme = dashboardController.currentBodyTheme.value;
+      return DashboardPageTemplate(
+        theme: theme,
+        title: '反馈审批',
+        pageType: DashboardPageType.user,
+        onThemeToggle: dashboardController.toggleBodyTheme,
+        onRefresh: _fetchFeedbackRequests,
+        isLoading: _isLoading,
+        errorMessage: _errorMessage,
+        showEmptyState: _feedbackRequests.isEmpty && !_isLoading && _errorMessage.isEmpty,
+        body: ListView.separated(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+          itemCount: _feedbackRequests.length,
+          separatorBuilder: (_, __) => const SizedBox(height: 12),
+          itemBuilder: (context, index) {
+            final feedback = _feedbackRequests[index];
+            return _FeedbackApprovalCard(
+              feedback: feedback,
+              statusLabel: _translateStatus(feedback.status),
+              onApprove: feedback.status == 'Pending' && feedback.feedbackId != 0
+                  ? () => _updateFeedbackRequest(feedback.feedbackId, 'Approved')
+                  : null,
+              onReject: feedback.status == 'Pending' && feedback.feedbackId != 0
+                  ? () => _updateFeedbackRequest(feedback.feedbackId, 'Rejected')
+                  : null,
+            );
+          },
         ),
       );
     });
@@ -353,5 +261,118 @@ class _FeedbackApprovalPageState extends State<FeedbackApprovalPage> {
       default:
         return '未知';
     }
+  }
+}
+
+class _FeedbackApprovalCard extends StatelessWidget {
+  const _FeedbackApprovalCard({
+    required this.feedback,
+    required this.statusLabel,
+    this.onApprove,
+    this.onReject,
+  });
+
+  final Feedback feedback;
+  final String statusLabel;
+  final VoidCallback? onApprove;
+  final VoidCallback? onReject;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final scheme = theme.colorScheme;
+    final isPending = feedback.status == 'Pending';
+    final statusColor = switch (feedback.status) {
+      'Approved' => const Color(0xFF41B86A),
+      'Rejected' => scheme.error,
+      _ => const Color(0xFFEAB45C),
+    };
+
+    return DashboardPanel(
+      padding: const EdgeInsets.all(16),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Container(
+                width: 40,
+                height: 40,
+                decoration: BoxDecoration(
+                  color: scheme.primary.withValues(alpha: 0.12),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Icon(
+                  Icons.feedback_outlined,
+                  color: scheme.primary,
+                  size: 21,
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Text(
+                  '用户: ${feedback.username}',
+                  style: theme.textTheme.titleMedium?.copyWith(
+                    color: scheme.onSurface,
+                    fontWeight: FontWeight.w800,
+                    letterSpacing: 0,
+                  ),
+                ),
+              ),
+              Container(
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                decoration: BoxDecoration(
+                  color: statusColor.withValues(alpha: 0.14),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Text(
+                  statusLabel,
+                  style: theme.textTheme.labelSmall?.copyWith(
+                    color: statusColor,
+                    fontWeight: FontWeight.w800,
+                    letterSpacing: 0,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          Text(
+            feedback.feedback,
+            style: theme.textTheme.bodyMedium?.copyWith(
+              color: scheme.onSurfaceVariant,
+              height: 1.45,
+              letterSpacing: 0,
+            ),
+          ),
+          if (isPending && (onApprove != null || onReject != null)) ...[
+            const SizedBox(height: 16),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.end,
+              children: [
+                if (onReject != null)
+                  TextButton.icon(
+                    onPressed: onReject,
+                    icon: const Icon(Icons.close_rounded, size: 18),
+                    label: const Text('拒绝'),
+                    style: TextButton.styleFrom(
+                      foregroundColor: scheme.error,
+                    ),
+                  ),
+                if (onApprove != null) ...[
+                  const SizedBox(width: 8),
+                  FilledButton.icon(
+                    onPressed: onApprove,
+                    icon: const Icon(Icons.check_rounded, size: 18),
+                    label: const Text('批准'),
+                  ),
+                ],
+              ],
+            ),
+          ],
+        ],
+      ),
+    );
   }
 }

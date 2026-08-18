@@ -625,12 +625,41 @@ class _LoginLogPageState extends State<LoginLogPage> {
 
   void _showSnackBar(String message, {bool isError = false}) {
     if (!mounted) return;
-    Get.snackbar(
-      isError ? '错误' : '提示',
-      message,
-      snackPosition: SnackPosition.BOTTOM,
-      backgroundColor: isError ? Colors.red.shade100 : Colors.green.shade100,
-      duration: const Duration(seconds: 3),
+    final scheme = controller.currentBodyTheme.value.colorScheme;
+    final color = isError ? scheme.error : const Color(0xFF41B86A);
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        behavior: SnackBarBehavior.floating,
+        backgroundColor:
+            Color.lerp(scheme.surface, color, 0.14),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(8),
+          side: BorderSide(color: color.withValues(alpha: 0.34)),
+        ),
+        content: Row(
+          children: [
+            Icon(
+              isError
+                  ? Icons.error_outline_rounded
+                  : Icons.check_circle_rounded,
+              color: color,
+              size: 20,
+            ),
+            const SizedBox(width: 10),
+            Expanded(
+              child: Text(
+                message,
+                style: controller.currentBodyTheme.value.textTheme.bodyMedium
+                    ?.copyWith(
+                  color: scheme.onSurface,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+            ),
+          ],
+        ),
+        duration: const Duration(seconds: 3),
+      ),
     );
   }
 
@@ -732,7 +761,7 @@ class _LoginLogPageState extends State<LoginLogPage> {
           '日志ID: ${log.logId ?? "未知"}',
           style: themeData.textTheme.titleMedium?.copyWith(
             color: themeData.colorScheme.onSurface,
-            fontWeight: FontWeight.bold,
+            fontWeight: FontWeight.w800,
           ),
         ),
         subtitle: Padding(

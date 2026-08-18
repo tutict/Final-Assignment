@@ -93,7 +93,7 @@ class _LocalCaptchaMainState extends State<LocalCaptchaMain> {
         '验证码验证',
         style: TextStyle(
           fontSize: 20,
-          fontWeight: FontWeight.bold,
+          fontWeight: FontWeight.w800,
           color: isLight
               ? themeData.colorScheme.onSurface
               : themeData.colorScheme.onSurface.withValues(alpha: 0.95),

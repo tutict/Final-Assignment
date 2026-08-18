@@ -349,7 +349,7 @@ class _FineInformationPageState extends State<FineInformationPage> {
                     '请使用支付宝扫描以下二维码支付', // 更新为支付宝提示
                     style: themeData.textTheme.bodyMedium?.copyWith(
                       color: themeData.colorScheme.onSurface,
-                      fontWeight: FontWeight.bold,
+                      fontWeight: FontWeight.w800,
                     ),
                   ),
                 ),
@@ -388,7 +388,7 @@ class _FineInformationPageState extends State<FineInformationPage> {
           Text(
             '$label: ',
             style: themeData.textTheme.bodyLarge?.copyWith(
-              fontWeight: FontWeight.bold,
+              fontWeight: FontWeight.w800,
               color: themeData.colorScheme.onSurface,
             ),
           ),
