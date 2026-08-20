@@ -165,29 +165,26 @@ class FineInformationControllerApi with BaseApiClient {
       action: 'checkAndInsertIdempotency',
       args: [idempotencyKey, fineInformation.toJson(), 'create'],
     );
-    _throwWsError(respMap);
+    throwWsError(respMap);
   }
 
   Future<FineInformation?> eventbusFinesFineIdGet({
     required int fineId,
-  }) async {
-    final respMap = await sendWsRaw(
+  }) {
+    return sendWsObjectChecked(
       service: 'FineRecordService',
       action: 'getFineById',
       args: [fineId],
+      fromJson: FineInformation.fromJson,
     );
-    if (_isWsNotFound(respMap)) return null;
-    _throwWsError(respMap);
-    return _fineFromWsResult(respMap);
   }
 
-  Future<List<FineInformation>> eventbusFinesGet() async {
-    final respMap = await sendWsRaw(
+  Future<List<FineInformation>> eventbusFinesGet() {
+    return sendWsListChecked(
       service: 'FineRecordService',
       action: 'getAllFines',
+      fromJson: FineInformation.fromJson,
     );
-    _throwWsError(respMap);
-    return _fineListFromWsResult(respMap);
   }
 
   Future<FineInformation?> eventbusFinesFineIdPut({
@@ -200,11 +197,20 @@ class FineInformationControllerApi with BaseApiClient {
       action: 'checkAndInsertIdempotency',
       args: [idempotencyKey, fineInformation.toJson(), 'update'],
     );
-    if (_isWsNotFound(respMap)) {
+    if (isWsNotFound(respMap)) {
       throw AppException.http(404, 'Fine not found with ID: $fineId');
     }
-    _throwWsError(respMap);
-    return _fineFromWsResult(respMap);
+    throwWsError(respMap);
+    final result = respMap['result'];
+    if (result == null) return null;
+    if (result is Map<String, dynamic>) return FineInformation.fromJson(result);
+    if (result is Map) {
+      return FineInformation.fromJson(Map<String, dynamic>.from(result));
+    }
+    throw AppException.http(
+      400,
+      'Expected WebSocket object result, got ${result.runtimeType}',
+    );
   }
 
   Future<void> eventbusFinesFineIdDelete({
@@ -215,53 +221,49 @@ class FineInformationControllerApi with BaseApiClient {
       action: 'deleteFine',
       args: [fineId],
     );
-    if (_isWsNotFound(respMap)) {
+    if (isWsNotFound(respMap)) {
       throw AppException.http(404, 'Fine not found with ID: $fineId');
     }
-    if (_wsError(respMap).contains('Unauthorized')) {
+    if (wsError(respMap).contains('Unauthorized')) {
       throw AppException.http(403, 'Unauthorized: Only ADMIN can delete fines');
     }
-    _throwWsError(respMap);
+    throwWsError(respMap);
   }
 
   Future<List<FineInformation>> eventbusFinesPayeePayeeGet({
     required String payee,
-  }) async {
+  }) {
     requireNotBlank(payee, 'payee');
-    final respMap = await sendWsRaw(
+    return sendWsListChecked(
       service: 'FineRecordService',
       action: 'getFinesByPayee',
       args: [payee],
+      fromJson: FineInformation.fromJson,
     );
-    _throwWsError(respMap);
-    return _fineListFromWsResult(respMap);
   }
 
   Future<FineInformation?> eventbusFinesReceiptNumberReceiptNumberGet({
     required String receiptNumber,
-  }) async {
+  }) {
     requireNotBlank(receiptNumber, 'receiptNumber');
-    final respMap = await sendWsRaw(
+    return sendWsObjectChecked(
       service: 'FineRecordService',
       action: 'getFineByReceiptNumber',
       args: [receiptNumber],
+      fromJson: FineInformation.fromJson,
     );
-    if (_isWsNotFound(respMap)) return null;
-    _throwWsError(respMap);
-    return _fineFromWsResult(respMap);
   }
 
   Future<List<FineInformation>> eventbusFinesTimeRangeGet({
     String startTime = '1970-01-01',
     String endTime = '2100-01-01',
-  }) async {
-    final respMap = await sendWsRaw(
+  }) {
+    return sendWsListChecked(
       service: 'FineRecordService',
       action: 'getFinesByTimeRange',
       args: [startTime, endTime],
+      fromJson: FineInformation.fromJson,
     );
-    _throwWsError(respMap);
-    return _fineListFromWsResult(respMap);
   }
 
   Future<List<FineInformation>> _list(
@@ -287,36 +289,5 @@ class FineInformationControllerApi with BaseApiClient {
       FineInformation.fromJson,
       queryParams: queryParamsFromMap(params),
     );
-  }
-
-  FineInformation? _fineFromWsResult(Map<String, dynamic> response) {
-    final result = response['result'];
-    if (result == null) return null;
-    return FineInformation.fromJson(Map<String, dynamic>.from(result as Map));
-  }
-
-  List<FineInformation> _fineListFromWsResult(Map<String, dynamic> response) {
-    final result = response['result'];
-    if (result is! List) return [];
-    return result
-        .map((json) => FineInformation.fromJson(
-              Map<String, dynamic>.from(json as Map),
-            ))
-        .toList();
-  }
-
-  bool _isWsNotFound(Map<String, dynamic> response) {
-    return _wsError(response).toLowerCase().contains('not found');
-  }
-
-  String _wsError(Map<String, dynamic> response) {
-    return response['error']?.toString() ?? '';
-  }
-
-  void _throwWsError(Map<String, dynamic> response) {
-    final error = _wsError(response);
-    if (error.isNotEmpty) {
-      throw AppException.http(400, error);
-    }
   }
 }

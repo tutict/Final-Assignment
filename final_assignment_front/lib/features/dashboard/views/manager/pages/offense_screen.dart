@@ -1,5 +1,7 @@
 import 'package:final_assignment_front/features/dashboard/views/shared/components/active_project_card.dart';
+import 'package:final_assignment_front/features/dashboard/views/shared/widgets/dashboard_chrome.dart';
 import 'package:final_assignment_front/features/dashboard/views/shared/widgets/dashboard_page_template.dart';
+import 'package:final_assignment_front/features/dashboard/views/manager/pages/main_process/manager_business_page_chrome.dart';
 import 'package:final_assignment_front/features/dashboard/controllers/offense_controller.dart';
 import 'package:fl_chart/fl_chart.dart';
 import 'package:flutter/material.dart';
@@ -40,11 +42,7 @@ class OffenseScreen extends GetView<OffenseController> {
                   : ActiveProjectCard(
                       title: '违法类型分布',
                       onPressedSeeAll: () {
-                        Get.snackbar(
-                          '提示',
-                          '查看违法类型详情',
-                          snackPosition: SnackPosition.BOTTOM,
-                        );
+                        showManagerBusinessToast(context, message: '查看违法类型详情');
                       },
                       child: SizedBox(
                         height: 250,
@@ -63,11 +61,7 @@ class OffenseScreen extends GetView<OffenseController> {
                   : ActiveProjectCard(
                       title: '罚款与扣分趋势',
                       onPressedSeeAll: () {
-                        Get.snackbar(
-                          '提示',
-                          '查看时间序列详情',
-                          snackPosition: SnackPosition.BOTTOM,
-                        );
+                        showManagerBusinessToast(context, message: '查看时间序列详情');
                       },
                       child: SizedBox(
                         height: 200,
@@ -87,11 +81,7 @@ class OffenseScreen extends GetView<OffenseController> {
                   : ActiveProjectCard(
                       title: '申诉理由分布',
                       onPressedSeeAll: () {
-                        Get.snackbar(
-                          '提示',
-                          '查看申诉理由详情',
-                          snackPosition: SnackPosition.BOTTOM,
-                        );
+                        showManagerBusinessToast(context, message: '查看申诉理由详情');
                       },
                       child: SizedBox(
                         height: 250,
@@ -109,11 +99,7 @@ class OffenseScreen extends GetView<OffenseController> {
                   : ActiveProjectCard(
                       title: '罚款支付状态',
                       onPressedSeeAll: () {
-                        Get.snackbar(
-                          '提示',
-                          '查看支付状态详情',
-                          snackPosition: SnackPosition.BOTTOM,
-                        );
+                        showManagerBusinessToast(context, message: '查看支付状态详情');
                       },
                       child: SizedBox(
                         height: 250,
@@ -141,15 +127,9 @@ class OffenseScreen extends GetView<OffenseController> {
               ),
         ),
         const SizedBox(height: 12),
-        Card(
-          elevation: 6,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(16),
-          ),
-          child: Padding(
-            padding: const EdgeInsets.all(16.0),
-            child: chart,
-          ),
+        DashboardPanel(
+          padding: const EdgeInsets.all(16.0),
+          child: chart,
         ),
         const SizedBox(height: 24),
       ],
@@ -399,11 +379,7 @@ class OffensePieChartCard extends StatelessWidget {
     return ActiveProjectCard(
       title: title,
       onPressedSeeAll: () {
-        Get.snackbar(
-          '提示',
-          '查看详情：$title',
-          snackPosition: SnackPosition.BOTTOM,
-        );
+        showManagerBusinessToast(context, message: '查看详情：$title');
       },
       child: SizedBox(
         height: 250,
@@ -516,7 +492,7 @@ class OffensePieChart extends StatelessWidget {
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
       decoration: BoxDecoration(
         color: color,
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.circular(8),
         boxShadow: [
           BoxShadow(
             color: theme.colorScheme.shadow.withValues(alpha: 0.3),

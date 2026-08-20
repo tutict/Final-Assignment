@@ -259,7 +259,7 @@ class AppAutocompleteField<T extends Object> extends StatelessWidget {
         return Align(
           alignment: Alignment.topLeft,
           child: Material(
-            elevation: 4,
+            elevation: 0,
             color: theme.colorScheme.surfaceContainer,
             borderRadius: BorderRadius.circular(8),
             child: ConstrainedBox(

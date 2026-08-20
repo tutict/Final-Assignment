@@ -2,10 +2,11 @@
 import 'dart:developer' as developer;
 
 import 'package:final_assignment_front/config/routes/app_routes.dart';
-import 'package:final_assignment_front/core/auth/auth_service.dart';
 import 'package:final_assignment_front/features/api/login_log_controller_api.dart';
 import 'package:final_assignment_front/features/dashboard/controllers/manager_dashboard_controller.dart';
+import 'package:final_assignment_front/features/dashboard/views/shared/widgets/dashboard_chrome.dart';
 import 'package:final_assignment_front/features/dashboard/views/shared/widgets/dashboard_page_template.dart';
+import 'package:final_assignment_front/features/dashboard/views/shared/widgets/page_auth_mixin.dart';
 import 'package:final_assignment_front/features/model/login_log.dart';
 import 'package:final_assignment_front/shared/dialogs/app_dialog.dart';
 import 'package:final_assignment_front/utils/widgets/index.dart';
@@ -14,10 +15,8 @@ import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:intl/intl.dart';
-import 'package:jwt_decoder/jwt_decoder.dart';
 import 'package:uuid/uuid.dart';
 import 'package:final_assignment_front/shared/utils/navigation_helper.dart';
-import 'package:final_assignment_front/utils/services/auth_token_store.dart';
 
 String generateIdempotencyKey() {
   return const Uuid().v4();
@@ -35,7 +34,7 @@ class LoginLogPage extends StatefulWidget {
   State<LoginLogPage> createState() => _LoginLogPageState();
 }
 
-class _LoginLogPageState extends State<LoginLogPage> {
+class _LoginLogPageState extends State<LoginLogPage> with PageAuthMixin {
   final LoginLogControllerApi logApi = LoginLogControllerApi();
   final TextEditingController _searchController = TextEditingController();
   final ScrollController _scrollController = ScrollController();
@@ -77,78 +76,25 @@ class _LoginLogPageState extends State<LoginLogPage> {
     super.dispose();
   }
 
-  Future<bool> _validateJwtToken() async {
-    String? jwtToken = await AuthTokenStore.instance.getJwtToken();
-    if (jwtToken == null || jwtToken.isEmpty) {
-      setState(() => _errorMessage = '未授权，请重新登录');
-      return false;
-    }
-    try {
-      if (JwtDecoder.isExpired(jwtToken)) {
-        final refreshed = await Get.find<AuthService>().refreshJwtToken();
-        jwtToken = await AuthTokenStore.instance.getJwtToken();
-        if (!refreshed || jwtToken == null || JwtDecoder.isExpired(jwtToken)) {
-          setState(() => _errorMessage = '登录已过期，请重新登录');
-          return false;
-        }
-      }
-      await logApi.initializeWithJwt();
-      final decodedToken = JwtDecoder.decode(jwtToken);
-      _currentUsername = decodedToken['sub']?.toString() ?? '';
-      return true;
-    } catch (e) {
-      setState(() => _errorMessage = '无效的登录信息，请重新登录');
-      return false;
-    }
-  }
-
   Future<void> _initialize() async {
     setState(() => _isLoading = true);
     try {
-      if (!await _validateJwtToken()) {
-        NavigationHelper.offAllNamed(Routes.login);
+      final claims = await ensureFreshJwt();
+      if (claims == null) return; // session expired, redirected to login
+      _currentUsername = claims['sub']?.toString() ?? '';
+      final roles = await requireRoles((r) => r.contains('ADMIN'));
+      if (roles == null) return; // session expired during role check
+      _isAdmin = roles.isNotEmpty;
+      if (!_isAdmin) {
+        setState(() => _errorMessage = '权限不足：仅管理员可访问此页面');
         return;
       }
       await logApi.initializeWithJwt();
-      await _checkUserRole();
-      if (_isAdmin) {
-        await _fetchLogs(reset: true);
-      } else {
-        setState(() => _errorMessage = '权限不足：仅管理员可访问此页面');
-      }
+      await _fetchLogs(reset: true);
     } catch (e) {
       setState(() => _errorMessage = '初始化失败: $e');
     } finally {
       setState(() => _isLoading = false);
-    }
-  }
-
-  Future<void> _checkUserRole() async {
-    try {
-      if (!await _validateJwtToken()) {
-        NavigationHelper.offAllNamed(Routes.login);
-        return;
-      }
-      final jwtToken = await AuthTokenStore.instance.getJwtToken();
-      if (jwtToken == null || jwtToken.isEmpty) {
-        NavigationHelper.offAllNamed(Routes.login);
-        return;
-      }
-      final decodedToken = JwtDecoder.decode(jwtToken);
-      final roles = decodedToken['roles'] is List
-          ? (decodedToken['roles'] as List).map((r) => r.toString()).toList()
-          : decodedToken['roles'] is String
-              ? [decodedToken['roles'].toString()]
-              : [];
-      setState(() => _isAdmin = roles.contains('ADMIN'));
-      if (!_isAdmin) {
-        setState(() => _errorMessage = '权限不足：仅管理员可访问此页面');
-      }
-      developer.log('User roles from JWT: $roles');
-    } catch (e) {
-      setState(() => _errorMessage = '验证角色失败: $e');
-      developer.log('Error checking user role: $e',
-          stackTrace: StackTrace.current);
     }
   }
 
@@ -168,10 +114,7 @@ class _LoginLogPageState extends State<LoginLogPage> {
     });
 
     try {
-      if (!await _validateJwtToken()) {
-        NavigationHelper.offAllNamed(Routes.login);
-        return;
-      }
+      if (await ensureFreshJwt() == null) return;
       final logs = await logApi.listLoginLogs();
       setState(() {
         _logs.addAll(logs);
@@ -300,7 +243,7 @@ class _LoginLogPageState extends State<LoginLogPage> {
             title: Text('创建登录日志', style: themeData.textTheme.titleLarge),
             backgroundColor: themeData.colorScheme.surfaceContainerLowest,
             shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(16.0)),
+                borderRadius: BorderRadius.circular(8.0)),
             content: Form(
               key: formKey,
               child: SingleChildScrollView(
@@ -312,7 +255,7 @@ class _LoginLogPageState extends State<LoginLogPage> {
                       decoration: InputDecoration(
                         labelText: '用户名',
                         border: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(12.0)),
+                            borderRadius: BorderRadius.circular(8)),
                         filled: true,
                         fillColor: themeData.colorScheme.surfaceContainer,
                       ),
@@ -324,7 +267,7 @@ class _LoginLogPageState extends State<LoginLogPage> {
                       decoration: InputDecoration(
                         labelText: '登录IP地址',
                         border: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(12.0)),
+                            borderRadius: BorderRadius.circular(8)),
                         filled: true,
                         fillColor: themeData.colorScheme.surfaceContainer,
                       ),
@@ -337,7 +280,7 @@ class _LoginLogPageState extends State<LoginLogPage> {
                       decoration: InputDecoration(
                         labelText: '登录结果',
                         border: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(12.0)),
+                            borderRadius: BorderRadius.circular(8)),
                         filled: true,
                         fillColor: themeData.colorScheme.surfaceContainer,
                       ),
@@ -349,7 +292,7 @@ class _LoginLogPageState extends State<LoginLogPage> {
                       decoration: InputDecoration(
                         labelText: '浏览器类型',
                         border: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(12.0)),
+                            borderRadius: BorderRadius.circular(8)),
                         filled: true,
                         fillColor: themeData.colorScheme.surfaceContainer,
                       ),
@@ -360,7 +303,7 @@ class _LoginLogPageState extends State<LoginLogPage> {
                       decoration: InputDecoration(
                         labelText: '操作系统版本',
                         border: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(12.0)),
+                            borderRadius: BorderRadius.circular(8)),
                         filled: true,
                         fillColor: themeData.colorScheme.surfaceContainer,
                       ),
@@ -371,7 +314,7 @@ class _LoginLogPageState extends State<LoginLogPage> {
                       decoration: InputDecoration(
                         labelText: '备注',
                         border: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(12.0)),
+                            borderRadius: BorderRadius.circular(8)),
                         filled: true,
                         fillColor: themeData.colorScheme.surfaceContainer,
                       ),
@@ -390,10 +333,7 @@ class _LoginLogPageState extends State<LoginLogPage> {
               ElevatedButton(
                 onPressed: () async {
                   if (formKey.currentState!.validate()) {
-                    if (!await _validateJwtToken()) {
-                      NavigationHelper.offAllNamed(Routes.login);
-                      return;
-                    }
+                    if (await ensureFreshJwt() == null) return;
                     try {
                       final newLog = LoginLog(
                         username: usernameController.text,
@@ -426,7 +366,7 @@ class _LoginLogPageState extends State<LoginLogPage> {
                   backgroundColor: themeData.colorScheme.primary,
                   foregroundColor: themeData.colorScheme.onPrimary,
                   shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12.0)),
+                      borderRadius: BorderRadius.circular(8.0)),
                 ),
                 child: const Text('创建'),
               ),
@@ -462,7 +402,7 @@ class _LoginLogPageState extends State<LoginLogPage> {
             title: Text('编辑登录日志', style: themeData.textTheme.titleLarge),
             backgroundColor: themeData.colorScheme.surfaceContainerLowest,
             shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(16.0)),
+                borderRadius: BorderRadius.circular(8.0)),
             content: Form(
               key: formKey,
               child: SingleChildScrollView(
@@ -474,7 +414,7 @@ class _LoginLogPageState extends State<LoginLogPage> {
                       decoration: InputDecoration(
                         labelText: '用户名',
                         border: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(12.0)),
+                            borderRadius: BorderRadius.circular(8)),
                         filled: true,
                         fillColor: themeData.colorScheme.surfaceContainer,
                       ),
@@ -486,7 +426,7 @@ class _LoginLogPageState extends State<LoginLogPage> {
                       decoration: InputDecoration(
                         labelText: '登录IP地址',
                         border: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(12.0)),
+                            borderRadius: BorderRadius.circular(8)),
                         filled: true,
                         fillColor: themeData.colorScheme.surfaceContainer,
                       ),
@@ -499,7 +439,7 @@ class _LoginLogPageState extends State<LoginLogPage> {
                       decoration: InputDecoration(
                         labelText: '登录结果',
                         border: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(12.0)),
+                            borderRadius: BorderRadius.circular(8)),
                         filled: true,
                         fillColor: themeData.colorScheme.surfaceContainer,
                       ),
@@ -511,7 +451,7 @@ class _LoginLogPageState extends State<LoginLogPage> {
                       decoration: InputDecoration(
                         labelText: '浏览器类型',
                         border: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(12.0)),
+                            borderRadius: BorderRadius.circular(8)),
                         filled: true,
                         fillColor: themeData.colorScheme.surfaceContainer,
                       ),
@@ -522,7 +462,7 @@ class _LoginLogPageState extends State<LoginLogPage> {
                       decoration: InputDecoration(
                         labelText: '操作系统版本',
                         border: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(12.0)),
+                            borderRadius: BorderRadius.circular(8)),
                         filled: true,
                         fillColor: themeData.colorScheme.surfaceContainer,
                       ),
@@ -533,7 +473,7 @@ class _LoginLogPageState extends State<LoginLogPage> {
                       decoration: InputDecoration(
                         labelText: '备注',
                         border: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(12.0)),
+                            borderRadius: BorderRadius.circular(8)),
                         filled: true,
                         fillColor: themeData.colorScheme.surfaceContainer,
                       ),
@@ -552,10 +492,7 @@ class _LoginLogPageState extends State<LoginLogPage> {
               ElevatedButton(
                 onPressed: () async {
                   if (formKey.currentState!.validate()) {
-                    if (!await _validateJwtToken()) {
-                      NavigationHelper.offAllNamed(Routes.login);
-                      return;
-                    }
+                    if (await ensureFreshJwt() == null) return;
                     try {
                       final updatedLog = LoginLog(
                         logId: log.logId,
@@ -590,7 +527,7 @@ class _LoginLogPageState extends State<LoginLogPage> {
                   backgroundColor: themeData.colorScheme.primary,
                   foregroundColor: themeData.colorScheme.onPrimary,
                   shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12.0)),
+                      borderRadius: BorderRadius.circular(8.0)),
                 ),
                 child: const Text('保存'),
               ),
@@ -609,10 +546,7 @@ class _LoginLogPageState extends State<LoginLogPage> {
     );
 
     if (confirmed == true) {
-      if (!await _validateJwtToken()) {
-        NavigationHelper.offAllNamed(Routes.login);
-        return;
-      }
+      if (await ensureFreshJwt() == null) return;
       try {
         await logApi.deleteLoginLog(logId: logId);
         _showSnackBar('日志删除成功');
@@ -749,14 +683,13 @@ class _LoginLogPageState extends State<LoginLogPage> {
   }
 
   Widget _buildLogCard(LoginLog log, ThemeData themeData) {
-    return Card(
-      elevation: 4,
-      color: themeData.colorScheme.surfaceContainerLowest,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16.0)),
+    return DashboardPanel(
+      padding:
+          const EdgeInsets.symmetric(horizontal: 16.0, vertical: 4.0),
       margin: const EdgeInsets.symmetric(vertical: 8.0),
       child: ListTile(
-        contentPadding:
-            const EdgeInsets.symmetric(horizontal: 16.0, vertical: 12.0),
+        dense: true,
+        contentPadding: EdgeInsets.zero,
         title: Text(
           '日志ID: ${log.logId ?? "未知"}',
           style: themeData.textTheme.titleMedium?.copyWith(
@@ -907,7 +840,7 @@ class _LoginLogPageState extends State<LoginLogPage> {
                                             themeData.colorScheme.onPrimary,
                                         shape: RoundedRectangleBorder(
                                             borderRadius:
-                                                BorderRadius.circular(12.0)),
+                                                BorderRadius.circular(8)),
                                         padding: const EdgeInsets.symmetric(
                                             horizontal: 24.0, vertical: 12.0),
                                       ),

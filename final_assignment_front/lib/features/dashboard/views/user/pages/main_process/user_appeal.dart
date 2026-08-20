@@ -23,6 +23,7 @@ import 'package:get/get.dart';
 import 'package:jwt_decoder/jwt_decoder.dart';
 import 'package:final_assignment_front/features/dashboard/controllers/user_dashboard_screen_controller.dart';
 import 'package:final_assignment_front/features/dashboard/views/shared/widgets/dashboard_page_template.dart';
+import 'package:final_assignment_front/features/dashboard/views/shared/widgets/dashboard_chrome.dart';
 import 'package:final_assignment_front/features/dashboard/views/user/pages/main_process/user_business_page_chrome.dart';
 import 'dart:developer' as developer;
 import 'package:final_assignment_front/shared/utils/navigation_helper.dart';
@@ -459,7 +460,7 @@ class _UserAppealPageState extends State<UserAppealPage> {
         return Dialog(
           backgroundColor: themeData.colorScheme.surfaceContainer,
           shape:
-              RoundedRectangleBorder(borderRadius: BorderRadius.circular(16.0)),
+              RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
           child: ConstrainedBox(
             constraints:
                 const BoxConstraints(maxWidth: 300.0, minHeight: 200.0),
@@ -1134,66 +1135,55 @@ class _UserAppealDetailPageState extends State<UserAppealDetailPage> {
             thumbVisibility: true,
             child: ListView(
               children: [
-                Card(
-                  elevation: 2,
-                  color: themeData.colorScheme.surfaceContainer,
-                  shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12)),
-                  child: Padding(
-                    padding: const EdgeInsets.all(16.0),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        _buildDetailRow(
+                DashboardPanel(
+                  padding: const EdgeInsets.all(16.0),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      _buildDetailRow(
                             '申诉ID',
                             widget.appeal.appealId?.toString() ?? '无',
                             themeData),
-                        _buildDetailRow(
+                      _buildDetailRow(
                             '违法ID',
                             widget.appeal.offenseId?.toString() ?? '无',
                             themeData),
-                        _buildDetailRow('上诉人',
+                      _buildDetailRow('上诉人',
                             widget.appeal.appellantName ?? '无', themeData),
-                        _buildDetailRow('身份证号码',
+                      _buildDetailRow('身份证号码',
                             widget.appeal.appellantIdCard ?? '无', themeData),
-                        _buildDetailRow('联系电话',
+                      _buildDetailRow('联系电话',
                             widget.appeal.appellantContact ?? '无', themeData),
-                        _buildDetailRow('申诉原因',
+                      _buildDetailRow('申诉原因',
                             widget.appeal.appealReason ?? '无', themeData),
-                        _buildDetailRow(
+                      _buildDetailRow(
                             '申诉时间',
                             formatDateTime(widget.appeal.appealTime),
                             themeData),
-                        _buildDetailRow(
+                      _buildDetailRow(
                             '处理状态',
                             getAppealProcessStatusLabel(
                                 widget.appeal.processStatus),
                             themeData),
-                        _buildDetailRow('处理结果',
+                      _buildDetailRow('处理结果',
                             widget.appeal.processResult ?? '无', themeData),
-                      ],
-                    ),
+                    ],
                   ),
                 ),
                 const SizedBox(height: 20),
-                Card(
-                  elevation: 2,
-                  color: themeData.colorScheme.surfaceContainer,
-                  shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12)),
-                  child: Padding(
-                    padding: const EdgeInsets.all(16.0),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
+                DashboardPanel(
+                  padding: const EdgeInsets.all(16.0),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
                           '相关反馈',
                           style: themeData.textTheme.titleLarge?.copyWith(
                             color: themeData.colorScheme.onSurface,
                             fontWeight: FontWeight.w800,
                           ),
                         ),
-                        const SizedBox(height: 12),
+                      const SizedBox(height: 12),
                         isLoading
                             ? const Center(child: CircularProgressIndicator())
                             : Obx(() {
@@ -1238,7 +1228,6 @@ class _UserAppealDetailPageState extends State<UserAppealDetailPage> {
                       ],
                     ),
                   ),
-                ),
                 const SizedBox(height: 20),
                 Padding(
                   padding: const EdgeInsets.symmetric(horizontal: 16.0),

@@ -90,51 +90,39 @@ class _SelectionOptionButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final bool isLight = Theme.of(context).brightness == Brightness.light;
+    final theme = Theme.of(context);
+    final scheme = theme.colorScheme;
 
-    // 未选中时背景色为透明，选中时使用 primaryColor 的浅透明效果
     final Color backgroundColor = selected
-        ? Theme.of(context)
-            .primaryColor
-            .withValues(alpha: isLight ? 0.15 : 0.25)
+        ? scheme.primary.withValues(alpha: 0.15)
         : Colors.transparent;
 
-    // 阴影颜色，根据选中状态调整
-    final Color shadowColor = isLight
-        ? Colors.black.withValues(alpha: 0.1)
-        : Colors.black.withValues(alpha: 0.3);
-
-    // 图标和文字颜色
     final Color defaultIconColor = selected
-        ? Theme.of(context).primaryColor
-        : Theme.of(context).iconTheme.color!;
+        ? scheme.primary
+        : scheme.onSurfaceVariant;
     final Color defaultTextColor = selected
-        ? Theme.of(context).primaryColor
-        : Theme.of(context).textTheme.bodyLarge!.color!;
+        ? scheme.primary
+        : scheme.onSurface;
 
     return Material(
       color: backgroundColor,
-      borderRadius: BorderRadius.circular(12),
-      elevation: selected ? 4.0 : 0.0,
-      // 选中时增加阴影
-      shadowColor: shadowColor,
+      borderRadius: BorderRadius.circular(8),
+      elevation: selected ? 0.0 : 0.0,
+      shadowColor: Colors.transparent,
       child: InkWell(
         onTap: onPressed,
-        borderRadius: BorderRadius.circular(12),
-        splashColor: Theme.of(context).primaryColor.withValues(alpha: 0.3),
-        // 增强涟漪效果
-        highlightColor: Theme.of(context).primaryColor.withValues(alpha: 0.1),
-        // 添加高亮反馈
+        borderRadius: BorderRadius.circular(8),
+        splashColor: scheme.primary.withValues(alpha: 0.3),
+        highlightColor: scheme.primary.withValues(alpha: 0.1),
         child: AnimatedContainer(
           duration: const Duration(milliseconds: 200),
           curve: Curves.easeInOut,
           padding: const EdgeInsets.symmetric(vertical: 14.0, horizontal: 16.0),
-          // 增加内边距
           decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(12),
+            borderRadius: BorderRadius.circular(8),
             border: Border.all(
               color: selected
-                  ? Theme.of(context).primaryColor.withValues(alpha: 0.5)
+                  ? scheme.primary.withValues(alpha: 0.5)
                   : Colors.transparent,
               width: 1.5,
             ),
@@ -144,7 +132,7 @@ class _SelectionOptionButton extends StatelessWidget {
               _icon(
                   data: selected ? data.activeIcon : data.icon,
                   color: defaultIconColor),
-              const SizedBox(width: 12.0), // 增加图标与文字间距
+              const SizedBox(width: 12.0),
               Expanded(child: _labelText(data.label, color: defaultTextColor)),
               if (data.totalNotif != null)
                 Padding(
@@ -167,20 +155,18 @@ class _SelectionOptionButton extends StatelessWidget {
     );
   }
 
-  // 渲染按钮标签文本，传入自定义颜色
   Widget _labelText(String text, {required Color color}) {
     return Text(
       text,
       style: TextStyle(
         color: color,
-        fontWeight: selected ? FontWeight.w700 : FontWeight.w500, // 选中时加粗
-        letterSpacing: 0.5, // 减小字符间距
-        fontSize: 16, // 增大字体
+        fontWeight: selected ? FontWeight.w700 : FontWeight.w500,
+        letterSpacing: 0,
+        fontSize: 16,
       ),
     );
   }
 
-  // 渲染通知数标记
   Widget _notif({required int total}) {
     if (total <= 0) return Container();
     return Container(
@@ -188,7 +174,7 @@ class _SelectionOptionButton extends StatelessWidget {
       padding: const EdgeInsets.all(5),
       decoration: BoxDecoration(
         color: kNotifColor,
-        borderRadius: BorderRadius.circular(15),
+        borderRadius: BorderRadius.circular(8),
         boxShadow: const [
           BoxShadow(
             color: Colors.black26,

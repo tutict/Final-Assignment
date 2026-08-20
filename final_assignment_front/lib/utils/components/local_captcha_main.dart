@@ -203,9 +203,10 @@ class _LocalCaptchaMainState extends State<LocalCaptchaMain> {
                   style: ElevatedButton.styleFrom(
                     backgroundColor: themeData.colorScheme.primary,
                     foregroundColor: themeData.colorScheme.onPrimary,
-                    elevation: 4,
+                    elevation: 0,
+                    shadowColor: Colors.transparent,
                     shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12.0),
+                      borderRadius: BorderRadius.circular(8.0),
                     ),
                     padding: const EdgeInsets.symmetric(
                         horizontal: 20, vertical: 12),

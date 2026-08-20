@@ -30,31 +30,24 @@ class ProgressReportCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final bool isLight = Theme.of(context).brightness == Brightness.light;
+    final theme = Theme.of(context);
+    final scheme = theme.colorScheme;
+    final dark = theme.brightness == Brightness.dark;
 
     return Container(
       padding: const EdgeInsets.all(kSpacing),
-      height: 220, // 保持固定高度
+      height: 220,
       decoration: BoxDecoration(
-        gradient: LinearGradient(
-          colors: [
-            isLight
-                ? const Color.fromRGBO(111, 88, 255, 1)
-                : const Color.fromRGBO(63, 40, 207, 1),
-            isLight
-                ? const Color.fromRGBO(157, 86, 248, 1)
-                : const Color.fromRGBO(107, 66, 198, 1),
-          ],
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
+        color: scheme.primaryContainer.withValues(alpha: dark ? 0.35 : 0.85),
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(
+          color: scheme.primary.withValues(alpha: dark ? 0.42 : 0.28),
         ),
-        borderRadius: BorderRadius.circular(16),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withValues(alpha: isLight ? 0.1 : 0.2),
-            offset: const Offset(0, 4),
-            blurRadius: 8,
-            spreadRadius: 1,
+            color: scheme.primary.withValues(alpha: dark ? 0.18 : 0.10),
+            blurRadius: 18,
+            offset: const Offset(0, 10),
           ),
         ],
       ),
@@ -64,24 +57,25 @@ class ProgressReportCard extends StatelessWidget {
           Expanded(
             flex: 2,
             child: Column(
-              mainAxisSize: MainAxisSize.min, // 限制高度为最小值
+              mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.start,
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
                 Text(
                   data.title,
-                  style: Theme.of(context).textTheme.titleMedium!.copyWith(
-                        fontSize: 20,
-                        fontWeight: FontWeight.w800,
-                        color: Colors.white,
-                      ),
+                  style: theme.textTheme.titleMedium!.copyWith(
+                    fontSize: 20,
+                    fontWeight: FontWeight.w800,
+                    color: scheme.onPrimaryContainer,
+                    letterSpacing: 0,
+                  ),
                 ),
-                const SizedBox(height: 8), // 减少间距
+                const SizedBox(height: 8),
                 _ProgressRichText(value1: "${data.task}", value2: " 申诉"),
-                const SizedBox(height: 6), // 减少间距
+                const SizedBox(height: 6),
                 _ProgressRichText(
                     value1: "${data.doneTask}", value2: " 已处理的申诉"),
-                const SizedBox(height: 6), // 减少间距
+                const SizedBox(height: 6),
                 _ProgressRichText(
                     value1: "${data.undoneTask}", value2: " 未处理的申诉"),
               ],
@@ -89,7 +83,7 @@ class ProgressReportCard extends StatelessWidget {
           ),
           Expanded(
             flex: 1,
-            child: _Indicator(percent: data.percent, isLight: isLight),
+            child: _Indicator(percent: data.percent, scheme: scheme),
           ),
         ],
       ),
@@ -109,23 +103,26 @@ class _ProgressRichText extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final bool isLight = Theme.of(context).brightness == Brightness.light;
+    final theme = Theme.of(context);
+    final scheme = theme.colorScheme;
     return RichText(
       text: TextSpan(
-        style: Theme.of(context).textTheme.bodyMedium!.copyWith(
-              color: isLight ? Colors.white : Colors.white70,
-              fontWeight: FontWeight.w800,
-              fontSize: 14, // 减小字体大小
-            ),
+        style: theme.textTheme.bodyMedium!.copyWith(
+          color: scheme.onPrimaryContainer.withValues(alpha: 0.90),
+          fontWeight: FontWeight.w800,
+          fontSize: 14,
+          letterSpacing: 0,
+        ),
         children: [
           TextSpan(text: value1),
           TextSpan(
             text: value2,
-            style: Theme.of(context).textTheme.bodyMedium!.copyWith(
-                  color: isLight ? Colors.white70 : Colors.white54,
-                  fontWeight: FontWeight.normal,
-                  fontSize: 14, // 减小字体大小
-                ),
+            style: theme.textTheme.bodyMedium!.copyWith(
+              color: scheme.onPrimaryContainer.withValues(alpha: 0.70),
+              fontWeight: FontWeight.normal,
+              fontSize: 14,
+              letterSpacing: 0,
+            ),
           ),
         ],
       ),
@@ -135,44 +132,44 @@ class _ProgressRichText extends StatelessWidget {
 
 // 定义进度指示器组件，用于显示进度百分比
 class _Indicator extends StatelessWidget {
-  const _Indicator({required this.percent, required this.isLight});
+  const _Indicator({required this.percent, required this.scheme});
 
   final double percent;
-  final bool isLight;
+  final ColorScheme scheme;
 
   @override
   Widget build(BuildContext context) {
     return CircularPercentIndicator(
       radius: 70,
-      // 进一步减小半径
       lineWidth: 8,
-      // 减小线宽
       percent: percent,
       circularStrokeCap: CircularStrokeCap.round,
       center: Column(
-        mainAxisSize: MainAxisSize.min, // 限制高度为最小值
+        mainAxisSize: MainAxisSize.min,
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
           Text(
             "${(percent * 100).toStringAsFixed(1)} %",
             style: Theme.of(context).textTheme.titleSmall!.copyWith(
-                  fontSize: 16, // 减小完成度字体
+                  fontSize: 16,
                   fontWeight: FontWeight.w800,
-                  color: Colors.white,
+                  color: scheme.onPrimaryContainer,
+                  letterSpacing: 0,
                 ),
           ),
           Text(
             "完成度",
             style: Theme.of(context).textTheme.bodySmall!.copyWith(
-                  fontSize: 12, // 减小字体
+                  fontSize: 12,
                   fontWeight: FontWeight.normal,
-                  color: Colors.white70,
+                  color: scheme.onPrimaryContainer.withValues(alpha: 0.78),
+                  letterSpacing: 0,
                 ),
           ),
         ],
       ),
-      progressColor: Colors.white,
-      backgroundColor: Colors.white.withAlpha((0.2 * 255).toInt()),
+      progressColor: scheme.onPrimaryContainer.withValues(alpha: 0.92),
+      backgroundColor: scheme.onPrimaryContainer.withAlpha((0.2 * 255).toInt()),
     );
   }
 }

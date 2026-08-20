@@ -402,16 +402,19 @@ class _LoginScreenState extends State<LoginScreen> {
   }
 
   void _showMessage(String message, {bool isError = false}) {
+    final themeData = _buildTheme();
+    final scheme = themeData.colorScheme;
+    final accent = isError
+        ? scheme.error
+        : const Color(0xFF41B86A);
     Get.snackbar(
       isError ? '操作失败' : '操作成功',
       message,
       snackPosition: SnackPosition.BOTTOM,
-      backgroundColor: isError
-          ? Colors.red.withValues(alpha: 0.12)
-          : Colors.green.withValues(alpha: 0.12),
-      colorText: _isDarkMode ? Colors.white : const Color(0xFF162033),
+      backgroundColor: Color.lerp(scheme.surface, accent, 0.14),
+      colorText: scheme.onSurface,
       margin: const EdgeInsets.all(18),
-      borderRadius: 14,
+      borderRadius: 8,
       duration: const Duration(seconds: 3),
     );
   }
@@ -424,28 +427,28 @@ class _LoginScreenState extends State<LoginScreen> {
       inputDecorationTheme: InputDecorationTheme(
         filled: true,
         fillColor: isDark
-            ? Colors.white.withValues(alpha: 0.06)
-            : Colors.white.withValues(alpha: 0.9),
+            ? scheme.surfaceContainerHighest.withValues(alpha: 0.42)
+            : scheme.surface.withValues(alpha: 0.92),
         contentPadding:
             const EdgeInsets.symmetric(horizontal: 18, vertical: 16),
         border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(16),
+          borderRadius: BorderRadius.circular(8),
           borderSide: BorderSide(
             color: scheme.outlineVariant.withValues(alpha: 0.6),
           ),
         ),
         enabledBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(16),
+          borderRadius: BorderRadius.circular(8),
           borderSide: BorderSide(
             color: scheme.outlineVariant.withValues(alpha: 0.6),
           ),
         ),
         focusedBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(16),
+          borderRadius: BorderRadius.circular(8),
           borderSide: BorderSide(color: scheme.primary, width: 1.7),
         ),
         errorBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(16),
+          borderRadius: BorderRadius.circular(8),
           borderSide: BorderSide(color: scheme.error, width: 1.7),
         ),
       ),
@@ -550,7 +553,7 @@ class _LoginScreenState extends State<LoginScreen> {
                 height: 52,
                 decoration: BoxDecoration(
                   color: colorScheme.primaryContainer,
-                  borderRadius: BorderRadius.circular(14),
+                  borderRadius: BorderRadius.circular(8),
                 ),
                 padding: const EdgeInsets.all(8),
                 child: Image.asset(
@@ -635,7 +638,7 @@ class _LoginScreenState extends State<LoginScreen> {
     return DecoratedBox(
       decoration: BoxDecoration(
         color: colorScheme.surface.withValues(alpha: _isDarkMode ? 0.92 : 0.96),
-        borderRadius: BorderRadius.circular(16),
+        borderRadius: BorderRadius.circular(8),
         border: Border.all(
           color: colorScheme.outlineVariant.withValues(alpha: 0.55),
         ),
@@ -810,7 +813,7 @@ class _LoginScreenState extends State<LoginScreen> {
                 style: FilledButton.styleFrom(
                   minimumSize: const Size.fromHeight(54),
                   shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(16),
+                    borderRadius: BorderRadius.circular(8),
                   ),
                 ),
               ),
@@ -860,7 +863,7 @@ class _InfoChip extends StatelessWidget {
     return DecoratedBox(
       decoration: BoxDecoration(
         color: colorScheme.primaryContainer.withValues(alpha: 0.54),
-        borderRadius: BorderRadius.circular(18),
+        borderRadius: BorderRadius.circular(8),
         border: Border.all(
           color: colorScheme.primary.withValues(alpha: 0.16),
         ),

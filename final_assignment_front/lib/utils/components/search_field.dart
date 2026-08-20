@@ -10,6 +10,10 @@ class SearchField extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final scheme = theme.colorScheme;
+    final dark = theme.brightness == Brightness.dark;
+
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 12.0),
       child: Container(
@@ -18,21 +22,16 @@ class SearchField extends StatelessWidget {
           maxHeight: 56,
         ),
         decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(12),
-          gradient: LinearGradient(
-            colors: [
-              Colors.white.withValues(alpha: 0.98),
-              Colors.grey.shade100.withValues(alpha: 0.9),
-            ],
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
+          borderRadius: BorderRadius.circular(8),
+          color: scheme.surface.withValues(alpha: dark ? 0.92 : 0.98),
+          border: Border.all(
+            color: scheme.outlineVariant.withValues(alpha: dark ? 0.45 : 0.58),
           ),
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withValues(alpha: 0.1),
-              offset: const Offset(0, 6),
-              blurRadius: 12,
-              spreadRadius: 1,
+              color: theme.shadowColor.withValues(alpha: dark ? 0.18 : 0.08),
+              blurRadius: 18,
+              offset: const Offset(0, 10),
             ),
           ],
         ),
@@ -42,58 +41,54 @@ class SearchField extends StatelessWidget {
             filled: true,
             fillColor: Colors.transparent,
             border: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(12),
+              borderRadius: BorderRadius.circular(8),
               borderSide: BorderSide.none,
             ),
             enabledBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(12),
+              borderRadius: BorderRadius.circular(8),
               borderSide: BorderSide(
-                color: Colors.grey.withValues(alpha: 0.4),
+                color: scheme.outlineVariant.withValues(alpha: dark ? 0.34 : 0.48),
                 width: 1.2,
               ),
             ),
             focusedBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(12),
+              borderRadius: BorderRadius.circular(8),
               borderSide: BorderSide(
-                color: Theme.of(context)
-                    .colorScheme
-                    .primary
-                    .withValues(alpha: 0.8),
+                color: scheme.primary.withValues(alpha: 0.8),
                 width: 2,
               ),
             ),
             prefixIcon: Icon(
               EvaIcons.search,
-              color: Colors.grey.shade700,
+              color: scheme.onSurfaceVariant,
               size: 24,
             ),
             hintText: "请输入...",
             hintStyle: TextStyle(
-              color: Colors.grey.shade600,
+              color: scheme.onSurfaceVariant.withValues(alpha: 0.6),
               fontSize: 16,
               fontWeight: FontWeight.w400,
             ),
             contentPadding: const EdgeInsets.only(
               left: 20.0,
               right: 20.0,
-              top: 18.0, // 增加顶部内边距，使提示文字下移
+              top: 18.0,
               bottom: 14.0,
             ),
             isDense: false,
-            alignLabelWithHint: true, // 确保提示文字与输入对齐
+            alignLabelWithHint: true,
           ),
           textAlignVertical: const TextAlignVertical(y: -0.2),
-          // 微调垂直对齐，稍微下移
           onEditingComplete: () {
             FocusScope.of(context).unfocus();
             if (onSearch != null) onSearch!(controller.text);
           },
           textInputAction: TextInputAction.search,
-          style: const TextStyle(
-            color: Colors.black87,
+          style: TextStyle(
+            color: scheme.onSurface,
             fontSize: 17,
             fontWeight: FontWeight.w400,
-            letterSpacing: 0.2,
+            letterSpacing: 0,
           ),
         ),
       ),

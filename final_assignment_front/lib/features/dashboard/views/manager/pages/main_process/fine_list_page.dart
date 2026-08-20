@@ -1,13 +1,13 @@
 // ignore_for_file: use_build_context_synchronously
-import 'package:final_assignment_front/core/auth/auth_service.dart';
-import 'package:final_assignment_front/features/api/auth_controller_api.dart';
 import 'package:final_assignment_front/features/api/offense_information_controller_api.dart';
 import 'package:final_assignment_front/features/api/vehicle_information_controller_api.dart';
 import 'package:final_assignment_front/core/network/app_exception.dart';
 import 'package:flutter/material.dart';
 import 'package:final_assignment_front/features/dashboard/controllers/manager_dashboard_controller.dart';
 import 'package:final_assignment_front/features/dashboard/views/manager/pages/main_process/manager_business_page_chrome.dart';
+import 'package:final_assignment_front/features/dashboard/views/shared/widgets/dashboard_chrome.dart';
 import 'package:final_assignment_front/features/dashboard/views/shared/widgets/dashboard_page_template.dart';
+import 'package:final_assignment_front/features/dashboard/views/shared/widgets/page_auth_mixin.dart';
 import 'package:final_assignment_front/config/routes/app_routes.dart';
 import 'package:final_assignment_front/features/api/fine_information_controller_api.dart';
 import 'package:final_assignment_front/features/model/fine_information.dart';
@@ -17,9 +17,7 @@ import 'package:final_assignment_front/utils/helpers/app_helpers.dart';
 import 'package:final_assignment_front/utils/workflow_permissions.dart';
 import 'package:final_assignment_front/utils/json_parser.dart';
 import 'package:get/get.dart';
-import 'package:jwt_decoder/jwt_decoder.dart';
 import 'package:uuid/uuid.dart';
-import 'package:final_assignment_front/utils/services/auth_token_store.dart';
 
 /// 唯一标识生成工具
 String generateIdempotencyKey() {
@@ -57,7 +55,7 @@ class FineListPage extends StatefulWidget {
   State<FineListPage> createState() => _FineListState();
 }
 
-class _FineListState extends State<FineListPage> {
+class _FineListState extends State<FineListPage> with PageAuthMixin {
   final FineInformationControllerApi fineApi = FineInformationControllerApi();
   final TextEditingController _searchController = TextEditingController();
   final List<FineInformation> _fineList = [];
@@ -92,80 +90,22 @@ class _FineListState extends State<FineListPage> {
     super.dispose();
   }
 
-  Future<bool> _validateJwtToken() async {
-    String? jwtToken = (await AuthTokenStore.instance.getJwtToken());
-    if (jwtToken == null || jwtToken.isEmpty) {
-      setState(() => _errorMessage = '未授权，请重新登录');
-      return false;
-    }
-    try {
-      if (JwtDecoder.isExpired(jwtToken)) {
-        final refreshed = await Get.find<AuthService>().refreshJwtToken();
-        jwtToken = await AuthTokenStore.instance.getJwtToken();
-        if (!refreshed || jwtToken == null) {
-          setState(() => _errorMessage = '登录已过期，请重新登录');
-          return false;
-        }
-        if (JwtDecoder.isExpired(jwtToken)) {
-          setState(() => _errorMessage = '新登录信息已过期，请重新登录');
-          return false;
-        }
-        await fineApi.initializeWithJwt();
-      }
-      return true;
-    } catch (e) {
-      setState(() => _errorMessage = '无效的登录信息，请重新登录');
-      return false;
-    }
-  }
-
   Future<void> _initialize() async {
     setState(() => _isLoading = true);
     try {
-      if (!await _validateJwtToken()) {
-        Navigator.pushReplacementNamed(context, Routes.login);
-        return;
-      }
-      await fineApi.initializeWithJwt();
-      final jwtToken = (await AuthTokenStore.instance.getJwtToken())!;
-      final decodedToken = JwtDecoder.decode(jwtToken);
-      _isAdmin = decodedToken['roles'] == 'ADMIN' ||
-          (decodedToken['roles'] is List &&
-              decodedToken['roles'].contains('ADMIN'));
+      final roles = await requireRoles((r) => r.contains('ADMIN'));
+      if (roles == null) return; // session expired, redirected to login
+      _isAdmin = roles.isNotEmpty;
       if (!_isAdmin) {
         setState(() => _errorMessage = '权限不足：仅管理员可访问此页面');
         return;
       }
+      await fineApi.initializeWithJwt();
       await _fetchFines(reset: true);
     } catch (e) {
       setState(() => _errorMessage = '初始化失败: $e');
     } finally {
       setState(() => _isLoading = false);
-    }
-  }
-
-  // ignore: unused_element
-  Future<void> _checkUserRole() async {
-    try {
-      if (!await _validateJwtToken()) {
-        Navigator.pushReplacementNamed(context, Routes.login);
-        return;
-      }
-      final userData = await AuthControllerApi().getCurrentProfile();
-      if (userData != null) {
-        final roles = (userData['roles'] as List<dynamic>?)
-                ?.map((r) => r.toString())
-                .toList() ??
-            [];
-        setState(() => _isAdmin = roles.contains('ADMIN'));
-        if (!_isAdmin) {
-          setState(() => _errorMessage = '权限不足：仅管理员可访问此页面');
-        }
-      } else {
-        throw Exception('验证失败：未获取到用户信息');
-      }
-    } catch (e) {
-      setState(() => _errorMessage = '验证角色失败: $e');
     }
   }
 
@@ -186,10 +126,7 @@ class _FineListState extends State<FineListPage> {
     });
 
     try {
-      if (!await _validateJwtToken()) {
-        Navigator.pushReplacementNamed(context, Routes.login);
-        return;
-      }
+      if (await ensureFreshJwt() == null) return;
       List<FineInformation> fines = [];
       final searchQuery = query?.trim() ?? '';
       for (int attempt = 1; attempt <= retries; attempt++) {
@@ -264,10 +201,7 @@ class _FineListState extends State<FineListPage> {
 
   Future<List<String>> _fetchAutocompleteSuggestions(String prefix) async {
     try {
-      if (!await _validateJwtToken()) {
-        Navigator.pushReplacementNamed(context, Routes.login);
-        return [];
-      }
+      if (await ensureFreshJwt() == null) return [];
       if (_searchType == 'payee') {
         final fines = await fineApi.listFinesByPayee(payee: prefix.trim());
         return fines
@@ -396,10 +330,7 @@ class _FineListState extends State<FineListPage> {
     if (confirm == true) {
       setState(() => _isLoading = true);
       try {
-        if (!await _validateJwtToken()) {
-          Navigator.pushReplacementNamed(context, Routes.login);
-          return;
-        }
+        if (await ensureFreshJwt() == null) return;
         await fineApi.deleteFine(fineId: fineId);
         _showSnackBar('删除罚款成功！');
         await _refreshFines();
@@ -541,20 +472,13 @@ class _FineListState extends State<FineListPage> {
                   );
                 }
                 final fijne = _filteredFineList[index];
-                return Card(
+                return DashboardPanel(
+                  padding: const EdgeInsets.symmetric(
+                      horizontal: 16.0, vertical: 4.0),
                   margin: const EdgeInsets.symmetric(vertical: 8.0),
-                  elevation: 0,
-                  color: themeData.colorScheme.surfaceContainer,
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(8.0),
-                    side: BorderSide(
-                      color: themeData.colorScheme.outlineVariant
-                          .withValues(alpha: 0.42),
-                    ),
-                  ),
                   child: ListTile(
-                    contentPadding: const EdgeInsets.symmetric(
-                        horizontal: 16.0, vertical: 12.0),
+                    dense: true,
+                    contentPadding: EdgeInsets.zero,
                     title: Text(
                       '金额: ${fijne.fineAmount ?? 0} 元',
                       style: themeData.textTheme.titleMedium?.copyWith(
@@ -630,7 +554,7 @@ class AddFinePage extends StatefulWidget {
   State<AddFinePage> createState() => _AddFinePageState();
 }
 
-class _AddFinePageState extends State<AddFinePage> {
+class _AddFinePageState extends State<AddFinePage> with PageAuthMixin {
   final FineInformationControllerApi fineApi = FineInformationControllerApi();
   final OffenseInformationControllerApi offenseApi =
       OffenseInformationControllerApi();
@@ -673,35 +597,10 @@ class _AddFinePageState extends State<AddFinePage> {
     _selectedOffenseId = fine.offenseId;
   }
 
-  Future<bool> _validateJwtToken() async {
-    String? jwtToken = await AuthTokenStore.instance.getJwtToken();
-    if (jwtToken == null || jwtToken.isEmpty) {
-      _showSnackBar('未授权，请重新登录', isError: true);
-      return false;
-    }
-    try {
-      if (JwtDecoder.isExpired(jwtToken)) {
-        final refreshed = await Get.find<AuthService>().refreshJwtToken();
-        jwtToken = await AuthTokenStore.instance.getJwtToken();
-        if (!refreshed || jwtToken == null || JwtDecoder.isExpired(jwtToken)) {
-          _showSnackBar('登录已过期，请重新登录', isError: true);
-          return false;
-        }
-      }
-      return true;
-    } catch (e) {
-      _showSnackBar('无效的登录信息，请重新登录', isError: true);
-      return false;
-    }
-  }
-
   Future<void> _initialize() async {
     setState(() => _isLoading = true);
     try {
-      if (!await _validateJwtToken()) {
-        Navigator.pushReplacementNamed(context, Routes.login);
-        return;
-      }
+      if (await ensureFreshJwt() == null) return;
       await fineApi.initializeWithJwt();
       await offenseApi.initializeWithJwt();
       await vehicleApi.initializeWithJwt();
@@ -727,10 +626,7 @@ class _AddFinePageState extends State<AddFinePage> {
 
   Future<List<String>> _fetchLicensePlateSuggestions(String prefix) async {
     try {
-      if (!await _validateJwtToken()) {
-        Navigator.pushReplacementNamed(context, Routes.login);
-        return [];
-      }
+      if (await ensureFreshJwt() == null) return [];
       return await vehicleApi.searchVehiclesByLicenseGlobal(
         prefix: prefix,
         size: 10,
@@ -744,10 +640,7 @@ class _AddFinePageState extends State<AddFinePage> {
   Future<List<Map<String, dynamic>>> _fetchPayeeSuggestions(
       String prefix) async {
     try {
-      if (!await _validateJwtToken()) {
-        Navigator.pushReplacementNamed(context, Routes.login);
-        return [];
-      }
+      if (await ensureFreshJwt() == null) return [];
       if (prefix.trim().isEmpty) return [];
       final offenses = await offenseApi.listOffensesByDriverName(
         query: prefix.trim(),
@@ -776,10 +669,7 @@ class _AddFinePageState extends State<AddFinePage> {
 
   Future<void> _onLicensePlateSelected(String licensePlate) async {
     try {
-      if (!await _validateJwtToken()) {
-        Navigator.pushReplacementNamed(context, Routes.login);
-        return;
-      }
+      if (await ensureFreshJwt() == null) return;
       final offenses = await offenseApi.listOffensesByLicensePlate(
         query: licensePlate,
         page: 1,
@@ -808,10 +698,7 @@ class _AddFinePageState extends State<AddFinePage> {
 
   Future<void> _onPayeeSelected(Map<String, dynamic> payeeData) async {
     try {
-      if (!await _validateJwtToken()) {
-        Navigator.pushReplacementNamed(context, Routes.login);
-        return;
-      }
+      if (await ensureFreshJwt() == null) return;
       if (payeeData['offenseId'] == 0) {
         _showSnackBar('无效的违法记录', isError: true);
         return;
@@ -835,10 +722,7 @@ class _AddFinePageState extends State<AddFinePage> {
       _showSnackBar('请先选择有效的违法记录', isError: true);
       return;
     }
-    if (!await _validateJwtToken()) {
-      Navigator.pushReplacementNamed(context, Routes.login);
-      return;
-    }
+    if (await ensureFreshJwt() == null) return;
     setState(() => _isLoading = true);
     try {
       final idempotencyKey = generateIdempotencyKey();
@@ -1062,15 +946,10 @@ class _AddFinePageState extends State<AddFinePage> {
                   child: SingleChildScrollView(
                     child: Column(
                       children: [
-                        Card(
-                          elevation: 3,
-                          color: themeData.colorScheme.surfaceContainer,
-                          shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(16.0)),
-                          child: Padding(
-                            padding: const EdgeInsets.all(16.0),
-                            child: Column(
-                              children: [
+                        DashboardPanel(
+                          padding: const EdgeInsets.all(16.0),
+                          child: Column(
+                            children: [
                                 _buildTextField(
                                     '车牌号', _plateNumberController, themeData,
                                     required: true, maxLength: 20),
@@ -1103,7 +982,6 @@ class _AddFinePageState extends State<AddFinePage> {
                               ],
                             ),
                           ),
-                        ),
                         const SizedBox(height: 20),
                         ElevatedButton(
                           onPressed: _submitFine,
@@ -1111,7 +989,7 @@ class _AddFinePageState extends State<AddFinePage> {
                             backgroundColor: themeData.colorScheme.primary,
                             foregroundColor: themeData.colorScheme.onPrimary,
                             shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(12.0)),
+                                borderRadius: BorderRadius.circular(8)),
                             padding: const EdgeInsets.symmetric(
                                 vertical: 14.0, horizontal: 20.0),
                             textStyle: themeData.textTheme.labelLarge
@@ -1138,7 +1016,7 @@ class FineDetailPage extends StatefulWidget {
   State<FineDetailPage> createState() => _FineDetailPageState();
 }
 
-class _FineDetailPageState extends State<FineDetailPage> {
+class _FineDetailPageState extends State<FineDetailPage> with PageAuthMixin {
   final FineInformationControllerApi fineApi = FineInformationControllerApi();
   bool _isLoading = false;
   bool _isAdmin = false;
@@ -1154,37 +1032,17 @@ class _FineDetailPageState extends State<FineDetailPage> {
     _initialize();
   }
 
-  Future<bool> _validateJwtToken() async {
-    String? jwtToken = await AuthTokenStore.instance.getJwtToken();
-    if (jwtToken == null || jwtToken.isEmpty) {
-      setState(() => _errorMessage = '未授权，请重新登录');
-      return false;
-    }
-    try {
-      if (JwtDecoder.isExpired(jwtToken)) {
-        final refreshed = await Get.find<AuthService>().refreshJwtToken();
-        jwtToken = await AuthTokenStore.instance.getJwtToken();
-        if (!refreshed || jwtToken == null || JwtDecoder.isExpired(jwtToken)) {
-          setState(() => _errorMessage = '登录已过期，请重新登录');
-          return false;
-        }
-      }
-      return true;
-    } catch (e) {
-      setState(() => _errorMessage = '无效的登录信息，请重新登录');
-      return false;
-    }
-  }
-
   Future<void> _initialize() async {
     setState(() => _isLoading = true);
     try {
-      if (!await _validateJwtToken()) {
-        Navigator.pushReplacementNamed(context, Routes.login);
+      final roles = await requireRoles((r) => r.contains('ADMIN'));
+      if (roles == null) return; // session expired, redirected to login
+      _isAdmin = roles.isNotEmpty;
+      if (!_isAdmin) {
+        setState(() => _errorMessage = '权限不足：仅管理员可访问此页面');
         return;
       }
       await fineApi.initializeWithJwt();
-      await _checkUserRole();
     } catch (e) {
       setState(() => _errorMessage = '初始化失败: $e');
     } finally {
@@ -1192,36 +1050,10 @@ class _FineDetailPageState extends State<FineDetailPage> {
     }
   }
 
-  Future<void> _checkUserRole() async {
-    try {
-      if (!await _validateJwtToken()) {
-        Navigator.pushReplacementNamed(context, Routes.login);
-        return;
-      }
-      final jwtToken = (await AuthTokenStore.instance.getJwtToken());
-      if (jwtToken == null) throw Exception('未找到 JWT，请重新登录');
-      final userData = await AuthControllerApi().getCurrentProfile();
-      if (userData != null) {
-        final roles = (userData['roles'] as List<dynamic>?)
-                ?.map((r) => r.toString())
-                .toList() ??
-            [];
-        setState(() => _isAdmin = roles.contains('ADMIN'));
-      } else {
-        throw Exception('验证失败：未获取到用户信息');
-      }
-    } catch (e) {
-      setState(() => _errorMessage = '加载权限失败: $e');
-    }
-  }
-
   Future<void> _updateFineStatus(int fineId, String status) async {
     setState(() => _isLoading = true);
     try {
-      if (!await _validateJwtToken()) {
-        Navigator.pushReplacementNamed(context, Routes.login);
-        return;
-      }
+      if (await ensureFreshJwt() == null) return;
       final idempotencyKey = const Uuid().v4();
       final updatedFine = FineInformation(
         fineId: _currentFine.fineId,
@@ -1265,10 +1097,7 @@ class _FineDetailPageState extends State<FineDetailPage> {
     if (confirm == true) {
       setState(() => _isLoading = true);
       try {
-        if (!await _validateJwtToken()) {
-          Navigator.pushReplacementNamed(context, Routes.login);
-          return;
-        }
+        if (await ensureFreshJwt() == null) return;
         await fineApi.deleteFine(fineId: fineId);
         _showSnackBar('罚款删除成功！');
         if (mounted) Navigator.pop(context, true);
@@ -1395,15 +1224,9 @@ class _FineDetailPageState extends State<FineDetailPage> {
             ? const LoadingView()
             : Padding(
                 padding: const EdgeInsets.all(16.0),
-                child: Card(
-                  elevation: 3,
-                  color: themeData.colorScheme.surfaceContainer,
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(16.0),
-                  ),
-                  child: Padding(
-                    padding: const EdgeInsets.all(16.0),
-                    child: SingleChildScrollView(
+                child: DashboardPanel(
+                  padding: const EdgeInsets.all(16.0),
+                  child: SingleChildScrollView(
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
@@ -1450,7 +1273,6 @@ class _FineDetailPageState extends State<FineDetailPage> {
                         ],
                       ),
                     ),
-                  ),
                 ),
               ),
       );

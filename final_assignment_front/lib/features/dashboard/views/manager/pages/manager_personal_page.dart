@@ -4,6 +4,8 @@ import 'package:final_assignment_front/features/api/driver_information_controlle
 import 'package:final_assignment_front/features/api/user_management_controller_api.dart';
 import 'package:final_assignment_front/features/dashboard/controllers/chat_controller.dart';
 import 'package:final_assignment_front/features/dashboard/controllers/manager_dashboard_controller.dart';
+import 'package:final_assignment_front/features/dashboard/views/manager/pages/main_process/manager_business_page_chrome.dart';
+import 'package:final_assignment_front/features/dashboard/views/shared/widgets/dashboard_chrome.dart';
 import 'package:final_assignment_front/features/dashboard/views/shared/widgets/dashboard_page_template.dart';
 import 'package:final_assignment_front/features/model/driver_information.dart';
 import 'package:final_assignment_front/features/model/user_management.dart';
@@ -211,11 +213,7 @@ class _ManagerPersonalPageState extends State<ManagerPersonalPage> {
       await _loadCurrentManager();
 
       if (mounted) {
-        Get.snackbar(
-          '成功',
-          '$field 更新成功！',
-          snackPosition: SnackPosition.BOTTOM,
-        );
+        showManagerBusinessToast(context, message: '$field 更新成功！');
       }
     } catch (e) {
       AppLogger.error('Update field error: $e');
@@ -304,7 +302,7 @@ class _ManagerPersonalPageState extends State<ManagerPersonalPage> {
         child: Dialog(
           backgroundColor: themeData.colorScheme.surfaceContainer,
           shape:
-              RoundedRectangleBorder(borderRadius: BorderRadius.circular(16.0)),
+              RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
           child: ConstrainedBox(
             constraints:
                 const BoxConstraints(maxWidth: 300.0, minHeight: 150.0),
@@ -537,13 +535,12 @@ class _ManagerPersonalPageState extends State<ManagerPersonalPage> {
     required ThemeData themeData,
     VoidCallback? onTap,
   }) {
-    return Card(
-      elevation: 2,
-      shadowColor: themeData.colorScheme.shadow.withValues(alpha: 0.2),
-      color: themeData.colorScheme.surfaceContainer,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12.0)),
+    return DashboardPanel(
+      padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 4.0),
       margin: const EdgeInsets.symmetric(vertical: 6.0),
       child: ListTile(
+        dense: true,
+        contentPadding: EdgeInsets.zero,
         title: Text(
           title,
           style: themeData.textTheme.bodyLarge?.copyWith(
@@ -561,8 +558,6 @@ class _ManagerPersonalPageState extends State<ManagerPersonalPage> {
         trailing: onTap != null
             ? Icon(Icons.edit, color: themeData.colorScheme.primary)
             : null,
-        contentPadding:
-            const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
       ),
     );
   }

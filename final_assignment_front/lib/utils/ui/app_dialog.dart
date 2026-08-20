@@ -27,7 +27,7 @@ class AppDialog {
           child: AlertDialog(
             backgroundColor: colorScheme.surface,
             shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(18),
+              borderRadius: BorderRadius.circular(8),
             ),
             title: Row(
               children: [
@@ -129,7 +129,7 @@ class AppDialog {
         child: AlertDialog(
           backgroundColor: themeData.colorScheme.surfaceContainerHighest,
           shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(20),
+            borderRadius: BorderRadius.circular(8),
           ),
           title: title != null
               ? Text(

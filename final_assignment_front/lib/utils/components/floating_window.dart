@@ -21,14 +21,20 @@ class _FloatingWindowState extends State<FloatingWindow> {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final scheme = theme.colorScheme;
+
     return StatefulBuilder(
       builder: (context, setState) {
         return Material(
           color: Colors.transparent,
           child: Container(
             decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(20.0),
+              color: scheme.surface,
+              borderRadius: BorderRadius.circular(8),
+              border: Border.all(
+                color: scheme.outlineVariant.withValues(alpha: 0.5),
+              ),
               boxShadow: [
                 BoxShadow(
                   color: Colors.black.withAlpha((0.2 * 255).toInt()),
@@ -49,11 +55,11 @@ class _FloatingWindowState extends State<FloatingWindow> {
                 Container(
                   height: 35.0,
                   padding: const EdgeInsets.symmetric(horizontal: 16.0),
-                  decoration: const BoxDecoration(
-                    color: Colors.blueAccent,
-                    borderRadius: BorderRadius.only(
-                      topLeft: Radius.circular(20.0),
-                      topRight: Radius.circular(20.0),
+                  decoration: BoxDecoration(
+                    color: scheme.primary,
+                    borderRadius: const BorderRadius.only(
+                      topLeft: Radius.circular(8),
+                      topRight: Radius.circular(8),
                     ),
                   ),
                   child: Row(

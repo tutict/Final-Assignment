@@ -1,14 +1,14 @@
 // ignore_for_file: use_build_context_synchronously
 import 'package:final_assignment_front/core/utils/app_logger.dart';
 
-import 'package:final_assignment_front/core/auth/auth_service.dart';
-import 'package:final_assignment_front/features/api/auth_controller_api.dart';
 import 'package:final_assignment_front/features/api/driver_information_controller_api.dart';
 import 'package:final_assignment_front/features/api/vehicle_information_controller_api.dart';
 import 'package:final_assignment_front/features/dashboard/controllers/manager_dashboard_controller.dart';
 import 'package:final_assignment_front/features/dashboard/controllers/vehicle_controller.dart';
 import 'package:final_assignment_front/features/dashboard/views/manager/pages/main_process/manager_business_page_chrome.dart';
+import 'package:final_assignment_front/features/dashboard/views/shared/widgets/dashboard_chrome.dart';
 import 'package:final_assignment_front/features/dashboard/views/shared/widgets/dashboard_page_template.dart';
+import 'package:final_assignment_front/features/dashboard/views/shared/widgets/page_auth_mixin.dart';
 import 'package:final_assignment_front/features/model/driver_information.dart';
 import 'package:final_assignment_front/features/model/user_management.dart';
 import 'package:final_assignment_front/features/model/vehicle_information.dart';
@@ -16,8 +16,7 @@ import 'package:final_assignment_front/shared/dialogs/app_dialog.dart';
 import 'package:final_assignment_front/utils/widgets/index.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
-import 'package:jwt_decoder/jwt_decoder.dart';
-import 'package:final_assignment_front/utils/services/auth_token_store.dart';
+import 'package:final_assignment_front/features/api/auth_controller_api.dart';
 
 // Utility methods for validation
 bool isValidLicensePlate(String value) {
@@ -51,7 +50,7 @@ class VehicleList extends StatefulWidget {
   State<VehicleList> createState() => _VehicleListState();
 }
 
-class _VehicleListState extends State<VehicleList> {
+class _VehicleListState extends State<VehicleList> with PageAuthMixin {
   final ManagerDashboardController controller =
       Get.find<ManagerDashboardController>();
   final VehicleController vehicleController = Get.find<VehicleController>();
@@ -86,52 +85,17 @@ class _VehicleListState extends State<VehicleList> {
     super.dispose();
   }
 
-  Future<bool> _validateJwtToken() async {
-    String? jwtToken = (await AuthTokenStore.instance.getJwtToken());
-    AppLogger.debug('JWT token loaded for vehicle list request');
-    if (jwtToken == null || jwtToken.isEmpty) {
-      AppLogger.debug('JWT token not found or empty');
-      setState(() => _errorMessage = '未授权，请重新登录');
-      return false;
-    }
-    try {
-      final decodedToken = JwtDecoder.decode(jwtToken);
-      if (JwtDecoder.isExpired(jwtToken)) {
-        AppLogger.debug('JWT token is expired: ${decodedToken['exp']}');
-        final refreshed = await Get.find<AuthService>().refreshJwtToken();
-        jwtToken = await AuthTokenStore.instance.getJwtToken();
-        if (!refreshed || jwtToken == null) {
-          setState(() => _errorMessage = '登录已过期，请重新登录');
-          return false;
-        }
-        final newDecodedToken = JwtDecoder.decode(jwtToken);
-        if (JwtDecoder.isExpired(jwtToken)) {
-          setState(() => _errorMessage = '新登录信息已过期，请重新登录');
-          return false;
-        }
-        await vehicleApi.initializeWithJwt();
-      }
-      AppLogger.debug('JWT token is valid. Subject: ${decodedToken['sub']}');
-      return true;
-    } catch (e) {
-      AppLogger.error('JWT decode error: $e');
-      setState(() => _errorMessage = '无效的登录信息，请重新登录');
-      return false;
-    }
-  }
-
   Future<void> _initialize() async {
     setState(() => _isLoading = true);
     try {
-      if (!await _validateJwtToken()) {
-        Navigator.pushReplacementNamed(context, '/login');
+      final roles = await requireRoles((r) => r.contains('ADMIN'));
+      if (roles == null) return; // session expired, redirected to login
+      _isAdmin = roles.isNotEmpty;
+      if (!_isAdmin) {
+        setState(() => _errorMessage = '权限不足：仅管理员可访问此页面');
         return;
       }
       await vehicleApi.initializeWithJwt(); // 确保初始化 JWT
-      final jwtToken = (await AuthTokenStore.instance.getJwtToken())!;
-      final decodedToken = JwtDecoder.decode(jwtToken);
-      _isAdmin = decodedToken['roles'] == 'ADMIN'; // 修正字段名
-      await _checkUserRole();
       await _fetchVehicles(reset: true);
     } catch (e) {
       setState(() {
@@ -139,34 +103,6 @@ class _VehicleListState extends State<VehicleList> {
       });
     } finally {
       setState(() => _isLoading = false);
-    }
-  }
-
-  Future<void> _checkUserRole() async {
-    try {
-      if (!await _validateJwtToken()) {
-        Navigator.pushReplacementNamed(context, '/login');
-        return;
-      }
-      final jwtToken = (await AuthTokenStore.instance.getJwtToken())!;
-      final userData = await AuthControllerApi().getCurrentProfile();
-      if (userData != null) {
-        final roles = (userData['roles'] as List<dynamic>?)
-                ?.map((r) => r.toString())
-                .toList() ??
-            (JwtDecoder.decode(jwtToken)['roles'] is String
-                ? [JwtDecoder.decode(jwtToken)['roles']]
-                : []);
-        AppLogger.debug('User roles from /api/users/me: $roles');
-        AppLogger.debug('Full userData: $userData');
-        setState(() => _isAdmin = roles.contains('ADMIN')); // Changed to ADMIN
-      } else {
-        AppLogger.debug('Role check failed: /api/users/me returned empty');
-        throw Exception('验证失败：未获取到用户信息');
-      }
-    } catch (e) {
-      AppLogger.error('Error checking role: $e');
-      setState(() => _errorMessage = '验证角色失败: $e');
     }
   }
 
@@ -185,10 +121,7 @@ class _VehicleListState extends State<VehicleList> {
     });
 
     try {
-      if (!await _validateJwtToken()) {
-        Navigator.pushReplacementNamed(context, '/login');
-        return;
-      }
+      if (await ensureFreshJwt() == null) return;
       List<VehicleInformation> vehicles =
           await vehicleApi.listVehicles(); // 无分页参数
 
@@ -224,10 +157,7 @@ class _VehicleListState extends State<VehicleList> {
 
   Future<List<String>> _fetchAutocompleteSuggestions(String prefix) async {
     try {
-      if (!await _validateJwtToken()) {
-        Navigator.pushReplacementNamed(context, '/login');
-        return [];
-      }
+      if (await ensureFreshJwt() == null) return [];
       if (_searchType == 'licensePlate') {
         final suggestions = await vehicleApi.searchVehiclesByLicenseGlobal(
           prefix: prefix,
@@ -364,10 +294,7 @@ class _VehicleListState extends State<VehicleList> {
     if (confirm == true) {
       setState(() => _isLoading = true);
       try {
-        if (!await _validateJwtToken()) {
-          Navigator.pushReplacementNamed(context, '/login');
-          return;
-        }
+        if (await ensureFreshJwt() == null) return;
         final deleted = await vehicleController.deleteVehicle(vehicleId);
         if (!deleted) {
           throw Exception(vehicleController.errorMessage.value);
@@ -495,17 +422,9 @@ class _VehicleListState extends State<VehicleList> {
                   );
                 }
                 final vehicle = _filteredVehicleList[index];
-                return Card(
+                return DashboardPanel(
                   margin: const EdgeInsets.symmetric(vertical: 8.0),
-                  elevation: 0,
-                  color: themeData.colorScheme.surfaceContainer,
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(8.0),
-                    side: BorderSide(
-                      color: themeData.colorScheme.outlineVariant
-                          .withValues(alpha: 0.42),
-                    ),
-                  ),
+                  padding: EdgeInsets.zero,
                   child: ListTile(
                     contentPadding: const EdgeInsets.symmetric(
                         horizontal: 16.0, vertical: 12.0),
@@ -604,7 +523,7 @@ class AddVehiclePage extends StatefulWidget {
   State<AddVehiclePage> createState() => _AddVehiclePageState();
 }
 
-class _AddVehiclePageState extends State<AddVehiclePage> {
+class _AddVehiclePageState extends State<AddVehiclePage> with PageAuthMixin {
   final VehicleController vehicleController = Get.find<VehicleController>();
   final VehicleInformationControllerApi vehicleApi =
       VehicleInformationControllerApi();
@@ -625,28 +544,6 @@ class _AddVehiclePageState extends State<AddVehiclePage> {
   final ManagerDashboardController controller =
       Get.find<ManagerDashboardController>();
 
-  Future<bool> _validateJwtToken() async {
-    String? jwtToken = await AuthTokenStore.instance.getJwtToken();
-    if (jwtToken == null || jwtToken.isEmpty) {
-      _showSnackBar('未授权，请重新登录', isError: true);
-      return false;
-    }
-    try {
-      if (JwtDecoder.isExpired(jwtToken)) {
-        final refreshed = await Get.find<AuthService>().refreshJwtToken();
-        jwtToken = await AuthTokenStore.instance.getJwtToken();
-        if (!refreshed || jwtToken == null || JwtDecoder.isExpired(jwtToken)) {
-          _showSnackBar('登录已过期，请重新登录', isError: true);
-          return false;
-        }
-      }
-      return true;
-    } catch (e) {
-      _showSnackBar('无效的登录信息，请重新登录', isError: true);
-      return false;
-    }
-  }
-
   @override
   void initState() {
     super.initState();
@@ -656,14 +553,9 @@ class _AddVehiclePageState extends State<AddVehiclePage> {
   Future<void> _initialize() async {
     setState(() => _isLoading = true);
     try {
-      if (!await _validateJwtToken()) {
-        Navigator.pushReplacementNamed(context, '/login');
-        return;
-      }
-      final jwtToken = (await AuthTokenStore.instance.getJwtToken());
-      if (jwtToken == null) throw Exception('未找到 JWT');
-      final decodedToken = JwtDecoder.decode(jwtToken);
-      final username = decodedToken['sub'] ?? '';
+      final claims = await ensureFreshJwt();
+      if (claims == null) return;
+      final username = claims['sub']?.toString() ?? '';
       if (username.isEmpty) throw Exception('JWT 中未找到用户名');
       await vehicleApi.initializeWithJwt();
       await driverApi.initializeWithJwt();
@@ -699,10 +591,7 @@ class _AddVehiclePageState extends State<AddVehiclePage> {
       _showSnackBar('车牌号格式无效，请输入有效车牌号（例如：黑A12345）', isError: true);
       return;
     }
-    if (!await _validateJwtToken()) {
-      Navigator.pushReplacementNamed(context, '/login');
-      return;
-    }
+    if (await ensureFreshJwt() == null) return;
     if (await vehicleController.existsLicensePlate(licensePlate)) {
       _showSnackBar('车牌号已存在，请使用其他车牌号', isError: true);
       return;
@@ -881,17 +770,6 @@ class _AddVehiclePageState extends State<AddVehiclePage> {
         pageType: widget.onVehicleAdded != null
             ? DashboardPageType.custom
             : DashboardPageType.manager,
-        appBar: widget.onVehicleAdded != null
-            ? null
-            : AppBar(
-                title: Text('添加新车辆',
-                    style: themeData.textTheme.headlineMedium?.copyWith(
-                        fontWeight: FontWeight.w800,
-                        color: themeData.colorScheme.onPrimaryContainer)),
-                backgroundColor: themeData.colorScheme.primaryContainer,
-                foregroundColor: themeData.colorScheme.onPrimaryContainer,
-                elevation: 2,
-              ),
         bodyIsScrollable: true,
         padding: EdgeInsets.zero,
         body: Padding(
@@ -903,14 +781,9 @@ class _AddVehiclePageState extends State<AddVehiclePage> {
                   child: SingleChildScrollView(
                     child: Column(
                       children: [
-                        Card(
-                          elevation: 3,
-                          color: themeData.colorScheme.surfaceContainer,
-                          shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(16.0)),
-                          child: Padding(
-                            padding: const EdgeInsets.all(16.0),
-                            child: Column(
+                        DashboardPanel(
+                          padding: const EdgeInsets.all(16.0),
+                          child: Column(
                               children: [
                                 if (widget.onVehicleAdded != null)
                                   Text(
@@ -960,7 +833,6 @@ class _AddVehiclePageState extends State<AddVehiclePage> {
                                     maxLength: 50),
                               ],
                             ),
-                          ),
                         ),
                         const SizedBox(height: 20),
                         ElevatedButton(
@@ -969,7 +841,7 @@ class _AddVehiclePageState extends State<AddVehiclePage> {
                             backgroundColor: themeData.colorScheme.primary,
                             foregroundColor: themeData.colorScheme.onPrimary,
                             shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(12.0)),
+                                borderRadius: BorderRadius.circular(8)),
                             padding: const EdgeInsets.symmetric(
                                 vertical: 14.0, horizontal: 20.0),
                             textStyle: themeData.textTheme.labelLarge
@@ -996,7 +868,7 @@ class EditVehiclePage extends StatefulWidget {
   State<EditVehiclePage> createState() => _EditVehiclePageState();
 }
 
-class _EditVehiclePageState extends State<EditVehiclePage> {
+class _EditVehiclePageState extends State<EditVehiclePage> with PageAuthMixin {
   final VehicleController vehicleController = Get.find<VehicleController>();
   final VehicleInformationControllerApi vehicleApi =
       VehicleInformationControllerApi();
@@ -1017,28 +889,6 @@ class _EditVehiclePageState extends State<EditVehiclePage> {
   final ManagerDashboardController controller =
       Get.find<ManagerDashboardController>();
 
-  Future<bool> _validateJwtToken() async {
-    String? jwtToken = await AuthTokenStore.instance.getJwtToken();
-    if (jwtToken == null || jwtToken.isEmpty) {
-      _showSnackBar('未授权，请重新登录', isError: true);
-      return false;
-    }
-    try {
-      if (JwtDecoder.isExpired(jwtToken)) {
-        final refreshed = await Get.find<AuthService>().refreshJwtToken();
-        jwtToken = await AuthTokenStore.instance.getJwtToken();
-        if (!refreshed || jwtToken == null || JwtDecoder.isExpired(jwtToken)) {
-          _showSnackBar('登录已过期，请重新登录', isError: true);
-          return false;
-        }
-      }
-      return true;
-    } catch (e) {
-      _showSnackBar('无效的登录信息，请重新登录', isError: true);
-      return false;
-    }
-  }
-
   @override
   void initState() {
     super.initState();
@@ -1048,10 +898,7 @@ class _EditVehiclePageState extends State<EditVehiclePage> {
   Future<void> _initialize() async {
     setState(() => _isLoading = true);
     try {
-      if (!await _validateJwtToken()) {
-        Navigator.pushReplacementNamed(context, '/login');
-        return;
-      }
+      if (await ensureFreshJwt() == null) return;
       await vehicleApi.initializeWithJwt();
       await driverApi.initializeWithJwt();
       _initializeFields();
@@ -1101,10 +948,7 @@ class _EditVehiclePageState extends State<EditVehiclePage> {
       _showSnackBar('车牌号格式无效，请输入有效车牌号（例如：黑A12345）', isError: true);
       return;
     }
-    if (!await _validateJwtToken()) {
-      Navigator.pushReplacementNamed(context, '/login');
-      return;
-    }
+    if (await ensureFreshJwt() == null) return;
     if (newLicensePlate != widget.vehicle.licensePlate &&
         await vehicleController.existsLicensePlate(newLicensePlate)) {
       _showSnackBar('车牌号已存在，请使用其他车牌号', isError: true);
@@ -1292,14 +1136,9 @@ class _EditVehiclePageState extends State<EditVehiclePage> {
                   child: SingleChildScrollView(
                     child: Column(
                       children: [
-                        Card(
-                          elevation: 3,
-                          color: themeData.colorScheme.surfaceContainer,
-                          shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(16.0)),
-                          child: Padding(
-                            padding: const EdgeInsets.all(16.0),
-                            child: Column(
+                        DashboardPanel(
+                          padding: const EdgeInsets.all(16.0),
+                          child: Column(
                               children: [
                                 _buildTextField(
                                     '车牌号', _licensePlateController, themeData,
@@ -1339,7 +1178,6 @@ class _EditVehiclePageState extends State<EditVehiclePage> {
                                     maxLength: 50),
                               ],
                             ),
-                          ),
                         ),
                         const SizedBox(height: 20),
                         ElevatedButton(
@@ -1348,7 +1186,7 @@ class _EditVehiclePageState extends State<EditVehiclePage> {
                             backgroundColor: themeData.colorScheme.primary,
                             foregroundColor: themeData.colorScheme.onPrimary,
                             shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(12.0)),
+                                borderRadius: BorderRadius.circular(8)),
                             padding: const EdgeInsets.symmetric(
                                 vertical: 14.0, horizontal: 20.0),
                             textStyle: themeData.textTheme.labelLarge
@@ -1375,7 +1213,8 @@ class VehicleDetailPage extends StatefulWidget {
   State<VehicleDetailPage> createState() => _VehicleDetailPageState();
 }
 
-class _VehicleDetailPageState extends State<VehicleDetailPage> {
+class _VehicleDetailPageState extends State<VehicleDetailPage>
+    with PageAuthMixin {
   final VehicleController vehicleController = Get.find<VehicleController>();
   final VehicleInformationControllerApi vehicleApi =
       VehicleInformationControllerApi();
@@ -1386,28 +1225,6 @@ class _VehicleDetailPageState extends State<VehicleDetailPage> {
   final ManagerDashboardController controller =
       Get.find<ManagerDashboardController>();
 
-  Future<bool> _validateJwtToken() async {
-    String? jwtToken = await AuthTokenStore.instance.getJwtToken();
-    if (jwtToken == null || jwtToken.isEmpty) {
-      setState(() => _errorMessage = '未授权，请重新登录');
-      return false;
-    }
-    try {
-      if (JwtDecoder.isExpired(jwtToken)) {
-        final refreshed = await Get.find<AuthService>().refreshJwtToken();
-        jwtToken = await AuthTokenStore.instance.getJwtToken();
-        if (!refreshed || jwtToken == null || JwtDecoder.isExpired(jwtToken)) {
-          setState(() => _errorMessage = '登录已过期，请重新登录');
-          return false;
-        }
-      }
-      return true;
-    } catch (e) {
-      setState(() => _errorMessage = '无效的登录信息，请重新登录');
-      return false;
-    }
-  }
-
   @override
   void initState() {
     super.initState();
@@ -1417,14 +1234,9 @@ class _VehicleDetailPageState extends State<VehicleDetailPage> {
   Future<void> _initialize() async {
     setState(() => _isLoading = true);
     try {
-      if (!await _validateJwtToken()) {
-        Navigator.pushReplacementNamed(context, '/login');
-        return;
-      }
-      final jwtToken = (await AuthTokenStore.instance.getJwtToken());
-      if (jwtToken == null) throw Exception('未找到 JWT，请重新登录');
-      final decodedToken = JwtDecoder.decode(jwtToken);
-      final username = decodedToken['sub'] ?? '';
+      final claims = await ensureFreshJwt();
+      if (claims == null) return; // session expired, redirected to login
+      final username = claims['sub']?.toString() ?? '';
       if (username.isEmpty) throw Exception('JWT 中未找到用户名');
       await vehicleApi.initializeWithJwt();
       final user = await _fetchUserManagement();
@@ -1442,10 +1254,7 @@ class _VehicleDetailPageState extends State<VehicleDetailPage> {
 
   Future<UserManagement?> _fetchUserManagement() async {
     try {
-      if (!await _validateJwtToken()) {
-        Navigator.pushReplacementNamed(context, '/login');
-        return null;
-      }
+      if (await ensureFreshJwt() == null) return null;
       final userData = await AuthControllerApi().getCurrentProfile();
       return userData == null ? null : UserManagement.fromJson(userData);
     } catch (e) {
@@ -1456,10 +1265,7 @@ class _VehicleDetailPageState extends State<VehicleDetailPage> {
 
   Future<DriverInformation?> _fetchDriverInformation(int userId) async {
     try {
-      if (!await _validateJwtToken()) {
-        Navigator.pushReplacementNamed(context, '/login');
-        return null;
-      }
+      if (await ensureFreshJwt() == null) return null;
       final driverApi = DriverInformationControllerApi();
       await driverApi.initializeWithJwt();
       return await driverApi.getDriver(driverId: userId);
@@ -1471,29 +1277,12 @@ class _VehicleDetailPageState extends State<VehicleDetailPage> {
 
   Future<void> _checkUserRole() async {
     try {
-      if (!await _validateJwtToken()) {
-        Navigator.pushReplacementNamed(context, '/login');
-        return;
-      }
-      final jwtToken = (await AuthTokenStore.instance.getJwtToken());
-      if (jwtToken == null) throw Exception('未找到 JWT，请重新登录');
-      final userData = await AuthControllerApi().getCurrentProfile();
-      if (userData != null) {
-        final roles = (userData['roles'] as List<dynamic>?)
-                ?.map((r) => r.toString())
-                .toList() ??
-            (JwtDecoder.decode(jwtToken)['roles'] is String
-                ? [JwtDecoder.decode(jwtToken)['roles']]
-                : []);
-        AppLogger.debug('User roles from /api/users/me: $roles');
-        AppLogger.debug('Full userData: $userData');
-        setState(
-            () => _isEditable = roles.contains('ADMIN') || // Changed to ADMIN
-                (_currentDriverName == widget.vehicle.ownerName));
-      } else {
-        AppLogger.debug('Role check failed: /api/users/me returned empty');
-        throw Exception('验证失败：未获取到用户信息');
-      }
+      final roles = await requireRoles((r) => r.contains('ADMIN'));
+      if (roles == null) return; // session expired, redirected to login
+      AppLogger.debug('User roles: $roles');
+      setState(
+          () => _isEditable = roles.contains('ADMIN') ||
+              (_currentDriverName == widget.vehicle.ownerName));
     } catch (e) {
       AppLogger.error('Error checking role: $e');
       setState(() => _errorMessage = '加载权限失败: $e');
@@ -1503,10 +1292,7 @@ class _VehicleDetailPageState extends State<VehicleDetailPage> {
   Future<void> _deleteVehicle(int vehicleId) async {
     setState(() => _isLoading = true);
     try {
-      if (!await _validateJwtToken()) {
-        Navigator.pushReplacementNamed(context, '/login');
-        return;
-      }
+      if (await ensureFreshJwt() == null) return;
       final deleted = await vehicleController.deleteVehicle(vehicleId);
       if (!deleted) {
         throw Exception(vehicleController.errorMessage.value);
@@ -1620,14 +1406,9 @@ class _VehicleDetailPageState extends State<VehicleDetailPage> {
             ? const LoadingView()
             : Padding(
                 padding: const EdgeInsets.all(16.0),
-                child: Card(
-                  elevation: 3,
-                  color: themeData.colorScheme.surfaceContainer,
-                  shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(16.0)),
-                  child: Padding(
-                    padding: const EdgeInsets.all(16.0),
-                    child: SingleChildScrollView(
+                child: DashboardPanel(
+                  padding: const EdgeInsets.all(16.0),
+                  child: SingleChildScrollView(
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
@@ -1656,7 +1437,6 @@ class _VehicleDetailPageState extends State<VehicleDetailPage> {
                         ],
                       ),
                     ),
-                  ),
                 ),
               ),
       );

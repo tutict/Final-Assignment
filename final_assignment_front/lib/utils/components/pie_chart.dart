@@ -8,6 +8,9 @@ class OffensePieChart extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final scheme = theme.colorScheme;
+
     if (typeCountMap.isEmpty) {
       return const Center(
         child: Text('No offense data available'),
@@ -30,9 +33,9 @@ class OffensePieChart extends StatelessWidget {
         children: [
           PieChart(
             PieChartData(
-              sections: _buildPieChartSections(dataList, colors, totalCount),
-              sectionsSpace: 2, // 饼图各部分之间的间距
-              centerSpaceRadius: 40, // 中心空白区域的半径
+              sections: _buildPieChartSections(dataList, colors, totalCount, scheme),
+              sectionsSpace: 2,
+              centerSpaceRadius: 40,
               borderData: FlBorderData(show: false),
             ),
           ),
@@ -41,20 +44,22 @@ class OffensePieChart extends StatelessWidget {
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                const Text(
+                Text(
                   'Total',
                   style: TextStyle(
                     fontSize: 16,
                     fontWeight: FontWeight.w800,
-                    color: Colors.black,
+                    color: scheme.onSurface,
+                    letterSpacing: 0,
                   ),
                 ),
                 Text(
                   totalCount.toString(),
-                  style: const TextStyle(
+                  style: TextStyle(
                     fontSize: 20,
                     fontWeight: FontWeight.w800,
-                    color: Colors.black,
+                    color: scheme.onSurface,
+                    letterSpacing: 0,
                   ),
                 ),
               ],
@@ -69,7 +74,8 @@ class OffensePieChart extends StatelessWidget {
   List<PieChartSectionData> _buildPieChartSections(
       List<MapEntry<String, int>> dataList,
       List<Color> colors,
-      int totalCount) {
+      int totalCount,
+      ColorScheme scheme) {
     return List.generate(dataList.length, (index) {
       final entry = dataList[index];
       final value = entry.value.toDouble();
@@ -77,21 +83,17 @@ class OffensePieChart extends StatelessWidget {
 
       return PieChartSectionData(
         value: value,
-        // 饼图部分的值
         color: colors[index],
-        // 颜色
         radius: 100,
-        // 饼图部分的半径
         title: '$percentage%',
-        // 显示百分比
-        titleStyle: const TextStyle(
+        titleStyle: TextStyle(
           fontSize: 14,
           fontWeight: FontWeight.w800,
           color: Colors.white,
+          letterSpacing: 0,
         ),
         badgeWidget: _buildBadgeWidget(entry.key, colors[index]),
-        // 自定义标签
-        badgePositionPercentageOffset: 1.2, // 标签位置（相对于中心的偏移）
+        badgePositionPercentageOffset: 1.2,
       );
     });
   }
@@ -102,7 +104,7 @@ class OffensePieChart extends StatelessWidget {
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
       decoration: BoxDecoration(
         color: color,
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.circular(8),
         boxShadow: const [
           BoxShadow(
             color: Colors.black26,

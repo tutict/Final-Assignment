@@ -1,4 +1,3 @@
-// 导入必要的包
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:final_assignment_front/constants/app_constants.dart';
@@ -8,7 +7,6 @@ class ProgressCardData {
   final int totalUndone;
   final int totalTaskInProress;
 
-  // 构造函数
   const ProgressCardData({
     required this.totalUndone,
     required this.totalTaskInProress,
@@ -17,7 +15,6 @@ class ProgressCardData {
 
 // 定义进度卡片组件，用于展示车辆相关信息和操作按钮
 class ProgressCard extends StatelessWidget {
-  // 构造函数
   const ProgressCard({
     required this.data,
     required this.onPressedCheck,
@@ -29,20 +26,30 @@ class ProgressCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // 返回一个卡片组件，包含车辆图案和相关信息
-    return Card(
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(kBorderRadius),
-        side: const BorderSide(
-          color: Colors.white,
-          width: 0.5,
+    final theme = Theme.of(context);
+    final scheme = theme.colorScheme;
+    final dark = theme.brightness == Brightness.dark;
+
+    return Container(
+      decoration: BoxDecoration(
+        color: scheme.surface.withValues(alpha: dark ? 0.92 : 0.96),
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(
+          color: scheme.outlineVariant.withValues(alpha: dark ? 0.45 : 0.58),
         ),
+        boxShadow: [
+          BoxShadow(
+            color: theme.shadowColor.withValues(alpha: dark ? 0.18 : 0.08),
+            blurRadius: 18,
+            offset: const Offset(0, 10),
+          ),
+        ],
       ),
       child: Stack(
         children: [
           // 车辆图案，使用SVG格式
           ClipRRect(
-            borderRadius: BorderRadius.circular(kBorderRadius),
+            borderRadius: BorderRadius.circular(8),
             child: Align(
               alignment: Alignment.bottomRight,
               child: Transform.translate(
@@ -67,7 +74,6 @@ class ProgressCard extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: <Widget>[
-                // 车辆图标和名称
                 const Row(
                   children: <Widget>[
                     Icon(Icons.directions_car, size: 44.0),
@@ -78,7 +84,6 @@ class ProgressCard extends StatelessWidget {
                   ],
                 ),
                 const SizedBox(height: kSpacing),
-                // 备案机动车信息的按钮
                 ElevatedButton(
                   onPressed: onPressedCheck,
                   child: const Row(

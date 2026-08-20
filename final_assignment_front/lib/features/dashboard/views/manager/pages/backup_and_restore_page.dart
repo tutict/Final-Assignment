@@ -1,5 +1,6 @@
 import 'package:final_assignment_front/features/api/backup_restore_controller_api.dart';
 import 'package:final_assignment_front/features/dashboard/controllers/manager_dashboard_controller.dart';
+import 'package:final_assignment_front/features/dashboard/views/manager/pages/main_process/manager_business_page_chrome.dart';
 import 'package:final_assignment_front/features/dashboard/views/shared/widgets/dashboard_chrome.dart';
 import 'package:final_assignment_front/features/dashboard/views/shared/widgets/dashboard_page_template.dart';
 import 'package:final_assignment_front/features/model/backup_restore.dart';
@@ -205,7 +206,7 @@ class _BackupAndRestoreState extends State<BackupAndRestorePage> {
         idempotencyKey: idempotencyKey,
       );
 
-      Get.snackbar('成功', '备份创建成功', snackPosition: SnackPosition.BOTTOM);
+      showManagerBusinessToast(context, message: '备份创建成功');
       await _loadBackups();
     } catch (e) {
       ErrorHandler.showError(e,
@@ -230,7 +231,7 @@ class _BackupAndRestoreState extends State<BackupAndRestorePage> {
         backupRestore: payload,
         idempotencyKey: idempotencyKey,
       );
-      Get.snackbar('成功', '备份更新成功', snackPosition: SnackPosition.BOTTOM);
+      showManagerBusinessToast(context, message: '备份更新成功');
       await _loadBackups();
     } catch (e) {
       ErrorHandler.showError(e,
@@ -260,7 +261,7 @@ class _BackupAndRestoreState extends State<BackupAndRestorePage> {
         backupRestore: payload,
         idempotencyKey: idempotencyKey,
       );
-      Get.snackbar('成功', '恢复备份成功', snackPosition: SnackPosition.BOTTOM);
+      showManagerBusinessToast(context, message: '恢复备份成功');
       await _loadBackups();
     } catch (e) {
       ErrorHandler.showError(e,
@@ -279,7 +280,7 @@ class _BackupAndRestoreState extends State<BackupAndRestorePage> {
 
     try {
       await backupApi.deleteBackup(backupId: backupId);
-      Get.snackbar('成功', '删除备份成功', snackPosition: SnackPosition.BOTTOM);
+      showManagerBusinessToast(context, message: '删除备份成功');
       await _loadBackups();
     } catch (e) {
       ErrorHandler.showError(e,
@@ -289,12 +290,7 @@ class _BackupAndRestoreState extends State<BackupAndRestorePage> {
 
   void _showSnackBar(String message) {
     if (!mounted) return;
-    Get.snackbar(
-      '提示',
-      message,
-      snackPosition: SnackPosition.BOTTOM,
-      duration: const Duration(seconds: 3),
-    );
+    showManagerBusinessToast(context, message: message);
   }
 
   String _formatErrorMessage(dynamic error) {
@@ -680,7 +676,7 @@ class _BackupDetailPageState extends State<BackupDetailPage> {
         idempotencyKey: idempotencyKey,
       );
 
-      Get.snackbar('成功', '备份更新成功', snackPosition: SnackPosition.BOTTOM);
+      showManagerBusinessToast(context, message: '备份更新成功');
       setState(() {
         _backup = result;
         isLoading.value = false;
@@ -697,12 +693,7 @@ class _BackupDetailPageState extends State<BackupDetailPage> {
 
   void _showSnackBar(String message) {
     if (!mounted) return;
-    Get.snackbar(
-      '提示',
-      message,
-      snackPosition: SnackPosition.BOTTOM,
-      duration: const Duration(seconds: 3),
-    );
+    showManagerBusinessToast(context, message: message);
   }
 
   String _formatErrorMessage(dynamic error) {

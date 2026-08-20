@@ -13,7 +13,7 @@ class NewsPageLayout extends StatelessWidget {
     this.subtitle,
     this.badge,
     this.icon = Icons.article_outlined,
-    this.accentColor = Colors.blue,
+    this.accentColor = const Color(0xFF2563EB),
     this.leading,
     this.trailing,
   });
