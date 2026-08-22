@@ -718,7 +718,7 @@ class _UserAppealPageState extends State<UserAppealPage> {
                                     child: CircularProgressIndicator(
                                       strokeWidth: 2,
                                       valueColor: AlwaysStoppedAnimation<Color>(
-                                          Colors.white),
+                                          themeData.colorScheme.onPrimary),
                                     ),
                                   )
                                 : const Text('提交'),

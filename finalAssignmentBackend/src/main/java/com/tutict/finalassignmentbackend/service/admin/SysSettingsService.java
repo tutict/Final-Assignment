@@ -60,24 +60,33 @@ public class SysSettingsService {
         Objects.requireNonNull(settings, "SysSettings must not be null");
         SysRequestHistory existing = sysRequestHistoryMapper.selectByIdempotencyKey(idempotencyKey);
         if (existing != null) {
+            if ("FAILED".equalsIgnoreCase(existing.getBusinessStatus())) {
+                existing.setBusinessStatus("PROCESSING");
+                existing.setRequestParams("RETRY");
+                existing.setUpdatedAt(LocalDateTime.now());
+                sysRequestHistoryMapper.updateById(existing);
+                return;
+            }
             LOG.warning(() -> String.format("Duplicate sys settings request detected (key=%s)", idempotencyKey));
             throw new RuntimeException("Duplicate sys settings request detected");
         }
 
         SysRequestHistory history = new SysRequestHistory();
         history.setIdempotencyKey(idempotencyKey);
+        history.setBusinessType("SYS_SETTINGS_" + action);
+        history.setRequestUrl("/api/admin/settings/" + action);
         history.setBusinessStatus("PROCESSING");
         history.setCreatedAt(LocalDateTime.now());
         history.setUpdatedAt(LocalDateTime.now());
-        sysRequestHistoryMapper.insert(history);
-
-        sendKafkaMessage("sys_settings_" + action, idempotencyKey, settings);
-
-        history.setBusinessStatus("SUCCESS");
-        history.setBusinessId(Optional.ofNullable(settings.getSettingId()).map(Integer::longValue).orElse(null));
-        history.setRequestParams("PENDING");
-        history.setUpdatedAt(LocalDateTime.now());
-        sysRequestHistoryMapper.updateById(history);
+        try {
+            sysRequestHistoryMapper.insert(history);
+        } catch (org.springframework.dao.DataIntegrityViolationException ex) {
+            SysRequestHistory racing = sysRequestHistoryMapper.selectByIdempotencyKey(idempotencyKey);
+            if (racing != null && !"FAILED".equalsIgnoreCase(racing.getBusinessStatus())) {
+                throw new RuntimeException("Duplicate sys settings request detected");
+            }
+            throw ex;
+        }
     }
 
     @Transactional

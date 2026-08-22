@@ -2,6 +2,7 @@ package com.tutict.finalassignmentcloud.auth.controller;
 
 import com.tutict.finalassignmentcloud.auth.config.websocket.WsTicketService;
 import com.tutict.finalassignmentcloud.auth.service.AuthWsService;
+import com.tutict.finalassignmentcloud.dto.response.SysUserResponse;
 import com.tutict.finalassignmentcloud.dto.response.UserProfileResponse;
 import com.tutict.finalassignmentcloud.entity.SysUser;
 import io.swagger.v3.oas.annotations.Operation;
@@ -96,7 +97,7 @@ public class AuthController {
                 LOG.log(Level.SEVERE, "Login failed for username: {0}, error: {1}",
                         new Object[]{loginRequest.getUsername(), ex.getMessage()});
                 return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
-                        .body(Map.of("error", ex.getMessage()));
+                        .body(Map.of("error", "Invalid username or password."));
             }
         }, VIRTUAL_THREAD_EXECUTOR);
     }
@@ -142,7 +143,7 @@ public class AuthController {
                         LOG.log(Level.WARNING, "Register failed for username: {0}, error: {1}",
                                 new Object[]{registerRequest.getUsername(), ex.getMessage()});
                         return ResponseEntity.status(HttpStatus.CONFLICT)
-                                .body(Map.of("error", ex.getMessage()));
+                                .body(Map.of("error", "Registration failed. Please try again later."));
                     }
                 }, VIRTUAL_THREAD_EXECUTOR)
                 .exceptionally(throwable -> {
@@ -173,9 +174,9 @@ public class AuthController {
                     content = @Content(mediaType = "application/json",
                             schema = @Schema(type = "object", example = "{\"error\":\"Access denied\"}")))
     })
-    public ResponseEntity<List<SysUser>> getAllUsers() {
+    public ResponseEntity<List<SysUserResponse>> getAllUsers() {
         try {
-            List<SysUser> users = authWsService.getAllUsers();
+            List<SysUserResponse> users = authWsService.getAllUsers();
             LOG.log(Level.INFO, "Fetched {0} users", users.size());
             return ResponseEntity.ok(users);
         } catch (Exception ex) {

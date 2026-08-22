@@ -305,6 +305,20 @@ public class NetWorkHandler extends AbstractVerticle {
         String normalized = role.trim().toUpperCase(Locale.ROOT);
         return normalized.startsWith("ROLE_") ? normalized.substring("ROLE_".length()) : normalized;
     }
+    /** Close all WebSocket connections for a user (called on logout). */
+    public void closeUserConnections(String username) {
+        if (username == null || username.isBlank()) {
+            return;
+        }
+        Set<ServerWebSocket> sockets = webSocketsByUsername.remove(username);
+        if (sockets == null) {
+            return;
+        }
+        sockets.forEach(ws -> ws.close((short) 1000, "Logged out")
+                .onFailure(failure -> log.error("Failed to close WebSocket for user={}: {}", username, failure.getMessage())));
+        log.info("Closed {} WebSocket connection(s) for user={}", sockets.size(), username);
+    }
+
     public void pushToUser(String username, Map<String, Object> payload) {
         if (username == null || username.isBlank()) {
             broadcastBusinessEvent(payload);
@@ -428,12 +442,19 @@ public class NetWorkHandler extends AbstractVerticle {
             return;
         }
 
-        request.headers().add("X-Forwarded-By", "NetWorkHandler");
-
+        // Remove client-supplied forwarding headers; only NetWorkHandler rewrites them.
+        // This prevents spoofed X-Forwarded-For/X-Real-IP from reaching the backend.
         MultiMap headers = MultiMap.caseInsensitiveMultiMap();
         request.headers().forEach(entry -> {
-            headers.add(entry.getKey(), entry.getValue());
+            if (!"X-Forwarded-For".equalsIgnoreCase(entry.getKey())
+                    && !"X-Real-IP".equalsIgnoreCase(entry.getKey())
+                    && !"X-Forwarded-By".equalsIgnoreCase(entry.getKey())) {
+                headers.add(entry.getKey(), entry.getValue());
+            }
         });
+        // Write trusted link info: the direct peer is the trusted forwarder itself.
+        headers.add("X-Forwarded-By", "NetWorkHandler");
+        headers.add("X-Forwarded-For", request.remoteAddress().host());
         log.debug("[{}] Forward headers: {}", requestId, sanitizeHeaders(headers));
 
         MultiMap queryParams = request.params();

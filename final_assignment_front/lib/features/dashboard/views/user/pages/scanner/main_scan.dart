@@ -46,7 +46,7 @@ class _MainScanState extends State<MainScan> {
         data: qrData,
         version: QrVersions.auto,
         size: 280,
-        backgroundColor: Colors.white,
+        backgroundColor: scheme.surface,
         eyeStyle: QrEyeStyle(
           color: dashboardController.currentBodyTheme.value.colorScheme.primary,
         ),
@@ -185,7 +185,7 @@ class _MainScanState extends State<MainScan> {
               constraints: const BoxConstraints(maxWidth: 260, maxHeight: 260),
               padding: const EdgeInsets.all(12),
               decoration: BoxDecoration(
-                color: Colors.white,
+                color: scheme.surface,
                 border: Border.all(
                     color: scheme.primary.withValues(alpha: 0.24)),
                 borderRadius: BorderRadius.circular(8),
@@ -194,7 +194,7 @@ class _MainScanState extends State<MainScan> {
                 data: _lastGeneratedData!,
                 version: QrVersions.auto,
                 size: 240,
-                backgroundColor: Colors.white,
+                backgroundColor: scheme.surface,
                 eyeStyle: QrEyeStyle(color: scheme.primary),
                 dataModuleStyle: QrDataModuleStyle(color: scheme.primary),
               ),

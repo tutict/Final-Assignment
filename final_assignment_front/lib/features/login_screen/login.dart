@@ -596,7 +596,7 @@ class _LoginScreenState extends State<LoginScreen> {
                 color: colorScheme.onSurfaceVariant,
                 fontSize: compact ? 15 : 17,
                 height: 1.55,
-                fontWeight: FontWeight.w500,
+                fontWeight: FontWeight.w600,
                 letterSpacing: 0,
               ),
             ),

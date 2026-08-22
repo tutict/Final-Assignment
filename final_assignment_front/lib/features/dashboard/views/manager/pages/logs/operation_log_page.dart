@@ -798,7 +798,7 @@ class _OperationLogPageState extends State<OperationLogPage> with PageAuthMixin 
                                   style:
                                       themeData.textTheme.titleMedium?.copyWith(
                                     color: themeData.colorScheme.error,
-                                    fontWeight: FontWeight.w500,
+                                    fontWeight: FontWeight.w600,
                                   ),
                                   textAlign: TextAlign.center,
                                 ),
@@ -848,7 +848,7 @@ class _OperationLogPageState extends State<OperationLogPage> with PageAuthMixin 
                                           ?.copyWith(
                                         color: themeData
                                             .colorScheme.onSurfaceVariant,
-                                        fontWeight: FontWeight.w500,
+                                        fontWeight: FontWeight.w600,
                                       ),
                                       textAlign: TextAlign.center,
                                     ),

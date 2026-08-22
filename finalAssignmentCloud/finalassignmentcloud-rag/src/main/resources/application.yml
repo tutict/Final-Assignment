@@ -23,6 +23,10 @@ spring:
         file-extension: yaml
         username: ${NACOS_USERNAME:}
         password: ${NACOS_PASSWORD:}
+  servlet:
+    multipart:
+      max-file-size: ${SPRING_MULTIPART_MAX_FILE_SIZE:8MB}
+      max-request-size: ${SPRING_MULTIPART_MAX_REQUEST_SIZE:12MB}
   datasource:
     driver-class-name: com.mysql.cj.jdbc.Driver
     url: ${RAG_DB_URL:jdbc:mysql://localhost:3309/rag?useSSL=false&serverTimezone=Asia/Shanghai&allowPublicKeyRetrieval=true}

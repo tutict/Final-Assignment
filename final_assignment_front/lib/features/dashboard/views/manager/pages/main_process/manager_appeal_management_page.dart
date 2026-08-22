@@ -1081,7 +1081,8 @@ class _AppealDetailPageState extends State<AppealDetailPage> {
                                     style: ElevatedButton.styleFrom(
                                       backgroundColor:
                                           const Color(0xFF41B86A),
-                                      foregroundColor: Colors.white,
+                                      foregroundColor:
+                                          themeData.colorScheme.onPrimary,
                                     ),
                                   ),
                                   ElevatedButton.icon(

@@ -5,6 +5,11 @@ import lombok.Data;
 
 import java.time.LocalDateTime;
 
+/**
+ * Safe DTO for user information exposed to external APIs.
+ * Never includes sensitive fields like password, salt, idCardNumber,
+ * contactNumber, loginFailures, lastLoginIp, or passwordUpdateTime.
+ */
 @Data
 @Builder
 public class UserResponse {

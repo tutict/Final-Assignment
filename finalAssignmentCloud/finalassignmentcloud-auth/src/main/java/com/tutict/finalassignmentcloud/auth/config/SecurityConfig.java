@@ -2,6 +2,7 @@ package com.tutict.finalassignmentcloud.auth.config;
 
 import com.tutict.finalassignmentcloud.auth.config.login.jwt.JwtAuthenticationFilter;
 import com.tutict.finalassignmentcloud.auth.config.login.jwt.TokenProvider;
+import com.tutict.finalassignmentcloud.auth.service.TokenBlacklistService;
 import com.tutict.finalassignmentcloud.config.security.SecurityResponseWriter;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -21,9 +22,12 @@ import org.springframework.security.web.authentication.UsernamePasswordAuthentic
 public class SecurityConfig {
 
     private final TokenProvider tokenProvider;
+    private final TokenBlacklistService tokenBlacklistService;
 
-    public SecurityConfig(TokenProvider tokenProvider) {
+    public SecurityConfig(TokenProvider tokenProvider,
+                          TokenBlacklistService tokenBlacklistService) {
         this.tokenProvider = tokenProvider;
+        this.tokenBlacklistService = tokenBlacklistService;
     }
 
     @Bean
@@ -35,8 +39,6 @@ public class SecurityConfig {
                         .requestMatchers(
                                 "/api/auth/register",
                                 "/api/auth/login",
-                                "/api/auth/refresh",
-                                "/api/users/me/password",
                                 "/actuator/health",
                                 "/actuator/health/**"
                         ).permitAll()
@@ -51,7 +53,7 @@ public class SecurityConfig {
 
     @Bean
     public JwtAuthenticationFilter jwtAuthenticationFilter() {
-        return new JwtAuthenticationFilter(tokenProvider);
+        return new JwtAuthenticationFilter(tokenProvider, tokenBlacklistService);
     }
 
     @Bean

@@ -61,24 +61,35 @@ public class SysBackupRestoreService {
         Objects.requireNonNull(backupRestore, "SysBackupRestore must not be null");
         SysRequestHistory existing = sysRequestHistoryMapper.selectByIdempotencyKey(idempotencyKey);
         if (existing != null) {
+            // A FAILED record may be retried with the same key. DONE/SUCCESS records block reuse.
+            if ("FAILED".equalsIgnoreCase(existing.getBusinessStatus())) {
+                existing.setBusinessStatus("PROCESSING");
+                existing.setRequestParams("RETRY");
+                existing.setUpdatedAt(LocalDateTime.now());
+                sysRequestHistoryMapper.updateById(existing);
+                return;
+            }
             log.warning(() -> String.format("Duplicate sys backup/restore request detected (key=%s)", idempotencyKey));
             throw new RuntimeException("Duplicate sys backup/restore request detected");
         }
 
         SysRequestHistory history = new SysRequestHistory();
         history.setIdempotencyKey(idempotencyKey);
+        history.setBusinessType("SYS_BACKUP_RESTORE_" + action);
+        history.setRequestUrl("/api/admin/backup-restore/" + action);
         history.setBusinessStatus("PROCESSING");
         history.setCreatedAt(LocalDateTime.now());
         history.setUpdatedAt(LocalDateTime.now());
-        sysRequestHistoryMapper.insert(history);
-
-        sendKafkaMessage("sys_backup_restore_" + action, idempotencyKey, backupRestore);
-
-        history.setBusinessStatus("SUCCESS");
-        history.setBusinessId(backupRestore.getBackupId());
-        history.setRequestParams("PENDING");
-        history.setUpdatedAt(LocalDateTime.now());
-        sysRequestHistoryMapper.updateById(history);
+        try {
+            sysRequestHistoryMapper.insert(history);
+        } catch (org.springframework.dao.DataIntegrityViolationException ex) {
+            // Concurrent insert: re-read the winner and treat as duplicate
+            SysRequestHistory racing = sysRequestHistoryMapper.selectByIdempotencyKey(idempotencyKey);
+            if (racing != null && !"FAILED".equalsIgnoreCase(racing.getBusinessStatus())) {
+                throw new RuntimeException("Duplicate sys backup/restore request detected");
+            }
+            throw ex;
+        }
     }
 
     @Transactional

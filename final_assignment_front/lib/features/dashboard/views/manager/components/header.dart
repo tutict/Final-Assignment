@@ -81,7 +81,7 @@ class _Header extends StatelessWidget {
                       style: TextStyle(
                         color: scheme.onSurface,
                         fontSize: 16,
-                        fontWeight: FontWeight.w500,
+                        fontWeight: FontWeight.w600,
                         letterSpacing: 0,
                       ),
                     ),

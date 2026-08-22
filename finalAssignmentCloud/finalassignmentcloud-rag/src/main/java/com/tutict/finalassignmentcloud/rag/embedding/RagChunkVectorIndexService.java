@@ -62,6 +62,23 @@ public class RagChunkVectorIndexService {
         }
     }
 
+    public void deleteByDocumentId(String documentId) {
+        ElasticsearchOperations operations = operationsProvider.getIfAvailable();
+        if (operations == null) {
+            return;
+        }
+        String deleteQuery = "{\"query\":{\"term\":{\"document_id\":\"" + documentId + "\"}}}";
+        try {
+            operations.delete(deleteQuery, IndexCoordinates.of(mapping.aliasName()));
+        } catch (RuntimeException error) {
+            try {
+                operations.delete(deleteQuery, IndexCoordinates.of(mapping.indexName()));
+            } catch (RuntimeException ignored) {
+                // ES may not be available; DB deletion is the primary concern
+            }
+        }
+    }
+
     private void ensureIndex(ElasticsearchOperations operations) {
         if (indexReady) {
             return;

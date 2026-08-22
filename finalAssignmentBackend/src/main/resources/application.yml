@@ -29,6 +29,14 @@ rag:
   chunk:
     size: 500
     overlap: 100
+  ai:
+    message:
+      max-length: ${RAG_AI_MESSAGE_MAX_LENGTH:10000}
+      max-conversation-window: ${RAG_AI_CONVERSATION_WINDOW:20}
+    session-key:
+      max-length: ${RAG_AI_SESSION_KEY_MAX_LENGTH:128}
+    metadata:
+      max-size: ${RAG_AI_METADATA_MAX_SIZE:2048}
   indexing:
     enabled: ${RAG_INDEXING_ENABLED:true}
     batch-size: 200
@@ -77,6 +85,10 @@ cors:
     - http://127.0.0.1:8080
 
 spring:
+  servlet:
+    multipart:
+      max-file-size: ${SPRING_MULTIPART_MAX_FILE_SIZE:8MB}
+      max-request-size: ${SPRING_MULTIPART_MAX_REQUEST_SIZE:12MB}
   datasource:
     username: ${DB_USERNAME:root}
     password: ${DB_PASSWORD}

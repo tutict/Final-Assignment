@@ -195,7 +195,7 @@ class _ReleaseTimeText extends StatelessWidget {
         style: TextStyle(
           fontSize: 10,
           color: scheme.onPrimaryContainer.withValues(alpha: 0.92),
-          fontWeight: FontWeight.w500,
+          fontWeight: FontWeight.w600,
           letterSpacing: 0,
         ),
         maxLines: 1,

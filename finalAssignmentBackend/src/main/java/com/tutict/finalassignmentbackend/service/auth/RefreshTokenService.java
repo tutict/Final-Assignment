@@ -6,21 +6,24 @@ import com.tutict.finalassignmentbackend.entity.auth.RefreshToken;
 import com.tutict.finalassignmentbackend.mapper.auth.RefreshTokenMapper;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.authentication.BadCredentialsException;
-import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
 
+import javax.crypto.Mac;
+import javax.crypto.spec.SecretKeySpec;
 import java.security.SecureRandom;
 import java.time.LocalDateTime;
 import java.util.Base64;
-import java.util.List;
+import java.util.HexFormat;
 
 @Service
 public class RefreshTokenService {
 
     private static final SecureRandom SECURE_RANDOM = new SecureRandom();
     private static final int REFRESH_TOKEN_BYTES = 32;
+    private static final String HMAC_ALGORITHM = "HmacSHA256";
+    private static final String HMAC_KEY = "refresh-token-lookup-v1";
 
     private final RefreshTokenMapper refreshTokenMapper;
     private final PqcTokenCrypto pqcTokenCrypto;
@@ -48,6 +51,7 @@ public class RefreshTokenService {
 
         RefreshToken entity = new RefreshToken();
         entity.setToken(pqcTokenCrypto.encrypt(raw));
+        entity.setLookupDigest(computeDigest(raw));
         entity.setUserId(userId);
         entity.setExpiresAt(now.plusSeconds(refreshExpirationSeconds));
         entity.setRevoked(false);
@@ -69,6 +73,7 @@ public class RefreshTokenService {
             throw new BadCredentialsException("Invalid refresh token");
         }
 
+        // Use optimistic locking via id + revoked=false to handle concurrent rotate
         UpdateWrapper<RefreshToken> update = new UpdateWrapper<>();
         update.eq("id", existing.getId())
                 .eq("revoked", false)
@@ -102,23 +107,77 @@ public class RefreshTokenService {
             throw new BadCredentialsException("Refresh token is required");
         }
 
+        String digest = computeDigest(raw);
+
+        // O(1) lookup by digest - single row query instead of full table scan
+        QueryWrapper<RefreshToken> query = new QueryWrapper<>();
+        query.eq("lookup_digest", digest)
+                .eq("revoked", false)
+                .gt("expires_at", LocalDateTime.now());
+        RefreshToken token = refreshTokenMapper.selectOne(query);
+
+        if (token == null) {
+            // Fallback: try legacy lookup without digest (for tokens created before migration)
+            token = legacyLookup(raw);
+            if (token == null) {
+                throw new BadCredentialsException("Invalid refresh token");
+            }
+        }
+
+        // Constant-time comparison
+        String decrypted;
+        try {
+            decrypted = pqcTokenCrypto.decrypt(token.getToken());
+        } catch (Exception ex) {
+            throw new BadCredentialsException("Invalid refresh token");
+        }
+
+        if (!pqcTokenCrypto.constantTimeEquals(raw, decrypted)) {
+            throw new BadCredentialsException("Invalid refresh token");
+        }
+
+        return token;
+    }
+
+    /**
+     * Legacy fallback: scan all active tokens (one-time migration support).
+     * This should not be called for new tokens that have lookup_digest.
+     */
+    private RefreshToken legacyLookup(String raw) {
         QueryWrapper<RefreshToken> query = new QueryWrapper<>();
         query.eq("revoked", false)
-                .gt("expires_at", LocalDateTime.now());
-        List<RefreshToken> candidates = refreshTokenMapper.selectList(query);
+                .gt("expires_at", LocalDateTime.now())
+                .isNull("lookup_digest")
+                .last("LIMIT 100");
+        var candidates = refreshTokenMapper.selectList(query);
 
-        return candidates.stream()
-                .filter(candidate -> {
-                    String decrypted;
-                    try {
-                        decrypted = pqcTokenCrypto.decrypt(candidate.getToken());
-                    } catch (Exception ex) {
-                        return false; // 旧 BCrypt 哈希或损坏数据，无法解密
-                    }
-                    return pqcTokenCrypto.constantTimeEquals(raw, decrypted);
-                })
-                .findFirst()
-                .orElseThrow(() -> new BadCredentialsException("Invalid refresh token"));
+        for (RefreshToken candidate : candidates) {
+            String decrypted;
+            try {
+                decrypted = pqcTokenCrypto.decrypt(candidate.getToken());
+            } catch (Exception ex) {
+                continue;
+            }
+            if (pqcTokenCrypto.constantTimeEquals(raw, decrypted)) {
+                // Backfill the digest for future O(1) lookups
+                candidate.setLookupDigest(computeDigest(raw));
+                refreshTokenMapper.updateById(candidate);
+                return candidate;
+            }
+        }
+        return null;
+    }
+
+    private String computeDigest(String raw) {
+        try {
+            Mac mac = Mac.getInstance(HMAC_ALGORITHM);
+            SecretKeySpec keySpec = new SecretKeySpec(
+                    HMAC_KEY.getBytes(java.nio.charset.StandardCharsets.UTF_8), HMAC_ALGORITHM);
+            mac.init(keySpec);
+            return HexFormat.of().formatHex(mac.doFinal(raw.getBytes(java.nio.charset.StandardCharsets.UTF_8)));
+        } catch (Exception ex) {
+            throw new IllegalStateException("Failed to compute refresh token digest", ex);
+        }
     }
 
     private String generateRawToken() {

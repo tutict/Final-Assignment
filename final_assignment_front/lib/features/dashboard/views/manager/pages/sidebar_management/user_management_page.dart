@@ -1009,7 +1009,7 @@ class _UserManagementPageState extends State<UserManagementPage> {
                                   style:
                                       themeData.textTheme.titleMedium?.copyWith(
                                     color: themeData.colorScheme.error,
-                                    fontWeight: FontWeight.w500,
+                                    fontWeight: FontWeight.w600,
                                   ),
                                   textAlign: TextAlign.center,
                                 ),
@@ -1058,7 +1058,7 @@ class _UserManagementPageState extends State<UserManagementPage> {
                                           ?.copyWith(
                                         color: themeData
                                             .colorScheme.onSurfaceVariant,
-                                        fontWeight: FontWeight.w500,
+                                        fontWeight: FontWeight.w600,
                                       ),
                                       textAlign: TextAlign.center,
                                     ),

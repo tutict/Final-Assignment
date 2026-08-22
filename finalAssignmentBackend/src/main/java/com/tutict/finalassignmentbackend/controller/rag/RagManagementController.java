@@ -12,6 +12,7 @@ import com.tutict.finalassignmentbackend.rag.dto.RagSourceDocument;
 import com.tutict.finalassignmentbackend.rag.entity.RagChunk;
 import com.tutict.finalassignmentbackend.rag.entity.RagDocument;
 import com.tutict.finalassignmentbackend.rag.entity.RagEmbeddingTask;
+import com.tutict.finalassignmentbackend.rag.embedding.RagChunkVectorIndexService;
 import com.tutict.finalassignmentbackend.rag.embedding.RagEmbeddingService;
 import com.tutict.finalassignmentbackend.rag.ingestion.RagUploadedFileParser;
 import com.tutict.finalassignmentbackend.rag.indexing.RagBackfillJob;
@@ -34,6 +35,9 @@ import org.springframework.cache.annotation.Cacheable;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
+import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionSynchronization;
+import org.springframework.transaction.support.TransactionSynchronizationManager;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -64,6 +68,7 @@ public class RagManagementController {
     private final ObjectProvider<RagUploadedFileParser> uploadedFileParserProvider;
     private final ObjectProvider<RagEmbeddingService> embeddingServiceProvider;
     private final ObjectProvider<RagIndexMaintenanceService> indexMaintenanceServiceProvider;
+    private final ObjectProvider<RagChunkVectorIndexService> vectorIndexServiceProvider;
     private final ObjectMapper objectMapper;
     private final boolean ragEnabled;
     private final boolean ragIndexingEnabled;
@@ -77,6 +82,7 @@ public class RagManagementController {
             ObjectProvider<RagUploadedFileParser> uploadedFileParserProvider,
             ObjectProvider<RagEmbeddingService> embeddingServiceProvider,
             ObjectProvider<RagIndexMaintenanceService> indexMaintenanceServiceProvider,
+            ObjectProvider<RagChunkVectorIndexService> vectorIndexServiceProvider,
             ObjectMapper objectMapper,
             @Value("${rag.enabled:false}") boolean ragEnabled,
             @Value("${rag.indexing.enabled:false}") boolean ragIndexingEnabled
@@ -89,6 +95,7 @@ public class RagManagementController {
         this.uploadedFileParserProvider = uploadedFileParserProvider;
         this.embeddingServiceProvider = embeddingServiceProvider;
         this.indexMaintenanceServiceProvider = indexMaintenanceServiceProvider;
+        this.vectorIndexServiceProvider = vectorIndexServiceProvider;
         this.objectMapper = objectMapper;
         this.ragEnabled = ragEnabled;
         this.ragIndexingEnabled = ragIndexingEnabled;
@@ -330,8 +337,13 @@ public class RagManagementController {
 
     @DeleteMapping("/documents/{documentId}")
     @Operation(summary = "Delete a RAG source document and its chunks")
+    @Transactional
     @CacheEvict(cacheNames = "ragAdminReadCache", allEntries = true)
     public ResponseEntity<ApiResponse<Map<String, Integer>>> deleteDocument(@PathVariable String documentId) {
+        if (documentId == null || documentId.isBlank()) {
+            return ResponseEntity.badRequest()
+                    .body(ApiResponse.error("INVALID_DOCUMENT_ID", "documentId must not be blank"));
+        }
         List<RagChunk> chunks = chunkMapper.selectList(
                 new QueryWrapper<RagChunk>().eq("document_id", documentId)
         );
@@ -343,6 +355,19 @@ public class RagManagementController {
         }
         int deletedChunks = chunkMapper.delete(new QueryWrapper<RagChunk>().eq("document_id", documentId));
         int deletedDocuments = documentMapper.deleteById(documentId);
+
+        // Best-effort ES removal after the transactional DB delete commits. A failure here never
+        // rolls the transaction back: stale ES docs must not block document deletion.
+        TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
+            @Override
+            public void afterCommit() {
+                RagChunkVectorIndexService vectorIndexService = vectorIndexServiceProvider.getIfAvailable();
+                if (vectorIndexService != null) {
+                    vectorIndexService.deleteByDocumentId(documentId);
+                }
+            }
+        });
+
         return ResponseEntity.ok(ApiResponse.ok(Map.of(
                 "documents", deletedDocuments,
                 "chunks", deletedChunks,

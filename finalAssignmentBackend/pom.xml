@@ -26,12 +26,17 @@
         <dependency>
             <groupId>com.baomidou</groupId>
             <artifactId>mybatis-plus</artifactId>
-            <version>3.5.16</version>
+            <version>3.5.17</version>
         </dependency>
         <dependency>
             <groupId>com.baomidou</groupId>
             <artifactId>mybatis-plus-jsqlparser</artifactId>
-            <version>3.5.16</version>
+            <version>3.5.17</version>
+        </dependency>
+        <dependency>
+            <groupId>com.baomidou</groupId>
+            <artifactId>mybatis-plus-spring</artifactId>
+            <version>3.5.17</version>
         </dependency>
         <dependency>
             <groupId>io.jsonwebtoken</groupId>
@@ -73,27 +78,27 @@
         <dependency>
             <groupId>com.baomidou</groupId>
             <artifactId>mybatis-plus-boot-starter</artifactId>
-            <version>3.5.16</version>
+            <version>3.5.17</version>
         </dependency>
         <dependency>
             <groupId>io.vertx</groupId>
             <artifactId>vertx-web</artifactId>
-            <version>5.0.12</version>
+            <version>5.1.6</version>
         </dependency>
         <dependency>
             <groupId>io.vertx</groupId>
             <artifactId>vertx-web-client</artifactId>
-            <version>5.0.12</version>
+            <version>5.1.6</version>
         </dependency>
         <dependency>
             <groupId>io.vertx</groupId>
             <artifactId>vertx-core</artifactId>
-            <version>5.0.12</version>
+            <version>5.1.6</version>
         </dependency>
         <dependency>
             <groupId>io.vertx</groupId>
             <artifactId>vertx-kafka-client</artifactId>
-            <version>5.0.12</version>
+            <version>5.1.6</version>
         </dependency>
         <dependency>
             <groupId>junit</groupId>
@@ -123,7 +128,7 @@
         <dependency>
             <groupId>org.springdoc</groupId>
             <artifactId>springdoc-openapi-starter-webmvc-ui</artifactId>
-            <version>3.0.3</version>
+            <version>3.1.0</version>
         </dependency>
         <dependency>
             <groupId>org.springframework.boot</groupId>
@@ -203,7 +208,7 @@
         <dependency>
             <groupId>org.mybatis</groupId>
             <artifactId>mybatis-spring</artifactId>
-            <version>3.0.5</version>
+            <version>3.0.6</version>
         </dependency>
         <dependency>
             <groupId>org.springframework.security</groupId>
@@ -221,7 +226,7 @@
         <dependency>
             <groupId>org.apache.kafka</groupId>
             <artifactId>kafka-clients</artifactId>
-            <version>4.2.0</version>
+            <version>4.3.1</version>
         </dependency>
         <dependency>
             <groupId>org.springframework.boot</groupId>
@@ -271,7 +276,7 @@
         <dependency>
             <groupId>io.micrometer</groupId>
             <artifactId>micrometer-registry-prometheus</artifactId>
-            <version>1.16.1</version>
+            <version>1.17.0</version>
         </dependency>
         <dependency>
             <groupId>org.aspectj</groupId>
@@ -305,40 +310,40 @@
         <dependency>
             <groupId>org.graalvm.polyglot</groupId>
             <artifactId>polyglot</artifactId>
-            <version>25.0.3</version>
+            <version>25.2.4</version>
         </dependency>
         <dependency>
             <groupId>org.graalvm.polyglot</groupId>
             <artifactId>python</artifactId>
-            <version>25.0.3</version>
+            <version>25.2.4</version>
             <type>pom</type>
             <scope>runtime</scope>
         </dependency>
         <dependency>
             <groupId>org.graalvm.python</groupId>
             <artifactId>python-embedding</artifactId>
-            <version>25.0.3</version>
+            <version>25.2.4</version>
         </dependency>
         <dependency>
             <groupId>org.springframework.statemachine</groupId>
             <artifactId>spring-statemachine-core</artifactId>
-            <version>4.0.1</version>
+            <version>4.0.2</version>
         </dependency>
         <dependency>
             <groupId>org.apache.pdfbox</groupId>
             <artifactId>pdfbox</artifactId>
-            <version>3.0.5</version>
+            <version>3.0.8</version>
         </dependency>
         <!-- Post-quantum cryptography: ML-KEM (FIPS 203) / ML-DSA (FIPS 204) -->
         <dependency>
             <groupId>org.bouncycastle</groupId>
             <artifactId>bcprov-jdk18on</artifactId>
-            <version>1.81</version>
+            <version>1.85.2</version>
         </dependency>
         <dependency>
             <groupId>org.bouncycastle</groupId>
             <artifactId>bcpkix-jdk18on</artifactId>
-            <version>1.81</version>
+            <version>1.85</version>
         </dependency>
     </dependencies>
     <pluginRepositories>
@@ -432,7 +437,7 @@
             <plugin>
                 <groupId>org.graalvm.python</groupId>
                 <artifactId>graalpy-maven-plugin</artifactId>
-                <version>25.0.3</version>
+                <version>25.2.4</version>
                 <executions>
                     <execution>
                         <configuration>
@@ -454,7 +459,7 @@
             <dependency>
                 <groupId>org.springframework.ai</groupId>
                 <artifactId>spring-ai-bom</artifactId>
-                <version>2.0.0-M1</version>
+                <version>2.0.0</version>
                 <type>pom</type>
                 <scope>import</scope>
             </dependency>

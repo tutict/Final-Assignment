@@ -18,6 +18,7 @@ import com.tutict.finalassignmentbackend.ai.provider.ProviderHealth;
 import com.tutict.finalassignmentbackend.ai.rag.config.RagRetrievalProperties;
 import com.tutict.finalassignmentbackend.ai.rag.dto.RetrievalResult;
 import com.tutict.finalassignmentbackend.ai.rag.query.RagQueryRequest;
+import com.tutict.finalassignmentbackend.ai.rag.query.ServerSideRagQueryRequest;
 import com.tutict.finalassignmentbackend.ai.rag.query.RagQueryService;
 import org.springframework.core.io.DefaultResourceLoader;
 import org.junit.jupiter.api.Test;
@@ -41,6 +42,8 @@ class ChatPipelineTest {
         ChatPipeline pipeline = pipeline(provider, rag, ragProperties(true));
         Map<String, Object> metadata = new LinkedHashMap<>();
         metadata.put("conversationWindow", List.of("user: prior question"));
+        // Metadata ACL fields must NOT flow into a server-side request; the
+        // ChatPipeline never reads them. Roles are derived from security context.
         metadata.put("userId", "u1");
         metadata.put("roles", List.of("admin"));
         metadata.put("department", "traffic");
@@ -57,9 +60,9 @@ class ChatPipelineTest {
         assertThat(rag.calls()).isEqualTo(1);
         assertThat(rag.lastRequest().query()).isEqualTo("What policy applies?");
         assertThat(rag.lastRequest().topK()).isEqualTo(2);
-        assertThat(rag.lastRequest().userId()).isEqualTo("u1");
-        assertThat(rag.lastRequest().roles()).containsExactly("ADMIN");
-        assertThat(rag.lastRequest().department()).isEqualTo("traffic");
+        assertThat(rag.lastRequest().userId()).isNull();
+        assertThat(rag.lastRequest().roles()).isEmpty();
+        assertThat(rag.lastRequest().department()).isNull();
         assertThat(provider.prompts()).hasSize(1);
         assertThat(provider.prompts().getFirst())
                 .contains("<agent_constraints>")
@@ -313,7 +316,7 @@ class ChatPipelineTest {
     private static final class StubRagQueryService extends RagQueryService {
         private final List<RetrievalResult> results;
         private int calls;
-        private RagQueryRequest lastRequest;
+        private ServerSideRagQueryRequest lastRequest;
 
         private StubRagQueryService(List<RetrievalResult> results) {
             super(null, null, ragProperties(false));
@@ -321,7 +324,7 @@ class ChatPipelineTest {
         }
 
         @Override
-        public List<RetrievalResult> query(RagQueryRequest request) {
+        public List<RetrievalResult> query(ServerSideRagQueryRequest request) {
             calls++;
             lastRequest = request;
             return results;
@@ -331,7 +334,7 @@ class ChatPipelineTest {
             return calls;
         }
 
-        private RagQueryRequest lastRequest() {
+        private ServerSideRagQueryRequest lastRequest() {
             return lastRequest;
         }
     }

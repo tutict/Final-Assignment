@@ -1367,7 +1367,7 @@ class _VehicleDetailPageState extends State<VehicleDetailPage> {
               Text(_errorMessage,
                   style: themeData.textTheme.titleMedium?.copyWith(
                       color: themeData.colorScheme.error,
-                      fontWeight: FontWeight.w500),
+                      fontWeight: FontWeight.w600),
                   textAlign: TextAlign.center),
               if (_errorMessage.contains('登录'))
                 Padding(

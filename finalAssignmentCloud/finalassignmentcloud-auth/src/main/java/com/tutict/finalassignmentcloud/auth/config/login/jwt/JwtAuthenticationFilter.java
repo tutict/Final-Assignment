@@ -1,5 +1,6 @@
 package com.tutict.finalassignmentcloud.auth.config.login.jwt;
 
+import com.tutict.finalassignmentcloud.auth.service.TokenBlacklistService;
 import org.jetbrains.annotations.NotNull;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -22,9 +23,15 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
     private static final Logger logger = LoggerFactory.getLogger(JwtAuthenticationFilter.class);
 
     private final TokenProvider tokenProvider;
+    private final TokenBlacklistService tokenBlacklistService;
 
     public JwtAuthenticationFilter(TokenProvider tokenProvider) {
+        this(tokenProvider, null);
+    }
+
+    public JwtAuthenticationFilter(TokenProvider tokenProvider, TokenBlacklistService tokenBlacklistService) {
         this.tokenProvider = tokenProvider;
+        this.tokenBlacklistService = tokenBlacklistService;
     }
 
     @Override
@@ -33,7 +40,7 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
         String jwt = getJwtFromRequest(request);
         logger.debug("Bearer token present: {}", jwt != null);
 
-        if (jwt != null && tokenProvider.validateToken(jwt)) {
+        if (jwt != null && isNotRevoked(jwt) && tokenProvider.validateToken(jwt)) {
             String username = tokenProvider.getUsernameFromToken(jwt);
             List<String> roles = tokenProvider.extractRoles(jwt);
             logger.debug("JWT validated. Username: {}, Roles: {}", username, roles);
@@ -48,10 +55,17 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
             SecurityContextHolder.getContext().setAuthentication(authentication);
             logger.debug("Authentication set for user: {}", username);
         } else {
-            logger.warn("Invalid or missing JWT in request: {}", request.getRequestURI());
+            logger.warn("Invalid, revoked or missing JWT in request: {}", request.getRequestURI());
         }
 
         filterChain.doFilter(request, response);
+    }
+
+    private boolean isNotRevoked(String jwt) {
+        if (tokenBlacklistService == null) {
+            return true;
+        }
+        return !tokenBlacklistService.isBlacklisted(jwt);
     }
 
     private String getJwtFromRequest(HttpServletRequest request) {

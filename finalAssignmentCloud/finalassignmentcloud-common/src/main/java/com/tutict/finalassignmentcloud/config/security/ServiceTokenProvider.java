@@ -39,6 +39,7 @@ public class ServiceTokenProvider {
     private static final Logger LOG = Logger.getLogger(ServiceTokenProvider.class.getName());
     private static final String BC = BouncyCastleProvider.PROVIDER_NAME;
     private static final String ML_DSA_ALGORITHM = "ML-DSA-65";
+    private static final String ML_DSA_JWT_ALG = "ML-DSA-65";
     private static final Map<String, RoleMetadata> ROLE_SCHEMA;
 
     static {
@@ -142,6 +143,21 @@ public class ServiceTokenProvider {
         if (firstDot < 0 || secondDot < 0) {
             throw new IllegalArgumentException("Invalid ML-DSA token structure");
         }
+
+        // Parse and verify header algorithm
+        try {
+            byte[] headerBytes = Base64.getUrlDecoder().decode(token.substring(0, firstDot));
+            Map<String, Object> header = objectMapper.readValue(headerBytes, new TypeReference<Map<String, Object>>() {});
+            Object alg = header.get("alg");
+            if (alg == null || !ML_DSA_JWT_ALG.equals(alg.toString())) {
+                throw new IllegalArgumentException("Invalid ML-DSA token algorithm: expected " + ML_DSA_JWT_ALG + " but got " + alg);
+            }
+        } catch (RuntimeException ex) {
+            throw ex;
+        } catch (Exception ex) {
+            throw new IllegalArgumentException("Failed to parse ML-DSA token header", ex);
+        }
+
         String signingInput = token.substring(0, secondDot);
         byte[] signature = Base64.getUrlDecoder().decode(token.substring(secondDot + 1));
         try {
@@ -152,8 +168,41 @@ public class ServiceTokenProvider {
                 throw new IllegalArgumentException("Invalid ML-DSA signature");
             }
             byte[] payload = Base64.getUrlDecoder().decode(token.substring(firstDot + 1, secondDot));
-            return objectMapper.readValue(payload, new TypeReference<Map<String, Object>>() {
+            Map<String, Object> parsedPayload = objectMapper.readValue(payload, new TypeReference<Map<String, Object>>() {
             });
+
+            // Validate expiration
+            Object expObj = parsedPayload.get("exp");
+            if (expObj == null) {
+                throw new IllegalArgumentException("ML-DSA token missing exp claim");
+            }
+            long expSeconds;
+            if (expObj instanceof Number n) {
+                expSeconds = n.longValue();
+            } else {
+                throw new IllegalArgumentException("ML-DSA token exp claim is not a number");
+            }
+            long nowSeconds = System.currentTimeMillis() / 1000L;
+            if (nowSeconds > expSeconds) {
+                throw new IllegalArgumentException("ML-DSA token has expired");
+            }
+
+            // Validate subject
+            Object subObj = parsedPayload.get("sub");
+            if (subObj == null || subObj.toString().isBlank()) {
+                throw new IllegalArgumentException("ML-DSA token missing or empty sub claim");
+            }
+
+            // Validate iat (must not be significantly in the future)
+            Object iatObj = parsedPayload.get("iat");
+            if (iatObj instanceof Number iatNum) {
+                long iatSeconds = iatNum.longValue();
+                if (iatSeconds > nowSeconds + 300) {
+                    throw new IllegalArgumentException("ML-DSA token has iat in the future");
+                }
+            }
+
+            return parsedPayload;
         } catch (RuntimeException ex) {
             throw ex;
         } catch (Exception ex) {

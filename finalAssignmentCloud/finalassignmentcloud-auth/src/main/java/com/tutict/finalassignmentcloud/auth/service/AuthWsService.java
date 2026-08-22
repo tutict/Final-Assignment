@@ -7,6 +7,7 @@ import com.tutict.finalassignmentcloud.auth.client.UserClient;
 import com.tutict.finalassignmentcloud.auth.config.login.jwt.TokenProvider;
 import com.tutict.finalassignmentcloud.config.websocket.WsAction;
 import com.tutict.finalassignmentcloud.entity.AuditLoginLog;
+import com.tutict.finalassignmentcloud.dto.response.SysUserResponse;
 import com.tutict.finalassignmentcloud.dto.response.UserProfileResponse;
 import com.tutict.finalassignmentcloud.entity.DriverInformation;
 import com.tutict.finalassignmentcloud.entity.SysRole;
@@ -236,13 +237,15 @@ public class AuthWsService {
 
     @CacheEvict(cacheNames = "AuthCache", allEntries = true)
     @WsAction(service = "AuthWsService", action = "getAllUsers")
-    public List<SysUser> getAllUsers() {
+    public List<SysUserResponse> getAllUsers() {
         logger.info("[WS] Fetching all users");
         List<SysUser> users = userClient.getAllUsers();
         if (users.isEmpty()) {
             logger.warning("No users found in the system");
         }
-        return users;
+        return users.stream()
+                .map(SysUserResponse::fromEntity)
+                .toList();
     }
 
     private DriverInformation resolveDriverForUser(SysUser user, RoleAggregation aggregation) {
