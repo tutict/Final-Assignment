@@ -35,13 +35,14 @@ class RagDeletionResourceLimitIntegrationTest extends BaseIntegrationTest {
     @DisplayName("AI 消息长度被截断到 10000")
     void ai_message_truncated_to_max_length() {
         // The record truncation is tested via unit test, but we verify the endpoint
-        // still works with a long message
+        // still works with a long message. The stream endpoint serves SSE.
         String token = loginAsAdmin();
 
         String longMsg = "x".repeat(11000);
         authSpec(token)
+            .accept("text/event-stream")
             .body(Map.of("message", longMsg, "sessionKey", "test-session"))
-            .post("/api/ai/chat")
+            .post("/api/ai/chat/stream")
             .then()
             .statusCode(200);
     }
@@ -50,7 +51,7 @@ class RagDeletionResourceLimitIntegrationTest extends BaseIntegrationTest {
     @Order(3)
     @DisplayName("管理员可删除 RAG 文档")
     void admin_can_delete_rag_document() {
-        String token = loginAsAdmin();
+        String token = loginAsSuperAdmin();
 
         // Try to delete a document that may not exist — should still return success
         authSpec(token)

@@ -35,7 +35,7 @@ class IdempotencyRetryIntegrationTest extends BaseIntegrationTest {
             .post("/api/auth/register")
             .then()
             .statusCode(201)
-            .body("success", equalTo(true));
+            .body("status", equalTo("CREATED"));
 
         // Second request with same key returns 201 (or 409 if already exists)
         baseSpec()

@@ -58,13 +58,13 @@ class WsLogoutRevocationIntegrationTest extends BaseIntegrationTest {
         String token = loginAsAdmin();
 
         // Before logout a ticket can be issued
-        authSpec(token).post("/api/auth/ws-ticket").then()
+        authSpec(token).post("/api/ws-ticket").then()
             .statusCode(200);
 
         authSpec(token).post("/api/auth/logout").then().statusCode(200);
 
         // After logout the ticket issuance should fail
-        authSpec(token).post("/api/auth/ws-ticket").then()
+        authSpec(token).post("/api/ws-ticket").then()
             .statusCode(401);
     }
 }
