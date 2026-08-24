@@ -1,5 +1,7 @@
 package com.tutict.finalassignmentbackend.config.login.jwt;
 
+import com.tutict.finalassignmentbackend.config.security.pqc.MlDsaKeyRing;
+import com.tutict.finalassignmentbackend.config.security.pqc.MlDsaKeyRingProperties;
 import org.junit.jupiter.api.Test;
 import org.springframework.test.util.ReflectionTestUtils;
 
@@ -35,7 +37,7 @@ class TokenProviderRoleNormalizationTest {
     }
 
     private TokenProvider tokenProvider() {
-        TokenProvider tokenProvider = new TokenProvider();
+        TokenProvider tokenProvider = new TokenProvider(MlDsaKeyRing.from(new MlDsaKeyRingProperties(), null, null));
         ReflectionTestUtils.setField(tokenProvider, "secret",
                 "0123456789abcdef0123456789abcdef");
         ReflectionTestUtils.setField(tokenProvider, "configuredAlgorithm", "HS256");

@@ -76,6 +76,12 @@ jwt:
   public-key: ${JWT_PUBLIC_KEY:}
   access-token-expiration: ${JWT_ACCESS_EXPIRATION:3600}
   refresh-token-expiration: ${JWT_REFRESH_EXPIRATION:604800}
+  # ML-DSA 密钥轮换配置（可选）。keys 为版本化密钥环，见 MlDsaKeyRingProperties。
+  ml-dsa:
+    rotation:
+      enabled: ${ML_DSA_ROTATION_ENABLED:false}
+      interval-minutes: ${ML_DSA_ROTATION_INTERVAL_MINUTES:10080}
+      retention-minutes: ${ML_DSA_ROTATION_RETENTION_MINUTES:1440}
 
 cors:
   allowed-origins:

@@ -3,6 +3,8 @@ package com.tutict.finalassignmentbackend.integration.pqc;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import com.tutict.finalassignmentbackend.config.login.jwt.TokenProvider;
+import com.tutict.finalassignmentbackend.config.security.pqc.MlDsaKeyRing;
+import com.tutict.finalassignmentbackend.config.security.pqc.MlDsaKeyRingProperties;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.test.util.ReflectionTestUtils;
@@ -15,7 +17,7 @@ import org.springframework.test.util.ReflectionTestUtils;
 class TokenProviderMlDsaIntegrationTest {
 
     private TokenProvider newMlDsaProvider() {
-        TokenProvider tp = new TokenProvider();
+        TokenProvider tp = new TokenProvider(MlDsaKeyRing.from(new MlDsaKeyRingProperties(), null, null));
         ReflectionTestUtils.setField(tp, "configuredAlgorithm", "ML-DSA-65");
         ReflectionTestUtils.setField(tp, "accessTokenExpirationSeconds", 3600L);
         tp.init();
@@ -62,7 +64,7 @@ class TokenProviderMlDsaIntegrationTest {
     @Test
     @DisplayName("HS256 默认路径仍可用（回归：算法切换不影响 HMAC）")
     void hs256StillWorks() {
-        TokenProvider tp = new TokenProvider();
+        TokenProvider tp = new TokenProvider(MlDsaKeyRing.from(new MlDsaKeyRingProperties(), null, null));
         ReflectionTestUtils.setField(tp, "configuredAlgorithm", "HS256");
         ReflectionTestUtils.setField(tp, "secret", "0123456789abcdef0123456789abcdef");
         ReflectionTestUtils.setField(tp, "accessTokenExpirationSeconds", 3600L);
