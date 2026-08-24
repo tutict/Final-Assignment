@@ -662,11 +662,13 @@ DROP TABLE IF EXISTS `refresh_tokens`;
 CREATE TABLE `refresh_tokens` (
     `id` BIGINT NOT NULL AUTO_INCREMENT,
     `token` TEXT NOT NULL,
+    `lookup_digest` CHAR(64) NULL COMMENT 'HMAC-SHA-256 摘要，用于 O(1) 查找',
     `user_id` BIGINT UNSIGNED NOT NULL,
     `expires_at` DATETIME NOT NULL,
     `revoked` BOOLEAN NOT NULL DEFAULT FALSE,
     `created_at` DATETIME NOT NULL,
     PRIMARY KEY (`id`),
+    UNIQUE KEY `idx_refresh_tokens_lookup_digest` (`lookup_digest`),
     KEY `idx_refresh_tokens_user_revoked` (`user_id`, `revoked`),
     KEY `idx_refresh_tokens_expires_at` (`expires_at`),
     CONSTRAINT `fk_refresh_tokens_user` FOREIGN KEY (`user_id`) REFERENCES `sys_user` (`user_id`) ON DELETE CASCADE ON UPDATE CASCADE
