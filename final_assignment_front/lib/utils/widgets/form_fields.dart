@@ -104,7 +104,7 @@ class AppTextFormField extends StatelessWidget {
       prefixText: prefixText,
       prefixStyle: TextStyle(
         color: theme.colorScheme.onSurface,
-        fontWeight: FontWeight.bold,
+        fontWeight: FontWeight.w800,
       ),
       border: OutlineInputBorder(
         borderRadius: BorderRadius.circular(12.0),
@@ -259,7 +259,7 @@ class AppAutocompleteField<T extends Object> extends StatelessWidget {
         return Align(
           alignment: Alignment.topLeft,
           child: Material(
-            elevation: 4,
+            elevation: 0,
             color: theme.colorScheme.surfaceContainer,
             borderRadius: BorderRadius.circular(8),
             child: ConstrainedBox(

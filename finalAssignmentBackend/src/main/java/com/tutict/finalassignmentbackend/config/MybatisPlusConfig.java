@@ -1,6 +1,6 @@
 package com.tutict.finalassignmentbackend.config;
 
-import com.baomidou.mybatisplus.extension.spring.MybatisSqlSessionFactoryBean;
+import com.baomidou.mybatisplus.spring.MybatisSqlSessionFactoryBean;
 import com.tutict.finalassignmentbackend.common.PageLimits;
 import com.tutict.finalassignmentbackend.config.mybatis.SlowSqlLoggingInterceptor;
 import javax.sql.DataSource;

@@ -11,6 +11,7 @@ import 'package:final_assignment_front/features/model/driver_information.dart';
 import 'package:final_assignment_front/features/model/user_management.dart';
 import 'package:final_assignment_front/features/dashboard/controllers/user_dashboard_screen_controller.dart';
 import 'package:final_assignment_front/features/dashboard/views/shared/widgets/dashboard_page_template.dart';
+import 'package:final_assignment_front/features/dashboard/views/shared/widgets/dashboard_chrome.dart';
 import 'package:final_assignment_front/features/dashboard/views/user/pages/main_process/user_business_page_chrome.dart';
 import 'package:final_assignment_front/shared/dialogs/app_dialog.dart';
 import 'package:final_assignment_front/utils/widgets/index.dart';
@@ -795,61 +796,56 @@ class _AddVehiclePageState extends State<AddVehiclePage> {
                 child: SingleChildScrollView(
                   child: Column(
                     children: [
-                      Card(
-                        elevation: 3,
-                        color: themeData.colorScheme.surfaceContainer,
-                        shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(16.0)),
-                        child: Padding(
-                          padding: const EdgeInsets.all(16.0),
-                          child: Column(
-                            children: [
-                              if (widget.onVehicleAdded != null)
-                                Text('您当前没有车辆记录，请添加新车辆',
-                                    style: themeData.textTheme.titleMedium
-                                        ?.copyWith(
-                                            color:
-                                                themeData.colorScheme.onSurface,
-                                            fontWeight: FontWeight.bold)),
-                              if (widget.onVehicleAdded != null)
-                                const SizedBox(height: 16),
-                              _buildTextField(
-                                  '车牌号', _licensePlateController, themeData,
-                                  required: true, prefix: '黑A', maxLength: 17),
-                              _buildTextField(
-                                  '车辆类型', _vehicleTypeController, themeData,
-                                  required: true, maxLength: 50),
-                              _buildTextField(
-                                  '车主姓名', _ownerNameController, themeData,
-                                  required: true,
-                                  readOnly: true,
-                                  maxLength: 100),
-                              _buildTextField(
-                                  '身份证号码', _idCardNumberController, themeData,
-                                  required: true,
-                                  keyboardType: TextInputType.number,
-                                  maxLength: 18),
-                              _buildTextField(
-                                  '联系电话', _contactNumberController, themeData,
-                                  keyboardType: TextInputType.phone,
-                                  maxLength: 20),
-                              _buildTextField(
-                                  '发动机号', _engineNumberController, themeData,
-                                  maxLength: 50),
-                              _buildTextField(
-                                  '车架号', _frameNumberController, themeData,
-                                  maxLength: 50),
-                              _buildTextField(
-                                  '车身颜色', _vehicleColorController, themeData,
-                                  maxLength: 50),
-                              _buildTextField('首次注册日期',
-                                  _firstRegistrationDateController, themeData,
-                                  readOnly: true, onTap: _pickDate),
-                              _buildTextField(
-                                  '当前状态', _currentStatusController, themeData,
-                                  maxLength: 50),
-                            ],
-                          ),
+                      // Surface tint previously provided by themeData.colorScheme.surfaceContainer.
+                      DashboardPanel(
+                        padding: const EdgeInsets.all(16.0),
+                        child: Column(
+                          children: [
+                            if (widget.onVehicleAdded != null)
+                              Text('您当前没有车辆记录，请添加新车辆',
+                                  style: themeData.textTheme.titleMedium
+                                      ?.copyWith(
+                                          color:
+                                              themeData.colorScheme.onSurface,
+                                          fontWeight: FontWeight.w800)),
+                            if (widget.onVehicleAdded != null)
+                              const SizedBox(height: 16),
+                            _buildTextField(
+                                '车牌号', _licensePlateController, themeData,
+                                required: true, prefix: '黑A', maxLength: 17),
+                            _buildTextField(
+                                '车辆类型', _vehicleTypeController, themeData,
+                                required: true, maxLength: 50),
+                            _buildTextField(
+                                '车主姓名', _ownerNameController, themeData,
+                                required: true,
+                                readOnly: true,
+                                maxLength: 100),
+                            _buildTextField(
+                                '身份证号码', _idCardNumberController, themeData,
+                                required: true,
+                                keyboardType: TextInputType.number,
+                                maxLength: 18),
+                            _buildTextField(
+                                '联系电话', _contactNumberController, themeData,
+                                keyboardType: TextInputType.phone,
+                                maxLength: 20),
+                            _buildTextField(
+                                '发动机号', _engineNumberController, themeData,
+                                maxLength: 50),
+                            _buildTextField(
+                                '车架号', _frameNumberController, themeData,
+                                maxLength: 50),
+                            _buildTextField(
+                                '车身颜色', _vehicleColorController, themeData,
+                                maxLength: 50),
+                            _buildTextField('首次注册日期',
+                                _firstRegistrationDateController, themeData,
+                                readOnly: true, onTap: _pickDate),
+                            _buildTextField(
+                                '当前状态', _currentStatusController, themeData,
+                                maxLength: 50),
+                          ],
                         ),
                       ),
                       const SizedBox(height: 20),
@@ -859,11 +855,11 @@ class _AddVehiclePageState extends State<AddVehiclePage> {
                           backgroundColor: themeData.colorScheme.primary,
                           foregroundColor: themeData.colorScheme.onPrimary,
                           shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(12.0)),
+                              borderRadius: BorderRadius.circular(8)),
                           padding: const EdgeInsets.symmetric(
                               vertical: 14.0, horizontal: 20.0),
                           textStyle: themeData.textTheme.labelLarge
-                              ?.copyWith(fontWeight: FontWeight.bold),
+                              ?.copyWith(fontWeight: FontWeight.w800),
                         ),
                         child: const Text('提交'),
                       ),
@@ -1161,53 +1157,48 @@ class _EditVehiclePageState extends State<EditVehiclePage> {
                 child: SingleChildScrollView(
                   child: Column(
                     children: [
-                      Card(
-                        elevation: 3,
-                        color: themeData.colorScheme.surfaceContainer,
-                        shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(16.0)),
-                        child: Padding(
-                          padding: const EdgeInsets.all(16.0),
-                          child: Column(
-                            children: [
-                              _buildTextField(
-                                  '车牌号', _licensePlateController, themeData,
-                                  required: true, prefix: '黑A', maxLength: 17),
-                              _buildTextField(
-                                  '车辆类型', _vehicleTypeController, themeData,
-                                  required: true, maxLength: 50),
-                              _buildTextField(
-                                  '车主姓名', _ownerNameController, themeData,
-                                  required: true,
-                                  readOnly: true,
-                                  maxLength: 100),
-                              _buildTextField(
-                                  '身份证号码', _idCardNumberController, themeData,
-                                  required: true,
-                                  readOnly: true,
-                                  keyboardType: TextInputType.number,
-                                  maxLength: 18),
-                              _buildTextField(
-                                  '联系电话', _contactNumberController, themeData,
-                                  keyboardType: TextInputType.phone,
-                                  maxLength: 20),
-                              _buildTextField(
-                                  '发动机号', _engineNumberController, themeData,
-                                  maxLength: 50),
-                              _buildTextField(
-                                  '车架号', _frameNumberController, themeData,
-                                  maxLength: 50),
-                              _buildTextField(
-                                  '车身颜色', _vehicleColorController, themeData,
-                                  maxLength: 50),
-                              _buildTextField('首次注册日期',
-                                  _firstRegistrationDateController, themeData,
-                                  readOnly: true, onTap: _pickDate),
-                              _buildTextField(
-                                  '当前状态', _currentStatusController, themeData,
-                                  maxLength: 50),
-                            ],
-                          ),
+                      // Surface tint previously provided by themeData.colorScheme.surfaceContainer.
+                      DashboardPanel(
+                        padding: const EdgeInsets.all(16.0),
+                        child: Column(
+                          children: [
+                            _buildTextField(
+                                '车牌号', _licensePlateController, themeData,
+                                required: true, prefix: '黑A', maxLength: 17),
+                            _buildTextField(
+                                '车辆类型', _vehicleTypeController, themeData,
+                                required: true, maxLength: 50),
+                            _buildTextField(
+                                '车主姓名', _ownerNameController, themeData,
+                                required: true,
+                                readOnly: true,
+                                maxLength: 100),
+                            _buildTextField(
+                                '身份证号码', _idCardNumberController, themeData,
+                                required: true,
+                                readOnly: true,
+                                keyboardType: TextInputType.number,
+                                maxLength: 18),
+                            _buildTextField(
+                                '联系电话', _contactNumberController, themeData,
+                                keyboardType: TextInputType.phone,
+                                maxLength: 20),
+                            _buildTextField(
+                                '发动机号', _engineNumberController, themeData,
+                                maxLength: 50),
+                            _buildTextField(
+                                '车架号', _frameNumberController, themeData,
+                                maxLength: 50),
+                            _buildTextField(
+                                '车身颜色', _vehicleColorController, themeData,
+                                maxLength: 50),
+                            _buildTextField('首次注册日期',
+                                _firstRegistrationDateController, themeData,
+                                readOnly: true, onTap: _pickDate),
+                            _buildTextField(
+                                '当前状态', _currentStatusController, themeData,
+                                maxLength: 50),
+                          ],
                         ),
                       ),
                       const SizedBox(height: 20),
@@ -1217,11 +1208,11 @@ class _EditVehiclePageState extends State<EditVehiclePage> {
                           backgroundColor: themeData.colorScheme.primary,
                           foregroundColor: themeData.colorScheme.onPrimary,
                           shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(12.0)),
+                              borderRadius: BorderRadius.circular(8)),
                           padding: const EdgeInsets.symmetric(
                               vertical: 14.0, horizontal: 20.0),
                           textStyle: themeData.textTheme.labelLarge
-                              ?.copyWith(fontWeight: FontWeight.bold),
+                              ?.copyWith(fontWeight: FontWeight.w800),
                         ),
                         child: const Text('保存'),
                       ),
@@ -1338,7 +1329,7 @@ class _VehicleDetailPageState extends State<VehicleDetailPage> {
         children: [
           Text('$label: ',
               style: themeData.textTheme.bodyLarge?.copyWith(
-                  fontWeight: FontWeight.bold,
+                  fontWeight: FontWeight.w800,
                   color: themeData.colorScheme.onSurface)),
           Expanded(
               child: Text(value,
@@ -1376,7 +1367,7 @@ class _VehicleDetailPageState extends State<VehicleDetailPage> {
               Text(_errorMessage,
                   style: themeData.textTheme.titleMedium?.copyWith(
                       color: themeData.colorScheme.error,
-                      fontWeight: FontWeight.w500),
+                      fontWeight: FontWeight.w600),
                   textAlign: TextAlign.center),
               if (_errorMessage.contains('登录'))
                 Padding(
@@ -1439,44 +1430,39 @@ class _VehicleDetailPageState extends State<VehicleDetailPage> {
                       AlwaysStoppedAnimation(themeData.colorScheme.primary)))
           : Padding(
               padding: const EdgeInsets.all(16.0),
-              child: Card(
-                elevation: 3,
-                color: themeData.colorScheme.surfaceContainer,
-                shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(16.0)),
-                child: Padding(
-                  padding: const EdgeInsets.all(16.0),
-                  child: SingleChildScrollView(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        _buildDetailRow('车辆类型',
-                            widget.vehicle.vehicleType ?? '未知类型', themeData),
-                        _buildDetailRow('车牌号',
-                            widget.vehicle.licensePlate ?? '未知车牌', themeData),
-                        _buildDetailRow('车主姓名',
-                            widget.vehicle.ownerName ?? '未知车主', themeData),
-                        _buildDetailRow('车辆状态',
-                            widget.vehicle.currentStatus ?? '无', themeData),
-                        _buildDetailRow('身份证号码',
-                            widget.vehicle.idCardNumber ?? '无', themeData),
-                        _buildDetailRow('联系电话',
-                            widget.vehicle.contactNumber ?? '无', themeData),
-                        _buildDetailRow('发动机号',
-                            widget.vehicle.engineNumber ?? '无', themeData),
-                        _buildDetailRow('车架号',
-                            widget.vehicle.frameNumber ?? '无', themeData),
-                        _buildDetailRow('车身颜色',
-                            widget.vehicle.vehicleColor ?? '无', themeData),
-                        _buildDetailRow(
-                            '首次注册日期',
-                            formatDate(widget.vehicle.firstRegistrationDate),
-                            themeData),
-                      ],
+              child: // Surface tint previously provided by themeData.colorScheme.surfaceContainer.
+                  DashboardPanel(
+                    padding: const EdgeInsets.all(16.0),
+                    child: SingleChildScrollView(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          _buildDetailRow('车辆类型',
+                              widget.vehicle.vehicleType ?? '未知类型', themeData),
+                          _buildDetailRow('车牌号',
+                              widget.vehicle.licensePlate ?? '未知车牌', themeData),
+                          _buildDetailRow('车主姓名',
+                              widget.vehicle.ownerName ?? '未知车主', themeData),
+                          _buildDetailRow('车辆状态',
+                              widget.vehicle.currentStatus ?? '无', themeData),
+                          _buildDetailRow('身份证号码',
+                              widget.vehicle.idCardNumber ?? '无', themeData),
+                          _buildDetailRow('联系电话',
+                              widget.vehicle.contactNumber ?? '无', themeData),
+                          _buildDetailRow('发动机号',
+                              widget.vehicle.engineNumber ?? '无', themeData),
+                          _buildDetailRow('车架号',
+                              widget.vehicle.frameNumber ?? '无', themeData),
+                          _buildDetailRow('车身颜色',
+                              widget.vehicle.vehicleColor ?? '无', themeData),
+                          _buildDetailRow(
+                              '首次注册日期',
+                              formatDate(widget.vehicle.firstRegistrationDate),
+                              themeData),
+                        ],
+                      ),
                     ),
                   ),
-                ),
-              ),
             ),
     );
   }

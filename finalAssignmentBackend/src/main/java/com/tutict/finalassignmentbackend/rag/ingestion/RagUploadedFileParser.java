@@ -33,6 +33,10 @@ import java.util.zip.ZipInputStream;
 public class RagUploadedFileParser {
 
     private static final long MAX_FILE_SIZE = 8L * 1024L * 1024L;
+    private static final long MAX_ZIP_TOTAL_DECOMPRESSED = 256L * 1024L * 1024L; // 256MB
+    private static final long MAX_ZIP_ENTRY_SIZE = 64L * 1024L * 1024L;          // 64MB per entry
+    private static final int MAX_ZIP_ENTRIES = 1024;                              // max files in one ZIP
+    private static final int MAX_XML_ENTITY_EXPANSIONS = 64;                       // XML bomb protection
 
     public ParsedRagFile parse(MultipartFile file) throws IOException {
         if (file == null || file.isEmpty()) {
@@ -284,15 +288,30 @@ public class RagUploadedFileParser {
 
     private Map<String, byte[]> unzip(byte[] bytes) throws IOException {
         Map<String, byte[]> entries = new HashMap<>();
+        long totalDecompressed = 0;
         try (ZipInputStream zip = new ZipInputStream(new ByteArrayInputStream(bytes))) {
             ZipEntry entry;
             while ((entry = zip.getNextEntry()) != null) {
                 if (entry.isDirectory()) {
                     continue;
                 }
+                if (entries.size() >= MAX_ZIP_ENTRIES) {
+                    throw new IllegalArgumentException("ZIP archive exceeds maximum entry count of " + MAX_ZIP_ENTRIES);
+                }
                 ByteArrayOutputStream output = new ByteArrayOutputStream();
                 zip.transferTo(output);
-                entries.put(entry.getName(), output.toByteArray());
+                byte[] entryBytes = output.toByteArray();
+                if (entryBytes.length > MAX_ZIP_ENTRY_SIZE) {
+                    throw new IllegalArgumentException(
+                            "ZIP entry " + entry.getName() + " exceeds maximum size of " + (MAX_ZIP_ENTRY_SIZE / 1024 / 1024) + "MB"
+                    );
+                }
+                totalDecompressed += entryBytes.length;
+                if (totalDecompressed > MAX_ZIP_TOTAL_DECOMPRESSED) {
+                    throw new IllegalArgumentException("ZIP archive total decompressed size exceeds maximum of "
+                            + (MAX_ZIP_TOTAL_DECOMPRESSED / 1024 / 1024) + "MB");
+                }
+                entries.put(entry.getName(), entryBytes);
             }
         }
         return entries;
@@ -305,6 +324,9 @@ public class RagUploadedFileParser {
             factory.setFeature("http://apache.org/xml/features/disallow-doctype-decl", true);
             factory.setFeature("http://xml.org/sax/features/external-general-entities", false);
             factory.setFeature("http://xml.org/sax/features/external-parameter-entities", false);
+            // Bound entity expansion / depth to prevent XML bomb and processing-request attacks.
+            factory.setAttribute("http://www.oracle.com/xml/jaxp/properties/entityExpansionLimit", MAX_XML_ENTITY_EXPANSIONS);
+            factory.setAttribute("http://www.oracle.com/xml/jaxp/properties/maxElementDepth", 128);
             DocumentBuilder builder = factory.newDocumentBuilder();
             return builder.parse(new InputSource(new StringReader(xml)));
         } catch (Exception error) {

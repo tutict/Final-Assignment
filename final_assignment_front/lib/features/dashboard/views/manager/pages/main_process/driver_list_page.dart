@@ -7,6 +7,7 @@ import 'package:get/get.dart';
 import 'package:final_assignment_front/features/api/driver_information_controller_api.dart';
 import 'package:final_assignment_front/features/dashboard/controllers/manager_dashboard_controller.dart';
 import 'package:final_assignment_front/features/dashboard/views/manager/pages/main_process/manager_business_page_chrome.dart';
+import 'package:final_assignment_front/features/dashboard/views/shared/widgets/dashboard_chrome.dart';
 import 'package:final_assignment_front/features/dashboard/views/shared/widgets/dashboard_page_template.dart';
 import 'package:final_assignment_front/features/model/driver_information.dart';
 import 'package:final_assignment_front/utils/widgets/index.dart';
@@ -196,33 +197,26 @@ class _DriverListPageState extends State<DriverListPage> {
               final gender = _mapGenderToDisplay(driver.gender);
               final contact = driver.contactNumber ?? '无';
 
-              return Card(
-                elevation: 0,
-                color: themeData.colorScheme.surfaceContainerLowest,
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(8.0),
-                  side: BorderSide(
-                    color: themeData.colorScheme.outlineVariant
-                        .withValues(alpha: 0.42),
-                  ),
-                ),
+              return DashboardPanel(
+                padding: const EdgeInsets.all(16.0),
                 margin: const EdgeInsets.symmetric(vertical: 8.0),
                 child: ListTile(
-                  contentPadding: const EdgeInsets.all(16.0),
+                  dense: true,
+                  contentPadding: EdgeInsets.zero,
                   leading: CircleAvatar(
                     backgroundColor: themeData.colorScheme.primaryContainer,
                     child: Text(
                       name.isNotEmpty ? name[0] : '?',
                       style: TextStyle(
                         color: themeData.colorScheme.onPrimaryContainer,
-                        fontWeight: FontWeight.bold,
+                        fontWeight: FontWeight.w800,
                       ),
                     ),
                   ),
                   title: Text(
                     name,
                     style: themeData.textTheme.titleMedium?.copyWith(
-                      fontWeight: FontWeight.bold,
+                      fontWeight: FontWeight.w800,
                       color: themeData.colorScheme.onSurface,
                     ),
                   ),
@@ -441,16 +435,11 @@ class _AddDriverPageState extends State<AddDriverPage> {
               : Form(
                   key: _formKey,
                   child: SingleChildScrollView(
-                    child: Card(
-                      elevation: 4,
-                      color: themeData.colorScheme.surfaceContainerLowest,
-                      shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(16.0)),
-                      child: Padding(
-                        padding: const EdgeInsets.all(20.0),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.stretch,
-                          children: [
+                    child: DashboardPanel(
+                      padding: const EdgeInsets.all(20.0),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                        children: [
                             AppUtils.buildTextField(
                               themeData,
                               '姓名 *',
@@ -590,10 +579,10 @@ class _AddDriverPageState extends State<AddDriverPage> {
                                 foregroundColor:
                                     themeData.colorScheme.onPrimary,
                                 shape: RoundedRectangleBorder(
-                                    borderRadius: BorderRadius.circular(12.0)),
+                                    borderRadius: BorderRadius.circular(8.0)),
                                 padding: const EdgeInsets.symmetric(
                                     vertical: 16.0, horizontal: 24.0),
-                                elevation: 2,
+                                elevation: 0,
                               ),
                               child: _isLoading
                                   ? CupertinoActivityIndicator(
@@ -605,14 +594,13 @@ class _AddDriverPageState extends State<AddDriverPage> {
                                       style: themeData.textTheme.labelLarge
                                           ?.copyWith(
                                         color: themeData.colorScheme.onPrimary,
-                                        fontWeight: FontWeight.bold,
+                                        fontWeight: FontWeight.w800,
                                       ),
                                     ),
                             ),
                           ],
                         ),
                       ),
-                    ),
                   ),
                 ),
         ),
@@ -843,15 +831,10 @@ class _EditDriverPageState extends State<EditDriverPage> {
               : Form(
                   key: _formKey,
                   child: SingleChildScrollView(
-                    child: Card(
-                      elevation: 4,
-                      color: themeData.colorScheme.surfaceContainerLowest,
-                      shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(16.0)),
-                      child: Padding(
-                        padding: const EdgeInsets.all(20.0),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.stretch,
+                    child: DashboardPanel(
+                      padding: const EdgeInsets.all(20.0),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
                           children: [
                             AppUtils.buildTextField(
                               themeData,
@@ -991,23 +974,22 @@ class _EditDriverPageState extends State<EditDriverPage> {
                                 foregroundColor:
                                     themeData.colorScheme.onPrimary,
                                 shape: RoundedRectangleBorder(
-                                    borderRadius: BorderRadius.circular(12.0)),
+                                    borderRadius: BorderRadius.circular(8.0)),
                                 padding: const EdgeInsets.symmetric(
                                     vertical: 14.0, horizontal: 24.0),
-                                elevation: 2,
+                                elevation: 0,
                               ),
                               child: Text(
                                 '保存',
                                 style: themeData.textTheme.labelLarge?.copyWith(
                                   color: themeData.colorScheme.onPrimary,
-                                  fontWeight: FontWeight.bold,
+                                  fontWeight: FontWeight.w800,
                                 ),
                               ),
                             ),
                           ],
                         ),
                       ),
-                    ),
                   ),
                 ),
         ),
@@ -1204,14 +1186,9 @@ class _DriverDetailPageState extends State<DriverDetailPage> {
                   thicknessWhileDragging: 10.0,
                   child: SingleChildScrollView(
                     controller: _scrollController,
-                    child: Card(
-                      elevation: 4,
-                      color: themeData.colorScheme.surfaceContainerLowest,
-                      shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(16.0)),
-                      child: Padding(
-                        padding: const EdgeInsets.all(20.0),
-                        child: Column(
+                    child: DashboardPanel(
+                      padding: const EdgeInsets.all(20.0),
+                      child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             _buildDetailRow('司机 ID', driverId, themeData),
@@ -1230,7 +1207,6 @@ class _DriverDetailPageState extends State<DriverDetailPage> {
                           ],
                         ),
                       ),
-                    ),
                   ),
                 ),
         ),
@@ -1247,7 +1223,7 @@ class _DriverDetailPageState extends State<DriverDetailPage> {
           Text(
             '$label: ',
             style: themeData.textTheme.titleMedium?.copyWith(
-              fontWeight: FontWeight.bold,
+              fontWeight: FontWeight.w800,
               color: themeData.colorScheme.onSurface,
             ),
           ),
@@ -1337,12 +1313,12 @@ class AppUtils {
             child: AlertDialog(
               backgroundColor: themeData.colorScheme.surfaceContainerLowest,
               shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(16.0)),
+                  borderRadius: BorderRadius.circular(8.0)),
               title: Text(
                 title,
                 style: themeData.textTheme.titleLarge?.copyWith(
                     color: themeData.colorScheme.onSurface,
-                    fontWeight: FontWeight.bold),
+                    fontWeight: FontWeight.w800),
               ),
               content: Text(
                 content,

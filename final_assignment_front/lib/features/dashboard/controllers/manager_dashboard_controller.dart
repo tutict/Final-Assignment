@@ -222,9 +222,10 @@ class ManagerDashboardController extends GetxController {
         style: ElevatedButton.styleFrom(
           backgroundColor: baseTheme.colorScheme.primary,
           foregroundColor: baseTheme.colorScheme.onPrimary,
-          elevation: 2,
+          elevation: 0,
+          shadowColor: Colors.transparent,
           shape:
-              RoundedRectangleBorder(borderRadius: BorderRadius.circular(16.0)),
+              RoundedRectangleBorder(borderRadius: BorderRadius.circular(8.0)),
           textStyle: TextStyle(
             fontFamily: fontFamily,
             fontSize: 16.0,

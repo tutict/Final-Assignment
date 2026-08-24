@@ -34,6 +34,16 @@ class AuthenticatedUser {
   }
 }
 
+/// Outcome of one refresh attempt against `POST /api/auth/refresh`.
+///
+/// `rejected` means the server explicitly refused the stored refresh token
+/// (or none exists) — the session is unrecoverable and must be cleared.
+/// `transientFailure` means the attempt failed without such a refusal —
+/// the stored tokens may still be honored by the server, so they must be
+/// preserved for a later attempt. The status sets are decided in
+/// `_isTerminalRefreshRejection`.
+enum SessionRefreshStatus { success, rejected, transientFailure }
+
 class AuthService extends GetxService {
   AuthService({
     http.Client? client,
@@ -43,7 +53,7 @@ class AuthService extends GetxService {
   final http.Client _client;
   final Duration refreshSkew;
   bool _isRedirecting = false;
-  Completer<bool>? _refreshCompleter;
+  Completer<SessionRefreshStatus>? _refreshCompleter;
 
   Future<bool> ensureValidSession({bool redirectIfInvalid = false}) async {
     final token = await AuthTokenStore.instance.getJwtToken();
@@ -56,20 +66,36 @@ class AuthService extends GetxService {
 
     try {
       final decodedToken = JwtDecoder.decode(token);
-      if (_shouldRefresh(token, decodedToken)) {
-        final refreshed = await refreshJwtToken();
-        final refreshedToken = await AuthTokenStore.instance.getJwtToken();
-        if (!refreshed ||
-            refreshedToken == null ||
-            JwtDecoder.isExpired(refreshedToken)) {
-          await clearTokens();
-          if (redirectIfInvalid) {
-            await redirectToLogin(clearStoredTokens: false);
-          }
-          return false;
-        }
+      if (!_shouldRefresh(token, decodedToken)) {
+        return true;
       }
-      return true;
+
+      final status = await refreshSession();
+      if (status == SessionRefreshStatus.success) {
+        final refreshedToken = await AuthTokenStore.instance.getJwtToken();
+        if (refreshedToken != null && !JwtDecoder.isExpired(refreshedToken)) {
+          return true;
+        }
+      } else if (status == SessionRefreshStatus.transientFailure) {
+        if (!JwtDecoder.isExpired(token)) {
+          // The access token is still valid; a throttled, failing, or
+          // unreachable refresh endpoint must not destroy the session.
+          // The next ensureValidSession call retries the refresh.
+          return true;
+        }
+        // Hard-expired access token, but the refresh token was not rejected:
+        // keep stored tokens so a later attempt can recover the session.
+        if (redirectIfInvalid) {
+          await redirectToLogin(clearStoredTokens: false);
+        }
+        return false;
+      }
+
+      await clearTokens();
+      if (redirectIfInvalid) {
+        await redirectToLogin(clearStoredTokens: false);
+      }
+      return false;
     } catch (error, stackTrace) {
       developer.log(
         'Invalid JWT token',
@@ -121,36 +147,42 @@ class AuthService extends GetxService {
     }
   }
 
-  Future<bool> refreshJwtToken() async {
-    if (_refreshCompleter != null) {
-      return _refreshCompleter!.future;
+  Future<bool> refreshJwtToken() async =>
+      await refreshSession() == SessionRefreshStatus.success;
+
+  /// Single-flight refresh returning the classified outcome.
+  Future<SessionRefreshStatus> refreshSession() async {
+    final inFlight = _refreshCompleter;
+    if (inFlight != null) {
+      return inFlight.future;
     }
 
-    _refreshCompleter = Completer<bool>();
+    final completer = Completer<SessionRefreshStatus>();
+    _refreshCompleter = completer;
     try {
       final result = await _refreshJwtTokenInternal();
-      _refreshCompleter!.complete(result);
+      completer.complete(result);
       return result;
     } catch (error, stackTrace) {
-      if (!_refreshCompleter!.isCompleted) {
-        _refreshCompleter!.complete(false);
-      }
       AppLogger.error(
         'Token refresh failed',
         error: error,
         stackTrace: stackTrace,
       );
-      return false;
+      if (!completer.isCompleted) {
+        completer.complete(SessionRefreshStatus.transientFailure);
+      }
+      return SessionRefreshStatus.transientFailure;
     } finally {
       _refreshCompleter = null;
     }
   }
 
-  Future<bool> _refreshJwtTokenInternal() async {
+  Future<SessionRefreshStatus> _refreshJwtTokenInternal() async {
     final refreshToken = await AuthTokenStore.instance.getRefreshToken();
     if (refreshToken == null || refreshToken.isEmpty) {
       developer.log('No refresh token found');
-      return false;
+      return SessionRefreshStatus.rejected;
     }
 
     try {
@@ -166,12 +198,17 @@ class AuthService extends GetxService {
         AppLogger.error('Refresh endpoint not found - may be using Cloud auth');
         await clearTokens();
         NavigationHelper.offAllNamed(Routes.login);
-        return false;
+        return SessionRefreshStatus.rejected;
+      }
+
+      if (_isTerminalRefreshRejection(response.statusCode)) {
+        developer.log('JWT refresh rejected: ${response.statusCode}');
+        return SessionRefreshStatus.rejected;
       }
 
       if (response.statusCode != 200 || response.body.isEmpty) {
-        developer.log('JWT refresh failed: ${response.statusCode}');
-        return false;
+        developer.log('JWT refresh failed transiently: ${response.statusCode}');
+        return SessionRefreshStatus.transientFailure;
       }
 
       final body = jsonDecode(response.body) as Map<String, dynamic>;
@@ -181,7 +218,7 @@ class AuthService extends GetxService {
       final newJwt = (data['accessToken'] ?? data['jwtToken'])?.toString();
       if (newJwt == null || newJwt.isEmpty) {
         developer.log('JWT refresh response did not contain accessToken');
-        return false;
+        return SessionRefreshStatus.transientFailure;
       }
 
       await AuthTokenStore.instance.setJwtToken(newJwt);
@@ -190,15 +227,23 @@ class AuthService extends GetxService {
         await AuthTokenStore.instance.setRefreshToken(newRefreshToken);
       }
       developer.log('JWT token refreshed successfully');
-      return true;
+      return SessionRefreshStatus.success;
     } catch (error, stackTrace) {
       developer.log(
         'Error refreshing JWT token',
         error: error,
         stackTrace: stackTrace,
       );
-      return false;
+      return SessionRefreshStatus.transientFailure;
     }
+  }
+
+  /// The server refuses this refresh token: 400 (malformed request),
+  /// 401 (invalid, rotated out, or revoked), 403 (forbidden). Everything
+  /// else — 408/429/5xx, timeouts, network and parse errors — is transient
+  /// and must not destroy stored tokens.
+  bool _isTerminalRefreshRejection(int statusCode) {
+    return statusCode == 400 || statusCode == 401 || statusCode == 403;
   }
 
   Future<void> handleForbidden({String? source, String? message}) async {

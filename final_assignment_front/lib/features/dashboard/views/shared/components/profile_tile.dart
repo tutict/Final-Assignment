@@ -21,16 +21,16 @@ class ProfilTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final bool isLight = Theme.of(context).brightness == Brightness.light;
-    final Color backgroundColor = isLight
-        ? Colors.white
-        : Theme.of(context).cardColor.withValues(alpha: 0.9);
+    final theme = Theme.of(context);
+    final scheme = theme.colorScheme;
+    final dark = theme.brightness == Brightness.dark;
+    final Color backgroundColor =
+        scheme.surface.withValues(alpha: dark ? 0.92 : 0.98);
     final Color shadowColor =
-        Colors.black.withValues(alpha: isLight ? 0.1 : 0.2);
-    final Color defaultTextColor = isLight ? Colors.black87 : Colors.white;
-    final Color subtitleTextColor =
-        isLight ? Colors.grey.shade600 : Colors.white70;
-    final Color iconColor = isLight ? Colors.grey.shade700 : Colors.white70;
+        theme.shadowColor.withValues(alpha: dark ? 0.18 : 0.08);
+    final Color defaultTextColor = scheme.onSurface;
+    final Color subtitleTextColor = scheme.onSurfaceVariant;
+    final Color iconColor = scheme.onSurfaceVariant;
 
     return Obx(() {
       String displayName;
@@ -86,8 +86,8 @@ class ProfilTile extends StatelessWidget {
             child: CircleAvatar(
               backgroundImage: data.photo,
               radius: 28,
-              backgroundColor:
-                  isLight ? Colors.grey.shade200 : Colors.grey.shade800,
+              backgroundColor: scheme.surfaceContainerHighest
+                  .withValues(alpha: dark ? 0.6 : 0.8),
             ),
           ),
           title: Row(

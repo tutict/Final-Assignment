@@ -3,6 +3,7 @@ import 'package:final_assignment_front/features/dashboard/controllers/manager_da
 import 'package:final_assignment_front/features/dashboard/views/manager/pages/logs/login_log_page.dart';
 import 'package:final_assignment_front/features/dashboard/views/manager/pages/logs/operation_log_page.dart';
 import 'package:final_assignment_front/features/dashboard/views/manager/pages/logs/system_log_page.dart';
+import 'package:final_assignment_front/features/dashboard/views/shared/widgets/dashboard_chrome.dart';
 import 'package:final_assignment_front/features/dashboard/views/shared/widgets/dashboard_page_template.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
@@ -70,31 +71,47 @@ class _LogManagementState extends State<LogManagement> {
               separatorBuilder: (_, __) => const SizedBox(height: 12),
               itemBuilder: (context, index) {
                 final option = logOptions[index];
-                return Card(
-                  elevation: 2,
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(16),
-                  ),
-                  color: colorScheme.surfaceContainer,
-                  child: ListTile(
-                    leading: CircleAvatar(
-                      backgroundColor: colorScheme.primaryContainer,
-                      child: Icon(option['icon'],
-                          color: colorScheme.onPrimaryContainer),
-                    ),
-                    title: Text(
-                      option['title'],
-                      style: themeData.textTheme.titleMedium?.copyWith(
-                        color: colorScheme.onSurface,
-                        fontWeight: FontWeight.bold,
+                final icon = option['icon'] as IconData;
+                final title = option['title'] as String;
+                return DashboardPanel(
+                  padding: EdgeInsets.zero,
+                  child: InkWell(
+                    borderRadius: BorderRadius.circular(8),
+                    onTap: () => _navigateToLogPage(option['route']),
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 16, vertical: 14),
+                      child: Row(
+                        children: [
+                          Container(
+                            width: 44,
+                            height: 44,
+                            decoration: BoxDecoration(
+                              color:
+                                  colorScheme.primary.withValues(alpha: 0.12),
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                            child: Icon(icon, color: colorScheme.primary),
+                          ),
+                          const SizedBox(width: 14),
+                          Expanded(
+                            child: Text(
+                              title,
+                              style: themeData.textTheme.titleMedium?.copyWith(
+                                color: colorScheme.onSurface,
+                                fontWeight: FontWeight.w800,
+                                letterSpacing: 0,
+                              ),
+                            ),
+                          ),
+                          Icon(
+                            Icons.chevron_right_rounded,
+                            color: colorScheme.onSurfaceVariant,
+                            size: 22,
+                          ),
+                        ],
                       ),
                     ),
-                    trailing: Icon(
-                      Icons.arrow_forward_ios,
-                      color: colorScheme.onSurfaceVariant,
-                      size: 18,
-                    ),
-                    onTap: () => _navigateToLogPage(option['route']),
                   ),
                 );
               },

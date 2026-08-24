@@ -1,4 +1,5 @@
 import 'package:final_assignment_front/config/themes/app_theme.dart';
+import 'package:final_assignment_front/features/dashboard/views/shared/widgets/dashboard_page_template.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 
@@ -34,10 +35,11 @@ class _ChangeThemes extends State<ChangeThemes> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('Change Theme'), // 页面标题
-      ),
+    final theme = Theme.of(context);
+    return DashboardPageTemplate(
+      theme: theme,
+      title: '主题切换',
+      pageType: DashboardPageType.manager,
       body: Center(
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
@@ -58,7 +60,7 @@ class _ChangeThemes extends State<ChangeThemes> {
                 children: [
                   for (String themeKey in themes.keys)
                     RadioListTile<String>(
-                      title: Text(themeKey), // ??????
+                      title: Text(themeKey),
                       value: themeKey,
                     ),
                 ],

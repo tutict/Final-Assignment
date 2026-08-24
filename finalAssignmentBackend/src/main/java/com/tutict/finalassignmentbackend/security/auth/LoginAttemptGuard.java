@@ -8,6 +8,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
 
 import java.time.Duration;
+import java.util.List;
 import java.util.Locale;
 import java.util.concurrent.TimeUnit;
 import java.util.logging.Level;
@@ -27,6 +28,7 @@ public class LoginAttemptGuard {
     private final int maxIpAttempts;
     private final int failurePenaltyAfter;
     private final int maxConsecutiveFailures;
+    private final List<String> trustedProxyCidrs;
 
     public LoginAttemptGuard(
             @Value("${app.security.login.window:PT1M}") Duration window,
@@ -36,7 +38,8 @@ public class LoginAttemptGuard {
             @Value("${app.security.login.max-account-attempts:8}") int maxAccountAttempts,
             @Value("${app.security.login.max-ip-attempts:40}") int maxIpAttempts,
             @Value("${app.security.login.failure-penalty-after:2}") int failurePenaltyAfter,
-            @Value("${app.security.login.max-consecutive-failures:8}") int maxConsecutiveFailures
+            @Value("${app.security.login.max-consecutive-failures:8}") int maxConsecutiveFailures,
+            @Value("${app.security.proxy.trusted-cidrs:}") List<String> trustedProxyCidrs
     ) {
         this.window = positive(window, Duration.ofMinutes(1));
         this.lockDuration = positive(lockDuration, Duration.ofMinutes(2));
@@ -46,6 +49,7 @@ public class LoginAttemptGuard {
         this.maxIpAttempts = Math.max(maxIpAttempts, this.maxAccountAttempts);
         this.failurePenaltyAfter = Math.max(failurePenaltyAfter, 1);
         this.maxConsecutiveFailures = Math.max(maxConsecutiveFailures, this.failurePenaltyAfter);
+        this.trustedProxyCidrs = trustedProxyCidrs == null ? List.of() : trustedProxyCidrs;
         Duration ttl = this.window.plus(this.lockDuration).plus(this.failurePenaltyMax);
         this.attempts = Caffeine.newBuilder()
                 .expireAfterAccess(ttl.toMillis(), TimeUnit.MILLISECONDS)
@@ -153,16 +157,58 @@ public class LoginAttemptGuard {
         if (request == null) {
             return "unknown";
         }
-        String forwardedFor = request.getHeader("X-Forwarded-For");
-        if (StringUtils.hasText(forwardedFor)) {
-            return forwardedFor.split(",", 2)[0].trim();
-        }
-        String realIp = request.getHeader("X-Real-IP");
-        if (StringUtils.hasText(realIp)) {
-            return realIp.trim();
+        // Only trust Forwarded headers when the direct peer is a configured trusted proxy.
+        if (isTrustedProxy(request.getRemoteAddr())) {
+            String forwardedFor = request.getHeader("X-Forwarded-For");
+            if (StringUtils.hasText(forwardedFor)) {
+                return forwardedFor.split(",", 2)[0].trim();
+            }
+            String realIp = request.getHeader("X-Real-IP");
+            if (StringUtils.hasText(realIp)) {
+                return realIp.trim();
+            }
         }
         String remoteAddr = request.getRemoteAddr();
         return StringUtils.hasText(remoteAddr) ? remoteAddr : "unknown";
+    }
+
+    private boolean isTrustedProxy(String remoteAddr) {
+        if (remoteAddr == null || remoteAddr.isBlank()) {
+            return false;
+        }
+        for (String cidr : trustedProxyCidrs) {
+            if (cidr == null || cidr.isBlank()) {
+                continue;
+            }
+            if (matchesCidr(remoteAddr, cidr.trim())) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private static boolean matchesCidr(String ip, String cidr) {
+        try {
+            String[] parts = cidr.split("/");
+            byte[] address = java.net.InetAddress.getByName(ip).getAddress();
+            byte[] network = java.net.InetAddress.getByName(parts[0]).getAddress();
+            if (parts.length == 1) {
+                return java.util.Arrays.equals(address, network);
+            }
+            int prefix = Integer.parseInt(parts[1]);
+            int bits = prefix;
+            for (int i = 0; i < address.length && bits > 0; i++) {
+                int byteBits = Math.min(8, bits);
+                int mask = (0xFF << (8 - byteBits)) & 0xFF;
+                if ((address[i] & mask) != (network[i] & mask)) {
+                    return false;
+                }
+                bits -= byteBits;
+            }
+            return true;
+        } catch (Exception ex) {
+            return false;
+        }
     }
 
     private Duration positive(Duration value, Duration fallback) {

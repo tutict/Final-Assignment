@@ -2,6 +2,7 @@ package com.tutict.finalassignmentbackend.ai.chat;
 
 import com.tutict.finalassignmentbackend.ai.rag.dto.RetrievalResult;
 import com.tutict.finalassignmentbackend.ai.rag.query.RagQueryRequest;
+import com.tutict.finalassignmentbackend.ai.rag.query.ServerSideRagQueryRequest;
 import com.tutict.finalassignmentbackend.ai.rag.query.RagQueryService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.ObjectProvider;
@@ -48,7 +49,7 @@ public class AiChatService {
         return chatPipeline.stream(normalizedRequest);
     }
 
-    public List<RetrievalResult> retrieve(RagQueryRequest request) {
+    public List<RetrievalResult> retrieve(ServerSideRagQueryRequest request) {
         if (ragQueryService == null) {
             return List.of();
         }

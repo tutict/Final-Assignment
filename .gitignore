@@ -338,5 +338,22 @@ doc/api/
 *.js.deps
 *.js.map
 
-# for gitignore
-.gitignore
+### Local tool and build caches
+# Gradle caches can be generated at the repository root or in nested modules.
+.gradle/
+**/.gradle/
+
+# Local AI/editor assistant state; keep machine-specific context out of commits.
+.claude/
+.codex/
+.agents/
+
+# Node dependencies (React frontend installs into the repo).
+node_modules/
+
+# Runtime and temporary files created by local scripts or test runs.
+*.pid
+*.seed
+*.trace
+*.dump
+*.dumpstream

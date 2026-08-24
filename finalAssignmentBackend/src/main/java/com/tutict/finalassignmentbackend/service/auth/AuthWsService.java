@@ -2,6 +2,8 @@ package com.tutict.finalassignmentbackend.service.auth;
 
 import com.tutict.finalassignmentbackend.config.login.jwt.TokenProvider;
 import com.tutict.finalassignmentbackend.config.websocket.WsAction;
+import com.tutict.finalassignmentbackend.config.NetWorkHandler;
+import com.tutict.finalassignmentbackend.config.websocket.WsTicketService;
 import com.tutict.finalassignmentbackend.dto.mapper.UserResponseMapper;
 import com.tutict.finalassignmentbackend.dto.request.RefreshRequest;
 import com.tutict.finalassignmentbackend.dto.response.TokenResponse;
@@ -71,6 +73,8 @@ public class AuthWsService {
     private final RefreshTokenService refreshTokenService;
     private final TokenBlacklistService tokenBlacklistService;
     private final DriverInformationService driverInformationService;
+    private final WsTicketService wsTicketService;
+    private final NetWorkHandler netWorkHandler;
 
     @Autowired
     public AuthWsService(TokenProvider tokenProvider,
@@ -82,7 +86,9 @@ public class AuthWsService {
                          PasswordEncoder passwordEncoder,
                          RefreshTokenService refreshTokenService,
                          TokenBlacklistService tokenBlacklistService,
-                         DriverInformationService driverInformationService) {
+                         DriverInformationService driverInformationService,
+                         WsTicketService wsTicketService,
+                         com.tutict.finalassignmentbackend.config.NetWorkHandler netWorkHandler) {
         this.tokenProvider = tokenProvider;
         this.auditLoginLogService = auditLoginLogService;
         this.sysUserService = sysUserService;
@@ -93,6 +99,8 @@ public class AuthWsService {
         this.refreshTokenService = refreshTokenService;
         this.tokenBlacklistService = tokenBlacklistService;
         this.driverInformationService = driverInformationService;
+        this.wsTicketService = wsTicketService;
+        this.netWorkHandler = netWorkHandler;
     }
 
     @CacheEvict(cacheNames = "AuthCache", allEntries = true)
@@ -212,6 +220,10 @@ public class AuthWsService {
         String token = extractBearerToken(bearerToken);
         long remaining = tokenProvider.getExpirationMs(token);
         tokenBlacklistService.blacklist(token, remaining);
+
+        // Revoke unconsumed WS tickets and close active connections
+        wsTicketService.invalidateUserTickets(username);
+        netWorkHandler.closeUserConnections(username);
     }
 
     @Transactional

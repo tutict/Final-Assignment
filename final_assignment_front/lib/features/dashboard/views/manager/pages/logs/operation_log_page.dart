@@ -2,10 +2,11 @@
 import 'dart:developer' as developer;
 
 import 'package:final_assignment_front/config/routes/app_routes.dart';
-import 'package:final_assignment_front/core/auth/auth_service.dart';
 import 'package:final_assignment_front/features/api/operation_log_controller_api.dart';
 import 'package:final_assignment_front/features/dashboard/controllers/manager_dashboard_controller.dart';
+import 'package:final_assignment_front/features/dashboard/views/shared/widgets/dashboard_chrome.dart';
 import 'package:final_assignment_front/features/dashboard/views/shared/widgets/dashboard_page_template.dart';
+import 'package:final_assignment_front/features/dashboard/views/shared/widgets/page_auth_mixin.dart';
 import 'package:final_assignment_front/features/model/operation_log.dart';
 import 'package:final_assignment_front/shared/dialogs/app_dialog.dart';
 import 'package:final_assignment_front/utils/widgets/index.dart';
@@ -14,10 +15,8 @@ import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:intl/intl.dart';
-import 'package:jwt_decoder/jwt_decoder.dart';
 import 'package:uuid/uuid.dart';
 import 'package:final_assignment_front/shared/utils/navigation_helper.dart';
-import 'package:final_assignment_front/utils/services/auth_token_store.dart';
 
 String generateIdempotencyKey() {
   return const Uuid().v4();
@@ -35,7 +34,7 @@ class OperationLogPage extends StatefulWidget {
   State<OperationLogPage> createState() => _OperationLogPageState();
 }
 
-class _OperationLogPageState extends State<OperationLogPage> {
+class _OperationLogPageState extends State<OperationLogPage> with PageAuthMixin {
   final OperationLogControllerApi logApi = OperationLogControllerApi();
   final TextEditingController _searchController = TextEditingController();
   final ScrollController _scrollController = ScrollController();
@@ -77,75 +76,22 @@ class _OperationLogPageState extends State<OperationLogPage> {
     super.dispose();
   }
 
-  Future<bool> _validateJwtToken() async {
-    String? jwtToken = await AuthTokenStore.instance.getJwtToken();
-    if (jwtToken == null || jwtToken.isEmpty) {
-      setState(() => _errorMessage = '未授权，请重新登录');
-      return false;
-    }
-    try {
-      if (JwtDecoder.isExpired(jwtToken)) {
-        final refreshed = await Get.find<AuthService>().refreshJwtToken();
-        jwtToken = await AuthTokenStore.instance.getJwtToken();
-        if (!refreshed || jwtToken == null || JwtDecoder.isExpired(jwtToken)) {
-          setState(() => _errorMessage = '登录已过期，请重新登录');
-          return false;
-        }
-      }
-      await logApi.initializeWithJwt();
-      return true;
-    } catch (e) {
-      setState(() => _errorMessage = '无效的登录信息，请重新登录');
-      return false;
-    }
-  }
-
   Future<void> _initialize() async {
     setState(() => _isLoading = true);
     try {
-      if (!await _validateJwtToken()) {
-        NavigationHelper.offAllNamed(Routes.login);
+      final roles = await requireRoles((r) => r.contains('ADMIN'));
+      if (roles == null) return; // session expired, redirected to login
+      _isAdmin = roles.isNotEmpty;
+      if (!_isAdmin) {
+        setState(() => _errorMessage = '权限不足：仅管理员可访问此页面');
         return;
       }
-      await _checkUserRole();
-      if (_isAdmin) {
-        await _fetchLogs(reset: true);
-      } else {
-        setState(() => _errorMessage = '权限不足：仅管理员可访问此页面');
-      }
+      await logApi.initializeWithJwt();
+      await _fetchLogs(reset: true);
     } catch (e) {
       setState(() => _errorMessage = '初始化失败: $e');
     } finally {
       setState(() => _isLoading = false);
-    }
-  }
-
-  Future<void> _checkUserRole() async {
-    try {
-      if (!await _validateJwtToken()) {
-        NavigationHelper.offAllNamed(Routes.login);
-        return;
-      }
-      final jwtToken = await AuthTokenStore.instance.getJwtToken();
-      if (jwtToken == null || jwtToken.isEmpty) {
-        setState(() => _errorMessage = '未授权，请重新登录');
-        return;
-      }
-      final decodedToken = JwtDecoder.decode(jwtToken);
-      final roles = decodedToken['roles'] is List
-          ? (decodedToken['roles'] as List).map((r) => r.toString()).toList()
-          : decodedToken['roles'] is String
-              ? [decodedToken['roles'].toString()]
-              : [];
-      setState(() => _isAdmin = roles.contains('ADMIN'));
-      if (!_isAdmin) {
-        setState(() => _errorMessage = '权限不足：仅管理员可访问此页面');
-      }
-      developer.log('User roles from JWT: $roles');
-    } catch (e) {
-      setState(() => _errorMessage = '验证角色失败: $e');
-      developer.log('Error checking user role: $e',
-          stackTrace: StackTrace.current);
     }
   }
 
@@ -165,10 +111,7 @@ class _OperationLogPageState extends State<OperationLogPage> {
     });
 
     try {
-      if (!await _validateJwtToken()) {
-        NavigationHelper.offAllNamed(Routes.login);
-        return;
-      }
+      if (await ensureFreshJwt() == null) return;
       List<OperationLog> logs = [];
       final searchQuery = query?.trim() ?? '';
       if (_searchType == 'userId' && searchQuery.isNotEmpty) {
@@ -327,7 +270,7 @@ class _OperationLogPageState extends State<OperationLogPage> {
             title: Text('创建操作日志', style: themeData.textTheme.titleLarge),
             backgroundColor: themeData.colorScheme.surfaceContainerLowest,
             shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(16.0)),
+                borderRadius: BorderRadius.circular(8.0)),
             content: Form(
               key: formKey,
               child: SingleChildScrollView(
@@ -339,7 +282,7 @@ class _OperationLogPageState extends State<OperationLogPage> {
                       decoration: InputDecoration(
                         labelText: '用户ID',
                         border: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(12.0)),
+                            borderRadius: BorderRadius.circular(8)),
                         filled: true,
                         fillColor: themeData.colorScheme.surfaceContainer,
                       ),
@@ -356,7 +299,7 @@ class _OperationLogPageState extends State<OperationLogPage> {
                       decoration: InputDecoration(
                         labelText: '操作内容',
                         border: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(12.0)),
+                            borderRadius: BorderRadius.circular(8)),
                         filled: true,
                         fillColor: themeData.colorScheme.surfaceContainer,
                       ),
@@ -369,7 +312,7 @@ class _OperationLogPageState extends State<OperationLogPage> {
                       decoration: InputDecoration(
                         labelText: '操作结果',
                         border: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(12.0)),
+                            borderRadius: BorderRadius.circular(8)),
                         filled: true,
                         fillColor: themeData.colorScheme.surfaceContainer,
                       ),
@@ -381,7 +324,7 @@ class _OperationLogPageState extends State<OperationLogPage> {
                       decoration: InputDecoration(
                         labelText: '备注',
                         border: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(12.0)),
+                            borderRadius: BorderRadius.circular(8)),
                         filled: true,
                         fillColor: themeData.colorScheme.surfaceContainer,
                       ),
@@ -400,10 +343,7 @@ class _OperationLogPageState extends State<OperationLogPage> {
               ElevatedButton(
                 onPressed: () async {
                   if (formKey.currentState!.validate()) {
-                    if (!await _validateJwtToken()) {
-                      NavigationHelper.offAllNamed(Routes.login);
-                      return;
-                    }
+                    if (await ensureFreshJwt() == null) return;
                     try {
                       final newLog = OperationLog(
                         userId: int.parse(userIdController.text),
@@ -430,7 +370,7 @@ class _OperationLogPageState extends State<OperationLogPage> {
                   backgroundColor: themeData.colorScheme.primary,
                   foregroundColor: themeData.colorScheme.onPrimary,
                   shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12.0)),
+                      borderRadius: BorderRadius.circular(8.0)),
                 ),
                 child: const Text('创建'),
               ),
@@ -467,7 +407,7 @@ class _OperationLogPageState extends State<OperationLogPage> {
             title: Text('编辑操作日志', style: themeData.textTheme.titleLarge),
             backgroundColor: themeData.colorScheme.surfaceContainerLowest,
             shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(16.0)),
+                borderRadius: BorderRadius.circular(8.0)),
             content: Form(
               key: formKey,
               child: SingleChildScrollView(
@@ -479,7 +419,7 @@ class _OperationLogPageState extends State<OperationLogPage> {
                       decoration: InputDecoration(
                         labelText: '用户ID',
                         border: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(12.0)),
+                            borderRadius: BorderRadius.circular(8)),
                         filled: true,
                         fillColor: themeData.colorScheme.surfaceContainer,
                       ),
@@ -496,7 +436,7 @@ class _OperationLogPageState extends State<OperationLogPage> {
                       decoration: InputDecoration(
                         labelText: '操作内容',
                         border: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(12.0)),
+                            borderRadius: BorderRadius.circular(8)),
                         filled: true,
                         fillColor: themeData.colorScheme.surfaceContainer,
                       ),
@@ -509,7 +449,7 @@ class _OperationLogPageState extends State<OperationLogPage> {
                       decoration: InputDecoration(
                         labelText: '操作结果',
                         border: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(12.0)),
+                            borderRadius: BorderRadius.circular(8)),
                         filled: true,
                         fillColor: themeData.colorScheme.surfaceContainer,
                       ),
@@ -521,7 +461,7 @@ class _OperationLogPageState extends State<OperationLogPage> {
                       decoration: InputDecoration(
                         labelText: '备注',
                         border: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(12.0)),
+                            borderRadius: BorderRadius.circular(8)),
                         filled: true,
                         fillColor: themeData.colorScheme.surfaceContainer,
                       ),
@@ -540,10 +480,7 @@ class _OperationLogPageState extends State<OperationLogPage> {
               ElevatedButton(
                 onPressed: () async {
                   if (formKey.currentState!.validate()) {
-                    if (!await _validateJwtToken()) {
-                      NavigationHelper.offAllNamed(Routes.login);
-                      return;
-                    }
+                    if (await ensureFreshJwt() == null) return;
                     try {
                       final updatedLog = OperationLog(
                         logId: log.logId,
@@ -572,7 +509,7 @@ class _OperationLogPageState extends State<OperationLogPage> {
                   backgroundColor: themeData.colorScheme.primary,
                   foregroundColor: themeData.colorScheme.onPrimary,
                   shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12.0)),
+                      borderRadius: BorderRadius.circular(8.0)),
                 ),
                 child: const Text('保存'),
               ),
@@ -591,10 +528,7 @@ class _OperationLogPageState extends State<OperationLogPage> {
     );
 
     if (confirmed == true) {
-      if (!await _validateJwtToken()) {
-        NavigationHelper.offAllNamed(Routes.login);
-        return;
-      }
+      if (await ensureFreshJwt() == null) return;
       try {
         await logApi.deleteOperationLog(logId: logId);
         _showSnackBar('日志删除成功');
@@ -607,12 +541,41 @@ class _OperationLogPageState extends State<OperationLogPage> {
 
   void _showSnackBar(String message, {bool isError = false}) {
     if (!mounted) return;
-    Get.snackbar(
-      isError ? '错误' : '提示',
-      message,
-      snackPosition: SnackPosition.BOTTOM,
-      backgroundColor: isError ? Colors.red.shade100 : Colors.green.shade100,
-      duration: const Duration(seconds: 3),
+    final scheme = controller.currentBodyTheme.value.colorScheme;
+    final color = isError ? scheme.error : const Color(0xFF41B86A);
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        behavior: SnackBarBehavior.floating,
+        backgroundColor:
+            Color.lerp(scheme.surface, color, 0.14),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(8),
+          side: BorderSide(color: color.withValues(alpha: 0.34)),
+        ),
+        content: Row(
+          children: [
+            Icon(
+              isError
+                  ? Icons.error_outline_rounded
+                  : Icons.check_circle_rounded,
+              color: color,
+              size: 20,
+            ),
+            const SizedBox(width: 10),
+            Expanded(
+              child: Text(
+                message,
+                style: controller.currentBodyTheme.value.textTheme.bodyMedium
+                    ?.copyWith(
+                  color: scheme.onSurface,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+            ),
+          ],
+        ),
+        duration: const Duration(seconds: 3),
+      ),
     );
   }
 
@@ -702,19 +665,18 @@ class _OperationLogPageState extends State<OperationLogPage> {
   }
 
   Widget _buildLogCard(OperationLog log, ThemeData themeData) {
-    return Card(
-      elevation: 4,
-      color: themeData.colorScheme.surfaceContainerLowest,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16.0)),
+    return DashboardPanel(
+      padding:
+          const EdgeInsets.symmetric(horizontal: 16.0, vertical: 4.0),
       margin: const EdgeInsets.symmetric(vertical: 8.0),
       child: ListTile(
-        contentPadding:
-            const EdgeInsets.symmetric(horizontal: 16.0, vertical: 12.0),
+        dense: true,
+        contentPadding: EdgeInsets.zero,
         title: Text(
           '日志ID: ${log.logId ?? "未知"}',
           style: themeData.textTheme.titleMedium?.copyWith(
             color: themeData.colorScheme.onSurface,
-            fontWeight: FontWeight.bold,
+            fontWeight: FontWeight.w800,
           ),
         ),
         subtitle: Padding(
@@ -836,7 +798,7 @@ class _OperationLogPageState extends State<OperationLogPage> {
                                   style:
                                       themeData.textTheme.titleMedium?.copyWith(
                                     color: themeData.colorScheme.error,
-                                    fontWeight: FontWeight.w500,
+                                    fontWeight: FontWeight.w600,
                                   ),
                                   textAlign: TextAlign.center,
                                 ),
@@ -856,7 +818,7 @@ class _OperationLogPageState extends State<OperationLogPage> {
                                             themeData.colorScheme.onPrimary,
                                         shape: RoundedRectangleBorder(
                                             borderRadius:
-                                                BorderRadius.circular(12.0)),
+                                                BorderRadius.circular(8.0)),
                                         padding: const EdgeInsets.symmetric(
                                             horizontal: 24.0, vertical: 12.0),
                                       ),
@@ -886,7 +848,7 @@ class _OperationLogPageState extends State<OperationLogPage> {
                                           ?.copyWith(
                                         color: themeData
                                             .colorScheme.onSurfaceVariant,
-                                        fontWeight: FontWeight.w500,
+                                        fontWeight: FontWeight.w600,
                                       ),
                                       textAlign: TextAlign.center,
                                     ),

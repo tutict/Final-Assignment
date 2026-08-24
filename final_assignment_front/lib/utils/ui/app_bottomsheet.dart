@@ -32,7 +32,7 @@ class AppBottomSheet {
                     child: Text(
                       title,
                       style: themeData.textTheme.titleLarge
-                          ?.copyWith(fontWeight: FontWeight.bold),
+                          ?.copyWith(fontWeight: FontWeight.w800),
                     ),
                   ),
                 ...options,

@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 
 // Define constants
 const double kSpacing = 16.0;
-const double kBorderRadius = 12.0;
+const double kBorderRadius = 8.0;
 
 class ActiveProjectCard extends StatelessWidget {
   const ActiveProjectCard({
@@ -19,46 +19,52 @@ class ActiveProjectCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    return Card(
-      elevation: 4,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(kBorderRadius),
-      ),
+    final scheme = theme.colorScheme;
+    final dark = theme.brightness == Brightness.dark;
+
+    return Container(
       margin: const EdgeInsets.symmetric(vertical: kSpacing / 2),
-      color: theme.cardColor,
-      child: Container(
-        decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(kBorderRadius),
-          gradient: LinearGradient(
-            colors: [
-              theme.colorScheme.surface,
-              theme.colorScheme.surfaceContainerHighest.withValues(alpha: 0.8),
-            ],
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-          ),
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(kBorderRadius),
+        gradient: LinearGradient(
+          colors: [
+            scheme.surface,
+            scheme.surfaceContainerHighest.withValues(alpha: dark ? 0.7 : 0.8),
+          ],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
         ),
-        child: Padding(
-          padding: const EdgeInsets.all(kSpacing),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  _buildTitle(context),
-                  _buildSeeAllButton(context),
-                ],
-              ),
-              Divider(
-                thickness: 1,
-                height: kSpacing * 1.5,
-                color: theme.colorScheme.onSurface.withValues(alpha: 0.2),
-              ),
-              const SizedBox(height: kSpacing / 2),
-              child,
-            ],
+        border: Border.all(
+          color: scheme.outlineVariant.withValues(alpha: dark ? 0.45 : 0.58),
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: theme.shadowColor.withValues(alpha: dark ? 0.18 : 0.08),
+            blurRadius: 18,
+            offset: const Offset(0, 10),
           ),
+        ],
+      ),
+      child: Padding(
+        padding: const EdgeInsets.all(kSpacing),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                _buildTitle(context),
+                _buildSeeAllButton(context),
+              ],
+            ),
+            Divider(
+              thickness: 1,
+              height: kSpacing * 1.5,
+              color: scheme.onSurface.withValues(alpha: 0.2),
+            ),
+            const SizedBox(height: kSpacing / 2),
+            child,
+          ],
         ),
       ),
     );
@@ -69,9 +75,9 @@ class ActiveProjectCard extends StatelessWidget {
     return Text(
       title,
       style: theme.textTheme.titleLarge?.copyWith(
-        fontWeight: FontWeight.bold,
+        fontWeight: FontWeight.w800,
         color: theme.colorScheme.onSurface,
-        fontSize: 18, // Increased for better visibility
+        letterSpacing: 0,
       ),
     );
   }

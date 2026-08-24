@@ -6,6 +6,7 @@ import 'package:final_assignment_front/core/auth/role_utils.dart';
 import 'package:final_assignment_front/features/api/auth_controller_api.dart';
 import 'package:final_assignment_front/features/dashboard/controllers/manager_dashboard_controller.dart';
 import 'package:final_assignment_front/features/dashboard/views/shared/widgets/dashboard_page_template.dart';
+import 'package:final_assignment_front/features/dashboard/views/shared/widgets/dashboard_chrome.dart';
 import 'package:final_assignment_front/features/api/user_management_controller_api.dart';
 import 'package:final_assignment_front/features/model/user_management.dart';
 import 'package:final_assignment_front/shared/dialogs/app_dialog.dart';
@@ -387,12 +388,41 @@ class _UserManagementPageState extends State<UserManagementPage> {
 
   void _showSnackBar(String message, {bool isError = false}) {
     if (!mounted) return;
-    Get.snackbar(
-      isError ? '错误' : '提示',
-      message,
-      snackPosition: SnackPosition.BOTTOM,
-      backgroundColor: isError ? Colors.red.shade100 : Colors.green.shade100,
-      duration: const Duration(seconds: 3),
+    final scheme = controller.currentBodyTheme.value.colorScheme;
+    final color = isError ? scheme.error : const Color(0xFF41B86A);
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        behavior: SnackBarBehavior.floating,
+        backgroundColor:
+            Color.lerp(scheme.surface, color, 0.14),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(8),
+          side: BorderSide(color: color.withValues(alpha: 0.34)),
+        ),
+        content: Row(
+          children: [
+            Icon(
+              isError
+                  ? Icons.error_outline_rounded
+                  : Icons.check_circle_rounded,
+              color: color,
+              size: 20,
+            ),
+            const SizedBox(width: 10),
+            Expanded(
+              child: Text(
+                message,
+                style: controller.currentBodyTheme.value.textTheme.bodyMedium
+                    ?.copyWith(
+                  color: scheme.onSurface,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+            ),
+          ],
+        ),
+        duration: const Duration(seconds: 3),
+      ),
     );
   }
 
@@ -436,7 +466,7 @@ class _UserManagementPageState extends State<UserManagementPage> {
             title: Text('创建新用户', style: themeData.textTheme.titleLarge),
             backgroundColor: themeData.colorScheme.surfaceContainerLowest,
             shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(16.0)),
+                borderRadius: BorderRadius.circular(8)),
             content: Form(
               key: formKey,
               child: SingleChildScrollView(
@@ -448,7 +478,7 @@ class _UserManagementPageState extends State<UserManagementPage> {
                       decoration: InputDecoration(
                         labelText: '账号',
                         border: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(12.0)),
+                            borderRadius: BorderRadius.circular(8)),
                         filled: true,
                         fillColor: themeData.colorScheme.surfaceContainer,
                       ),
@@ -465,7 +495,7 @@ class _UserManagementPageState extends State<UserManagementPage> {
                       decoration: InputDecoration(
                         labelText: '密码',
                         border: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(12.0)),
+                            borderRadius: BorderRadius.circular(8)),
                         filled: true,
                         fillColor: themeData.colorScheme.surfaceContainer,
                       ),
@@ -483,7 +513,7 @@ class _UserManagementPageState extends State<UserManagementPage> {
                       decoration: InputDecoration(
                         labelText: '联系电话',
                         border: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(12.0)),
+                            borderRadius: BorderRadius.circular(8)),
                         filled: true,
                         fillColor: themeData.colorScheme.surfaceContainer,
                       ),
@@ -504,7 +534,7 @@ class _UserManagementPageState extends State<UserManagementPage> {
                       decoration: InputDecoration(
                         labelText: '邮箱',
                         border: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(12.0)),
+                            borderRadius: BorderRadius.circular(8)),
                         filled: true,
                         fillColor: themeData.colorScheme.surfaceContainer,
                       ),
@@ -527,7 +557,7 @@ class _UserManagementPageState extends State<UserManagementPage> {
                       decoration: InputDecoration(
                         labelText: '状态',
                         border: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(12.0)),
+                            borderRadius: BorderRadius.circular(8)),
                         filled: true,
                         fillColor: themeData.colorScheme.surfaceContainer,
                       ),
@@ -546,7 +576,7 @@ class _UserManagementPageState extends State<UserManagementPage> {
                       decoration: InputDecoration(
                         labelText: '角色',
                         border: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(12.0)),
+                            borderRadius: BorderRadius.circular(8)),
                         filled: true,
                         fillColor: themeData.colorScheme.surfaceContainer,
                       ),
@@ -563,7 +593,7 @@ class _UserManagementPageState extends State<UserManagementPage> {
                       decoration: InputDecoration(
                         labelText: '备注',
                         border: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(12.0)),
+                            borderRadius: BorderRadius.circular(8)),
                         filled: true,
                         fillColor: themeData.colorScheme.surfaceContainer,
                       ),
@@ -627,7 +657,7 @@ class _UserManagementPageState extends State<UserManagementPage> {
                   backgroundColor: themeData.colorScheme.primary,
                   foregroundColor: themeData.colorScheme.onPrimary,
                   shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12.0)),
+                      borderRadius: BorderRadius.circular(8)),
                 ),
                 child: const Text('创建'),
               ),
@@ -659,7 +689,7 @@ class _UserManagementPageState extends State<UserManagementPage> {
             title: Text('编辑用户', style: themeData.textTheme.titleLarge),
             backgroundColor: themeData.colorScheme.surfaceContainerLowest,
             shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(16.0)),
+                borderRadius: BorderRadius.circular(8)),
             content: Form(
               key: formKey,
               child: SingleChildScrollView(
@@ -671,7 +701,7 @@ class _UserManagementPageState extends State<UserManagementPage> {
                       decoration: InputDecoration(
                         labelText: '账号',
                         border: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(12.0)),
+                            borderRadius: BorderRadius.circular(8)),
                         filled: true,
                         fillColor: themeData.colorScheme.surfaceContainer,
                       ),
@@ -688,7 +718,7 @@ class _UserManagementPageState extends State<UserManagementPage> {
                       decoration: InputDecoration(
                         labelText: '联系电话',
                         border: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(12.0)),
+                            borderRadius: BorderRadius.circular(8)),
                         filled: true,
                         fillColor: themeData.colorScheme.surfaceContainer,
                       ),
@@ -709,7 +739,7 @@ class _UserManagementPageState extends State<UserManagementPage> {
                       decoration: InputDecoration(
                         labelText: '密码',
                         border: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(12.0)),
+                            borderRadius: BorderRadius.circular(8)),
                         filled: true,
                         fillColor: themeData.colorScheme.surfaceContainer,
                       ),
@@ -730,7 +760,7 @@ class _UserManagementPageState extends State<UserManagementPage> {
                       decoration: InputDecoration(
                         labelText: '邮箱',
                         border: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(12.0)),
+                            borderRadius: BorderRadius.circular(8)),
                         filled: true,
                         fillColor: themeData.colorScheme.surfaceContainer,
                       ),
@@ -753,7 +783,7 @@ class _UserManagementPageState extends State<UserManagementPage> {
                       decoration: InputDecoration(
                         labelText: '状态',
                         border: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(12.0)),
+                            borderRadius: BorderRadius.circular(8)),
                         filled: true,
                         fillColor: themeData.colorScheme.surfaceContainer,
                       ),
@@ -773,7 +803,7 @@ class _UserManagementPageState extends State<UserManagementPage> {
                       decoration: InputDecoration(
                         labelText: '备注',
                         border: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(12.0)),
+                            borderRadius: BorderRadius.circular(8)),
                         filled: true,
                         fillColor: themeData.colorScheme.surfaceContainer,
                       ),
@@ -845,7 +875,7 @@ class _UserManagementPageState extends State<UserManagementPage> {
                   backgroundColor: themeData.colorScheme.primary,
                   foregroundColor: themeData.colorScheme.onPrimary,
                   shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12.0)),
+                      borderRadius: BorderRadius.circular(8)),
                 ),
                 child: const Text('保存'),
               ),
@@ -979,7 +1009,7 @@ class _UserManagementPageState extends State<UserManagementPage> {
                                   style:
                                       themeData.textTheme.titleMedium?.copyWith(
                                     color: themeData.colorScheme.error,
-                                    fontWeight: FontWeight.w500,
+                                    fontWeight: FontWeight.w600,
                                   ),
                                   textAlign: TextAlign.center,
                                 ),
@@ -998,7 +1028,7 @@ class _UserManagementPageState extends State<UserManagementPage> {
                                             themeData.colorScheme.onPrimary,
                                         shape: RoundedRectangleBorder(
                                             borderRadius:
-                                                BorderRadius.circular(12.0)),
+                                                BorderRadius.circular(8)),
                                         padding: const EdgeInsets.symmetric(
                                             horizontal: 24.0, vertical: 12.0),
                                       ),
@@ -1028,7 +1058,7 @@ class _UserManagementPageState extends State<UserManagementPage> {
                                           ?.copyWith(
                                         color: themeData
                                             .colorScheme.onSurfaceVariant,
-                                        fontWeight: FontWeight.w500,
+                                        fontWeight: FontWeight.w600,
                                       ),
                                       textAlign: TextAlign.center,
                                     ),
@@ -1060,20 +1090,14 @@ class _UserManagementPageState extends State<UserManagementPage> {
                                         );
                                       }
                                       final user = _userList[index];
-                                      return Card(
-                                        elevation: 4,
-                                        color: themeData
-                                            .colorScheme.surfaceContainerLowest,
-                                        shape: RoundedRectangleBorder(
-                                            borderRadius:
-                                                BorderRadius.circular(16.0)),
+                                      return DashboardPanel(
+                                        padding: const EdgeInsets.symmetric(
+                                            horizontal: 16.0, vertical: 4.0),
                                         margin: const EdgeInsets.symmetric(
                                             vertical: 8.0),
                                         child: ListTile(
-                                          contentPadding:
-                                              const EdgeInsets.symmetric(
-                                                  horizontal: 16.0,
-                                                  vertical: 12.0),
+                                          dense: true,
+                                          contentPadding: EdgeInsets.zero,
                                           title: Text(
                                             '账号: ${user.username ?? '未知用户'}',
                                             style: themeData
@@ -1081,7 +1105,7 @@ class _UserManagementPageState extends State<UserManagementPage> {
                                                 ?.copyWith(
                                               color: themeData
                                                   .colorScheme.onSurface,
-                                              fontWeight: FontWeight.bold,
+                                              fontWeight: FontWeight.w800,
                                             ),
                                           ),
                                           subtitle: Column(
@@ -1190,7 +1214,7 @@ class _UserManagementPageState extends State<UserManagementPage> {
                       backgroundColor: themeData.colorScheme.primary,
                       foregroundColor: themeData.colorScheme.onPrimary,
                       shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(12.0)),
+                          borderRadius: BorderRadius.circular(8)),
                       padding: const EdgeInsets.symmetric(vertical: 16.0),
                     ),
                     child: const Text('创建新用户', style: TextStyle(fontSize: 16)),

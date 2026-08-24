@@ -1755,7 +1755,7 @@ class DashboardScreen extends GetView<ManagerDashboardController> {
                           '${DateFormat('yyyy-MM-dd').format(date)}\n罚款: ${rod.toY.toInt()}',
                           TextStyle(
                             color: theme.colorScheme.onPrimaryContainer,
-                            fontWeight: FontWeight.bold,
+                            fontWeight: FontWeight.w800,
                             fontSize: 12, // Reduced for fit
                           ),
                         );
@@ -1820,7 +1820,7 @@ class DashboardScreen extends GetView<ManagerDashboardController> {
                           '${DateFormat('yyyy-MM-dd').format(date)}\n$label: ${spot.y.toInt()}',
                           TextStyle(
                             color: theme.colorScheme.onSecondaryContainer,
-                            fontWeight: FontWeight.bold,
+                            fontWeight: FontWeight.w800,
                             fontSize: 12, // Reduced for fit
                           ),
                         );

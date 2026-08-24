@@ -402,6 +402,81 @@ mixin BaseApiClient {
     });
   }
 
+  /// The error message carried by a WebSocket envelope, or '' when none.
+  String wsError(Map<String, dynamic> response) =>
+      response['error']?.toString() ?? '';
+
+  /// True when the service reported a not-found condition over WebSocket.
+  bool isWsNotFound(Map<String, dynamic> response) =>
+      wsError(response).toLowerCase().contains('not found');
+
+  /// Throws an [AppException] for a WebSocket envelope that carries an error,
+  /// mapping duplicate-request errors to HTTP 409. No-ops when the envelope
+  /// is successful.
+  void throwWsError(
+    Map<String, dynamic> response, {
+    String? idempotencyKey,
+  }) {
+    final error = wsError(response);
+    if (error.isEmpty) return;
+    if (error.contains('Duplicate request')) {
+      throw AppException.http(
+        409,
+        'Duplicate request detected with idempotencyKey: $idempotencyKey',
+      );
+    }
+    throw AppException.http(400, error);
+  }
+
+  /// Sends a WebSocket request and returns the parsed object result, mapping
+  /// not-found responses to `null` and other errors to [AppException].
+  Future<T?> sendWsObjectChecked<T>({
+    required String service,
+    required String action,
+    required T Function(Map<String, dynamic> json) fromJson,
+    List<Object?> args = const [],
+    String? idempotencyKey,
+  }) async {
+    final response = await sendWsRaw(
+      service: service,
+      action: action,
+      args: args,
+    );
+    if (isWsNotFound(response)) return null;
+    throwWsError(response, idempotencyKey: idempotencyKey);
+    final result = response['result'];
+    if (result == null) return null;
+    if (result is Map<String, dynamic>) return fromJson(result);
+    if (result is Map) return fromJson(Map<String, dynamic>.from(result));
+    throw AppException.http(
+      400,
+      'Expected WebSocket object result, got ${result.runtimeType}',
+    );
+  }
+
+  /// Sends a WebSocket request and returns the parsed list result, mapping
+  /// errors (other than not-found, which yields an empty list) to
+  /// [AppException].
+  Future<List<T>> sendWsListChecked<T>({
+    required String service,
+    required String action,
+    required T Function(Map<String, dynamic> json) fromJson,
+    List<Object?> args = const [],
+    String? idempotencyKey,
+  }) async {
+    final response = await sendWsRaw(
+      service: service,
+      action: action,
+      args: args,
+    );
+    throwWsError(response, idempotencyKey: idempotencyKey);
+    final result = response['result'];
+    if (result is! List) return <T>[];
+    return result
+        .map((item) => fromJson(Map<String, dynamic>.from(item as Map)))
+        .toList();
+  }
+
   Future<T?> sendWsObject<T>({
     required String service,
     required String action,

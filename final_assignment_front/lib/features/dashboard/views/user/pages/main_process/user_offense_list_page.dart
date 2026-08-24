@@ -7,6 +7,7 @@ import 'package:final_assignment_front/core/auth/user_profile_service.dart';
 import 'package:final_assignment_front/features/api/offense_information_controller_api.dart';
 import 'package:final_assignment_front/features/dashboard/controllers/user_dashboard_screen_controller.dart';
 import 'package:final_assignment_front/features/dashboard/views/shared/widgets/dashboard_page_template.dart';
+import 'package:final_assignment_front/features/dashboard/views/shared/widgets/dashboard_chrome.dart';
 import 'package:final_assignment_front/features/dashboard/views/user/pages/main_process/user_business_page_chrome.dart';
 import 'package:final_assignment_front/features/model/offense_information.dart';
 import 'package:final_assignment_front/utils/widgets/index.dart';
@@ -510,7 +511,7 @@ class UserOffenseDetailPage extends StatelessWidget {
           Text(
             '$label: ',
             style: themeData.textTheme.bodyLarge?.copyWith(
-              fontWeight: FontWeight.bold,
+              fontWeight: FontWeight.w800,
               color: themeData.colorScheme.onSurface,
             ),
           ),
@@ -537,36 +538,31 @@ class UserOffenseDetailPage extends StatelessWidget {
         theme: themeData,
         title: '违法详情',
         pageType: DashboardPageType.user,
-        body: Card(
-          elevation: 3,
-          color: themeData.colorScheme.surfaceContainer,
-          shape:
-              RoundedRectangleBorder(borderRadius: BorderRadius.circular(16.0)),
-          child: Padding(
-            padding: const EdgeInsets.all(16.0),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                _buildDetailRow(
-                    '违法ID', offense.offenseId?.toString() ?? '未提供', themeData),
-                _buildDetailRow('车牌号', offense.licensePlate ?? '无', themeData),
-                _buildDetailRow('驾驶员姓名', offense.driverName ?? '无', themeData),
-                _buildDetailRow('违法类型', offense.offenseType ?? '未知', themeData),
-                _buildDetailRow('违法代码', offense.offenseCode ?? '无', themeData),
-                _buildDetailRow(
-                    '扣分', '${offense.deductedPoints ?? 0} 分', themeData),
-                _buildDetailRow(
-                    '罚款金额', '${offense.fineAmount ?? 0} 元', themeData),
-                _buildDetailRow(
-                    '违法时间', formatDateTime(offense.offenseTime), themeData),
-                _buildDetailRow(
-                    '违法地点', offense.offenseLocation ?? '未提供', themeData),
-                _buildDetailRow(
-                    '处理状态', offense.processStatus ?? '无', themeData),
-                _buildDetailRow(
-                    '处理结果', offense.processResult ?? '无', themeData),
-              ],
-            ),
+        // Surface tint previously provided by themeData.colorScheme.surfaceContainer.
+        body: DashboardPanel(
+          padding: const EdgeInsets.all(16.0),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              _buildDetailRow(
+                  '违法ID', offense.offenseId?.toString() ?? '未提供', themeData),
+              _buildDetailRow('车牌号', offense.licensePlate ?? '无', themeData),
+              _buildDetailRow('驾驶员姓名', offense.driverName ?? '无', themeData),
+              _buildDetailRow('违法类型', offense.offenseType ?? '未知', themeData),
+              _buildDetailRow('违法代码', offense.offenseCode ?? '无', themeData),
+              _buildDetailRow(
+                  '扣分', '${offense.deductedPoints ?? 0} 分', themeData),
+              _buildDetailRow(
+                  '罚款金额', '${offense.fineAmount ?? 0} 元', themeData),
+              _buildDetailRow(
+                  '违法时间', formatDateTime(offense.offenseTime), themeData),
+              _buildDetailRow(
+                  '违法地点', offense.offenseLocation ?? '未提供', themeData),
+              _buildDetailRow(
+                  '处理状态', offense.processStatus ?? '无', themeData),
+              _buildDetailRow(
+                  '处理结果', offense.processResult ?? '无', themeData),
+            ],
           ),
         ),
       );

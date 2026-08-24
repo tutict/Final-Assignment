@@ -1,10 +1,8 @@
-// ignore_for_file: use_build_context_synchronously
-
 import 'package:final_assignment_front/core/auth/user_profile_service.dart';
 import 'package:final_assignment_front/core/network/app_exception.dart';
 import 'package:final_assignment_front/features/api/driver_information_controller_api.dart';
 import 'package:final_assignment_front/features/dashboard/controllers/user_dashboard_screen_controller.dart';
-import 'package:final_assignment_front/features/dashboard/views/user/widgets/user_page_app_bar.dart';
+import 'package:final_assignment_front/features/dashboard/views/shared/widgets/dashboard_page_template.dart';
 import 'package:final_assignment_front/features/model/driver_information.dart';
 import 'package:final_assignment_front/utils/services/api_client.dart';
 import 'package:final_assignment_front/utils/services/auth_token_store.dart';
@@ -255,34 +253,29 @@ class _PersonalMainPageState extends State<PersonalMainPage> {
     return Obx(() {
       final theme = dashboardController.currentBodyTheme.value;
 
-      return Theme(
-        data: theme,
-        child: Scaffold(
-          backgroundColor: theme.colorScheme.surface,
-          appBar: UserPageAppBar(
-            theme: theme,
-            title: '个人资料',
-          ),
-          body: Stack(
-            children: [
-              if (_isLoading)
-                const Center(child: CircularProgressIndicator())
-              else if (_errorMessage.isNotEmpty)
-                _ProfileErrorState(
-                  message: _errorMessage,
-                  onRetry: _loadCurrentUser,
-                )
-              else
-                _buildContent(theme),
-              if (_isSaving)
-                Positioned.fill(
-                  child: ColoredBox(
-                    color: theme.colorScheme.scrim.withValues(alpha: 0.18),
-                    child: const Center(child: CircularProgressIndicator()),
-                  ),
+      return DashboardPageTemplate(
+        theme: theme,
+        title: '个人资料',
+        pageType: DashboardPageType.user,
+        body: Stack(
+          children: [
+            if (_isLoading)
+              const Center(child: CircularProgressIndicator())
+            else if (_errorMessage.isNotEmpty)
+              _ProfileErrorState(
+                message: _errorMessage,
+                onRetry: _loadCurrentUser,
+              )
+            else
+              _buildContent(theme),
+            if (_isSaving)
+              Positioned.fill(
+                child: ColoredBox(
+                  color: theme.colorScheme.scrim.withValues(alpha: 0.18),
+                  child: const Center(child: CircularProgressIndicator()),
                 ),
-            ],
-          ),
+              ),
+          ],
         ),
       );
     });

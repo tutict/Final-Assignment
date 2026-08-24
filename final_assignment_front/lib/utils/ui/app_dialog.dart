@@ -27,7 +27,7 @@ class AppDialog {
           child: AlertDialog(
             backgroundColor: colorScheme.surface,
             shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(18),
+              borderRadius: BorderRadius.circular(8),
             ),
             title: Row(
               children: [
@@ -37,7 +37,7 @@ class AppDialog {
                   child: Text(
                     title,
                     style: themeData.textTheme.titleMedium
-                        ?.copyWith(fontWeight: FontWeight.bold),
+                        ?.copyWith(fontWeight: FontWeight.w800),
                   ),
                 ),
               ],
@@ -129,13 +129,13 @@ class AppDialog {
         child: AlertDialog(
           backgroundColor: themeData.colorScheme.surfaceContainerHighest,
           shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(20),
+            borderRadius: BorderRadius.circular(8),
           ),
           title: title != null
               ? Text(
                   title,
                   style: themeData.textTheme.titleLarge?.copyWith(
-                    fontWeight: FontWeight.bold,
+                    fontWeight: FontWeight.w800,
                   ),
                 )
               : null,

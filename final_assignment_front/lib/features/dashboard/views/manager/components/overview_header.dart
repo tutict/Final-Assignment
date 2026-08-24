@@ -126,7 +126,7 @@ class _OverviewHeaderState extends State<OverviewHeader> {
               ? Theme.of(context).cardColor
               : Theme.of(context).canvasColor,
           shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(20),
+            borderRadius: BorderRadius.circular(8),
           ),
         ),
         child: Text(label),

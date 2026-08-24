@@ -1,6 +1,5 @@
 package com.tutict.finalassignmentcloud.rag.controller;
 
-import com.tutict.finalassignmentcloud.config.security.SecurityRoleUtils;
 import com.tutict.finalassignmentcloud.dto.response.ApiResponse;
 import com.tutict.finalassignmentcloud.rag.ai.dto.RetrievalResult;
 import com.tutict.finalassignmentcloud.rag.ai.query.RagQueryRequest;
@@ -44,6 +43,11 @@ public class RagQueryController {
             @RequestBody RagQueryRequest request,
             Authentication authentication
     ) {
+        // Reject when authentication context cannot be resolved; never fall back to body-provided ACLs.
+        if (authentication == null || !authentication.isAuthenticated() || "anonymousUser".equals(authentication.getPrincipal())) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+                    .body(ApiResponse.error("UNAUTHORIZED", "Authentication required for RAG retrieval"));
+        }
         RagQueryService queryService = queryServiceProvider.getIfAvailable();
         if (!retrievalEnabled || queryService == null) {
             return ResponseEntity.status(HttpStatus.CONFLICT)
@@ -53,27 +57,11 @@ public class RagQueryController {
     }
 
     private static RagQueryRequest withAuthentication(RagQueryRequest request, Authentication authentication) {
-        RagQueryRequest safeRequest = request == null
-                ? new RagQueryRequest("", null, null, List.of(), null)
-                : request;
         if (authentication == null) {
-            return safeRequest;
+            throw new IllegalStateException("Authentication context is required for RAG retrieval");
         }
-        List<String> roles = safeRequest.roles().isEmpty()
-                ? authentication.getAuthorities().stream()
-                .map(authority -> SecurityRoleUtils.normalizeRoleCode(authority.getAuthority()))
-                .filter(role -> !role.isBlank())
-                .toList()
-                : safeRequest.roles();
-        String userId = safeRequest.userId() == null || safeRequest.userId().isBlank()
-                ? authentication.getName()
-                : safeRequest.userId();
-        return new RagQueryRequest(
-                safeRequest.query(),
-                safeRequest.topK(),
-                userId,
-                roles,
-                safeRequest.department()
-        );
+        // RagQueryRequest no longer carries ACL fields — they are resolved server-side
+        // in RagQueryService. The controller simply passes the request through.
+        return request == null ? new RagQueryRequest("", null) : request;
     }
 }

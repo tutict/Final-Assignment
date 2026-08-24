@@ -8,6 +8,7 @@ import 'package:final_assignment_front/features/api/auth_controller_api.dart';
 import 'package:final_assignment_front/features/api/offense_information_controller_api.dart';
 import 'package:final_assignment_front/features/dashboard/controllers/manager_dashboard_controller.dart';
 import 'package:final_assignment_front/features/dashboard/views/manager/pages/main_process/manager_business_page_chrome.dart';
+import 'package:final_assignment_front/features/dashboard/views/shared/widgets/dashboard_chrome.dart';
 import 'package:final_assignment_front/features/dashboard/views/shared/widgets/dashboard_page_template.dart';
 import 'package:final_assignment_front/features/model/appeal_record.dart';
 import 'package:final_assignment_front/utils/widgets/index.dart';
@@ -470,16 +471,9 @@ class _AppealManagementAdminState extends State<ManagerAppealManagementPage> {
   }
 
   Widget _buildAppealCard(AppealRecordModel appeal, ThemeData themeData) {
-    return Card(
-      elevation: 0,
-      color: themeData.colorScheme.surfaceContainerLowest,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(8.0),
-        side: BorderSide(
-          color: themeData.colorScheme.outlineVariant.withValues(alpha: 0.42),
-        ),
-      ),
+    return DashboardPanel(
       margin: const EdgeInsets.symmetric(vertical: 8.0),
+      padding: EdgeInsets.zero,
       child: ListTile(
         contentPadding:
             const EdgeInsets.symmetric(horizontal: 16.0, vertical: 12.0),
@@ -487,7 +481,7 @@ class _AppealManagementAdminState extends State<ManagerAppealManagementPage> {
           '申诉人: ${appeal.appellantName ?? "未知"} (ID: ${appeal.appealId ?? "无"})',
           style: themeData.textTheme.titleMedium?.copyWith(
             color: themeData.colorScheme.onSurface,
-            fontWeight: FontWeight.bold,
+            fontWeight: FontWeight.w800,
           ),
         ),
         subtitle: Padding(
@@ -819,7 +813,7 @@ class _AppealDetailPageState extends State<AppealDetailPage> {
         child: Dialog(
           backgroundColor: themeData.colorScheme.surfaceContainerLowest,
           shape:
-              RoundedRectangleBorder(borderRadius: BorderRadius.circular(16.0)),
+              RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
           child: Padding(
             padding: const EdgeInsets.all(16.0),
             child: Column(
@@ -830,7 +824,7 @@ class _AppealDetailPageState extends State<AppealDetailPage> {
                   '驳回申诉',
                   style: themeData.textTheme.titleLarge?.copyWith(
                     color: themeData.colorScheme.onSurface,
-                    fontWeight: FontWeight.bold,
+                    fontWeight: FontWeight.w800,
                   ),
                   textAlign: TextAlign.center,
                 ),
@@ -845,11 +839,11 @@ class _AppealDetailPageState extends State<AppealDetailPage> {
                     filled: true,
                     fillColor: themeData.colorScheme.surfaceContainer,
                     border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(12.0),
+                      borderRadius: BorderRadius.circular(8),
                       borderSide: BorderSide.none,
                     ),
                     focusedBorder: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(12.0),
+                      borderRadius: BorderRadius.circular(8),
                       borderSide: BorderSide(
                         color: themeData.colorScheme.primary,
                         width: 2.0,
@@ -911,7 +905,7 @@ class _AppealDetailPageState extends State<AppealDetailPage> {
                         backgroundColor: themeData.colorScheme.error,
                         foregroundColor: themeData.colorScheme.onError,
                         shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(12.0)),
+                            borderRadius: BorderRadius.circular(8)),
                         padding: const EdgeInsets.symmetric(
                             horizontal: 20.0, vertical: 12.0),
                       ),
@@ -919,7 +913,7 @@ class _AppealDetailPageState extends State<AppealDetailPage> {
                         '确认驳回',
                         style: themeData.textTheme.labelLarge?.copyWith(
                           color: themeData.colorScheme.onError,
-                          fontWeight: FontWeight.bold,
+                          fontWeight: FontWeight.w800,
                         ),
                       ),
                     ),
@@ -966,7 +960,7 @@ class _AppealDetailPageState extends State<AppealDetailPage> {
           Text(
             '$label: ',
             style: themeData.textTheme.titleMedium?.copyWith(
-              fontWeight: FontWeight.bold,
+              fontWeight: FontWeight.w800,
               color: themeData.colorScheme.onSurface,
             ),
           ),
@@ -1027,15 +1021,9 @@ class _AppealDetailPageState extends State<AppealDetailPage> {
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.stretch,
                           children: [
-                            Card(
-                              elevation: 4,
-                              color:
-                                  themeData.colorScheme.surfaceContainerLowest,
-                              shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(16.0)),
-                              child: Padding(
-                                padding: const EdgeInsets.all(20.0),
-                                child: Column(
+                            DashboardPanel(
+                              padding: const EdgeInsets.all(20.0),
+                              child: Column(
                                   crossAxisAlignment: CrossAxisAlignment.start,
                                   children: [
                                     _buildDetailRow(
@@ -1053,7 +1041,6 @@ class _AppealDetailPageState extends State<AppealDetailPage> {
                                     _buildDetailRow('处理结果', result, themeData),
                                   ],
                                 ),
-                              ),
                             ),
                             const SizedBox(height: 24),
                             if (_isAdmin && canStartReview(status)) ...[
@@ -1069,12 +1056,13 @@ class _AppealDetailPageState extends State<AppealDetailPage> {
                                         themeData.colorScheme.primary,
                                     foregroundColor:
                                         themeData.colorScheme.onPrimary,
+                                    elevation: 0,
+                                    shadowColor: Colors.transparent,
                                     shape: RoundedRectangleBorder(
                                         borderRadius:
-                                            BorderRadius.circular(12.0)),
+                                            BorderRadius.circular(8)),
                                     padding: const EdgeInsets.symmetric(
                                         horizontal: 20.0, vertical: 12.0),
-                                    elevation: 2,
                                   ),
                                 ),
                               ),
@@ -1091,14 +1079,10 @@ class _AppealDetailPageState extends State<AppealDetailPage> {
                                         size: 20),
                                     label: const Text('通过'),
                                     style: ElevatedButton.styleFrom(
-                                      backgroundColor: Colors.green,
-                                      foregroundColor: Colors.white,
-                                      shape: RoundedRectangleBorder(
-                                          borderRadius:
-                                              BorderRadius.circular(12.0)),
-                                      padding: const EdgeInsets.symmetric(
-                                          horizontal: 20.0, vertical: 12.0),
-                                      elevation: 2,
+                                      backgroundColor:
+                                          const Color(0xFF41B86A),
+                                      foregroundColor:
+                                          themeData.colorScheme.onPrimary,
                                     ),
                                   ),
                                   ElevatedButton.icon(
@@ -1112,12 +1096,6 @@ class _AppealDetailPageState extends State<AppealDetailPage> {
                                           themeData.colorScheme.error,
                                       foregroundColor:
                                           themeData.colorScheme.onError,
-                                      shape: RoundedRectangleBorder(
-                                          borderRadius:
-                                              BorderRadius.circular(12.0)),
-                                      padding: const EdgeInsets.symmetric(
-                                          horizontal: 20.0, vertical: 12.0),
-                                      elevation: 2,
                                     ),
                                   ),
                                 ],
@@ -1130,7 +1108,7 @@ class _AppealDetailPageState extends State<AppealDetailPage> {
                                   decoration: BoxDecoration(
                                     color:
                                         themeData.colorScheme.surfaceContainer,
-                                    borderRadius: BorderRadius.circular(12.0),
+                                    borderRadius: BorderRadius.circular(8),
                                   ),
                                   child: Text(
                                     _isAdmin

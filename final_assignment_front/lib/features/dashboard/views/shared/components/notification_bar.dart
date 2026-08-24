@@ -50,17 +50,13 @@ class NotificationBar extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final scheme = theme.colorScheme;
     final bool isLight = theme.brightness == Brightness.light;
     final Color shadowColor =
-        Colors.black.withValues(alpha: isLight ? 0.1 : 0.15);
-    final Color textColor =
-        isLight ? Colors.black87 : theme.colorScheme.onSurface;
-    final Color iconColor = isLight
-        ? theme.colorScheme.onSurfaceVariant
-        : theme.colorScheme.onSurface.withValues(alpha: 0.7);
-    final Color arrowColor = isLight
-        ? theme.colorScheme.primary
-        : theme.colorScheme.primary.withValues(alpha: 0.9);
+        theme.shadowColor.withValues(alpha: isLight ? 0.08 : 0.18);
+    final Color textColor = scheme.onSurface;
+    final Color iconColor = scheme.onSurfaceVariant;
+    final Color arrowColor = scheme.primary;
 
     return AnimatedContainer(
       duration: const Duration(milliseconds: 300),
@@ -68,16 +64,15 @@ class NotificationBar extends StatelessWidget {
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(kBorderRadius),
         border: Border.all(
-            color: theme.colorScheme.outline.withValues(alpha: 0.2), width: 1),
+            color: scheme.outline.withValues(alpha: 0.24), width: 1),
         gradient: LinearGradient(
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
           colors: isLight
-              ? [Colors.white, Colors.grey[50]!]
+              ? [scheme.surface, scheme.surfaceContainerHighest.withValues(alpha: 0.5)]
               : [
-                  theme.colorScheme.surface,
-                  theme.colorScheme.surfaceContainerHighest
-                      .withValues(alpha: 0.8)
+                  scheme.surface,
+                  scheme.surfaceContainerHighest.withValues(alpha: 0.8)
                 ],
         ),
         boxShadow: [

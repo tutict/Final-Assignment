@@ -17,7 +17,7 @@ class UiUtils {}
 extension TextStyleExtension on TextStyle {
   TextStyle inputHeader(Color color) {
     return copyWith(
-      fontWeight: FontWeight.bold,
+      fontWeight: FontWeight.w800,
       fontSize: 16,
       color: color,
     );

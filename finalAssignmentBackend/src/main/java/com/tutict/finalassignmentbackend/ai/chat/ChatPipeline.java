@@ -9,11 +9,15 @@ import com.tutict.finalassignmentbackend.ai.prompt.PromptTemplateService;
 import com.tutict.finalassignmentbackend.ai.rag.config.RagRetrievalProperties;
 import com.tutict.finalassignmentbackend.ai.rag.dto.RetrievalResult;
 import com.tutict.finalassignmentbackend.ai.rag.query.RagQueryRequest;
+import com.tutict.finalassignmentbackend.ai.rag.query.ServerSideRagQueryRequest;
 import com.tutict.finalassignmentbackend.ai.rag.query.RagQueryService;
+import com.tutict.finalassignmentbackend.config.security.SecurityRoleUtils;
 import com.tutict.finalassignmentbackend.service.ai.AIChatSearchService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.core.io.DefaultResourceLoader;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 import reactor.core.publisher.Flux;
 
@@ -197,12 +201,33 @@ public class ChatPipeline {
         if (!ragEnabled(metadata) || ragQueryService == null) {
             return List.of();
         }
-        return ragQueryService.query(new RagQueryRequest(
+        // Derive ACL from security context, never from client metadata
+        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+        String userId = null;
+        List<String> roles = List.of();
+        String department = null;
+        if (authentication != null && authentication.isAuthenticated() && !"anonymousUser".equals(authentication.getPrincipal())) {
+            userId = authentication.getName();
+            roles = authentication.getAuthorities().stream()
+                    .map(a -> SecurityRoleUtils.normalizeRoleCode(a.getAuthority()))
+                    .filter(role -> !role.isBlank())
+                    .toList();
+            for (String role : roles) {
+                if ("SUPER_ADMIN".equals(role) || "ADMIN".equals(role)) {
+                    department = "ALL";
+                    break;
+                } else if ("TRAFFIC_POLICE".equals(role) || "FINANCE".equals(role) || "APPEAL_REVIEWER".equals(role)) {
+                    department = "DEPARTMENT";
+                    break;
+                }
+            }
+        }
+        return ragQueryService.query(new ServerSideRagQueryRequest(
                 userMessage,
                 intValue(metadata, "ragTopK", "topK"),
-                stringValue(metadata, "userId"),
-                aiAgentRoleResolver.resolveRoleCodes(metadata),
-                stringValue(metadata, "department")
+                userId,
+                roles,
+                department
         ));
     }
 

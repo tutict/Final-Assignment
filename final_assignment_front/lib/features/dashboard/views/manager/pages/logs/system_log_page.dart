@@ -1,20 +1,19 @@
 import 'dart:developer' as developer;
 
 import 'package:final_assignment_front/config/routes/app_routes.dart';
-import 'package:final_assignment_front/core/auth/auth_service.dart';
 import 'package:final_assignment_front/features/api/system_logs_controller_api.dart';
+import 'package:final_assignment_front/core/network/app_exception.dart';
 import 'package:final_assignment_front/features/dashboard/controllers/manager_dashboard_controller.dart';
+import 'package:final_assignment_front/features/dashboard/views/shared/widgets/dashboard_chrome.dart';
 import 'package:final_assignment_front/features/dashboard/views/shared/widgets/dashboard_page_template.dart';
+import 'package:final_assignment_front/features/dashboard/views/shared/widgets/page_auth_mixin.dart';
 import 'package:final_assignment_front/features/model/login_log.dart';
 import 'package:final_assignment_front/features/model/operation_log.dart';
-import 'package:final_assignment_front/core/network/app_exception.dart';
+import 'package:final_assignment_front/shared/utils/navigation_helper.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:intl/intl.dart';
-import 'package:jwt_decoder/jwt_decoder.dart';
-import 'package:final_assignment_front/utils/services/auth_token_store.dart';
-import 'package:final_assignment_front/shared/utils/navigation_helper.dart';
 
 String formatDateTime(DateTime? dateTime) {
   if (dateTime == null) return '未提供';
@@ -28,7 +27,7 @@ class SystemLogPage extends StatefulWidget {
   State<SystemLogPage> createState() => _SystemLogPageState();
 }
 
-class _SystemLogPageState extends State<SystemLogPage> {
+class _SystemLogPageState extends State<SystemLogPage> with PageAuthMixin {
   final SystemLogsControllerApi logApi = SystemLogsControllerApi();
   final ScrollController _scrollController = ScrollController();
   final ManagerDashboardController controller =
@@ -53,75 +52,27 @@ class _SystemLogPageState extends State<SystemLogPage> {
     super.dispose();
   }
 
-  Future<bool> _validateJwtToken() async {
-    String? jwtToken = (await AuthTokenStore.instance.getJwtToken());
-    if (jwtToken == null || jwtToken.isEmpty) {
-      setState(() => _errorMessage = '未授权，请重新登录');
-      return false;
-    }
-    try {
-      JwtDecoder.decode(jwtToken);
-      if (JwtDecoder.isExpired(jwtToken)) {
-        final refreshed = await Get.find<AuthService>().refreshJwtToken();
-        jwtToken = await AuthTokenStore.instance.getJwtToken();
-        if (!refreshed || jwtToken == null || JwtDecoder.isExpired(jwtToken)) {
-          setState(() => _errorMessage = '登录已过期，请重新登录');
-          return false;
-        }
-        await logApi.initializeWithJwt();
-      }
-      return true;
-    } catch (_) {
-      setState(() => _errorMessage = '无效的登录信息，请重新登录');
-      return false;
-    }
-  }
-
   Future<void> _initialize() async {
     setState(() {
       _isLoading = true;
       _errorMessage = '';
     });
     try {
-      if (!await _validateJwtToken()) {
-        NavigationHelper.offAllNamed(Routes.login);
+      final roles = await requireRoles(
+        (roles) => roles.contains('ADMIN'),
+      );
+      if (roles == null) return; // session expired, redirected to login
+      _isAdmin = roles.isNotEmpty;
+      if (!_isAdmin) {
+        setState(() => _errorMessage = '权限不足：仅管理员可访问此页面');
         return;
       }
       await logApi.initializeWithJwt();
-      await _checkUserRole();
-      if (_isAdmin) {
-        await _fetchSystemLogData(showLoader: false);
-      } else {
-        setState(() => _errorMessage = '权限不足：仅管理员可访问此页面');
-      }
+      await _fetchSystemLogData(showLoader: false);
     } catch (e) {
       setState(() => _errorMessage = '初始化失败: $e');
     } finally {
       setState(() => _isLoading = false);
-    }
-  }
-
-  Future<void> _checkUserRole() async {
-    try {
-      final jwtToken = (await AuthTokenStore.instance.getJwtToken());
-      if (jwtToken == null) {
-        setState(() => _isAdmin = false);
-        return;
-      }
-      final decodedToken = JwtDecoder.decode(jwtToken);
-      final roles = decodedToken['roles'] is List
-          ? (decodedToken['roles'] as List).map((r) => r.toString()).toList()
-          : decodedToken['roles'] is String
-              ? [decodedToken['roles'].toString()]
-              : [];
-      setState(() => _isAdmin = roles.contains('ADMIN'));
-      if (!_isAdmin) {
-        _errorMessage = '权限不足：仅管理员可访问此页面';
-      }
-    } catch (e) {
-      setState(() => _errorMessage = '验证角色失败: $e');
-      developer.log('Error checking user role: $e',
-          stackTrace: StackTrace.current);
     }
   }
 
@@ -134,10 +85,7 @@ class _SystemLogPageState extends State<SystemLogPage> {
       });
     }
     try {
-      if (!await _validateJwtToken()) {
-        NavigationHelper.offAllNamed(Routes.login);
-        return;
-      }
+      if (await ensureFreshJwt() == null) return;
       await logApi.initializeWithJwt();
       final overview = await logApi.getSystemLogsOverview();
       final loginLogs = await logApi.listRecentLoginLogs(limit: 20);
@@ -210,12 +158,18 @@ class _SystemLogPageState extends State<SystemLogPage> {
   }
 
   Widget _buildWarningCard(ThemeData themeData) {
-    return Card(
-      color: themeData.colorScheme.errorContainer,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16.0)),
-      child: Padding(
-        padding: const EdgeInsets.all(16.0),
-        child: Row(
+    final scheme = themeData.colorScheme;
+    final dark = themeData.brightness == Brightness.dark;
+    return Container(
+      padding: const EdgeInsets.all(16.0),
+      decoration: BoxDecoration(
+        color: scheme.errorContainer,
+        borderRadius: BorderRadius.circular(8.0),
+        border: Border.all(
+          color: scheme.outlineVariant.withValues(alpha: dark ? 0.45 : 0.58),
+        ),
+      ),
+      child: Row(
           children: [
             Icon(CupertinoIcons.exclamationmark_triangle_fill,
                 color: themeData.colorScheme.onErrorContainer),
@@ -231,70 +185,64 @@ class _SystemLogPageState extends State<SystemLogPage> {
             ),
           ],
         ),
-      ),
     );
   }
 
   Widget _buildOverviewSection(ThemeData themeData) {
-    return Card(
-      elevation: 4,
-      color: themeData.colorScheme.surfaceContainerLowest,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16.0)),
-      child: Padding(
-        padding: const EdgeInsets.all(16.0),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              '系统概览',
-              style: themeData.textTheme.titleMedium?.copyWith(
-                color: themeData.colorScheme.onSurface,
-                fontWeight: FontWeight.bold,
-              ),
+    return DashboardPanel(
+      padding: const EdgeInsets.all(16.0),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            '系统概览',
+            style: themeData.textTheme.titleMedium?.copyWith(
+              color: themeData.colorScheme.onSurface,
+              fontWeight: FontWeight.w800,
             ),
-            const SizedBox(height: 12),
-            if (_overviewData.isEmpty)
-              _buildEmptySection(themeData, '暂无系统概览数据')
-            else
-              Wrap(
-                spacing: 12,
-                runSpacing: 12,
-                children: _overviewData.entries.map((entry) {
-                  final value = entry.value;
-                  return Container(
-                    width: 150,
-                    padding: const EdgeInsets.all(12.0),
-                    decoration: BoxDecoration(
-                      color: themeData.colorScheme.surfaceContainer,
-                      borderRadius: BorderRadius.circular(12.0),
-                      border: Border.all(
-                        color: themeData.colorScheme.outlineVariant,
+          ),
+          const SizedBox(height: 12),
+          if (_overviewData.isEmpty)
+            _buildEmptySection(themeData, '暂无系统概览数据')
+          else
+            Wrap(
+              spacing: 12,
+              runSpacing: 12,
+              children: _overviewData.entries.map((entry) {
+                final value = entry.value;
+                return Container(
+                  width: 150,
+                  padding: const EdgeInsets.all(12.0),
+                  decoration: BoxDecoration(
+                    color: themeData.colorScheme.surfaceContainer,
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(
+                      color: themeData.colorScheme.outlineVariant,
+                    ),
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        _formatOverviewLabel(entry.key),
+                        style: themeData.textTheme.bodySmall?.copyWith(
+                          color: themeData.colorScheme.onSurfaceVariant,
+                        ),
                       ),
-                    ),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          _formatOverviewLabel(entry.key),
-                          style: themeData.textTheme.bodySmall?.copyWith(
-                            color: themeData.colorScheme.onSurfaceVariant,
-                          ),
+                      const SizedBox(height: 6),
+                      Text(
+                        value?.toString() ?? '0',
+                        style: themeData.textTheme.titleMedium?.copyWith(
+                          color: themeData.colorScheme.primary,
+                          fontWeight: FontWeight.w800,
                         ),
-                        const SizedBox(height: 6),
-                        Text(
-                          value?.toString() ?? '0',
-                          style: themeData.textTheme.titleMedium?.copyWith(
-                            color: themeData.colorScheme.primary,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                      ],
-                    ),
-                  );
-                }).toList(),
-              ),
-          ],
-        ),
+                      ),
+                    ],
+                  ),
+                );
+              }).toList(),
+            ),
+        ],
       ),
     );
   }
@@ -323,40 +271,35 @@ class _SystemLogPageState extends State<SystemLogPage> {
   }
 
   Widget _buildLoginLogsSection(ThemeData themeData) {
-    return Card(
-      elevation: 4,
-      color: themeData.colorScheme.surfaceContainerLowest,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16.0)),
-      child: Padding(
-        padding: const EdgeInsets.all(16.0),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              '近期登录日志',
-              style: themeData.textTheme.titleMedium?.copyWith(
-                color: themeData.colorScheme.onSurface,
-                fontWeight: FontWeight.bold,
-              ),
+    return DashboardPanel(
+      padding: const EdgeInsets.all(16.0),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            '近期登录日志',
+            style: themeData.textTheme.titleMedium?.copyWith(
+              color: themeData.colorScheme.onSurface,
+              fontWeight: FontWeight.w800,
             ),
-            const SizedBox(height: 12),
-            if (_recentLoginLogs.isEmpty)
-              _buildEmptySection(themeData, '暂无登录日志')
-            else
-              ..._recentLoginLogs.asMap().entries.map((entry) {
-                return Column(
-                  children: [
-                    _buildLoginLogTile(entry.value, themeData),
-                    if (entry.key != _recentLoginLogs.length - 1)
-                      Divider(
-                        height: 16,
-                        color: themeData.colorScheme.outlineVariant,
-                      ),
-                  ],
-                );
-              }),
-          ],
-        ),
+          ),
+          const SizedBox(height: 12),
+          if (_recentLoginLogs.isEmpty)
+            _buildEmptySection(themeData, '暂无登录日志')
+          else
+            ..._recentLoginLogs.asMap().entries.map((entry) {
+              return Column(
+                children: [
+                  _buildLoginLogTile(entry.value, themeData),
+                  if (entry.key != _recentLoginLogs.length - 1)
+                    Divider(
+                      height: 16,
+                      color: themeData.colorScheme.outlineVariant,
+                    ),
+                ],
+              );
+            }),
+        ],
       ),
     );
   }
@@ -397,40 +340,35 @@ class _SystemLogPageState extends State<SystemLogPage> {
   }
 
   Widget _buildOperationLogsSection(ThemeData themeData) {
-    return Card(
-      elevation: 4,
-      color: themeData.colorScheme.surfaceContainerLowest,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16.0)),
-      child: Padding(
-        padding: const EdgeInsets.all(16.0),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              '近期操作日志',
-              style: themeData.textTheme.titleMedium?.copyWith(
-                color: themeData.colorScheme.onSurface,
-                fontWeight: FontWeight.bold,
-              ),
+    return DashboardPanel(
+      padding: const EdgeInsets.all(16.0),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            '近期操作日志',
+            style: themeData.textTheme.titleMedium?.copyWith(
+              color: themeData.colorScheme.onSurface,
+              fontWeight: FontWeight.w800,
             ),
-            const SizedBox(height: 12),
-            if (_recentOperationLogs.isEmpty)
-              _buildEmptySection(themeData, '暂无操作日志')
-            else
-              ..._recentOperationLogs.asMap().entries.map((entry) {
-                return Column(
-                  children: [
-                    _buildOperationLogTile(entry.value, themeData),
-                    if (entry.key != _recentOperationLogs.length - 1)
-                      Divider(
-                        height: 16,
-                        color: themeData.colorScheme.outlineVariant,
-                      ),
-                  ],
-                );
-              }),
-          ],
-        ),
+          ),
+          const SizedBox(height: 12),
+          if (_recentOperationLogs.isEmpty)
+            _buildEmptySection(themeData, '暂无操作日志')
+          else
+            ..._recentOperationLogs.asMap().entries.map((entry) {
+              return Column(
+                children: [
+                  _buildOperationLogTile(entry.value, themeData),
+                  if (entry.key != _recentOperationLogs.length - 1)
+                    Divider(
+                      height: 16,
+                      color: themeData.colorScheme.outlineVariant,
+                    ),
+                ],
+              );
+            }),
+        ],
       ),
     );
   }
@@ -506,7 +444,7 @@ class _SystemLogPageState extends State<SystemLogPage> {
                 backgroundColor: themeData.colorScheme.primary,
                 foregroundColor: themeData.colorScheme.onPrimary,
                 shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(12.0),
+                  borderRadius: BorderRadius.circular(8),
                 ),
               ),
               child: const Text('重新登录'),

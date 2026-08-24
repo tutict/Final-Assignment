@@ -132,29 +132,26 @@ class DriverInformationControllerApi with BaseApiClient {
       action: 'checkAndInsertIdempotency',
       args: [idempotencyKey, driverInformation.toJson(), 'create'],
     );
-    _throwWsError(respMap, idempotencyKey: idempotencyKey);
+    throwWsError(respMap, idempotencyKey: idempotencyKey);
   }
 
   Future<DriverInformation?> eventbusDriversDriverIdGet({
     required int driverId,
-  }) async {
-    final respMap = await sendWsRaw(
+  }) {
+    return sendWsObjectChecked(
       service: 'DriverInformationService',
       action: 'getDriverById',
       args: [driverId],
+      fromJson: DriverInformation.fromJson,
     );
-    if (_isWsNotFound(respMap)) return null;
-    _throwWsError(respMap);
-    return _driverFromWsResult(respMap);
   }
 
-  Future<List<DriverInformation>> eventbusDriversGet() async {
-    final respMap = await sendWsRaw(
+  Future<List<DriverInformation>> eventbusDriversGet() {
+    return sendWsListChecked(
       service: 'DriverInformationService',
       action: 'getAllDrivers',
+      fromJson: DriverInformation.fromJson,
     );
-    _throwWsError(respMap);
-    return _driverListFromWsResult(respMap);
   }
 
   Future<void> eventbusDriversDriverIdPut({
@@ -167,10 +164,10 @@ class DriverInformationControllerApi with BaseApiClient {
       action: 'checkAndInsertIdempotency',
       args: [idempotencyKey, driverInformation.toJson(), 'update'],
     );
-    if (_isWsNotFound(respMap)) {
+    if (isWsNotFound(respMap)) {
       throw AppException.http(404, 'Driver not found with ID: $driverId');
     }
-    _throwWsError(respMap, idempotencyKey: idempotencyKey);
+    throwWsError(respMap, idempotencyKey: idempotencyKey);
   }
 
   Future<void> eventbusDriversDriverIdDelete({
@@ -181,16 +178,16 @@ class DriverInformationControllerApi with BaseApiClient {
       action: 'deleteDriver',
       args: [driverId],
     );
-    if (_isWsNotFound(respMap)) {
+    if (isWsNotFound(respMap)) {
       throw AppException.http(404, 'Driver not found with ID: $driverId');
     }
-    if (_wsError(respMap).contains('Unauthorized')) {
+    if (wsError(respMap).contains('Unauthorized')) {
       throw AppException.http(
         403,
         'Unauthorized: Only ADMIN can delete drivers',
       );
     }
-    _throwWsError(respMap);
+    throwWsError(respMap);
   }
 
   Future<void> _updateStringField(
@@ -225,46 +222,5 @@ class DriverInformationControllerApi with BaseApiClient {
         'size': size,
       }),
     );
-  }
-
-  DriverInformation? _driverFromWsResult(Map<String, dynamic> response) {
-    final result = response['result'];
-    if (result == null) return null;
-    return DriverInformation.fromJson(Map<String, dynamic>.from(result as Map));
-  }
-
-  List<DriverInformation> _driverListFromWsResult(
-    Map<String, dynamic> response,
-  ) {
-    final result = response['result'];
-    if (result is! List) return [];
-    return result
-        .map((json) => DriverInformation.fromJson(
-              Map<String, dynamic>.from(json as Map),
-            ))
-        .toList();
-  }
-
-  bool _isWsNotFound(Map<String, dynamic> response) {
-    return _wsError(response).toLowerCase().contains('not found');
-  }
-
-  String _wsError(Map<String, dynamic> response) {
-    return response['error']?.toString() ?? '';
-  }
-
-  void _throwWsError(
-    Map<String, dynamic> response, {
-    String? idempotencyKey,
-  }) {
-    final error = _wsError(response);
-    if (error.isEmpty) return;
-    if (error.contains('Duplicate request')) {
-      throw AppException.http(
-        409,
-        'Duplicate request detected with idempotencyKey: $idempotencyKey',
-      );
-    }
-    throw AppException.http(400, error);
   }
 }

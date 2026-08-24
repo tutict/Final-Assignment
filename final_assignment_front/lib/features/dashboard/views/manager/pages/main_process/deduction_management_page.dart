@@ -1,21 +1,20 @@
 import 'package:final_assignment_front/core/utils/app_logger.dart';
 import 'package:final_assignment_front/config/routes/app_routes.dart';
-import 'package:final_assignment_front/core/auth/auth_service.dart';
 import 'package:final_assignment_front/features/api/deduction_information_controller_api.dart';
 import 'package:final_assignment_front/features/api/offense_information_controller_api.dart';
 import 'package:final_assignment_front/features/dashboard/controllers/manager_dashboard_controller.dart';
 import 'package:final_assignment_front/features/dashboard/views/manager/pages/main_process/manager_business_page_chrome.dart';
 import 'package:final_assignment_front/features/dashboard/views/shared/widgets/dashboard_page_template.dart';
+import 'package:final_assignment_front/features/dashboard/views/shared/widgets/page_auth_mixin.dart';
 import 'package:final_assignment_front/features/model/deduction_record.dart';
 import 'package:final_assignment_front/utils/widgets/index.dart';
 import 'package:final_assignment_front/core/network/app_exception.dart';
+import 'package:final_assignment_front/features/dashboard/views/shared/widgets/dashboard_chrome.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:intl/intl.dart';
-import 'package:jwt_decoder/jwt_decoder.dart';
 import 'package:uuid/uuid.dart';
 import 'package:final_assignment_front/shared/utils/navigation_helper.dart';
-import 'package:final_assignment_front/utils/services/auth_token_store.dart';
 
 class DeductionManagementPage extends StatefulWidget {
   const DeductionManagementPage({super.key});
@@ -24,7 +23,8 @@ class DeductionManagementPage extends StatefulWidget {
   State<DeductionManagementPage> createState() => _DeductionManagementState();
 }
 
-class _DeductionManagementState extends State<DeductionManagementPage> {
+class _DeductionManagementState extends State<DeductionManagementPage>
+    with PageAuthMixin {
   final DeductionInformationControllerApi deductionApi =
       DeductionInformationControllerApi();
   final TextEditingController _searchController = TextEditingController();
@@ -67,49 +67,17 @@ class _DeductionManagementState extends State<DeductionManagementPage> {
     super.dispose();
   }
 
-  Future<bool> _validateJwtToken() async {
-    String? jwtToken = await AuthTokenStore.instance.getJwtToken();
-    if (jwtToken == null || jwtToken.isEmpty) {
-      setState(() => _errorMessage = '未授权，请重新登录');
-      return false;
-    }
-    try {
-      if (JwtDecoder.isExpired(jwtToken)) {
-        final refreshed = await Get.find<AuthService>().refreshJwtToken();
-        jwtToken = await AuthTokenStore.instance.getJwtToken();
-        if (!refreshed || jwtToken == null || JwtDecoder.isExpired(jwtToken)) {
-          setState(() => _errorMessage = '登录已过期，请重新登录');
-          return false;
-        }
-      }
-      return true;
-    } catch (e) {
-      setState(() => _errorMessage = '无效的登录信息，请重新登录');
-      return false;
-    }
-  }
-
   Future<void> _initialize() async {
     setState(() => _isLoading = true);
     try {
-      if (!await _validateJwtToken()) {
-        NavigationHelper.offAllNamed(Routes.login);
-        return;
-      }
-      await deductionApi.initializeWithJwt();
-      final jwtToken = await AuthTokenStore.instance.getJwtToken();
-      if (jwtToken == null || jwtToken.isEmpty) {
-        NavigationHelper.offAllNamed(Routes.login);
-        return;
-      }
-      final decodedToken = JwtDecoder.decode(jwtToken);
-      _isAdmin = decodedToken['roles'] == 'ADMIN' ||
-          (decodedToken['roles'] is List &&
-              decodedToken['roles'].contains('ADMIN'));
+      final roles = await requireRoles((r) => r.contains('ADMIN'));
+      if (roles == null) return; // session expired, redirected to login
+      _isAdmin = roles.isNotEmpty;
       if (!_isAdmin) {
         setState(() => _errorMessage = '权限不足：仅管理员可访问此页面');
         return;
       }
+      await deductionApi.initializeWithJwt();
       await _loadDeductions(reset: true);
     } catch (e) {
       setState(() => _errorMessage = '初始化失败: $e');
@@ -134,10 +102,7 @@ class _DeductionManagementState extends State<DeductionManagementPage> {
     });
 
     try {
-      if (!await _validateJwtToken()) {
-        NavigationHelper.offAllNamed(Routes.login);
-        return;
-      }
+      if (await ensureFreshJwt() == null) return;
       List<DeductionRecordModel> deductions = [];
       final searchQuery = query?.trim() ?? '';
       if (searchQuery.isEmpty && _startTime == null && _endTime == null) {
@@ -382,7 +347,7 @@ class _DeductionManagementState extends State<DeductionManagementPage> {
                               )
                             : null,
                         border: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(12.0)),
+                            borderRadius: BorderRadius.circular(8)),
                         enabledBorder: OutlineInputBorder(
                             borderSide: BorderSide(
                                 color: themeData.colorScheme.outline)),
@@ -463,17 +428,9 @@ class _DeductionManagementState extends State<DeductionManagementPage> {
                           color: themeData.colorScheme.primary));
                 }
                 final deduction = _filteredDeductions[index];
-                return Card(
-                  elevation: 0,
-                  color: themeData.colorScheme.surfaceContainer,
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(8.0),
-                    side: BorderSide(
-                      color: themeData.colorScheme.outlineVariant
-                          .withValues(alpha: 0.42),
-                    ),
-                  ),
+                return DashboardPanel(
                   margin: const EdgeInsets.symmetric(vertical: 8.0),
+                  padding: EdgeInsets.zero,
                   child: ListTile(
                     contentPadding: const EdgeInsets.symmetric(
                         horizontal: 16.0, vertical: 8.0),
@@ -481,7 +438,7 @@ class _DeductionManagementState extends State<DeductionManagementPage> {
                       '扣分: ${deduction.deductedPoints ?? 0}',
                       style: themeData.textTheme.titleMedium?.copyWith(
                         color: themeData.colorScheme.primary,
-                        fontWeight: FontWeight.bold,
+                        fontWeight: FontWeight.w800,
                       ),
                     ),
                     subtitle: Text(
@@ -586,7 +543,8 @@ class AddDeductionPage extends StatefulWidget {
   State<AddDeductionPage> createState() => _AddDeductionPageState();
 }
 
-class _AddDeductionPageState extends State<AddDeductionPage> {
+class _AddDeductionPageState extends State<AddDeductionPage>
+    with PageAuthMixin {
   final DeductionInformationControllerApi deductionApi =
       DeductionInformationControllerApi();
   final OffenseInformationControllerApi offenseApi =
@@ -612,35 +570,10 @@ class _AddDeductionPageState extends State<AddDeductionPage> {
     _initialize();
   }
 
-  Future<bool> _validateJwtToken() async {
-    String? jwtToken = await AuthTokenStore.instance.getJwtToken();
-    if (jwtToken == null || jwtToken.isEmpty) {
-      _showSnackBar('未授权，请重新登录', isError: true);
-      return false;
-    }
-    try {
-      if (JwtDecoder.isExpired(jwtToken)) {
-        final refreshed = await Get.find<AuthService>().refreshJwtToken();
-        jwtToken = await AuthTokenStore.instance.getJwtToken();
-        if (!refreshed || jwtToken == null || JwtDecoder.isExpired(jwtToken)) {
-          _showSnackBar('登录已过期，请重新登录', isError: true);
-          return false;
-        }
-      }
-      return true;
-    } catch (e) {
-      _showSnackBar('无效的登录信息，请重新登录', isError: true);
-      return false;
-    }
-  }
-
   Future<void> _initialize() async {
     setState(() => _isLoading = true);
     try {
-      if (!await _validateJwtToken()) {
-        NavigationHelper.offAllNamed(Routes.login);
-        return;
-      }
+      if (await ensureFreshJwt() == null) return;
       await deductionApi.initializeWithJwt();
       await offenseApi.initializeWithJwt();
       await _fetchOffenseSuggestions();
@@ -663,10 +596,7 @@ class _AddDeductionPageState extends State<AddDeductionPage> {
 
   Future<void> _fetchOffenseSuggestions() async {
     try {
-      if (!await _validateJwtToken()) {
-        NavigationHelper.offAllNamed(Routes.login);
-        return;
-      }
+      if (await ensureFreshJwt() == null) return;
       final offenses = await offenseApi.listOffenses();
       setState(() {
         _offenseSuggestions = offenses
@@ -711,10 +641,7 @@ class _AddDeductionPageState extends State<AddDeductionPage> {
       _showSnackBar('请先选择一个违法记录', isError: true);
       return;
     }
-    if (!await _validateJwtToken()) {
-      NavigationHelper.offAllNamed(Routes.login);
-      return;
-    }
+    if (await ensureFreshJwt() == null) return;
     setState(() => _isLoading = true);
     try {
       final idempotencyKey = generateIdempotencyKey();
@@ -929,57 +856,51 @@ class _AddDeductionPageState extends State<AddDeductionPage> {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Card(
-                          elevation: 3,
-                          color: themeData.colorScheme.surfaceContainer,
-                          shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(16.0)),
-                          child: Padding(
-                            padding: const EdgeInsets.all(16.0),
-                            child: Column(
-                              children: [
-                                _buildTextField(
-                                  '违法记录 *',
-                                  TextEditingController(),
-                                  themeData,
-                                  required: true,
-                                  isAutocomplete: true,
-                                  suggestions: _offenseSuggestions,
-                                  onSelected: _onOffenseSelected,
-                                ),
-                                _buildTextField(
-                                  '扣分分数 *',
-                                  _deductedPointsController,
-                                  themeData,
-                                  keyboardType: TextInputType.number,
-                                  required: true,
-                                ),
-                                _buildTextField(
-                                  '处理人',
-                                  _handlerController,
-                                  themeData,
-                                  maxLength: 100,
-                                ),
-                                _buildTextField(
-                                  '审批人',
-                                  _approverController,
-                                  themeData,
-                                  maxLength: 100,
-                                ),
-                                _buildTextField(
-                                  '备注',
-                                  _remarksController,
-                                  themeData,
-                                  maxLength: 255,
-                                ),
-                                _buildTextField(
-                                  '扣分时间 *',
-                                  _dateController,
-                                  themeData,
-                                  required: true,
-                                ),
-                              ],
-                            ),
+                        DashboardPanel(
+                          padding: const EdgeInsets.all(16.0),
+                          child: Column(
+                            children: [
+                              _buildTextField(
+                                '违法记录 *',
+                                TextEditingController(),
+                                themeData,
+                                required: true,
+                                isAutocomplete: true,
+                                suggestions: _offenseSuggestions,
+                                onSelected: _onOffenseSelected,
+                              ),
+                              _buildTextField(
+                                '扣分分数 *',
+                                _deductedPointsController,
+                                themeData,
+                                keyboardType: TextInputType.number,
+                                required: true,
+                              ),
+                              _buildTextField(
+                                '处理人',
+                                _handlerController,
+                                themeData,
+                                maxLength: 100,
+                              ),
+                              _buildTextField(
+                                '审批人',
+                                _approverController,
+                                themeData,
+                                maxLength: 100,
+                              ),
+                              _buildTextField(
+                                '备注',
+                                _remarksController,
+                                themeData,
+                                maxLength: 255,
+                              ),
+                              _buildTextField(
+                                '扣分时间 *',
+                                _dateController,
+                                themeData,
+                                required: true,
+                              ),
+                            ],
                           ),
                         ),
                         const SizedBox(height: 20),
@@ -988,12 +909,14 @@ class _AddDeductionPageState extends State<AddDeductionPage> {
                           style: ElevatedButton.styleFrom(
                             backgroundColor: themeData.colorScheme.primary,
                             foregroundColor: themeData.colorScheme.onPrimary,
+                            elevation: 0,
+                            shadowColor: Colors.transparent,
                             shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(12.0)),
+                                borderRadius: BorderRadius.circular(8)),
                             padding: const EdgeInsets.symmetric(
                                 vertical: 14.0, horizontal: 20.0),
                             textStyle: themeData.textTheme.labelLarge
-                                ?.copyWith(fontWeight: FontWeight.bold),
+                                ?.copyWith(fontWeight: FontWeight.w800),
                           ),
                           child: const Text('提交'),
                         ),
@@ -1016,7 +939,8 @@ class EditDeductionPage extends StatefulWidget {
   State<EditDeductionPage> createState() => _EditDeductionPageState();
 }
 
-class _EditDeductionPageState extends State<EditDeductionPage> {
+class _EditDeductionPageState extends State<EditDeductionPage>
+    with PageAuthMixin {
   final DeductionInformationControllerApi deductionApi =
       DeductionInformationControllerApi();
   final OffenseInformationControllerApi offenseApi =
@@ -1043,35 +967,10 @@ class _EditDeductionPageState extends State<EditDeductionPage> {
     _populateFields();
   }
 
-  Future<bool> _validateJwtToken() async {
-    String? jwtToken = await AuthTokenStore.instance.getJwtToken();
-    if (jwtToken == null || jwtToken.isEmpty) {
-      _showSnackBar('未授权，请重新登录', isError: true);
-      return false;
-    }
-    try {
-      if (JwtDecoder.isExpired(jwtToken)) {
-        final refreshed = await Get.find<AuthService>().refreshJwtToken();
-        jwtToken = await AuthTokenStore.instance.getJwtToken();
-        if (!refreshed || jwtToken == null || JwtDecoder.isExpired(jwtToken)) {
-          _showSnackBar('登录已过期，请重新登录', isError: true);
-          return false;
-        }
-      }
-      return true;
-    } catch (e) {
-      _showSnackBar('无效的登录信息，请重新登录', isError: true);
-      return false;
-    }
-  }
-
   Future<void> _initialize() async {
     setState(() => _isLoading = true);
     try {
-      if (!await _validateJwtToken()) {
-        NavigationHelper.offAllNamed(Routes.login);
-        return;
-      }
+      if (await ensureFreshJwt() == null) return;
       await deductionApi.initializeWithJwt();
       await offenseApi.initializeWithJwt();
       await _fetchOffenseSuggestions();
@@ -1094,10 +993,7 @@ class _EditDeductionPageState extends State<EditDeductionPage> {
 
   Future<void> _fetchOffenseSuggestions() async {
     try {
-      if (!await _validateJwtToken()) {
-        NavigationHelper.offAllNamed(Routes.login);
-        return;
-      }
+      if (await ensureFreshJwt() == null) return;
       final offenses = await offenseApi.listOffenses();
       setState(() {
         _offenseSuggestions = offenses
@@ -1142,10 +1038,7 @@ class _EditDeductionPageState extends State<EditDeductionPage> {
       _showSnackBar('请先选择一个违法记录', isError: true);
       return;
     }
-    if (!await _validateJwtToken()) {
-      NavigationHelper.offAllNamed(Routes.login);
-      return;
-    }
+    if (await ensureFreshJwt() == null) return;
     setState(() => _isLoading = true);
     try {
       final idempotencyKey = generateIdempotencyKey();
@@ -1364,14 +1257,9 @@ class _EditDeductionPageState extends State<EditDeductionPage> {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Card(
-                          elevation: 3,
-                          color: themeData.colorScheme.surfaceContainer,
-                          shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(16.0)),
-                          child: Padding(
-                            padding: const EdgeInsets.all(16.0),
-                            child: Column(
+                        DashboardPanel(
+                          padding: const EdgeInsets.all(16.0),
+                          child: Column(
                               children: [
                                 _buildTextField(
                                   '违法记录 *',
@@ -1426,7 +1314,6 @@ class _EditDeductionPageState extends State<EditDeductionPage> {
                                 ),
                               ],
                             ),
-                          ),
                         ),
                         const SizedBox(height: 20),
                         ElevatedButton(
@@ -1435,11 +1322,11 @@ class _EditDeductionPageState extends State<EditDeductionPage> {
                             backgroundColor: themeData.colorScheme.primary,
                             foregroundColor: themeData.colorScheme.onPrimary,
                             shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(12.0)),
+                                borderRadius: BorderRadius.circular(8)),
                             padding: const EdgeInsets.symmetric(
                                 vertical: 14.0, horizontal: 20.0),
                             textStyle: themeData.textTheme.labelLarge
-                                ?.copyWith(fontWeight: FontWeight.bold),
+                                ?.copyWith(fontWeight: FontWeight.w800),
                           ),
                           child: const Text('保存'),
                         ),
