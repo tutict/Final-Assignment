@@ -61,12 +61,24 @@ class _LineChartState extends State<LineChart> {
 
   @override
   Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    final dark = Theme.of(context).brightness == Brightness.dark;
+    final axisColor = scheme.onSurfaceVariant;
+    final gridColor =
+        scheme.outlineVariant.withValues(alpha: dark ? 0.14 : 0.36);
+
     // 如果数据为空，显示提示
     if (_dataList.isEmpty) {
-      return const SizedBox(
+      return SizedBox(
         height: 200,
         child: Center(
-          child: Text('No data available'),
+          child: Text(
+            '暂无数据',
+            style: TextStyle(
+              color: scheme.onSurfaceVariant,
+              fontSize: 13,
+            ),
+          ),
         ),
       );
     }
@@ -96,7 +108,7 @@ class _LineChartState extends State<LineChart> {
               alignment: BarChartAlignment.spaceAround,
               maxY: maxY > 0 ? maxY : 500,
               minY: 0,
-              barGroups: _buildBarGroups(maxX),
+              barGroups: _buildBarGroups(maxX, scheme),
               titlesData: FlTitlesData(
                 show: true,
                 leftTitles: AxisTitles(
@@ -107,8 +119,8 @@ class _LineChartState extends State<LineChart> {
                     getTitlesWidget: (value, meta) {
                       return Text(
                         value.toInt().toString(),
-                        style: const TextStyle(
-                          color: Colors.black,
+                        style: TextStyle(
+                          color: axisColor,
                           fontSize: 12,
                         ),
                       );
@@ -125,8 +137,8 @@ class _LineChartState extends State<LineChart> {
                       final date = _startTime.add(Duration(days: index));
                       return Text(
                         date.toIso8601String().substring(8, 10),
-                        style: const TextStyle(
-                          color: Colors.black,
+                        style: TextStyle(
+                          color: axisColor,
                           fontSize: 12,
                         ),
                       );
@@ -146,16 +158,26 @@ class _LineChartState extends State<LineChart> {
                 drawHorizontalLine: true,
                 horizontalInterval: maxY / 5,
                 verticalInterval: maxX > 7 ? maxX / 7 : 1,
+                getDrawingHorizontalLine: (value) =>
+                    FlLine(color: gridColor, strokeWidth: 1),
+                getDrawingVerticalLine: (value) =>
+                    FlLine(color: gridColor, strokeWidth: 1),
               ),
               borderData: FlBorderData(show: false),
               barTouchData: BarTouchData(
                 enabled: true,
                 touchTooltipData: BarTouchTooltipData(
+                  getTooltipColor: (_) =>
+                      dark ? const Color(0xFF1E2733) : const Color(0xFF17304d),
+                  tooltipBorderRadius: BorderRadius.circular(10),
+                  tooltipPadding: const EdgeInsets.symmetric(
+                      horizontal: 14, vertical: 8),
                   getTooltipItem: (group, groupIndex, rod, rodIndex) {
                     final date = _startTime.add(Duration(days: group.x));
                     return BarTooltipItem(
                       '${date.toIso8601String().substring(0, 10)}\n${rod.toY.toInt()}',
-                      const TextStyle(color: Colors.white),
+                      const TextStyle(
+                          color: Colors.white, fontWeight: FontWeight.w600),
                     );
                   },
                 ),
@@ -165,7 +187,7 @@ class _LineChartState extends State<LineChart> {
           // 折线图（LineChart）
           LineChart(
             LineChartData(
-              lineBarsData: _buildLineBarsData(),
+              lineBarsData: _buildLineBarsData(scheme),
               minX: 0,
               maxX: maxX > 0 ? maxX : 20,
               minY: 0,
@@ -178,13 +200,19 @@ class _LineChartState extends State<LineChart> {
               lineTouchData: LineTouchData(
                 enabled: true,
                 touchTooltipData: LineTouchTooltipData(
+                  getTooltipColor: (_) =>
+                      dark ? const Color(0xFF1E2733) : const Color(0xFF17304d),
+                  tooltipBorderRadius: BorderRadius.circular(10),
+                  tooltipPadding: const EdgeInsets.symmetric(
+                      horizontal: 14, vertical: 8),
                   getTooltipItems: (List<LineBarSpot> touchedSpots) {
                     return touchedSpots.map((spot) {
                       final date =
                           _startTime.add(Duration(days: spot.x.toInt()));
                       return LineTooltipItem(
                         '${date.toIso8601String().substring(0, 10)}\n${spot.y.toInt()}',
-                        const TextStyle(color: Colors.white),
+                        const TextStyle(
+                            color: Colors.white, fontWeight: FontWeight.w600),
                       );
                     }).toList();
                   },
@@ -197,8 +225,8 @@ class _LineChartState extends State<LineChart> {
     );
   }
 
-  // 构建柱状图数据
-  List<BarChartGroupData> _buildBarGroups(double maxX) {
+  // 构建柱状图数据（半透明主色，避免遮挡折线）
+  List<BarChartGroupData> _buildBarGroups(double maxX, ColorScheme scheme) {
     return _dataList.map((item) {
       final days = (item['time'] as DateTime).difference(_startTime).inDays;
       final value = (item['value1'] as num).toDouble();
@@ -207,17 +235,17 @@ class _LineChartState extends State<LineChart> {
         barRods: [
           BarChartRodData(
             toY: value,
-            color: Colors.yellow.withValues(alpha: 0.5), // 半透明以避免遮挡折线
+            color: scheme.primary.withValues(alpha: 0.18), // 半透明以避免遮挡折线
             width: 8,
-            borderRadius: const BorderRadius.vertical(top: Radius.circular(2)),
+            borderRadius: const BorderRadius.vertical(top: Radius.circular(3)),
           ),
         ],
       );
     }).toList();
   }
 
-  // 构建折线图数据
-  List<LineChartBarData> _buildLineBarsData() {
+  // 构建折线图数据（主色 + 次色）
+  List<LineChartBarData> _buildLineBarsData(ColorScheme scheme) {
     final line1 = LineChartBarData(
       spots: _dataList.map((item) {
         final days =
@@ -226,8 +254,8 @@ class _LineChartState extends State<LineChart> {
         return FlSpot(days, value);
       }).toList(),
       isCurved: false,
-      color: Colors.yellow,
-      barWidth: 2,
+      color: scheme.primary,
+      barWidth: 2.4,
       dotData: const FlDotData(show: false),
     );
 
@@ -239,8 +267,8 @@ class _LineChartState extends State<LineChart> {
         return FlSpot(days, value);
       }).toList(),
       isCurved: false,
-      color: Colors.green,
-      barWidth: 2,
+      color: scheme.secondary,
+      barWidth: 2.4,
       dotData: const FlDotData(show: false),
     );
 

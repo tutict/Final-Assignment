@@ -6,11 +6,29 @@ class OffensePieChart extends StatelessWidget {
 
   const OffensePieChart({super.key, required this.typeCountMap});
 
+  /// 一组互不冲突、在亮/暗背景下都协调的分类色。
+  static const _palette = <Color>[
+    Color(0xFF3B82F6), // 蓝
+    Color(0xFF10B981), // 绿
+    Color(0xFFF59E0B), // 琥珀
+    Color(0xFFEF4444), // 红
+    Color(0xFF8B5CF6), // 紫
+    Color(0xFF06B6D4), // 青
+    Color(0xFFF97316), // 橙
+    Color(0xFFEC4899), // 粉
+  ];
+
   @override
   Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    final textColor = scheme.onSurface;
+
     if (typeCountMap.isEmpty) {
-      return const Center(
-        child: Text('No offense data available'),
+      return Center(
+        child: Text(
+          '暂无违章数据',
+          style: TextStyle(color: scheme.onSurfaceVariant, fontSize: 13),
+        ),
       );
     }
 
@@ -18,10 +36,10 @@ class OffensePieChart extends StatelessWidget {
     final dataList = typeCountMap.entries.toList();
     final totalCount = typeCountMap.values.reduce((a, b) => a + b);
 
-    // 生成颜色列表
+    // 生成颜色列表：分类色循环取用
     final colors = List<Color>.generate(
       dataList.length,
-      (index) => Colors.primaries[index % Colors.primaries.length][500]!,
+      (index) => _palette[index % _palette.length],
     );
 
     return SizedBox(
@@ -31,8 +49,8 @@ class OffensePieChart extends StatelessWidget {
           PieChart(
             PieChartData(
               sections: _buildPieChartSections(dataList, colors, totalCount),
-              sectionsSpace: 2, // 饼图各部分之间的间距
-              centerSpaceRadius: 40, // 中心空白区域的半径
+              sectionsSpace: 3,
+              centerSpaceRadius: 46,
               borderData: FlBorderData(show: false),
             ),
           ),
@@ -41,20 +59,20 @@ class OffensePieChart extends StatelessWidget {
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                const Text(
-                  'Total',
+                Text(
+                  '违章总数',
                   style: TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.bold,
-                    color: Colors.black,
+                    fontSize: 13,
+                    fontWeight: FontWeight.w500,
+                    color: scheme.onSurfaceVariant,
                   ),
                 ),
                 Text(
                   totalCount.toString(),
-                  style: const TextStyle(
-                    fontSize: 20,
-                    fontWeight: FontWeight.bold,
-                    color: Colors.black,
+                  style: TextStyle(
+                    fontSize: 24,
+                    fontWeight: FontWeight.w800,
+                    color: textColor,
                   ),
                 ),
               ],
@@ -85,8 +103,8 @@ class OffensePieChart extends StatelessWidget {
         title: '$percentage%',
         // 显示百分比
         titleStyle: const TextStyle(
-          fontSize: 14,
-          fontWeight: FontWeight.bold,
+          fontSize: 13,
+          fontWeight: FontWeight.w700,
           color: Colors.white,
         ),
         badgeWidget: _buildBadgeWidget(entry.key, colors[index]),
@@ -99,15 +117,15 @@ class OffensePieChart extends StatelessWidget {
   // 构建标签小部件
   Widget _buildBadgeWidget(String type, Color color) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
       decoration: BoxDecoration(
         color: color,
-        borderRadius: BorderRadius.circular(12),
-        boxShadow: const [
+        borderRadius: BorderRadius.circular(999),
+        boxShadow: [
           BoxShadow(
-            color: Colors.black26,
-            blurRadius: 4,
-            offset: Offset(2, 2),
+            color: color.withValues(alpha: 0.28),
+            blurRadius: 6,
+            offset: const Offset(0, 3),
           ),
         ],
       ),
@@ -116,7 +134,7 @@ class OffensePieChart extends StatelessWidget {
         style: const TextStyle(
           fontSize: 12,
           color: Colors.white,
-          fontWeight: FontWeight.bold,
+          fontWeight: FontWeight.w600,
         ),
       ),
     );

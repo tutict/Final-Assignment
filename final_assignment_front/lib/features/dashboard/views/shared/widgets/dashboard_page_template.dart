@@ -3,6 +3,7 @@ export 'package:final_assignment_front/features/dashboard/views/shared/widgets/d
 import 'package:final_assignment_front/features/dashboard/views/user/widgets/user_page_app_bar.dart';
 import 'package:final_assignment_front/features/dashboard/views/shared/widgets/dashboard_page_app_bar.dart';
 import 'package:final_assignment_front/features/dashboard/views/shared/widgets/motion.dart';
+import 'package:final_assignment_front/features/dashboard/views/shared/widgets/skeleton.dart';
 import 'package:flutter/material.dart';
 
 enum DashboardPageType { manager, user, custom }
@@ -134,13 +135,10 @@ class DashboardPageTemplate extends StatelessWidget {
     if (isLoading) {
       return loadingWidget ??
           _StatusFrame(
-            minHeightFactor: 0.52,
-            child: _PageStatusSurface(
-              icon: Icons.sync_rounded,
-              title: '正在加载',
-              detail: '正在同步页面数据，请稍候。',
-              progress: true,
-              theme: theme,
+            minHeightFactor: 0.6,
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 8),
+              child: const DashboardSkeleton(),
             ),
           );
     }
@@ -212,7 +210,6 @@ class _PageStatusSurface extends StatelessWidget {
     required this.title,
     required this.detail,
     required this.theme,
-    this.progress = false,
     this.severity = _PageStatusSeverity.neutral,
     this.action,
   });
@@ -221,7 +218,6 @@ class _PageStatusSurface extends StatelessWidget {
   final String title;
   final String detail;
   final ThemeData theme;
-  final bool progress;
   final _PageStatusSeverity severity;
   final Widget? action;
 
@@ -263,15 +259,7 @@ class _PageStatusSurface extends StatelessWidget {
                 color: accent.withValues(alpha: dark ? 0.20 : 0.10),
                 borderRadius: BorderRadius.circular(8),
               ),
-              child: progress
-                  ? Padding(
-                      padding: const EdgeInsets.all(13),
-                      child: CircularProgressIndicator(
-                        strokeWidth: 2.6,
-                        color: accent,
-                      ),
-                    )
-                  : Icon(icon, color: accent, size: 26),
+              child: Icon(icon, color: accent, size: 26),
             ),
             const SizedBox(height: 16),
             Text(
