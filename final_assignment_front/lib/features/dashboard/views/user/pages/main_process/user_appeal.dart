@@ -712,7 +712,7 @@ class _UserAppealPageState extends State<UserAppealPage> {
                                   themeData.colorScheme.onPrimary),
                             ),
                             child: isSubmitting
-                                ? const SizedBox(
+                                ? SizedBox(
                                     width: 20,
                                     height: 20,
                                     child: CircularProgressIndicator(

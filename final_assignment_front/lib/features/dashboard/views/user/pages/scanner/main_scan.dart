@@ -36,6 +36,7 @@ class _MainScanState extends State<MainScan> {
     final qrData = widget.fine != null
         ? 'Fine ID: ${widget.fine!.fineId}\nAmount: ${widget.fine!.fineAmount}\nPayee: ${widget.fine!.payee}'
         : '交通违法处理二维码';
+    final scheme = dashboardController.currentBodyTheme.value.colorScheme;
 
     setState(() {
       _isGenerating = true;
