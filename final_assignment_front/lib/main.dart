@@ -51,6 +51,7 @@ class MainApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+<<<<<<< HEAD
     final themeController = Get.find<ThemeController>();
     return Obx(() {
       final mode = themeController.themeMode.value;
@@ -89,6 +90,43 @@ class MainApp extends StatelessWidget {
         initialBinding: AppBindings(),
       );
     });
+=======
+    return GetMaterialApp(
+      title: '交通违法行为处理管理系统',
+      debugShowCheckedModeBanner: false,
+      initialRoute: AppPages.login,
+      getPages: AppPages.routes,
+      theme: AppTheme.basicLight,
+      // 全局平滑页面过渡：右侧滑入 + 淡出，替代默认的生硬切换。
+      defaultTransition: Transition.cupertino,
+      transitionDuration: const Duration(milliseconds: 280),
+      routingCallback: (routing) {
+        if (Get.isRegistered<AppLifecycleObserver>()) {
+          Get.find<AppLifecycleObserver>().onRouteChanged(routing);
+        }
+      },
+      builder: (context, child) {
+        return MediaQuery(
+          data: MediaQuery.of(context).copyWith(
+            textScaler: const TextScaler.linear(1.0), // Fixed scaling
+          ),
+          child: child ?? const SizedBox.shrink(),
+        );
+      },
+      locale: const Locale('zh', 'CN'),
+      fallbackLocale: const Locale('en', 'US'),
+      localizationsDelegates: const [
+        GlobalMaterialLocalizations.delegate,
+        GlobalWidgetsLocalizations.delegate,
+        GlobalCupertinoLocalizations.delegate,
+      ],
+      supportedLocales: const [
+        Locale('en', 'US'),
+        Locale('zh', 'CN'),
+      ],
+      initialBinding: AppBindings(),
+    );
+>>>>>>> 24855609 (feat(flutter): polish dashboard chrome with motion, shadows, and entrance transitions)
   }
 }
 
