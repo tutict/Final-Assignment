@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+import 'motion.dart';
+
 class DashboardBackdrop extends StatelessWidget {
   const DashboardBackdrop({
     super.key,
@@ -40,13 +42,16 @@ class DashboardBackdrop extends StatelessWidget {
   }
 }
 
-class DashboardPanel extends StatelessWidget {
+class DashboardPanel extends StatefulWidget {
   const DashboardPanel({
     super.key,
     required this.child,
     this.padding = const EdgeInsets.all(20),
     this.margin = EdgeInsets.zero,
     this.height,
+    this.hoverable = false,
+    this.hoverRadius = 14,
+    this.onTap,
   });
 
   final Widget child;
@@ -54,32 +59,102 @@ class DashboardPanel extends StatelessWidget {
   final EdgeInsetsGeometry margin;
   final double? height;
 
+  /// 是否启用 hover 抬升反馈（桌面端）。触屏无感，默认关闭以保持纯净。
+  final bool hoverable;
+
+  /// hover 时圆角提升到的值，配合阴影抬升更显层次。
+  final double hoverRadius;
+
+  /// 可选点击回调（非 null 时启用 InkWell 涟漪）。
+  final VoidCallback? onTap;
+
+  @override
+  State<DashboardPanel> createState() => _DashboardPanelState();
+}
+
+class _DashboardPanelState extends State<DashboardPanel> {
+  bool _hovered = false;
+
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final scheme = theme.colorScheme;
     final dark = theme.brightness == Brightness.dark;
+    final elevated = widget.hoverable && _hovered;
 
-    return Container(
-      height: height,
-      margin: margin,
-      padding: padding,
-      decoration: BoxDecoration(
-        color: scheme.surface.withValues(alpha: dark ? 0.92 : 0.96),
-        borderRadius: BorderRadius.circular(8),
-        border: Border.all(
-          color: scheme.outlineVariant.withValues(alpha: dark ? 0.45 : 0.58),
-        ),
-        boxShadow: [
-          BoxShadow(
-            color: theme.shadowColor.withValues(alpha: dark ? 0.18 : 0.08),
-            blurRadius: 18,
-            offset: const Offset(0, 10),
-          ),
-        ],
+    final decoration = BoxDecoration(
+      color: scheme.surface.withValues(alpha: dark ? 0.92 : 0.96),
+      borderRadius: BorderRadius.circular(elevated ? widget.hoverRadius : 8),
+      border: Border.all(
+        color: elevated
+            ? scheme.primary.withValues(alpha: dark ? 0.5 : 0.6)
+            : scheme.outlineVariant.withValues(alpha: dark ? 0.45 : 0.58),
       ),
+      boxShadow: elevated
+          ? [
+              // 抬升时投影更强调，营造"浮起"。
+              BoxShadow(
+                color: theme.shadowColor.withValues(alpha: dark ? 0.34 : 0.16),
+                blurRadius: 30,
+                offset: const Offset(0, 16),
+              ),
+              BoxShadow(
+                color: theme.shadowColor.withValues(alpha: dark ? 0.22 : 0.1),
+                blurRadius: 10,
+                offset: const Offset(0, 4),
+              ),
+            ]
+          : [
+              // 双层软阴影：近处贴身 + 远处柔和，比单层更有质感。
+              BoxShadow(
+                color: theme.shadowColor.withValues(alpha: dark ? 0.16 : 0.07),
+                blurRadius: 14,
+                offset: const Offset(0, 6),
+              ),
+              BoxShadow(
+                color: theme.shadowColor.withValues(alpha: dark ? 0.12 : 0.05),
+                blurRadius: 34,
+                offset: const Offset(0, 14),
+              ),
+            ],
+    );
+
+    Widget child = widget.child;
+    if (widget.onTap != null || widget.hoverable) {
+      child = MouseRegion(
+        onEnter: widget.hoverable
+            ? (_) => setState(() => _hovered = true)
+            : null,
+        onExit: widget.hoverable
+            ? (_) => setState(() => _hovered = false)
+            : null,
+        child: AnimatedScale(
+          scale: elevated ? 1.008 : 1.0,
+          duration: const Duration(milliseconds: 180),
+          curve: Curves.easeOutCubic,
+          child: child,
+        ),
+      );
+    }
+
+    final container = Container(
+      height: widget.height,
+      margin: widget.margin,
+      padding: widget.padding,
+      decoration: decoration,
       child: child,
     );
+
+    if (widget.onTap != null) {
+      return InkWell(
+        onTap: widget.onTap,
+        borderRadius: BorderRadius.circular(elevated ? widget.hoverRadius : 8),
+        splashColor: scheme.primary.withValues(alpha: 0.06),
+        highlightColor: scheme.primary.withValues(alpha: 0.04),
+        child: container,
+      );
+    }
+    return container;
   }
 }
 
@@ -185,10 +260,8 @@ class DashboardMetricTile extends StatelessWidget {
                   ),
                 ),
                 const SizedBox(height: 4),
-                Text(
-                  value,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
+                MetricCountUp(
+                  value: value,
                   style: theme.textTheme.titleLarge?.copyWith(
                     color: scheme.onSurface,
                     fontWeight: FontWeight.w800,

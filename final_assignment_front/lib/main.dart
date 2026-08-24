@@ -51,6 +51,9 @@ class MainApp extends StatelessWidget {
       initialRoute: AppPages.login,
       getPages: AppPages.routes,
       theme: AppTheme.basicLight,
+      // 全局平滑页面过渡：右侧滑入 + 淡出，替代默认的生硬切换。
+      defaultTransition: Transition.cupertino,
+      transitionDuration: const Duration(milliseconds: 280),
       routingCallback: (routing) {
         if (Get.isRegistered<AppLifecycleObserver>()) {
           Get.find<AppLifecycleObserver>().onRouteChanged(routing);

@@ -2,6 +2,7 @@ export 'package:final_assignment_front/features/dashboard/views/shared/widgets/d
 
 import 'package:final_assignment_front/features/dashboard/views/user/widgets/user_page_app_bar.dart';
 import 'package:final_assignment_front/features/dashboard/views/shared/widgets/dashboard_page_app_bar.dart';
+import 'package:final_assignment_front/features/dashboard/views/shared/widgets/motion.dart';
 import 'package:flutter/material.dart';
 
 enum DashboardPageType { manager, user, custom }
@@ -78,6 +79,9 @@ class DashboardPageTemplate extends StatelessWidget {
     if (safeArea) {
       content = SafeArea(child: content);
     }
+
+    // 统一入场：所有页面内容首次出现时轻微淡入 + 上移，提升流畅感。
+    content = FadeSlideIn(child: content);
 
     return Theme(
       data: theme,
