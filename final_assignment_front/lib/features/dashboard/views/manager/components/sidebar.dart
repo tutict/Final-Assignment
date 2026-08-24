@@ -329,6 +329,10 @@ class _ManagerSidebarItem extends StatelessWidget {
           borderRadius: BorderRadius.circular(8),
           splashColor: scheme.primary.withValues(alpha: 0.10),
           highlightColor: scheme.primary.withValues(alpha: 0.06),
+          // hover 反馈：桌面端未选中项悬停时轻微提亮，提升可感质感。
+          hoverColor: selected
+              ? scheme.primaryContainer.withValues(alpha: dark ? 0.30 : 0.50)
+              : scheme.onSurface.withValues(alpha: dark ? 0.08 : 0.05),
           child: content,
         ),
       ),

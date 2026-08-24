@@ -61,35 +61,48 @@ class _LineChartState extends State<LineChart> {
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final scheme = theme.colorScheme;
+    final scheme = Theme.of(context).colorScheme;
+    final dark = Theme.of(context).brightness == Brightness.dark;
+    final axisColor = scheme.onSurfaceVariant;
+    final gridColor =
+        scheme.outlineVariant.withValues(alpha: dark ? 0.14 : 0.36);
 
+    // 如果数据为空，显示提示
     if (_dataList.isEmpty) {
       return SizedBox(
         height: 200,
         child: Center(
-          child: Text('No data available', style: TextStyle(color: scheme.onSurfaceVariant)),
+          child: Text(
+            '暂无数据',
+            style: TextStyle(
+              color: scheme.onSurfaceVariant,
+              fontSize: 13,
+            ),
+          ),
         ),
       );
     }
 
+    // 计算 X 轴最大值（天数）
     final maxX = _dataList
         .map((item) => (item['time'] as DateTime).difference(_startTime).inDays)
         .reduce((a, b) => a > b ? a : b)
         .toDouble();
 
+    // 计算 Y 轴最大值
     final maxY1 = _dataList
         .map((item) => (item['value1'] as num).toDouble())
         .reduce((a, b) => a > b ? a : b);
     final maxY2 = _dataList
         .map((item) => (item['value2'] as num).toDouble())
         .reduce((a, b) => a > b ? a : b);
-    final maxY = (maxY1 > maxY2 ? maxY1 : maxY2) * 1.2;
+    final maxY = (maxY1 > maxY2 ? maxY1 : maxY2) * 1.2; // 增加 20% 余量
 
     return SizedBox(
       height: 200,
       child: Stack(
         children: [
+          // 柱状图（BarChart）
           BarChart(
             BarChartData(
               alignment: BarChartAlignment.spaceAround,
@@ -107,7 +120,7 @@ class _LineChartState extends State<LineChart> {
                       return Text(
                         value.toInt().toString(),
                         style: TextStyle(
-                          color: scheme.onSurfaceVariant,
+                          color: axisColor,
                           fontSize: 12,
                         ),
                       );
@@ -125,7 +138,7 @@ class _LineChartState extends State<LineChart> {
                       return Text(
                         date.toIso8601String().substring(8, 10),
                         style: TextStyle(
-                          color: scheme.onSurfaceVariant,
+                          color: axisColor,
                           fontSize: 12,
                         ),
                       );
@@ -145,28 +158,33 @@ class _LineChartState extends State<LineChart> {
                 drawHorizontalLine: true,
                 horizontalInterval: maxY / 5,
                 verticalInterval: maxX > 7 ? maxX / 7 : 1,
-                getDrawingHorizontalLine: (value) {
-                  return FlLine(color: scheme.outlineVariant.withValues(alpha: 0.2), strokeWidth: 1);
-                },
-                getDrawingVerticalLine: (value) {
-                  return FlLine(color: scheme.outlineVariant.withValues(alpha: 0.2), strokeWidth: 1);
-                },
+                getDrawingHorizontalLine: (value) =>
+                    FlLine(color: gridColor, strokeWidth: 1),
+                getDrawingVerticalLine: (value) =>
+                    FlLine(color: gridColor, strokeWidth: 1),
               ),
               borderData: FlBorderData(show: false),
               barTouchData: BarTouchData(
                 enabled: true,
                 touchTooltipData: BarTouchTooltipData(
+                  getTooltipColor: (_) =>
+                      dark ? const Color(0xFF1E2733) : const Color(0xFF17304d),
+                  tooltipBorderRadius: BorderRadius.circular(10),
+                  tooltipPadding: const EdgeInsets.symmetric(
+                      horizontal: 14, vertical: 8),
                   getTooltipItem: (group, groupIndex, rod, rodIndex) {
                     final date = _startTime.add(Duration(days: group.x));
                     return BarTooltipItem(
                       '${date.toIso8601String().substring(0, 10)}\n${rod.toY.toInt()}',
-                      const TextStyle(color: Colors.white),
+                      const TextStyle(
+                          color: Colors.white, fontWeight: FontWeight.w600),
                     );
                   },
                 ),
               ),
             ),
           ),
+          // 折线图（LineChart）
           LineChart(
             LineChartData(
               lineBarsData: _buildLineBarsData(scheme),
@@ -175,18 +193,26 @@ class _LineChartState extends State<LineChart> {
               minY: 0,
               maxY: maxY > 0 ? maxY : 500,
               titlesData: const FlTitlesData(show: false),
+              // 避免重复显示标题
               gridData: const FlGridData(show: false),
+              // 避免重复显示网格线
               borderData: FlBorderData(show: false),
               lineTouchData: LineTouchData(
                 enabled: true,
                 touchTooltipData: LineTouchTooltipData(
+                  getTooltipColor: (_) =>
+                      dark ? const Color(0xFF1E2733) : const Color(0xFF17304d),
+                  tooltipBorderRadius: BorderRadius.circular(10),
+                  tooltipPadding: const EdgeInsets.symmetric(
+                      horizontal: 14, vertical: 8),
                   getTooltipItems: (List<LineBarSpot> touchedSpots) {
                     return touchedSpots.map((spot) {
                       final date =
                           _startTime.add(Duration(days: spot.x.toInt()));
                       return LineTooltipItem(
                         '${date.toIso8601String().substring(0, 10)}\n${spot.y.toInt()}',
-                        const TextStyle(color: Colors.white),
+                        const TextStyle(
+                            color: Colors.white, fontWeight: FontWeight.w600),
                       );
                     }).toList();
                   },
@@ -199,6 +225,7 @@ class _LineChartState extends State<LineChart> {
     );
   }
 
+  // 构建柱状图数据（半透明主色，避免遮挡折线）
   List<BarChartGroupData> _buildBarGroups(double maxX, ColorScheme scheme) {
     return _dataList.map((item) {
       final days = (item['time'] as DateTime).difference(_startTime).inDays;
@@ -208,15 +235,16 @@ class _LineChartState extends State<LineChart> {
         barRods: [
           BarChartRodData(
             toY: value,
-            color: scheme.primary.withValues(alpha: 0.3),
+            color: scheme.primary.withValues(alpha: 0.18), // 半透明以避免遮挡折线
             width: 8,
-            borderRadius: const BorderRadius.vertical(top: Radius.circular(2)),
+            borderRadius: const BorderRadius.vertical(top: Radius.circular(3)),
           ),
         ],
       );
     }).toList();
   }
 
+  // 构建折线图数据（主色 + 次色）
   List<LineChartBarData> _buildLineBarsData(ColorScheme scheme) {
     final line1 = LineChartBarData(
       spots: _dataList.map((item) {
@@ -227,7 +255,7 @@ class _LineChartState extends State<LineChart> {
       }).toList(),
       isCurved: false,
       color: scheme.primary,
-      barWidth: 2,
+      barWidth: 2.4,
       dotData: const FlDotData(show: false),
     );
 
@@ -240,7 +268,7 @@ class _LineChartState extends State<LineChart> {
       }).toList(),
       isCurved: false,
       color: scheme.secondary,
-      barWidth: 2,
+      barWidth: 2.4,
       dotData: const FlDotData(show: false),
     );
 
