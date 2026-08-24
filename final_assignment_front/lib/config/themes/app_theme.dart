@@ -1,3 +1,4 @@
+import 'package:final_assignment_front/core/theme/app_colors.dart';
 import 'package:flutter/material.dart';
 
 class ThemeStyles {
@@ -376,6 +377,9 @@ class AppTheme {
       useMaterial3: true,
       brightness: brightness,
       colorScheme: colorScheme,
+      extensions: <ThemeExtension<dynamic>>[
+        isLight ? AppColors.light : AppColors.dark,
+      ],
       fontFamilyFallback: chineseFontFallback,
       scaffoldBackgroundColor: palette.scaffold,
       canvasColor: palette.scaffold,

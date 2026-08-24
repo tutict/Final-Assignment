@@ -6,7 +6,10 @@ import 'package:final_assignment_front/config/themes/app_theme.dart';
 import 'package:final_assignment_front/core/auth/role_utils.dart';
 import 'package:final_assignment_front/core/auth/user_profile_service.dart';
 import 'package:final_assignment_front/core/network/app_exception.dart';
+import 'package:final_assignment_front/core/theme/app_colors.dart';
+import 'package:final_assignment_front/core/theme/theme_controller.dart';
 import 'package:final_assignment_front/core/utils/app_logger.dart';
+import 'package:final_assignment_front/core/validation/credentials.dart';
 import 'package:final_assignment_front/features/api/auth_controller_api.dart';
 import 'package:final_assignment_front/features/model/login_request.dart';
 import 'package:final_assignment_front/features/model/register_request.dart';
@@ -20,25 +23,9 @@ import 'package:uuid/uuid.dart';
 
 String generateIdempotencyKey() => const Uuid().v4();
 
-mixin ValidatorMixin {
-  String? validateUsername(String? val) {
-    if (val == null || val.trim().isEmpty) return '用户邮箱不能为空';
-    final emailRegex =
-        RegExp(r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$');
-    if (!emailRegex.hasMatch(val.trim())) return '请输入有效的邮箱地址';
-    return null;
-  }
-
-  String? validatePassword(String? val) {
-    if (val == null || val.isEmpty) return '密码不能为空';
-    if (val.length < 5) return '密码至少 5 位';
-    return null;
-  }
-}
-
 enum _AuthMode { login, signup, recover }
 
-class LoginScreen extends StatefulWidget with ValidatorMixin {
+class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
 
   @override
@@ -47,6 +34,7 @@ class LoginScreen extends StatefulWidget with ValidatorMixin {
 
 class _LoginScreenState extends State<LoginScreen> {
   late AuthControllerApi authApi;
+  late ThemeController _theme;
 
   final _formKey = GlobalKey<FormState>();
   final _emailController = TextEditingController();
@@ -54,7 +42,6 @@ class _LoginScreenState extends State<LoginScreen> {
   final _confirmPasswordController = TextEditingController();
 
   String? _userRole;
-  bool _isDarkMode = false;
   bool _isSubmitting = false;
   bool _obscurePassword = true;
   bool _obscureConfirmPassword = true;
@@ -64,8 +51,8 @@ class _LoginScreenState extends State<LoginScreen> {
   void initState() {
     super.initState();
     authApi = AuthControllerApi();
+    _theme = Get.find<ThemeController>();
     _userRole = null;
-    _loadTheme();
   }
 
   @override
@@ -76,28 +63,16 @@ class _LoginScreenState extends State<LoginScreen> {
     super.dispose();
   }
 
-  Future<void> _loadTheme() async {
-    final prefs = await SharedPreferences.getInstance();
-    if (!mounted) return;
-    setState(() {
-      _isDarkMode = prefs.getBool('isDarkMode') ?? false;
-    });
-  }
-
-  Future<void> _toggleTheme() async {
-    final prefs = await SharedPreferences.getInstance();
-    if (!mounted) return;
-    setState(() {
-      _isDarkMode = !_isDarkMode;
-    });
-    await prefs.setBool('isDarkMode', _isDarkMode);
-  }
-
-  Map<String, dynamic> _decodeJwt(String token) {
-    final parts = token.split('.');
-    if (parts.length != 3) throw Exception('Invalid JWT');
-    final payload = base64Url.decode(base64Url.normalize(parts[1]));
-    return jsonDecode(utf8.decode(payload)) as Map<String, dynamic>;
+  Map<String, dynamic>? _decodeJwt(String token) {
+    try {
+      final parts = token.split('.');
+      if (parts.length != 3) return null;
+      final payload = base64Url.decode(base64Url.normalize(parts[1]));
+      return jsonDecode(utf8.decode(payload)) as Map<String, dynamic>;
+    } catch (e) {
+      AppLogger.error('JWT 解码失败: $e');
+      return null;
+    }
   }
 
   static String determineRole(Object? rolesFromJwt) {
@@ -170,6 +145,9 @@ class _LoginScreenState extends State<LoginScreen> {
           _stringValue(result['accessToken'] ?? result['jwtToken']);
       if (accessToken != null) {
         final decodedJwt = _decodeJwt(accessToken);
+        if (decodedJwt == null) {
+          return '登录返回数据异常，请重试';
+        }
         _userRole = determineRole(decodedJwt['roles'] ?? 'USER');
         final prefs = await SharedPreferences.getInstance();
         await _saveLoginTokens(result, prefs, accessToken, username);
@@ -187,7 +165,7 @@ class _LoginScreenState extends State<LoginScreen> {
       return _formatErrorMessage(e, '登录失败');
     } catch (e) {
       AppLogger.error('登录异常: $e');
-      return '登录异常: $e';
+      return '登录失败，请稍后重试';
     }
   }
 
@@ -218,6 +196,9 @@ class _LoginScreenState extends State<LoginScreen> {
             _stringValue(loginResult['accessToken'] ?? loginResult['jwtToken']);
         if (accessToken != null) {
           final decodedJwt = _decodeJwt(accessToken);
+          if (decodedJwt == null) {
+            return '注册成功，但登录返回数据异常';
+          }
           _userRole = determineRole(decodedJwt['roles'] ?? 'USER');
           final prefs = await SharedPreferences.getInstance();
           await _saveLoginTokens(loginResult, prefs, accessToken, username);
@@ -237,11 +218,19 @@ class _LoginScreenState extends State<LoginScreen> {
       return _formatErrorMessage(e, '注册失败');
     } catch (e) {
       AppLogger.error('注册异常: $e');
-      return '注册异常: $e';
+      return '注册失败，请稍后重试';
     }
   }
 
   Future<String?> _recoverPassword(String name) async {
+    // Password reset is an authenticated flow (it reuses the current session's
+    // JWT). Fail fast with a clear message instead of walking an unauthenticated
+    // user through captcha + a new-password dialog only to dead-end them.
+    final String? jwtToken = await AuthTokenStore.instance.getJwtToken();
+    if (jwtToken == null) {
+      return '重置密码需要先登录。如忘记密码，请联系管理员重置。';
+    }
+
     final bool? isCaptchaValid = await showDialog<bool>(
       context: context,
       barrierDismissible: false,
@@ -253,7 +242,10 @@ class _LoginScreenState extends State<LoginScreen> {
     final TextEditingController newPasswordController = TextEditingController();
     final themeData = _buildTheme();
 
+    // Capture the chosen password inside the dialog so we never read a
+    // disposed controller afterwards.
     final bool? passwordConfirmed;
+    String? chosenPassword;
     try {
       passwordConfirmed = await showDialog<bool>(
         context: context,
@@ -276,14 +268,16 @@ class _LoginScreenState extends State<LoginScreen> {
               ),
               FilledButton(
                 onPressed: () {
-                  if (newPasswordController.text.trim().length < 5) {
+                  if (newPasswordController.text.trim().length <
+                      kMinPasswordLength) {
                     Get.snackbar(
                       '错误',
-                      '密码至少 5 位',
+                      kPasswordTooShortMessage,
                       snackPosition: SnackPosition.BOTTOM,
                     );
                     return;
                   }
+                  chosenPassword = newPasswordController.text.trim();
                   Navigator.pop(context, true);
                 },
                 child: const Text('确定'),
@@ -298,10 +292,7 @@ class _LoginScreenState extends State<LoginScreen> {
 
     if (passwordConfirmed != true) return '密码重置已取消';
 
-    final String? jwtToken = await AuthTokenStore.instance.getJwtToken();
-    if (jwtToken == null) return '请先登录以重置密码';
-
-    final newPassword = newPasswordController.text.trim();
+    final newPassword = chosenPassword!;
 
     try {
       await authApi.updateCurrentPassword(
@@ -315,7 +306,7 @@ class _LoginScreenState extends State<LoginScreen> {
       return _formatErrorMessage(e, '密码重置失败');
     } catch (e) {
       AppLogger.error('重置密码异常: $e');
-      return '密码重置异常: $e';
+      return '密码重置失败，请稍后重试';
     }
   }
 
@@ -402,50 +393,53 @@ class _LoginScreenState extends State<LoginScreen> {
   }
 
   void _showMessage(String message, {bool isError = false}) {
+    final themeData = _buildTheme();
+    final scheme = themeData.colorScheme;
+    final accent = isError
+        ? scheme.error
+        : (themeData.extension<AppColors>()?.success ?? scheme.primary);
     Get.snackbar(
       isError ? '操作失败' : '操作成功',
       message,
       snackPosition: SnackPosition.BOTTOM,
-      backgroundColor: isError
-          ? Colors.red.withValues(alpha: 0.12)
-          : Colors.green.withValues(alpha: 0.12),
-      colorText: _isDarkMode ? Colors.white : const Color(0xFF162033),
+      backgroundColor: Color.lerp(scheme.surface, accent, 0.16),
+      colorText: scheme.onSurface,
       margin: const EdgeInsets.all(18),
-      borderRadius: 14,
+      borderRadius: 8,
       duration: const Duration(seconds: 3),
     );
   }
 
   ThemeData _buildTheme() {
-    final baseTheme = _isDarkMode ? AppTheme.basicDark : AppTheme.basicLight;
+    final baseTheme = _theme.isDark ? AppTheme.basicDark : AppTheme.basicLight;
     final scheme = baseTheme.colorScheme;
     final isDark = baseTheme.brightness == Brightness.dark;
     return baseTheme.copyWith(
       inputDecorationTheme: InputDecorationTheme(
         filled: true,
         fillColor: isDark
-            ? Colors.white.withValues(alpha: 0.06)
-            : Colors.white.withValues(alpha: 0.9),
+            ? scheme.surfaceContainerHighest.withValues(alpha: 0.42)
+            : scheme.surface.withValues(alpha: 0.92),
         contentPadding:
             const EdgeInsets.symmetric(horizontal: 18, vertical: 16),
         border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(16),
+          borderRadius: BorderRadius.circular(8),
           borderSide: BorderSide(
             color: scheme.outlineVariant.withValues(alpha: 0.6),
           ),
         ),
         enabledBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(16),
+          borderRadius: BorderRadius.circular(8),
           borderSide: BorderSide(
             color: scheme.outlineVariant.withValues(alpha: 0.6),
           ),
         ),
         focusedBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(16),
+          borderRadius: BorderRadius.circular(8),
           borderSide: BorderSide(color: scheme.primary, width: 1.7),
         ),
         errorBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(16),
+          borderRadius: BorderRadius.circular(8),
           borderSide: BorderSide(color: scheme.error, width: 1.7),
         ),
       ),
@@ -512,17 +506,20 @@ class _LoginScreenState extends State<LoginScreen> {
             Positioned(
               top: 22,
               right: 22,
-              child: Tooltip(
-                message: _isDarkMode ? '切换到浅色模式' : '切换到深色模式',
-                child: IconButton.filledTonal(
-                  onPressed: _toggleTheme,
-                  icon: Icon(
-                    _isDarkMode
-                        ? Icons.light_mode_rounded
-                        : Icons.dark_mode_rounded,
+              child: Obx(() {
+                final dark = _theme.isDark;
+                return Tooltip(
+                  message: dark ? '切换到浅色模式' : '切换到深色模式',
+                  child: IconButton.filledTonal(
+                    onPressed: _theme.toggle,
+                    icon: Icon(
+                      dark
+                          ? Icons.light_mode_rounded
+                          : Icons.dark_mode_rounded,
+                    ),
                   ),
-                ),
-              ),
+                );
+              }),
             ),
           ],
         ),
@@ -634,14 +631,15 @@ class _LoginScreenState extends State<LoginScreen> {
 
     return DecoratedBox(
       decoration: BoxDecoration(
-        color: colorScheme.surface.withValues(alpha: _isDarkMode ? 0.92 : 0.96),
-        borderRadius: BorderRadius.circular(16),
+        color:
+            colorScheme.surface.withValues(alpha: _theme.isDark ? 0.92 : 0.96),
+        borderRadius: BorderRadius.circular(8),
         border: Border.all(
           color: colorScheme.outlineVariant.withValues(alpha: 0.55),
         ),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withValues(alpha: _isDarkMode ? 0.28 : 0.08),
+            color: Colors.black.withValues(alpha: _theme.isDark ? 0.28 : 0.08),
             blurRadius: 34,
             offset: const Offset(0, 20),
           ),
@@ -707,9 +705,10 @@ class _LoginScreenState extends State<LoginScreen> {
                 controller: _emailController,
                 enabled: !_isSubmitting,
                 keyboardType: TextInputType.emailAddress,
+                autofillHints: const [AutofillHints.email],
                 textInputAction:
                     isRecover ? TextInputAction.done : TextInputAction.next,
-                validator: widget.validateUsername,
+                validator: validateEmail,
                 decoration: const InputDecoration(
                   labelText: '用户邮箱',
                   prefixIcon: Icon(Icons.alternate_email_rounded),
@@ -721,9 +720,12 @@ class _LoginScreenState extends State<LoginScreen> {
                   controller: _passwordController,
                   enabled: !_isSubmitting,
                   obscureText: _obscurePassword,
+                  autofillHints: isSignup
+                      ? const [AutofillHints.newPassword]
+                      : const [AutofillHints.password],
                   textInputAction:
                       isSignup ? TextInputAction.next : TextInputAction.done,
-                  validator: widget.validatePassword,
+                  validator: validatePassword,
                   onFieldSubmitted: (_) {
                     if (!isSignup) _submit();
                   },
@@ -752,6 +754,7 @@ class _LoginScreenState extends State<LoginScreen> {
                   controller: _confirmPasswordController,
                   enabled: !_isSubmitting,
                   obscureText: _obscureConfirmPassword,
+                  autofillHints: const [AutofillHints.newPassword],
                   textInputAction: TextInputAction.done,
                   validator: (value) {
                     if (value == null || value.isEmpty) return '请再次输入密码';

@@ -1,3 +1,4 @@
+import 'package:final_assignment_front/core/theme/theme_controller.dart';
 import 'package:final_assignment_front/core/utils/app_logger.dart';
 import 'package:final_assignment_front/core/auth/auth_service.dart';
 import 'package:final_assignment_front/core/auth/user_profile_service.dart';
@@ -19,9 +20,14 @@ import 'package:intl/date_symbol_data_local.dart';
 import 'config/routes/app_pages.dart';
 import 'config/themes/app_theme.dart';
 
-void main() {
+void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   _configureImageCache();
+  final themeController =
+      Get.put<ThemeController>(ThemeController(), permanent: true);
+  // Await before runApp so the app boots in the correct theme and avoids a
+  // cold-start flash from light -> dark.
+  await themeController.load();
   runApp(const MainApp());
   _warmUpIntl();
 }
@@ -45,38 +51,44 @@ class MainApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return GetMaterialApp(
-      title: '交通违法行为处理管理系统',
-      debugShowCheckedModeBanner: false,
-      initialRoute: AppPages.login,
-      getPages: AppPages.routes,
-      theme: AppTheme.basicLight,
-      routingCallback: (routing) {
-        if (Get.isRegistered<AppLifecycleObserver>()) {
-          Get.find<AppLifecycleObserver>().onRouteChanged(routing);
-        }
-      },
-      builder: (context, child) {
-        return MediaQuery(
-          data: MediaQuery.of(context).copyWith(
-            textScaler: const TextScaler.linear(1.0), // Fixed scaling
-          ),
-          child: child ?? const SizedBox.shrink(),
-        );
-      },
-      locale: const Locale('zh', 'CN'),
-      fallbackLocale: const Locale('en', 'US'),
-      localizationsDelegates: const [
-        GlobalMaterialLocalizations.delegate,
-        GlobalWidgetsLocalizations.delegate,
-        GlobalCupertinoLocalizations.delegate,
-      ],
-      supportedLocales: const [
-        Locale('en', 'US'),
-        Locale('zh', 'CN'),
-      ],
-      initialBinding: AppBindings(),
-    );
+    final themeController = Get.find<ThemeController>();
+    return Obx(() {
+      final mode = themeController.themeMode.value;
+      return GetMaterialApp(
+        title: '交通违法行为处理管理系统',
+        debugShowCheckedModeBanner: false,
+        initialRoute: AppPages.login,
+        getPages: AppPages.routes,
+        theme: AppTheme.basicLight,
+        darkTheme: AppTheme.basicDark,
+        themeMode: mode,
+        routingCallback: (routing) {
+          if (Get.isRegistered<AppLifecycleObserver>()) {
+            Get.find<AppLifecycleObserver>().onRouteChanged(routing);
+          }
+        },
+        builder: (context, child) {
+          return MediaQuery(
+            data: MediaQuery.of(context).copyWith(
+              textScaler: const TextScaler.linear(1.0), // Fixed scaling
+            ),
+            child: child ?? const SizedBox.shrink(),
+          );
+        },
+        locale: const Locale('zh', 'CN'),
+        fallbackLocale: const Locale('en', 'US'),
+        localizationsDelegates: const [
+          GlobalMaterialLocalizations.delegate,
+          GlobalWidgetsLocalizations.delegate,
+          GlobalCupertinoLocalizations.delegate,
+        ],
+        supportedLocales: const [
+          Locale('en', 'US'),
+          Locale('zh', 'CN'),
+        ],
+        initialBinding: AppBindings(),
+      );
+    });
   }
 }
 
