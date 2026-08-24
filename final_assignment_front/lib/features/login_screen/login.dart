@@ -18,7 +18,6 @@ import 'package:final_assignment_front/utils/components/local_captcha_main.dart'
 import 'package:final_assignment_front/utils/services/auth_token_store.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 import 'package:uuid/uuid.dart';
 
 String generateIdempotencyKey() => const Uuid().v4();
@@ -87,10 +86,10 @@ class _LoginScreenState extends State<LoginScreen> {
 
   Future<void> _saveLoginTokens(
     Map<String, dynamic> result,
-    SharedPreferences prefs,
     String accessToken,
-    String username,
-  ) async {
+    String username, {
+    Object? jwtRoles,
+  }) async {
     await AuthTokenStore.instance.setJwtToken(accessToken);
 
     final refreshToken = _stringValue(result['refreshToken']);
@@ -100,11 +99,6 @@ class _LoginScreenState extends State<LoginScreen> {
         ? Map<String, dynamic>.from(result['data'] as Map)
         : result;
     final userData = data['user'];
-    final authUserId = data['authUserId'] ??
-        data['userId'] ??
-        (userData is Map ? userData['authUserId'] ?? userData['userId'] : null);
-    final driverId =
-        data['driverId'] ?? (userData is Map ? userData['driverId'] : null);
     final resolvedUsername = _stringValue(data['username'] ??
             (userData is Map ? userData['username'] : null)) ??
         username;
@@ -112,26 +106,19 @@ class _LoginScreenState extends State<LoginScreen> {
             data['email'] ?? (userData is Map ? userData['email'] : null)) ??
         (resolvedUsername.contains('@') ? resolvedUsername : username);
 
-    await prefs.setString('username', resolvedUsername);
-    await prefs.setString('userName', resolvedUsername);
-    await prefs.setString('email', resolvedEmail);
-    await prefs.setString('userEmail', resolvedEmail);
-
-    if (authUserId != null) {
-      final value = authUserId.toString();
-      await prefs.setString('authUserId', value);
-      await prefs.setString('auth_user_id', value);
-      await prefs.setString('userId', value);
-    }
-    if (driverId != null) {
-      final value = driverId.toString();
-      await prefs.setString('driverId', value);
-      await prefs.setString('driver_id', value);
-    }
+    // UserProfileService.persistFromLoginResponse is the single writer of
+    // every profile preference (username/userName, email/userEmail,
+    // authUserId/auth_user_id/userId, driverId/driver_id, roles, userRole,
+    // displayName, phoneNumber, driverName). The login screen no longer
+    // hand-writes the same keys a second time. We inject the resolved
+    // username/email (so typed-in values backfill an absent response body) and
+    // the JWT roles (the authoritative role source, since the response body
+    // may omit roles) so the service persists them in one pass.
     await Get.find<UserProfileService>().persistFromLoginResponse({
       ...data,
       'username': resolvedUsername,
       'email': resolvedEmail,
+      if (jwtRoles != null) 'roleCodes': jwtRoles,
     });
   }
 
@@ -149,10 +136,12 @@ class _LoginScreenState extends State<LoginScreen> {
           return '登录返回数据异常，请重试';
         }
         _userRole = determineRole(decodedJwt['roles'] ?? 'USER');
-        final prefs = await SharedPreferences.getInstance();
-        await _saveLoginTokens(result, prefs, accessToken, username);
-        await prefs.setString('userRole', _userRole!);
-        await prefs.setString('userName', username);
+        await _saveLoginTokens(
+          result,
+          accessToken,
+          username,
+          jwtRoles: decodedJwt['roles'],
+        );
 
         final profile = await Get.find<UserProfileService>().getProfile();
         AppLogger.debug(
@@ -200,10 +189,12 @@ class _LoginScreenState extends State<LoginScreen> {
             return '注册成功，但登录返回数据异常';
           }
           _userRole = determineRole(decodedJwt['roles'] ?? 'USER');
-          final prefs = await SharedPreferences.getInstance();
-          await _saveLoginTokens(loginResult, prefs, accessToken, username);
-          await prefs.setString('userRole', _userRole!);
-          await prefs.setString('userName', username);
+          await _saveLoginTokens(
+            loginResult,
+            accessToken,
+            username,
+            jwtRoles: decodedJwt['roles'],
+          );
 
           final profile = await Get.find<UserProfileService>().getProfile();
           AppLogger.debug(
