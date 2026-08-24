@@ -2,7 +2,10 @@ package com.tutict.finalassignmentcloud.auth.controller;
 
 import com.tutict.finalassignmentcloud.auth.config.websocket.WsTicketService;
 import com.tutict.finalassignmentcloud.auth.service.AuthWsService;
+import com.tutict.finalassignmentcloud.dto.request.RefreshRequest;
 import com.tutict.finalassignmentcloud.dto.response.SysUserResponse;
+import com.tutict.finalassignmentcloud.dto.response.ApiResponse;
+import com.tutict.finalassignmentcloud.dto.response.TokenResponse;
 import com.tutict.finalassignmentcloud.dto.response.UserProfileResponse;
 import com.tutict.finalassignmentcloud.entity.SysUser;
 import io.swagger.v3.oas.annotations.Operation;
@@ -15,14 +18,17 @@ import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.annotation.security.PermitAll;
 import jakarta.annotation.security.RolesAllowed;
+import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.security.core.Authentication;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.util.StringUtils;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
@@ -152,6 +158,49 @@ public class AuthController {
                     return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
                             .body(Map.of("error", "Internal server error"));
                 });
+    }
+
+    @PostMapping("/refresh")
+    @PermitAll
+    @Operation(
+            summary = "刷新访问令牌",
+            description = "使用 refresh token 换取新的 access token，同时轮换 refresh token（旧 token 失效）"
+    )
+    @ApiResponses({
+            @ApiResponse(
+                    responseCode = "200",
+                    description = "刷新成功",
+                    content = @Content(mediaType = "application/json",
+                            schema = @Schema(implementation = TokenResponse.class)))
+            ,
+            @ApiResponse(
+                    responseCode = "401",
+                    description = "refresh token 无效、已过期或已被使用",
+                    content = @Content(mediaType = "application/json",
+                            schema = @Schema(type = "object",
+                                    example = "{\"success\":false,\"errorCode\":\"BAD_CREDENTIALS\",\"message\":\"Invalid refresh token\"}")))
+    })
+    public ResponseEntity<com.tutict.finalassignmentcloud.dto.response.ApiResponse<TokenResponse>> refresh(
+            @Valid @RequestBody RefreshRequest request) {
+        TokenResponse response = authWsService.refresh(request);
+        return ResponseEntity.ok(com.tutict.finalassignmentcloud.dto.response.ApiResponse.ok(response));
+    }
+
+    @PostMapping("/logout")
+    @SecurityRequirement(name = "bearerAuth")
+    @Operation(
+            summary = "用户登出",
+            description = "吊销该用户全部 refresh token 并将当前 access token 加入黑名单"
+    )
+    public ResponseEntity<com.tutict.finalassignmentcloud.dto.response.ApiResponse<Void>> logout(
+            @RequestHeader("Authorization") String bearerToken,
+            Authentication authentication) {
+        if (authentication == null || !StringUtils.hasText(authentication.getName())) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+                    .body(com.tutict.finalassignmentcloud.dto.response.ApiResponse.error("UNAUTHORIZED", "Unauthorized"));
+        }
+        authWsService.logout(authentication.getName(), bearerToken);
+        return ResponseEntity.ok(com.tutict.finalassignmentcloud.dto.response.ApiResponse.ok(null));
     }
 
     @GetMapping("/users")

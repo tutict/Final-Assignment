@@ -2,6 +2,8 @@ package com.tutict.finalassignmentcloud.config.security;
 
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.tutict.finalassignmentcloud.config.security.pqc.MlDsaKeyProperties;
+import com.tutict.finalassignmentcloud.config.security.pqc.MlDsaKeyRing;
 import com.tutict.finalassignmentcloud.config.security.pqc.PqcProviderInitializer;
 import com.tutict.finalassignmentcloud.enums.DataScope;
 import com.tutict.finalassignmentcloud.enums.RoleType;
@@ -55,24 +57,40 @@ public class ServiceTokenProvider {
 
     private final SecretKey secretKey;
     private final JwtAlgorithm algorithm;
-    private final PublicKey mlDsaPublicKey;
+    private final MlDsaKeyRing verificationRing;
     private final ObjectMapper objectMapper = new ObjectMapper();
 
     public ServiceTokenProvider(String base64Secret) {
-        this(base64Secret, "HS256", null);
+        this(base64Secret, "HS256", null, null);
     }
 
     public ServiceTokenProvider(String base64Secret, String algorithm, String mlDsaPublicKeyPem) {
+        this(base64Secret, algorithm, mlDsaPublicKeyPem, null);
+    }
+
+    /**
+     * 支持密钥轮换的构造：verificationKeys 为版本化公钥环（kid -> public-key PEM）。
+     * 为空时回退到单一 mlDsaPublicKeyPem。
+     */
+    public ServiceTokenProvider(String base64Secret, String algorithm, String mlDsaPublicKeyPem,
+                                List<MlDsaKeyProperties> verificationKeys) {
         PqcProviderInitializer.ensureBouncyCastle();
         this.algorithm = JwtAlgorithm.from(algorithm);
         if (this.algorithm == JwtAlgorithm.ML_DSA_65) {
             this.secretKey = null;
-            this.mlDsaPublicKey = loadMlDsaPublicKey(mlDsaPublicKeyPem);
+            this.verificationRing = MlDsaKeyRing.forVerification(verificationKeys);
+            if (this.verificationRing.size() == 0) {
+                // 无版本化密钥时回退到单一 legacy 公钥。
+                MlDsaKeyProperties single = new MlDsaKeyProperties();
+                single.setKid("current");
+                single.setPublicKey(mlDsaPublicKeyPem);
+                this.verificationRing.activate("current", null, loadMlDsaPublicKey(mlDsaPublicKeyPem));
+            }
         } else {
             validateSecret(base64Secret);
             byte[] keyBytes = Base64.getDecoder().decode(base64Secret);
             this.secretKey = Keys.hmacShaKeyFor(keyBytes);
-            this.mlDsaPublicKey = null;
+            this.verificationRing = null;
         }
     }
 
@@ -144,6 +162,7 @@ public class ServiceTokenProvider {
             throw new IllegalArgumentException("Invalid ML-DSA token structure");
         }
 
+        String kid = null;
         // Parse and verify header algorithm
         try {
             byte[] headerBytes = Base64.getUrlDecoder().decode(token.substring(0, firstDot));
@@ -151,6 +170,10 @@ public class ServiceTokenProvider {
             Object alg = header.get("alg");
             if (alg == null || !ML_DSA_JWT_ALG.equals(alg.toString())) {
                 throw new IllegalArgumentException("Invalid ML-DSA token algorithm: expected " + ML_DSA_JWT_ALG + " but got " + alg);
+            }
+            Object kidObj = header.get("kid");
+            if (kidObj != null) {
+                kid = String.valueOf(kidObj);
             }
         } catch (RuntimeException ex) {
             throw ex;
@@ -161,8 +184,12 @@ public class ServiceTokenProvider {
         String signingInput = token.substring(0, secondDot);
         byte[] signature = Base64.getUrlDecoder().decode(token.substring(secondDot + 1));
         try {
+            final String effectiveKid = kid;
+            java.security.PublicKey verifyKey = verificationRing.publicKeyFor(effectiveKid)
+                    .orElseThrow(() -> new IllegalArgumentException(
+                            "No verification key for ML-DSA kid=" + effectiveKid));
             Signature verifier = Signature.getInstance(ML_DSA_ALGORITHM, BC);
-            verifier.initVerify(mlDsaPublicKey);
+            verifier.initVerify(verifyKey);
             verifier.update(signingInput.getBytes(StandardCharsets.US_ASCII));
             if (!verifier.verify(signature)) {
                 throw new IllegalArgumentException("Invalid ML-DSA signature");

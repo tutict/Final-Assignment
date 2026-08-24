@@ -3,7 +3,9 @@ package com.tutict.finalassignmentcloud.traffic.config;
 import com.tutict.finalassignmentcloud.config.security.SecurityResponseWriter;
 import com.tutict.finalassignmentcloud.config.security.ServiceJwtAuthenticationFilter;
 import com.tutict.finalassignmentcloud.config.security.ServiceTokenProvider;
+import com.tutict.finalassignmentcloud.config.security.pqc.MlDsaKeyRingProperties;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity;
@@ -17,14 +19,17 @@ import org.springframework.security.web.authentication.UsernamePasswordAuthentic
 @Configuration
 @EnableWebSecurity
 @EnableMethodSecurity(jsr250Enabled = true, prePostEnabled = true, securedEnabled = true)
+@EnableConfigurationProperties(MlDsaKeyRingProperties.class)
 public class ServiceSecurityConfig {
 
     @Bean
     public ServiceTokenProvider serviceTokenProvider(
             @Value("${jwt.secret.key:${JWT_SECRET_KEY:}}") String base64Secret,
             @Value("${jwt.algorithm:HS256}") String algorithm,
-            @Value("${jwt.ml-dsa.public-key:}") String mlDsaPublicKeyPem) {
-        return new ServiceTokenProvider(base64Secret, algorithm, mlDsaPublicKeyPem);
+            @Value("${jwt.ml-dsa.public-key:}") String mlDsaPublicKeyPem,
+            MlDsaKeyRingProperties mlDsaKeyRingProperties) {
+        return new ServiceTokenProvider(base64Secret, algorithm, mlDsaPublicKeyPem,
+                mlDsaKeyRingProperties.getKeys());
     }
 
     @Bean

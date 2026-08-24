@@ -1,0 +1,44 @@
+spring:
+  main:
+    allow-bean-definition-overriding: true
+  datasource:
+    url: ${AUTH_TEST_DB_URL:jdbc:mysql://localhost:3306/traffic_test?createDatabaseIfNotExist=true&useUnicode=true&characterEncoding=utf8&serverTimezone=Asia/Shanghai&allowPublicKeyRetrieval=true&useSSL=false}
+    username: ${AUTH_TEST_DB_USERNAME:root}
+    password: ${AUTH_TEST_DB_PASSWORD:root}
+    driver-class-name: com.mysql.cj.jdbc.Driver
+  cloud:
+    nacos:
+      config:
+        enabled: false
+      discovery:
+        enabled: false
+  kafka:
+    listener:
+      auto-startup: false
+  data:
+    redis:
+      repositories:
+        enabled: false
+    elasticsearch:
+      repositories:
+        enabled: false
+
+management:
+  health:
+    elasticsearch:
+      enabled: false
+    redis:
+      enabled: false
+    kafka:
+      enabled: false
+
+jwt:
+  secret:
+    key: ${AUTH_TEST_JWT_SECRET:test-secret-key-for-cloud-auth-integration-tests-32chars}
+  algorithm: HS256
+  access-token-expiration: 3600
+  refresh-token-expiration: 86400
+
+logging:
+  level:
+    com.tutict.finalassignmentcloud: DEBUG

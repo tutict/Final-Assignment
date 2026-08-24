@@ -6,6 +6,8 @@ import com.tutict.finalassignmentcloud.auth.client.RoleClient;
 import com.tutict.finalassignmentcloud.auth.client.UserClient;
 import com.tutict.finalassignmentcloud.auth.config.login.jwt.TokenProvider;
 import com.tutict.finalassignmentcloud.config.websocket.WsAction;
+import com.tutict.finalassignmentcloud.dto.request.RefreshRequest;
+import com.tutict.finalassignmentcloud.dto.response.TokenResponse;
 import com.tutict.finalassignmentcloud.entity.AuditLoginLog;
 import com.tutict.finalassignmentcloud.dto.response.SysUserResponse;
 import com.tutict.finalassignmentcloud.dto.response.UserProfileResponse;
@@ -58,6 +60,8 @@ public class AuthWsService {
     private final RoleClient roleClient;
     private final DriverClient driverClient;
     private final PasswordEncoder passwordEncoder;
+    private final RefreshTokenService refreshTokenService;
+    private final TokenBlacklistService tokenBlacklistService;
 
     @Autowired
     public AuthWsService(TokenProvider tokenProvider,
@@ -65,13 +69,17 @@ public class AuthWsService {
                          UserClient userClient,
                          RoleClient roleClient,
                          DriverClient driverClient,
-                         PasswordEncoder passwordEncoder) {
+                         PasswordEncoder passwordEncoder,
+                         RefreshTokenService refreshTokenService,
+                         TokenBlacklistService tokenBlacklistService) {
         this.tokenProvider = tokenProvider;
         this.auditLogClient = auditLogClient;
         this.userClient = userClient;
         this.roleClient = roleClient;
         this.driverClient = driverClient;
         this.passwordEncoder = passwordEncoder;
+        this.refreshTokenService = refreshTokenService;
+        this.tokenBlacklistService = tokenBlacklistService;
     }
 
     @CacheEvict(cacheNames = "AuthCache", allEntries = true)
@@ -108,6 +116,7 @@ public class AuthWsService {
                         user.getUsername()));
                 jwtToken = tokenProvider.createToken(user.getUsername(), rolesString);
             }
+            String refreshToken = refreshTokenService.createRefreshToken(user.getUserId());
 
             boolean systemRole = tokenProvider.hasSystemRole(jwtToken);
             boolean businessRole = tokenProvider.hasBusinessRole(jwtToken);
@@ -119,7 +128,10 @@ public class AuthWsService {
             Map<String, Object> result = new java.util.LinkedHashMap<>();
             result.put("jwtToken", jwtToken);
             result.put("accessToken", jwtToken);
+            result.put("refreshToken", refreshToken);
             result.put("tokenType", "Bearer");
+            result.put("expiresIn", tokenProvider.getAccessTokenExpirationSeconds());
+            result.put("refreshTokenExpiresIn", refreshTokenService.getRefreshTokenExpirationSeconds());
             result.put("username", user.getUsername());
             result.put("authUserId", user.getUserId());
             result.put("displayName", resolveDisplayName(user));
@@ -233,6 +245,51 @@ public class AuthWsService {
 
         logger.info(() -> String.format("User registered successfully: %s", registerRequest.getUsername()));
         return "CREATED";
+    }
+
+    @Transactional
+    public TokenResponse refresh(RefreshRequest request) {
+        if (request == null || !StringUtils.hasText(request.getRefreshToken())) {
+            throw new BadCredentialsException("Refresh token is required");
+        }
+        Long userId = refreshTokenService.validateRefreshToken(request.getRefreshToken());
+        SysUser user = safeGetById(userId);
+        if (user == null) {
+            throw new BadCredentialsException("Refresh token user no longer exists");
+        }
+
+        RoleAggregation aggregation = aggregateRoles(user.getUserId());
+        if (aggregation.getRoleNames().isEmpty()) {
+            logger.severe(() -> String.format("No roles found for user: %s", user.getUsername()));
+            throw new BadCredentialsException("Refresh token user has no roles assigned");
+        }
+
+        String accessToken = issueAccessToken(user, aggregation);
+        String newRefreshToken = refreshTokenService.rotateRefreshToken(userId, request.getRefreshToken());
+
+        return TokenResponse.builder()
+                .accessToken(accessToken)
+                .refreshToken(newRefreshToken)
+                .expiresIn(tokenProvider.getAccessTokenExpirationSeconds())
+                .tokenType("Bearer")
+                .build();
+    }
+
+    @Transactional
+    public void logout(String username, String bearerToken) {
+        if (!StringUtils.hasText(username)) {
+            throw new BadCredentialsException("Authenticated user is required");
+        }
+        SysUser user = safeGetByUsername(username);
+        if (user == null) {
+            throw new BadCredentialsException("Authenticated user no longer exists");
+        }
+
+        refreshTokenService.revokeUserTokens(user.getUserId());
+
+        String token = extractBearerToken(bearerToken);
+        long remaining = tokenProvider.getExpirationMs(token);
+        tokenBlacklistService.blacklist(token, remaining);
     }
 
     @CacheEvict(cacheNames = "AuthCache", allEntries = true)
@@ -493,6 +550,44 @@ public class AuthWsService {
             logger.log(Level.WARNING, "Failed to fetch user by username=" + username, ex);
             return null;
         }
+    }
+
+    private SysUser safeGetById(Long userId) {
+        if (userId == null) {
+            return null;
+        }
+        try {
+            return userClient.getById(userId);
+        } catch (FeignException.NotFound ex) {
+            return null;
+        } catch (FeignException ex) {
+            logger.log(Level.WARNING, "Failed to fetch user by id=" + userId, ex);
+            return null;
+        }
+    }
+
+    private String issueAccessToken(SysUser user, RoleAggregation aggregation) {
+        String rolesString = String.join(",", aggregation.getRoleCodes());
+        String roleCodesCsv = String.join(",", aggregation.getRoleCodes());
+        String roleTypesCsv = String.join(",", aggregation.getRoleTypes());
+        String dataScopeCode = aggregation.getDataScope().getCode();
+
+        boolean claimsSupported = StringUtils.hasText(roleCodesCsv)
+                && StringUtils.hasText(roleTypesCsv)
+                && tokenProvider.validateRoleClaims(roleCodesCsv, roleTypesCsv, dataScopeCode);
+        if (claimsSupported) {
+            return tokenProvider.createEnhancedToken(user.getUsername(), roleCodesCsv, roleTypesCsv, dataScopeCode);
+        }
+        logger.warning(() -> String.format("Role claims are incomplete; falling back to base token for user=%s",
+                user.getUsername()));
+        return tokenProvider.createToken(user.getUsername(), rolesString);
+    }
+
+    private String extractBearerToken(String bearerToken) {
+        if (!StringUtils.hasText(bearerToken) || !bearerToken.startsWith("Bearer ")) {
+            throw new BadCredentialsException("Bearer access token is required");
+        }
+        return bearerToken.substring(7);
     }
 
     private SysRole safeGetRoleById(Long roleId) {

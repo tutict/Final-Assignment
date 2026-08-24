@@ -23,6 +23,13 @@ spring:
         file-extension: yaml
         username: ${NACOS_USERNAME:}
         password: ${NACOS_PASSWORD:}
+  # Local datasource fallback (used when Nacos config is absent, e.g. local dev).
+  # refresh_tokens 表在 traffic_management 库中，由 database/traffic.sql + lookup_digest 迁移创建。
+  datasource:
+    url: ${AUTH_DB_URL:jdbc:mysql://localhost:3306/traffic_management?useSSL=false&serverTimezone=Asia/Shanghai&allowPublicKeyRetrieval=true}
+    username: ${AUTH_DB_USERNAME:root}
+    password: ${AUTH_DB_PASSWORD:root}
+    driver-class-name: com.mysql.cj.jdbc.Driver
 server:
   port: 8081
 management:
@@ -30,3 +37,22 @@ management:
     web:
       exposure:
         include: health,info
+
+jwt:
+  access-token-expiration: ${JWT_ACCESS_TOKEN_EXPIRATION:3600}
+  refresh-token-expiration: ${JWT_REFRESH_TOKEN_EXPIRATION:604800}
+  # ML-DSA 密钥轮换配置（可选）。keys 为版本化密钥环，见 MlDsaKeyRingProperties。
+  ml-dsa:
+    rotation:
+      enabled: ${ML_DSA_ROTATION_ENABLED:false}
+      interval-minutes: ${ML_DSA_ROTATION_INTERVAL_MINUTES:10080}
+      retention-minutes: ${ML_DSA_ROTATION_RETENTION_MINUTES:1440}
+      # keys 形如：
+      # keys:
+      #   - kid: ml-dsa-2026-01
+      #     private-key: |
+      #       -----BEGIN PRIVATE KEY-----
+      #       ...
+      #     public-key: |
+      #       -----BEGIN PUBLIC KEY-----
+      #       ...

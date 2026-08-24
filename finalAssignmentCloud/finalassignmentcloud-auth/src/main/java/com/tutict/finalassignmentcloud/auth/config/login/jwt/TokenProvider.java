@@ -2,6 +2,7 @@ package com.tutict.finalassignmentcloud.auth.config.login.jwt;
 
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.tutict.finalassignmentcloud.config.security.pqc.MlDsaKeyRing;
 import com.tutict.finalassignmentcloud.config.security.pqc.PqcProviderInitializer;
 import com.tutict.finalassignmentcloud.enums.DataScope;
 import com.tutict.finalassignmentcloud.enums.RoleType;
@@ -17,11 +18,7 @@ import org.springframework.stereotype.Service;
 import jakarta.annotation.PostConstruct;
 
 import javax.crypto.SecretKey;
-import java.io.StringReader;
 import java.nio.charset.StandardCharsets;
-import java.security.KeyPair;
-import java.security.KeyPairGenerator;
-import java.security.PrivateKey;
 import java.security.PublicKey;
 import java.security.Signature;
 import java.util.*;
@@ -29,12 +26,7 @@ import java.util.logging.Level;
 import java.util.logging.Logger;
 import java.util.stream.Collectors;
 
-import org.bouncycastle.asn1.pkcs.PrivateKeyInfo;
-import org.bouncycastle.asn1.x509.SubjectPublicKeyInfo;
-import org.bouncycastle.cert.X509CertificateHolder;
 import org.bouncycastle.jce.provider.BouncyCastleProvider;
-import org.bouncycastle.openssl.PEMParser;
-import org.bouncycastle.openssl.jcajce.JcaPEMKeyConverter;
 
 @Service
 public class TokenProvider {
@@ -53,17 +45,14 @@ public class TokenProvider {
     @Value("${jwt.access-token-expiration:3600}")
     private long accessTokenExpirationSeconds;
 
-    @Value("${jwt.ml-dsa.private-key:}")
-    private String mlDsaPrivateKeyPem;
-
-    @Value("${jwt.ml-dsa.public-key:}")
-    private String mlDsaPublicKeyPem;
-
+    private final MlDsaKeyRing mlDsaKeyRing;
     private SecretKey secretKey;
     private JwtAlgorithm algorithm;
-    private PrivateKey mlDsaPrivateKey;
-    private PublicKey mlDsaPublicKey;
     private final ObjectMapper objectMapper = new ObjectMapper();
+
+    public TokenProvider(MlDsaKeyRing mlDsaKeyRing) {
+        this.mlDsaKeyRing = mlDsaKeyRing;
+    }
 
     private static final Map<String, RoleMetadata> ROLE_SCHEMA;
 
@@ -86,11 +75,15 @@ public class TokenProvider {
         }
         this.algorithm = JwtAlgorithm.from(configuredAlgorithm);
         if (algorithm == JwtAlgorithm.ML_DSA_65) {
-            initMlDsaKeys();
+            if (mlDsaKeyRing.activePrivateKey() == null) {
+                throw new IllegalStateException("ML-DSA key ring has no active signing key; "
+                        + "configure jwt.ml-dsa.keys or jwt.ml-dsa.private-key/public-key");
+            }
         } else {
             initHmacSecret();
         }
-        LOG.info("TokenProvider initialized with " + algorithm + " and access token ttl=" + accessTokenExpirationSeconds + "s");
+        LOG.info("TokenProvider initialized with " + algorithm + " and access token ttl="
+                + accessTokenExpirationSeconds + "s");
     }
 
     public String createToken(String username, String roles) {
@@ -199,6 +192,19 @@ public class TokenProvider {
         return valid;
     }
 
+    public long getAccessTokenExpirationSeconds() {
+        return accessTokenExpirationSeconds;
+    }
+
+    public long getExpirationMs(String token) {
+        Map<String, Object> claims = claims(token);
+        Object expObj = claims.get("exp");
+        if (expObj instanceof Number n) {
+            return Math.max(n.longValue() * 1000L - System.currentTimeMillis(), 0L);
+        }
+        return 0L;
+    }
+
     public boolean validateRoleClaims(String roleCodes, String roleTypes, String dataScope) {
         if (!validateRoleCodes(roleCodes)) {
             return false;
@@ -281,6 +287,7 @@ public class TokenProvider {
         Map<String, Object> header = new LinkedHashMap<>();
         header.put("alg", ML_DSA_JWT_ALG);
         header.put("typ", "JWT");
+        header.put("kid", mlDsaKeyRing.activeKid());
 
         long iat = nowMs / 1000L;
         Map<String, Object> payload = new LinkedHashMap<>();
@@ -309,7 +316,7 @@ public class TokenProvider {
 
     private byte[] mlDsaSign(byte[] signingInput) throws Exception {
         Signature signer = Signature.getInstance(ML_DSA_ALGORITHM, BC);
-        signer.initSign(mlDsaPrivateKey);
+        signer.initSign(mlDsaKeyRing.activePrivateKey());
         signer.update(signingInput);
         return signer.sign();
     }
@@ -328,6 +335,7 @@ public class TokenProvider {
             throw new IllegalArgumentException("Invalid ML-DSA token structure");
         }
 
+        String kid = null;
         // Parse and verify header algorithm
         try {
             byte[] headerBytes = base64UrlDecode(token.substring(0, firstDot));
@@ -335,6 +343,10 @@ public class TokenProvider {
             Object alg = header.get("alg");
             if (alg == null || !ML_DSA_JWT_ALG.equals(alg.toString())) {
                 throw new IllegalArgumentException("Invalid ML-DSA token algorithm: expected " + ML_DSA_JWT_ALG + " but got " + alg);
+            }
+            Object kidObj = header.get("kid");
+            if (kidObj != null) {
+                kid = String.valueOf(kidObj);
             }
         } catch (RuntimeException ex) {
             throw ex;
@@ -345,8 +357,12 @@ public class TokenProvider {
         String signingInput = token.substring(0, secondDot);
         byte[] signature = base64UrlDecode(token.substring(secondDot + 1));
         try {
+            final String effectiveKid = kid;
+            PublicKey verifyKey = mlDsaKeyRing.publicKeyFor(effectiveKid)
+                    .orElseThrow(() -> new IllegalArgumentException(
+                            "No verification key for ML-DSA kid=" + effectiveKid));
             Signature verifier = Signature.getInstance(ML_DSA_ALGORITHM, BC);
-            verifier.initVerify(mlDsaPublicKey);
+            verifier.initVerify(verifyKey);
             verifier.update(signingInput.getBytes(StandardCharsets.US_ASCII));
             if (!verifier.verify(signature)) {
                 throw new IllegalArgumentException("Invalid ML-DSA signature");
@@ -410,48 +426,6 @@ public class TokenProvider {
         this.secretKey = Keys.hmacShaKeyFor(keyBytes);
     }
 
-    private void initMlDsaKeys() {
-        try {
-            if (isPresent(mlDsaPrivateKeyPem) && isPresent(mlDsaPublicKeyPem)) {
-                this.mlDsaPrivateKey = loadPemPrivateKey(mlDsaPrivateKeyPem);
-                this.mlDsaPublicKey = loadPemPublicKey(mlDsaPublicKeyPem);
-            } else {
-                KeyPairGenerator kpg = KeyPairGenerator.getInstance(ML_DSA_ALGORITHM, BC);
-                KeyPair kp = kpg.generateKeyPair();
-                this.mlDsaPrivateKey = kp.getPrivate();
-                this.mlDsaPublicKey = kp.getPublic();
-                LOG.warning("No ML-DSA keys configured (jwt.ml-dsa.private-key/public-key); "
-                        + "generated ephemeral keypair. Tokens will NOT survive a restart.");
-            }
-        } catch (Exception ex) {
-            throw new IllegalStateException("Failed to initialize ML-DSA keys", ex);
-        }
-    }
-
-    private PrivateKey loadPemPrivateKey(String pem) throws Exception {
-        try (PEMParser parser = new PEMParser(new StringReader(pem))) {
-            Object obj = parser.readObject();
-            if (obj instanceof PrivateKeyInfo pki) {
-                return new JcaPEMKeyConverter().setProvider(BC).getPrivateKey(pki);
-            }
-            throw new IllegalArgumentException("PEM is not a PKCS#8 private key: " + obj);
-        }
-    }
-
-    private PublicKey loadPemPublicKey(String pem) throws Exception {
-        try (PEMParser parser = new PEMParser(new StringReader(pem))) {
-            Object obj = parser.readObject();
-            JcaPEMKeyConverter conv = new JcaPEMKeyConverter().setProvider(BC);
-            if (obj instanceof SubjectPublicKeyInfo spki) {
-                return conv.getPublicKey(spki);
-            }
-            if (obj instanceof X509CertificateHolder cert) {
-                return conv.getPublicKey(cert.getSubjectPublicKeyInfo());
-            }
-            throw new IllegalArgumentException("PEM is not a public key: " + obj);
-        }
-    }
-
     // ---- helpers ----
 
     private static String base64UrlEncode(byte[] bytes) {
@@ -465,10 +439,6 @@ public class TokenProvider {
     private static String claimStr(Map<String, Object> claims, String key) {
         Object value = claims.get(key);
         return value == null ? null : String.valueOf(value);
-    }
-
-    private static boolean isPresent(String s) {
-        return s != null && !s.isBlank();
     }
 
     private List<String> normalizeRoleCodes(String roleCodes) {
