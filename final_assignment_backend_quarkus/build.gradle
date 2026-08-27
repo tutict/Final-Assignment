@@ -18,8 +18,10 @@ repositories {
 }
 
 dependencies {
-    implementation enforcedPlatform('io.quarkus.platform:quarkus-bom:3.30.5')
+    implementation enforcedPlatform('io.quarkus.platform:quarkus-bom:3.38.2')
     implementation 'io.quarkus:quarkus-arc'
+    implementation 'io.quarkus:quarkus-scheduler'
+    implementation 'io.quarkus:quarkus-config-yaml'
     implementation 'io.vertx:vertx-kafka-client'
     implementation 'io.vertx:vertx-web'
     implementation 'io.vertx:vertx-web-client'

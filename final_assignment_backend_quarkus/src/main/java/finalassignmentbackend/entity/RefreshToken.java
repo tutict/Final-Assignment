@@ -18,6 +18,9 @@ public class RefreshToken {
     @TableField("token")
     private String token;
 
+    @TableField("lookup_digest")
+    private String lookupDigest;
+
     @TableField("user_id")
     private Long userId;
 

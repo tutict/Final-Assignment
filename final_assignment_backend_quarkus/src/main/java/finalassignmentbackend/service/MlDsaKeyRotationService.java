@@ -1,0 +1,105 @@
+package finalassignmentbackend.service;
+
+import finalassignmentbackend.config.security.pqc.MlDsaKeyRing;
+import io.quarkus.scheduler.Scheduled;
+import jakarta.enterprise.context.ApplicationScoped;
+import jakarta.inject.Inject;
+import org.bouncycastle.jce.provider.BouncyCastleProvider;
+import org.bouncycastle.openssl.jcajce.JcaPEMWriter;
+import org.bouncycastle.util.io.pem.PemObject;
+import org.eclipse.microprofile.config.inject.ConfigProperty;
+
+import java.io.StringWriter;
+import java.security.KeyPair;
+import java.security.KeyPairGenerator;
+import java.security.PublicKey;
+import java.time.Duration;
+import java.time.Instant;
+import java.time.ZoneId;
+import java.time.format.DateTimeFormatter;
+import java.util.logging.Level;
+import java.util.logging.Logger;
+
+/**
+ * ML-DSA 在线密钥轮换（与 cloud / Spring 端语义一致）。
+ *
+ * <p>{@link #rotate()} 生成新 ML-DSA-65 密钥对，以时间戳 kid 注入 {@link MlDsaKeyRing} 并切换为活跃签名密钥；
+ * 旧密钥保留在环中继续参与校验（"新旧密钥双验"），超过 retention 窗口后清理。
+ * 新公钥通过 {@link MlDsaKeyRotationResult#publicKeyPem()} 返回，供运维同步到各校验方配置。
+ *
+ * <p>对齐 Spring service/auth/MlDsaKeyRotationService（Spring 用 @Scheduled + @Value）。
+ * 这里用 Quarkus @Scheduled + @ConfigProperty；cron 表达式由配置提供，禁用时直接返回。
+ */
+@ApplicationScoped
+public class MlDsaKeyRotationService {
+
+    private static final Logger LOG = Logger.getLogger(MlDsaKeyRotationService.class.getName());
+    private static final String BC = BouncyCastleProvider.PROVIDER_NAME;
+    private static final DateTimeFormatter KID_TIMESTAMP =
+            DateTimeFormatter.ofPattern("yyyyMMdd-HHmmss").withZone(ZoneId.systemDefault());
+
+    @Inject
+    MlDsaKeyRing keyRing;
+
+    @ConfigProperty(name = "jwt.ml-dsa.rotation.enabled", defaultValue = "false")
+    boolean rotationEnabled;
+
+    @ConfigProperty(name = "jwt.ml-dsa.rotation.retention-minutes", defaultValue = "1440")
+    long retentionMinutes;
+
+    /**
+     * 定时轮换。轮换间隔由 {@code jwt.ml-dsa.rotation.interval}（默认 PT168H=7天）控制；
+     * {@code jwt.ml-dsa.rotation.enabled=false} 时方法体内直接返回（与 Spring 语义一致）。
+     */
+    @Scheduled(every = "${jwt.ml-dsa.rotation.interval:PT168H}", concurrentExecution = Scheduled.ConcurrentExecution.SKIP)
+    void scheduledRotate() {
+        if (!rotationEnabled) {
+            return;
+        }
+        try {
+            MlDsaKeyRotationResult result = rotate();
+            LOG.info(() -> "Scheduled ML-DSA key rotation completed: kid=" + result.kid());
+        } catch (Exception ex) {
+            LOG.log(Level.SEVERE, "Scheduled ML-DSA key rotation failed", ex);
+        }
+    }
+
+    /**
+     * 立即执行一次轮换：生成新密钥对、切换活跃签名密钥、清理超期旧密钥。
+     */
+    public synchronized MlDsaKeyRotationResult rotate() {
+        try {
+            KeyPairGenerator kpg = KeyPairGenerator.getInstance(MlDsaKeyRing.ML_DSA_ALGORITHM, BC);
+            KeyPair kp = kpg.generateKeyPair();
+            String kid = "ml-dsa-" + KID_TIMESTAMP.format(Instant.now());
+
+            keyRing.activate(kid, kp.getPrivate(), kp.getPublic());
+            keyRing.retireOlderThan(Duration.ofMinutes(Math.max(retentionMinutes, 1)));
+
+            String publicKeyPem = toPem(kp.getPublic());
+            LOG.info(() -> "ML-DSA key rotated to kid=" + kid
+                    + " (ring size=" + keyRing.size() + "). Distribute the new public key to verifiers.");
+            return new MlDsaKeyRotationResult(kid, publicKeyPem);
+        } catch (Exception ex) {
+            throw new IllegalStateException("Failed to rotate ML-DSA key", ex);
+        }
+    }
+
+    public boolean isRotationEnabled() {
+        return rotationEnabled;
+    }
+
+    private static String toPem(PublicKey publicKey) throws Exception {
+        StringWriter sw = new StringWriter();
+        try (JcaPEMWriter writer = new JcaPEMWriter(sw)) {
+            writer.writeObject(new PemObject("PUBLIC KEY", publicKey.getEncoded()));
+        }
+        return sw.toString();
+    }
+
+    /**
+     * 一次轮换的结果：新 kid 与需要分发给校验方的新公钥 PEM。
+     */
+    public record MlDsaKeyRotationResult(String kid, String publicKeyPem) {
+    }
+}

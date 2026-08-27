@@ -1,0 +1,57 @@
+# ────────────────────────────────────────────────────────────────────────────
+# Quarkus 配置（纳入版本控制部分）。
+# 本仓库的 *.properties 被 .gitignore 忽略（运行期主配置 datasource / jwt.secret.key /
+# mp.messaging / quarkus.redis.hosts 等由外部环境变量或部署挂载提供，不纳入版本控制）。
+# 这里用 YAML 文件（不被 .gitignore 忽略）承载那些"构建期就必需、且无默认值"的配置项——
+# 主要是 Redis 缓存的 value-type：quarkus-redis-cache 的 RedisCacheProcessor 在构建期
+# 需要为每个 @CacheResult 使用的缓存名确定 value-type，否则 quarkusAppPartsBuild 会失败。
+# 各 value-type 取自对应 Service 中 @CacheResult 方法的返回类型。
+# ────────────────────────────────────────────────────────────────────────────
+
+quarkus:
+  cache:
+    redis:
+      appealCache:
+        value-type: finalassignmentbackend.entity.AppealRecord
+      appealReviewCache:
+        value-type: finalassignmentbackend.entity.AppealReview
+      auditLoginLogCache:
+        value-type: finalassignmentbackend.entity.AuditLoginLog
+      auditOperationLogCache:
+        value-type: finalassignmentbackend.entity.AuditOperationLog
+      deductionRecordCache:
+        value-type: finalassignmentbackend.entity.DeductionRecord
+      driverCache:
+        value-type: finalassignmentbackend.entity.DriverInformation
+      driverVehicleCache:
+        value-type: finalassignmentbackend.entity.DriverVehicle
+      fineRecordCache:
+        value-type: finalassignmentbackend.entity.FineRecord
+      offenseRecordCache:
+        value-type: finalassignmentbackend.entity.OffenseRecord
+      offenseTypeDictCache:
+        value-type: finalassignmentbackend.entity.OffenseTypeDict
+      paymentRecordCache:
+        value-type: finalassignmentbackend.entity.PaymentRecord
+      sysBackupRestoreCache:
+        value-type: finalassignmentbackend.entity.SysBackupRestore
+      sysDictCache:
+        value-type: finalassignmentbackend.entity.SysDict
+      sysPermissionCache:
+        value-type: finalassignmentbackend.entity.SysPermission
+      sysRequestHistoryCache:
+        value-type: finalassignmentbackend.entity.SysRequestHistory
+      sysRoleCache:
+        value-type: finalassignmentbackend.entity.SysRole
+      sysRolePermissionCache:
+        value-type: finalassignmentbackend.entity.SysRolePermission
+      sysSettingsCache:
+        value-type: finalassignmentbackend.entity.SysSettings
+      sysUserCache:
+        value-type: finalassignmentbackend.entity.SysUser
+      sysUserRoleCache:
+        value-type: finalassignmentbackend.entity.SysUserRole
+      userCache:
+        value-type: finalassignmentbackend.dto.UserResponse
+      vehicleCache:
+        value-type: finalassignmentbackend.entity.VehicleInformation
