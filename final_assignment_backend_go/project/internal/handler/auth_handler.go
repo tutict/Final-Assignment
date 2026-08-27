@@ -117,7 +117,35 @@ func (h *AuthHandler) Refresh(c *gin.Context) {
 }
 
 func (h *AuthHandler) Logout(c *gin.Context) {
-	c.JSON(http.StatusOK, gin.H{"status": "logged out"})
+	username, _ := c.Get("username")
+	usernameStr, _ := username.(string)
+	if usernameStr == "" {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "authenticated user is required"})
+		return
+	}
+	bearer := c.GetHeader("Authorization")
+	if err := h.service.Logout(usernameStr, bearer); err != nil {
+		h.logger.Error("Logout failed for %s: %v", usernameStr, err)
+		c.JSON(http.StatusUnauthorized, gin.H{"error": err.Error()})
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"status": "LOGGED_OUT"})
+}
+
+// GetCurrentUser GET /api/auth/me
+func (h *AuthHandler) GetCurrentUser(c *gin.Context) {
+	username, _ := c.Get("username")
+	usernameStr, _ := username.(string)
+	if usernameStr == "" {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "authenticated user is required"})
+		return
+	}
+	profile, err := h.service.GetCurrentUserProfile(usernameStr)
+	if err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": err.Error()})
+		return
+	}
+	c.JSON(http.StatusOK, profile)
 }
 
 // GetAllUsers GET /api/auth/users

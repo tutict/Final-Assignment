@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
+	"strconv"
 	"strings"
 	"syscall"
 	"time"
@@ -20,6 +21,7 @@ import (
 	"final_assignment_backend_go/project/internal/ai"
 	"final_assignment_backend_go/project/internal/auth"
 	aiconfig "final_assignment_backend_go/project/internal/config"
+	"final_assignment_backend_go/project/internal/domain"
 	"final_assignment_backend_go/project/internal/handler"
 	"final_assignment_backend_go/project/internal/provider"
 	"final_assignment_backend_go/project/internal/repo"
@@ -106,9 +108,25 @@ func main() {
 	// 初始化 WebSocket Ticket Service (30秒过期时间)
 	wsTicketService := auth.NewWsTicketService(30 * time.Second)
 
+	// 初始化 PQC 组件：ML-KEM 信封加密（refresh token 静态加密）+ access token 黑名单
+	pqcCrypto, err := auth.NewPqcTokenCrypto(envOrDefault("ML_KEM_PUBLIC_KEY", ""), envOrDefault("ML_KEM_PRIVATE_KEY", ""))
+	if err != nil {
+		log.Fatalf("Failed to initialize ML-KEM crypto: %v", err)
+	}
+	// AutoMigrate 复用 Spring/Quarkus 共享的 refresh_tokens 表（schema 已存在则仅校验）
+	if err := db.AutoMigrate(&domain.RefreshToken{}); err != nil {
+		log.Printf("[WARNING] AutoMigrate refresh_tokens failed: %v", err)
+	}
+	refreshTokenRepo := repo.NewRefreshTokenRepo(db)
+	refreshTokenService := service.NewRefreshTokenService(refreshTokenRepo, pqcCrypto, envInt64OrDefault("JWT_REFRESH_EXPIRATION", 604800))
+	blacklistService := service.NewTokenBlacklistService(redisCfg.Client, envOrDefault("TOKEN_BLACKLIST_FAIL_OPEN", "false") == "true")
+
 	// 初始化用户和认证服务
 	userService := service.NewUserManagementService(repo.NewUserManagementRepo(db))
 	authService := service.NewAuthWsService(userService, tokenProvider)
+	authService.SetRefreshTokenService(refreshTokenService)
+	authService.SetTokenBlacklistService(blacklistService)
+	defer tokenProvider.StopRotation()
 	authHandler := handler.NewAuthHandler(authService)
 
 	// 创建路由
@@ -142,6 +160,7 @@ func main() {
 	router.Use(requiredPrincipal(tokenProvider), accessPolicy())
 	router.POST("/api/auth/logout", authHandler.Logout)
 	router.GET("/api/auth/users", authHandler.GetAllUsers)
+	router.GET("/api/auth/me", authHandler.GetCurrentUser)
 	registerRoutes(router, db, userService)
 
 	// 创建 HTTP 服务器
@@ -265,16 +284,97 @@ func registerTrafficRoutes(router *gin.Engine, controller *handler.TrafficViolat
 }
 
 func initTokenProvider() *authcfg.TokenProvider {
-	secret := envOrDefault("JWT_SECRET", "final-assignment-dev-secret")
-	encoded := secret
-	if _, err := base64.StdEncoding.DecodeString(secret); err != nil {
-		encoded = base64.StdEncoding.EncodeToString([]byte(secret))
+	algorithm := authcfg.Algorithm(envOrDefault("JWT_ALGORITHM", string(authcfg.AlgorithmHS256)))
+	expirationSeconds := envIntOrDefault("JWT_ACCESS_EXPIRATION", 86400)
+
+	var mlDsaRing *authcfg.MlDsaKeyRing
+	if algorithm == authcfg.AlgorithmMLDSA65 {
+		ring, err := authcfg.NewMlDsaKeyRing(
+			envOrDefault("ML_DSA_ACTIVE_KID", ""),
+			loadMlDsaKeysFromEnv(),
+			envOrDefault("ML_DSA_PUBLIC_KEY", ""),
+			envOrDefault("ML_DSA_PRIVATE_KEY", ""),
+		)
+		if err != nil {
+			log.Fatalf("failed to initialize ML-DSA key ring: %v", err)
+		}
+		mlDsaRing = ring
 	}
-	provider := &authcfg.TokenProvider{}
-	if err := provider.Init(encoded); err != nil {
+
+	provider, err := authcfg.NewTokenProvider(authcfg.TokenProviderConfig{
+		Base64Secret:           base64JwtSecret(),
+		Algorithm:              algorithm,
+		AccessTokenExpiration:  time.Duration(expirationSeconds) * time.Second,
+		MlDsaKeyRing:           mlDsaRing,
+		MlDsaRotationEnabled:   envOrDefault("ML_DSA_ROTATION_ENABLED", "false") == "true",
+		MlDsaRotationInterval:  envDurationOrDefault("ML_DSA_ROTATION_INTERVAL", 168*time.Hour),
+		MlDsaRetention:         envDurationOrDefault("ML_DSA_ROTATION_RETENTION", 24*time.Hour),
+	})
+	if err != nil {
 		log.Fatalf("failed to initialize token provider: %v", err)
 	}
 	return provider
+}
+
+// base64JwtSecret 读取 JWT_SECRET 并保证返回 base64（历史行为：非 base64 则编码）。
+func base64JwtSecret() string {
+	secret := envOrDefault("JWT_SECRET", "final-assignment-dev-secret")
+	if _, err := base64.StdEncoding.DecodeString(secret); err != nil {
+		return base64.StdEncoding.EncodeToString([]byte(secret))
+	}
+	return secret
+}
+
+// loadMlDsaKeysFromEnv 从 ML_DSA_KEYS 环境变量解析版本化密钥环。
+// 格式：kid1:pubB64:privB64,kid2:pubB64:privB64,...（privB64 可空）。
+func loadMlDsaKeysFromEnv() []authcfg.KeyConfig {
+	raw := envOrDefault("ML_DSA_KEYS", "")
+	if raw == "" {
+		return nil
+	}
+	var keys []authcfg.KeyConfig
+	for _, item := range splitComma(raw) {
+		parts := splitColon(item)
+		if len(parts) < 2 {
+			continue
+		}
+		kc := authcfg.KeyConfig{Kid: parts[0], PublicKey: parts[1]}
+		if len(parts) >= 3 {
+			kc.PrivateKey = parts[2]
+		}
+		keys = append(keys, kc)
+	}
+	return keys
+}
+
+func splitComma(s string) []string {
+	var out []string
+	start := 0
+	for i := 0; i < len(s); i++ {
+		if s[i] == ',' {
+			if seg := strings.TrimSpace(s[start:i]); seg != "" {
+				out = append(out, seg)
+			}
+			start = i + 1
+		}
+	}
+	if seg := strings.TrimSpace(s[start:]); seg != "" {
+		out = append(out, seg)
+	}
+	return out
+}
+
+func splitColon(s string) []string {
+	var out []string
+	start := 0
+	for i := 0; i < len(s); i++ {
+		if s[i] == ':' {
+			out = append(out, s[start:i])
+			start = i + 1
+		}
+	}
+	out = append(out, s[start:])
+	return out
 }
 
 func optionalPrincipal(provider *authcfg.TokenProvider) gin.HandlerFunc {
@@ -408,6 +508,36 @@ func requiresAdmin(path string) bool {
 func envOrDefault(name string, fallback string) string {
 	if value := strings.TrimSpace(os.Getenv(name)); value != "" {
 		return value
+	}
+	return fallback
+}
+
+// envIntOrDefault 读取环境变量为整数，缺省返回 fallback。
+func envIntOrDefault(name string, fallback int) int {
+	if value := strings.TrimSpace(os.Getenv(name)); value != "" {
+		if n, err := strconv.Atoi(value); err == nil {
+			return n
+		}
+	}
+	return fallback
+}
+
+// envInt64OrDefault 读取环境变量为 int64，缺省返回 fallback。
+func envInt64OrDefault(name string, fallback int64) int64 {
+	if value := strings.TrimSpace(os.Getenv(name)); value != "" {
+		if n, err := strconv.ParseInt(value, 10, 64); err == nil {
+			return n
+		}
+	}
+	return fallback
+}
+
+// envDurationOrDefault 读取环境变量为时长（支持 "168h"、"30m"、"60s" 等），缺省返回 fallback。
+func envDurationOrDefault(name string, fallback time.Duration) time.Duration {
+	if value := strings.TrimSpace(os.Getenv(name)); value != "" {
+		if d, err := time.ParseDuration(value); err == nil {
+			return d
+		}
 	}
 	return fallback
 }

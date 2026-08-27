@@ -27,6 +27,8 @@ type AuthService interface {
 	Login(service.LoginRequest) (map[string]any, error)
 	Refresh(string) (map[string]any, error)
 	RegisterUser(service.RegisterRequest) (string, error)
+	Logout(username, bearerToken string) error
+	GetCurrentUserProfile(username string) (map[string]any, error)
 }
 
 type BackupRestoreService interface {

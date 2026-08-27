@@ -20,6 +20,7 @@ require (
 )
 
 require (
+	github.com/cloudflare/circl v1.6.5
 	github.com/elastic/go-elasticsearch/v8 v8.19.7
 	github.com/gocolly/colly/v2 v2.3.0
 	github.com/golang-jwt/jwt/v5 v5.3.1

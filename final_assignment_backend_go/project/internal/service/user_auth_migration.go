@@ -29,6 +29,8 @@ type RegisterRequest struct {
 type AuthWsService struct {
 	users             *UserManagementService
 	tokenProvider     *authcfg.TokenProvider
+	refreshTokens     *RefreshTokenService
+	blacklist         *TokenBlacklistService
 	loginGuard        sync.Mutex
 	failedAttempts    map[string]int
 	lockedUntilByUser map[string]time.Time
@@ -42,6 +44,13 @@ func NewAuthWsService(users *UserManagementService, tokenProvider *authcfg.Token
 		lockedUntilByUser: map[string]time.Time{},
 	}
 }
+
+// SetRefreshTokenService 注入刷新令牌服务（可选；未注入时 Refresh 走旧的"重签 JWT"退化路径）。
+func (s *AuthWsService) SetRefreshTokenService(r *RefreshTokenService) { s.refreshTokens = r }
+
+// SetTokenBlacklistService 注入 access token 黑名单服务（可选；未注入时 Logout 不撤销）。
+func (s *AuthWsService) SetTokenBlacklistService(b *TokenBlacklistService) { s.blacklist = b }
+
 
 func (s *AuthWsService) Login(req LoginRequest) (map[string]interface{}, error) {
 	username := strings.TrimSpace(req.Username)
@@ -69,15 +78,63 @@ func (s *AuthWsService) Login(req LoginRequest) (map[string]interface{}, error) 
 	if err != nil {
 		return nil, err
 	}
-	s.clearFailedLogin(username)
-	return map[string]interface{}{
-		"jwtToken": token,
+	result := map[string]interface{}{
+		"jwtToken":  token,
+		"accessToken": token,
+		"tokenType": "Bearer",
+		"expiresIn": s.tokenProvider.GetAccessTokenExpirationSeconds(),
 		"username": user.Username,
 		"roles":    roles,
-	}, nil
+	}
+	// 若注入了刷新令牌服务，则签发独立的 refresh token（与 Spring/Quarkus 对齐）。
+	if s.refreshTokens != nil {
+		refresh, rerr := s.refreshTokens.CreateRefreshToken(uint64(user.UserID))
+		if rerr == nil {
+			result["refreshToken"] = refresh
+			result["refreshTokenExpiresIn"] = s.refreshTokens.GetRefreshTokenExpirationSeconds()
+		}
+	}
+	s.clearFailedLogin(username)
+	return result, nil
 }
 
 func (s *AuthWsService) Refresh(token string) (map[string]interface{}, error) {
+	// 优先走持久化 refresh token 流程（与 Spring/Quarkus 对齐）：
+	// 用原始 refresh token 换取新的 access token，并轮换 refresh token（旧的即刻失效）。
+	if s.refreshTokens != nil {
+		userID, err := s.refreshTokens.ValidateRefreshToken(token)
+		if err != nil {
+			return nil, err
+		}
+		user, uerr := s.users.GetUserById(int(userID))
+		if uerr != nil {
+			return nil, errors.New("refresh token user no longer exists")
+		}
+		roles, rerr := s.users.GetRoleNamesForUser(user.UserID)
+		if rerr != nil || len(roles) == 0 {
+			roles = []string{"USER"}
+		}
+		newAccess, err := s.tokenProvider.CreateToken(user.Username, strings.Join(roles, ","))
+		if err != nil {
+			return nil, err
+		}
+		newRefresh, err := s.refreshTokens.RotateRefreshToken(userID, token)
+		if err != nil {
+			return nil, err
+		}
+		return map[string]interface{}{
+			"jwtToken":      newAccess,
+			"accessToken":   newAccess,
+			"refreshToken":  newRefresh,
+			"tokenType":     "Bearer",
+			"expiresIn":      s.tokenProvider.GetAccessTokenExpirationSeconds(),
+			"refreshTokenExpiresIn": s.refreshTokens.GetRefreshTokenExpirationSeconds(),
+			"username":      user.Username,
+			"roles":         roles,
+		}, nil
+	}
+
+	// 退化路径：未注入刷新令牌服务时，把传入的 access token 当 refresh token 重签（历史行为）。
 	username, err := s.tokenProvider.GetUsernameFromToken(token)
 	if err != nil {
 		return nil, err
@@ -95,6 +152,78 @@ func (s *AuthWsService) Refresh(token string) (map[string]interface{}, error) {
 	}
 	return map[string]interface{}{"jwtToken": newToken, "username": username, "roles": roles}, nil
 }
+
+// Logout 登出：撤销该用户所有 refresh token，并把当前 access token 加入黑名单直至其自然过期。
+// 未注入对应服务时静默降级（与历史行为一致）。
+func (s *AuthWsService) Logout(username, bearerToken string) error {
+	if username == "" {
+		return errors.New("authenticated user is required")
+	}
+	user, err := s.users.GetUserByUsername(username)
+	if err != nil {
+		return errors.New("authenticated user no longer exists")
+	}
+	if s.refreshTokens != nil {
+		_ = s.refreshTokens.RevokeUserTokens(uint64(user.UserID))
+	}
+	if s.blacklist != nil {
+		raw := extractBearer(bearerToken)
+		if raw != "" {
+			s.blacklist.Blacklist(raw, s.tokenProvider.GetExpirationMs(raw))
+		}
+	}
+	return nil
+}
+
+// GetCurrentUserProfile 返回当前登录用户的档案（身份 + 角色）。
+// driver 关联尚未移植，暂返回空值（与历史行为一致）。
+func (s *AuthWsService) GetCurrentUserProfile(username string) (map[string]interface{}, error) {
+	if strings.TrimSpace(username) == "" {
+		return nil, errors.New("user not found")
+	}
+	user, err := s.users.GetUserByUsername(username)
+	if err != nil {
+		return nil, errors.New("user not found: " + username)
+	}
+	roles, _ := s.users.GetRoleNamesForUser(user.UserID)
+	if len(roles) == 0 {
+		roles = []string{}
+	}
+	displayName := user.Username
+	if strings.TrimSpace(user.Username) == "" {
+		displayName = user.Username
+	}
+	return map[string]interface{}{
+		"authUserId":   user.UserID,
+		"username":     user.Username,
+		"displayName":  displayName,
+		"email":        user.Email,
+		"phoneNumber":  maskPhone(user.ContactNumber),
+		"roles":        roles,
+		"driverId":     nil,
+		"driverName":   nil,
+	}, nil
+}
+
+func extractBearer(header string) string {
+	header = strings.TrimSpace(header)
+	if !strings.HasPrefix(header, "Bearer ") {
+		return ""
+	}
+	return strings.TrimSpace(strings.TrimPrefix(header, "Bearer "))
+}
+
+func maskPhone(phone string) string {
+	phone = strings.TrimSpace(phone)
+	if phone == "" {
+		return phone
+	}
+	if len(phone) < 7 {
+		return string(phone[0]) + "****"
+	}
+	return phone[:3] + "****" + phone[len(phone)-4:]
+}
+
 
 func (s *AuthWsService) RegisterUser(req RegisterRequest) (string, error) {
 	if strings.TrimSpace(req.Username) == "" || strings.TrimSpace(req.Password) == "" {
