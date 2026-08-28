@@ -27,6 +27,13 @@ export const API_PATHS = {
   SYSTEM_BACKUP: '/api/system/backup',
   LOGIN_LOGS: '/api/logs/login',
   OPERATION_LOGS: '/api/logs/operation',
+  LOGIN_LOGS_SEARCH_USERNAME: '/api/logs/login/search/username',
+  LOGIN_LOGS_SEARCH_RESULT: '/api/logs/login/search/result',
+  LOGIN_LOGS_SEARCH_TIME_RANGE: '/api/logs/login/search/time-range',
+  OPERATION_LOGS_SEARCH_USER: (userId: string | number) =>
+    `/api/logs/operation/search/user/${userId}`,
+  OPERATION_LOGS_SEARCH_RESULT: '/api/logs/operation/search/result',
+  OPERATION_LOGS_SEARCH_TIME_RANGE: '/api/logs/operation/search/time-range',
   SYSTEM_LOGS_OVERVIEW: '/api/system/logs/overview',
   LOGIN_LOGS_RECENT: '/api/system/logs/login/recent',
   OPERATION_LOGS_RECENT: '/api/system/logs/operation/recent',

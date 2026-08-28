@@ -1271,6 +1271,44 @@ a {
   overflow-y: auto;
 }
 
+.search-filter-bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+}
+
+.search-filter-bar select,
+.search-filter-bar input {
+  border-radius: 10px;
+  border: 1px solid var(--border);
+  padding: 8px 10px;
+  background: var(--panel);
+  color: var(--text);
+}
+
+.search-filter-bar input {
+  flex: 1;
+  min-width: 200px;
+}
+
+.search-date-range {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex: 1;
+  min-width: 260px;
+}
+
+.search-date-range input {
+  flex: 1;
+}
+
+.search-filter-actions {
+  display: flex;
+  gap: 8px;
+}
+
 @media (max-width: 1024px) {
   .app-shell {
     flex-direction: column;

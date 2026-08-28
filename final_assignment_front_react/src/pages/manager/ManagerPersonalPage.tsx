@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import PageLayout from '../../components/PageLayout';
 import Modal from '../../components/Modal';
 import ErrorStateView from '../../components/ErrorStateView';
@@ -8,6 +8,7 @@ import { ROLES } from '../../constants/roles';
 import {
   getCurrentProfile,
   getDriver,
+  createDriver,
   updateCurrentUser,
   updateCurrentPassword,
   updateUser,
@@ -21,22 +22,27 @@ import { getErrorMessage } from '../../utils/errorMessages';
  * 管理员信息页，对齐 Flutter ManagerPersonalPage。
  * 展示当前管理员档案 + 驾驶员档案（若有），支持编辑基本信息与修改密码。
  * 超级管理员可编辑其他用户（通过 userId）——此处仅提供当前账号编辑入口。
+ * 若管理员无驾驶员档案，自动建档一份占位档案（对齐 Flutter auto-provision）。
  */
 export default function ManagerPersonalPage() {
   const { auth } = useAuth();
   const isSuperAdmin = auth?.userRole === ROLES.SUPER_ADMIN;
+  const queryClient = useQueryClient();
 
   const profileQuery = useQuery({
     queryKey: ['profile', 'me'],
     queryFn: getCurrentProfile,
   });
 
-  const driverId = profileQuery.data?.driverId;
+  const driverId = profileQuery.data?.driverId ?? auth?.userId;
   const driverQuery = useQuery({
     queryKey: ['driver', driverId],
     queryFn: () => getDriver(driverId as number),
     enabled: driverId !== undefined,
   });
+
+  // 自动建档：管理员无驾驶员档案时创建占位档案（对齐 Flutter _loadCurrentManager）
+  const autoProvisioning = driverId !== undefined && !driverQuery.isLoading && driverQuery.data === null;
 
   const [editing, setEditing] = useState(false);
   const [editForm, setEditForm] = useState<Partial<SysUser>>({});
@@ -45,6 +51,8 @@ export default function ManagerPersonalPage() {
   const [confirmPassword, setConfirmPassword] = useState('');
   const [saving, setSaving] = useState(false);
   const [toast, setToast] = useState<{ message: string; isError?: boolean } | null>(null);
+  // 仅在确认 null 后触发一次建档
+  const [provisionTried, setProvisionTried] = useState(false);
 
   const profile: UserProfile | undefined = profileQuery.data;
   const driver: DriverInformation | null | undefined = driverQuery.data;
@@ -53,6 +61,26 @@ export default function ManagerPersonalPage() {
     setToast({ message, isError });
     window.setTimeout(() => setToast(null), 3000);
   };
+
+  const handleAutoProvision = async () => {
+    if (!driverId) return;
+    const stub: DriverInformation = {
+      driverId: Number(driverId),
+      name: profileQuery.data?.username || auth?.userName || '未知用户',
+      contactNumber: '',
+      idCardNumber: '',
+    };
+    try {
+      await createDriver(stub);
+      await queryClient.invalidateQueries({ queryKey: ['driver', driverId] });
+    } catch (error) {
+      flashToast(`自动建档失败：${getErrorMessage(error)}`, true);
+    }
+  };
+  if (autoProvisioning && !provisionTried) {
+    setProvisionTried(true);
+    void handleAutoProvision();
+  }
 
   const openEdit = () => {
     setEditForm({
@@ -186,6 +214,13 @@ export default function ManagerPersonalPage() {
             <ProfileTile label="邮箱" value={driver.email} />
             <ProfileTile label="状态" value={driver.status} />
           </div>
+        </div>
+      ) : null}
+
+      {autoProvisioning ? (
+        <div className="panel">
+          <h3>驾驶员档案</h3>
+          <div className="placeholder">尚未关联驾驶员档案，正在自动建档...</div>
         </div>
       ) : null}
 

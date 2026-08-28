@@ -95,6 +95,18 @@ export async function updateDriver(
   return response.data || {};
 }
 
+/** POST /api/drivers —— 新建驾驶员档案（对齐 Flutter createDriver，管理员自动建档用）。 */
+export async function createDriver(
+  payload: DriverInformation
+): Promise<DriverInformation> {
+  const response = await api.post<DriverInformation>(
+    API_PATHS.DRIVERS,
+    payload,
+    { headers: { "Idempotency-Key": generateIdempotencyKey() } }
+  );
+  return response.data || {};
+}
+
 /** PUT /api/users/{userId} —— 更新用户（密码/邮箱/备注等，对齐 Flutter updateUser）。 */
 export async function updateUser(
   userId: string | number,
