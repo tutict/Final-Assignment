@@ -87,12 +87,15 @@ func (s *AuthWsService) Login(req LoginRequest) (map[string]interface{}, error) 
 		"roles":    roles,
 	}
 	// 若注入了刷新令牌服务，则签发独立的 refresh token（与 Spring/Quarkus 对齐）。
+	// 签发失败不应静默吞掉：否则客户端拿到无 refreshToken 的 200，无法区分"未启用 refresh"与
+	// "签发失败"，access token 过期后只能被迫重登。Spring/Quarkus 的 Login 不 try/catch，失败即 500。
 	if s.refreshTokens != nil {
 		refresh, rerr := s.refreshTokens.CreateRefreshToken(uint64(user.UserID))
-		if rerr == nil {
-			result["refreshToken"] = refresh
-			result["refreshTokenExpiresIn"] = s.refreshTokens.GetRefreshTokenExpirationSeconds()
+		if rerr != nil {
+			return nil, fmt.Errorf("issue refresh token: %w", rerr)
 		}
+		result["refreshToken"] = refresh
+		result["refreshTokenExpiresIn"] = s.refreshTokens.GetRefreshTokenExpirationSeconds()
 	}
 	s.clearFailedLogin(username)
 	return result, nil
@@ -169,7 +172,11 @@ func (s *AuthWsService) Logout(username, bearerToken string) error {
 	if s.blacklist != nil {
 		raw := extractBearer(bearerToken)
 		if raw != "" {
-			s.blacklist.Blacklist(raw, s.tokenProvider.GetExpirationMs(raw))
+			if err := s.blacklist.Blacklist(raw, s.tokenProvider.GetExpirationMs(raw)); err != nil {
+				// fail-closed：Redis 不可用且 fail-open 关闭时，登出应失败而非假装成功，
+				// 否则用户以为 token 已撤销实则未撤销。对齐 Cloud Java 端抛异常的语义。
+				return err
+			}
 		}
 	}
 	return nil

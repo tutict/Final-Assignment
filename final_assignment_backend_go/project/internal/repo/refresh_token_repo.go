@@ -20,6 +20,11 @@ func (r *RefreshTokenRepo) Insert(t *domain.RefreshToken) error {
 	return r.db.Create(t).Error
 }
 
+// InsertTx 在指定事务内插入一条新的 refresh token 记录。
+func (r *RefreshTokenRepo) InsertTx(tx *gorm.DB, t *domain.RefreshToken) error {
+	return tx.Create(t).Error
+}
+
 // FindByDigest 按 lookup_digest 查找一条未撤销且未过期的记录（O(1) 查找）。
 func (r *RefreshTokenRepo) FindByDigest(digest string) (*domain.RefreshToken, error) {
 	var t domain.RefreshToken
@@ -49,9 +54,22 @@ func (r *RefreshTokenRepo) RevokeByID(id int64) (int64, error) {
 	return result.RowsAffected, result.Error
 }
 
+// RevokeByIDTx 在指定事务内用乐观锁撤销指定记录，返回受影响行数。
+func (r *RefreshTokenRepo) RevokeByIDTx(tx *gorm.DB, id int64) (int64, error) {
+	result := tx.Model(&domain.RefreshToken{}).
+		Where("id = ? AND revoked = ?", id, false).
+		Update("revoked", true)
+	return result.RowsAffected, result.Error
+}
+
 // RevokeByUser 撤销某用户全部未撤销的 refresh token。
 func (r *RefreshTokenRepo) RevokeByUser(userID uint64) error {
 	return r.db.Model(&domain.RefreshToken{}).
 		Where("user_id = ? AND revoked = ?", userID, false).
 		Update("revoked", true).Error
+}
+
+// DB 暴露底层 *gorm.DB，供 service 层在单个事务内组合多步操作（如轮换的撤销+签发）。
+func (r *RefreshTokenRepo) DB() *gorm.DB {
+	return r.db
 }

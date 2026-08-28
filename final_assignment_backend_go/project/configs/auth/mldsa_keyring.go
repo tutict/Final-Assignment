@@ -207,7 +207,9 @@ func (r *MlDsaKeyRing) Rotate(retention time.Duration) (kid string, publicKeyB64
 	if err != nil {
 		return "", "", fmt.Errorf("failed to generate ML-DSA keypair: %w", err)
 	}
-	kid = "ml-dsa-" + time.Now().UTC().Format("20060102-150405")
+	// 毫秒精度，避免同秒内多次轮换（定时 + 手动触发，或多副本同窗口）生成相同 kid
+	// 并互相覆盖，导致前一次窗口内签发的 token 解析到错误公钥而验签失败。
+	kid = "ml-dsa-" + time.Now().UTC().Format("20060102-150405.000")
 	r.Activate(kid, sk, pk)
 	r.RetireOlderThan(retention)
 	publicKeyB64 = base64.StdEncoding.EncodeToString(pk.Bytes())

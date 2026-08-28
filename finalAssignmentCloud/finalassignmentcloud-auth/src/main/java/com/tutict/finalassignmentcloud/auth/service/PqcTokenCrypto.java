@@ -111,6 +111,12 @@ public class PqcTokenCrypto {
             byte[] data = Base64.getDecoder().decode(blob);
             ByteBuffer buf = ByteBuffer.wrap(data);
             int kemCtLen = buf.getInt();
+            // 防御恶意/损坏 blob：kemCtLen 来自不可信前缀，必须做上界校验，否则 new byte[kemCtLen]
+            // 在 kemCtLen=0x7FFFFFFF 时触发 ~2GB 分配（OOM 是 Error，会逃出 catch(Exception)）。
+            // 对齐 Go 端 pqc_token_crypto.go 的 int(ctLen) > len(data)-4-12 校验。
+            if (kemCtLen < 0 || kemCtLen > data.length - 4 - NONCE_BYTES) {
+                throw new IllegalStateException("ML-KEM blob truncated or corrupt (kemCtLen=" + kemCtLen + ")");
+            }
             byte[] kemCt = new byte[kemCtLen];
             buf.get(kemCt);
             byte[] nonce = new byte[NONCE_BYTES];

@@ -12,6 +12,8 @@ import (
 	"final_assignment_backend_go/project/internal/auth"
 	"final_assignment_backend_go/project/internal/domain"
 	"final_assignment_backend_go/project/internal/repo"
+
+	"gorm.io/gorm"
 )
 
 // refresh-token-lookup-v1 与 Spring/Quarkus 的 HMAC_KEY 一致，以便跨后端共用 digest 语义。
@@ -47,6 +49,11 @@ func (s *RefreshTokenService) CreateRefreshToken(userID uint64) (string, error) 
 	if userID == 0 {
 		return "", errors.New("userId must not be zero")
 	}
+	return s.createRefreshTokenFor(userID)
+}
+
+// createRefreshTokenFor 实际签发逻辑：生成明文、ML-KEM 加密、构造实体并落库。
+func (s *RefreshTokenService) createRefreshTokenFor(userID uint64) (string, error) {
 	raw := generateRawToken()
 	now := time.Now()
 	enc, err := s.crypto.Encrypt(raw)
@@ -77,6 +84,9 @@ func (s *RefreshTokenService) ValidateRefreshToken(raw string) (uint64, error) {
 }
 
 // RotateRefreshToken 用一次即换：撤销旧令牌并签发新令牌。并发场景靠乐观锁保证单次消费。
+// 撤销与签发在同一事务内完成：若签发失败（DB 抖动 / ML-KEM 加密失败 / 唯一索引冲突），
+// 撤销随之回滚，避免旧令牌已作废但新令牌未签发导致用户被静默强制登出。对齐 Spring/Quarkus
+// 的 @Transactional rotateRefreshToken 语义。
 func (s *RefreshTokenService) RotateRefreshToken(userID uint64, raw string) (string, error) {
 	existing, err := s.requireActiveToken(raw)
 	if err != nil {
@@ -85,14 +95,28 @@ func (s *RefreshTokenService) RotateRefreshToken(userID uint64, raw string) (str
 	if existing.UserID != userID {
 		return "", errInvalidRefreshToken
 	}
-	rows, err := s.repo.RevokeByID(existing.ID)
-	if err != nil {
-		return "", err
+
+	var newRaw string
+	txErr := s.repo.DB().Transaction(func(tx *gorm.DB) error {
+		rows, rerr := s.repo.RevokeByIDTx(tx, existing.ID)
+		if rerr != nil {
+			return rerr
+		}
+		if rows == 0 {
+			return errRefreshAlreadyUsed
+		}
+		// 在事务内签发新令牌（加密在事务外亦可，但放事务内便于整体回滚）。
+		raw, cerr := s.createRefreshTokenFor(userID)
+		if cerr != nil {
+			return cerr
+		}
+		newRaw = raw
+		return nil
+	})
+	if txErr != nil {
+		return "", txErr
 	}
-	if rows == 0 {
-		return "", errRefreshAlreadyUsed
-	}
-	return s.CreateRefreshToken(userID)
+	return newRaw, nil
 }
 
 // RevokeUserTokens 撤销某用户全部未撤销的刷新令牌（登出时调用）。

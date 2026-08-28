@@ -1,6 +1,7 @@
 package com.tutict.finalassignmentcloud.auth.service;
 
 import com.tutict.finalassignmentcloud.config.security.pqc.MlDsaKeyRing;
+import com.tutict.finalassignmentcloud.config.security.pqc.MlDsaKeyRingProperties;
 import org.bouncycastle.jce.provider.BouncyCastleProvider;
 import org.bouncycastle.openssl.jcajce.JcaPEMWriter;
 import org.bouncycastle.util.io.pem.PemObject;
@@ -43,6 +44,7 @@ public class MlDsaKeyRotationService {
             DateTimeFormatter.ofPattern("yyyyMMdd-HHmmss").withZone(ZoneId.systemDefault());
 
     private final MlDsaKeyRing keyRing;
+    private final MlDsaKeyRingProperties properties;
 
     @Value("${jwt.ml-dsa.rotation.enabled:false}")
     private boolean rotationEnabled;
@@ -50,11 +52,15 @@ public class MlDsaKeyRotationService {
     @Value("${jwt.ml-dsa.rotation.retention-minutes:1440}")
     private long retentionMinutes;
 
-    public MlDsaKeyRotationService(MlDsaKeyRing keyRing) {
+    public MlDsaKeyRotationService(MlDsaKeyRing keyRing, MlDsaKeyRingProperties properties) {
         this.keyRing = keyRing;
+        this.properties = properties;
     }
 
-    @Scheduled(fixedDelayString = "${jwt.ml-dsa.rotation.interval-ms:604800000}")
+    // 读取 jwt.ml-dsa.rotation.interval-minutes（默认 10080 分钟 = 7 天）。历史上这里读的是
+    // interval-ms，但 application.yml 只定义 interval-minutes、properties 也无对应字段，
+    // 导致 ML_DSA_ROTATION_INTERVAL_MINUTES 被静默忽略。改为读 minutes 换算为毫秒。
+    @Scheduled(fixedDelayString = "#{T(java.lang.Math).max(${jwt.ml-dsa.rotation.interval-minutes:10080}, 1) * 60 * 1000}")
     public void scheduledRotate() {
         if (!rotationEnabled) {
             return;

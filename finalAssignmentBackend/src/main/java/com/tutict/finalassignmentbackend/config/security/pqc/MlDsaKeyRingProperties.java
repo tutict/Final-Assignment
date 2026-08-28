@@ -17,6 +17,7 @@ public class MlDsaKeyRingProperties {
     private List<MlDsaKeyProperties> keys = new ArrayList<>();
     private String activeKid;
     private boolean rotationEnabled = false;
+    private long intervalMinutes = 10080;
     private long retentionMinutes = 1440;
 
     public List<MlDsaKeyProperties> getKeys() {
@@ -49,5 +50,13 @@ public class MlDsaKeyRingProperties {
 
     public void setRetentionMinutes(long retentionMinutes) {
         this.retentionMinutes = retentionMinutes;
+    }
+
+    public long getIntervalMinutes() {
+        return intervalMinutes;
+    }
+
+    public void setIntervalMinutes(long intervalMinutes) {
+        this.intervalMinutes = intervalMinutes;
     }
 }
