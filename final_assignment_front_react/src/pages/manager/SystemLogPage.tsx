@@ -1,3 +1,4 @@
+import { useNavigate } from 'react-router-dom';
 import { useMemo } from 'react';
 import PageLayout from '../../components/PageLayout';
 import DataTable from '../../components/DataTable';
@@ -12,16 +13,24 @@ const loginLogFields: Array<EntityField & { key?: string }> = [
   { name: 'loginTime', key: 'loginTime', label: '登录时间', type: 'DateTime' },
   { name: 'loginResult', key: 'loginResult', label: '结果' },
   { name: 'loginIp', key: 'loginIp', label: 'IP' },
+  { name: 'loginLocation', key: 'loginLocation', label: '位置' },
+  { name: 'browserType', key: 'browserType', label: '浏览器' },
+  { name: 'osType', key: 'osType', label: '系统' },
+  { name: 'remarks', key: 'remarks', label: '备注' },
 ];
 
 const operationLogFields: Array<EntityField & { key?: string }> = [
   { name: 'operationType', key: 'operationType', label: '操作类型' },
   { name: 'operationModule', key: 'operationModule', label: '模块' },
   { name: 'username', key: 'username', label: '用户' },
+  { name: 'operationResult', key: 'operationResult', label: '结果' },
+  { name: 'operationContent', key: 'operationContent', label: '内容' },
+  { name: 'requestIp', key: 'requestIp', label: 'IP' },
   { name: 'operationTime', key: 'operationTime', label: '时间', type: 'DateTime' },
 ];
 
 export default function SystemLogPage() {
+  const navigate = useNavigate();
   const { overview, loginLogs, operationLogs } = useSystemLogs();
   const loginColumns = useMemo(() => buildColumns(loginLogFields), []);
   const operationColumns = useMemo(() => buildColumns(operationLogFields), []);
@@ -70,6 +79,9 @@ export default function SystemLogPage() {
           <div className="stat-card">
             <div className="stat-header">请求历史</div>
             <div className="stat-value">{overviewData?.requestHistoryCount ?? '-'}</div>
+            <button type="button" className="link-button" onClick={() => navigate('/admin/requestHistory')}>
+              前往检索
+            </button>
           </div>
         </div>
       ) : null}

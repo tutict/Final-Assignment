@@ -22,16 +22,16 @@ async function fetchOverview(): Promise<SystemLogsOverview> {
 
 async function fetchRecentLogin(): Promise<unknown[]> {
   const response = await api.get<unknown[]>(API_PATHS.LOGIN_LOGS_RECENT, {
-    // @hardcoded 每次拉取日志条数，待确认是否需要分页
-    params: { limit: 10 },
+    // 对齐 Flutter SystemLogPage：每次拉取 20 条
+    params: { limit: 20 },
   });
   return response.data;
 }
 
 async function fetchRecentOperation(): Promise<unknown[]> {
   const response = await api.get<unknown[]>(API_PATHS.OPERATION_LOGS_RECENT, {
-    // @hardcoded 每次拉取日志条数，待确认是否需要分页
-    params: { limit: 10 },
+    // 对齐 Flutter SystemLogPage：每次拉取 20 条
+    params: { limit: 20 },
   });
   return response.data;
 }

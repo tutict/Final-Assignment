@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { Navigate, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../auth/AuthContext';
 import { ROLES } from '../../constants/roles';
+import LocalCaptcha from '../../components/LocalCaptcha';
 
 type LoginMode = 'login' | 'register';
 
@@ -20,6 +21,9 @@ export default function LoginPage() {
     confirmPassword: '',
   });
   const [error, setError] = useState('');
+  // 本地验证码弹窗（对齐 Flutter LocalCaptchaMain，仅注册/重置时弹出）
+  const [captchaOpen, setCaptchaOpen] = useState(false);
+  const [captchaVerified, setCaptchaVerified] = useState(false);
   const location = useLocation();
   const navigate = useNavigate();
 
@@ -49,14 +53,22 @@ export default function LoginPage() {
         setError('两次密码输入不一致');
         return;
       }
+      // 对齐 Flutter：注册前先校验本地验证码
+      if (!captchaVerified) {
+        setCaptchaOpen(true);
+        return;
+      }
       const result = await register({
         username: form.username,
         password: form.password,
       });
       if (!result.ok) {
         setError(result.message || '注册失败');
+        setCaptchaVerified(false);
         return;
       }
+      // 注册成功后重置验证码状态，避免下次注册跳过
+      setCaptchaVerified(false);
     }
 
     const result = await login(form.username, form.password);
@@ -69,6 +81,14 @@ export default function LoginPage() {
     const from = (location.state as { from?: { pathname?: string } } | null)?.from?.pathname;
     const redirectTo = from || (storedRole === ROLES.ADMIN ? '/dashboard' : '/userDashboard');
     navigate(redirectTo, { replace: true });
+  };
+
+  const handleCaptchaClose = (success: boolean) => {
+    setCaptchaOpen(false);
+    if (success) {
+      setCaptchaVerified(true);
+      setError('');
+    }
   };
 
   return (
@@ -85,14 +105,22 @@ export default function LoginPage() {
           <button
             type="button"
             className={mode === 'login' ? 'active' : ''}
-            onClick={() => setMode('login')}
+            onClick={() => {
+              setMode('login');
+              setCaptchaVerified(false);
+              setError('');
+            }}
           >
             登录
           </button>
           <button
             type="button"
             className={mode === 'register' ? 'active' : ''}
-            onClick={() => setMode('register')}
+            onClick={() => {
+              setMode('register');
+              setCaptchaVerified(false);
+              setError('');
+            }}
           >
             注册
           </button>
@@ -133,6 +161,7 @@ export default function LoginPage() {
           </button>
         </form>
       </div>
+      <LocalCaptcha isOpen={captchaOpen} onClose={handleCaptchaClose} />
     </div>
   );
 }

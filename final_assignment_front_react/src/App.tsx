@@ -13,6 +13,8 @@ const UserLayout = lazy(() => import('./layouts/UserLayout'));
 const RoleAwareLayout = lazy(() => import('./layouts/RoleAwareLayout'));
 
 const AiChatPage = lazy(() => import('./pages/shared/AiChatPage'));
+const RagManagementPage = lazy(() => import('./pages/admin/RagManagementPage'));
+const RequestHistoryPage = lazy(() => import('./pages/manager/RequestHistoryPage'));
 const MapPage = lazy(() => import('./pages/shared/MapPage'));
 const NewsPage = lazy(() => import('./pages/shared/NewsPage'));
 const MainScanPage = lazy(() => import('./pages/shared/MainScanPage'));
@@ -159,11 +161,20 @@ export default function App() {
         <Route path="loginLogPage" element={renderLazyPage(LoginLogPage)} />
         <Route path="operationLogPage" element={renderLazyPage(OperationLogPage)} />
         <Route path="systemLogPage" element={renderBoundedPage(SystemLogPage, '系统日志')} />
+        <Route path="requestHistory" element={renderBoundedPage(RequestHistoryPage, '请求历史检索')} />
         <Route path="roleManagement" element={renderLazyPage(RoleManagementPage)} />
         <Route path="permissionManagement" element={renderLazyPage(PermissionManagementPage)} />
         <Route path="systemSettings" element={renderLazyPage(SystemSettingsPage)} />
         <Route path="aiChat" element={renderLazyPage(AiChatPage)} />
         <Route path="map" element={renderLazyPage(MapPage)} />
+        <Route
+          path="ragManagement"
+          element={
+            <ProtectedRoute allowRoles={[ROLES.SUPER_ADMIN]}>
+              {renderBoundedPage(RagManagementPage, 'RAG 资料管理')}
+            </ProtectedRoute>
+          }
+        />
       </Route>
 
       <Route
