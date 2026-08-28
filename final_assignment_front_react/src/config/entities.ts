@@ -462,9 +462,10 @@ export const entityConfigs: EntityConfigs = {
     label: '缴费记录',
     basePath: API_PATHS.PAYMENTS,
     idField: 'paymentId',
-    useCustomPage: true,
+    // 缴费记录由罚款办理流程产生，前端仅作只读流水查询（对齐 Flutter：无独立缴费 CRUD 页，
+    // PaymentRecordControllerApi 仅在违法/罚款工作流中调用）。清空 editableFields 以进入只读表格视图。
+    editableFields: [],
     displayFields: ['paymentId', 'fineId', 'paymentNumber', 'paymentAmount', 'paymentMethod', 'paymentTime', 'payerName', 'paymentStatus', 'receiptNumber'],
-    editableFields: ['fineId', 'paymentAmount', 'paymentMethod', 'paymentChannel', 'payerName', 'payerContact', 'remarks'],
     fields: [
       { name: 'paymentId', type: 'int', readOnly: true },
       // 后端字段：paymentId | 来源：PaymentRecord.paymentId

@@ -19,6 +19,7 @@ export const adminNav: NavItem[] = [
   { label: '角色管理', path: '/admin/roleManagement', icon: FiShield },
   { label: '日志管理', path: '/admin/logManagement', icon: FiClipboard },
   { label: '请求历史检索', path: '/admin/requestHistory', icon: FiSearch },
+  { label: '系统治理', path: '/admin/systemGovernance', icon: FiShield },
   { label: '系统设置', path: '/admin/systemSettings', icon: FiSettings },
   { label: '备份与恢复', path: '/admin/backupAndRestore', icon: FiTool },
   { label: 'RAG 资料管理', path: '/admin/ragManagement', icon: FiDatabase },

@@ -230,6 +230,7 @@ export default function CrudPage({ config }: CrudPageProps) {
         rows={filteredRows}
         onEdit={canMutate ? handleEdit : undefined}
         onDelete={canMutate ? handleConfirmDelete : undefined}
+        onView={config.onView}
         getRowErrorMessage={config.errorRowMessage}
       />
       <Modal

@@ -39,6 +39,8 @@ export interface EntityConfig {
   queryResult?: unknown;
   preparePayload?: (payload: Record<string, unknown>) => Record<string, unknown>;
   errorRowMessage?: (row: Record<string, unknown>) => string | null | undefined;
+  /** 行级「详情」回调；CrudPage 若提供则向 DataTable 透传 onView（对齐 Flutter OffenseDetailPage）。 */
+  onView?: (row: Record<string, unknown>) => void;
 }
 
 export type EntityKey =

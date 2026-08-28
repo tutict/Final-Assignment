@@ -139,7 +139,7 @@ const SUPER_ADMIN_EXTRA: ActionSpec[] = [
   },
   {
     label: "打开系统治理",
-    target: "/dashboard",
+    target: "/admin/systemGovernance",
     keywords: ["系统治理", "治理", "异常链路", "运维"],
   },
 ];

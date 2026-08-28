@@ -14,6 +14,7 @@ const RoleAwareLayout = lazy(() => import('./layouts/RoleAwareLayout'));
 
 const AiChatPage = lazy(() => import('./pages/shared/AiChatPage'));
 const RagManagementPage = lazy(() => import('./pages/admin/RagManagementPage'));
+const SystemGovernancePage = lazy(() => import('./pages/admin/SystemGovernancePage'));
 const RequestHistoryPage = lazy(() => import('./pages/manager/RequestHistoryPage'));
 const MapPage = lazy(() => import('./pages/shared/MapPage'));
 const NewsPage = lazy(() => import('./pages/shared/NewsPage'));
@@ -172,6 +173,14 @@ export default function App() {
           element={
             <ProtectedRoute allowRoles={[ROLES.SUPER_ADMIN]}>
               {renderBoundedPage(RagManagementPage, 'RAG 资料管理')}
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="systemGovernance"
+          element={
+            <ProtectedRoute allowRoles={[ROLES.SUPER_ADMIN]}>
+              {renderBoundedPage(SystemGovernancePage, '系统治理')}
             </ProtectedRoute>
           }
         />

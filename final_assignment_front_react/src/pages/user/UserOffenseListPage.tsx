@@ -1,19 +1,21 @@
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
 import CrudPage from '../shared/CrudPage';
 import { entityConfigs } from '../../config/entities';
 import { listEntities } from '../../api/entities';
 import { useAuth } from '../../auth/AuthContext';
 import { useAgentPrefill, hasPlatePrefill } from '../../hooks/useAgentPrefill';
+import OffenseDetailModal from '../../components/OffenseDetailModal';
 import type { EntityConfig } from '../../config/entityTypes';
 
 /**
- * 用户违法记录页，对齐 Flutter UserOffenseListPage。
- * 若由 AI 聊天动作跳转并携带车牌，按车牌过滤。
+ * 用户违法记录页，对齐 Flutter UserOffenseListPage + UserOffenseDetailPage。
+ * 若由 AI 聊天动作跳转并携带车牌，按车牌过滤；点击「详情」弹出只读违法详情。
  */
 export default function UserOffenseListPage() {
   const { auth } = useAuth();
   const prefill = useAgentPrefill();
   const plate = hasPlatePrefill(prefill) ? prefill.licensePlate : '';
+  const [detail, setDetail] = useState<Record<string, unknown> | null>(null);
 
   const config: EntityConfig = useMemo(() => {
     return {
@@ -31,6 +33,7 @@ export default function UserOffenseListPage() {
         }
         return mine;
       },
+      onView: (row: Record<string, unknown>) => setDetail(row),
     };
   }, [auth?.userId, plate]);
 
@@ -43,6 +46,11 @@ export default function UserOffenseListPage() {
         </div>
       ) : null}
       <CrudPage config={config} />
+      <OffenseDetailModal
+        offense={detail}
+        isOpen={detail !== null}
+        onClose={() => setDetail(null)}
+      />
     </>
   );
 }
