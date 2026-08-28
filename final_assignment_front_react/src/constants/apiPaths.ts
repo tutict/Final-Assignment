@@ -20,6 +20,8 @@ export const API_PATHS = {
   PAYMENTS: '/api/payments',
   OFFENSE_TYPES: '/api/offense-types',
   PROGRESS: '/api/progress',
+  PROGRESS_BY_STATUS: '/api/progress/status',
+  PROGRESS_BY_TIME_RANGE: '/api/progress/timeRange',
   ROLES: '/api/roles',
   PERMISSIONS: '/api/permissions',
   SYSTEM_LOGS: '/api/system/logs',

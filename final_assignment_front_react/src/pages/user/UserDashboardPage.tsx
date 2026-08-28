@@ -1,15 +1,17 @@
 import { useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useQuery } from '@tanstack/react-query';
 import PageLayout from '../../components/PageLayout';
 import StatCard from '../../components/StatCard';
 import UserCarousel from '../../components/UserCarousel';
 import { useAuth } from '../../auth/AuthContext';
 import { useUserDashboardMetrics } from '../../hooks/useUserDashboard';
 import { useUserAppeals } from '../../hooks/useUserAppeals';
+import { getDriver } from '../../api/profile';
 
 /**
  * 用户首页，对齐 Flutter user_dashboard。
- * 顶部安全驾驶轮播 + 个人 KPI + 快速入口。
+ * 顶部安全驾驶轮播 + 资料完善提醒条 + 个人 KPI + 快速入口。
  */
 const QUICK_LINKS = [
   { label: '违法记录', path: '/userOffenseListPage', desc: '查看我的违法行为' },
@@ -24,6 +26,11 @@ export default function UserDashboardPage() {
   const driverId = auth?.userId;
   const { metrics, isLoading, refresh } = useUserDashboardMetrics(driverId);
   const appealsQuery = useUserAppeals(driverId);
+
+  // 对齐 Flutter NotificationBar：检测 idCardNumber / driverLicenseNumber 是否缺失，
+  // 缺失时提示用户前往个人资料补全。
+  const profileNoticeQuery = useProfileNotice(driverId);
+
   const activeAppeals = useMemo(() => {
     const list = (appealsQuery.data || []) as Array<{ status?: string; appealStatus?: string }>;
     return list.filter((item) => {
@@ -35,6 +42,17 @@ export default function UserDashboardPage() {
   return (
     <PageLayout title="用户首页" subtitle="查看违法记录与业务进度">
       <UserCarousel />
+
+      {profileNoticeQuery?.incomplete ? (
+        <div className="profile-notice" role="status">
+          <span className="profile-notice-text">
+            您的个人资料尚不完善（{profileNoticeQuery.missing.join('、')}），补全后可办理相关业务。
+          </span>
+          <button type="button" className="primary" onClick={() => navigate('/personalMain')}>
+            去完善
+          </button>
+        </div>
+      ) : null}
 
       <div className="stat-grid">
         <StatCard
@@ -82,4 +100,21 @@ export default function UserDashboardPage() {
       </div>
     </PageLayout>
   );
+}
+
+/** 检测驾驶员档案资料完善度（对齐 Flutter NotificationBar 的补全提醒）。 */
+function useProfileNotice(driverId?: string | number):
+  | { incomplete: true; missing: string[] }
+  | { incomplete: false; missing: never[] }
+  | undefined {
+  const query = useQuery({
+    queryKey: ['profile', 'driver', driverId],
+    queryFn: () => getDriver(driverId as number),
+    enabled: Boolean(driverId),
+  });
+  if (query.isLoading || !query.data) return undefined;
+  const missing: string[] = [];
+  if (!query.data.idCardNumber) missing.push('身份证号');
+  if (!query.data.driverLicenseNumber) missing.push('驾驶证号');
+  return missing.length > 0 ? { incomplete: true, missing } : { incomplete: false, missing: [] };
 }

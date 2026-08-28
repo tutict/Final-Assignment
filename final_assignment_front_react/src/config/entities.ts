@@ -15,7 +15,7 @@ const FINE_PAYMENT_STATUSES = ['Unpaid', 'Partial', 'Paid', 'Overdue', 'Waived']
 const PHONE_PATTERN = /^1[3-9]\d{9}$/;
 const ID_CARD_PATTERN = /^\d{17}[\dXx]$/;
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-const LICENSE_PLATE_PATTERN = /^[\u4e00-\u9fa5][A-Za-z][A-Za-z0-9]{5,6}$/;
+const LICENSE_PLATE_PATTERN = /^[\u4e00-\u9fa5][A-Za-z0-9]{5,7}$/;
 
 export const entityConfigs: EntityConfigs = {
   /**

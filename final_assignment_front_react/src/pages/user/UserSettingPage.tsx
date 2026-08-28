@@ -100,6 +100,12 @@ export default function UserSettingPage() {
             退出登录
           </button>
         </div>
+        <div className="setting-row">
+          <span>返回首页</span>
+          <button type="button" className="ghost" onClick={() => navigate('/userDashboard')}>
+            返回首页
+          </button>
+        </div>
       </div>
     </PageLayout>
   );

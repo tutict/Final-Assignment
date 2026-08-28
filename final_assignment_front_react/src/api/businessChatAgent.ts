@@ -67,8 +67,8 @@ const DRIVER_ACTIONS: ActionSpec[] = [
     keywords: ["车辆", "车牌", "登记", "绑定", "行驶证"],
   },
   {
-    label: "打开业务进度",
-    target: "/businessProgress",
+    label: "打开进度消息",
+    target: "/onlineProcessingProgress",
     keywords: ["进度", "消息", "办理状态", "处理结果"],
   },
   {
@@ -78,7 +78,8 @@ const DRIVER_ACTIONS: ActionSpec[] = [
   },
   {
     label: "打开服务地图",
-    target: "/map",
+    // 对齐 Flutter Routes.map = /admin/map（仅注册在 AdminLayout 下）
+    target: "/admin/map",
     keywords: ["地图", "位置", "附近", "导航"],
   },
 ];
