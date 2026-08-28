@@ -918,6 +918,25 @@ a {
   color: var(--text);
 }
 
+.login-links {
+  margin-top: 12px;
+  display: flex;
+  justify-content: flex-end;
+}
+
+.link-button {
+  background: none;
+  border: none;
+  color: var(--accent);
+  cursor: pointer;
+  font-size: 13px;
+  padding: 4px 0;
+}
+
+.link-button:hover {
+  text-decoration: underline;
+}
+
 .chat-panel {
   background: var(--panel);
   border-radius: 18px;

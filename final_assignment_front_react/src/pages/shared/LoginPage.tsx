@@ -1,16 +1,22 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Navigate, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../auth/AuthContext';
 import { ROLES } from '../../constants/roles';
 import LocalCaptcha from '../../components/LocalCaptcha';
+import Modal from '../../components/Modal';
+import { updateCurrentPassword } from '../../api/profile';
+import { getAccessToken } from '../../auth/tokens';
+import { getErrorMessage } from '../../utils/errorMessages';
 
-type LoginMode = 'login' | 'register';
+type LoginMode = 'login' | 'register' | 'recover';
 
 interface LoginForm {
   username: string;
   password: string;
   confirmPassword: string;
 }
+
+const MIN_PASSWORD_LENGTH = 5;
 
 export default function LoginPage() {
   const { login, register, isAuthenticated, userRole, loading } = useAuth();
@@ -21,11 +27,23 @@ export default function LoginPage() {
     confirmPassword: '',
   });
   const [error, setError] = useState('');
+  const [success, setSuccess] = useState('');
   // 本地验证码弹窗（对齐 Flutter LocalCaptchaMain，仅注册/重置时弹出）
   const [captchaOpen, setCaptchaOpen] = useState(false);
   const [captchaVerified, setCaptchaVerified] = useState(false);
   const location = useLocation();
   const navigate = useNavigate();
+
+  // 重置密码流程（对齐 Flutter _recoverPassword）：验证码通过后弹出新密码对话框
+  const [resetOpen, setResetOpen] = useState(false);
+  const [resetNewPassword, setResetNewPassword] = useState('');
+  const [resetSaving, setResetSaving] = useState(false);
+
+  useEffect(() => {
+    if (!success) return;
+    const timer = window.setTimeout(() => setSuccess(''), 3000);
+    return () => window.clearTimeout(timer);
+  }, [success]);
 
   if (isAuthenticated) {
     return <Navigate to={userRole === ROLES.ADMIN ? '/dashboard' : '/userDashboard'} replace />;
@@ -35,17 +53,29 @@ export default function LoginPage() {
     setForm((prev) => ({ ...prev, [key]: value }));
   };
 
+  const switchMode = (next: LoginMode) => {
+    if (next === mode) return;
+    setMode(next);
+    setCaptchaVerified(false);
+    setError('');
+    setForm((prev) => ({ ...prev, password: '', confirmPassword: '' }));
+  };
+
   const handleSubmit = async (event: React.FormEvent) => {
     event.preventDefault();
     setError('');
 
-    if (!form.username || !form.password) {
-      setError('请输入用户名和密码');
+    if (!form.username) {
+      setError('请输入邮箱或用户名');
       return;
     }
 
     if (mode === 'register') {
-      if (form.password.length < 5) {
+      if (!form.password) {
+        setError('请输入密码');
+        return;
+      }
+      if (form.password.length < MIN_PASSWORD_LENGTH) {
         setError('密码长度至少 5 位');
         return;
       }
@@ -71,6 +101,27 @@ export default function LoginPage() {
       setCaptchaVerified(false);
     }
 
+    if (mode === 'recover') {
+      // 重置密码是已鉴权流程（复用当前会话 JWT）。对齐 Flutter：未登录直接提示。
+      if (!getAccessToken()) {
+        setError('重置密码需要先登录。如忘记密码，请联系管理员重置。');
+        return;
+      }
+      if (!captchaVerified) {
+        setCaptchaOpen(true);
+        return;
+      }
+      // 验证码通过后弹出设置新密码对话框
+      setResetNewPassword('');
+      setResetOpen(true);
+      return;
+    }
+
+    if (!form.password) {
+      setError('请输入密码');
+      return;
+    }
+
     const result = await login(form.username, form.password);
     if (!result.ok) {
       setError(result.message || '登录失败');
@@ -83,13 +134,46 @@ export default function LoginPage() {
     navigate(redirectTo, { replace: true });
   };
 
-  const handleCaptchaClose = (success: boolean) => {
+  const handleCaptchaClose = (successCaptcha: boolean) => {
     setCaptchaOpen(false);
-    if (success) {
+    if (successCaptcha) {
       setCaptchaVerified(true);
       setError('');
     }
   };
+
+  const handleResetPassword = async () => {
+    if (!resetNewPassword) {
+      setError('请输入新密码');
+      return;
+    }
+    if (resetNewPassword.length < MIN_PASSWORD_LENGTH) {
+      setError('密码长度至少 5 位');
+      return;
+    }
+    setResetSaving(true);
+    try {
+      await updateCurrentPassword(resetNewPassword);
+      setResetOpen(false);
+      setCaptchaVerified(false);
+      setResetNewPassword('');
+      setError('');
+      setMode('login');
+      setForm((prev) => ({ ...prev, password: '', confirmPassword: '' }));
+      setSuccess('密码已重置，请使用新密码登录');
+    } catch (e) {
+      setError(getErrorMessage(e));
+    } finally {
+      setResetSaving(false);
+    }
+  };
+
+  const isRecover = mode === 'recover';
+  const submitLabel = isRecover
+    ? '重置密码'
+    : mode === 'login'
+      ? '登录'
+      : '注册并登录';
 
   return (
     <div className="login-page">
@@ -105,22 +189,14 @@ export default function LoginPage() {
           <button
             type="button"
             className={mode === 'login' ? 'active' : ''}
-            onClick={() => {
-              setMode('login');
-              setCaptchaVerified(false);
-              setError('');
-            }}
+            onClick={() => switchMode('login')}
           >
             登录
           </button>
           <button
             type="button"
             className={mode === 'register' ? 'active' : ''}
-            onClick={() => {
-              setMode('register');
-              setCaptchaVerified(false);
-              setError('');
-            }}
+            onClick={() => switchMode('register')}
           >
             注册
           </button>
@@ -135,15 +211,17 @@ export default function LoginPage() {
               placeholder="请输入邮箱或用户名"
             />
           </label>
-          <label>
-            密码
-            <input
-              type="password"
-              value={form.password}
-              onChange={(event) => handleChange('password', event.target.value)}
-              placeholder="请输入密码"
-            />
-          </label>
+          {isRecover ? null : (
+            <label>
+              密码
+              <input
+                type="password"
+                value={form.password}
+                onChange={(event) => handleChange('password', event.target.value)}
+                placeholder="请输入密码"
+              />
+            </label>
+          )}
           {mode === 'register' ? (
             <label>
               确认密码
@@ -156,12 +234,62 @@ export default function LoginPage() {
             </label>
           ) : null}
           {error ? <div className="form-error">{error}</div> : null}
-          <button type="submit" className="primary" disabled={loading}>
-            {loading ? '处理中...' : mode === 'login' ? '登录' : '注册并登录'}
+          {success ? <div className="form-success">{success}</div> : null}
+          <button type="submit" className="primary" disabled={loading || resetSaving}>
+            {loading || resetSaving ? '处理中...' : submitLabel}
           </button>
         </form>
+        <div className="login-links">
+          {isRecover ? (
+            <button type="button" className="link-button" onClick={() => switchMode('login')}>
+              返回登录
+            </button>
+          ) : (
+            <button type="button" className="link-button" onClick={() => switchMode('recover')}>
+              忘记密码
+            </button>
+          )}
+        </div>
       </div>
       <LocalCaptcha isOpen={captchaOpen} onClose={handleCaptchaClose} />
+      <Modal
+        isOpen={resetOpen}
+        title="重置密码"
+        onClose={() => setResetOpen(false)}
+        footerActions={
+          <div className="modal-actions">
+            <button
+              type="button"
+              className="ghost"
+              onClick={() => setResetOpen(false)}
+              disabled={resetSaving}
+            >
+              取消
+            </button>
+            <button
+              type="button"
+              className="primary"
+              onClick={handleResetPassword}
+              disabled={resetSaving}
+            >
+              {resetSaving ? '保存中...' : '确定'}
+            </button>
+          </div>
+        }
+      >
+        <div className="form-grid">
+          <label className="form-field full">
+            <span>新密码</span>
+            <input
+              type="password"
+              value={resetNewPassword}
+              autoFocus
+              onChange={(event) => setResetNewPassword(event.target.value)}
+              placeholder="至少 5 位"
+            />
+          </label>
+        </div>
+      </Modal>
     </div>
   );
 }

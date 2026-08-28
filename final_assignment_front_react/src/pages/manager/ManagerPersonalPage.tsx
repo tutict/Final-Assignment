@@ -12,6 +12,7 @@ import {
   updateCurrentUser,
   updateCurrentPassword,
   updateUser,
+  updateDriver,
   type UserProfile,
   type SysUser,
   type DriverInformation,
@@ -157,6 +158,40 @@ export default function ManagerPersonalPage() {
     }
   };
 
+  // 编辑驾驶员档案（对齐 Flutter manager_personal_page 编辑 name/contactNumber）。
+  // React 端使用全量 updateDriver（Quarkus 后端未提供单字段 PUT，仅 Go 后端有；
+  // 全量更新跨后端可移植，合并写回避免覆盖其余字段）。
+  const [driverEditOpen, setDriverEditOpen] = useState(false);
+  const [driverForm, setDriverForm] = useState<Partial<DriverInformation>>({});
+  const openDriverEdit = () => {
+    if (!driver) return;
+    setDriverForm({
+      name: driver.name,
+      contactNumber: driver.contactNumber,
+      idCardNumber: driver.idCardNumber,
+      email: driver.email,
+    });
+    setDriverEditOpen(true);
+  };
+  const handleSaveDriver = async () => {
+    if (!driver?.driverId) {
+      flashToast('未关联驾驶员档案，无法保存', true);
+      return;
+    }
+    setSaving(true);
+    try {
+      // 合并写回：保留服务端既有字段，仅覆盖表单内字段
+      await updateDriver(driver.driverId, { ...driver, ...driverForm });
+      flashToast('驾驶员档案已更新');
+      setDriverEditOpen(false);
+      await driverQuery.refetch();
+    } catch (error) {
+      flashToast(getErrorMessage(error), true);
+    } finally {
+      setSaving(false);
+    }
+  };
+
   return (
     <PageLayout
       title="管理员信息"
@@ -211,8 +246,14 @@ export default function ManagerPersonalPage() {
             <ProfileTile label="驾驶证号" value={driver.driverLicenseNumber} />
             <ProfileTile label="准驾车型" value={driver.licenseType} />
             <ProfileTile label="联系电话" value={driver.contactNumber} />
+            <ProfileTile label="身份证号" value={driver.idCardNumber} />
             <ProfileTile label="邮箱" value={driver.email} />
             <ProfileTile label="状态" value={driver.status} />
+          </div>
+          <div style={{ marginTop: 16 }}>
+            <button type="button" className="ghost" onClick={openDriverEdit}>
+              编辑驾驶员档案
+            </button>
           </div>
         </div>
       ) : null}
@@ -333,6 +374,75 @@ export default function ManagerPersonalPage() {
               type="password"
               value={resetPassword}
               onChange={(event) => setResetPassword(event.target.value)}
+            />
+          </label>
+        </div>
+      </Modal>
+
+      <Modal
+        isOpen={driverEditOpen}
+        title="编辑驾驶员档案"
+        onClose={() => setDriverEditOpen(false)}
+        footerActions={
+          <div className="modal-actions">
+            <button
+              type="button"
+              className="ghost"
+              onClick={() => setDriverEditOpen(false)}
+              disabled={saving}
+            >
+              取消
+            </button>
+            <button
+              type="button"
+              className="primary"
+              onClick={handleSaveDriver}
+              disabled={saving}
+            >
+              {saving ? '保存中...' : '保存'}
+            </button>
+          </div>
+        }
+      >
+        <div className="form-grid">
+          <label className="form-field">
+            <span>姓名</span>
+            <input
+              type="text"
+              value={(driverForm.name as string) || ''}
+              onChange={(event) =>
+                setDriverForm((prev) => ({ ...prev, name: event.target.value }))
+              }
+            />
+          </label>
+          <label className="form-field">
+            <span>联系电话</span>
+            <input
+              type="text"
+              value={(driverForm.contactNumber as string) || ''}
+              onChange={(event) =>
+                setDriverForm((prev) => ({ ...prev, contactNumber: event.target.value }))
+              }
+            />
+          </label>
+          <label className="form-field">
+            <span>身份证号</span>
+            <input
+              type="text"
+              value={(driverForm.idCardNumber as string) || ''}
+              onChange={(event) =>
+                setDriverForm((prev) => ({ ...prev, idCardNumber: event.target.value }))
+              }
+            />
+          </label>
+          <label className="form-field">
+            <span>邮箱</span>
+            <input
+              type="email"
+              value={(driverForm.email as string) || ''}
+              onChange={(event) =>
+                setDriverForm((prev) => ({ ...prev, email: event.target.value }))
+              }
             />
           </label>
         </div>
