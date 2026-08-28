@@ -132,7 +132,7 @@ func main() {
 	// 创建路由
 	router := gin.Default()
 	router.Use(global_exception.GlobalExceptionHandler())
-	router.Use(optionalPrincipal(tokenProvider))
+	router.Use(optionalPrincipal(tokenProvider, blacklistService))
 
 	// 公开路由
 	router.GET("/api/actuator/health", func(c *gin.Context) {
@@ -157,7 +157,7 @@ func main() {
 	router.POST("/api/rag/query", ragQueryHandler(ragRuntime))
 
 	// 需要认证的路由
-	router.Use(requiredPrincipal(tokenProvider), accessPolicy())
+	router.Use(requiredPrincipal(tokenProvider, blacklistService), accessPolicy())
 	router.POST("/api/auth/logout", authHandler.Logout)
 	router.GET("/api/auth/users", authHandler.GetAllUsers)
 	router.GET("/api/auth/me", authHandler.GetCurrentUser)
@@ -377,16 +377,16 @@ func splitColon(s string) []string {
 	return out
 }
 
-func optionalPrincipal(provider *authcfg.TokenProvider) gin.HandlerFunc {
+func optionalPrincipal(provider *authcfg.TokenProvider, blacklist *service.TokenBlacklistService) gin.HandlerFunc {
 	return func(c *gin.Context) {
-		_, _ = attachPrincipal(c, provider)
+		_, _ = attachPrincipal(c, provider, blacklist)
 		c.Next()
 	}
 }
 
-func requiredPrincipal(provider *authcfg.TokenProvider) gin.HandlerFunc {
+func requiredPrincipal(provider *authcfg.TokenProvider, blacklist *service.TokenBlacklistService) gin.HandlerFunc {
 	return func(c *gin.Context) {
-		if ok, err := attachPrincipal(c, provider); !ok {
+		if ok, err := attachPrincipal(c, provider, blacklist); !ok {
 			status := http.StatusUnauthorized
 			message := "unauthorized"
 			if err != nil {
@@ -409,9 +409,13 @@ func accessPolicy() gin.HandlerFunc {
 	}
 }
 
-func attachPrincipal(c *gin.Context, provider *authcfg.TokenProvider) (bool, error) {
+func attachPrincipal(c *gin.Context, provider *authcfg.TokenProvider, blacklist *service.TokenBlacklistService) (bool, error) {
 	token := authorizationToken(c.GetHeader("Authorization"))
 	if token == "" {
+		return false, nil
+	}
+	// 登出即将 access token 加入黑名单，校验前先拒绝已撤销的 token，对齐 Spring/Quarkus 的 JwtAuthenticationFilter。
+	if blacklist != nil && blacklist.IsBlacklisted(token) {
 		return false, nil
 	}
 	if !provider.ValidateToken(token) {
