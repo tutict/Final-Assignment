@@ -357,3 +357,6 @@ node_modules/
 *.trace
 *.dump
 *.dumpstream
+
+# React TS frontend build output
+/final_assignment_front_react/dist/
