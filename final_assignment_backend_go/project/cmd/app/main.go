@@ -161,7 +161,7 @@ func main() {
 	router.POST("/api/auth/logout", authHandler.Logout)
 	router.GET("/api/auth/users", authHandler.GetAllUsers)
 	router.GET("/api/auth/me", authHandler.GetCurrentUser)
-	registerRoutes(router, db, userService)
+	registerRoutes(router, db, userService, authService, ragRuntime)
 
 	// 创建 HTTP 服务器
 	server := &http.Server{
@@ -206,7 +206,7 @@ func main() {
 	log.Println("Server stopped gracefully")
 }
 
-func registerRoutes(router *gin.Engine, gormDB *gorm.DB, userService *service.UserManagementService) {
+func registerRoutes(router *gin.Engine, gormDB *gorm.DB, userService *service.UserManagementService, authService *service.AuthWsService, ragRuntime *gozerorag.Runtime) {
 	root := router.Group("")
 	api := router.Group("/api")
 
@@ -217,7 +217,9 @@ func registerRoutes(router *gin.Engine, gormDB *gorm.DB, userService *service.Us
 	fineService := service.NewFineInformationService(repo.NewFineInformationRepo(gormDB))
 	loginLogService := service.NewLoginLogService(repo.NewLoginLogRepo(gormDB))
 	offenseService := service.NewOffenseInformationService(repo.NewOffenseInformationRepo(gormDB))
+	offenseTypeService := service.NewOffenseTypeDictService(repo.NewOffenseTypeDictRepo(gormDB))
 	operationLogService := service.NewOperationLogService(repo.NewOperationLogRepo(gormDB))
+	paymentService := service.NewPaymentRecordService(repo.NewPaymentRecordRepo(gormDB))
 	permissionService := service.NewPermissionManagementService(repo.NewPermissionManagementRepo(gormDB))
 	progressService := service.NewProgressItemService(repo.NewProgressItemRepo(gormDB))
 	roleService := service.NewRoleManagementService(repo.NewRoleManagementRepo(gormDB))
@@ -225,18 +227,25 @@ func registerRoutes(router *gin.Engine, gormDB *gorm.DB, userService *service.Us
 	systemSettingsService := service.NewSystemSettingsService(repo.NewSystemSettingsRepo(gormDB))
 	vehicleService := service.NewVehicleService(repo.NewVehicleInformationRepo(gormDB))
 	trafficService := service.NewTrafficViolationService(gormDB)
+	workflowService := service.NewWorkflowService(gormDB, offenseService, paymentService)
+	offenseDetailsService := service.NewOffenseDetailsViewService(gormDB)
 
 	handler.NewUserManagementController(userService).RegisterRoutes(api)
 	handler.NewBackupRestoreController(backupService).RegisterRoutes(router)
 	handler.NewDeductionInformationController(deductionService).RegisterRoutes(router)
 	handler.NewDriverInformationController(driverService, userService).RegisterRoutes(router)
 	handler.NewLoginLogController(loginLogService).RegisterRoutes(router)
+	handler.NewOffenseTypeController(offenseTypeService).RegisterRoutes(api)
+	handler.NewPaymentRecordController(paymentService, authService).RegisterRoutes(api)
 	handler.NewPermissionHandler(permissionService).RegisterRoutes(router)
 	handler.NewProgressHandler(progressService).RegisterRoutes(router)
 	handler.NewRoleManagementController(roleService).RegisterRoutes(router)
 	handler.NewSystemLogsController(systemLogsService).RegisterRoutes(router)
 	handler.NewSystemSettingsController(systemSettingsService).RegisterRoutes(router)
 	handler.NewVehicleController(vehicleService).RegisterRoutes(router)
+	handler.NewWorkflowController(workflowService).RegisterRoutes(api)
+	handler.NewOffenseDetailsViewController(offenseDetailsService).RegisterRoutes(api)
+	handler.RegisterRagAdminRoutes(router, ragRuntime)
 	(&handler.OffenseInformationController{Service: offenseService}).RegisterRoutes(root)
 	(&handler.OperationLogController{Service: operationLogService}).RegisterRoutes(root)
 
@@ -493,6 +502,7 @@ func requiresAdmin(path string) bool {
 	}
 	adminPrefixes := []string{
 		"/api/auth/users",
+		"/api/rag/admin",
 		"/api/users",
 		"/api/roles",
 		"/api/loginLogs",

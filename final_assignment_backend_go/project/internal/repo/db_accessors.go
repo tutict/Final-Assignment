@@ -10,8 +10,10 @@ func (r *FineInformationRepo) DB() *gorm.DB      { return r.db }
 func (r *LoginLogRepo) DB() *gorm.DB             { return r.db }
 func (r *OffenseDetailsRepo) DB() *gorm.DB       { return r.db }
 func (r *OffenseInformationRepo) DB() *gorm.DB   { return r.db }
+func (r *OffenseTypeDictRepo) DB() *gorm.DB      { return r.db }
 func (r *OperationLogRepo) DB() *gorm.DB         { return r.db }
 func (r *PermissionManagementRepo) DB() *gorm.DB { return r.db }
+func (r *PaymentRecordRepo) DB() *gorm.DB        { return r.db }
 func (r *ProgressItemRepo) DB() *gorm.DB         { return r.db }
 func (r *RequestHistoryRepo) DB() *gorm.DB       { return r.db }
 func (r *RoleManagementRepo) DB() *gorm.DB       { return r.db }

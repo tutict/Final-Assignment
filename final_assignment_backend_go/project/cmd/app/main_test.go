@@ -19,7 +19,7 @@ func TestRegisterRoutesDoesNotPanic(t *testing.T) {
 	router := gin.New()
 	userService := service.NewUserManagementService(repo.NewUserManagementRepo(nil))
 
-	registerRoutes(router, nil, userService)
+	registerRoutes(router, nil, userService, nil, nil)
 
 	if len(router.Routes()) == 0 {
 		t.Fatal("expected routes to be registered")

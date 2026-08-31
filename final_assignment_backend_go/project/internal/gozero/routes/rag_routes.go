@@ -35,20 +35,20 @@ type ragIndexResponse struct {
 
 func ragAdminRoutes(runtime *gozerorag.Runtime) []rest.Route {
 	return []rest.Route{
-		{Method: http.MethodGet, Path: "/api/rag/admin/overview", Handler: ragOverviewHandler(runtime)},
-		{Method: http.MethodGet, Path: "/api/rag/admin/documents", Handler: listRagDocumentsHandler(runtime)},
-		{Method: http.MethodPost, Path: "/api/rag/admin/documents/upload", Handler: uploadRagDocumentHandler(runtime)},
-		{Method: http.MethodPost, Path: "/api/rag/admin/documents/manual", Handler: createManualRagDocumentHandler(runtime)},
-		{Method: http.MethodPost, Path: "/api/rag/admin/backfill", Handler: runRagBackfillHandler(runtime)},
-		{Method: http.MethodPost, Path: "/api/rag/admin/backfill/run", Handler: runRagBackfillBatchesHandler(runtime)},
-		{Method: http.MethodPost, Path: "/api/rag/admin/embedding/run", Handler: runRagEmbeddingBatchHandler(runtime)},
-		{Method: http.MethodPost, Path: "/api/rag/admin/embedding/requeue", Handler: requeueRagEmbeddingTasksHandler(runtime)},
-		{Method: http.MethodPost, Path: "/api/rag/admin/index/migrate", Handler: migrateRagIndexHandler(runtime)},
-		{Method: http.MethodDelete, Path: "/api/rag/admin/documents/:documentId", Handler: deleteRagDocumentHandler(runtime)},
+		{Method: http.MethodGet, Path: "/api/rag/admin/overview", Handler: RagOverviewHandler(runtime)},
+		{Method: http.MethodGet, Path: "/api/rag/admin/documents", Handler: ListRagDocumentsHandler(runtime)},
+		{Method: http.MethodPost, Path: "/api/rag/admin/documents/upload", Handler: UploadRagDocumentHandler(runtime)},
+		{Method: http.MethodPost, Path: "/api/rag/admin/documents/manual", Handler: CreateManualRagDocumentHandler(runtime)},
+		{Method: http.MethodPost, Path: "/api/rag/admin/backfill", Handler: RunRagBackfillHandler(runtime)},
+		{Method: http.MethodPost, Path: "/api/rag/admin/backfill/run", Handler: RunRagBackfillBatchesHandler(runtime)},
+		{Method: http.MethodPost, Path: "/api/rag/admin/embedding/run", Handler: RunRagEmbeddingBatchHandler(runtime)},
+		{Method: http.MethodPost, Path: "/api/rag/admin/embedding/requeue", Handler: RequeueRagEmbeddingTasksHandler(runtime)},
+		{Method: http.MethodPost, Path: "/api/rag/admin/index/migrate", Handler: MigrateRagIndexHandler(runtime)},
+		{Method: http.MethodDelete, Path: "/api/rag/admin/documents/:documentId", Handler: DeleteRagDocumentHandler(runtime)},
 	}
 }
 
-func ragOverviewHandler(runtime *gozerorag.Runtime) http.HandlerFunc {
+func RagOverviewHandler(runtime *gozerorag.Runtime) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		if !runtime.Ready() {
 			response.OK(w, map[string]any{
@@ -73,7 +73,7 @@ func ragOverviewHandler(runtime *gozerorag.Runtime) http.HandlerFunc {
 	}
 }
 
-func listRagDocumentsHandler(runtime *gozerorag.Runtime) http.HandlerFunc {
+func ListRagDocumentsHandler(runtime *gozerorag.Runtime) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		if !requireRAGRuntime(w, runtime, "RAG_DISABLED", "RAG document listing is not enabled") {
 			return
@@ -92,7 +92,7 @@ func listRagDocumentsHandler(runtime *gozerorag.Runtime) http.HandlerFunc {
 	}
 }
 
-func uploadRagDocumentHandler(runtime *gozerorag.Runtime) http.HandlerFunc {
+func UploadRagDocumentHandler(runtime *gozerorag.Runtime) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		if !requireIndexingRuntime(w, runtime, "RAG_DISABLED", "RAG indexing is not enabled") {
 			return
@@ -153,7 +153,7 @@ func uploadRagDocumentHandler(runtime *gozerorag.Runtime) http.HandlerFunc {
 	}
 }
 
-func createManualRagDocumentHandler(runtime *gozerorag.Runtime) http.HandlerFunc {
+func CreateManualRagDocumentHandler(runtime *gozerorag.Runtime) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		if !requireIndexingRuntime(w, runtime, "RAG_DISABLED", "RAG indexing is not enabled") {
 			return
@@ -197,7 +197,7 @@ func createManualRagDocumentHandler(runtime *gozerorag.Runtime) http.HandlerFunc
 	}
 }
 
-func runRagBackfillHandler(runtime *gozerorag.Runtime) http.HandlerFunc {
+func RunRagBackfillHandler(runtime *gozerorag.Runtime) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		if !requireIndexingRuntime(w, runtime, "RAG_DISABLED", "RAG backfill is not enabled") {
 			return
@@ -221,7 +221,7 @@ func runRagBackfillHandler(runtime *gozerorag.Runtime) http.HandlerFunc {
 	}
 }
 
-func runRagBackfillBatchesHandler(runtime *gozerorag.Runtime) http.HandlerFunc {
+func RunRagBackfillBatchesHandler(runtime *gozerorag.Runtime) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		if !requireIndexingRuntime(w, runtime, "RAG_DISABLED", "RAG backfill is not enabled") {
 			return
@@ -250,7 +250,7 @@ func runRagBackfillBatchesHandler(runtime *gozerorag.Runtime) http.HandlerFunc {
 	}
 }
 
-func runRagEmbeddingBatchHandler(runtime *gozerorag.Runtime) http.HandlerFunc {
+func RunRagEmbeddingBatchHandler(runtime *gozerorag.Runtime) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		if !requireEmbeddingRuntime(w, runtime) {
 			return
@@ -269,7 +269,7 @@ func runRagEmbeddingBatchHandler(runtime *gozerorag.Runtime) http.HandlerFunc {
 	}
 }
 
-func requeueRagEmbeddingTasksHandler(runtime *gozerorag.Runtime) http.HandlerFunc {
+func RequeueRagEmbeddingTasksHandler(runtime *gozerorag.Runtime) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		if !requireMaintenanceRuntime(w, runtime) {
 			return
@@ -288,7 +288,7 @@ func requeueRagEmbeddingTasksHandler(runtime *gozerorag.Runtime) http.HandlerFun
 	}
 }
 
-func migrateRagIndexHandler(runtime *gozerorag.Runtime) http.HandlerFunc {
+func MigrateRagIndexHandler(runtime *gozerorag.Runtime) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		if !requireMaintenanceRuntime(w, runtime) {
 			return
@@ -312,7 +312,7 @@ func migrateRagIndexHandler(runtime *gozerorag.Runtime) http.HandlerFunc {
 	}
 }
 
-func deleteRagDocumentHandler(runtime *gozerorag.Runtime) http.HandlerFunc {
+func DeleteRagDocumentHandler(runtime *gozerorag.Runtime) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		if !requireRAGRuntime(w, runtime, "RAG_DISABLED", "RAG document deletion is not enabled") {
 			return
