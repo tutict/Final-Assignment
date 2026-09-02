@@ -1,4 +1,5 @@
 import 'package:final_assignment_front/core/utils/app_logger.dart';
+import 'package:final_assignment_front/core/theme/app_colors.dart';
 import 'dart:async';
 import 'package:final_assignment_front/config/routes/app_routes.dart';
 import 'package:final_assignment_front/core/auth/auth_service.dart';
@@ -9,6 +10,7 @@ import 'package:final_assignment_front/features/api/driver_information_controlle
 import 'package:final_assignment_front/features/api/user_management_controller_api.dart';
 import 'package:final_assignment_front/features/dashboard/controllers/user_dashboard_screen_controller.dart';
 import 'package:final_assignment_front/features/dashboard/views/shared/widgets/dashboard_page_template.dart';
+import 'package:final_assignment_front/features/dashboard/views/shared/widgets/payment_status_chip.dart';
 import 'package:final_assignment_front/features/dashboard/views/user/pages/main_process/user_business_page_chrome.dart';
 import 'package:final_assignment_front/features/model/fine_information.dart';
 import 'package:final_assignment_front/utils/helpers/app_helpers.dart';
@@ -54,6 +56,25 @@ class _FineInformationPageState extends State<FineInformationPage> {
 
   bool _isPaid(String? status) =>
       PaymentStatus.fromCode(status) == PaymentStatus.paid;
+
+  /// 由罚款支付状态派生的语义强调色，与 [PaymentStatusChip] 的色调保持一致。
+  Color _paymentAccent(ThemeData theme, String? status) {
+    final colors = theme.extension<AppColors>() ?? AppColors.light;
+    switch (PaymentStatus.fromCode(status)) {
+      case PaymentStatus.paid:
+        return colors.success;
+      case PaymentStatus.overdue:
+        return colors.danger;
+      case PaymentStatus.unpaid:
+        return colors.warning;
+      case PaymentStatus.partial:
+        return colors.info;
+      case PaymentStatus.waived:
+      case PaymentStatus.unknown:
+      default:
+        return theme.colorScheme.onSurfaceVariant;
+    }
+  }
 
   @override
   void initState() {
@@ -339,8 +360,13 @@ class _FineInformationPageState extends State<FineInformationPage> {
               _buildDetailRow('银行名称', fine.bank ?? '未知', themeData),
               _buildDetailRow('收据编号', fine.receiptNumber ?? '未知', themeData),
               _buildDetailRow('罚款时间', fine.fineTime ?? '未知', themeData),
-              _buildDetailRow(
-                  '状态', _paymentStatusLabel(_paymentStatusOf(fine)), themeData),
+              _buildStatusRow(
+                  '状态',
+                  PaymentStatusChip(
+                    status: PaymentStatus.fromCode(_paymentStatusOf(fine)) ??
+                        PaymentStatus.unknown,
+                  ),
+                  themeData),
               _buildDetailRow('备注', fine.remarks ?? '无', themeData),
               if (hasQRCode) ...[
                 const SizedBox(height: 16),
@@ -400,6 +426,24 @@ class _FineInformationPageState extends State<FineInformationPage> {
               ),
             ),
           ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildStatusRow(String label, Widget child, ThemeData themeData) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 4.0),
+      child: Row(
+        children: [
+          Text(
+            '$label: ',
+            style: themeData.textTheme.bodyLarge?.copyWith(
+              fontWeight: FontWeight.w800,
+              color: themeData.colorScheme.onSurface,
+            ),
+          ),
+          child,
         ],
       ),
     );
@@ -504,9 +548,7 @@ class _FineInformationPageState extends State<FineInformationPage> {
                               : Icons.payment_rounded,
                           title: '罚款金额：¥${amount.toStringAsFixed(2)}',
                           badge: statusLabel,
-                          accentColor: _isPaid(status)
-                              ? const Color(0xFF2E7D32)
-                              : const Color(0xFF25A7A0),
+                          accentColor: _paymentAccent(themeData, status),
                           details: [
                             '缴款人：$payee',
                             '罚款时间：$date',
