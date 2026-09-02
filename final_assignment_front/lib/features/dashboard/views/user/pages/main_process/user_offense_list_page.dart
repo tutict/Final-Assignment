@@ -8,6 +8,7 @@ import 'package:final_assignment_front/features/api/offense_information_controll
 import 'package:final_assignment_front/features/dashboard/controllers/user_dashboard_screen_controller.dart';
 import 'package:final_assignment_front/features/dashboard/views/shared/widgets/dashboard_page_template.dart';
 import 'package:final_assignment_front/features/dashboard/views/shared/widgets/dashboard_chrome.dart';
+import 'package:final_assignment_front/features/dashboard/views/shared/widgets/status_badge.dart';
 import 'package:final_assignment_front/features/dashboard/views/user/pages/main_process/user_business_page_chrome.dart';
 import 'package:final_assignment_front/features/model/offense_information.dart';
 import 'package:final_assignment_front/utils/widgets/index.dart';
@@ -18,6 +19,7 @@ import 'package:get/get.dart';
 import 'package:jwt_decoder/jwt_decoder.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:final_assignment_front/shared/utils/navigation_helper.dart';
+import 'package:final_assignment_front/utils/helpers/app_helpers.dart';
 import 'package:final_assignment_front/utils/services/auth_token_store.dart';
 
 String generateIdempotencyKey() {
@@ -528,6 +530,25 @@ class UserOffenseDetailPage extends StatelessWidget {
     );
   }
 
+  Widget _buildStatusRow(String label, Widget child, ThemeData themeData) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 8.0),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            '$label: ',
+            style: themeData.textTheme.bodyLarge?.copyWith(
+              fontWeight: FontWeight.w800,
+              color: themeData.colorScheme.onSurface,
+            ),
+          ),
+          child,
+        ],
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Obx(() {
@@ -559,7 +580,19 @@ class UserOffenseDetailPage extends StatelessWidget {
               _buildDetailRow(
                   '违法地点', offense.offenseLocation ?? '未提供', themeData),
               _buildDetailRow(
-                  '处理状态', offense.processStatus ?? '无', themeData),
+                  '处理状态',
+                  OffenseProcessStatus.fromCode(offense.processStatus)?.label ??
+                      offense.processStatus ??
+                      '无',
+                  themeData),
+              _buildStatusRow(
+                '状态',
+                StatusBadge.offenseProcess(
+                  OffenseProcessStatus.fromCode(offense.processStatus) ??
+                      OffenseProcessStatus.unknown,
+                ),
+                themeData,
+              ),
               _buildDetailRow(
                   '处理结果', offense.processResult ?? '无', themeData),
             ],

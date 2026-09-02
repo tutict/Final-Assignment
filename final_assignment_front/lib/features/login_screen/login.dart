@@ -558,6 +558,43 @@ class _LoginScreenState extends State<LoginScreen> {
               ),
             ],
           ),
+          const SizedBox(height: 22),
+          // 交通执法徽标：盾牌 + 标语，作为登录页左侧的"插画"式品牌锚点。
+          Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(
+                width: compact ? 34 : 40,
+                height: compact ? 34 : 40,
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                    colors: [
+                      colorScheme.primary,
+                      colorScheme.primary.withValues(alpha: 0.72),
+                    ],
+                  ),
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: Icon(
+                  Icons.shield_outlined,
+                  color: colorScheme.onPrimary,
+                  size: compact ? 20 : 24,
+                ),
+              ),
+              const SizedBox(width: 10),
+              Text(
+                '安全执法 · 智慧交管',
+                style: TextStyle(
+                  color: colorScheme.primary,
+                  fontSize: compact ? 13 : 15,
+                  fontWeight: FontWeight.w700,
+                  letterSpacing: 0.4,
+                ),
+              ),
+            ],
+          ),
           SizedBox(height: compact ? 22 : 44),
           ConstrainedBox(
             constraints: const BoxConstraints(maxWidth: 620),
