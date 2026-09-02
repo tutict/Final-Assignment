@@ -2,6 +2,7 @@ import 'dart:developer';
 import 'package:final_assignment_front/shared/eva_icons_compat.dart';
 import 'package:final_assignment_front/config/routes/app_routes.dart';
 import 'package:final_assignment_front/core/utils/app_logger.dart';
+import 'package:final_assignment_front/core/theme/app_colors.dart';
 import 'package:final_assignment_front/constants/app_constants.dart';
 import 'package:final_assignment_front/features/dashboard/controllers/manager_dashboard_controller.dart';
 import 'package:final_assignment_front/features/dashboard/controllers/offense_controller.dart';
@@ -581,6 +582,8 @@ class DashboardScreen extends GetView<ManagerDashboardController> {
     BuildContext context,
     _ManagerWorkbenchStats stats,
   ) {
+    final appColors =
+        Theme.of(context).extension<AppColors>() ?? AppColors.light;
     return LayoutBuilder(
       builder: (context, constraints) {
         final width = constraints.maxWidth;
@@ -613,7 +616,7 @@ class DashboardScreen extends GetView<ManagerDashboardController> {
               label: '待处理',
               value: '${stats.pendingCount}',
               detail: '需要管理员继续跟进',
-              accent: const Color(0xFFFFB020),
+              accent: appColors.warning,
             ),
             _buildMetricTile(
               context,
@@ -621,7 +624,7 @@ class DashboardScreen extends GetView<ManagerDashboardController> {
               label: '已办结',
               value: '${stats.completedCount}',
               detail: '已处理、关闭或申诉完成',
-              accent: const Color(0xFF34C759),
+              accent: appColors.success,
             ),
             _buildMetricTile(
               context,
@@ -629,7 +632,7 @@ class DashboardScreen extends GetView<ManagerDashboardController> {
               label: '罚款合计',
               value: _formatCurrency(stats.totalFine),
               detail: '累计扣分 ${stats.totalPoints} 分',
-              accent: const Color(0xFF4DA3FF),
+              accent: appColors.info,
             ),
           ],
         );
@@ -1354,12 +1357,12 @@ class DashboardScreen extends GetView<ManagerDashboardController> {
   }
 
   Color _statusColor(BuildContext context, String? status) {
-    final scheme = Theme.of(context).colorScheme;
+    final colors = Theme.of(context).extension<AppColors>() ?? AppColors.light;
     final value = (status ?? '').trim().toLowerCase();
-    if (value.contains('appeal')) return const Color(0xFF4DA3FF);
-    if (_isCompletedStatus(status)) return const Color(0xFF34C759);
-    if (value.contains('processing')) return scheme.primary;
-    return const Color(0xFFFFB020);
+    if (value.contains('appeal')) return colors.danger;
+    if (_isCompletedStatus(status)) return colors.success;
+    if (value.contains('processing')) return colors.info;
+    return colors.warning;
   }
 
   String _statusLabel(String? status) {
