@@ -6,6 +6,7 @@ import 'package:final_assignment_front/features/dashboard/views/manager/pages/ma
 import 'package:final_assignment_front/features/dashboard/views/shared/widgets/dashboard_chrome.dart';
 import 'package:final_assignment_front/features/dashboard/views/shared/widgets/dashboard_page_template.dart';
 import 'package:final_assignment_front/features/dashboard/views/shared/widgets/page_auth_mixin.dart';
+import 'package:final_assignment_front/features/dashboard/views/shared/widgets/status_badge.dart';
 import 'package:final_assignment_front/features/model/offense_information.dart';
 import 'package:final_assignment_front/features/offense/controllers/offense_form_controller.dart';
 import 'package:final_assignment_front/shared/dialogs/app_dialog.dart';
@@ -464,11 +465,25 @@ class _OffenseListPageState extends State<OffenseList> with PageAuthMixin {
                             color: themeData.colorScheme.onSurfaceVariant,
                           ),
                         ),
-                        Text(
-                          '状态: ${getOffenseProcessStatusLabel(offense.processStatus)}',
-                          style: themeData.textTheme.bodyMedium?.copyWith(
-                            color: themeData.colorScheme.onSurfaceVariant,
-                          ),
+                        Padding(
+                          padding: const EdgeInsets.only(top: 4),
+                          child: OffenseProcessStatus.fromCode(
+                                      offense.processStatus) ==
+                                  null
+                              ? Text(
+                                  getOffenseProcessStatusLabel(
+                                      offense.processStatus),
+                                  style: themeData.textTheme.bodyMedium
+                                      ?.copyWith(
+                                    color: themeData
+                                        .colorScheme.onSurfaceVariant,
+                                  ),
+                                )
+                              : StatusBadge.offenseProcess(
+                                  OffenseProcessStatus.fromCode(
+                                      offense.processStatus)!,
+                                  dense: true,
+                                ),
                         ),
                       ],
                     ),

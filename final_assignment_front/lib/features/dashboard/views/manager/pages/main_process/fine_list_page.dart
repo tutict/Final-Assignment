@@ -2,6 +2,7 @@
 import 'package:final_assignment_front/features/api/offense_information_controller_api.dart';
 import 'package:final_assignment_front/features/api/vehicle_information_controller_api.dart';
 import 'package:final_assignment_front/core/network/app_exception.dart';
+import 'package:final_assignment_front/features/dashboard/views/shared/widgets/payment_status_chip.dart';
 import 'package:flutter/material.dart';
 import 'package:final_assignment_front/features/dashboard/controllers/manager_dashboard_controller.dart';
 import 'package:final_assignment_front/features/dashboard/views/manager/pages/main_process/manager_business_page_chrome.dart';
@@ -502,10 +503,13 @@ class _FineListState extends State<FineListPage> with PageAuthMixin {
                             color: themeData.colorScheme.onSurfaceVariant,
                           ),
                         ),
-                        Text(
-                          '状态: ${finePaymentStatusLabel(fijne)}',
-                          style: themeData.textTheme.bodyMedium?.copyWith(
-                            color: themeData.colorScheme.onSurfaceVariant,
+                        Padding(
+                          padding: const EdgeInsets.only(top: 4),
+                          child: PaymentStatusChip(
+                            status: PaymentStatus.fromCode(
+                                    finePaymentStatus(fijne)) ??
+                                PaymentStatus.unpaid,
+                            dense: true,
                           ),
                         ),
                       ],
@@ -1158,6 +1162,25 @@ class _FineDetailPageState extends State<FineDetailPage> with PageAuthMixin {
     );
   }
 
+  Widget _buildStatusRow(String label, Widget child, ThemeData themeData) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 8.0),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            '$label: ',
+            style: themeData.textTheme.bodyLarge?.copyWith(
+              fontWeight: FontWeight.w800,
+              color: themeData.colorScheme.onSurface,
+            ),
+          ),
+          child,
+        ],
+      ),
+    );
+  }
+
   String formatDate(DateTime? date) {
     if (date == null) return '未知';
     return '${date.year}-${date.month.toString().padLeft(2, '0')}-${date.day.toString().padLeft(2, '0')} ${date.hour.toString().padLeft(2, '0')}:${date.minute.toString().padLeft(2, '0')}';
@@ -1245,9 +1268,13 @@ class _FineDetailPageState extends State<FineDetailPage> with PageAuthMixin {
                             formatDate(_resolvedFineDate(_currentFine)),
                             themeData,
                           ),
-                          _buildDetailRow(
+                          _buildStatusRow(
                             '状态',
-                            finePaymentStatusLabel(_currentFine),
+                            PaymentStatusChip(
+                              status: PaymentStatus.fromCode(
+                                      finePaymentStatus(_currentFine)) ??
+                                  PaymentStatus.unpaid,
+                            ),
                             themeData,
                           ),
                           _buildDetailRow(

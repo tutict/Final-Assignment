@@ -26,7 +26,7 @@ class OffensePieChart extends StatelessWidget {
     if (typeCountMap.isEmpty) {
       return Center(
         child: Text(
-          '暂无违章数据',
+          '暂无违法数据',
           style: TextStyle(color: scheme.onSurfaceVariant, fontSize: 13),
         ),
       );
@@ -60,7 +60,7 @@ class OffensePieChart extends StatelessWidget {
               mainAxisSize: MainAxisSize.min,
               children: [
                 Text(
-                  '违章总数',
+                  '违法总数',
                   style: TextStyle(
                     fontSize: 13,
                     fontWeight: FontWeight.w500,

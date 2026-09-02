@@ -24,7 +24,7 @@ class OffenseBarChart extends StatelessWidget {
     if (typeCountMap.isEmpty) {
       return Center(
         child: Text(
-          '暂无违章数据',
+          '暂无违法数据',
           style: TextStyle(color: scheme.onSurfaceVariant, fontSize: 13),
         ),
       );

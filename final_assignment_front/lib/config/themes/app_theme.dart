@@ -34,6 +34,28 @@ class ThemePalette {
   final Color shadow;
 }
 
+class TrafficThemeColors {
+  static const light = ThemePalette(
+    seed: Color(0xFF1E3A8A),
+    scaffold: Color(0xFFF8FAFC),
+    surface: Color(0xFFFFFFFF),
+    surfaceAlt: Color(0xFFEFF2F7),
+    surfaceTint: Color(0xFFDBEAFE),
+    outline: Color(0xFFE2E8F0),
+    shadow: Color(0x140B1A33),
+  );
+
+  static const dark = ThemePalette(
+    seed: Color(0xFF3B82F6),
+    scaffold: Color(0xFF0B1220),
+    surface: Color(0xFF111A2C),
+    surfaceAlt: Color(0xFF1B2740),
+    surfaceTint: Color(0xFF1E3A5F),
+    outline: Color(0xFF334155),
+    shadow: Color(0x70000000),
+  );
+}
+
 class BasicThemeColors {
   static const light = ThemePalette(
     seed: Color(0xFF0F172A),
@@ -629,6 +651,16 @@ class AppTheme {
   static ThemeData get basicLight => _buildTheme(
         brightness: Brightness.light,
         palette: BasicThemeColors.light,
+      );
+
+  static ThemeData get trafficEnforcementLight => _buildTheme(
+        brightness: Brightness.light,
+        palette: TrafficThemeColors.light,
+      );
+
+  static ThemeData get trafficEnforcementDark => _buildTheme(
+        brightness: Brightness.dark,
+        palette: TrafficThemeColors.dark,
       );
 
   static ThemeData get basicDark => _buildTheme(
