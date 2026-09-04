@@ -16,13 +16,28 @@ Linux / macOS:
 sh scripts/start-all.sh
 ```
 
-The full startup flow attempts to start:
+The full startup flow:
 
-1. Docker Desktop or the local Docker service
-2. Local services from `scripts\dev-compose.yml`
-3. Ollama
-4. Spring Boot backend from `finalAssignmentBackend`
-5. Flutter web frontend at `http://127.0.0.1:3000`
+1. Prompts you to choose a **backend** implementation and a **frontend** app.
+2. Starts local dependencies (`scripts\dev-compose.yml`) and Ollama.
+3. Starts the selected backend and frontend.
+
+Backend choices:
+
+- `spring`  — Spring Boot (`finalAssignmentBackend`; REST 8080 / WS 8081 / DB `traffic`)
+- `go`      — Go / Gin (`final_assignment_backend_go`; REST 8080 / DB `cesi`)
+- `quarkus` — Quarkus (`final_assignment_backend_quarkus`; REST 8080 / WS 8081 / DB `cesi`)
+- `cloud`   — Spring Cloud microservices (`finalAssignmentCloud`; gateway 8080)
+- `none`    — no backend
+
+Frontend choices:
+
+- `flutter` — Flutter web (`final_assignment_front`; http://127.0.0.1:3000)
+- `react`   — React + Vite (`final_assignment_front_react`; http://127.0.0.1:5173)
+- `none`    — no frontend
+
+To skip the interactive menus, pass `-b <backend>` and/or `-f <frontend>`;
+use `-e` to skip the local environment startup:
 
 The backend uses the local MySQL database by default:
 
@@ -39,9 +54,36 @@ Each startup run writes detailed logs to `artifacts/startup/<timestamp>/`, inclu
 
 When a step fails, the scripts print the log directory, recent log tails, port diagnostics, and Docker Compose service status before exiting.
 
-Ctrl-C cleanup is handled by the main startup scripts. Pressing Ctrl-C stops the Flutter process, the Spring Boot process tree, and, by default, the project Docker Compose stack plus the Ollama process started by the script. Set `STOP_LOCAL_SERVICES_ON_EXIT=false` to leave dependencies running, or use `STOP_DOCKER_ON_EXIT=false` / `STOP_OLLAMA_ON_EXIT=false` to control them separately.
+Ctrl-C cleanup is handled by the main startup scripts. Pressing Ctrl-C stops the selected frontend and backend process trees and, by default, the project Docker Compose stack plus the Ollama process started by the script. Set `STOP_LOCAL_SERVICES_ON_EXIT=false` to leave dependencies running, or use `STOP_DOCKER_ON_EXIT=false` / `STOP_OLLAMA_ON_EXIT=false` to control them separately.
 
 ## Common Options
+
+Start a specific backend/frontend without the interactive menu:
+
+```bat
+scripts\start-all.bat -b go -f flutter
+```
+
+Skip the backend or frontend:
+
+```bat
+scripts\start-all.bat -b none -f react      rem frontend only
+scripts\start-all.bat -b quarkus -f none    rem backend only
+```
+
+Skip the local Docker/Ollama environment startup (like `START_LOCAL_SERVICES=false`):
+
+```bat
+scripts\start-all.bat -b spring -f flutter -e
+```
+
+The same flags work on Linux / macOS:
+
+```sh
+sh scripts/start-all.sh -b go -f flutter
+sh scripts/start-all.sh -b none -f react
+sh scripts/start-all.sh -b quarkus -f none -e
+```
 
 Skip Docker/Ollama and only start backend + frontend:
 
@@ -137,6 +179,11 @@ Start only the infrastructure:
 ```powershell
 docker compose -f scripts\dev-compose.yml up -d
 ```
+
+`scripts\start-env.bat` auto-detects Docker Desktop (registry, well-known paths, or
+the Docker CLI location) and launches it when the daemon is not ready. Set
+`DOCKER_DESKTOP_PATH` to an absolute path to override, or to a non-existent path to
+disable auto-launch. `START_DOCKER=false` and `START_OLLAMA=false` skip either part.
 
 Reset only the local Redpanda data volume after an incompatible Redpanda image
 upgrade, for example when the container fails with `Attempted to upgrade from

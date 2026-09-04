@@ -11,7 +11,8 @@ if "%START_DOCKER%"=="" set "START_DOCKER=true"
 if "%START_OLLAMA%"=="" set "START_OLLAMA=true"
 if "%DOCKER_WAIT_SECONDS%"=="" set "DOCKER_WAIT_SECONDS=180"
 if "%OLLAMA_WAIT_SECONDS%"=="" set "OLLAMA_WAIT_SECONDS=60"
-if "%DOCKER_DESKTOP_PATH%"=="" set "DOCKER_DESKTOP_PATH=C:\Program Files\Docker\Docker\Docker Desktop.exe"
+rem DOCKER_DESKTOP_PATH is auto-detected (registry + well-known paths) when empty.
+if "%DOCKER_DESKTOP_PATH%"=="" set "DOCKER_DESKTOP_PATH="
 if "%OLLAMA_EXE%"=="" set "OLLAMA_EXE=ollama"
 
 call :init_logging
@@ -99,6 +100,42 @@ call :print_file_tail "%OLLAMA_ERR_LOG%" 120
 call :print_file_tail "%OLLAMA_HEALTH_LOG%" 80
 exit /b 1
 
+rem Locate Docker Desktop when the daemon is down. Sets DOCKER_DESKTOP_PATH to the
+rem executable (or clears it) and DOCKER_DESKTOP_PROC_RUNNING=1 when the app is already
+rem running but the engine has not finished starting yet.
+:detect_docker_desktop
+set "DOCKER_DESKTOP_PROC_RUNNING="
+if defined DOCKER_DESKTOP_PATH (
+  if exist "%DOCKER_DESKTOP_PATH%" exit /b 0
+  set "DOCKER_DESKTOP_PATH="
+)
+
+tasklist /fi "imagename eq Docker Desktop.exe" 2>nul | findstr /i /c:"Docker Desktop.exe" >nul
+if not errorlevel 1 (
+  set "DOCKER_DESKTOP_PROC_RUNNING=1"
+  exit /b 0
+)
+
+for /f "usebackq delims=" %%p in (`powershell -NoProfile -ExecutionPolicy Bypass -Command "$h = Get-ItemProperty -Path 'HKLM:\SOFTWARE\Docker Inc.\Docker' -Name DockerDesktopInstallPath -ErrorAction SilentlyContinue; if ($null -ne $h) { $h.DockerDesktopInstallPath } else { $u = Get-ItemProperty -Path 'HKCU:\SOFTWARE\Docker Inc.\Docker' -Name DockerDesktopInstallPath -ErrorAction SilentlyContinue; if ($null -ne $u) { $u.DockerDesktopInstallPath } }"`) do (
+  if exist "%%p\Docker Desktop.exe" set "DOCKER_DESKTOP_PATH=%%p\Docker Desktop.exe"
+)
+if defined DOCKER_DESKTOP_PATH exit /b 0
+
+for %%c in (
+  "%ProgramFiles%\Docker\Docker\Docker Desktop.exe"
+  "%ProgramW6432%\Docker\Docker\Docker Desktop.exe"
+  "%LocalAppData%\Docker\Docker Desktop.exe"
+  "%LocalAppData%\Programs\Docker\Docker Desktop.exe"
+) do if exist %%c set "DOCKER_DESKTOP_PATH=%%~c"
+if defined DOCKER_DESKTOP_PATH exit /b 0
+
+rem Fallback: derive from the docker CLI location (resources\bin\docker.exe -> ..\..\Docker Desktop.exe).
+for /f "delims=" %%D in ('where docker 2^>nul') do (
+  set "DD_PROBE=%%~dpD..\..\Docker Desktop.exe"
+  if exist "!DD_PROBE!" set "DOCKER_DESKTOP_PATH=!DD_PROBE!"
+)
+exit /b 0
+
 :start_docker
 if not exist "%COMPOSE_FILE%" (
   call :env_fail "Docker compose file not found: %COMPOSE_FILE%"
@@ -113,12 +150,16 @@ if errorlevel 1 (
 
 docker info > "%DOCKER_INFO_LOG%" 2>&1
 if errorlevel 1 (
-  call :log "Docker daemon is not ready. Starting Docker Desktop..."
-  if not exist "%DOCKER_DESKTOP_PATH%" (
-    call :env_fail "Docker Desktop executable not found: %DOCKER_DESKTOP_PATH%"
+  call :detect_docker_desktop
+  if defined DOCKER_DESKTOP_PROC_RUNNING (
+    call :log "Docker Desktop is already running; waiting for the daemon to be ready..."
+  ) else if defined DOCKER_DESKTOP_PATH (
+    call :log "Docker daemon is not ready. Starting Docker Desktop: !DOCKER_DESKTOP_PATH!"
+    start "" "!DOCKER_DESKTOP_PATH!"
+  ) else (
+    call :env_fail "Docker daemon is not ready and Docker Desktop was not found. Start Docker Desktop manually, then re-run this script."
     exit /b 1
   )
-  start "" "%DOCKER_DESKTOP_PATH%"
 )
 
 set /a DOCKER_WAIT_ELAPSED=0
@@ -206,7 +247,10 @@ echo Optional environment variables:
 echo   START_DOCKER=false       Skip Docker compose services.
 echo   START_OLLAMA=false       Skip Ollama.
 echo   STARTUP_LOG_DIR          Existing run log directory from start-dev.bat.
-echo   DOCKER_DESKTOP_PATH      Docker Desktop executable path.
+rem DOCKER_DESKTOP_PATH is auto-detected (registry / well-known paths / docker CLI
+rem location) when empty; set it to override, or to a non-existent path to disable
+rem the auto-launch.
+echo   DOCKER_DESKTOP_PATH      Docker Desktop executable path. Default: auto-detected
 echo   DOCKER_WAIT_SECONDS      Docker readiness timeout. Default: 180
 echo   OLLAMA_EXE               Ollama executable or absolute path. Default: ollama
 echo   OLLAMA_WAIT_SECONDS      Ollama readiness timeout. Default: 60
