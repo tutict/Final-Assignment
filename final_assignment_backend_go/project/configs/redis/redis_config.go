@@ -6,6 +6,7 @@ import (
 	"errors"
 	"log"
 	"os"
+	"strings"
 	"time"
 
 	"github.com/redis/go-redis/v9"
@@ -27,6 +28,9 @@ func NewRedisConfig() *RedisConfig {
 	host := os.Getenv("REDIS_HOST")
 	if host == "" {
 		host = "localhost"
+	}
+	if strings.EqualFold(os.Getenv("REDIS_ENABLED"), "false") {
+		host = ""
 	}
 
 	port := os.Getenv("REDIS_PORT")
@@ -53,6 +57,12 @@ func NewRedisConfig() *RedisConfig {
 
 // InitRedis 初始化 Redis 客户端（类似于 redisConnectionFactory）
 func (r *RedisConfig) InitRedis() error {
+	if r.Host == "" {
+		r.Client = redis.NewClient(&redis.Options{Addr: "disabled"})
+		log.Println("[INFO] Redis disabled (REDIS_ENABLED=false), using no-op client")
+		return nil
+	}
+
 	opt := &redis.Options{
 		Addr:         r.Host + ":" + r.Port,
 		DB:           r.DB,

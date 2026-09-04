@@ -35,7 +35,19 @@ public class RunDocker {
     @ConfigProperty(name = "redpanda.image", defaultValue = "docker.redpanda.com/redpandadata/redpanda:v26.1.9")
     String redpandaImage;
 
+    @Inject
+    @ConfigProperty(name = "quarkus.dev-services.enabled", defaultValue = "false")
+    boolean devServicesEnabled;
+
+    boolean containerAutoStart() {
+        return devServicesEnabled;
+    }
+
     void onStartElasticsearch(@Observes StartupEvent event) {
+        if (!containerAutoStart()) {
+            log.info("Dev services auto-start disabled (quarkus.dev-services.enabled=false), skipping Elasticsearch container");
+            return;
+        }
         startElasticsearch();
     }
 
@@ -44,6 +56,10 @@ public class RunDocker {
     }
 
     void onStartRedis(@Observes StartupEvent event) {
+        if (!containerAutoStart()) {
+            log.info("Dev services auto-start disabled (quarkus.dev-services.enabled=false), skipping Redis container");
+            return;
+        }
         startRedis();
     }
 
@@ -52,6 +68,10 @@ public class RunDocker {
     }
 
     void onStartRedpanda(@Observes StartupEvent event) {
+        if (!containerAutoStart()) {
+            log.info("Dev services auto-start disabled (quarkus.dev-services.enabled=false), skipping Redpanda container");
+            return;
+        }
         startRedpanda();
     }
 

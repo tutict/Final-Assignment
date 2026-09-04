@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"strings"
 	"time"
 
 	"github.com/testcontainers/testcontainers-go"
@@ -26,8 +27,19 @@ func NewRunDocker() *RunDocker {
 	return &RunDocker{ctx: context.Background()}
 }
 
+// servicesEnabled 返回当前进程是否需要自动拉起 Testcontainers 容器。
+// 本地一键启动脚本（scripts/start-dev.ps1）用外部 Compose 提供
+// Redis/Kafka/Elasticsearch，故 GO_DOCKER_SERVICES_ENABLED=false 时跳过。
+func servicesEnabled() bool {
+	return !strings.EqualFold(os.Getenv("GO_DOCKER_SERVICES_ENABLED"), "false")
+}
+
 // Init 鍚姩鎵€鏈夊鍣?
 func (r *RunDocker) Init() {
+	if !servicesEnabled() {
+		log.Println("[INFO] GO_DOCKER_SERVICES_ENABLED=false, skipping Testcontainers startup")
+		return
+	}
 	r.startRedis()
 	r.startRedpanda()
 	r.startElasticsearch()
@@ -125,6 +137,9 @@ func (r *RunDocker) startElasticsearch() {
 
 // StopContainers 鍋滄鎵€鏈夊鍣?
 func (r *RunDocker) StopContainers() {
+	if !servicesEnabled() {
+		return
+	}
 	if r.redisContainer != nil {
 		err := r.redisContainer.Terminate(r.ctx)
 		if err != nil {
