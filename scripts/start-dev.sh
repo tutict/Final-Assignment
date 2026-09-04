@@ -453,13 +453,18 @@ start_backend() {
         export NETWORK_SERVER_PORT=8081
         export BACKEND_URL=http://127.0.0.1
         export BACKEND_PORT=8080
-        export JWT_SECRET
+        export JWT_SECRET_KEY="${JWT_SECRET_KEY:-$JWT_SECRET}"
         export QUARKUS_DATASOURCE_JDBC_URL="jdbc:mysql://localhost:3306/cesi?useSSL=false&serverTimezone=UTC&allowPublicKeyRetrieval=true"
         export QUARKUS_DATASOURCE_USERNAME="$db_user"
         export QUARKUS_DATASOURCE_PASSWORD="$db_password"
         export QUARKUS_REDIS_HOSTS=redis://localhost:6379
+        export KAFKA_BOOTSTRAP_SERVERS=localhost:9092
         export QUARKUS_KAFKA_BOOTSTRAP_SERVERS=localhost:9092
         export ELASTICSEARCH_HOST=http://localhost:9200
+        export JWT_ML_DSA_PRIVATE_KEY="${JWT_ML_DSA_PRIVATE_KEY:- }"
+        export JWT_ML_DSA_PUBLIC_KEY="${JWT_ML_DSA_PUBLIC_KEY:- }"
+        export JWT_ML_KEM_PRIVATE_KEY="${JWT_ML_KEM_PRIVATE_KEY:- }"
+        export JWT_ML_KEM_PUBLIC_KEY="${JWT_ML_KEM_PUBLIC_KEY:- }"
         "$gradle_cmd" quarkusDev
       ) >"$BACKEND_LOG" 2>"$BACKEND_ERR_LOG" &
       BACKEND_PID=$!

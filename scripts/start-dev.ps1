@@ -523,6 +523,10 @@ function New-QuarkusRunner {
     $JwtSecret = Get-EnvValue "JWT_SECRET" "dev-jwt-secret-key-for-local-startup-please-change-1234567890"
     $DbUser = Get-EnvValue "SPRING_DATASOURCE_USERNAME" "root"
     $DbPassword = Get-EnvValue "SPRING_DATASOURCE_PASSWORD" "root"
+    # ML-DSA / ML-KEM PQC 密钥本地开发可留空：应用在空值时生成临时密钥。
+    # 在 runner .bat 里用单个空格占位（非空、但 isBlank 为真），让 Quarkus 配置
+    # 校验视为"存在"，而应用的 isPresent() 返回 false 从而回退到临时密钥，
+    # 避免启动时报 SRCFG00014 required。
     # All keys are set as environment variables (not -D system properties) so they
     # pass through the Gradle fork into the app JVM:
     #   - QUARKUS_LANGCHAIN4J_OLLAMA_DEVSERVICES_ENABLED=false is required at build
@@ -545,13 +549,18 @@ function New-QuarkusRunner {
         "set NETWORK_SERVER_PORT=8081",
         "set BACKEND_URL=http://127.0.0.1",
         "set BACKEND_PORT=8080",
-        "if not defined JWT_SECRET set `"JWT_SECRET=$JwtSecret`"",
+        "if not defined JWT_SECRET_KEY set `"JWT_SECRET_KEY=$JwtSecret`"",
         "set `"QUARKUS_DATASOURCE_JDBC_URL=jdbc:mysql://localhost:3306/cesi?useSSL=false&serverTimezone=UTC&allowPublicKeyRetrieval=true`"",
         "set `"QUARKUS_DATASOURCE_USERNAME=$DbUser`"",
         "set `"QUARKUS_DATASOURCE_PASSWORD=$DbPassword`"",
         "set QUARKUS_REDIS_HOSTS=redis://localhost:6379",
+        "set KAFKA_BOOTSTRAP_SERVERS=localhost:9092",
         "set QUARKUS_KAFKA_BOOTSTRAP_SERVERS=localhost:9092",
         "set ELASTICSEARCH_HOST=http://localhost:9200",
+        "set `"JWT_ML_DSA_PRIVATE_KEY= `"",
+        "set `"JWT_ML_DSA_PUBLIC_KEY= `"",
+        "set `"JWT_ML_KEM_PRIVATE_KEY= `"",
+        "set `"JWT_ML_KEM_PUBLIC_KEY= `"",
         "call `"$GradleCmd`" quarkusDev 1> `"$BackendLog`" 2> `"$BackendErrLog`"",
         "exit /b %ERRORLEVEL%"
     )
