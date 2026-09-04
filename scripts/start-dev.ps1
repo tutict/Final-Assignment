@@ -210,11 +210,8 @@ $FrontendChoices = @(
     @{ Label = "None (frontend only if backend selected)"; Value = "none" }
 )
 
-if ([string]::IsNullOrWhiteSpace($menuBackend)) {
-    Write-Host ""
-    Write-Host "Choose the backend to start:"
-    $BackendChoice = Select-Option -Prompt "Backend (0-$($BackendChoices.Count - 1))" -Options $BackendChoices
-} else {
+# Validate any flag-provided values first (fail fast, before prompting).
+if (-not [string]::IsNullOrWhiteSpace($menuBackend)) {
     $BackendChoice = $menuBackend.ToLowerInvariant()
     if ($BackendChoice -notin @("spring", "go", "quarkus", "cloud", "none")) {
         Write-Host "[ERROR] Unknown backend: $menuBackend"
@@ -222,18 +219,25 @@ if ([string]::IsNullOrWhiteSpace($menuBackend)) {
         exit 1
     }
 }
-
-if ([string]::IsNullOrWhiteSpace($menuFrontend)) {
-    Write-Host ""
-    Write-Host "Choose the frontend to start:"
-    $FrontendChoice = Select-Option -Prompt "Frontend (0-$($FrontendChoices.Count - 1))" -Options $FrontendChoices
-} else {
+if (-not [string]::IsNullOrWhiteSpace($menuFrontend)) {
     $FrontendChoice = $menuFrontend.ToLowerInvariant()
     if ($FrontendChoice -notin @("flutter", "react", "none")) {
         Write-Host "[ERROR] Unknown frontend: $menuFrontend"
         Show-Usage
         exit 1
     }
+}
+
+# Prompt only for whatever was not provided via flags.
+if ([string]::IsNullOrWhiteSpace($menuBackend)) {
+    Write-Host ""
+    Write-Host "Choose the backend to start:"
+    $BackendChoice = Select-Option -Prompt "Backend (0-$($BackendChoices.Count - 1))" -Options $BackendChoices
+}
+if ([string]::IsNullOrWhiteSpace($menuFrontend)) {
+    Write-Host ""
+    Write-Host "Choose the frontend to start:"
+    $FrontendChoice = Select-Option -Prompt "Frontend (0-$($FrontendChoices.Count - 1))" -Options $FrontendChoices
 }
 
 if ($BackendChoice -eq "none" -and $FrontendChoice -eq "none") {

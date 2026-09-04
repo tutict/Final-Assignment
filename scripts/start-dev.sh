@@ -206,24 +206,28 @@ choose_frontend() {
   done
 }
 
-if [ -z "$MENU_BACKEND" ]; then
-  choose_backend
-else
+# Validate any flag-provided values first (fail fast, before prompting).
+if [ -n "$MENU_BACKEND" ]; then
   BACKEND_CHOICE="$(printf '%s' "$MENU_BACKEND" | tr '[:upper:]' '[:lower:]')"
   case "$BACKEND_CHOICE" in
     spring|go|quarkus|cloud|none) ;;
     *) echo "[ERROR] Unknown backend: $MENU_BACKEND" >&2; usage; exit 1 ;;
   esac
 fi
-
-if [ -z "$MENU_FRONTEND" ]; then
-  choose_frontend
-else
+if [ -n "$MENU_FRONTEND" ]; then
   FRONTEND_CHOICE="$(printf '%s' "$MENU_FRONTEND" | tr '[:upper:]' '[:lower:]')"
   case "$FRONTEND_CHOICE" in
     flutter|react|none) ;;
     *) echo "[ERROR] Unknown frontend: $MENU_FRONTEND" >&2; usage; exit 1 ;;
   esac
+fi
+
+# Prompt only for whatever was not provided via flags.
+if [ -z "$MENU_BACKEND" ]; then
+  choose_backend
+fi
+if [ -z "$MENU_FRONTEND" ]; then
+  choose_frontend
 fi
 
 if [ "$BACKEND_CHOICE" = "none" ] && [ "$FRONTEND_CHOICE" = "none" ]; then
