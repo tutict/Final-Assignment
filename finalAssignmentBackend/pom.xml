@@ -434,24 +434,6 @@
                     <reuseForks>true</reuseForks>
                 </configuration>
             </plugin>
-            <plugin>
-                <groupId>org.graalvm.python</groupId>
-                <artifactId>graalpy-maven-plugin</artifactId>
-                <version>25.2.4</version>
-                <executions>
-                    <execution>
-                        <configuration>
-                            <packages>
-                                <package>requests</package>
-                                <package>beautifulsoup4</package>
-                            </packages>
-                        </configuration>
-                        <goals>
-                            <goal>process-graalpy-resources</goal>
-                        </goals>
-                    </execution>
-                </executions>
-            </plugin>
         </plugins>
     </build>
     <dependencyManagement>
@@ -491,4 +473,39 @@
             </releases>
         </repository>
     </repositories>
+    <!--
+        GraalPy native resources build (Python packages: requests, beautifulsoup4)
+        are OFF by default. On a plain JDK/Windows setup the graalpy-maven-plugin's
+        process-graalpy-resources goal fails with 'No module named _ctypes' (GraalPy
+        embedded-mode cannot load its _ctypes native module). Runtime already degrades
+        gracefully (GraalPyContext disables web search), so only opt in when building
+        the Python venv: mvn -Pgraalpy spring-boot:run
+    -->
+    <profiles>
+        <profile>
+            <id>graalpy</id>
+            <build>
+                <plugins>
+                    <plugin>
+                        <groupId>org.graalvm.python</groupId>
+                        <artifactId>graalpy-maven-plugin</artifactId>
+                        <version>25.2.4</version>
+                        <executions>
+                            <execution>
+                                <configuration>
+                                    <packages>
+                                        <package>requests</package>
+                                        <package>beautifulsoup4</package>
+                                    </packages>
+                                </configuration>
+                                <goals>
+                                    <goal>process-graalpy-resources</goal>
+                                </goals>
+                            </execution>
+                        </executions>
+                    </plugin>
+                </plugins>
+            </build>
+        </profile>
+    </profiles>
 </project>
