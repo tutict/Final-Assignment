@@ -417,6 +417,31 @@ function Stop-ProcessTree([int]$ProcessId, [string]$Name) {
     Stop-Process -Id $ProcessId -Force -ErrorAction SilentlyContinue
 }
 
+# Detect and stop stale Flutter web-server processes that still hold the Flutter
+# web port open (e.g. from a previous `flutter run -d web-server` that was not
+# cleaned up). Only processes whose command line matches a Flutter web-server run
+# are killed; any other process holding the port is reported, never force-killed.
+function Clear-StaleFlutterOnPort([string]$Address, [int]$Port) {
+    $connections = Get-NetTCPConnection -LocalPort $Port -State Listen -ErrorAction SilentlyContinue | Where-Object {
+        $_.LocalAddress -in @($Address, "0.0.0.0", "::", "[::]") -or $_.LocalAddress -eq "0:0:0:0:0:0:0:0"
+    }
+    if (-not $connections) { return }
+
+    $runPattern = "run\s+-d\s+web-server.*--web-port=$Port"
+    foreach ($conn in $connections) {
+        $process = Get-CimInstance Win32_Process -Filter "ProcessId=$($conn.OwningProcess)" -ErrorAction SilentlyContinue
+        if (-not $process) { continue }
+        $cmdLine = $process.CommandLine
+        if ($cmdLine -match "flutter" -and $cmdLine -match $runPattern) {
+            Write-Log "Port $Port is held by a stale Flutter web-server process (PID $($process.ProcessId)); stopping it before starting Flutter."
+            Stop-ProcessTree -ProcessId $conn.OwningProcess -Name "Stale Flutter web-server"
+        } else {
+            $name = $process.Name
+            Write-Log "Port $Port is already in use by $name (PID $($conn.OwningProcess)). Not stopping it because it does not look like a stale Flutter web-server. Flutter startup may fail. Command line: $cmdLine"
+        }
+    }
+}
+
 function Stop-LocalDependencies {
     if ($StopOllamaOnExit -ieq "true" -and (Test-Path -LiteralPath $OllamaPidFile)) {
         $pidText = (Get-Content -LiteralPath $OllamaPidFile -ErrorAction SilentlyContinue | Select-Object -First 1)
@@ -753,6 +778,15 @@ try {
     }
 
     if ($frontendReady) {
+        if ($FrontendChoice -eq "flutter" -and $FlutterDevice -ieq "web-server") {
+            # Free the Flutter web port from any stale `flutter run` process
+            # before starting, otherwise bind fails and Flutter exits immediately.
+            $fwPort = 3000
+            $fwAddr = "127.0.0.1"
+            if ($FlutterArgs -match "--web-port\s+(\d+)") { $fwPort = [int]$Matches[1] }
+            if ($FlutterArgs -match "--web-hostname\s+(\S+)") { $fwAddr = $Matches[1].Trim('"') }
+            Clear-StaleFlutterOnPort -Address $fwAddr -Port $fwPort
+        }
         Write-Log "Starting frontend ($FrontendChoice)..."
         $script:FrontendProcess = Start-RunnerProcess -RunnerPath $FrontendRunner -WorkingDirectory $frontendWorkDir
         Write-Log "Frontend PID: $($script:FrontendProcess.Id)"
