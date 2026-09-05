@@ -798,7 +798,8 @@ try {
     if ($frontendReady) {
         # Default the browser URL to the selected frontend's ready URL unless the
         # user explicitly set BROWSER_URL.
-        $BrowserUrl = Set-DefaultEnv "BROWSER_URL" (if ($FrontendChoice -eq "react") { $ReactDevUrl } else { $FlutterWebUrl })
+        $defaultBrowserUrl = if ($FrontendChoice -eq "react") { $ReactDevUrl } else { $FlutterWebUrl }
+        $BrowserUrl = Set-DefaultEnv "BROWSER_URL" $defaultBrowserUrl
         if ($FrontendChoice -eq "flutter" -and $FlutterDevice -ieq "web-server") {
             # Free the Flutter web port from any stale `flutter run` process
             # before starting, otherwise bind fails and Flutter exits immediately.
