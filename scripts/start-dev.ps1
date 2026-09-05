@@ -155,6 +155,8 @@ $ReactDevUrl = Set-DefaultEnv "REACT_DEV_URL" "http://127.0.0.1:5173"
 $ReactArgs = Set-DefaultEnv "REACT_ARGS" ""
 $FlutterWaitSeconds = [int](Set-DefaultEnv "FLUTTER_WAIT_SECONDS" "120")
 $FlutterWebUrl = Set-DefaultEnv "FLUTTER_WEB_URL" "http://127.0.0.1:3000"
+$OpenBrowser = Set-DefaultEnv "OPEN_BROWSER" "true"
+$BrowserUrl = Set-DefaultEnv "BROWSER_URL" $FlutterWebUrl
 $StopLocalServicesOnExit = Set-DefaultEnv "STOP_LOCAL_SERVICES_ON_EXIT" $StartLocalServices
 $StopDockerOnExit = Set-DefaultEnv "STOP_DOCKER_ON_EXIT" $StopLocalServicesOnExit
 $StopOllamaOnExit = Set-DefaultEnv "STOP_OLLAMA_ON_EXIT" $StopLocalServicesOnExit
@@ -406,6 +408,19 @@ function Start-RunnerProcess([string]$RunnerPath, [string]$WorkingDirectory) {
     return [System.Diagnostics.Process]::Start($psi)
 }
 
+function Open-FrontendInBrowser {
+    if ($OpenBrowser -ine "true") {
+        Write-Log "Skipping browser launch because OPEN_BROWSER=$OpenBrowser."
+        return
+    }
+    try {
+        Start-Process $BrowserUrl -ErrorAction Stop | Out-Null
+        Write-Log "Opened frontend in the default browser: $BrowserUrl"
+    } catch {
+        Write-Log "Frontend is ready at $BrowserUrl, but the browser could not be opened automatically: $($_.Exception.Message)"
+    }
+}
+
 function Stop-ProcessTree([int]$ProcessId, [string]$Name) {
     if ($ProcessId -le 0) { return }
     $process = Get-Process -Id $ProcessId -ErrorAction SilentlyContinue
@@ -619,7 +634,10 @@ function New-FlutterRunner {
     $env:FLUTTER_CMD = $FlutterCmd
     Write-Log "Using Flutter: $FlutterCmd"
 
-    Set-Content -LiteralPath $PubRunnerPath -Encoding ASCII -Value @("@echo off", "cd /d `"$FlutterDir`"", "call `"$FlutterCmd`" pub get 1> `"$FlutterPubLog`" 2> `"$FlutterPubErrLog`"", "exit /b %ERRORLEVEL%")
+    # Keep a non-ASCII path (e.g. %USERPROFILE% containing non-Latin characters)
+    # intact: cmd.exe reads the active Windows code page, so write the
+    # temporary runner files with the default encoding.
+    Set-Content -LiteralPath $PubRunnerPath -Encoding Default -Value @("@echo off", "cd /d `"$FlutterDir`"", "call `"$FlutterCmd`" pub get 1> `"$FlutterPubLog`" 2> `"$FlutterPubErrLog`"", "exit /b %ERRORLEVEL%")
     $pubProcess = Start-RunnerProcess -RunnerPath $PubRunnerPath -WorkingDirectory $FlutterDir
     $pubProcess.WaitForExit()
     if ($pubProcess.ExitCode -ne 0) {
@@ -635,7 +653,7 @@ function New-FlutterRunner {
         "call `"$FlutterCmd`" run -d `"$FlutterDevice`" --dart-define=APP_ENV=$AppEnv --dart-define=API_BASE_URL=$ApiBaseUrl --dart-define=WS_BASE_URL=$WsBaseUrl $FlutterArgs"
     }
     $flutterCommand = "$flutterCommand 1> `"$FrontendLog`" 2> `"$FrontendErrLog`""
-    Set-Content -LiteralPath $RunnerPath -Encoding ASCII -Value @("@echo off", "cd /d `"$FlutterDir`"", $flutterCommand, "exit /b %ERRORLEVEL%")
+    Set-Content -LiteralPath $RunnerPath -Encoding Default -Value @("@echo off", "cd /d `"$FlutterDir`"", $flutterCommand, "exit /b %ERRORLEVEL%")
     return $true
 }
 
@@ -778,6 +796,9 @@ try {
     }
 
     if ($frontendReady) {
+        # Default the browser URL to the selected frontend's ready URL unless the
+        # user explicitly set BROWSER_URL.
+        $BrowserUrl = Set-DefaultEnv "BROWSER_URL" (if ($FrontendChoice -eq "react") { $ReactDevUrl } else { $FlutterWebUrl })
         if ($FrontendChoice -eq "flutter" -and $FlutterDevice -ieq "web-server") {
             # Free the Flutter web port from any stale `flutter run` process
             # before starting, otherwise bind fails and Flutter exits immediately.
@@ -811,6 +832,7 @@ try {
             if (-not $reachable) {
                 Fail "Flutter web server did not become reachable within $FlutterWaitSeconds seconds."
             }
+            Open-FrontendInBrowser
         } elseif ($FrontendChoice -eq "react") {
             Write-Log "Waiting up to $FlutterWaitSeconds seconds for $ReactDevUrl..."
             $reactDeadline = (Get-Date).AddSeconds($FlutterWaitSeconds)
@@ -829,6 +851,7 @@ try {
             if (-not $reachable) {
                 Fail "React dev server did not become reachable within $FlutterWaitSeconds seconds."
             }
+            Open-FrontendInBrowser
         }
     }
 

@@ -133,6 +133,8 @@ FLUTTER_DEVICE="${FLUTTER_DEVICE:-web-server}"
 FLUTTER_ARGS="${FLUTTER_ARGS:---web-hostname 127.0.0.1 --web-port 3000}"
 FLUTTER_WAIT_SECONDS="${FLUTTER_WAIT_SECONDS:-120}"
 FLUTTER_WEB_URL="${FLUTTER_WEB_URL:-http://127.0.0.1:3000}"
+OPEN_BROWSER="${OPEN_BROWSER:-true}"
+BROWSER_URL="${BROWSER_URL:-$FLUTTER_WEB_URL}"
 NPM_CMD="${NPM_CMD:-npm}"
 REACT_DEV_URL="${REACT_DEV_URL:-http://127.0.0.1:5173}"
 REACT_ARGS="${REACT_ARGS:-}"
@@ -297,6 +299,44 @@ check_http() {
     wget -q --timeout=3 --spider "$url" >/dev/null 2>&1
   else
     return 1
+  fi
+}
+
+open_frontend_in_browser() {
+  if [ "$OPEN_BROWSER" != "true" ]; then
+    log "Skipping browser launch because OPEN_BROWSER=$OPEN_BROWSER."
+    return 0
+  fi
+
+  if command -v open >/dev/null 2>&1; then
+    open "$BROWSER_URL" >/dev/null 2>&1 &
+  elif command -v xdg-open >/dev/null 2>&1; then
+    xdg-open "$BROWSER_URL" >/dev/null 2>&1 &
+  elif command -v wslview >/dev/null 2>&1; then
+    wslview "$BROWSER_URL" >/dev/null 2>&1 &
+  else
+    log "Frontend is ready at $BROWSER_URL. No browser launcher was found."
+    return 0
+  fi
+  log "Opened frontend in the default browser: $BROWSER_URL"
+}
+
+# Lightweight port occupancy probe used before starting the Flutter web server.
+# The POSIX script deliberately does not auto-kill the holder: identifying a
+# stale Flutter process from a command line is unreliable across platforms
+# (Git Bash, WSL, macOS) and could take down an unrelated service. On Windows
+# the start-dev.ps1 path performs the safe command-line-scoped cleanup.
+warn_if_port_in_use() {
+  port="$1"
+  if command -v lsof >/dev/null 2>&1; then
+    holder=$(lsof -t "tcp:$port" 2>/dev/null | head -n 1 || true)
+    if [ -n "$holder" ]; then
+      log "Port $port is already in use (PID $holder). Flutter web startup may fail. On Windows, start-dev.ps1 will clear stale Flutter hold-backs; otherwise free the port first."
+    fi
+  elif command -v ss >/dev/null 2>&1; then
+    if ss -ltn | grep -q ":$port "; then
+      log "Port $port is already in use. Flutter web startup may fail. On Windows, start-dev.ps1 will clear stale Flutter hold-backs; otherwise free the port first."
+    fi
   fi
 }
 
@@ -499,6 +539,15 @@ start_frontend() {
         fail "flutter pub get failed."
       fi
       log "flutter pub get completed. Log: $FLUTTER_PUB_LOG"
+      # Warn before `flutter run` binds so a stale holder is surfaced instead of a
+      # cryptic bind failure. (Auto-cleanup is handled by the Windows .ps1 path.)
+      if [ "$FLUTTER_DEVICE" = "web-server" ]; then
+        case "$FLUTTER_ARGS" in
+          *--web-port=*) fw_port="${FLUTTER_ARGS##*--web-port=}"; fw_port="${fw_port%%[^0-9]*}" ;;
+          *) fw_port="3000" ;;
+        esac
+        warn_if_port_in_use "$fw_port"
+      fi
       (
         cd "$FLUTTER_DIR"
         if [ -n "${FLUTTER_DEVICE:-}" ]; then
@@ -597,6 +646,12 @@ if [ "$BACKEND_CHOICE" != "none" ]; then
 fi
 
 if [ "$FRONTEND_CHOICE" != "none" ]; then
+  # Default the browser URL to the selected frontend's ready URL.
+  if [ "$FRONTEND_CHOICE" = "react" ]; then
+    BROWSER_URL="${BROWSER_URL:-$REACT_DEV_URL}"
+  else
+    BROWSER_URL="${BROWSER_URL:-$FLUTTER_WEB_URL}"
+  fi
   log "Starting frontend ($FRONTEND_CHOICE)..."
   start_frontend
   log "Frontend PID: $FRONTEND_PID"
@@ -623,6 +678,7 @@ if [ "$FRONTEND_CHOICE" != "none" ]; then
     if [ "$reachable" != "true" ]; then
       fail "Flutter web server did not become reachable within $FLUTTER_WAIT_SECONDS seconds."
     fi
+    open_frontend_in_browser
   elif [ "$FRONTEND_CHOICE" = "react" ]; then
     log "Waiting up to $FLUTTER_WAIT_SECONDS seconds for $REACT_DEV_URL..."
     waited=0
@@ -643,6 +699,7 @@ if [ "$FRONTEND_CHOICE" != "none" ]; then
     if [ "$reachable" != "true" ]; then
       fail "React dev server did not become reachable within $FLUTTER_WAIT_SECONDS seconds."
     fi
+    open_frontend_in_browser
   fi
 fi
 

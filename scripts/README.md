@@ -85,6 +85,26 @@ sh scripts/start-all.sh -b none -f react
 sh scripts/start-all.sh -b quarkus -f none -e
 ```
 
+After the frontend is ready, the scripts open it in your default browser by
+default. Set `OPEN_BROWSER=false` to skip this, or `BROWSER_URL` to point it
+somewhere else (it defaults to the selected frontend's ready URL):
+
+```bat
+set OPEN_BROWSER=false
+scripts\start-all.bat
+```
+
+```sh
+OPEN_BROWSER=false sh scripts/start-all.sh
+```
+
+On Windows, before starting Flutter the `start-dev.ps1` path clears any stale
+`flutter run -d web-server` process still holding the web port (3000), so a
+leftover dev server from a previous session no longer causes the new Flutter
+process to fail binding. Only processes whose command line matches a Flutter
+web-server run are stopped; another service holding the port is reported and
+left alone.
+
 Skip Docker/Ollama and only start backend + frontend:
 
 ```bat

@@ -112,6 +112,8 @@ scripts\start-all.bat
 
 更多启动参数见 [scripts/README.md](scripts/README.md)。启动失败时脚本会打印最近日志、端口占用和 Docker Compose 状态；按 Ctrl-C 会停止前后端，并默认停止本项目 Docker Compose 依赖和本次脚本启动的 Ollama；完整日志位于 `artifacts/startup/<timestamp>/`。
 
+Windows 下 `start-dev.ps1` 会在启动 Flutter 前清理仍占用 Web 端口（默认 3000）的残留 `flutter run -d web-server` 进程，避免上一次未停干净的开发服务器导致本次 Flutter 端口绑定失败；只会按命令行特征识别 Flutter 残留，其它占用端口的进程只会被提示、不会被误杀。前端就绪后默认会在浏览器中打开，可用环境变量 `OPEN_BROWSER=false` 关闭。
+
 ## 本地依赖
 
 主线开发建议准备：
