@@ -62,6 +62,9 @@ Optional flags / environment variables:
   FLUTTER_ARGS                 Extra flutter run arguments. Default: --web-hostname 127.0.0.1 --web-port 3000
   FLUTTER_WAIT_SECONDS         Flutter web readiness timeout. Default: 120
   FLUTTER_WEB_URL              Flutter web readiness URL. Default: http://127.0.0.1:3000
+  OPEN_BROWSER                 Open the frontend in a browser after it is ready. Default: true
+  BROWSER_URL                  URL to open when OPEN_BROWSER=true. Default: the selected frontend's ready URL
+  BROWSER_OVERRIDE             Force a specific browser (chrome, edge, firefox, default). Default: auto (Firefox -> Chrome)
   NPM_CMD                      npm executable path.
 "@ | Write-Host
 }
@@ -157,6 +160,7 @@ $FlutterWaitSeconds = [int](Set-DefaultEnv "FLUTTER_WAIT_SECONDS" "120")
 $FlutterWebUrl = Set-DefaultEnv "FLUTTER_WEB_URL" "http://127.0.0.1:3000"
 $OpenBrowser = Set-DefaultEnv "OPEN_BROWSER" "true"
 $BrowserUrl = Set-DefaultEnv "BROWSER_URL" $FlutterWebUrl
+$BrowserOverride = Set-DefaultEnv "BROWSER_OVERRIDE" "auto"
 $StopLocalServicesOnExit = Set-DefaultEnv "STOP_LOCAL_SERVICES_ON_EXIT" $StartLocalServices
 $StopDockerOnExit = Set-DefaultEnv "STOP_DOCKER_ON_EXIT" $StopLocalServicesOnExit
 $StopOllamaOnExit = Set-DefaultEnv "STOP_OLLAMA_ON_EXIT" $StopLocalServicesOnExit
@@ -408,14 +412,108 @@ function Start-RunnerProcess([string]$RunnerPath, [string]$WorkingDirectory) {
     return [System.Diagnostics.Process]::Start($psi)
 }
 
+# Firefox cannot render Flutter Web's debug (DDC) builds — the page loads but
+# the canvas stays blank. Flutter Web officially recommends Chrome/Edge. When the
+# system default browser is Firefox we therefore fall back to an installed
+# Chromium browser instead of opening the blank tab. Set BROWSER_OVERRIDE to
+# "firefox" to keep Firefox, "chrome"/"edge" to force one, or "default" to skip
+# the fallback and always use the OS default.
+function Get-InstalledBrowserPath([string]$Kind) {
+    $candidates = switch ($Kind) {
+        "chrome" {
+            @(
+                (Join-Path $env:ProgramFiles "Google\Chrome\Application\chrome.exe"),
+                (Join-Path ([Environment]::GetEnvironmentVariable("ProgramFiles(x86)")) "Google\Chrome\Application\chrome.exe"),
+                (Join-Path $env:LOCALAPPDATA "Google\Chrome\Application\chrome.exe")
+            )
+        }
+        "edge" {
+            @(
+                (Join-Path ([Environment]::GetEnvironmentVariable("ProgramFiles(x86)")) "Microsoft\Edge\Application\msedge.exe"),
+                (Join-Path $env:ProgramFiles "Microsoft\Edge\Application\msedge.exe")
+            )
+        }
+        "firefox" {
+            @(
+                (Join-Path $env:ProgramFiles "Mozilla Firefox\firefox.exe"),
+                (Join-Path ([Environment]::GetEnvironmentVariable("ProgramFiles(x86)")) "Mozilla Firefox\firefox.exe")
+            )
+        }
+        default { @() }
+    }
+    foreach ($candidate in $candidates) {
+        if (Test-Path -LiteralPath $candidate) { return $candidate }
+    }
+    return $null
+}
+
+function Get-DefaultBrowserProcessName {
+    # Read the OS default browser from the registry UserChoice. Falls back to
+    # "chrome" if the key cannot be read (older Windows without UserChoice).
+    $userChoicePath = "HKCU:\Software\Microsoft\Windows\Shell\Associations\UrlAssociations\http\UserChoice"
+    try {
+        $progId = (Get-ItemProperty -Path $userChoicePath -ErrorAction Stop).ProgId
+        if ($progId -match "Firefox") { return "firefox" }
+        if ($progId -match "Chrome") { return "chrome" }
+        if ($progId -match "Edge") { return "edge" }
+        # Unknown ProgId (e.g. a custom handler). Best-effort by name.
+        return $progId.ToLowerInvariant()
+    } catch {
+        return "chrome"
+    }
+}
+
 function Open-FrontendInBrowser {
     if ($OpenBrowser -ine "true") {
         Write-Log "Skipping browser launch because OPEN_BROWSER=$OpenBrowser."
         return
     }
+
+    $browserKind = $BrowserOverride.ToLowerInvariant()
+    if ($browserKind -notin @("auto", "default", "chrome", "edge", "firefox")) {
+        Write-Log "Unknown BROWSER_OVERRIDE='$BrowserOverride'; treating as 'auto'."
+        $browserKind = "auto"
+    }
+
+    $launchTarget = $BrowserUrl
+    $launchLabel = "default browser"
+    $explicitExe = $null
+
+    if ($browserKind -eq "auto") {
+        $defaultName = Get-DefaultBrowserProcessName
+        if ($defaultName -eq "firefox") {
+            # Firefox default + Flutter Web debug = blank page. Prefer Chrome/Edge.
+            $chrome = Get-InstalledBrowserPath "chrome"
+            $edge = Get-InstalledBrowserPath "edge"
+            if ($chrome) {
+                $explicitExe = $chrome
+                $launchLabel = "Google Chrome (Firefox default; Flutter Web debug is blank in Firefox)"
+            } elseif ($edge) {
+                $explicitExe = $edge
+                $launchLabel = "Microsoft Edge (Firefox default; Flutter Web debug is blank in Firefox)"
+            } else {
+                Write-Log "Default browser is Firefox and no Chrome/Edge found; opening in Firefox anyway (Flutter Web debug may render blank)."
+            }
+        }
+        # chrome/edge default: keep the OS default (no need to locate an exe).
+    } elseif ($browserKind -in @("chrome", "edge", "firefox")) {
+        $explicitExe = Get-InstalledBrowserPath $browserKind
+        if (-not $explicitExe) {
+            Write-Log "BROWSER_OVERRIDE=$BrowserOverride but '$browserKind' is not installed; falling back to default browser."
+        } else {
+            $launchLabel = $browserKind
+        }
+    }
+    # "default": no override.
+
     try {
-        Start-Process $BrowserUrl -ErrorAction Stop | Out-Null
-        Write-Log "Opened frontend in the default browser: $BrowserUrl"
+        if ($explicitExe) {
+            Start-Process -FilePath $explicitExe -ArgumentList $launchTarget -ErrorAction Stop | Out-Null
+            Write-Log "Opened frontend in ${launchLabel}: $launchTarget"
+        } else {
+            Start-Process $launchTarget -ErrorAction Stop | Out-Null
+            Write-Log "Opened frontend in ${launchLabel}: $launchTarget"
+        }
     } catch {
         Write-Log "Frontend is ready at $BrowserUrl, but the browser could not be opened automatically: $($_.Exception.Message)"
     }
