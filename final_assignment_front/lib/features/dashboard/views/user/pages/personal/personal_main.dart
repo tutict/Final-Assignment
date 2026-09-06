@@ -257,6 +257,9 @@ class _PersonalMainPageState extends State<PersonalMainPage> {
         theme: theme,
         title: '个人资料',
         pageType: DashboardPageType.user,
+        // body 自带 Scrollbar+ListView，模板不再额外包一层 SingleChildScrollView，
+        // 否则 ListView 会拿到无限高度并触发 "Vertical viewport was given unbounded height"。
+        bodyIsScrollable: true,
         body: Stack(
           children: [
             if (_isLoading)
