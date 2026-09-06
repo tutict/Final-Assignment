@@ -447,75 +447,79 @@ class _LoginScreenState extends State<LoginScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final themeData = _buildTheme();
+    // Wrap in Obx so a theme toggle rebuilds the whole page (background, form,
+    // panel) instead of only the toggle icon button.
+    return Obx(() {
+      final themeData = _buildTheme();
 
-    return Theme(
-      data: themeData,
-      child: Scaffold(
-        body: Stack(
-          children: [
-            const Positioned.fill(child: _StaticLoginBackground()),
-            SafeArea(
-              child: LayoutBuilder(
-                builder: (context, constraints) {
-                  final wide = constraints.maxWidth >= 920;
-                  final verticalInset = wide ? 72.0 : 48.0;
-                  return SingleChildScrollView(
-                    padding: EdgeInsets.symmetric(
-                      horizontal: wide ? 56 : 22,
-                      vertical: wide ? 36 : 24,
-                    ),
-                    child: ConstrainedBox(
-                      constraints: BoxConstraints(
-                        minHeight: constraints.maxHeight -
-                            verticalInset.clamp(0, constraints.maxHeight),
+      return Theme(
+        data: themeData,
+        child: Scaffold(
+          body: Stack(
+            children: [
+              const Positioned.fill(child: _StaticLoginBackground()),
+              SafeArea(
+                child: LayoutBuilder(
+                  builder: (context, constraints) {
+                    final wide = constraints.maxWidth >= 920;
+                    final verticalInset = wide ? 72.0 : 48.0;
+                    return SingleChildScrollView(
+                      padding: EdgeInsets.symmetric(
+                        horizontal: wide ? 56 : 22,
+                        vertical: wide ? 36 : 24,
                       ),
-                      child: wide
-                          ? Row(
-                              children: [
-                                Expanded(child: _brandPane(themeData)),
-                                const SizedBox(width: 48),
-                                SizedBox(
-                                  width: 440,
-                                  child: _authPanel(themeData),
-                                ),
-                              ],
-                            )
-                          : Column(
-                              crossAxisAlignment: CrossAxisAlignment.stretch,
-                              children: [
-                                _brandPane(themeData, compact: true),
-                                const SizedBox(height: 28),
-                                _authPanel(themeData),
-                              ],
-                            ),
+                      child: ConstrainedBox(
+                        constraints: BoxConstraints(
+                          minHeight: constraints.maxHeight -
+                              verticalInset.clamp(0, constraints.maxHeight),
+                        ),
+                        child: wide
+                            ? Row(
+                                children: [
+                                  Expanded(child: _brandPane(themeData)),
+                                  const SizedBox(width: 48),
+                                  SizedBox(
+                                    width: 440,
+                                    child: _authPanel(themeData),
+                                  ),
+                                ],
+                              )
+                            : Column(
+                                crossAxisAlignment: CrossAxisAlignment.stretch,
+                                children: [
+                                  _brandPane(themeData, compact: true),
+                                  const SizedBox(height: 28),
+                                  _authPanel(themeData),
+                                ],
+                              ),
+                      ),
+                    );
+                  },
+                ),
+              ),
+              Positioned(
+                top: 22,
+                right: 22,
+                child: Obx(() {
+                  final dark = _theme.isDark;
+                  return Tooltip(
+                    message: dark ? '切换到浅色模式' : '切换到深色模式',
+                    child: IconButton.filledTonal(
+                      onPressed: _theme.toggle,
+                      icon: Icon(
+                        dark
+                            ? Icons.light_mode_rounded
+                            : Icons.dark_mode_rounded,
+                      ),
                     ),
                   );
-                },
+                }),
               ),
-            ),
-            Positioned(
-              top: 22,
-              right: 22,
-              child: Obx(() {
-                final dark = _theme.isDark;
-                return Tooltip(
-                  message: dark ? '切换到浅色模式' : '切换到深色模式',
-                  child: IconButton.filledTonal(
-                    onPressed: _theme.toggle,
-                    icon: Icon(
-                      dark
-                          ? Icons.light_mode_rounded
-                          : Icons.dark_mode_rounded,
-                    ),
-                  ),
-                );
-              }),
-            ),
-          ],
+            ],
+          ),
         ),
-      ),
-    );
+      );
+    });
   }
 
   Widget _brandPane(ThemeData themeData, {bool compact = false}) {
