@@ -540,7 +540,10 @@ function Clear-StaleFlutterOnPort([string]$Address, [int]$Port) {
     }
     if (-not $connections) { return }
 
-    $runPattern = "run\s+-d\s+web-server.*--web-port=$Port"
+    # `flutter run` accepts the port/address both as "--flag value" (what this
+    # script's own $FlutterArgs default produces) and as "--flag=value". Match
+    # either so a stale web-server from either form is recognised and killed.
+    $runPattern = "run\s+-d\s+web-server.*--web-port[= ]\s*$Port"
     foreach ($conn in $connections) {
         $process = Get-CimInstance Win32_Process -Filter "ProcessId=$($conn.OwningProcess)" -ErrorAction SilentlyContinue
         if (-not $process) { continue }
