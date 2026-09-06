@@ -149,6 +149,23 @@ set FLUTTER_WAIT_SECONDS=180
 scripts\start-all.bat
 ```
 
+The Flutter web frontend runs in **release** mode by default
+(`FLUTTER_WEB_RELEASE=true`). Flutter Web's debug (DDC) build loads thousands of
+modules over DWDS WebSockets and renders a blank/black page in some browsers
+(Firefox, and sometimes Chrome), whereas the release build is a single
+precompiled `main.dart.js` that renders reliably. It keeps the `web-server`
+device on the fixed `:3000` port (so backend CORS stays valid). Set
+`FLUTTER_WEB_RELEASE=false` to switch back to the debug build when you need hot
+reload:
+
+```bat
+set FLUTTER_WEB_RELEASE=false
+scripts\start-all.bat
+```
+
+Note: the first release compile is slower than the incremental debug build, so
+the Flutter readiness check automatically waits longer in release mode.
+
 Move startup logs to another directory:
 
 ```bat
