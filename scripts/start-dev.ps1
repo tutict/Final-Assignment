@@ -66,6 +66,7 @@ Optional flags / environment variables:
   BROWSER_URL                  URL to open when OPEN_BROWSER=true. Default: the selected frontend's ready URL
   BROWSER_OVERRIDE             Force a specific browser (chrome, edge, firefox, default). Default: auto (Firefox -> Chrome)
   NPM_CMD                      npm executable path.
+  CLEAR_STALE_FLUTTER_PORT     Clear a stale Flutter web-server holding the web port before startup. Default: true
 "@ | Write-Host
 }
 
@@ -158,6 +159,7 @@ $ReactDevUrl = Set-DefaultEnv "REACT_DEV_URL" "http://127.0.0.1:5173"
 $ReactArgs = Set-DefaultEnv "REACT_ARGS" ""
 $FlutterWaitSeconds = [int](Set-DefaultEnv "FLUTTER_WAIT_SECONDS" "120")
 $FlutterWebUrl = Set-DefaultEnv "FLUTTER_WEB_URL" "http://127.0.0.1:3000"
+$ClearStaleFlutterPort = Set-DefaultEnv "CLEAR_STALE_FLUTTER_PORT" "true"
 $OpenBrowser = Set-DefaultEnv "OPEN_BROWSER" "true"
 $BrowserUrl = Set-DefaultEnv "BROWSER_URL" $FlutterWebUrl
 $BrowserOverride = Set-DefaultEnv "BROWSER_OVERRIDE" "auto"
@@ -901,9 +903,12 @@ try {
         # user explicitly set BROWSER_URL.
         $defaultBrowserUrl = if ($FrontendChoice -eq "react") { $ReactDevUrl } else { $FlutterWebUrl }
         $BrowserUrl = Set-DefaultEnv "BROWSER_URL" $defaultBrowserUrl
-        if ($FrontendChoice -eq "flutter" -and $FlutterDevice -ieq "web-server") {
+        if ($FrontendChoice -eq "flutter" -and $ClearStaleFlutterPort -ieq "true") {
             # Free the Flutter web port from any stale `flutter run` process
             # before starting, otherwise bind fails and Flutter exits immediately.
+            # Runs for any flutter device (not just web-server): a leftover
+            # web-server can still hold the port even when the new run targets
+            # a different device.
             $fwPort = 3000
             $fwAddr = "127.0.0.1"
             if ($FlutterArgs -match "--web-port\s+(\d+)") { $fwPort = [int]$Matches[1] }
