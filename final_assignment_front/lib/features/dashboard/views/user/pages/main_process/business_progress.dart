@@ -80,9 +80,18 @@ class _BusinessProgressPageState extends State<BusinessProgressPage> {
                           builder: (context, constraints) {
                             final width = constraints.maxWidth;
                             final crossAxisCount = width >= 520 ? 2 : 1;
+                            // Height scales with available space: cards take an
+                            // equal share of the grid height (2 rows when 2-up,
+                            // 4 rows when stacked), clamped to stay usable.
+                            final rows = (businessOptions.length /
+                                    crossAxisCount)
+                                .ceil();
+                            final totalSpacing = (rows - 1) * 12.0;
+                            final proportional =
+                                (constraints.maxHeight - totalSpacing) / rows;
                             final double tileExtent = crossAxisCount == 1
-                                ? (width < 340 ? 104 : 98)
-                                : 92;
+                                ? proportional.clamp(84.0, 120.0)
+                                : proportional.clamp(84.0, 160.0);
 
                             return Column(
                               children: [
