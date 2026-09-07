@@ -413,26 +413,38 @@ class _LoginScreenState extends State<LoginScreen> {
             : scheme.surface.withValues(alpha: 0.92),
         contentPadding:
             const EdgeInsets.symmetric(horizontal: 18, vertical: 16),
+        // 更现代的圆角与聚焦反馈
         border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(8),
+          borderRadius: BorderRadius.circular(12),
           borderSide: BorderSide(
-            color: scheme.outlineVariant.withValues(alpha: 0.6),
+            color: scheme.outlineVariant.withValues(alpha: 0.45),
           ),
         ),
         enabledBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(8),
+          borderRadius: BorderRadius.circular(12),
           borderSide: BorderSide(
-            color: scheme.outlineVariant.withValues(alpha: 0.6),
+            color: scheme.outlineVariant.withValues(alpha: 0.45),
           ),
         ),
         focusedBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(8),
-          borderSide: BorderSide(color: scheme.primary, width: 1.7),
+          borderRadius: BorderRadius.circular(12),
+          borderSide: BorderSide(color: scheme.primary, width: 2),
+        ),
+        focusedErrorBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: BorderSide(color: scheme.error, width: 2),
         ),
         errorBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(8),
-          borderSide: BorderSide(color: scheme.error, width: 1.7),
+          borderRadius: BorderRadius.circular(12),
+          borderSide: BorderSide(color: scheme.error, width: 1.6),
         ),
+        floatingLabelStyle: TextStyle(
+          color: scheme.primary,
+          fontWeight: FontWeight.w700,
+        ),
+        labelStyle: TextStyle(color: scheme.onSurfaceVariant),
+        prefixIconColor: scheme.onSurfaceVariant,
+        suffixIconColor: scheme.onSurfaceVariant,
       ),
     );
   }
@@ -606,10 +618,10 @@ class _LoginScreenState extends State<LoginScreen> {
               '交通违法行为处理管理系统',
               style: TextStyle(
                 color: colorScheme.onSurface,
-                fontSize: compact ? 30 : 48,
-                height: 1.12,
+                fontSize: compact ? 30 : 44,
+                height: 1.15,
                 fontWeight: FontWeight.w800,
-                letterSpacing: 0,
+                letterSpacing: 0.6,
               ),
             ),
           ),
@@ -620,10 +632,10 @@ class _LoginScreenState extends State<LoginScreen> {
               '统一身份认证入口，登录后按角色进入对应工作台。',
               style: TextStyle(
                 color: colorScheme.onSurfaceVariant,
-                fontSize: compact ? 15 : 17,
-                height: 1.55,
+                fontSize: compact ? 14 : 16,
+                height: 1.7,
                 fontWeight: FontWeight.w500,
-                letterSpacing: 0,
+                letterSpacing: 0.2,
               ),
             ),
           ),
@@ -663,22 +675,26 @@ class _LoginScreenState extends State<LoginScreen> {
 
     return DecoratedBox(
       decoration: BoxDecoration(
-        color:
-            colorScheme.surface.withValues(alpha: _theme.isDark ? 0.92 : 0.96),
-        borderRadius: BorderRadius.circular(8),
+        color: colorScheme.surface.withValues(alpha: _theme.isDark ? 0.88 : 0.94),
+        borderRadius: BorderRadius.circular(24),
         border: Border.all(
-          color: colorScheme.outlineVariant.withValues(alpha: 0.55),
+          color: colorScheme.outlineVariant.withValues(alpha: _theme.isDark ? 0.30 : 0.5),
         ),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withValues(alpha: _theme.isDark ? 0.28 : 0.08),
-            blurRadius: 34,
+            color: Colors.black.withValues(alpha: _theme.isDark ? 0.4 : 0.12),
+            blurRadius: 40,
             offset: const Offset(0, 20),
+          ),
+          BoxShadow(
+            color: colorScheme.primary.withValues(alpha: _theme.isDark ? 0.06 : 0.06),
+            blurRadius: 12,
+            offset: const Offset(0, 4),
           ),
         ],
       ),
       child: Padding(
-        padding: const EdgeInsets.all(28),
+        padding: const EdgeInsets.fromLTRB(30, 30, 30, 24),
         child: Form(
           key: _formKey,
           child: Column(
@@ -817,37 +833,11 @@ class _LoginScreenState extends State<LoginScreen> {
                 ),
               ],
               const SizedBox(height: 22),
-              FilledButton.icon(
-                onPressed: _isSubmitting ? null : _submit,
-                icon: _isSubmitting
-                    ? SizedBox(
-                        width: 18,
-                        height: 18,
-                        child: CircularProgressIndicator(
-                          strokeWidth: 2.2,
-                          color: colorScheme.onPrimary,
-                        ),
-                      )
-                    : Icon(
-                        switch (_mode) {
-                          _AuthMode.login => Icons.login_rounded,
-                          _AuthMode.signup => Icons.person_add_alt_1_rounded,
-                          _AuthMode.recover => Icons.lock_reset_rounded,
-                        },
-                      ),
-                label: Text(
-                  switch (_mode) {
-                    _AuthMode.login => '登录',
-                    _AuthMode.signup => '注册并登录',
-                    _AuthMode.recover => '重置密码',
-                  },
-                ),
-                style: FilledButton.styleFrom(
-                  minimumSize: const Size.fromHeight(54),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(16),
-                  ),
-                ),
+              _GradientSubmitButton(
+                submitting: _isSubmitting,
+                mode: _mode,
+                colorScheme: colorScheme,
+                onPressed: _submit,
               ),
               const SizedBox(height: 14),
               Row(
@@ -929,16 +919,90 @@ class _StaticLoginBackground extends StatelessWidget {
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
     final dark = Theme.of(context).brightness == Brightness.dark;
-    return DecoratedBox(
+    final primary = scheme.primary;
+
+    return Container(
       decoration: BoxDecoration(
-        color: dark ? const Color(0xFF0B1117) : const Color(0xFFF4F7FA),
-      ),
-      child: CustomPaint(
-        painter: _LoginBackgroundPainter(
-          primary: scheme.primary,
-          outline: scheme.outlineVariant,
-          dark: dark,
+        gradient: LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: dark
+              ? const [Color(0xFF0E151D), Color(0xFF0A0F15), Color(0xFF131A22)]
+              : const [Color(0xFFF6F9FB), Color(0xFFEDF2F6), Color(0xFFE7EEF4)],
         ),
+      ),
+      child: Stack(
+        children: [
+          // 左下主色光晕（大而淡）
+          Positioned(
+            bottom: -200,
+            left: -180,
+            child: Container(
+              width: 640,
+              height: 640,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                gradient: RadialGradient(
+                  colors: [
+                    primary.withValues(alpha: dark ? 0.16 : 0.08),
+                    Colors.transparent,
+                  ],
+                ),
+              ),
+            ),
+          ),
+          // 右上辅色光晕
+          Positioned(
+            top: -160,
+            right: -140,
+            child: Container(
+              width: 560,
+              height: 560,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                gradient: RadialGradient(
+                  colors: [
+                    scheme.secondary.withValues(alpha: dark ? 0.13 : 0.06),
+                    Colors.transparent,
+                  ],
+                ),
+              ),
+            ),
+          ),
+          // 中央透明品牌徽章（视觉焦点）
+          Center(
+            child: IgnorePointer(
+              child: Opacity(
+                opacity: dark ? 0.16 : 0.09,
+                child: Container(
+                  width: 420,
+                  height: 420,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    border: Border.all(
+                      color: scheme.outline.withValues(alpha: 0.12),
+                      width: 1.5,
+                    ),
+                  ),
+                  child: Icon(
+                    Icons.shield_outlined,
+                    size: 280,
+                    color: primary.withValues(alpha: dark ? 0.24 : 0.16),
+                  ),
+                ),
+              ),
+            ),
+          ),
+          // 叠加原有手绘线条，作为细节层次
+          CustomPaint(
+            size: Size.infinite,
+            painter: _LoginBackgroundPainter(
+              primary: scheme.primary,
+              outline: scheme.outlineVariant,
+              dark: dark,
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -998,5 +1062,100 @@ class _LoginBackgroundPainter extends CustomPainter {
     return oldDelegate.primary != primary ||
         oldDelegate.outline != outline ||
         oldDelegate.dark != dark;
+  }
+}
+
+/// 渐变色 + 投影的提交按钮，附带提交中的 loading 态。
+class _GradientSubmitButton extends StatelessWidget {
+  const _GradientSubmitButton({
+    required this.submitting,
+    required this.mode,
+    required this.colorScheme,
+    required this.onPressed,
+  });
+
+  final bool submitting;
+  final _AuthMode mode;
+  final ColorScheme colorScheme;
+  final VoidCallback onPressed;
+
+  @override
+  Widget build(BuildContext context) {
+    final enabled = !submitting;
+    final primary = colorScheme.primary;
+    final label = switch (mode) {
+      _AuthMode.login => '登录',
+      _AuthMode.signup => '注册并登录',
+      _AuthMode.recover => '重置密码',
+    };
+    final icon = switch (mode) {
+      _AuthMode.login => Icons.login_rounded,
+      _AuthMode.signup => Icons.person_add_alt_1_rounded,
+      _AuthMode.recover => Icons.lock_reset_rounded,
+    };
+
+    return SizedBox(
+      height: 54,
+      width: double.infinity,
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          onTap: enabled ? onPressed : null,
+          borderRadius: BorderRadius.circular(16),
+          child: Ink(
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(16),
+              gradient: LinearGradient(
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+                colors: enabled
+                    ? [primary, primary.withValues(alpha: 0.8)]
+                    : [
+                        colorScheme.surfaceContainerHighest,
+                        colorScheme.surfaceContainerHighest,
+                      ],
+              ),
+              boxShadow: enabled
+                  ? [
+                      BoxShadow(
+                        color: primary.withValues(alpha: 0.35),
+                        blurRadius: 16,
+                        offset: const Offset(0, 8),
+                      ),
+                    ]
+                  : const [],
+            ),
+            child: Center(
+              child: submitting
+                  ? SizedBox(
+                      width: 22,
+                      height: 22,
+                      child: CircularProgressIndicator(
+                        strokeWidth: 2.4,
+                        color: colorScheme.onPrimary,
+                        strokeCap: StrokeCap.round,
+                      ),
+                    )
+                  : Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(icon, size: 20, color: colorScheme.onPrimary),
+                        const SizedBox(width: 8),
+                        Text(
+                          label,
+                          style: TextStyle(
+                            fontSize: 17,
+                            fontWeight: FontWeight.w700,
+                            letterSpacing: 0.5,
+                            color: colorScheme.onPrimary,
+                          ),
+                        ),
+                      ],
+                    ),
+            ),
+          ),
+        ),
+      ),
+    );
   }
 }
