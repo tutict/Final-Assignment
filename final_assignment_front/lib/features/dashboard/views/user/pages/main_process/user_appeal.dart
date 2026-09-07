@@ -356,7 +356,7 @@ class _UserAppealPageState extends State<UserAppealPage> {
       }
 
       final List<AppealRecordModel> fetched =
-          await appealApi.listMyAppeals(page: 0, size: 50);
+          await appealApi.listMyAppeals(page: 1, size: 50);
       final offenseIds =
           _offenseCache.map((o) => o['offenseId']).whereType<int>().toSet();
       if (offenseIds.isEmpty && fetched.isEmpty) {

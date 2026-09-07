@@ -71,7 +71,7 @@ class AppealManagementControllerApi with BaseApiClient {
   }
 
   Future<List<AppealRecordModel>> listMyAppeals({
-    int page = 0,
+    int page = 1,
     int size = 20,
   }) {
     return _listAppeals(
