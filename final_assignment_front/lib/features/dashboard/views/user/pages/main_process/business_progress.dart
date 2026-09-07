@@ -80,9 +80,9 @@ class _BusinessProgressPageState extends State<BusinessProgressPage> {
                           builder: (context, constraints) {
                             final width = constraints.maxWidth;
                             final crossAxisCount = width >= 520 ? 2 : 1;
-                            final double? tileExtent = crossAxisCount == 1
+                            final double tileExtent = crossAxisCount == 1
                                 ? (width < 340 ? 104 : 98)
-                                : null;
+                                : 92;
 
                             return Column(
                               children: [
@@ -95,7 +95,6 @@ class _BusinessProgressPageState extends State<BusinessProgressPage> {
                                       crossAxisCount: crossAxisCount,
                                       crossAxisSpacing: 12,
                                       mainAxisSpacing: 12,
-                                      childAspectRatio: 2.0,
                                       mainAxisExtent: tileExtent,
                                     ),
                                     itemBuilder: (context, index) {
@@ -155,12 +154,12 @@ class _BusinessProgressHeader extends StatelessWidget {
     final dark = theme.brightness == Brightness.dark;
 
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 16),
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
       decoration: BoxDecoration(
         color: scheme.surfaceContainerHighest.withValues(
           alpha: dark ? 0.34 : 0.58,
         ),
-        borderRadius: BorderRadius.circular(8),
+        borderRadius: BorderRadius.circular(14),
         border: Border.all(
           color: scheme.outlineVariant.withValues(alpha: dark ? 0.36 : 0.48),
         ),
@@ -168,16 +167,16 @@ class _BusinessProgressHeader extends StatelessWidget {
       child: Row(
         children: [
           Container(
-            width: 42,
-            height: 42,
+            width: 38,
+            height: 38,
             decoration: BoxDecoration(
               color: scheme.primaryContainer.withValues(alpha: 0.72),
-              borderRadius: BorderRadius.circular(8),
+              borderRadius: BorderRadius.circular(10),
             ),
             child: Icon(
               Icons.assignment_rounded,
               color: scheme.onPrimaryContainer,
-              size: 22,
+              size: 20,
             ),
           ),
           const SizedBox(width: 14),
@@ -207,10 +206,10 @@ class _BusinessProgressHeader extends StatelessWidget {
             ),
           ),
           Container(
-            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
             decoration: BoxDecoration(
               color: scheme.primary.withValues(alpha: dark ? 0.18 : 0.10),
-              borderRadius: BorderRadius.circular(8),
+              borderRadius: BorderRadius.circular(10),
             ),
             child: Text(
               '4 个入口',
@@ -268,45 +267,45 @@ class _UserBusinessTileState extends State<_UserBusinessTile> {
         color: Colors.transparent,
         child: InkWell(
           onTap: widget.onTap,
-          borderRadius: BorderRadius.circular(8),
+          borderRadius: BorderRadius.circular(14),
           splashColor: widget.accentColor.withValues(alpha: 0.10),
           highlightColor: widget.accentColor.withValues(alpha: 0.06),
           child: AnimatedContainer(
             duration: const Duration(milliseconds: 180),
             curve: Curves.easeOutCubic,
-            padding: const EdgeInsets.all(16),
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
             decoration: BoxDecoration(
               color: backgroundColor,
-              borderRadius: BorderRadius.circular(8),
-              border: Border.all(color: borderColor, width: 1.1),
+              borderRadius: BorderRadius.circular(14),
+              border: Border.all(color: borderColor, width: 1.0),
               boxShadow: [
                 BoxShadow(
                   color: theme.shadowColor.withValues(
-                    alpha: _hovered ? (dark ? 0.24 : 0.10) : 0.04,
+                    alpha: _hovered ? (dark ? 0.22 : 0.09) : 0.04,
                   ),
-                  blurRadius: _hovered ? 18 : 10,
-                  offset: Offset(0, _hovered ? 10 : 6),
+                  blurRadius: _hovered ? 14 : 8,
+                  offset: Offset(0, _hovered ? 6 : 3),
                 ),
               ],
             ),
             child: Row(
               children: [
                 Container(
-                  width: 48,
-                  height: 48,
+                  width: 40,
+                  height: 40,
                   decoration: BoxDecoration(
                     color: widget.accentColor.withValues(
                       alpha: dark ? 0.24 : 0.13,
                     ),
-                    borderRadius: BorderRadius.circular(8),
+                    borderRadius: BorderRadius.circular(10),
                   ),
                   child: Icon(
                     widget.option.icon,
                     color: widget.accentColor,
-                    size: 24,
+                    size: 22,
                   ),
                 ),
-                const SizedBox(width: 14),
+                const SizedBox(width: 12),
                 Expanded(
                   child: Column(
                     mainAxisAlignment: MainAxisAlignment.center,
@@ -339,15 +338,15 @@ class _UserBusinessTileState extends State<_UserBusinessTile> {
                           ),
                         ],
                       ),
-                      const SizedBox(height: 6),
+                      const SizedBox(height: 4),
                       Text(
                         widget.option.description,
-                        maxLines: 2,
+                        maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                         style: theme.textTheme.bodySmall?.copyWith(
                           color: scheme.onSurfaceVariant,
                           letterSpacing: 0,
-                          height: 1.35,
+                          height: 1.3,
                         ),
                       ),
                     ],
