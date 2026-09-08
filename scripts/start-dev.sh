@@ -7,9 +7,9 @@ set -eu
 # frontend.
 #
 # Backends:
-#   spring  - finalAssignmentBackend      (main; REST 8080, WS 8081, DB traffic)
+#   spring  - finalAssignmentBackend      (main; external REST+WS 8080, internal REST 9080)
 #   go      - final_assignment_backend_go (Gin main app; REST 8080, DB cesi)
-#   quarkus - final_assignment_backend_quarkus (Gradle/Quarkus; REST 8080, WS 8081, DB cesi)
+#   quarkus - final_assignment_backend_quarkus (Gradle/Quarkus; external REST+WS 8080, internal REST 9080)
 #   cloud   - finalAssignmentCloud        (Spring Cloud microservices; gateway 8080)
 #   none    - skip the backend
 #
@@ -50,7 +50,8 @@ Optional environment variables:
   DB_URL, DB_USERNAME, DB_PASSWORD  Short aliases used when SPRING_DATASOURCE_* is unset.
   APP_ENV                      Flutter APP_ENV dart define. Default: dev
   API_BASE_URL                 Flutter API base URL. Default: http://localhost:8080
-  WS_BASE_URL                  Flutter WebSocket URL. Default: ws://localhost:8081
+  WS_BASE_URL                  Flutter WebSocket URL. Default: ws://localhost:8080
+  BACKEND_INTERNAL_PORT        Internal REST port for Spring/Quarkus. Default: 9080
   MVN_CMD                      Maven executable. Default: mvn
   GRADLE_CMD                   Gradle executable (or gradlew path).
   GO_CMD                       Go executable. Default: go
@@ -120,8 +121,9 @@ SPRING_DATA_REDIS_PORT="${SPRING_DATA_REDIS_PORT:-6379}"
 SPRING_KAFKA_BOOTSTRAP_SERVERS="${SPRING_KAFKA_BOOTSTRAP_SERVERS:-localhost:9092}"
 APP_ENV="${APP_ENV:-dev}"
 API_BASE_URL="${API_BASE_URL:-http://localhost:8080}"
-WS_BASE_URL="${WS_BASE_URL:-ws://localhost:8081}"
+WS_BASE_URL="${WS_BASE_URL:-ws://localhost:8080}"
 BACKEND_PORT="${BACKEND_PORT:-8080}"
+BACKEND_INTERNAL_PORT="${BACKEND_INTERNAL_PORT:-9080}"
 BACKEND_WAIT_SECONDS="${BACKEND_WAIT_SECONDS:-8}"
 BACKEND_HEALTH_WAIT_SECONDS="${BACKEND_HEALTH_WAIT_SECONDS:-120}"
 BACKEND_HEALTH_URL="${BACKEND_HEALTH_URL:-http://127.0.0.1:$BACKEND_PORT/actuator/health}"
@@ -171,9 +173,9 @@ log() {
 choose_backend() {
   echo ""
   echo "Choose the backend to start:"
-  echo "  [0] Spring Boot (main, finalAssignmentBackend) - REST 8080 / WS 8081 / DB traffic"
+  echo "  [0] Spring Boot (main, finalAssignmentBackend) - REST+WS 8080 / internal 9080"
   echo "  [1] Go / Gin (final_assignment_backend_go) - REST 8080 / DB cesi"
-  echo "  [2] Quarkus (final_assignment_backend_quarkus) - REST 8080 / WS 8081 / DB cesi"
+  echo "  [2] Quarkus (final_assignment_backend_quarkus) - REST+WS 8080 / internal 9080"
   echo "  [3] Spring Cloud microservices (finalAssignmentCloud) - gateway 8080"
   echo "  [4] None (backend only if frontend selected)"
   while :; do
@@ -253,7 +255,7 @@ tail_file() {
 print_ports() {
   printf '\n----- Port diagnostics -----\n' >&2
   if command -v lsof >/dev/null 2>&1; then
-    lsof -nP -iTCP:"$BACKEND_PORT" -iTCP:8081 -iTCP:3000 -iTCP:5173 -sTCP:LISTEN >&2 || true
+    lsof -nP -iTCP:"$BACKEND_PORT" -iTCP:3000 -iTCP:5173 -sTCP:LISTEN >&2 || true
   elif command -v ss >/dev/null 2>&1; then
     ss -ltnp >&2 || true
   elif command -v netstat >/dev/null 2>&1; then
@@ -454,6 +456,11 @@ start_backend() {
         export MANAGEMENT_HEALTH_ELASTICSEARCH_ENABLED SPRING_AI_OLLAMA_INIT_PULL_MODEL_STRATEGY
         export SPRING_DATASOURCE_URL SPRING_DATASOURCE_USERNAME SPRING_DATASOURCE_PASSWORD SPRING_DATASOURCE_DRIVER_CLASS_NAME
         export SPRING_DATA_REDIS_HOST SPRING_DATA_REDIS_PORT SPRING_KAFKA_BOOTSTRAP_SERVERS
+        # Single external port 8080 is the NetWorkHandler (REST proxy + WS).
+        # Business REST moves to the internal port; NetWorkHandler forwards there.
+        export SERVER_PORT="$BACKEND_INTERNAL_PORT"
+        export BACKEND_URL="http://127.0.0.1"
+        export BACKEND_PORT="$BACKEND_INTERNAL_PORT"
         # shellcheck disable=SC2086
         "$MVN_CMD" spring-boot:run "-Dspring-boot.run.profiles=$BACKEND_PROFILE" "-Dspring-boot.run.jvmArguments=-Dspring.devtools.restart.enabled=false" ${BACKEND_ARGS:-}
       ) >"$BACKEND_LOG" 2>"$BACKEND_ERR_LOG" &
@@ -489,10 +496,10 @@ start_backend() {
         cd "$QUARKUS_DIR"
         export QUARKUS_DEV_SERVICES_ENABLED=false
         export QUARKUS_LANGCHAIN4J_OLLAMA_DEVSERVICES_ENABLED=false
-        export QUARKUS_HTTP_PORT=8080
-        export NETWORK_SERVER_PORT=8081
+        export QUARKUS_HTTP_PORT="$BACKEND_INTERNAL_PORT"
+        export NETWORK_SERVER_PORT="$BACKEND_PORT"
         export BACKEND_URL=http://127.0.0.1
-        export BACKEND_PORT=8080
+        export BACKEND_PORT="$BACKEND_INTERNAL_PORT"
         export JWT_SECRET_KEY="${JWT_SECRET_KEY:-$JWT_SECRET}"
         export QUARKUS_DATASOURCE_JDBC_URL="jdbc:mysql://localhost:3306/cesi?useSSL=false&serverTimezone=UTC&allowPublicKeyRetrieval=true"
         export QUARKUS_DATASOURCE_USERNAME="$db_user"
@@ -602,8 +609,8 @@ start_frontend() {
 HEALTH_URL="$BACKEND_HEALTH_URL"
 case "$BACKEND_CHOICE" in
   go) HEALTH_URL="http://127.0.0.1:$BACKEND_PORT/api/actuator/health" ;;
-  quarkus) HEALTH_URL="http://127.0.0.1:8080/q/openapi" ;;
-  cloud) HEALTH_URL="http://127.0.0.1:8080/actuator/health" ;;
+  quarkus) HEALTH_URL="http://127.0.0.1:$BACKEND_PORT/q/openapi" ;;
+  cloud) HEALTH_URL="http://127.0.0.1:$BACKEND_PORT/actuator/health" ;;
 esac
 
 if [ "$START_LOCAL_SERVICES" = "true" ] && { [ "$BACKEND_CHOICE" != "none" ] || [ "$FRONTEND_CHOICE" != "none" ]; }; then

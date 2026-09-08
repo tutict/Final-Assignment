@@ -6,9 +6,9 @@ $ErrorActionPreference = "Stop"
 # starts local dependencies (optional), the backend, and the frontend.
 #
 # Backends:
-#   spring  - finalAssignmentBackend      (main; REST 8080, WS 8081, DB traffic)
+#   spring  - finalAssignmentBackend      (main; external REST+WS 8080, internal REST 9080)
 #   go      - final_assignment_backend_go (Gin main app; REST 8080, DB cesi)
-#   quarkus - final_assignment_backend_quarkus (Gradle/Quarkus; REST 8080, WS 8081, DB cesi)
+#   quarkus - final_assignment_backend_quarkus (Gradle/Quarkus; external REST+WS 8080, internal REST 9080)
 #   cloud   - finalAssignmentCloud        (Spring Cloud microservices; gateway 8080)
 #   none    - skip the backend
 #
@@ -53,7 +53,8 @@ Optional flags / environment variables:
   DB_URL, DB_USERNAME, DB_PASSWORD  Short aliases used when SPRING_DATASOURCE_* is unset.
   APP_ENV                      Flutter APP_ENV dart define. Default: dev
   API_BASE_URL                 Flutter API base URL. Default: http://localhost:8080
-  WS_BASE_URL                  Flutter WebSocket URL. Default: ws://localhost:8081
+  WS_BASE_URL                  Flutter WebSocket URL. Default: ws://localhost:8080
+  BACKEND_INTERNAL_PORT        Internal REST port for Spring/Quarkus. Default: 9080
   MVN_CMD                      Maven executable path.
   GRADLE_CMD                   Gradle executable path.
   GO_CMD                       Go executable path.
@@ -148,8 +149,12 @@ Set-DefaultEnv "SPRING_KAFKA_BOOTSTRAP_SERVERS" "localhost:9092" | Out-Null
 
 $AppEnv = Set-DefaultEnv "APP_ENV" "dev"
 $ApiBaseUrl = Set-DefaultEnv "API_BASE_URL" "http://localhost:8080"
-$WsBaseUrl = Set-DefaultEnv "WS_BASE_URL" "ws://localhost:8081"
+$WsBaseUrl = Set-DefaultEnv "WS_BASE_URL" "ws://localhost:8080"
 $BackendPort = Set-DefaultEnv "BACKEND_PORT" "8080"
+# Internal REST port for the two-port backends (Spring/Quarkus). The external
+# port 8080 is served by the NetWorkHandler (REST proxy + WS /eventbus); the
+# actual business REST server listens on this internal port.
+$BackendInternalPort = Set-DefaultEnv "BACKEND_INTERNAL_PORT" "9080"
 $BackendWaitSeconds = [int](Set-DefaultEnv "BACKEND_WAIT_SECONDS" "8")
 $BackendHealthWaitSeconds = [int](Set-DefaultEnv "BACKEND_HEALTH_WAIT_SECONDS" "120")
 $BackendHealthUrl = Set-DefaultEnv "BACKEND_HEALTH_URL" "http://127.0.0.1:$BackendPort/actuator/health"
@@ -206,9 +211,9 @@ function Select-Option {
 }
 
 $BackendChoices = @(
-    @{ Label = "Spring Boot (main, finalAssignmentBackend) - REST 8080 / WS 8081 / DB traffic"; Value = "spring" }
+    @{ Label = "Spring Boot (main, finalAssignmentBackend) - REST+WS 8080 / internal 9080"; Value = "spring" }
     @{ Label = "Go / Gin (final_assignment_backend_go) - REST 8080 / DB cesi"; Value = "go" }
-    @{ Label = "Quarkus (final_assignment_backend_quarkus) - REST 8080 / WS 8081 / DB cesi"; Value = "quarkus" }
+    @{ Label = "Quarkus (final_assignment_backend_quarkus) - REST+WS 8080 / internal 9080"; Value = "quarkus" }
     @{ Label = "Spring Cloud microservices (finalAssignmentCloud) - gateway 8080"; Value = "cloud" }
     @{ Label = "None (backend only if frontend selected)"; Value = "none" }
 )
@@ -324,7 +329,7 @@ function Show-FileTail([string]$Path, [int]$Lines = 80) {
 function Show-PortDiagnostics {
     Write-Host ""
     Write-Host "----- Port diagnostics -----"
-    $ports = @($BackendPort, 8081, 3000, 5173) | Select-Object -Unique
+    $ports = @($BackendPort, 3000, 5173) | Select-Object -Unique
     foreach ($port in $ports) {
         $connections = Get-NetTCPConnection -LocalPort $port -State Listen -ErrorAction SilentlyContinue
         foreach ($connection in $connections) {
@@ -617,6 +622,9 @@ function New-SpringRunner {
     Set-Content -LiteralPath $RunnerPath -Encoding ASCII -Value @(
         "@echo off",
         "cd /d `"$SpringDir`"",
+        "set SERVER_PORT=$BackendInternalPort",
+        "set `"BACKEND_URL=http://127.0.0.1`"",
+        "set BACKEND_PORT=$BackendInternalPort",
         "call `"$MvnCmd`" spring-boot:run -Dspring-boot.run.profiles=$BackendProfile -Dspring-boot.run.jvmArguments=-Dspring.devtools.restart.enabled=false $env:BACKEND_ARGS 1> `"$BackendLog`" 2> `"$BackendErrLog`"",
         "exit /b %ERRORLEVEL%"
     )
@@ -675,8 +683,9 @@ function New-QuarkusRunner {
     #   - QUARKUS_LANGCHAIN4J_OLLAMA_DEVSERVICES_ENABLED=false is required at build
     #     time: otherwise quarkus-langchain4j-ollama starts a Testcontainers Ollama
     #     container and downloads llama3.2 during quarkusDev, blocking startup.
-    #   - QUARKUS_HTTP_PORT=8080 / NETWORK_SERVER_PORT=8081: REST (JAX-RS) on 8080,
-    #     Vert.x WebSocket + /api proxy on 8081 (NetWorkHandler).
+    #   - QUARKUS_HTTP_PORT=<internal> / NETWORK_SERVER_PORT=<external 8080>: the
+    #     internal REST (JAX-RS) on the internal port, and the Vert.x WebSocket +
+    #     /api + /q proxy (NetWorkHandler) on the external 8080.
     #   - BACKEND_URL/BACKEND_PORT: the /api proxy target (the app's own REST server).
     #   - Datasource/Redis/Kafka/ES/JWT: with dev services and the RunDocker
     #     container auto-start disabled, these must come from the environment
@@ -688,10 +697,10 @@ function New-QuarkusRunner {
         "set QUARKUS_DEV_SERVICES_ENABLED=false",
         "set quarkus.dev-services.enabled=false",
         "set QUARKUS_LANGCHAIN4J_OLLAMA_DEVSERVICES_ENABLED=false",
-        "set QUARKUS_HTTP_PORT=8080",
-        "set NETWORK_SERVER_PORT=8081",
+        "set QUARKUS_HTTP_PORT=$BackendInternalPort",
+        "set NETWORK_SERVER_PORT=$BackendPort",
         "set BACKEND_URL=http://127.0.0.1",
-        "set BACKEND_PORT=8080",
+        "set BACKEND_PORT=$BackendInternalPort",
         "if not defined JWT_SECRET_KEY set `"JWT_SECRET_KEY=$JwtSecret`"",
         "set `"QUARKUS_DATASOURCE_JDBC_URL=jdbc:mysql://localhost:3306/cesi?useSSL=false&serverTimezone=UTC&allowPublicKeyRetrieval=true`"",
         "set `"QUARKUS_DATASOURCE_USERNAME=$DbUser`"",
@@ -844,10 +853,11 @@ try {
             break
         }
         "quarkus" {
-            # Quarkus serves REST (JAX-RS) on 8080 and the Vert.x WebSocket + /api
-            # proxy (NetWorkHandler) on 8081. There is no smallrye-health extension,
-            # so use the public OpenAPI document as the readiness probe.
-            $healthUrl = "http://127.0.0.1:8080/q/openapi"
+            # Quarkus serves REST (JAX-RS) on the internal port and the Vert.x
+            # WebSocket + /api + /q proxy (NetWorkHandler) on the external 8080.
+            # Health is probed via the external port /q/openapi (forwarded to the
+            # internal REST server) because there is no smallrye-health extension.
+            $healthUrl = "http://127.0.0.1:$BackendPort/q/openapi"
             break
         }
         "cloud" {
