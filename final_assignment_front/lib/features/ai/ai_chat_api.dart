@@ -241,7 +241,9 @@ class AiChatApi {
   Future<Map<String, String>> _headers() async {
     final headers = <String, String>{
       'Accept': 'text/event-stream',
-      'Cache-Control': 'no-cache',
+      // Note: omitting Cache-Control avoids a CORS preflight on browsers whose
+      // allowed headers list does not include it. SSE responses are unbuffered
+      // by the backend regardless.
       'Content-Type': 'application/json; charset=utf-8',
     };
     final jwtToken = await AuthTokenStore.instance.getJwtToken();

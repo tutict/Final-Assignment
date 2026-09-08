@@ -22,6 +22,29 @@ spring:
       discovery:
         locator:
           enabled: true
+      globalcors:
+        add-to-simple-url-handler-mapping: true
+        cors-configurations:
+          '[/**]':
+            allowedOriginPatterns: "*"
+            allowedMethods:
+              - GET
+              - POST
+              - PUT
+              - DELETE
+              - PATCH
+              - OPTIONS
+            allowedHeaders:
+              - Authorization
+              - Content-Type
+              - Idempotency-Key
+              - X-Trace-Id
+              - Cache-Control
+              - Accept
+              - X-Requested-With
+            exposedHeaders:
+              - X-Trace-Id
+            allowCredentials: true
       routes:
         - id: auth-service
           uri: lb://finalassignmentcloud-auth

@@ -55,3 +55,15 @@ quarkus:
         value-type: finalassignmentbackend.dto.UserResponse
       vehicleCache:
         value-type: finalassignmentbackend.entity.VehicleInformation
+  # CORS for the Quarkus REST layer (the actual HTTP server frontend talks to).
+  # Without this the browser blocks /api/ai/chat/stream and every other call
+  # made cross-origin from the Flutter web app (origin http://localhost:3000).
+  # allowedOrigns as a pattern covers the dev origins without a literal "*"
+  # origin, whose combination with allowCredentials is rejected by browsers.
+  http:
+    cors:
+      enabled: true
+      origins: 'https?://(localhost|127\.0\.0\.1):\d+'
+      methods: GET,POST,PUT,DELETE,PATCH,OPTIONS
+      headers: Authorization,Content-Type,Idempotency-Key,X-Trace-Id,Cache-Control,Accept,X-Requested-With
+      exposed-headers: X-Trace-Id

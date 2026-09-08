@@ -81,11 +81,15 @@ public class NetWorkHandler extends AbstractVerticle {
     private void configureCors(Router router) {
         Set<String> allowedHeaders = Set.of(
                 "Authorization", "X-Requested-With", "Sec-WebSocket-Key",
-                "Sec-WebSocket-Version", "Sec-WebSocket-Protocol", "Content-Type", "Accept"
+                "Sec-WebSocket-Version", "Sec-WebSocket-Protocol", "Content-Type",
+                "Accept", "Cache-Control", "Idempotency-Key", "X-Trace-Id"
         );
 
         router.route().handler(CorsHandler.create()
-                .addOrigin("*")
+                // Regex ".*" reflects the request origin instead of the literal
+                // wildcard "*", which browsers reject when allowCredentials is
+                // enabled (a wildcard origin with credentials is not allowed).
+                .addOriginWithRegex(".*")
                 .allowedHeaders(allowedHeaders)
                 .allowedMethod(HttpMethod.GET)
                 .allowedMethod(HttpMethod.POST)

@@ -46,7 +46,14 @@ public class SecurityConfig {
                     CorsConfiguration config = new CorsConfiguration();
                     config.setAllowedOrigins(corsProperties.getAllowedOrigins());
                     config.setAllowedMethods(List.of("GET", "POST", "PUT", "DELETE", "OPTIONS"));
-                    config.setAllowedHeaders(List.of("Authorization", "Content-Type", "Idempotency-Key", "X-Trace-Id"));
+                    config.setAllowedHeaders(List.of(
+                            "Authorization",
+                            "Content-Type",
+                            "Idempotency-Key",
+                            "X-Trace-Id",
+                            "Cache-Control",
+                            "Accept"
+                    ));
                     config.setExposedHeaders(List.of("X-Trace-Id"));
                     config.setAllowCredentials(true);
                     return config;
