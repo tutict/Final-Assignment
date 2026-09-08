@@ -1,3 +1,6 @@
+server:
+  port: 9080
+
 spring:
   datasource:
     password: dev_password_local
@@ -15,8 +18,8 @@ spring:
         pull-model-strategy: never
 
 backend:
-  url: http://localhost:8080
-  port: 8080
+  url: http://localhost
+  port: 9080
 
 app:
   dev-services:

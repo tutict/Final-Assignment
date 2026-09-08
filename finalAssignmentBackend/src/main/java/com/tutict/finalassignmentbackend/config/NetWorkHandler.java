@@ -42,7 +42,7 @@ import static io.vertx.core.Vertx.vertx;
 @Component
 public class NetWorkHandler extends AbstractVerticle {
 
-    @Value("${network.server.port:8081}")
+    @Value("${network.server.port:8080}")
     int port;
 
     @Value("${backend.url}")
@@ -108,6 +108,14 @@ public class NetWorkHandler extends AbstractVerticle {
             )));
         });
         router.route("/api/*").handler(ctx -> {
+            HttpServerRequest request = ctx.request();
+            forwardHttpRequest(request);
+        });
+
+        // The network server is now the single external-facing port. Forward the
+        // actuator/health probes to the (internal) REST server so health checks
+        // against the external port keep working.
+        router.route("/actuator/*").handler(ctx -> {
             HttpServerRequest request = ctx.request();
             forwardHttpRequest(request);
         });
