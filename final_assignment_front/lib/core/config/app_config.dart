@@ -21,7 +21,7 @@ class AppConfig {
 
   static const apiPort = int.fromEnvironment('API_PORT', defaultValue: 8080);
 
-  static const wsPort = int.fromEnvironment('WS_PORT', defaultValue: 8081);
+  static const wsPort = int.fromEnvironment('WS_PORT', defaultValue: 8080);
 
   static const apiPortOffset =
       int.fromEnvironment('API_PORT_OFFSET', defaultValue: 0);
