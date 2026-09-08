@@ -14,7 +14,7 @@ npm run dev
 默认后端地址为：
 
 ```text
-http://localhost:8081
+http://localhost:8080
 ```
 
 可通过 `.env` 覆盖：

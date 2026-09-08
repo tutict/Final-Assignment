@@ -13,7 +13,7 @@ import { API_PATHS } from "../constants/apiPaths";
 import { getAccessToken } from "../auth/tokens";
 
 const DEFAULT_API_BASE =
-  import.meta.env.VITE_API_BASE_URL || "http://localhost:8081";
+  import.meta.env.VITE_API_BASE_URL || "http://localhost:8080";
 
 const SSE_OVERALL_TIMEOUT_MS = 90_000;
 const FIRST_TOKEN_TIMEOUT_MS = 45_000;
