@@ -42,7 +42,7 @@ public class NetWorkHandler extends AbstractVerticle {
 
     private static final Logger log = Logger.getLogger(NetWorkHandler.class.getName());
 
-    @ConfigProperty(name = "network.server.port", defaultValue = "8081")
+    @ConfigProperty(name = "network.server.port", defaultValue = "8080")
     int port;
 
     @ConfigProperty(name = "backend.url")
@@ -118,6 +118,11 @@ public class NetWorkHandler extends AbstractVerticle {
         });
 
         router.route("/api/*").handler(ctx -> forwardHttpRequest(ctx.request()));
+
+        // The network server is now the single external-facing port. Forward the
+        // Quarkus /q/* management endpoints (health, openapi) to the internal REST
+        // server so health probes against the external port keep working.
+        router.route("/q/*").handler(ctx -> forwardHttpRequest(ctx.request()));
 
         router.route("/eventbus/*").handler(ctx -> {
             HttpServerRequest request = ctx.request();
