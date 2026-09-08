@@ -122,7 +122,7 @@ func (n *NetWorkHandler) Stop(ctx context.Context) error {
 func (n *NetWorkHandler) corsMiddleware() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		c.Header("Access-Control-Allow-Origin", "*")
-		c.Header("Access-Control-Allow-Headers", "Authorization, X-Requested-With, Sec-WebSocket-Key, Sec-WebSocket-Version, Sec-WebSocket-Protocol, Content-Type, Accept")
+		c.Header("Access-Control-Allow-Headers", "Authorization, X-Requested-With, Sec-WebSocket-Key, Sec-WebSocket-Version, Sec-WebSocket-Protocol, Content-Type, Accept, Cache-Control, Idempotency-Key, X-Trace-Id")
 		c.Header("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS")
 		if c.Request.Method == http.MethodOptions {
 			c.AbortWithStatus(http.StatusNoContent)

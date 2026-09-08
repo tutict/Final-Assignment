@@ -286,7 +286,6 @@ export function streamChat(
         headers: {
           "Content-Type": "application/json; charset=utf-8",
           Accept: "text/event-stream",
-          "Cache-Control": "no-cache",
           ...(token ? { Authorization: `Bearer ${token}` } : {}),
         },
         body: JSON.stringify(body),
