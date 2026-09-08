@@ -24,6 +24,12 @@ export default defineConfig({
         changeOrigin: true,
         secure: false,
       },
+      '/eventbus': {
+        target: 'http://localhost:8080',
+        changeOrigin: true,
+        secure: false,
+        ws: true,
+      },
     },
   },
   preview: {
