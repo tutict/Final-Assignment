@@ -80,14 +80,14 @@ func (h *AuthHandler) RegisterUser(c *gin.Context) {
 
 	h.logger.Info("Received register request for username: %s", req.Username)
 
-	status, err := h.service.RegisterUser(req)
+	_, err := h.service.RegisterUser(req)
 	if err != nil {
 		h.logger.Error("Register failed for %s: %v", req.Username, err)
 		c.JSON(http.StatusConflict, gin.H{"error": err.Error()})
 		return
 	}
 
-	c.JSON(http.StatusCreated, gin.H{"status": status})
+	c.JSON(http.StatusCreated, gin.H{"status": service.RegisterStatusCreated})
 }
 
 func (h *AuthHandler) Refresh(c *gin.Context) {

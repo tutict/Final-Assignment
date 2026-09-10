@@ -5,6 +5,7 @@ import (
 	"encoding/base64"
 	"errors"
 	"log"
+	"net"
 	"net/http"
 	"os"
 	"os/signal"
@@ -22,14 +23,15 @@ import (
 	"final_assignment_backend_go/project/internal/auth"
 	aiconfig "final_assignment_backend_go/project/internal/config"
 	"final_assignment_backend_go/project/internal/domain"
+	gozeroconfig "final_assignment_backend_go/project/internal/gozero/config"
+	gozerorag "final_assignment_backend_go/project/internal/gozero/rag"
 	"final_assignment_backend_go/project/internal/handler"
 	"final_assignment_backend_go/project/internal/provider"
 	"final_assignment_backend_go/project/internal/repo"
 	"final_assignment_backend_go/project/internal/service"
-	gozeroconfig "final_assignment_backend_go/project/internal/gozero/config"
-	gozerorag "final_assignment_backend_go/project/internal/gozero/rag"
 
 	"github.com/gin-gonic/gin"
+	"github.com/gorilla/websocket"
 	"github.com/zeromicro/go-zero/core/conf"
 	"gorm.io/gorm"
 )
@@ -131,6 +133,7 @@ func main() {
 
 	// 创建路由
 	router := gin.Default()
+	router.Use(devCorsMiddleware())
 	router.Use(global_exception.GlobalExceptionHandler())
 	router.Use(optionalPrincipal(tokenProvider, blacklistService))
 
@@ -152,6 +155,7 @@ func main() {
 	router.POST("/api/ws-ticket", handler.NewWsTicketHandler(wsTicketService).IssueTicket)
 	router.GET("/api/ws-ticket/validate", handler.NewWsTicketHandler(wsTicketService).ValidateTicket)
 	router.GET("/api/ws-ticket/stats", handler.NewWsTicketHandler(wsTicketService).GetStats)
+	registerEventBusRoute(router)
 
 	// RAG 查询路由
 	router.POST("/api/rag/query", ragQueryHandler(ragRuntime))
@@ -168,6 +172,10 @@ func main() {
 		Addr:    ":" + envOrDefault("PORT", "8080"),
 		Handler: router,
 	}
+	listener, err := net.Listen("tcp", server.Addr)
+	if err != nil {
+		log.Fatalf("Server failed to start: %v", err)
+	}
 
 	// 在 goroutine 中启动服务器
 	go func() {
@@ -181,7 +189,7 @@ func main() {
 		}
 		log.Println("[INFO]   - POST /api/ws-ticket")
 		log.Println("[INFO]   - POST /api/rag/query")
-		if err := server.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
+		if err := server.Serve(listener); err != nil && !errors.Is(err, http.ErrServerClosed) {
 			log.Fatalf("Server failed to start: %v", err)
 		}
 	}()
@@ -292,6 +300,96 @@ func registerTrafficRoutes(router *gin.Engine, controller *handler.TrafficViolat
 	group.GET("/fine-payment-status", controller.GetFinePaymentStatus)
 }
 
+func devCorsMiddleware() gin.HandlerFunc {
+	return func(c *gin.Context) {
+		origin := strings.TrimSpace(c.GetHeader("Origin"))
+		if isAllowedBrowserOrigin(origin) {
+			c.Header("Access-Control-Allow-Origin", origin)
+			c.Header("Vary", "Origin")
+		}
+		c.Header("Access-Control-Allow-Headers", "Authorization, X-Requested-With, Sec-WebSocket-Key, Sec-WebSocket-Version, Sec-WebSocket-Protocol, Content-Type, Accept")
+		c.Header("Access-Control-Allow-Methods", "GET, POST, PUT, PATCH, DELETE, OPTIONS")
+		c.Header("Access-Control-Max-Age", "3600")
+		if c.Request.Method == http.MethodOptions {
+			c.AbortWithStatus(http.StatusNoContent)
+			return
+		}
+		c.Next()
+	}
+}
+
+func registerEventBusRoute(router *gin.Engine) {
+	upgrader := websocket.Upgrader{
+		ReadBufferSize:  1024,
+		WriteBufferSize: 1024,
+		CheckOrigin: func(r *http.Request) bool {
+			return isAllowedBrowserOrigin(r.Header.Get("Origin"))
+		},
+	}
+
+	router.GET("/eventbus/websocket", func(c *gin.Context) {
+		conn, err := upgrader.Upgrade(c.Writer, c.Request, nil)
+		if err != nil {
+			return
+		}
+		defer conn.Close()
+
+		done := make(chan struct{})
+		go func() {
+			defer close(done)
+			for {
+				if _, _, err := conn.ReadMessage(); err != nil {
+					return
+				}
+			}
+		}()
+
+		ping := time.NewTicker(25 * time.Second)
+		defer ping.Stop()
+		for {
+			select {
+			case <-c.Request.Context().Done():
+				return
+			case <-done:
+				return
+			case <-ping.C:
+				_ = conn.WriteControl(websocket.PingMessage, nil, time.Now().Add(5*time.Second))
+			}
+		}
+	})
+}
+
+func isAllowedBrowserOrigin(origin string) bool {
+	origin = strings.TrimSpace(origin)
+	if origin == "" {
+		return true
+	}
+	for _, allowed := range allowedBrowserOrigins() {
+		if origin == allowed {
+			return true
+		}
+	}
+	return false
+}
+
+func allowedBrowserOrigins() []string {
+	origins := []string{
+		"http://127.0.0.1:5173",
+		"http://localhost:5173",
+		"http://127.0.0.1:3000",
+		"http://localhost:3000",
+	}
+	for _, name := range []string{"FRONTEND_URL", "REACT_DEV_URL", "FLUTTER_WEB_URL", "FLUTTER_URL", "BROWSER_URL", "CORS_ALLOWED_ORIGINS"} {
+		for _, value := range splitComma(envOrDefault(name, "")) {
+			value = strings.TrimRight(strings.TrimSpace(value), "/")
+			if value != "" {
+				origins = append(origins, value)
+			}
+		}
+	}
+	return origins
+}
+
 func initTokenProvider() *authcfg.TokenProvider {
 	algorithm := authcfg.Algorithm(envOrDefault("JWT_ALGORITHM", string(authcfg.AlgorithmHS256)))
 	expirationSeconds := envIntOrDefault("JWT_ACCESS_EXPIRATION", 86400)
@@ -311,13 +409,13 @@ func initTokenProvider() *authcfg.TokenProvider {
 	}
 
 	provider, err := authcfg.NewTokenProvider(authcfg.TokenProviderConfig{
-		Base64Secret:           base64JwtSecret(),
-		Algorithm:              algorithm,
-		AccessTokenExpiration:  time.Duration(expirationSeconds) * time.Second,
-		MlDsaKeyRing:           mlDsaRing,
-		MlDsaRotationEnabled:   envOrDefault("ML_DSA_ROTATION_ENABLED", "false") == "true",
-		MlDsaRotationInterval:  envDurationOrDefault("ML_DSA_ROTATION_INTERVAL", 168*time.Hour),
-		MlDsaRetention:         envDurationOrDefault("ML_DSA_ROTATION_RETENTION", 24*time.Hour),
+		Base64Secret:          base64JwtSecret(),
+		Algorithm:             algorithm,
+		AccessTokenExpiration: time.Duration(expirationSeconds) * time.Second,
+		MlDsaKeyRing:          mlDsaRing,
+		MlDsaRotationEnabled:  envOrDefault("ML_DSA_ROTATION_ENABLED", "false") == "true",
+		MlDsaRotationInterval: envDurationOrDefault("ML_DSA_ROTATION_INTERVAL", 168*time.Hour),
+		MlDsaRetention:        envDurationOrDefault("ML_DSA_ROTATION_RETENTION", 24*time.Hour),
 	})
 	if err != nil {
 		log.Fatalf("failed to initialize token provider: %v", err)

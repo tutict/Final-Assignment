@@ -103,6 +103,25 @@ function parseEvent(raw: string): BusinessEvent | null {
   }
 }
 
+function closeSocketQuietly(socket: WebSocket) {
+  socket.onmessage = null;
+  socket.onerror = null;
+
+  if (socket.readyState === WebSocket.CONNECTING) {
+    socket.onclose = null;
+    socket.onopen = () => {
+      socket.close();
+    };
+    return;
+  }
+
+  socket.onopen = null;
+  socket.onclose = null;
+  if (socket.readyState === WebSocket.OPEN || socket.readyState === WebSocket.CLOSING) {
+    socket.close();
+  }
+}
+
 export function BusinessEventProvider({ children }: { children: ReactNode }) {
   const [connected, setConnected] = useState(false);
   const listenersRef = useRef<Set<Listener>>(new Set());
@@ -170,8 +189,7 @@ export function BusinessEventProvider({ children }: { children: ReactNode }) {
       }
       const socket = socketRef.current;
       if (socket) {
-        socket.onclose = null;
-        socket.close();
+        closeSocketQuietly(socket);
         socketRef.current = null;
       }
       setConnected(false);

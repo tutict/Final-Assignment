@@ -11,6 +11,13 @@ if "%START_DOCKER%"=="" set "START_DOCKER=true"
 if "%START_OLLAMA%"=="" set "START_OLLAMA=true"
 if "%DOCKER_WAIT_SECONDS%"=="" set "DOCKER_WAIT_SECONDS=180"
 if "%OLLAMA_WAIT_SECONDS%"=="" set "OLLAMA_WAIT_SECONDS=60"
+if "%REDPANDA_KAFKA_HOST_PORT%"=="" (
+  set "REDPANDA_KAFKA_HOST_PORT_EXPLICIT=false"
+  set "REDPANDA_KAFKA_HOST_PORT=9092"
+) else (
+  set "REDPANDA_KAFKA_HOST_PORT_EXPLICIT=true"
+)
+if "%REDPANDA_KAFKA_FALLBACK_PORTS%"=="" set "REDPANDA_KAFKA_FALLBACK_PORTS=19092 19093 19094"
 rem DOCKER_DESKTOP_PATH is auto-detected (registry + well-known paths) when empty.
 if "%DOCKER_DESKTOP_PATH%"=="" set "DOCKER_DESKTOP_PATH="
 if "%OLLAMA_EXE%"=="" set "OLLAMA_EXE=ollama"
@@ -53,6 +60,9 @@ set "OLLAMA_PID_FILE=%STARTUP_LOG_DIR%\ollama.pid"
   echo START_OLLAMA=%START_OLLAMA%
   echo DOCKER_WAIT_SECONDS=%DOCKER_WAIT_SECONDS%
   echo OLLAMA_WAIT_SECONDS=%OLLAMA_WAIT_SECONDS%
+  echo REDPANDA_KAFKA_HOST_PORT=%REDPANDA_KAFKA_HOST_PORT%
+  echo REDPANDA_KAFKA_HOST_PORT_EXPLICIT=%REDPANDA_KAFKA_HOST_PORT_EXPLICIT%
+  echo REDPANDA_KAFKA_FALLBACK_PORTS=%REDPANDA_KAFKA_FALLBACK_PORTS%
 ) > "%ENV_LOG%"
 exit /b 0
 
@@ -78,6 +88,62 @@ if not errorlevel 1 (
 )
 powershell -NoProfile -ExecutionPolicy Bypass -Command "try { Invoke-WebRequest -UseBasicParsing %~1 -TimeoutSec 2 | Out-Null; exit 0 } catch { exit 1 }" > "%OLLAMA_HEALTH_LOG%" 2>&1
 exit /b %ERRORLEVEL%
+
+:port_bindable
+set "CHECK_PORT=%~1"
+powershell -NoProfile -ExecutionPolicy Bypass -Command "try { $port = [int]$env:CHECK_PORT; foreach ($address in @([System.Net.IPAddress]::Any, [System.Net.IPAddress]::Loopback)) { $listener = $null; try { $listener = [System.Net.Sockets.TcpListener]::new($address, $port); $listener.Server.ExclusiveAddressUse = $true; $listener.Start() } finally { if ($listener) { $listener.Stop() } } }; exit 0 } catch { if ($listener) { $listener.Stop() }; exit 1 }" >nul 2>nul
+exit /b %ERRORLEVEL%
+
+:redpanda_container_running
+for /f "delims=" %%S in ('docker inspect -f "{{.State.Running}}" final-assignment-redpanda 2^>nul') do (
+  if /i "%%S"=="true" exit /b 0
+)
+exit /b 1
+
+:redpanda_kafka_published_port
+set "REDPANDA_PUBLISHED_PORT="
+for /f "delims=" %%P in ('powershell -NoProfile -ExecutionPolicy Bypass -Command "$published = docker port final-assignment-redpanda 9092/tcp 2>$null; foreach ($line in @($published)) { if ($line -match ':(\d+)$') { $Matches[1]; exit 0 } }"') do (
+  set "REDPANDA_PUBLISHED_PORT=%%P"
+  goto redpanda_published_done
+)
+:redpanda_published_done
+exit /b 0
+
+:use_redpanda_kafka_host_port
+set "REDPANDA_KAFKA_HOST_PORT=%~1"
+exit /b 0
+
+:resolve_redpanda_kafka_host_port
+if /i "%REDPANDA_KAFKA_HOST_PORT_EXPLICIT%"=="true" exit /b 0
+call :redpanda_container_running
+if not errorlevel 1 (
+  call :redpanda_kafka_published_port
+  if defined REDPANDA_PUBLISHED_PORT (
+    set "REDPANDA_CONFIGURED_KAFKA_HOST_PORT=%REDPANDA_KAFKA_HOST_PORT%"
+    call :use_redpanda_kafka_host_port "!REDPANDA_PUBLISHED_PORT!"
+    if not "!REDPANDA_PUBLISHED_PORT!"=="!REDPANDA_CONFIGURED_KAFKA_HOST_PORT!" call :log "Using existing Redpanda Kafka host port !REDPANDA_PUBLISHED_PORT! from the running final-assignment-redpanda container."
+  )
+  exit /b 0
+)
+call :port_bindable "%REDPANDA_KAFKA_HOST_PORT%"
+if not errorlevel 1 (
+  call :use_redpanda_kafka_host_port "%REDPANDA_KAFKA_HOST_PORT%"
+  exit /b 0
+)
+
+set "REDPANDA_ORIGINAL_KAFKA_HOST_PORT=%REDPANDA_KAFKA_HOST_PORT%"
+set "REDPANDA_FALLBACK_CANDIDATES=%REDPANDA_KAFKA_FALLBACK_PORTS:,= %"
+for %%P in (%REDPANDA_FALLBACK_CANDIDATES%) do (
+  call :port_bindable "%%~P"
+  if not errorlevel 1 (
+    call :use_redpanda_kafka_host_port "%%~P"
+    call :log "Redpanda Kafka host port !REDPANDA_ORIGINAL_KAFKA_HOST_PORT! is not available; using !REDPANDA_KAFKA_HOST_PORT! instead."
+    exit /b 0
+  )
+)
+
+call :env_fail "Redpanda Kafka host port %REDPANDA_ORIGINAL_KAFKA_HOST_PORT% is not available, and no fallback ports are bindable. Set REDPANDA_KAFKA_HOST_PORT to a free port."
+exit /b 1
 
 :print_file_tail
 echo.
@@ -175,6 +241,9 @@ call :sleep 1
 goto docker_wait_loop
 
 :docker_ready
+call :resolve_redpanda_kafka_host_port
+if errorlevel 1 exit /b 1
+call :log "Redpanda Kafka host port: %REDPANDA_KAFKA_HOST_PORT%"
 call :log "Starting Docker services from %COMPOSE_FILE%..."
 docker compose -f "%COMPOSE_FILE%" up -d --remove-orphans --wait --wait-timeout %DOCKER_WAIT_SECONDS% > "%DOCKER_COMPOSE_LOG%" 2>&1
 set "COMPOSE_EXIT=%ERRORLEVEL%"
@@ -251,6 +320,8 @@ rem DOCKER_DESKTOP_PATH is auto-detected (registry / well-known paths / docker C
 rem location) when empty; set it to override, or to a non-existent path to disable
 rem the auto-launch.
 echo   DOCKER_DESKTOP_PATH      Docker Desktop executable path. Default: auto-detected
+echo   REDPANDA_KAFKA_HOST_PORT Redpanda Kafka host port. Default: 9092, auto-falls back when unavailable
+echo   REDPANDA_KAFKA_FALLBACK_PORTS Fallback Kafka host ports. Default: 19092 19093 19094
 echo   DOCKER_WAIT_SECONDS      Docker readiness timeout. Default: 180
 echo   OLLAMA_EXE               Ollama executable or absolute path. Default: ollama
 echo   OLLAMA_WAIT_SECONDS      Ollama readiness timeout. Default: 60

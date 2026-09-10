@@ -47,21 +47,31 @@ Optional flags / environment variables:
   STARTUP_LOG_ROOT             Root log directory. Default: artifacts\startup
   BACKEND_PROFILE              Spring profile. Default: dev
   BACKEND_ARGS                 Extra Maven/Spring Boot plugin arguments.
+  BACKEND_PORT                 Go backend port. Default: 8080; auto-falls back when unavailable unless explicitly set
+  GO_BACKEND_FALLBACK_PORTS    Comma-separated Go backend fallback ports. Default: 18080,18081,18082
   BACKEND_WAIT_SECONDS         Initial delay before health polling. Default: 8
   BACKEND_HEALTH_WAIT_SECONDS  Backend health timeout. Default: 120
   BACKEND_HEALTH_URL           Health URL. Default: http://127.0.0.1:8080/actuator/health
   DB_URL, DB_USERNAME, DB_PASSWORD  Short aliases used when SPRING_DATASOURCE_* is unset.
+  REDPANDA_KAFKA_HOST_PORT     Redpanda Kafka host port. Default: 9092, auto-falls back when unavailable
+  REDPANDA_KAFKA_FALLBACK_PORTS Comma-separated fallback Kafka host ports. Default: 19092,19093,19094
   APP_ENV                      Flutter APP_ENV dart define. Default: dev
   API_BASE_URL                 Flutter API base URL. Default: http://localhost:8080
   WS_BASE_URL                  Flutter WebSocket URL. Default: ws://localhost:8081
   MVN_CMD                      Maven executable path.
   GRADLE_CMD                   Gradle executable path.
   GO_CMD                       Go executable path.
+  GOCACHE                      Go build cache path. Default: artifacts\go-build-cache
   FLUTTER_CMD                  Flutter executable path.
   FLUTTER_DEVICE               Flutter device id. Default: web-server
   FLUTTER_ARGS                 Extra flutter run arguments. Default: --web-hostname 127.0.0.1 --web-port 3000
-  FLUTTER_WAIT_SECONDS         Flutter web readiness timeout. Default: 120
+  FRONTEND_WAIT_SECONDS        Frontend readiness timeout. Default: FLUTTER_WAIT_SECONDS or 120
+  FLUTTER_WAIT_SECONDS         Legacy frontend readiness timeout. Default: 120
   FLUTTER_WEB_URL              Flutter web readiness URL. Default: http://127.0.0.1:3000
+  REACT_DEV_URL                React dev server readiness URL. Default: http://127.0.0.1:5173
+  REACT_API_BASE_URL           React API base URL. Default: selected backend target
+  REACT_WS_BASE_URL            React WebSocket base URL. Default: selected backend target
+  REACT_ARGS                   Extra npm run dev arguments.
   OPEN_BROWSER                 Open the frontend in a browser after it is ready. Default: true
   BROWSER_URL                  URL to open when OPEN_BROWSER=true. Default: the selected frontend's ready URL
   BROWSER_OVERRIDE             Force a specific browser (chrome, edge, firefox, default). Default: auto (Firefox -> Chrome)
@@ -144,24 +154,41 @@ Set-DefaultEnv "SPRING_DATASOURCE_PASSWORD" "root" | Out-Null
 Set-DefaultEnv "SPRING_DATASOURCE_DRIVER_CLASS_NAME" "com.mysql.cj.jdbc.Driver" | Out-Null
 Set-DefaultEnv "SPRING_DATA_REDIS_HOST" "localhost" | Out-Null
 Set-DefaultEnv "SPRING_DATA_REDIS_PORT" "6379" | Out-Null
-Set-DefaultEnv "SPRING_KAFKA_BOOTSTRAP_SERVERS" "localhost:9092" | Out-Null
+$SpringKafkaBootstrapExplicit = -not [string]::IsNullOrWhiteSpace((Get-EnvValue "SPRING_KAFKA_BOOTSTRAP_SERVERS"))
+$KafkaBootstrapExplicit = -not [string]::IsNullOrWhiteSpace((Get-EnvValue "KAFKA_BOOTSTRAP_SERVERS"))
+$QuarkusKafkaBootstrapExplicit = -not [string]::IsNullOrWhiteSpace((Get-EnvValue "QUARKUS_KAFKA_BOOTSTRAP_SERVERS"))
+$RedpandaKafkaHostPortExplicit = -not [string]::IsNullOrWhiteSpace((Get-EnvValue "REDPANDA_KAFKA_HOST_PORT"))
+$RedpandaKafkaHostPort = Set-DefaultEnv "REDPANDA_KAFKA_HOST_PORT" "9092"
+$RedpandaKafkaFallbackPorts = Set-DefaultEnv "REDPANDA_KAFKA_FALLBACK_PORTS" "19092,19093,19094"
+Set-DefaultEnv "SPRING_KAFKA_BOOTSTRAP_SERVERS" "localhost:$RedpandaKafkaHostPort" | Out-Null
+Set-DefaultEnv "KAFKA_BOOTSTRAP_SERVERS" "localhost:$RedpandaKafkaHostPort" | Out-Null
+Set-DefaultEnv "QUARKUS_KAFKA_BOOTSTRAP_SERVERS" "localhost:$RedpandaKafkaHostPort" | Out-Null
 
 $AppEnv = Set-DefaultEnv "APP_ENV" "dev"
 $ApiBaseUrl = Set-DefaultEnv "API_BASE_URL" "http://localhost:8080"
 $WsBaseUrl = Set-DefaultEnv "WS_BASE_URL" "ws://localhost:8081"
+$BackendPortExplicit = -not [string]::IsNullOrWhiteSpace((Get-EnvValue "BACKEND_PORT"))
 $BackendPort = Set-DefaultEnv "BACKEND_PORT" "8080"
+$GoBackendFallbackPorts = Set-DefaultEnv "GO_BACKEND_FALLBACK_PORTS" "18080,18081,18082"
 $BackendWaitSeconds = [int](Set-DefaultEnv "BACKEND_WAIT_SECONDS" "8")
 $BackendHealthWaitSeconds = [int](Set-DefaultEnv "BACKEND_HEALTH_WAIT_SECONDS" "120")
+$BackendHealthUrlExplicit = -not [string]::IsNullOrWhiteSpace((Get-EnvValue "BACKEND_HEALTH_URL"))
 $BackendHealthUrl = Set-DefaultEnv "BACKEND_HEALTH_URL" "http://127.0.0.1:$BackendPort/actuator/health"
 $FlutterDevice = Set-DefaultEnv "FLUTTER_DEVICE" "web-server"
 $FlutterArgs = Set-DefaultEnv "FLUTTER_ARGS" "--web-hostname 127.0.0.1 --web-port 3000"
 $ReactDevUrl = Set-DefaultEnv "REACT_DEV_URL" "http://127.0.0.1:5173"
+$ReactApiBaseUrlExplicit = -not [string]::IsNullOrWhiteSpace((Get-EnvValue "REACT_API_BASE_URL")) -or -not [string]::IsNullOrWhiteSpace((Get-EnvValue "VITE_API_BASE_URL"))
+$ReactWsBaseUrlExplicit = -not [string]::IsNullOrWhiteSpace((Get-EnvValue "REACT_WS_BASE_URL")) -or -not [string]::IsNullOrWhiteSpace((Get-EnvValue "VITE_WS_BASE_URL"))
+$ReactApiBaseUrl = Get-EnvValue "REACT_API_BASE_URL" (Get-EnvValue "VITE_API_BASE_URL")
+$ReactWsBaseUrl = Get-EnvValue "REACT_WS_BASE_URL" (Get-EnvValue "VITE_WS_BASE_URL")
 $ReactArgs = Set-DefaultEnv "REACT_ARGS" ""
 $FlutterWaitSeconds = [int](Set-DefaultEnv "FLUTTER_WAIT_SECONDS" "120")
+$FrontendWaitSeconds = [int](Set-DefaultEnv "FRONTEND_WAIT_SECONDS" ([string]$FlutterWaitSeconds))
 $FlutterWebUrl = Set-DefaultEnv "FLUTTER_WEB_URL" "http://127.0.0.1:3000"
 $ClearStaleFlutterPort = Set-DefaultEnv "CLEAR_STALE_FLUTTER_PORT" "true"
 $OpenBrowser = Set-DefaultEnv "OPEN_BROWSER" "true"
-$BrowserUrl = Set-DefaultEnv "BROWSER_URL" $FlutterWebUrl
+$BrowserUrlExplicit = -not [string]::IsNullOrWhiteSpace((Get-EnvValue "BROWSER_URL"))
+$BrowserUrl = Get-EnvValue "BROWSER_URL"
 $BrowserOverride = Set-DefaultEnv "BROWSER_OVERRIDE" "auto"
 $StopLocalServicesOnExit = Set-DefaultEnv "STOP_LOCAL_SERVICES_ON_EXIT" $StartLocalServices
 $StopDockerOnExit = Set-DefaultEnv "STOP_DOCKER_ON_EXIT" $StopLocalServicesOnExit
@@ -171,6 +198,9 @@ $StartupLogRoot = Set-DefaultEnv "STARTUP_LOG_ROOT" (Join-Path $RootDir "artifac
 $StartupRunId = Set-DefaultEnv "STARTUP_RUN_ID" (Get-Date -Format "yyyyMMdd-HHmmss")
 $StartupLogDir = Set-DefaultEnv "STARTUP_LOG_DIR" (Join-Path $StartupLogRoot $StartupRunId)
 New-Item -ItemType Directory -Force -Path $StartupLogDir | Out-Null
+$GoBuildCache = Set-DefaultEnv "GOCACHE" (Join-Path $RootDir "artifacts\go-build-cache")
+New-Item -ItemType Directory -Force -Path $GoBuildCache | Out-Null
+$GoBackendBinary = Join-Path $StartupLogDir "go-backend.exe"
 
 $StartupLog = Join-Path $StartupLogDir "startup.log"
 $BackendLog = Join-Path $StartupLogDir "backend.log"
@@ -188,6 +218,173 @@ $OllamaPidFile = Join-Path $StartupLogDir "ollama.pid"
 function Write-Log([string]$Message) {
     Write-Host $Message
     Add-Content -LiteralPath $StartupLog -Encoding ASCII -Value "[$StartupRunId $(Get-Date -Format HH:mm:ss.fff)] $Message"
+}
+
+function Get-NetstatListenRows([int]$Port) {
+    $netstat = Get-Command netstat.exe -ErrorAction SilentlyContinue
+    if (-not $netstat) { return @() }
+
+    $rows = @()
+    try {
+        foreach ($line in @(& $netstat.Source -ano -p tcp 2>$null)) {
+            $parts = @($line -split '\s+' | Where-Object { -not [string]::IsNullOrWhiteSpace($_) })
+            if ($parts.Count -lt 5 -or $parts[0] -ne "TCP" -or $parts[3] -ne "LISTENING") { continue }
+            if ($parts[1] -notmatch ":$Port`$") { continue }
+            $localAddress = $parts[1] -replace ":$Port`$", ""
+            $rows += [pscustomobject]@{
+                LocalAddress = $localAddress
+                LocalPort = $Port
+                ProcessId = [int]$parts[4]
+            }
+        }
+    } catch {
+        return @()
+    }
+    return $rows
+}
+
+function Test-PortListening([int]$Port) {
+    try {
+        if (@(Get-NetTCPConnection -LocalPort $Port -State Listen -ErrorAction SilentlyContinue).Count -gt 0) { return $true }
+    } catch {}
+    return @(Get-NetstatListenRows -Port $Port).Count -gt 0
+}
+
+function Test-TcpPortBindable([int]$Port) {
+    if (Test-PortListening -Port $Port) { return $false }
+
+    foreach ($address in @([System.Net.IPAddress]::Any, [System.Net.IPAddress]::Loopback)) {
+        $listener = $null
+        try {
+            $listener = [System.Net.Sockets.TcpListener]::new($address, $Port)
+            $listener.Server.ExclusiveAddressUse = $true
+            $listener.Start()
+        } catch {
+            return $false
+        } finally {
+            if ($listener) { $listener.Stop() }
+        }
+    }
+    return $true
+}
+
+function Test-RedpandaContainerRunning {
+    $docker = Get-Command docker -ErrorAction SilentlyContinue
+    if (-not $docker) { return $false }
+    $previousPreference = $ErrorActionPreference
+    try {
+        $ErrorActionPreference = "Continue"
+        $running = & $docker.Source inspect -f "{{.State.Running}}" final-assignment-redpanda 2>$null
+        return @($running) -contains "true"
+    } catch {
+        return $false
+    } finally {
+        $ErrorActionPreference = $previousPreference
+    }
+}
+
+function Get-RedpandaKafkaPublishedPort {
+    $docker = Get-Command docker -ErrorAction SilentlyContinue
+    if (-not $docker) { return $null }
+    $previousPreference = $ErrorActionPreference
+    try {
+        $ErrorActionPreference = "Continue"
+        $published = & $docker.Source port final-assignment-redpanda 9092/tcp 2>$null
+        foreach ($line in @($published)) {
+            if ($line -match ':(\d+)$') { return $Matches[1] }
+        }
+    } catch {
+        return $null
+    } finally {
+        $ErrorActionPreference = $previousPreference
+    }
+    return $null
+}
+
+function Set-KafkaBootstrapDefaultsForRedpandaPort([string]$Port) {
+    if (-not $SpringKafkaBootstrapExplicit) { [Environment]::SetEnvironmentVariable("SPRING_KAFKA_BOOTSTRAP_SERVERS", "localhost:$Port", "Process") }
+    if (-not $KafkaBootstrapExplicit) { [Environment]::SetEnvironmentVariable("KAFKA_BOOTSTRAP_SERVERS", "localhost:$Port", "Process") }
+    if (-not $QuarkusKafkaBootstrapExplicit) { [Environment]::SetEnvironmentVariable("QUARKUS_KAFKA_BOOTSTRAP_SERVERS", "localhost:$Port", "Process") }
+}
+
+function Use-RedpandaKafkaHostPort([string]$Port) {
+    $script:RedpandaKafkaHostPort = [string]$Port
+    [Environment]::SetEnvironmentVariable("REDPANDA_KAFKA_HOST_PORT", $script:RedpandaKafkaHostPort, "Process")
+    Set-KafkaBootstrapDefaultsForRedpandaPort $script:RedpandaKafkaHostPort
+}
+
+function Use-BackendPort([string]$Port) {
+    $script:BackendPort = [string]$Port
+    [Environment]::SetEnvironmentVariable("BACKEND_PORT", $script:BackendPort, "Process")
+    if (-not $BackendHealthUrlExplicit) {
+        $script:BackendHealthUrl = "http://127.0.0.1:$script:BackendPort/actuator/health"
+        [Environment]::SetEnvironmentVariable("BACKEND_HEALTH_URL", $script:BackendHealthUrl, "Process")
+    }
+}
+
+function Resolve-RedpandaKafkaHostPort {
+    if ($StartLocalServices -ine "true" -or ($BackendChoice -eq "none" -and $FrontendChoice -eq "none")) { return $null }
+    if ($RedpandaKafkaHostPortExplicit) {
+        Set-KafkaBootstrapDefaultsForRedpandaPort $RedpandaKafkaHostPort
+        return $null
+    }
+    if (Test-RedpandaContainerRunning) {
+        $publishedPort = Get-RedpandaKafkaPublishedPort
+        if (-not [string]::IsNullOrWhiteSpace($publishedPort)) {
+            $configuredPort = $script:RedpandaKafkaHostPort
+            Use-RedpandaKafkaHostPort $publishedPort
+            if ($publishedPort -ne $configuredPort) {
+                return "Using existing Redpanda Kafka host port $publishedPort from the running final-assignment-redpanda container."
+            }
+        } else {
+            Set-KafkaBootstrapDefaultsForRedpandaPort $RedpandaKafkaHostPort
+        }
+        return $null
+    }
+
+    $initialPort = [int]$script:RedpandaKafkaHostPort
+    if (Test-TcpPortBindable $initialPort) {
+        Use-RedpandaKafkaHostPort $script:RedpandaKafkaHostPort
+        return $null
+    }
+
+    $fallbackCandidates = $RedpandaKafkaFallbackPorts -split '[,;\s]+' | Where-Object { -not [string]::IsNullOrWhiteSpace($_) }
+    foreach ($candidateValue in $fallbackCandidates) {
+        $candidate = 0
+        if (-not [int]::TryParse($candidateValue, [ref]$candidate)) { continue }
+        if (Test-TcpPortBindable $candidate) {
+            Use-RedpandaKafkaHostPort ([string]$candidate)
+            return "Redpanda Kafka host port $initialPort is not available; using $script:RedpandaKafkaHostPort instead."
+        }
+    }
+
+    Fail "Redpanda Kafka host port $initialPort is not available, and no fallback ports are bindable. Set REDPANDA_KAFKA_HOST_PORT to a free port."
+}
+
+function Resolve-GoBackendPort {
+    if ($BackendChoice -ne "go") { return $null }
+    if ($BackendPortExplicit) { return $null }
+
+    $initialPort = [int]$script:BackendPort
+    if (Test-TcpPortBindable $initialPort) {
+        Use-BackendPort $script:BackendPort
+        return $null
+    }
+
+    $listeners = @(Get-PortListenerSummaries -Port $initialPort)
+    if ($listeners.Count -gt 0) { return $null }
+
+    $fallbackCandidates = $GoBackendFallbackPorts -split '[,;\s]+' | Where-Object { -not [string]::IsNullOrWhiteSpace($_) }
+    foreach ($candidateValue in $fallbackCandidates) {
+        $candidate = 0
+        if (-not [int]::TryParse($candidateValue, [ref]$candidate)) { continue }
+        if (Test-TcpPortBindable $candidate) {
+            Use-BackendPort ([string]$candidate)
+            return "Go backend port $initialPort is not bindable and has no listening process; using $script:BackendPort instead."
+        }
+    }
+
+    return $null
 }
 
 # ---- interactive menu ------------------------------------------------------
@@ -253,6 +450,54 @@ if ($BackendChoice -eq "none" -and $FrontendChoice -eq "none") {
     exit 1
 }
 
+function Update-FrontendRoutingDefaults {
+    $DefaultReactApiBaseUrl = switch ($BackendChoice) {
+        "go" { "http://127.0.0.1:$BackendPort" }
+        "cloud" { "http://127.0.0.1:8080" }
+        default { "http://127.0.0.1:8081" }
+    }
+    $DefaultReactWsBaseUrl = switch ($BackendChoice) {
+        "go" { "ws://127.0.0.1:$BackendPort" }
+        "cloud" { "ws://127.0.0.1:8080" }
+        default { "ws://127.0.0.1:8081" }
+    }
+    if (-not $ReactApiBaseUrlExplicit) { $script:ReactApiBaseUrl = $DefaultReactApiBaseUrl }
+    if (-not $ReactWsBaseUrlExplicit) { $script:ReactWsBaseUrl = $DefaultReactWsBaseUrl }
+    [Environment]::SetEnvironmentVariable("REACT_API_BASE_URL", $script:ReactApiBaseUrl, "Process")
+    [Environment]::SetEnvironmentVariable("REACT_WS_BASE_URL", $script:ReactWsBaseUrl, "Process")
+}
+
+$FrontendOrigin = ""
+switch ($FrontendChoice) {
+    "react" {
+        $FrontendOrigin = $ReactDevUrl
+        Set-DefaultEnv "FRONTEND_URL" $FrontendOrigin | Out-Null
+        break
+    }
+    "flutter" {
+        $FrontendOrigin = $FlutterWebUrl
+        Set-DefaultEnv "FRONTEND_URL" $FrontendOrigin | Out-Null
+        Set-DefaultEnv "FLUTTER_URL" $FlutterWebUrl | Out-Null
+        break
+    }
+}
+
+if (-not $BrowserUrlExplicit -and -not [string]::IsNullOrWhiteSpace($FrontendOrigin)) {
+    $BrowserUrl = $FrontendOrigin
+    [Environment]::SetEnvironmentVariable("BROWSER_URL", $BrowserUrl, "Process")
+} elseif ($BrowserUrlExplicit) {
+    $BrowserUrl = Get-EnvValue "BROWSER_URL"
+}
+
+function Get-EffectiveBackendHealthUrl {
+    switch ($BackendChoice) {
+        "go" { return "http://127.0.0.1:$BackendPort/api/actuator/health" }
+        "quarkus" { return "http://127.0.0.1:8080/q/openapi" }
+        "cloud" { return "http://127.0.0.1:8080/actuator/health" }
+        default { return $BackendHealthUrl }
+    }
+}
+
 function Write-StartupSummary {
     $summary = @(
         "Final Assignment startup run",
@@ -273,22 +518,43 @@ function Write-StartupSummary {
         "STOP_DOCKER_ON_EXIT=$StopDockerOnExit",
         "STOP_OLLAMA_ON_EXIT=$StopOllamaOnExit",
         "BACKEND_PROFILE=$BackendProfile",
+        "BACKEND_PORT=$BackendPort",
+        "BACKEND_PORT_EXPLICIT=$BackendPortExplicit",
+        "GO_BACKEND_FALLBACK_PORTS=$GoBackendFallbackPorts",
+        "GOCACHE=$GoBuildCache",
+        "GO_BACKEND_BINARY=$GoBackendBinary",
         "BACKEND_HEALTH_URL=$BackendHealthUrl",
+        "EFFECTIVE_BACKEND_HEALTH_URL=$(Get-EffectiveBackendHealthUrl)",
         "BACKEND_WAIT_SECONDS=$BackendWaitSeconds",
         "BACKEND_HEALTH_WAIT_SECONDS=$BackendHealthWaitSeconds",
+        "FRONTEND_WAIT_SECONDS=$FrontendWaitSeconds",
         "SPRING_DATASOURCE_URL=$env:SPRING_DATASOURCE_URL",
         "SPRING_DATASOURCE_USERNAME=$env:SPRING_DATASOURCE_USERNAME",
         "SPRING_DATASOURCE_PASSWORD=<redacted>",
         "SPRING_DATA_REDIS_HOST=$env:SPRING_DATA_REDIS_HOST",
         "SPRING_DATA_REDIS_PORT=$env:SPRING_DATA_REDIS_PORT",
+        "REDPANDA_KAFKA_HOST_PORT=$RedpandaKafkaHostPort",
+        "REDPANDA_KAFKA_HOST_PORT_EXPLICIT=$RedpandaKafkaHostPortExplicit",
+        "REDPANDA_KAFKA_FALLBACK_PORTS=$RedpandaKafkaFallbackPorts",
         "SPRING_KAFKA_BOOTSTRAP_SERVERS=$env:SPRING_KAFKA_BOOTSTRAP_SERVERS",
+        "KAFKA_BOOTSTRAP_SERVERS=$env:KAFKA_BOOTSTRAP_SERVERS",
+        "QUARKUS_KAFKA_BOOTSTRAP_SERVERS=$env:QUARKUS_KAFKA_BOOTSTRAP_SERVERS",
         "APP_ENV=$AppEnv",
         "API_BASE_URL=$ApiBaseUrl",
         "WS_BASE_URL=$WsBaseUrl",
+        "FRONTEND_URL=$env:FRONTEND_URL",
+        "FLUTTER_URL=$env:FLUTTER_URL",
         "FLUTTER_DEVICE=$FlutterDevice",
         "FLUTTER_ARGS=$FlutterArgs",
         "FLUTTER_WAIT_SECONDS=$FlutterWaitSeconds",
-        "FLUTTER_WEB_URL=$FlutterWebUrl"
+        "FLUTTER_WEB_URL=$FlutterWebUrl",
+        "REACT_DEV_URL=$ReactDevUrl",
+        "REACT_API_BASE_URL=$ReactApiBaseUrl",
+        "REACT_API_BASE_URL_EXPLICIT=$ReactApiBaseUrlExplicit",
+        "REACT_WS_BASE_URL=$ReactWsBaseUrl",
+        "REACT_WS_BASE_URL_EXPLICIT=$ReactWsBaseUrlExplicit",
+        "BROWSER_URL=$BrowserUrl",
+        "BROWSER_URL_EXPLICIT=$BrowserUrlExplicit"
     )
     Set-Content -LiteralPath $StartupLog -Encoding ASCII -Value $summary
 }
@@ -324,7 +590,7 @@ function Show-FileTail([string]$Path, [int]$Lines = 80) {
 function Show-PortDiagnostics {
     Write-Host ""
     Write-Host "----- Port diagnostics -----"
-    $ports = @($BackendPort, 8081, 3000, 5173) | Select-Object -Unique
+    $ports = @($BackendPort, 8081, 3000, 5173, $RedpandaKafkaHostPort, 6379, 9200) | Select-Object -Unique
     foreach ($port in $ports) {
         $connections = Get-NetTCPConnection -LocalPort $port -State Listen -ErrorAction SilentlyContinue
         foreach ($connection in $connections) {
@@ -398,6 +664,18 @@ function Invoke-HttpOk([string]$Url) {
     } catch {
         return $false
     }
+}
+
+function Test-BackendStartedByThisRun {
+    if ($BackendChoice -ne "go") { return $true }
+
+    $marker = "Go backend started on http://localhost:$BackendPort"
+    foreach ($path in @($BackendLog, $BackendErrLog)) {
+        if (-not (Test-Path -LiteralPath $path)) { continue }
+        $content = Get-Content -LiteralPath $path -Raw -ErrorAction SilentlyContinue
+        if ($null -ne $content -and $content.Contains($marker)) { return $true }
+    }
+    return $false
 }
 
 function Get-ChildProcessIds([int]$ProcessId) {
@@ -532,6 +810,21 @@ function Stop-ProcessTree([int]$ProcessId, [string]$Name) {
     Stop-Process -Id $ProcessId -Force -ErrorAction SilentlyContinue
 }
 
+function Stop-ProcessByExecutablePath([string]$ExecutablePath, [string]$Name) {
+    if ([string]::IsNullOrWhiteSpace($ExecutablePath) -or -not (Test-Path -LiteralPath $ExecutablePath)) { return }
+
+    $resolvedPath = (Resolve-Path -LiteralPath $ExecutablePath -ErrorAction SilentlyContinue).Path
+    if ([string]::IsNullOrWhiteSpace($resolvedPath)) { return }
+
+    foreach ($process in @(Get-Process -ErrorAction SilentlyContinue)) {
+        $processPath = $null
+        try { $processPath = $process.Path } catch { $processPath = $null }
+        if ($processPath -eq $resolvedPath) {
+            Stop-ProcessTree -ProcessId $process.Id -Name $Name
+        }
+    }
+}
+
 # Detect and stop stale Flutter web-server processes that still hold the Flutter
 # web port open (e.g. from a previous `flutter run -d web-server` that was not
 # cleaned up). Only processes whose command line matches a Flutter web-server run
@@ -556,6 +849,65 @@ function Clear-StaleFlutterOnPort([string]$Address, [int]$Port) {
         } else {
             $name = $process.Name
             Write-Log "Port $Port is already in use by $name (PID $($conn.OwningProcess)). Not stopping it because it does not look like a stale Flutter web-server. Flutter startup may fail. Command line: $cmdLine"
+        }
+    }
+}
+
+function Get-BackendListenPorts {
+    switch ($BackendChoice) {
+        "go" { return @([int]$BackendPort) }
+        "spring" { return @(8080, 8081) }
+        "quarkus" { return @(8080, 8081) }
+        "cloud" { return @(8080) }
+        default { return @() }
+    }
+}
+
+function Get-PortListenerSummaries([int]$Port) {
+    $connections = @(Get-NetTCPConnection -LocalPort $Port -State Listen -ErrorAction SilentlyContinue)
+    $listenerRows = @()
+    foreach ($connection in $connections) {
+        $listenerRows += [pscustomobject]@{
+            LocalAddress = $connection.LocalAddress
+            LocalPort = $connection.LocalPort
+            ProcessId = [int]$connection.OwningProcess
+        }
+    }
+    if ($listenerRows.Count -eq 0) {
+        $listenerRows = @(Get-NetstatListenRows -Port $Port)
+    }
+
+    foreach ($listenerRow in $listenerRows) {
+        $process = Get-CimInstance Win32_Process -Filter "ProcessId=$($listenerRow.ProcessId)" -ErrorAction SilentlyContinue
+        $fallbackProcess = Get-Process -Id $listenerRow.ProcessId -ErrorAction SilentlyContinue
+        $name = if ($process) { $process.Name } elseif ($fallbackProcess) { $fallbackProcess.ProcessName } else { "unknown" }
+        $cmdLine = if ($process -and $process.CommandLine) { $process.CommandLine } else { "" }
+        [pscustomobject]@{
+            LocalAddress = $listenerRow.LocalAddress
+            LocalPort = $listenerRow.LocalPort
+            ProcessId = $listenerRow.ProcessId
+            ProcessName = $name
+            CommandLine = $cmdLine
+        }
+    }
+}
+
+function Assert-BackendPortsAvailable {
+    foreach ($port in (@(Get-BackendListenPorts) | Select-Object -Unique)) {
+        $listeners = @(Get-PortListenerSummaries -Port ([int]$port))
+        if ($listeners.Count -gt 0) {
+            foreach ($listener in $listeners) {
+                $endpoint = "{0}:{1}" -f $listener.LocalAddress, $listener.LocalPort
+                $message = "Backend port $port is already in use before starting $BackendChoice ($endpoint PID=$($listener.ProcessId) Process=$($listener.ProcessName))"
+                if (-not [string]::IsNullOrWhiteSpace($listener.CommandLine)) { $message = "$message CommandLine: $($listener.CommandLine)" }
+                Write-Log $message
+            }
+            Fail "Backend port $port is unavailable before starting backend ($BackendChoice). Stop that process first, or choose -b none if you intentionally want to reuse an existing backend."
+        }
+
+        if (-not (Test-TcpPortBindable ([int]$port))) {
+            Write-Log "Backend port $port is not bindable, but no listening process was found. It may be reserved by the OS."
+            Fail "Backend port $port is unavailable before starting backend ($BackendChoice). Stop that process first, or choose -b none if you intentionally want to reuse an existing backend."
         }
     }
 }
@@ -596,6 +948,9 @@ function Cleanup {
     }
     if ($script:BackendProcess -and -not $script:BackendProcess.HasExited) {
         Stop-ProcessTree -ProcessId $script:BackendProcess.Id -Name "Backend"
+    }
+    if ($BackendChoice -eq "go") {
+        Stop-ProcessByExecutablePath -ExecutablePath $GoBackendBinary -Name "Go backend binary"
     }
     if ($StartLocalServices -ieq "true" -and $StopLocalServicesOnExit -ieq "true") {
         Stop-LocalDependencies
@@ -638,10 +993,14 @@ function New-GoRunner {
         "set REDIS_HOST=localhost",
         "set REDIS_PORT=6379",
         "set REDIS_ENABLED=false",
-        "set KAFKA_BOOTSTRAP_SERVERS=localhost:9092",
+        "set KAFKA_BOOTSTRAP_SERVERS=$env:KAFKA_BOOTSTRAP_SERVERS",
         "set ELASTICSEARCH_URL=http://localhost:9200",
         "set GO_DOCKER_SERVICES_ENABLED=false",
-        "call `"$GoCmd`" run ./project/cmd/app 1> `"$BackendLog`" 2> `"$BackendErrLog`"",
+        "set PORT=$BackendPort",
+        "set GOCACHE=$GoBuildCache",
+        "call `"$GoCmd`" build -o `"$GoBackendBinary`" ./project/cmd/app 1> `"$BackendLog`" 2> `"$BackendErrLog`"",
+        "if errorlevel 1 exit /b %ERRORLEVEL%",
+        "call `"$GoBackendBinary`" 1>> `"$BackendLog`" 2>> `"$BackendErrLog`"",
         "exit /b %ERRORLEVEL%"
     )
     return $true
@@ -697,8 +1056,8 @@ function New-QuarkusRunner {
         "set `"QUARKUS_DATASOURCE_USERNAME=$DbUser`"",
         "set `"QUARKUS_DATASOURCE_PASSWORD=$DbPassword`"",
         "set QUARKUS_REDIS_HOSTS=redis://localhost:6379",
-        "set KAFKA_BOOTSTRAP_SERVERS=localhost:9092",
-        "set QUARKUS_KAFKA_BOOTSTRAP_SERVERS=localhost:9092",
+        "set KAFKA_BOOTSTRAP_SERVERS=$env:KAFKA_BOOTSTRAP_SERVERS",
+        "set QUARKUS_KAFKA_BOOTSTRAP_SERVERS=$env:QUARKUS_KAFKA_BOOTSTRAP_SERVERS",
         "set ELASTICSEARCH_HOST=http://localhost:9200",
         "set `"JWT_ML_DSA_PRIVATE_KEY= `"",
         "set `"JWT_ML_DSA_PUBLIC_KEY= `"",
@@ -765,12 +1124,16 @@ function New-ReactRunner {
     $NpmCmd = Get-ExecutablePath -Configured (Get-EnvValue "NPM_CMD") -Candidates @("npm.cmd", "npm") -FallbackPath "" -Name "npm"
     $env:NPM_CMD = $NpmCmd
     Write-Log "Using npm: $NpmCmd"
-    $runDev = "call `"$NpmCmd`" run dev -- --host 127.0.0.1 --port 5173 $ReactArgs"
+    Write-Log "React API base URL: $ReactApiBaseUrl"
+    Write-Log "React WebSocket base URL: $ReactWsBaseUrl"
+    $runDev = "call `"$NpmCmd`" run dev -- --host 127.0.0.1 --port 5173 --strictPort $ReactArgs"
     if (-not (Test-Path -LiteralPath (Join-Path $ReactDir "node_modules"))) {
         Write-Log "React node_modules not found. Running npm install..."
         Set-Content -LiteralPath $RunnerPath -Encoding ASCII -Value @(
             "@echo off",
             "cd /d `"$ReactDir`"",
+            "set `"VITE_API_BASE_URL=$ReactApiBaseUrl`"",
+            "set `"VITE_WS_BASE_URL=$ReactWsBaseUrl`"",
             "call `"$NpmCmd`" install 1> `"$FrontendLog`" 2> `"$FrontendErrLog`"",
             "if errorlevel 1 exit /b %ERRORLEVEL%",
             ($runDev + " 1> `"$FrontendLog`" 2> `"$FrontendErrLog`""),
@@ -780,6 +1143,8 @@ function New-ReactRunner {
         Set-Content -LiteralPath $RunnerPath -Encoding ASCII -Value @(
             "@echo off",
             "cd /d `"$ReactDir`"",
+            "set `"VITE_API_BASE_URL=$ReactApiBaseUrl`"",
+            "set `"VITE_WS_BASE_URL=$ReactWsBaseUrl`"",
             ($runDev + " 1> `"$FrontendLog`" 2> `"$FrontendErrLog`""),
             "exit /b %ERRORLEVEL%"
         )
@@ -789,9 +1154,21 @@ function New-ReactRunner {
 
 # ---- main flow --------------------------------------------------------------
 
+Update-FrontendRoutingDefaults
 Write-StartupSummary
 
 try {
+    $redpandaPortNotice = Resolve-RedpandaKafkaHostPort
+    $goBackendPortNotice = Resolve-GoBackendPort
+    Update-FrontendRoutingDefaults
+    Write-StartupSummary
+    if (-not [string]::IsNullOrWhiteSpace($redpandaPortNotice)) {
+        Write-Log $redpandaPortNotice
+    }
+    if (-not [string]::IsNullOrWhiteSpace($goBackendPortNotice)) {
+        Write-Log $goBackendPortNotice
+    }
+
     switch ($BackendChoice) {
         "spring" {
             if (-not (Test-Path -LiteralPath (Join-Path $SpringDir "pom.xml"))) { Fail "Spring Boot project not found: $SpringDir" }
@@ -827,6 +1204,10 @@ try {
         $frontendReady = $false
     }
 
+    if ($backendReady) {
+        Assert-BackendPortsAvailable
+    }
+
     if ($StartLocalServices -ieq "true" -and ($backendReady -or $frontendReady)) {
         Write-Log "Starting local Docker/Ollama environment..."
         & (Join-Path $ScriptDir "start-env.bat")
@@ -835,27 +1216,7 @@ try {
         Write-Log "Skipping local Docker/Ollama environment because START_LOCAL_SERVICES=false."
     }
 
-    # Backend health mapping per implementation
-    $healthUrl = $BackendHealthUrl
-    switch ($BackendChoice) {
-        "go" {
-            # Go Gin main app serves its health endpoint under /api/actuator/health.
-            $healthUrl = "http://127.0.0.1:$BackendPort/api/actuator/health"
-            break
-        }
-        "quarkus" {
-            # Quarkus serves REST (JAX-RS) on 8080 and the Vert.x WebSocket + /api
-            # proxy (NetWorkHandler) on 8081. There is no smallrye-health extension,
-            # so use the public OpenAPI document as the readiness probe.
-            $healthUrl = "http://127.0.0.1:8080/q/openapi"
-            break
-        }
-        "cloud" {
-            # Spring Cloud gateway exposes actuator health on its own port.
-            $healthUrl = "http://127.0.0.1:8080/actuator/health"
-            break
-        }
-    }
+    $healthUrl = Get-EffectiveBackendHealthUrl
 
     # Working directory for the runner process. The generated .bat runner does
     # `cd /d` into the right directory itself, but the process's initial working
@@ -883,13 +1244,17 @@ try {
         $deadline = (Get-Date).AddSeconds($BackendHealthWaitSeconds)
         $healthy = $false
         while ((Get-Date) -lt $deadline) {
-            if (Invoke-HttpOk $healthUrl) {
+            if ($script:BackendProcess.HasExited) {
+                Fail "Backend ($BackendChoice) exited before becoming healthy. Exit code: $($script:BackendProcess.ExitCode)"
+            }
+            if ((Invoke-HttpOk $healthUrl) -and (Test-BackendStartedByThisRun)) {
+                Start-Sleep -Milliseconds 500
+                if ($script:BackendProcess.HasExited) {
+                    Fail "Backend ($BackendChoice) exited immediately after health check succeeded. Exit code: $($script:BackendProcess.ExitCode)"
+                }
                 Write-Log "Backend ($BackendChoice) is healthy."
                 $healthy = $true
                 break
-            }
-            if ($script:BackendProcess.HasExited) {
-                Fail "Backend ($BackendChoice) exited before becoming healthy. Exit code: $($script:BackendProcess.ExitCode)"
             }
             Start-Sleep -Seconds 2
         }
@@ -899,10 +1264,7 @@ try {
     }
 
     if ($frontendReady) {
-        # Default the browser URL to the selected frontend's ready URL unless the
-        # user explicitly set BROWSER_URL.
-        $defaultBrowserUrl = if ($FrontendChoice -eq "react") { $ReactDevUrl } else { $FlutterWebUrl }
-        $BrowserUrl = Set-DefaultEnv "BROWSER_URL" $defaultBrowserUrl
+        Write-Log "Browser URL: $BrowserUrl"
         if ($FrontendChoice -eq "flutter" -and $ClearStaleFlutterPort -ieq "true") {
             # Free the Flutter web port from any stale `flutter run` process
             # before starting, otherwise bind fails and Flutter exits immediately.
@@ -920,43 +1282,55 @@ try {
         Write-Log "Frontend PID: $($script:FrontendProcess.Id)"
         Write-Log "Frontend stdout: $FrontendLog"
         Write-Log "Frontend stderr: $FrontendErrLog"
+        Start-Sleep -Milliseconds 500
+        if ($script:FrontendProcess.HasExited) {
+            Fail "Frontend ($FrontendChoice) exited immediately after launch. Exit code: $($script:FrontendProcess.ExitCode)"
+        }
 
         if ($FrontendChoice -eq "flutter" -and $FlutterDevice -ieq "web-server") {
-            Write-Log "Waiting up to $FlutterWaitSeconds seconds for $FlutterWebUrl..."
-            $flutterDeadline = (Get-Date).AddSeconds($FlutterWaitSeconds)
+            Write-Log "Waiting up to $FrontendWaitSeconds seconds for $FlutterWebUrl..."
+            $flutterDeadline = (Get-Date).AddSeconds($FrontendWaitSeconds)
             $reachable = $false
             while ((Get-Date) -lt $flutterDeadline) {
+                if ($script:FrontendProcess.HasExited) {
+                    Fail "Frontend exited before the web server became reachable. Exit code: $($script:FrontendProcess.ExitCode)"
+                }
                 if (Invoke-HttpOk $FlutterWebUrl) {
+                    Start-Sleep -Milliseconds 500
+                    if ($script:FrontendProcess.HasExited) {
+                        Fail "Frontend exited immediately after readiness check succeeded. Exit code: $($script:FrontendProcess.ExitCode)"
+                    }
                     Write-Log "Flutter web server is reachable: $FlutterWebUrl"
                     $reachable = $true
                     break
                 }
-                if ($script:FrontendProcess.HasExited) {
-                    Fail "Frontend exited before the web server became reachable. Exit code: $($script:FrontendProcess.ExitCode)"
-                }
                 Start-Sleep -Seconds 2
             }
             if (-not $reachable) {
-                Fail "Flutter web server did not become reachable within $FlutterWaitSeconds seconds."
+                Fail "Flutter web server did not become reachable within $FrontendWaitSeconds seconds."
             }
             Open-FrontendInBrowser
         } elseif ($FrontendChoice -eq "react") {
-            Write-Log "Waiting up to $FlutterWaitSeconds seconds for $ReactDevUrl..."
-            $reactDeadline = (Get-Date).AddSeconds($FlutterWaitSeconds)
+            Write-Log "Waiting up to $FrontendWaitSeconds seconds for $ReactDevUrl..."
+            $reactDeadline = (Get-Date).AddSeconds($FrontendWaitSeconds)
             $reachable = $false
             while ((Get-Date) -lt $reactDeadline) {
+                if ($script:FrontendProcess.HasExited) {
+                    Fail "Frontend exited before the dev server became reachable. Exit code: $($script:FrontendProcess.ExitCode)"
+                }
                 if (Invoke-HttpOk $ReactDevUrl) {
+                    Start-Sleep -Milliseconds 500
+                    if ($script:FrontendProcess.HasExited) {
+                        Fail "Frontend exited immediately after readiness check succeeded. Exit code: $($script:FrontendProcess.ExitCode)"
+                    }
                     Write-Log "React dev server is reachable: $ReactDevUrl"
                     $reachable = $true
                     break
                 }
-                if ($script:FrontendProcess.HasExited) {
-                    Fail "Frontend exited before the dev server became reachable. Exit code: $($script:FrontendProcess.ExitCode)"
-                }
                 Start-Sleep -Seconds 2
             }
             if (-not $reachable) {
-                Fail "React dev server did not become reachable within $FlutterWaitSeconds seconds."
+                Fail "React dev server did not become reachable within $FrontendWaitSeconds seconds."
             }
             Open-FrontendInBrowser
         }

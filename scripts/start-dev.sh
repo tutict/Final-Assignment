@@ -44,23 +44,31 @@ Optional environment variables:
   STARTUP_LOG_ROOT             Root log directory. Default: artifacts/startup
   BACKEND_PROFILE              Spring profile. Default: dev
   BACKEND_ARGS                 Extra Maven/Spring Boot plugin arguments.
+  BACKEND_PORT                 Go backend port. Default: 8080; auto-falls back when unavailable unless explicitly set
+  GO_BACKEND_FALLBACK_PORTS    Go backend fallback ports. Default: 18080 18081 18082
   BACKEND_WAIT_SECONDS         Initial delay before health polling. Default: 8
   BACKEND_HEALTH_WAIT_SECONDS  Backend health timeout. Default: 120
   BACKEND_HEALTH_URL           Health URL. Default: http://127.0.0.1:8080/actuator/health
   DB_URL, DB_USERNAME, DB_PASSWORD  Short aliases used when SPRING_DATASOURCE_* is unset.
+  REDPANDA_KAFKA_HOST_PORT     Redpanda Kafka host port. Default: 9092, auto-falls back when unavailable
+  REDPANDA_KAFKA_FALLBACK_PORTS Fallback Kafka host ports. Default: 19092 19093 19094
   APP_ENV                      Flutter APP_ENV dart define. Default: dev
   API_BASE_URL                 Flutter API base URL. Default: http://localhost:8080
   WS_BASE_URL                  Flutter WebSocket URL. Default: ws://localhost:8081
   MVN_CMD                      Maven executable. Default: mvn
   GRADLE_CMD                   Gradle executable (or gradlew path).
   GO_CMD                       Go executable. Default: go
+  GOCACHE                      Go build cache path. Default: artifacts/go-build-cache
   FLUTTER_CMD                  Flutter executable. Default: flutter
   FLUTTER_DEVICE               Flutter device id. Default: web-server
   FLUTTER_ARGS                 Extra flutter run arguments. Default: --web-hostname 127.0.0.1 --web-port 3000
-  FLUTTER_WAIT_SECONDS         Flutter web readiness timeout. Default: 120
+  FRONTEND_WAIT_SECONDS        Frontend readiness timeout. Default: FLUTTER_WAIT_SECONDS or 120
+  FLUTTER_WAIT_SECONDS         Legacy frontend readiness timeout. Default: 120
   FLUTTER_WEB_URL              Flutter web readiness URL. Default: http://127.0.0.1:3000
   NPM_CMD                      npm executable. Default: npm
   REACT_DEV_URL                React dev server readiness URL. Default: http://127.0.0.1:5173
+  REACT_API_BASE_URL           React API base URL. Default: selected backend target
+  REACT_WS_BASE_URL            React WebSocket base URL. Default: selected backend target
   REACT_ARGS                   Extra npm run dev arguments.
 EOF
 }
@@ -117,13 +125,48 @@ SPRING_DATASOURCE_PASSWORD="${SPRING_DATASOURCE_PASSWORD:-${DB_PASSWORD:-root}}"
 SPRING_DATASOURCE_DRIVER_CLASS_NAME="${SPRING_DATASOURCE_DRIVER_CLASS_NAME:-com.mysql.cj.jdbc.Driver}"
 SPRING_DATA_REDIS_HOST="${SPRING_DATA_REDIS_HOST:-localhost}"
 SPRING_DATA_REDIS_PORT="${SPRING_DATA_REDIS_PORT:-6379}"
-SPRING_KAFKA_BOOTSTRAP_SERVERS="${SPRING_KAFKA_BOOTSTRAP_SERVERS:-localhost:9092}"
+if [ -n "${SPRING_KAFKA_BOOTSTRAP_SERVERS:-}" ]; then
+  SPRING_KAFKA_BOOTSTRAP_SERVERS_EXPLICIT="true"
+else
+  SPRING_KAFKA_BOOTSTRAP_SERVERS_EXPLICIT="false"
+fi
+if [ -n "${KAFKA_BOOTSTRAP_SERVERS:-}" ]; then
+  KAFKA_BOOTSTRAP_SERVERS_EXPLICIT="true"
+else
+  KAFKA_BOOTSTRAP_SERVERS_EXPLICIT="false"
+fi
+if [ -n "${QUARKUS_KAFKA_BOOTSTRAP_SERVERS:-}" ]; then
+  QUARKUS_KAFKA_BOOTSTRAP_SERVERS_EXPLICIT="true"
+else
+  QUARKUS_KAFKA_BOOTSTRAP_SERVERS_EXPLICIT="false"
+fi
+if [ -n "${REDPANDA_KAFKA_HOST_PORT:-}" ]; then
+  REDPANDA_KAFKA_HOST_PORT_EXPLICIT="true"
+else
+  REDPANDA_KAFKA_HOST_PORT_EXPLICIT="false"
+fi
+REDPANDA_KAFKA_HOST_PORT="${REDPANDA_KAFKA_HOST_PORT:-9092}"
+REDPANDA_KAFKA_FALLBACK_PORTS="${REDPANDA_KAFKA_FALLBACK_PORTS:-19092 19093 19094}"
+SPRING_KAFKA_BOOTSTRAP_SERVERS="${SPRING_KAFKA_BOOTSTRAP_SERVERS:-localhost:$REDPANDA_KAFKA_HOST_PORT}"
+KAFKA_BOOTSTRAP_SERVERS="${KAFKA_BOOTSTRAP_SERVERS:-localhost:$REDPANDA_KAFKA_HOST_PORT}"
+QUARKUS_KAFKA_BOOTSTRAP_SERVERS="${QUARKUS_KAFKA_BOOTSTRAP_SERVERS:-localhost:$REDPANDA_KAFKA_HOST_PORT}"
 APP_ENV="${APP_ENV:-dev}"
 API_BASE_URL="${API_BASE_URL:-http://localhost:8080}"
 WS_BASE_URL="${WS_BASE_URL:-ws://localhost:8081}"
+if [ -n "${BACKEND_PORT:-}" ]; then
+  BACKEND_PORT_EXPLICIT="true"
+else
+  BACKEND_PORT_EXPLICIT="false"
+fi
 BACKEND_PORT="${BACKEND_PORT:-8080}"
+GO_BACKEND_FALLBACK_PORTS="${GO_BACKEND_FALLBACK_PORTS:-18080 18081 18082}"
 BACKEND_WAIT_SECONDS="${BACKEND_WAIT_SECONDS:-8}"
 BACKEND_HEALTH_WAIT_SECONDS="${BACKEND_HEALTH_WAIT_SECONDS:-120}"
+if [ -n "${BACKEND_HEALTH_URL:-}" ]; then
+  BACKEND_HEALTH_URL_EXPLICIT="true"
+else
+  BACKEND_HEALTH_URL_EXPLICIT="false"
+fi
 BACKEND_HEALTH_URL="${BACKEND_HEALTH_URL:-http://127.0.0.1:$BACKEND_PORT/actuator/health}"
 MVN_CMD="${MVN_CMD:-mvn}"
 GRADLE_CMD="${GRADLE_CMD:-}"
@@ -132,12 +175,38 @@ FLUTTER_CMD="${FLUTTER_CMD:-flutter}"
 FLUTTER_DEVICE="${FLUTTER_DEVICE:-web-server}"
 FLUTTER_ARGS="${FLUTTER_ARGS:---web-hostname 127.0.0.1 --web-port 3000}"
 FLUTTER_WAIT_SECONDS="${FLUTTER_WAIT_SECONDS:-120}"
+FRONTEND_WAIT_SECONDS="${FRONTEND_WAIT_SECONDS:-$FLUTTER_WAIT_SECONDS}"
 FLUTTER_WEB_URL="${FLUTTER_WEB_URL:-http://127.0.0.1:3000}"
 OPEN_BROWSER="${OPEN_BROWSER:-true}"
-BROWSER_URL="${BROWSER_URL:-$FLUTTER_WEB_URL}"
+if [ -n "${BROWSER_URL:-}" ]; then
+  BROWSER_URL_EXPLICIT="true"
+else
+  BROWSER_URL_EXPLICIT="false"
+  BROWSER_URL=""
+fi
 NPM_CMD="${NPM_CMD:-npm}"
 REACT_DEV_URL="${REACT_DEV_URL:-http://127.0.0.1:5173}"
+if [ -n "${REACT_API_BASE_URL:-}" ]; then
+  REACT_API_BASE_URL_EXPLICIT="true"
+elif [ -n "${VITE_API_BASE_URL:-}" ]; then
+  REACT_API_BASE_URL_EXPLICIT="true"
+  REACT_API_BASE_URL="$VITE_API_BASE_URL"
+else
+  REACT_API_BASE_URL_EXPLICIT="false"
+  REACT_API_BASE_URL=""
+fi
+if [ -n "${REACT_WS_BASE_URL:-}" ]; then
+  REACT_WS_BASE_URL_EXPLICIT="true"
+elif [ -n "${VITE_WS_BASE_URL:-}" ]; then
+  REACT_WS_BASE_URL_EXPLICIT="true"
+  REACT_WS_BASE_URL="$VITE_WS_BASE_URL"
+else
+  REACT_WS_BASE_URL_EXPLICIT="false"
+  REACT_WS_BASE_URL=""
+fi
 REACT_ARGS="${REACT_ARGS:-}"
+REDPANDA_KAFKA_PORT_NOTICE=""
+GO_BACKEND_PORT_NOTICE=""
 
 if [ "$SKIP_ENV" = "true" ]; then
   START_LOCAL_SERVICES="false"
@@ -148,6 +217,11 @@ STARTUP_RUN_ID="${STARTUP_RUN_ID:-$(date +%Y%m%d-%H%M%S)}"
 STARTUP_LOG_DIR="${STARTUP_LOG_DIR:-$STARTUP_LOG_ROOT/$STARTUP_RUN_ID}"
 mkdir -p "$STARTUP_LOG_DIR"
 export STARTUP_LOG_DIR STARTUP_RUN_ID
+GOCACHE="${GOCACHE:-$ROOT_DIR/artifacts/go-build-cache}"
+mkdir -p "$GOCACHE"
+export GOCACHE
+GO_BACKEND_BINARY="$STARTUP_LOG_DIR/go-backend"
+export GO_BACKEND_BINARY
 
 STARTUP_LOG="$STARTUP_LOG_DIR/startup.log"
 BACKEND_LOG="$STARTUP_LOG_DIR/backend.log"
@@ -237,6 +311,49 @@ if [ "$BACKEND_CHOICE" = "none" ] && [ "$FRONTEND_CHOICE" = "none" ]; then
   exit 1
 fi
 
+update_frontend_routing_defaults() {
+  case "$BACKEND_CHOICE" in
+    go)
+      default_react_api_base_url="http://127.0.0.1:$BACKEND_PORT"
+      default_react_ws_base_url="ws://127.0.0.1:$BACKEND_PORT"
+      ;;
+    cloud)
+      default_react_api_base_url="http://127.0.0.1:8080"
+      default_react_ws_base_url="ws://127.0.0.1:8080"
+      ;;
+    *)
+      default_react_api_base_url="http://127.0.0.1:8081"
+      default_react_ws_base_url="ws://127.0.0.1:8081"
+      ;;
+  esac
+  if [ "$REACT_API_BASE_URL_EXPLICIT" != "true" ]; then
+    REACT_API_BASE_URL="$default_react_api_base_url"
+  fi
+  if [ "$REACT_WS_BASE_URL_EXPLICIT" != "true" ]; then
+    REACT_WS_BASE_URL="$default_react_ws_base_url"
+  fi
+  export FRONTEND_URL FLUTTER_URL BROWSER_URL REACT_API_BASE_URL REACT_WS_BASE_URL REDPANDA_KAFKA_HOST_PORT BACKEND_PORT BACKEND_HEALTH_URL
+}
+
+FRONTEND_ORIGIN=""
+FRONTEND_URL="${FRONTEND_URL:-}"
+FLUTTER_URL="${FLUTTER_URL:-}"
+case "$FRONTEND_CHOICE" in
+  react)
+    FRONTEND_ORIGIN="$REACT_DEV_URL"
+    FRONTEND_URL="${FRONTEND_URL:-$FRONTEND_ORIGIN}"
+    ;;
+  flutter)
+    FRONTEND_ORIGIN="$FLUTTER_WEB_URL"
+    FRONTEND_URL="${FRONTEND_URL:-$FRONTEND_ORIGIN}"
+    FLUTTER_URL="${FLUTTER_URL:-$FLUTTER_WEB_URL}"
+    ;;
+esac
+
+if [ "$BROWSER_URL_EXPLICIT" != "true" ] && [ -n "$FRONTEND_ORIGIN" ]; then
+  BROWSER_URL="$FRONTEND_ORIGIN"
+fi
+
 # ---- helpers ---------------------------------------------------------------
 tail_file() {
   file="$1"
@@ -291,6 +408,193 @@ fail() {
   exit 1
 }
 
+port_bindable() {
+  port="$1"
+  if command -v python3 >/dev/null 2>&1; then
+    python3 -c 'import socket, sys
+port = int(sys.argv[1])
+for host in ("0.0.0.0", "127.0.0.1"):
+    sock = socket.socket()
+    try:
+        sock.bind((host, port))
+    finally:
+        sock.close()
+' "$port" >/dev/null 2>&1
+  elif command -v python >/dev/null 2>&1; then
+    python -c 'import socket, sys
+port = int(sys.argv[1])
+for host in ("0.0.0.0", "127.0.0.1"):
+    sock = socket.socket()
+    try:
+        sock.bind((host, port))
+    finally:
+        sock.close()
+' "$port" >/dev/null 2>&1
+  elif command -v lsof >/dev/null 2>&1; then
+    ! lsof -nP -iTCP:"$port" -sTCP:LISTEN >/dev/null 2>&1
+  else
+    return 0
+  fi
+}
+
+backend_listen_ports() {
+  case "$BACKEND_CHOICE" in
+    go) printf '%s\n' "$BACKEND_PORT" ;;
+    spring|quarkus) printf '%s\n%s\n' 8080 8081 ;;
+    cloud) printf '%s\n' 8080 ;;
+  esac
+}
+
+describe_port_listeners() {
+  port="$1"
+  if command -v lsof >/dev/null 2>&1; then
+    lsof -nP -iTCP:"$port" -sTCP:LISTEN 2>/dev/null || true
+  elif command -v ss >/dev/null 2>&1; then
+    ss -ltnp 2>/dev/null | awk -v port=":$port" '$4 ~ port "($|[^0-9])" { print }'
+  elif command -v netstat >/dev/null 2>&1; then
+    netstat -an 2>/dev/null | awk -v port=":$port" '$0 ~ port "[[:space:]]" && $0 ~ /LISTEN/ { print }'
+  fi
+}
+
+set_backend_port() {
+  BACKEND_PORT="$1"
+  export BACKEND_PORT
+  if [ "$BACKEND_HEALTH_URL_EXPLICIT" != "true" ]; then
+    BACKEND_HEALTH_URL="http://127.0.0.1:$BACKEND_PORT/actuator/health"
+    export BACKEND_HEALTH_URL
+  fi
+}
+
+resolve_go_backend_port() {
+  [ "$BACKEND_CHOICE" = "go" ] || return 0
+  [ "$BACKEND_PORT_EXPLICIT" != "true" ] || return 0
+
+  initial_port="$BACKEND_PORT"
+  if port_bindable "$initial_port"; then
+    set_backend_port "$initial_port"
+    return 0
+  fi
+
+  listeners="$(describe_port_listeners "$initial_port")"
+  [ -z "$listeners" ] || return 0
+
+  for candidate in $(printf '%s' "$GO_BACKEND_FALLBACK_PORTS" | tr ',;' '  '); do
+    case "$candidate" in
+      ''|*[!0-9]*) continue ;;
+    esac
+    if port_bindable "$candidate"; then
+      set_backend_port "$candidate"
+      GO_BACKEND_PORT_NOTICE="Go backend port $initial_port is not bindable and has no listening process; using $BACKEND_PORT instead."
+      return 0
+    fi
+  done
+}
+
+effective_backend_health_url() {
+  case "$BACKEND_CHOICE" in
+    go) printf 'http://127.0.0.1:%s/api/actuator/health\n' "$BACKEND_PORT" ;;
+    quarkus) printf '%s\n' 'http://127.0.0.1:8080/q/openapi' ;;
+    cloud) printf '%s\n' 'http://127.0.0.1:8080/actuator/health' ;;
+    *) printf '%s\n' "$BACKEND_HEALTH_URL" ;;
+  esac
+}
+
+assert_backend_ports_available() {
+  backend_listen_ports | while IFS= read -r port; do
+    case "$port" in
+      ''|*[!0-9]*) continue ;;
+    esac
+    if port_bindable "$port"; then
+      continue
+    fi
+
+    listeners=$(describe_port_listeners "$port")
+    if [ -n "$listeners" ]; then
+      printf '%s\n' "$listeners" | while IFS= read -r line; do
+        log "Backend port $port is already in use before starting $BACKEND_CHOICE: $line"
+      done
+    else
+      log "Backend port $port is not bindable, but no listening process was found. It may be reserved by the OS."
+    fi
+    fail "Backend port $port is unavailable before starting backend ($BACKEND_CHOICE). Stop that process first, or choose -b none if you intentionally want to reuse an existing backend."
+  done
+}
+
+redpanda_container_running() {
+  if ! command -v docker >/dev/null 2>&1; then
+    return 1
+  fi
+  [ "$(docker inspect -f '{{.State.Running}}' final-assignment-redpanda 2>/dev/null || true)" = "true" ]
+}
+
+redpanda_kafka_published_port() {
+  if ! command -v docker >/dev/null 2>&1; then
+    return 0
+  fi
+  docker port final-assignment-redpanda 9092/tcp 2>/dev/null | awk -F: 'NF > 1 { print $NF; exit }'
+}
+
+set_kafka_bootstrap_defaults() {
+  port="$1"
+  if [ "$SPRING_KAFKA_BOOTSTRAP_SERVERS_EXPLICIT" != "true" ]; then
+    SPRING_KAFKA_BOOTSTRAP_SERVERS="localhost:$port"
+  fi
+  if [ "$KAFKA_BOOTSTRAP_SERVERS_EXPLICIT" != "true" ]; then
+    KAFKA_BOOTSTRAP_SERVERS="localhost:$port"
+  fi
+  if [ "$QUARKUS_KAFKA_BOOTSTRAP_SERVERS_EXPLICIT" != "true" ]; then
+    QUARKUS_KAFKA_BOOTSTRAP_SERVERS="localhost:$port"
+  fi
+  export SPRING_KAFKA_BOOTSTRAP_SERVERS KAFKA_BOOTSTRAP_SERVERS QUARKUS_KAFKA_BOOTSTRAP_SERVERS
+}
+
+use_redpanda_kafka_host_port() {
+  REDPANDA_KAFKA_HOST_PORT="$1"
+  export REDPANDA_KAFKA_HOST_PORT
+  set_kafka_bootstrap_defaults "$REDPANDA_KAFKA_HOST_PORT"
+}
+
+resolve_redpanda_kafka_host_port() {
+  if [ "$START_LOCAL_SERVICES" != "true" ]; then
+    return 0
+  fi
+  if [ "$REDPANDA_KAFKA_HOST_PORT_EXPLICIT" = "true" ]; then
+    set_kafka_bootstrap_defaults "$REDPANDA_KAFKA_HOST_PORT"
+    return 0
+  fi
+  if redpanda_container_running; then
+    published_port=$(redpanda_kafka_published_port)
+    if [ -n "$published_port" ]; then
+      configured_port="$REDPANDA_KAFKA_HOST_PORT"
+      use_redpanda_kafka_host_port "$published_port"
+      if [ "$published_port" != "$configured_port" ]; then
+        REDPANDA_KAFKA_PORT_NOTICE="Using existing Redpanda Kafka host port $published_port from the running final-assignment-redpanda container."
+      fi
+    else
+      set_kafka_bootstrap_defaults "$REDPANDA_KAFKA_HOST_PORT"
+    fi
+    return 0
+  fi
+  if port_bindable "$REDPANDA_KAFKA_HOST_PORT"; then
+    use_redpanda_kafka_host_port "$REDPANDA_KAFKA_HOST_PORT"
+    return 0
+  fi
+
+  initial_port="$REDPANDA_KAFKA_HOST_PORT"
+  for candidate in $(printf '%s' "$REDPANDA_KAFKA_FALLBACK_PORTS" | tr ',;' '  '); do
+    case "$candidate" in
+      ''|*[!0-9]*) continue ;;
+    esac
+    if port_bindable "$candidate"; then
+      use_redpanda_kafka_host_port "$candidate"
+      REDPANDA_KAFKA_PORT_NOTICE="Redpanda Kafka host port $initial_port is not available; using $REDPANDA_KAFKA_HOST_PORT instead."
+      return 0
+    fi
+  done
+
+  fail "Redpanda Kafka host port $initial_port is not available, and no fallback ports are bindable. Set REDPANDA_KAFKA_HOST_PORT to a free port."
+}
+
 check_http() {
   url="$1"
   if command -v curl >/dev/null 2>&1; then
@@ -300,6 +604,12 @@ check_http() {
   else
     return 1
   fi
+}
+
+backend_started_by_this_run() {
+  [ "$BACKEND_CHOICE" = "go" ] || return 0
+  marker="Go backend started on http://localhost:$BACKEND_PORT"
+  grep -F "$marker" "$BACKEND_LOG" "$BACKEND_ERR_LOG" >/dev/null 2>&1
 }
 
 open_frontend_in_browser() {
@@ -412,6 +722,11 @@ trap cleanup EXIT
 trap 'exit 130' INT
 trap 'exit 143' TERM
 
+resolve_redpanda_kafka_host_port
+resolve_go_backend_port
+update_frontend_routing_defaults
+EFFECTIVE_BACKEND_HEALTH_URL="$(effective_backend_health_url)"
+
 cat >"$STARTUP_LOG" <<EOF
 Final Assignment startup run
 Run ID: $STARTUP_RUN_ID
@@ -425,20 +740,49 @@ STOP_LOCAL_SERVICES_ON_EXIT=$STOP_LOCAL_SERVICES_ON_EXIT
 STOP_DOCKER_ON_EXIT=$STOP_DOCKER_ON_EXIT
 STOP_OLLAMA_ON_EXIT=$STOP_OLLAMA_ON_EXIT
 BACKEND_PROFILE=$BACKEND_PROFILE
+BACKEND_PORT=$BACKEND_PORT
+BACKEND_PORT_EXPLICIT=$BACKEND_PORT_EXPLICIT
+GO_BACKEND_FALLBACK_PORTS=$GO_BACKEND_FALLBACK_PORTS
+GOCACHE=$GOCACHE
+GO_BACKEND_BINARY=$GO_BACKEND_BINARY
 BACKEND_HEALTH_URL=$BACKEND_HEALTH_URL
+EFFECTIVE_BACKEND_HEALTH_URL=$EFFECTIVE_BACKEND_HEALTH_URL
+FRONTEND_WAIT_SECONDS=$FRONTEND_WAIT_SECONDS
 SPRING_DATASOURCE_URL=$SPRING_DATASOURCE_URL
 SPRING_DATASOURCE_USERNAME=$SPRING_DATASOURCE_USERNAME
 SPRING_DATASOURCE_PASSWORD=<redacted>
 SPRING_DATA_REDIS_HOST=$SPRING_DATA_REDIS_HOST
 SPRING_DATA_REDIS_PORT=$SPRING_DATA_REDIS_PORT
+REDPANDA_KAFKA_HOST_PORT=$REDPANDA_KAFKA_HOST_PORT
+REDPANDA_KAFKA_HOST_PORT_EXPLICIT=$REDPANDA_KAFKA_HOST_PORT_EXPLICIT
+REDPANDA_KAFKA_FALLBACK_PORTS=$REDPANDA_KAFKA_FALLBACK_PORTS
 SPRING_KAFKA_BOOTSTRAP_SERVERS=$SPRING_KAFKA_BOOTSTRAP_SERVERS
+KAFKA_BOOTSTRAP_SERVERS=$KAFKA_BOOTSTRAP_SERVERS
+QUARKUS_KAFKA_BOOTSTRAP_SERVERS=$QUARKUS_KAFKA_BOOTSTRAP_SERVERS
 APP_ENV=$APP_ENV
 API_BASE_URL=$API_BASE_URL
 WS_BASE_URL=$WS_BASE_URL
+FRONTEND_URL=$FRONTEND_URL
+FLUTTER_URL=$FLUTTER_URL
 FLUTTER_DEVICE=$FLUTTER_DEVICE
 FLUTTER_ARGS=$FLUTTER_ARGS
+FLUTTER_WAIT_SECONDS=$FLUTTER_WAIT_SECONDS
+FLUTTER_WEB_URL=$FLUTTER_WEB_URL
 REACT_DEV_URL=$REACT_DEV_URL
+REACT_API_BASE_URL=$REACT_API_BASE_URL
+REACT_API_BASE_URL_EXPLICIT=$REACT_API_BASE_URL_EXPLICIT
+REACT_WS_BASE_URL=$REACT_WS_BASE_URL
+REACT_WS_BASE_URL_EXPLICIT=$REACT_WS_BASE_URL_EXPLICIT
+BROWSER_URL=$BROWSER_URL
+BROWSER_URL_EXPLICIT=$BROWSER_URL_EXPLICIT
 EOF
+
+if [ -n "$REDPANDA_KAFKA_PORT_NOTICE" ]; then
+  log "$REDPANDA_KAFKA_PORT_NOTICE"
+fi
+if [ -n "$GO_BACKEND_PORT_NOTICE" ]; then
+  log "$GO_BACKEND_PORT_NOTICE"
+fi
 
 # ---- backend launchers -----------------------------------------------------
 start_backend() {
@@ -465,9 +809,12 @@ start_backend() {
       (
         cd "$GO_DIR"
         export REDIS_HOST=localhost REDIS_PORT=6379 REDIS_ENABLED=false
-        export KAFKA_BOOTSTRAP_SERVERS=localhost:9092 ELASTICSEARCH_URL=http://localhost:9200
+        export KAFKA_BOOTSTRAP_SERVERS ELASTICSEARCH_URL=http://localhost:9200
         export GO_DOCKER_SERVICES_ENABLED=false
-        "$GO_CMD" run ./project/cmd/app
+        export PORT="$BACKEND_PORT"
+        export GOCACHE
+        "$GO_CMD" build -o "$GO_BACKEND_BINARY" ./project/cmd/app
+        exec "$GO_BACKEND_BINARY"
       ) >"$BACKEND_LOG" 2>"$BACKEND_ERR_LOG" &
       BACKEND_PID=$!
       ;;
@@ -498,8 +845,8 @@ start_backend() {
         export QUARKUS_DATASOURCE_USERNAME="$db_user"
         export QUARKUS_DATASOURCE_PASSWORD="$db_password"
         export QUARKUS_REDIS_HOSTS=redis://localhost:6379
-        export KAFKA_BOOTSTRAP_SERVERS=localhost:9092
-        export QUARKUS_KAFKA_BOOTSTRAP_SERVERS=localhost:9092
+        export KAFKA_BOOTSTRAP_SERVERS
+        export QUARKUS_KAFKA_BOOTSTRAP_SERVERS
         export ELASTICSEARCH_HOST=http://localhost:9200
         export JWT_ML_DSA_PRIVATE_KEY="${JWT_ML_DSA_PRIVATE_KEY:- }"
         export JWT_ML_DSA_PUBLIC_KEY="${JWT_ML_DSA_PUBLIC_KEY:- }"
@@ -571,6 +918,8 @@ start_frontend() {
     react)
       [ -f "$REACT_DIR/package.json" ] || fail "React project not found: $REACT_DIR"
       require_command "$NPM_CMD"
+      log "React API base URL: $REACT_API_BASE_URL"
+      log "React WebSocket base URL: $REACT_WS_BASE_URL"
       if [ ! -d "$REACT_DIR/node_modules" ]; then
         log "React node_modules not found. Running npm install..."
         if ! (cd "$REACT_DIR" && "$NPM_CMD" install) >"$FRONTEND_LOG" 2>"$FRONTEND_ERR_LOG"; then
@@ -582,8 +931,10 @@ start_frontend() {
       fi
       (
         cd "$REACT_DIR"
+        export VITE_API_BASE_URL="$REACT_API_BASE_URL"
+        export VITE_WS_BASE_URL="$REACT_WS_BASE_URL"
         # shellcheck disable=SC2086
-        "$NPM_CMD" run dev -- --host 127.0.0.1 --port 5173 ${REACT_ARGS:-}
+        "$NPM_CMD" run dev -- --host 127.0.0.1 --port 5173 --strictPort ${REACT_ARGS:-}
       ) >"$FRONTEND_LOG" 2>"$FRONTEND_ERR_LOG" &
       FRONTEND_PID=$!
       ;;
@@ -598,13 +949,11 @@ start_frontend() {
 
 # ---- main flow -------------------------------------------------------------
 
-# Backend health mapping per implementation
-HEALTH_URL="$BACKEND_HEALTH_URL"
-case "$BACKEND_CHOICE" in
-  go) HEALTH_URL="http://127.0.0.1:$BACKEND_PORT/api/actuator/health" ;;
-  quarkus) HEALTH_URL="http://127.0.0.1:8080/q/openapi" ;;
-  cloud) HEALTH_URL="http://127.0.0.1:8080/actuator/health" ;;
-esac
+HEALTH_URL="$(effective_backend_health_url)"
+
+if [ "$BACKEND_CHOICE" != "none" ]; then
+  assert_backend_ports_available
+fi
 
 if [ "$START_LOCAL_SERVICES" = "true" ] && { [ "$BACKEND_CHOICE" != "none" ] || [ "$FRONTEND_CHOICE" != "none" ]; }; then
   log "Starting local Docker/Ollama environment..."
@@ -628,14 +977,19 @@ if [ "$BACKEND_CHOICE" != "none" ]; then
   waited=0
   healthy="false"
   while [ "$waited" -lt "$BACKEND_HEALTH_WAIT_SECONDS" ]; do
-    if check_http "$HEALTH_URL"; then
-      log "Backend ($BACKEND_CHOICE) is healthy."
-      healthy="true"
-      break
-    fi
     if ! kill -0 "$BACKEND_PID" >/dev/null 2>&1; then
       wait "$BACKEND_PID" || backend_status=$?
       fail "Backend ($BACKEND_CHOICE) exited before becoming healthy. Exit code: ${backend_status:-1}"
+    fi
+    if check_http "$HEALTH_URL" && backend_started_by_this_run; then
+      sleep 1
+      if ! kill -0 "$BACKEND_PID" >/dev/null 2>&1; then
+        wait "$BACKEND_PID" || backend_status=$?
+        fail "Backend ($BACKEND_CHOICE) exited immediately after health check succeeded. Exit code: ${backend_status:-1}"
+      fi
+      log "Backend ($BACKEND_CHOICE) is healthy."
+      healthy="true"
+      break
     fi
     sleep 2
     waited=$((waited + 2))
@@ -646,58 +1000,68 @@ if [ "$BACKEND_CHOICE" != "none" ]; then
 fi
 
 if [ "$FRONTEND_CHOICE" != "none" ]; then
-  # Default the browser URL to the selected frontend's ready URL.
-  if [ "$FRONTEND_CHOICE" = "react" ]; then
-    BROWSER_URL="${BROWSER_URL:-$REACT_DEV_URL}"
-  else
-    BROWSER_URL="${BROWSER_URL:-$FLUTTER_WEB_URL}"
-  fi
+  log "Browser URL: $BROWSER_URL"
   log "Starting frontend ($FRONTEND_CHOICE)..."
   start_frontend
   log "Frontend PID: $FRONTEND_PID"
   log "Frontend stdout: $FRONTEND_LOG"
   log "Frontend stderr: $FRONTEND_ERR_LOG"
+  sleep 1
+  if ! kill -0 "$FRONTEND_PID" >/dev/null 2>&1; then
+    wait "$FRONTEND_PID" || frontend_status=$?
+    fail "Frontend ($FRONTEND_CHOICE) exited immediately after launch. Exit code: ${frontend_status:-1}"
+  fi
 
   if [ "$FRONTEND_CHOICE" = "flutter" ] && [ "$FLUTTER_DEVICE" = "web-server" ]; then
-    log "Waiting up to $FLUTTER_WAIT_SECONDS seconds for $FLUTTER_WEB_URL..."
+    log "Waiting up to $FRONTEND_WAIT_SECONDS seconds for $FLUTTER_WEB_URL..."
     waited=0
     reachable="false"
-    while [ "$waited" -lt "$FLUTTER_WAIT_SECONDS" ]; do
-      if check_http "$FLUTTER_WEB_URL"; then
-        log "Flutter web server is reachable: $FLUTTER_WEB_URL"
-        reachable="true"
-        break
-      fi
+    while [ "$waited" -lt "$FRONTEND_WAIT_SECONDS" ]; do
       if ! kill -0 "$FRONTEND_PID" >/dev/null 2>&1; then
         wait "$FRONTEND_PID" || frontend_status=$?
         fail "Frontend exited before the web server became reachable. Exit code: ${frontend_status:-1}"
       fi
+      if check_http "$FLUTTER_WEB_URL"; then
+        sleep 1
+        if ! kill -0 "$FRONTEND_PID" >/dev/null 2>&1; then
+          wait "$FRONTEND_PID" || frontend_status=$?
+          fail "Frontend exited immediately after readiness check succeeded. Exit code: ${frontend_status:-1}"
+        fi
+        log "Flutter web server is reachable: $FLUTTER_WEB_URL"
+        reachable="true"
+        break
+      fi
       sleep 2
       waited=$((waited + 2))
     done
     if [ "$reachable" != "true" ]; then
-      fail "Flutter web server did not become reachable within $FLUTTER_WAIT_SECONDS seconds."
+      fail "Flutter web server did not become reachable within $FRONTEND_WAIT_SECONDS seconds."
     fi
     open_frontend_in_browser
   elif [ "$FRONTEND_CHOICE" = "react" ]; then
-    log "Waiting up to $FLUTTER_WAIT_SECONDS seconds for $REACT_DEV_URL..."
+    log "Waiting up to $FRONTEND_WAIT_SECONDS seconds for $REACT_DEV_URL..."
     waited=0
     reachable="false"
-    while [ "$waited" -lt "$FLUTTER_WAIT_SECONDS" ]; do
-      if check_http "$REACT_DEV_URL"; then
-        log "React dev server is reachable: $REACT_DEV_URL"
-        reachable="true"
-        break
-      fi
+    while [ "$waited" -lt "$FRONTEND_WAIT_SECONDS" ]; do
       if ! kill -0 "$FRONTEND_PID" >/dev/null 2>&1; then
         wait "$FRONTEND_PID" || frontend_status=$?
         fail "Frontend exited before the dev server became reachable. Exit code: ${frontend_status:-1}"
       fi
+      if check_http "$REACT_DEV_URL"; then
+        sleep 1
+        if ! kill -0 "$FRONTEND_PID" >/dev/null 2>&1; then
+          wait "$FRONTEND_PID" || frontend_status=$?
+          fail "Frontend exited immediately after readiness check succeeded. Exit code: ${frontend_status:-1}"
+        fi
+        log "React dev server is reachable: $REACT_DEV_URL"
+        reachable="true"
+        break
+      fi
       sleep 2
       waited=$((waited + 2))
     done
     if [ "$reachable" != "true" ]; then
-      fail "React dev server did not become reachable within $FLUTTER_WAIT_SECONDS seconds."
+      fail "React dev server did not become reachable within $FRONTEND_WAIT_SECONDS seconds."
     fi
     open_frontend_in_browser
   fi

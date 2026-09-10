@@ -11,6 +11,8 @@ Optional environment variables:
   START_DOCKER=false       Skip Docker compose services.
   START_OLLAMA=false       Skip Ollama.
   STARTUP_LOG_DIR          Existing run log directory from start-dev.sh.
+  REDPANDA_KAFKA_HOST_PORT Redpanda Kafka host port. Default: 9092, auto-falls back when unavailable.
+  REDPANDA_KAFKA_FALLBACK_PORTS Fallback Kafka host ports. Default: 19092 19093 19094.
   DOCKER_WAIT_SECONDS      Docker readiness timeout. Default: 180
   OLLAMA_WAIT_SECONDS      Ollama readiness timeout. Default: 60
 EOF
@@ -31,6 +33,14 @@ START_DOCKER="${START_DOCKER:-true}"
 START_OLLAMA="${START_OLLAMA:-true}"
 DOCKER_WAIT_SECONDS="${DOCKER_WAIT_SECONDS:-180}"
 OLLAMA_WAIT_SECONDS="${OLLAMA_WAIT_SECONDS:-60}"
+if [ -n "${REDPANDA_KAFKA_HOST_PORT:-}" ]; then
+  REDPANDA_KAFKA_HOST_PORT_EXPLICIT="true"
+else
+  REDPANDA_KAFKA_HOST_PORT_EXPLICIT="false"
+fi
+REDPANDA_KAFKA_HOST_PORT="${REDPANDA_KAFKA_HOST_PORT:-9092}"
+REDPANDA_KAFKA_FALLBACK_PORTS="${REDPANDA_KAFKA_FALLBACK_PORTS:-19092 19093 19094}"
+export REDPANDA_KAFKA_HOST_PORT
 STARTUP_RUN_ID="${STARTUP_RUN_ID:-$(date +%Y%m%d-%H%M%S)}"
 STARTUP_LOG_DIR="${STARTUP_LOG_DIR:-$ROOT_DIR/artifacts/startup/$STARTUP_RUN_ID}"
 mkdir -p "$STARTUP_LOG_DIR"
@@ -51,6 +61,9 @@ START_DOCKER=$START_DOCKER
 START_OLLAMA=$START_OLLAMA
 DOCKER_WAIT_SECONDS=$DOCKER_WAIT_SECONDS
 OLLAMA_WAIT_SECONDS=$OLLAMA_WAIT_SECONDS
+REDPANDA_KAFKA_HOST_PORT=$REDPANDA_KAFKA_HOST_PORT
+REDPANDA_KAFKA_HOST_PORT_EXPLICIT=$REDPANDA_KAFKA_HOST_PORT_EXPLICIT
+REDPANDA_KAFKA_FALLBACK_PORTS=$REDPANDA_KAFKA_FALLBACK_PORTS
 EOF
 
 log() {
@@ -121,6 +134,83 @@ wait_for_docker() {
   done
 }
 
+port_bindable() {
+  port="$1"
+  if command -v python3 >/dev/null 2>&1; then
+    python3 -c 'import socket, sys
+port = int(sys.argv[1])
+for host in ("0.0.0.0", "127.0.0.1"):
+    sock = socket.socket()
+    try:
+        sock.bind((host, port))
+    finally:
+        sock.close()
+' "$port" >/dev/null 2>&1
+  elif command -v python >/dev/null 2>&1; then
+    python -c 'import socket, sys
+port = int(sys.argv[1])
+for host in ("0.0.0.0", "127.0.0.1"):
+    sock = socket.socket()
+    try:
+        sock.bind((host, port))
+    finally:
+        sock.close()
+' "$port" >/dev/null 2>&1
+  elif command -v lsof >/dev/null 2>&1; then
+    ! lsof -nP -iTCP:"$port" -sTCP:LISTEN >/dev/null 2>&1
+  else
+    return 0
+  fi
+}
+
+redpanda_container_running() {
+  [ "$(docker inspect -f '{{.State.Running}}' final-assignment-redpanda 2>/dev/null || true)" = "true" ]
+}
+
+redpanda_kafka_published_port() {
+  docker port final-assignment-redpanda 9092/tcp 2>/dev/null | awk -F: 'NF > 1 { print $NF; exit }'
+}
+
+use_redpanda_kafka_host_port() {
+  REDPANDA_KAFKA_HOST_PORT="$1"
+  export REDPANDA_KAFKA_HOST_PORT
+}
+
+resolve_redpanda_kafka_host_port() {
+  if [ "$REDPANDA_KAFKA_HOST_PORT_EXPLICIT" = "true" ]; then
+    return 0
+  fi
+  if redpanda_container_running; then
+    published_port=$(redpanda_kafka_published_port)
+    if [ -n "$published_port" ]; then
+      configured_port="$REDPANDA_KAFKA_HOST_PORT"
+      use_redpanda_kafka_host_port "$published_port"
+      if [ "$published_port" != "$configured_port" ]; then
+        log "Using existing Redpanda Kafka host port $published_port from the running final-assignment-redpanda container."
+      fi
+    fi
+    return 0
+  fi
+  if port_bindable "$REDPANDA_KAFKA_HOST_PORT"; then
+    use_redpanda_kafka_host_port "$REDPANDA_KAFKA_HOST_PORT"
+    return 0
+  fi
+
+  initial_port="$REDPANDA_KAFKA_HOST_PORT"
+  for candidate in $(printf '%s' "$REDPANDA_KAFKA_FALLBACK_PORTS" | tr ',;' '  '); do
+    case "$candidate" in
+      ''|*[!0-9]*) continue ;;
+    esac
+    if port_bindable "$candidate"; then
+      use_redpanda_kafka_host_port "$candidate"
+      log "Redpanda Kafka host port $initial_port is not available; using $REDPANDA_KAFKA_HOST_PORT instead."
+      return 0
+    fi
+  done
+
+  env_fail "Redpanda Kafka host port $initial_port is not available, and no fallback ports are bindable. Set REDPANDA_KAFKA_HOST_PORT to a free port."
+}
+
 start_docker_services() {
   if [ ! -f "$COMPOSE_FILE" ]; then
     env_fail "Docker compose file not found: $COMPOSE_FILE"
@@ -131,6 +221,8 @@ start_docker_services() {
 
   start_docker_engine
   wait_for_docker
+  resolve_redpanda_kafka_host_port
+  log "Redpanda Kafka host port: $REDPANDA_KAFKA_HOST_PORT"
   log "Starting Docker services from $COMPOSE_FILE..."
   set +e
   docker compose -f "$COMPOSE_FILE" up -d --remove-orphans --wait --wait-timeout "$DOCKER_WAIT_SECONDS" >"$DOCKER_COMPOSE_LOG" 2>&1
