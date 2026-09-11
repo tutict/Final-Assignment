@@ -136,7 +136,12 @@ FLUTTER_ARGS="${FLUTTER_ARGS:---web-hostname 127.0.0.1 --web-port 3000}"
 FLUTTER_WAIT_SECONDS="${FLUTTER_WAIT_SECONDS:-120}"
 FLUTTER_WEB_URL="${FLUTTER_WEB_URL:-http://127.0.0.1:3000}"
 OPEN_BROWSER="${OPEN_BROWSER:-true}"
-BROWSER_URL="${BROWSER_URL:-$FLUTTER_WEB_URL}"
+# Do not default BROWSER_URL here: it must be derived from the selected
+# frontend after the menu (flutter=http://127.0.0.1:3000, react=5173).
+# Defaulting it to the Flutter URL at parse time makes ${BROWSER_URL:-...}
+# in the frontend branch keep the stale Flutter URL and never point the
+# browser at the React dev server.
+BROWSER_URL="${BROWSER_URL:-}"
 NPM_CMD="${NPM_CMD:-npm}"
 REACT_DEV_URL="${REACT_DEV_URL:-http://127.0.0.1:5173}"
 REACT_ARGS="${REACT_ARGS:-}"

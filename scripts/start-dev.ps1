@@ -166,7 +166,11 @@ $FlutterWaitSeconds = [int](Set-DefaultEnv "FLUTTER_WAIT_SECONDS" "120")
 $FlutterWebUrl = Set-DefaultEnv "FLUTTER_WEB_URL" "http://127.0.0.1:3000"
 $ClearStaleFlutterPort = Set-DefaultEnv "CLEAR_STALE_FLUTTER_PORT" "true"
 $OpenBrowser = Set-DefaultEnv "OPEN_BROWSER" "true"
-$BrowserUrl = Set-DefaultEnv "BROWSER_URL" $FlutterWebUrl
+# Do not default BROWSER_URL here: it must be derived from the *selected*
+# frontend after the menu (flutter=http://127.0.0.1:3000, react=5173). Setting
+# a flutter default at parse time would make Set-DefaultEnv later treat the
+# env var as user-set and never point the browser at the React dev server.
+$BrowserUrl = Set-DefaultEnv "BROWSER_URL" ""
 $BrowserOverride = Set-DefaultEnv "BROWSER_OVERRIDE" "auto"
 $StopLocalServicesOnExit = Set-DefaultEnv "STOP_LOCAL_SERVICES_ON_EXIT" $StartLocalServices
 $StopDockerOnExit = Set-DefaultEnv "STOP_DOCKER_ON_EXIT" $StopLocalServicesOnExit
