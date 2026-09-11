@@ -101,7 +101,7 @@ sh scripts/start-all.sh
 2. `scripts/dev-compose.yml` 中的本地依赖
 3. Ollama
 4. Spring Boot 后端
-5. Flutter Web 前端，默认访问 `http://127.0.0.1:3000`
+5. 交互选择的前端；Flutter Web 默认访问 `http://127.0.0.1:3000`，React Vite 默认访问 `http://127.0.0.1:5173`
 
 如只启动前后端，可跳过 Docker/Ollama：
 
@@ -111,6 +111,10 @@ scripts\start-all.bat
 ```
 
 更多启动参数见 [scripts/README.md](scripts/README.md)。启动失败时脚本会打印最近日志、端口占用和 Docker Compose 状态；按 Ctrl-C 会停止前后端，并默认停止本项目 Docker Compose 依赖和本次脚本启动的 Ollama；完整日志位于 `artifacts/startup/<timestamp>/`。
+
+React 前端通过 `start-all -f react` 启动时会自动把 `VITE_API_BASE_URL` 和 `VITE_WS_BASE_URL` 指向所选后端目标；Spring Boot / Quarkus 默认走网络层 `8081`，Go / Spring Cloud 默认走 `8080`，并把后端允许的 `FRONTEND_URL` 默认设置为 React dev origin。
+
+Go 后端默认使用 `BACKEND_PORT=8080`；如果 Windows 报告 `8080` 没有监听进程但不可绑定，脚本会自动回退到 `18080`、`18081`、`18082`，并同步 React 的 API/WebSocket 目标。显式设置 `BACKEND_PORT` 时不会自动回退，候选端口可通过 `GO_BACKEND_FALLBACK_PORTS` 调整。Go runner 会默认把 `GOCACHE` 放到 `artifacts/go-build-cache`，并先构建到本次 `artifacts/startup/<timestamp>/go-backend.exe` 后再运行，避免系统 build cache 权限或旧 `go run` 残留进程影响一键启动。
 
 Windows 下 `start-dev.ps1` 会在启动 Flutter 前清理仍占用 Web 端口（默认 3000）的残留 `flutter run -d web-server` 进程，避免上一次未停干净的开发服务器导致本次 Flutter 端口绑定失败；只会按命令行特征识别 Flutter 残留，其它占用端口的进程只会被提示、不会被误杀。前端就绪后默认会在浏览器中打开，可用环境变量 `OPEN_BROWSER=false` 关闭。
 
@@ -131,6 +135,8 @@ Windows 下 `start-dev.ps1` 会在启动 Flutter 前清理仍占用 Web 端口�
 - Redpanda
 - Elasticsearch 9.4.1
 - Debezium Connect
+
+Redpanda Kafka 默认暴露到本机 `9092`。Windows 的 Hyper-V/WSL 可能会保留该端口段，导致 Docker 报 `ports are not available`；`start-all` / `start-env` 会在 `9092` 不可绑定时自动回退到 `19092`，并同步后端 Kafka bootstrap 变量。手动运行 `docker compose` 时可显式设置 `REDPANDA_KAFKA_HOST_PORT=19092`，或用 `REDPANDA_KAFKA_FALLBACK_PORTS` 调整候选端口。
 
 Elasticsearch 默认使用 Elastic 官方 GA 9.4.1。后端 Java client 由 Spring Boot 4.0.1 管理为 `elasticsearch-java 9.2.2`，可连接同主版本更高 minor 的服务端；如果需要调用 9.4 专属强类型 API，再单独升级客户端依赖。需要验证其他版本时，可用 `ELASTICSEARCH_IMAGE=docker.elastic.co/elasticsearch/elasticsearch:<version>` 覆盖本地镜像。
 

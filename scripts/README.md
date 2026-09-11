@@ -50,7 +50,7 @@ Each startup run writes detailed logs to `artifacts/startup/<timestamp>/`, inclu
 - `startup.log` for the top-level startup summary and environment snapshot
 - `environment.log`, `docker-compose.log`, and `docker-compose-ps.log` for Docker/Ollama startup
 - `backend.log` and `backend.err.log` for Spring Boot
-- `flutter-pub-get.log`, `flutter-pub-get.err.log`, `flutter.log`, and `flutter.err.log` for Flutter
+- `flutter-pub-get.log`, `flutter-pub-get.err.log`, `frontend.log`, and `frontend.err.log` for Flutter or React
 
 When a step fails, the scripts print the log directory, recent log tails, port diagnostics, and Docker Compose service status before exiting.
 
@@ -87,7 +87,8 @@ sh scripts/start-all.sh -b quarkus -f none -e
 
 After the frontend is ready, the scripts open it in your default browser by
 default. Set `OPEN_BROWSER=false` to skip this, or `BROWSER_URL` to point it
-somewhere else (it defaults to the selected frontend's ready URL):
+somewhere else (it defaults to the selected frontend's ready URL: Flutter
+`http://127.0.0.1:3000`, React `http://127.0.0.1:5173`):
 
 ```bat
 set OPEN_BROWSER=false
@@ -145,9 +146,35 @@ Tune readiness checks when the first build or startup is slow:
 
 ```bat
 set BACKEND_HEALTH_WAIT_SECONDS=180
-set FLUTTER_WAIT_SECONDS=180
+set FRONTEND_WAIT_SECONDS=180
 scripts\start-all.bat
 ```
+
+`FLUTTER_WAIT_SECONDS` is still supported as the legacy default when
+`FRONTEND_WAIT_SECONDS` is not set.
+
+React is started with Vite pointed at the selected backend target. Spring Boot
+and Quarkus default to the network layer on `8081`; Go and Spring Cloud default
+to their HTTP gateway/API on `8080`:
+
+```bat
+set REACT_API_BASE_URL=http://127.0.0.1:8081
+set REACT_WS_BASE_URL=ws://127.0.0.1:8081
+scripts\start-all.bat -b spring -f react
+```
+
+When React is selected, the startup script also defaults `FRONTEND_URL` to
+`http://127.0.0.1:5173` so the backend accepts the Vite dev origin.
+
+For the Go backend, `BACKEND_PORT` defaults to `8080`. If Windows reports that
+`8080` is not bindable even though no process is listening on it, the startup
+script automatically falls back to `18080`, `18081`, then `18082`, and updates
+React's API/WebSocket URLs to the selected port. Set `BACKEND_PORT` explicitly
+to disable the fallback, or adjust `GO_BACKEND_FALLBACK_PORTS` to use a
+different candidate list. The Go runner also defaults `GOCACHE` to
+`artifacts/go-build-cache` and builds the backend into the current startup log
+directory before running it, so local OS build-cache permissions or stale
+`go run` binaries do not prevent startup.
 
 Move startup logs to another directory:
 
@@ -189,6 +216,14 @@ ollama pull nomic-embed-text
 - Redpanda
 - Elasticsearch 9.4.1
 - Debezium Connect
+
+Redpanda exposes its Kafka API on host port `9092` by default. On Windows,
+Hyper-V/WSL can reserve that range and make Docker fail with `ports are not
+available`. The `start-all` / `start-env` scripts automatically fall back to
+`19092` when `9092` is not bindable, and they pass the same port to backend
+Kafka bootstrap variables. Set `REDPANDA_KAFKA_HOST_PORT=19092` explicitly when
+running `docker compose` by hand, or change `REDPANDA_KAFKA_FALLBACK_PORTS` to
+custom fallback candidates.
 
 The default Elasticsearch image is Elastic GA 9.4.1. The backend still uses the Spring Boot managed `elasticsearch-java 9.2.2` client, which can connect to newer 9.x minor server versions; upgrade the client separately only when 9.4-specific typed APIs are needed. Override the image with `ELASTICSEARCH_IMAGE=docker.elastic.co/elasticsearch/elasticsearch:<version>` when testing another Elasticsearch server.
 

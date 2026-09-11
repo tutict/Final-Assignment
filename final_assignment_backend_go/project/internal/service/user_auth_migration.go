@@ -26,6 +26,8 @@ type RegisterRequest struct {
 	Email         string `json:"email"`
 }
 
+const RegisterStatusCreated = "CREATED"
+
 type AuthWsService struct {
 	users             *UserManagementService
 	tokenProvider     *authcfg.TokenProvider
@@ -50,7 +52,6 @@ func (s *AuthWsService) SetRefreshTokenService(r *RefreshTokenService) { s.refre
 
 // SetTokenBlacklistService 注入 access token 黑名单服务（可选；未注入时 Logout 不撤销）。
 func (s *AuthWsService) SetTokenBlacklistService(b *TokenBlacklistService) { s.blacklist = b }
-
 
 func (s *AuthWsService) Login(req LoginRequest) (map[string]interface{}, error) {
 	username := strings.TrimSpace(req.Username)
@@ -79,12 +80,12 @@ func (s *AuthWsService) Login(req LoginRequest) (map[string]interface{}, error) 
 		return nil, err
 	}
 	result := map[string]interface{}{
-		"jwtToken":  token,
+		"jwtToken":    token,
 		"accessToken": token,
-		"tokenType": "Bearer",
-		"expiresIn": s.tokenProvider.GetAccessTokenExpirationSeconds(),
-		"username": user.Username,
-		"roles":    roles,
+		"tokenType":   "Bearer",
+		"expiresIn":   s.tokenProvider.GetAccessTokenExpirationSeconds(),
+		"username":    user.Username,
+		"roles":       roles,
 	}
 	// 若注入了刷新令牌服务，则签发独立的 refresh token（与 Spring/Quarkus 对齐）。
 	// 签发失败不应静默吞掉：否则客户端拿到无 refreshToken 的 200，无法区分"未启用 refresh"与
@@ -126,14 +127,14 @@ func (s *AuthWsService) Refresh(token string) (map[string]interface{}, error) {
 			return nil, err
 		}
 		return map[string]interface{}{
-			"jwtToken":      newAccess,
-			"accessToken":   newAccess,
-			"refreshToken":  newRefresh,
-			"tokenType":     "Bearer",
-			"expiresIn":      s.tokenProvider.GetAccessTokenExpirationSeconds(),
+			"jwtToken":              newAccess,
+			"accessToken":           newAccess,
+			"refreshToken":          newRefresh,
+			"tokenType":             "Bearer",
+			"expiresIn":             s.tokenProvider.GetAccessTokenExpirationSeconds(),
 			"refreshTokenExpiresIn": s.refreshTokens.GetRefreshTokenExpirationSeconds(),
-			"username":      user.Username,
-			"roles":         roles,
+			"username":              user.Username,
+			"roles":                 roles,
 		}, nil
 	}
 
@@ -201,14 +202,14 @@ func (s *AuthWsService) GetCurrentUserProfile(username string) (map[string]inter
 		displayName = user.Username
 	}
 	return map[string]interface{}{
-		"authUserId":   user.UserID,
-		"username":     user.Username,
-		"displayName":  displayName,
-		"email":        user.Email,
-		"phoneNumber":  maskPhone(user.ContactNumber),
-		"roles":        roles,
-		"driverId":     nil,
-		"driverName":   nil,
+		"authUserId":  user.UserID,
+		"username":    user.Username,
+		"displayName": displayName,
+		"email":       user.Email,
+		"phoneNumber": maskPhone(user.ContactNumber),
+		"roles":       roles,
+		"driverId":    nil,
+		"driverName":  nil,
 	}, nil
 }
 
@@ -230,7 +231,6 @@ func maskPhone(phone string) string {
 	}
 	return phone[:3] + "****" + phone[len(phone)-4:]
 }
-
 
 func (s *AuthWsService) RegisterUser(req RegisterRequest) (string, error) {
 	if strings.TrimSpace(req.Username) == "" || strings.TrimSpace(req.Password) == "" {
@@ -256,7 +256,7 @@ func (s *AuthWsService) RegisterUser(req RegisterRequest) (string, error) {
 	if err := s.users.CreateUser(user); err != nil {
 		return "", err
 	}
-	return "registered", nil
+	return RegisterStatusCreated, nil
 }
 
 func (s *AuthWsService) GetAllUsers() ([]domain.UserManagement, error) {
