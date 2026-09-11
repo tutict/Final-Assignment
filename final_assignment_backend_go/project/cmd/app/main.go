@@ -121,7 +121,11 @@ func main() {
 	}
 	refreshTokenRepo := repo.NewRefreshTokenRepo(db)
 	refreshTokenService := service.NewRefreshTokenService(refreshTokenRepo, pqcCrypto, envInt64OrDefault("JWT_REFRESH_EXPIRATION", 604800))
-	blacklistService := service.NewTokenBlacklistService(redisCfg.Client, envOrDefault("TOKEN_BLACKLIST_FAIL_OPEN", "false") == "true")
+	// 黑名单 fail-open 默认值对齐 Spring 的 application-dev.yml
+	// (app.security.token-blacklist.fail-open: true): Redis 被禁用 (REDIS_ENABLED=false,
+	// no-op client) 或不可用时放行, 否则本地开发 (无 Redis) 里每个带 access token
+	// 的请求都会被误判为已撤销 → 登录后全部 401。生产可显式设 TOKEN_BLACKLIST_FAIL_OPEN=false 保持 fail-closed。
+	blacklistService := service.NewTokenBlacklistService(redisCfg.Client, envOrDefault("TOKEN_BLACKLIST_FAIL_OPEN", "true") == "true")
 
 	// 初始化用户和认证服务
 	userService := service.NewUserManagementService(repo.NewUserManagementRepo(db))
