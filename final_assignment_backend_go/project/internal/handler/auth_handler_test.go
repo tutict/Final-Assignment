@@ -17,11 +17,21 @@ import (
 type fakeAuthService struct {
 	registerStatus string
 	registerErr    error
+	loginResult    map[string]any
+	loginErr       error
 }
 
 func (f fakeAuthService) GetAllUsers() ([]domain.UserManagement, error) { return nil, nil }
 
-func (f fakeAuthService) Login(service.LoginRequest) (map[string]any, error) { return nil, nil }
+func (f fakeAuthService) Login(service.LoginRequest) (map[string]any, error) {
+	if f.loginErr != nil {
+		return nil, f.loginErr
+	}
+	if f.loginResult != nil {
+		return f.loginResult, nil
+	}
+	return nil, nil
+}
 
 func (f fakeAuthService) Refresh(string) (map[string]any, error) { return nil, nil }
 
@@ -83,3 +93,38 @@ func TestRegisterUserReturnsConflictOnServiceError(t *testing.T) {
 		t.Fatalf("expected HTTP 409, got %d body=%s", res.Code, res.Body.String())
 	}
 }
+
+func TestLoginReturnsFullAuthContractForFrontends(t *testing.T) {
+	oldMode := gin.Mode()
+	gin.SetMode(gin.TestMode)
+	t.Cleanup(func() { gin.SetMode(oldMode) })
+
+	router := gin.New()
+	router.POST("/api/auth/login", NewAuthHandler(fakeAuthService{loginResult: map[string]any{
+		"jwtToken":     "jwt-value",
+		"accessToken":  "jwt-value",
+		"refreshToken": "refresh-value",
+		"username":     "admin",
+		"roles":        []string{"ADMIN"},
+	}}).Login)
+
+	body := bytes.NewBufferString(`{"username":"admin","password":"admin123"}`)
+	req := httptest.NewRequest(http.MethodPost, "/api/auth/login", body)
+	req.Header.Set("Content-Type", "application/json")
+	res := httptest.NewRecorder()
+	router.ServeHTTP(res, req)
+
+	if res.Code != http.StatusOK {
+		t.Fatalf("expected HTTP 200, got %d body=%s", res.Code, res.Body.String())
+	}
+	var response map[string]any
+	if err := json.Unmarshal(res.Body.Bytes(), &response); err != nil {
+		t.Fatalf("decode response: %v", err)
+	}
+	for _, key := range []string{"jwtToken", "accessToken", "refreshToken", "username"} {
+		if response[key] == nil || response[key] == "" {
+			t.Fatalf("expected %s in login payload, got %#v", key, response)
+		}
+	}
+}
+

@@ -74,9 +74,18 @@ public class JwtAuthenticationFilter implements ContainerRequestFilter {
 
     private boolean shouldSkip(ContainerRequestContext requestContext) {
         String path = requestContext.getUriInfo().getPath();
-        return path.startsWith("api/auth/login")
-                || path.startsWith("api/auth/register")
-                || path.startsWith("api/auth/refresh");
+        if (path.startsWith("/")) {
+            path = path.substring(1);
+        }
+        while (path.endsWith("/")) {
+            path = path.substring(0, path.length() - 1);
+        }
+        return path.equals("api/auth/login")
+                || path.equals("api/auth/register")
+                || path.equals("api/auth/refresh")
+                || path.startsWith("api/auth/login/")
+                || path.startsWith("api/auth/register/")
+                || path.startsWith("api/auth/refresh/");
     }
 
     private String getJwtFromRequest(ContainerRequestContext requestContext) {

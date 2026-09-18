@@ -380,8 +380,12 @@ func allowedBrowserOrigins() []string {
 	origins := []string{
 		"http://127.0.0.1:5173",
 		"http://localhost:5173",
+		"http://127.0.0.1:15173",
+		"http://localhost:15173",
 		"http://127.0.0.1:3000",
 		"http://localhost:3000",
+		"http://127.0.0.1:13000",
+		"http://localhost:13000",
 	}
 	for _, name := range []string{"FRONTEND_URL", "REACT_DEV_URL", "FLUTTER_WEB_URL", "FLUTTER_URL", "BROWSER_URL", "CORS_ALLOWED_ORIGINS"} {
 		for _, value := range splitComma(envOrDefault(name, "")) {

@@ -24,9 +24,9 @@ The full startup flow:
 
 Backend choices:
 
-- `spring`  — Spring Boot (`finalAssignmentBackend`; REST 8080 / WS 8081 / DB `traffic`)
+- `spring`  — Spring Boot (`finalAssignmentBackend`; external REST+WS 8080 / internal REST 9080 / DB `traffic`)
 - `go`      — Go / Gin (`final_assignment_backend_go`; REST 8080 / DB `cesi`)
-- `quarkus` — Quarkus (`final_assignment_backend_quarkus`; REST 8080 / WS 8081 / DB `cesi`)
+- `quarkus` — Quarkus (`final_assignment_backend_quarkus`; external REST+WS 8080 / internal REST 9080 / DB `cesi`)
 - `cloud`   — Spring Cloud microservices (`finalAssignmentCloud`; gateway 8080)
 - `none`    — no backend
 
@@ -153,13 +153,15 @@ scripts\start-all.bat
 `FLUTTER_WAIT_SECONDS` is still supported as the legacy default when
 `FRONTEND_WAIT_SECONDS` is not set.
 
-React is started with Vite pointed at the selected backend target. Spring Boot
-and Quarkus default to the network layer on `8081`; Go and Spring Cloud default
-to their HTTP gateway/API on `8080`:
+React is started with Vite pointed at the selected backend's external URL.
+Spring Boot, Quarkus, Go, and Spring Cloud all default to `8080` for both REST
+and WebSocket. Spring/Quarkus still serve internal REST on `9080`
+(`BACKEND_INTERNAL_PORT`); frontends should talk to the external port, not
+the internal one:
 
 ```bat
-set REACT_API_BASE_URL=http://127.0.0.1:8081
-set REACT_WS_BASE_URL=ws://127.0.0.1:8081
+set REACT_API_BASE_URL=http://127.0.0.1:8080
+set REACT_WS_BASE_URL=ws://127.0.0.1:8080
 scripts\start-all.bat -b spring -f react
 ```
 
@@ -169,7 +171,27 @@ When React is selected, the startup script also defaults `FRONTEND_URL` to
 For the Go backend, `BACKEND_PORT` defaults to `8080`. If Windows reports that
 `8080` is not bindable even though no process is listening on it, the startup
 script automatically falls back to `18080`, `18081`, then `18082`, and updates
-React's API/WebSocket URLs to the selected port. Set `BACKEND_PORT` explicitly
+React and Flutter API/WebSocket URLs to the selected port.
+
+
+When `START_LOCAL_SERVICES=false` / `-e`, the scripts default
+`MANAGEMENT_HEALTH_REDIS_ENABLED=false` so Spring's `/actuator/health` can
+come up without Redis. Quarkus is probed at `http://127.0.0.1:8080/readyz`
+on the external NetWorkHandler port. After the backend is healthy, set
+`SMOKE_LOGIN=true` to POST `/api/auth/login` (defaults `admin` / `admin123`)
+and require a `jwtToken` or `accessToken` in the JSON body.
+
+Flutter's web port defaults to `3000` and, like React, auto-falls back when
+the port is reserved by Windows but has no listener (`13000`, `3001`,
+`24678`). Set `FLUTTER_WEB_URL` or `--web-port` explicitly to disable that.
+
+On Windows, Hyper-V/WSL excluded TCP ranges can make Vite's default `5173`
+fail with `EACCES` even when nothing is listening. The startup script then
+tries `15173`, `4173`, and `51730`, updates `REACT_DEV_URL` / `FRONTEND_URL` /
+`BROWSER_URL`, and points the backend CORS origin at the selected port. Set
+`REACT_DEV_URL` explicitly to disable the fallback, or change
+`REACT_FALLBACK_PORTS`.
+ Set `BACKEND_PORT` explicitly
 to disable the fallback, or adjust `GO_BACKEND_FALLBACK_PORTS` to use a
 different candidate list. The Go runner also defaults `GOCACHE` to
 `artifacts/go-build-cache` and builds the backend into the current startup log

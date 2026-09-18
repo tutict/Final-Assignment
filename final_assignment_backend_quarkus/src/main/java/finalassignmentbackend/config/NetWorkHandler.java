@@ -17,6 +17,7 @@ import io.vertx.mutiny.core.http.ServerWebSocket;
 import io.vertx.mutiny.ext.web.Router;
 import io.vertx.ext.web.client.HttpResponse;
 import io.vertx.ext.web.client.WebClient;
+import io.vertx.ext.web.client.WebClientOptions;
 import io.vertx.mutiny.ext.web.handler.CorsHandler;
 import io.smallrye.mutiny.vertx.core.AbstractVerticle;
 import jakarta.enterprise.context.ApplicationScoped;
@@ -72,7 +73,11 @@ public class NetWorkHandler extends AbstractVerticle {
 
     @Override
     public void start() {
-        this.webClient = WebClient.create(vertx.getDelegate());
+        WebClientOptions clientOptions = new WebClientOptions()
+                .setConnectTimeout(2000)
+                .setIdleTimeout(10)
+                .setMaxPoolSize(32);
+        this.webClient = WebClient.create(vertx.getDelegate(), clientOptions);
         Router router = Router.router(vertx);
         configureCors(router);
         setupNetWorksServer(router);
@@ -100,11 +105,16 @@ public class NetWorkHandler extends AbstractVerticle {
     }
 
     private void setupNetWorksServer(Router router) {
+        router.get("/readyz").handler(ctx -> {
+            ctx.response().putHeader("Content-Type", "text/plain; charset=UTF-8");
+            endMutiny(ctx.response(), "ok");
+        });
+
         router.post("/api/ws-ticket").handler(ctx -> {
             HttpServerRequest request = ctx.request();
             String token = extractBearerToken(request);
             if (token == null || tokenBlacklistService.isBlacklisted(token) || !tokenProvider.validateToken(token)) {
-                ctx.response().setStatusCode(401).setStatusMessage("Unauthorized").end();
+                endMutiny(ctx.response().setStatusCode(401).setStatusMessage("Unauthorized"), null);
                 return;
             }
             WsTicketService.Ticket ticket = wsTicketService.issue(
@@ -129,7 +139,7 @@ public class NetWorkHandler extends AbstractVerticle {
             HandshakePrincipal principal = authenticateWebSocketHandshake(request);
             if (principal == null) {
                 log.log(Level.WARNING, "Rejected unauthenticated WebSocket handshake, path={0}", request.path());
-                ctx.response().setStatusCode(401).setStatusMessage("Unauthorized").end();
+                endMutiny(ctx.response().setStatusCode(401).setStatusMessage("Unauthorized"), null);
                 return;
             }
 
@@ -141,12 +151,12 @@ public class NetWorkHandler extends AbstractVerticle {
                 }
             }, failure -> {
                 log.log(Level.SEVERE, "WebSocket upgrade failed: {0}", failure.getMessage());
-                ctx.response().setStatusCode(400).setStatusMessage("WebSocket upgrade failed").end();
+                endMutiny(ctx.response().setStatusCode(400).setStatusMessage("WebSocket upgrade failed"), null);
             });
         });
 
         router.routeWithRegex("^/(?!api(/|$)|eventbus(/|$)).*")
-                .handler(ctx -> ctx.response().setStatusCode(404).setStatusMessage("Not Found").end());
+                .handler(ctx -> endMutiny(ctx.response().setStatusCode(404).setStatusMessage("Not Found"), null));
 
         HttpServerOptions options = new HttpServerOptions()
                 .setMaxWebSocketFrameSize(1000000)
@@ -355,10 +365,35 @@ public class NetWorkHandler extends AbstractVerticle {
 
     private void writeJson(io.vertx.mutiny.core.http.HttpServerResponse response, Object payload) {
         try {
-            response.putHeader("Content-Type", "application/json").end(objectMapper.writeValueAsString(payload));
+            endMutiny(response.putHeader("Content-Type", "application/json"), objectMapper.writeValueAsString(payload));
         } catch (JsonProcessingException e) {
-            response.setStatusCode(500).setStatusMessage("Internal Server Error").end();
+            endMutiny(response.setStatusCode(500).setStatusMessage("Internal Server Error"), null);
         }
+    }
+
+
+    private static void endMutiny(io.vertx.mutiny.core.http.HttpServerResponse response, String body) {
+        var uni = body == null ? response.end() : response.end(body);
+        uni.subscribe().with(ignored -> { }, failure -> { });
+    }
+
+    private static boolean isHopByHopHeader(String name) {
+        if (name == null) {
+            return true;
+        }
+        return name.equalsIgnoreCase("Host")
+                || name.equalsIgnoreCase("Connection")
+                || name.equalsIgnoreCase("Keep-Alive")
+                || name.equalsIgnoreCase("Proxy-Authenticate")
+                || name.equalsIgnoreCase("Proxy-Authorization")
+                || name.equalsIgnoreCase("TE")
+                || name.equalsIgnoreCase("Trailer")
+                || name.equalsIgnoreCase("Transfer-Encoding")
+                || name.equalsIgnoreCase("Upgrade")
+                || name.equalsIgnoreCase("Content-Length")
+                || name.equalsIgnoreCase("X-Forwarded-By")
+                || name.equalsIgnoreCase("X-Forwarded-For")
+                || name.equalsIgnoreCase("X-Real-IP");
     }
 
     private void forwardHttpRequest(HttpServerRequest request) {
@@ -369,13 +404,20 @@ public class NetWorkHandler extends AbstractVerticle {
         log.log(Level.INFO, "[{0}] Forwarding request {1} to {2}", new Object[]{requestId, path, targetUrl});
 
         if (request.headers().contains("X-Forwarded-By")) {
-            request.response().setStatusCode(500).setStatusMessage("Forwarding loop detected").end();
+            endMutiny(request.response().setStatusCode(500).setStatusMessage("Forwarding loop detected"), null);
             return;
         }
 
-        request.headers().add("X-Forwarded-By", "NetWorkHandler");
         MultiMap headers = MultiMap.caseInsensitiveMultiMap();
-        request.headers().forEach(entry -> headers.add(entry.getKey(), entry.getValue()));
+        request.headers().forEach(entry -> {
+            if (!isHopByHopHeader(entry.getKey())) {
+                headers.add(entry.getKey(), entry.getValue());
+            }
+        });
+        headers.add("X-Forwarded-By", "NetWorkHandler");
+        if (request.remoteAddress() != null) {
+            headers.add("X-Forwarded-For", request.remoteAddress().host());
+        }
 
         HttpMethod method = request.method();
         var httpRequest = webClient.requestAbs(method, targetUrl).putHeaders(headers);
@@ -383,7 +425,7 @@ public class NetWorkHandler extends AbstractVerticle {
         if (method == HttpMethod.GET || method == HttpMethod.DELETE) {
             httpRequest.send()
                     .onSuccess(response -> handleResponse(request, response, requestId))
-                    .onFailure(failure -> request.response().setStatusCode(500).setStatusMessage("Forward failed").end());
+                    .onFailure(failure -> endMutiny(request.response().setStatusCode(500).setStatusMessage("Forward failed"), null));
             return;
         }
 
@@ -392,14 +434,14 @@ public class NetWorkHandler extends AbstractVerticle {
                     if (body == null || body.length() == 0) {
                         httpRequest.send()
                                 .onSuccess(response -> handleResponse(request, response, requestId))
-                                .onFailure(failure -> request.response().setStatusCode(500).setStatusMessage("Forward failed").end());
+                                .onFailure(failure -> endMutiny(request.response().setStatusCode(500).setStatusMessage("Forward failed"), null));
                     } else {
                         httpRequest.sendBuffer(Buffer.buffer(body.getBytes()))
                                 .onSuccess(response -> handleResponse(request, response, requestId))
-                                .onFailure(failure -> request.response().setStatusCode(500).setStatusMessage("Forward failed").end());
+                                .onFailure(failure -> endMutiny(request.response().setStatusCode(500).setStatusMessage("Forward failed"), null));
                     }
                 })
-                .onFailure().invoke(failure -> request.response().setStatusCode(400).setStatusMessage("Invalid request body").end())
+                .onFailure().invoke(failure -> endMutiny(request.response().setStatusCode(400).setStatusMessage("Invalid request body"), null))
                 .subscribe().asCompletionStage();
     }
 
@@ -415,9 +457,9 @@ public class NetWorkHandler extends AbstractVerticle {
         });
         Buffer responseBody = response.body();
         if (responseBody != null && responseBody.length() > 0) {
-            clientResponse.end(responseBody.toString());
+            endMutiny(clientResponse, responseBody.toString());
         } else {
-            clientResponse.end();
+            endMutiny(clientResponse, null);
         }
     }
 

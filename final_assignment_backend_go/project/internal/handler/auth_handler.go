@@ -61,13 +61,15 @@ func (h *AuthHandler) Login(c *gin.Context) {
 		return
 	}
 
-	if token, ok := result["jwtToken"]; ok {
-		h.logger.Info("Login success for %s", req.Username)
-		c.JSON(http.StatusOK, gin.H{"jwtToken": token, "username": req.Username})
-	} else {
-		h.logger.Error("Login failed: invalid credentials for %s", req.Username)
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "Invalid credentials"})
+	if _, ok := result["jwtToken"]; !ok {
+		if _, ok = result["accessToken"]; !ok {
+			h.logger.Error("Login failed: invalid credentials for %s", req.Username)
+			c.JSON(http.StatusUnauthorized, gin.H{"error": "Invalid credentials"})
+			return
+		}
 	}
+	h.logger.Info("Login success for %s", req.Username)
+	c.JSON(http.StatusOK, result)
 }
 
 // RegisterUser POST /api/auth/register

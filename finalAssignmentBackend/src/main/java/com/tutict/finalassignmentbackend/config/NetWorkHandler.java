@@ -107,6 +107,9 @@ public class NetWorkHandler extends AbstractVerticle {
                     "expiresAt", ticket.expiresAt().toString()
             )));
         });
+        router.get("/readyz").handler(ctx -> ctx.response()
+                .putHeader("Content-Type", "text/plain; charset=UTF-8")
+                .end("ok"));
         router.route("/api/*").handler(ctx -> {
             HttpServerRequest request = ctx.request();
             forwardHttpRequest(request);

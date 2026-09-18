@@ -129,7 +129,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setLoading(true);
     try {
       const result = await loginApi({ username, password });
-      const token = result?.jwtToken;
+      const token = result?.jwtToken || result?.accessToken;
       if (!token) {
         throw new Error(result?.message || result?.error || '登录失败');
       }
