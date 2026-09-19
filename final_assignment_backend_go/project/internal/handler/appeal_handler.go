@@ -49,8 +49,8 @@ func (h *AppealHandler) GetAppealByID(c *gin.Context) {
 	}
 
 	appeal, err := h.appealService.GetAppealByID(uint(id))
-	if err != nil {
-		c.JSON(http.StatusNotFound, gin.H{"error": err.Error()})
+	if err != nil || !h.appealService.CanAccess(c.GetString("username"), elevatedRequester(c), appeal) {
+		c.JSON(http.StatusNotFound, gin.H{"error": "appeal not found"})
 		return
 	}
 	c.JSON(http.StatusOK, appeal)
@@ -58,7 +58,7 @@ func (h *AppealHandler) GetAppealByID(c *gin.Context) {
 
 // GetAllAppeals 获取所有申诉（GET /api/appeals）
 func (h *AppealHandler) GetAllAppeals(c *gin.Context) {
-	appeals, err := h.appealService.GetAllAppeals()
+	appeals, err := h.appealService.ListForRequester(c.GetString("username"), elevatedRequester(c))
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
@@ -114,7 +114,7 @@ func (h *AppealHandler) GetAppealsByProcessStatus(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
-	c.JSON(http.StatusOK, appeals)
+	c.JSON(http.StatusOK, h.appealService.FilterForRequester(c.GetString("username"), elevatedRequester(c), appeals))
 }
 
 // GetAppealsByAppellantName 按姓名查询（GET /api/appeals/name/:name）
@@ -125,7 +125,7 @@ func (h *AppealHandler) GetAppealsByAppellantName(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
-	c.JSON(http.StatusOK, appeals)
+	c.JSON(http.StatusOK, h.appealService.FilterForRequester(c.GetString("username"), elevatedRequester(c), appeals))
 }
 
 // GetOffenseByAppealID 获取申诉关联违章信息（GET /api/appeals/:id/offense）
@@ -136,6 +136,11 @@ func (h *AppealHandler) GetOffenseByAppealID(c *gin.Context) {
 		return
 	}
 
+	appeal, aerr := h.appealService.GetAppealByID(uint(id))
+	if aerr != nil || !h.appealService.CanAccess(c.GetString("username"), elevatedRequester(c), appeal) {
+		c.JSON(http.StatusNotFound, gin.H{"error": "appeal not found"})
+		return
+	}
 	offense, err := h.appealService.GetOffenseByAppealID(uint(id))
 	if err != nil {
 		c.JSON(http.StatusNotFound, gin.H{"error": err.Error()})
@@ -152,7 +157,7 @@ func (h *AppealHandler) GetAppealsByIdCardNumber(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
-	c.JSON(http.StatusOK, appeals)
+	c.JSON(http.StatusOK, h.appealService.FilterForRequester(c.GetString("username"), elevatedRequester(c), appeals))
 }
 
 // GetAppealsByContactNumber 按联系电话查询（GET /api/appeals/contact/:number）
@@ -163,7 +168,7 @@ func (h *AppealHandler) GetAppealsByContactNumber(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
-	c.JSON(http.StatusOK, appeals)
+	c.JSON(http.StatusOK, h.appealService.FilterForRequester(c.GetString("username"), elevatedRequester(c), appeals))
 }
 
 // GetAppealsByOffenseID 按违章ID查询（GET /api/appeals/offense/:offenseId）
@@ -179,7 +184,7 @@ func (h *AppealHandler) GetAppealsByOffenseID(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
-	c.JSON(http.StatusOK, appeals)
+	c.JSON(http.StatusOK, h.appealService.FilterForRequester(c.GetString("username"), elevatedRequester(c), appeals))
 }
 
 // GetAppealsByTimeRange 按时间范围查询（GET /api/appeals/time-range?start=...&end=...）
@@ -199,7 +204,7 @@ func (h *AppealHandler) GetAppealsByTimeRange(c *gin.Context) {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
-	c.JSON(http.StatusOK, appeals)
+	c.JSON(http.StatusOK, h.appealService.FilterForRequester(c.GetString("username"), elevatedRequester(c), appeals))
 }
 
 // CountAppealsByStatus 按状态统计数量（GET /api/appeals/count/status/:status）

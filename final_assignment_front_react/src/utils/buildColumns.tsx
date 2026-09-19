@@ -1,6 +1,7 @@
 import React from 'react';
 import StatusPill from '../components/StatusPill';
-import { formatDateTime, humanizeKey } from './format';
+import { formatDateTime } from './format';
+import { resolveFieldLabel } from '../config/fieldLabels';
 import type { EntityField } from '../config/entityTypes';
 import type { DataTableColumn } from '../components/DataTable';
 
@@ -47,7 +48,7 @@ export function buildColumns(
 
     return {
       key,
-      label: overrideConfig.label || field.label || humanizeKey(key),
+      label: overrideConfig.label || resolveFieldLabel(key, field.label),
       render:
         typeof override === 'function'
           ? override

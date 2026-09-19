@@ -56,7 +56,7 @@ func (c *OffenseInformationController) getOffenseByID(ctx *gin.Context) {
 	}
 
 	offense, err := c.Service.GetOffenseByID(id)
-	if err != nil {
+	if err != nil || !c.Service.CanAccess(ctx.GetString("username"), elevatedRequester(ctx), offense) {
 		ctx.JSON(http.StatusNotFound, gin.H{"error": "offense not found"})
 		return
 	}
@@ -66,7 +66,7 @@ func (c *OffenseInformationController) getOffenseByID(ctx *gin.Context) {
 
 // GET /api/offenses
 func (c *OffenseInformationController) getAllOffenses(ctx *gin.Context) {
-	offenses, err := c.Service.GetAllOffenses()
+	offenses, err := c.Service.ListForRequester(ctx.GetString("username"), elevatedRequester(ctx))
 	if err != nil {
 		ctx.JSON(http.StatusInternalServerError, gin.H{"error": "failed to fetch offenses"})
 		return
@@ -136,7 +136,7 @@ func (c *OffenseInformationController) getOffensesByTimeRange(ctx *gin.Context) 
 		ctx.JSON(http.StatusInternalServerError, gin.H{"error": "query failed"})
 		return
 	}
-	ctx.JSON(http.StatusOK, offenses)
+	ctx.JSON(http.StatusOK, c.Service.FilterForRequester(ctx.GetString("username"), elevatedRequester(ctx), offenses))
 }
 
 // GET /api/offenses/by-offense-type
@@ -151,12 +151,7 @@ func (c *OffenseInformationController) searchByOffenseType(ctx *gin.Context) {
 		return
 	}
 
-	if len(results) == 0 {
-		ctx.Status(http.StatusNoContent)
-		return
-	}
-
-	ctx.JSON(http.StatusOK, results)
+	ctx.JSON(http.StatusOK, c.Service.FilterForRequester(ctx.GetString("username"), elevatedRequester(ctx), results))
 }
 
 // GET /api/offenses/by-driver-name
@@ -171,12 +166,7 @@ func (c *OffenseInformationController) searchByDriverName(ctx *gin.Context) {
 		return
 	}
 
-	if len(results) == 0 {
-		ctx.Status(http.StatusNoContent)
-		return
-	}
-
-	ctx.JSON(http.StatusOK, results)
+	ctx.JSON(http.StatusOK, c.Service.FilterForRequester(ctx.GetString("username"), elevatedRequester(ctx), results))
 }
 
 // GET /api/offenses/by-license-plate
@@ -191,10 +181,5 @@ func (c *OffenseInformationController) searchByLicensePlate(ctx *gin.Context) {
 		return
 	}
 
-	if len(results) == 0 {
-		ctx.Status(http.StatusNoContent)
-		return
-	}
-
-	ctx.JSON(http.StatusOK, results)
+	ctx.JSON(http.StatusOK, c.Service.FilterForRequester(ctx.GetString("username"), elevatedRequester(ctx), results))
 }

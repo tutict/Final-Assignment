@@ -1,6 +1,6 @@
 import { FiSun, FiMoon, FiUser } from 'react-icons/fi';
 import { useAuth } from '../auth/AuthContext';
-import { ROLES } from '../constants/roles';
+import { ROLES, resolveRoleLabel } from '../constants/roles';
 
 interface HeaderProps {
   title: string;
@@ -27,7 +27,7 @@ export default function Header({ title, subtitle, onToggleTheme, theme }: Header
         <div className="header-user">
           <FiUser />
           <span>{userName}</span>
-          <span className="header-role">{role}</span>
+          <span className="header-role">{resolveRoleLabel(role)}</span>
         </div>
       </div>
     </header>

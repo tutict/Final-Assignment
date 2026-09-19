@@ -86,9 +86,9 @@ func (s *OffenseDetailsViewService) GetOffenseDetail(offenseID int) (*OffenseDet
 		Appeals:         []OffenseDetailAppeal{},
 	}
 
-	if offense.DriverID > 0 {
+	if offense.DriverID != nil && *offense.DriverID > 0 {
 		var driver domain.DriverInformation
-		if err := s.db.Where("driver_id = ?", offense.DriverID).First(&driver).Error; err == nil {
+		if err := s.db.Where("driver_id = ?", *offense.DriverID).First(&driver).Error; err == nil {
 			detail.Driver = &OffenseDetailDriver{
 				DriverID:            driver.DriverID,
 				Name:                driver.Name,
@@ -106,6 +106,8 @@ func (s *OffenseDetailsViewService) GetOffenseDetail(offenseID int) (*OffenseDet
 				VehicleID:    vehicle.VehicleID,
 				LicensePlate: vehicle.LicensePlate,
 				VehicleType:  vehicle.VehicleType,
+				Brand:        vehicle.Brand,
+				Model:        vehicle.Model,
 			}
 		}
 	}
@@ -113,9 +115,19 @@ func (s *OffenseDetailsViewService) GetOffenseDetail(offenseID int) (*OffenseDet
 	var fines []domain.FineInformation
 	if err := s.db.Where("offense_id = ?", offenseID).Limit(100).Find(&fines).Error; err == nil {
 		for _, fine := range fines {
+			deadline := ""
+			if fine.PaymentDeadline != nil {
+				deadline = fine.PaymentDeadline.Format("2006-01-02")
+			}
+			status := fine.Status
+			if status == "" {
+				status = fine.PaymentStatus
+			}
 			detail.Fines = append(detail.Fines, OffenseDetailFine{
-				FineID:     fine.FineID,
-				FineAmount: fine.FineAmount,
+				FineID:          fine.FineID,
+				FineAmount:      fine.FineAmount,
+				Status:          status,
+				PaymentDeadline: deadline,
 			})
 		}
 	}
@@ -125,6 +137,7 @@ func (s *OffenseDetailsViewService) GetOffenseDetail(offenseID int) (*OffenseDet
 		for _, appeal := range appeals {
 			detail.Appeals = append(detail.Appeals, OffenseDetailAppeal{
 				AppealID:      appeal.AppealID,
+				AppealType:    appeal.AppealType,
 				AppealReason:  appeal.AppealReason,
 				ProcessStatus: appeal.ProcessStatus,
 			})

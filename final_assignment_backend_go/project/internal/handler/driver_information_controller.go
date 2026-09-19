@@ -307,6 +307,10 @@ func (c *DriverInformationController) updateUserModifiedTime(driverId int) {
 		log.Printf("No UserManagement found for driverId %d", driverId)
 		return
 	}
-	user.ModifiedTime = time.Now()
+	user.ModifiedTime = serviceTimePtr(time.Now())
 	c.userService.UpdateUser(user)
+}
+
+func serviceTimePtr(t time.Time) *time.Time {
+	return &t
 }

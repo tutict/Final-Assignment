@@ -6,19 +6,19 @@ import (
 	"gorm.io/gorm"
 )
 
-// SystemLogs 表示 system_logs 表的实体
+// SystemLogs is served from audit_operation_log because traffic no longer
+// has a dedicated system_logs table.
 type SystemLogs struct {
-	LogID              int            `gorm:"column:log_id;primaryKey;autoIncrement" json:"log_id"`
-	LogType            string         `gorm:"column:log_type" json:"log_type"`
-	LogContent         string         `gorm:"column:log_content" json:"log_content"`
-	OperationTime      time.Time      `gorm:"column:operation_time" json:"operation_time"`
-	OperationUser      string         `gorm:"column:operation_user" json:"operation_user"`
-	OperationIPAddress string         `gorm:"column:operation_ip_address" json:"operation_ip_address"`
+	LogID              int            `gorm:"column:log_id;primaryKey;autoIncrement" json:"logId"`
+	LogType            string         `gorm:"column:operation_type" json:"logType"`
+	LogContent         string         `gorm:"column:operation_content" json:"logContent"`
+	OperationTime      time.Time      `gorm:"column:operation_time" json:"operationTime"`
+	OperationUser      string         `gorm:"column:username" json:"operationUser"`
+	OperationIPAddress string         `gorm:"column:request_ip" json:"operationIpAddress"`
 	Remarks            string         `gorm:"column:remarks" json:"remarks"`
-	DeletedAt          gorm.DeletedAt `gorm:"index"` // 软删除字段（可选，GORM 默认支持）
+	DeletedAt          gorm.DeletedAt `gorm:"column:deleted_at;index" json:"-"`
 }
 
-// TableName 指定数据库表名
 func (SystemLogs) TableName() string {
-	return "system_logs"
+	return "audit_operation_log"
 }

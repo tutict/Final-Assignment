@@ -274,6 +274,11 @@ func registerFineRoutes(router *gin.Engine, controller *handler.FineController) 
 	group.GET("/timeRange", controller.GetFinesByTimeRange)
 	group.GET("/receiptNumber/:receiptNumber", controller.GetFineByReceiptNumber)
 	group.GET("/by-time-range", controller.SearchByFineTimeRange)
+	group.GET("/offense/:offenseId", controller.GetFinesByOffenseID)
+	group.GET("/driver/:driverId", controller.GetFinesByDriverID)
+	group.GET("/search/handler", controller.GetFinesByPayee)
+	group.GET("/search/status", controller.SearchByPaymentStatus)
+	group.GET("/search/date-range", controller.SearchByFineTimeRange)
 	group.GET("/:fineId", controller.GetFineByID)
 	group.PUT("/:fineId", controller.UpdateFine)
 	group.DELETE("/:fineId", controller.DeleteFine)
@@ -297,11 +302,16 @@ func registerAppealRoutes(router *gin.Engine, controller *handler.AppealHandler)
 }
 
 func registerTrafficRoutes(router *gin.Engine, controller *handler.TrafficViolationHandler) {
-	group := router.Group("/api/traffic-violations")
-	group.GET("/violation-types", controller.GetViolationTypeCounts)
-	group.GET("/time-series", controller.GetTimeSeriesData)
-	group.GET("/appeal-reasons", controller.GetAppealReasonCounts)
-	group.GET("/fine-payment-status", controller.GetFinePaymentStatus)
+	mount := func(prefix string) {
+		group := router.Group(prefix)
+		group.GET("/violation-types", controller.GetViolationTypeCounts)
+		group.GET("/time-series", controller.GetTimeSeriesData)
+		group.GET("/appeal-reasons", controller.GetAppealReasonCounts)
+		group.GET("/fine-payment-status", controller.GetFinePaymentStatus)
+		group.GET("/status", controller.GetFinePaymentStatus)
+	}
+	mount("/api/traffic-violations")
+	mount("/api/violations")
 }
 
 func devCorsMiddleware() gin.HandlerFunc {
@@ -611,11 +621,16 @@ func requiresAdmin(path string) bool {
 		"/api/rag/admin",
 		"/api/users",
 		"/api/roles",
+		"/api/permissions",
 		"/api/loginLogs",
 		"/api/operationLogs",
 		"/api/systemLogs",
 		"/api/systemSettings",
 		"/api/backups",
+		"/api/logs",
+		"/api/system/logs",
+		"/api/system/settings",
+		"/api/system/backup",
 	}
 	for _, prefix := range adminPrefixes {
 		if path == prefix || strings.HasPrefix(path, prefix+"/") {

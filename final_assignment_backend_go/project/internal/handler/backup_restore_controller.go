@@ -24,8 +24,11 @@ func NewBackupRestoreController(backupService BackupRestoreService) *BackupResto
 
 // RegisterRoutes 注册路由
 func (c *BackupRestoreController) RegisterRoutes(r *gin.Engine) {
-	group := r.Group("/api/backups")
+	c.mountBackups(r.Group("/api/backups"))
+	c.mountBackups(r.Group("/api/system/backup"))
+}
 
+func (c *BackupRestoreController) mountBackups(group *gin.RouterGroup) {
 	group.POST("", c.CreateBackup)
 	group.GET("", c.GetAllBackups)
 	group.GET("/filename/:backupFileName", c.GetBackupByFileName)

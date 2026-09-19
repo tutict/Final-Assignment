@@ -17,13 +17,19 @@ type OperationLogController struct {
 
 // RegisterRoutes 注册 operation log 的所有接口
 func (c *OperationLogController) RegisterRoutes(r *gin.RouterGroup) {
-	api := r.Group("/api/operationLogs")
+	c.mountOperationLogs(r.Group("/api/operationLogs"))
+	c.mountOperationLogs(r.Group("/api/logs/operation"))
+}
 
+func (c *OperationLogController) mountOperationLogs(api *gin.RouterGroup) {
 	api.POST("", c.createOperationLog)
 	api.GET("", c.getAllOperationLogs)
 	api.GET("/timeRange", c.getOperationLogsByTimeRange)
+	api.GET("/search/time-range", c.getOperationLogsByTimeRange)
 	api.GET("/userId/:userId", c.getOperationLogsByUserId)
+	api.GET("/search/user/:userId", c.getOperationLogsByUserId)
 	api.GET("/result/:result", c.getOperationLogsByResult)
+	api.GET("/search/result", c.getOperationLogsByResult)
 	api.GET("/autocomplete/user-ids/me", c.getUserIdAutocompleteSuggestions)
 	api.GET("/autocomplete/operation-results/me", c.getOperationResultAutocompleteSuggestions)
 	api.GET("/:logId", c.getOperationLog)
@@ -161,6 +167,9 @@ func (c *OperationLogController) getOperationLogsByUserId(ctx *gin.Context) {
 // GET /api/operationLogs/result/:result
 func (c *OperationLogController) getOperationLogsByResult(ctx *gin.Context) {
 	result := ctx.Param("result")
+	if result == "" {
+		result = ctx.Query("result")
+	}
 	logs, err := c.Service.GetOperationLogsByResult(result)
 	if err != nil {
 		ctx.JSON(http.StatusInternalServerError, gin.H{"error": "query failed"})
