@@ -1,3 +1,4 @@
+import { resolveRoleLabel } from '../../constants/roles';
 import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import PageLayout from '../../components/PageLayout';
@@ -133,7 +134,7 @@ export default function PersonalMainPage() {
             <ProfileTile label="显示名" value={profile.displayName} />
             <ProfileTile label="邮箱" value={profile.email} />
             <ProfileTile label="手机号" value={profile.phoneNumber} />
-            <ProfileTile label="角色" value={(profile.roles || []).join('、') || auth?.userRole || 'USER'} />
+            <ProfileTile label="角色" value={(profile.roles || []).map((role) => resolveRoleLabel(String(role))).join('、') || resolveRoleLabel(auth?.userRole)} />
             <ProfileTile label="驾驶员" value={profile.driverName} />
           </div>
         </div>

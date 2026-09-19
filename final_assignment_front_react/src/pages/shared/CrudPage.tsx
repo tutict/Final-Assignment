@@ -15,7 +15,8 @@ import {
 } from '../../api/entities';
 import { buildColumns } from '../../utils/buildColumns';
 import { getErrorMessage } from '../../utils/errorMessages';
-import { humanizeKey, normalizeText } from '../../utils/format';
+import { normalizeText } from '../../utils/format';
+import { resolveFieldLabel } from '../../config/fieldLabels';
 import type { EntityConfig, EntityField } from '../../config/entityTypes';
 
 type NormalizedField = EntityField & { label: string };
@@ -31,7 +32,7 @@ function normalizeFields(
   return names
     .map((name) => fieldMap.get(name))
     .filter((field): field is EntityField => Boolean(field))
-    .map((field) => ({ label: humanizeKey(field.name), ...field })) as NormalizedField[];
+    .map((field) => ({ ...field, label: resolveFieldLabel(field.name, field.label) })) as NormalizedField[];
 }
 
 interface CrudPageProps {

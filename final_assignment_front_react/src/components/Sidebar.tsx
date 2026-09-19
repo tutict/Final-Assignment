@@ -1,6 +1,7 @@
 import { NavLink } from 'react-router-dom';
 import clsx from 'clsx';
 import { useAuth } from '../auth/AuthContext';
+import { ROLES } from '../constants/roles';
 import type { NavItem } from '../config/navigation';
 
 interface SidebarItemProps {
@@ -29,7 +30,9 @@ interface SidebarProps {
 }
 
 export default function Sidebar({ title, items, footerItems }: SidebarProps) {
-  const { logout } = useAuth();
+  const { logout, userRole } = useAuth();
+  const staffRoles: string[] = [ROLES.ADMIN, ROLES.SUPER_ADMIN, ROLES.APPEAL_REVIEWER];
+  const isStaff = staffRoles.includes(userRole);
 
   const handleClick = (item: NavItem) => {
     if (item.isLogout) {
@@ -40,10 +43,10 @@ export default function Sidebar({ title, items, footerItems }: SidebarProps) {
   return (
     <aside className="sidebar">
       <div className="sidebar-brand">
-        <div className="brand-mark">TA</div>
+        <div className="brand-mark">{isStaff ? '管' : '办'}</div>
         <div>
-          <div className="brand-title">交通违法管理</div>
-          <div className="brand-sub">Traffic Admin</div>
+          <div className="brand-title">{isStaff ? '交通违法管理' : '交通违法办事'}</div>
+          <div className="brand-sub">{isStaff ? '管理后台' : '个人中心'}</div>
         </div>
       </div>
       <div className="sidebar-section">

@@ -1,5 +1,6 @@
 import type { EntityField } from '../config/entityTypes';
-import { fromInputDateTime, toInputDateTime, humanizeKey } from '../utils/format';
+import { fromInputDateTime, toInputDateTime } from '../utils/format';
+import { resolveFieldLabel } from '../config/fieldLabels';
 
 function getInputType(type: string | undefined, name: string): string {
   if (type === 'select') return 'select';
@@ -26,7 +27,7 @@ export function validateEntityForm(
     const validation = field.validation;
     if (!validation) return;
 
-    const label = field.label || humanizeKey(field.name);
+    const label = resolveFieldLabel(field.name, field.label);
     const value = values?.[field.name];
     const isEmpty = value === undefined || value === null || value === '';
 
@@ -92,7 +93,7 @@ export default function EntityForm({
   return (
     <div className="form-grid">
       {fields.map((field) => {
-        const label = field.label || humanizeKey(field.name);
+        const label = resolveFieldLabel(field.name, field.label);
         const type = field.type || 'String';
         const inputType = getInputType(type, field.name);
         const isDisabled = field.readOnly || disabledFields?.includes(field.name);
