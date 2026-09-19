@@ -63,6 +63,8 @@ class ChatController extends GetxController {
   bool get canUseManagerPrompts =>
       RoleUtils.canAccessAdminDashboard(userRole.value);
 
+  bool get isUserFacingChat => !canUseManagerPrompts;
+
   String get loadingText {
     return switch (loadingState.value) {
       ChatLoadingState.idle => '',
@@ -97,7 +99,11 @@ class ChatController extends GetxController {
     messages.add(ChatMessage(formalContent: text, isUser: true));
     textController.clear();
 
-    if (businessAction != null && businessAction.actions.isNotEmpty) {
+    // Admin/super-admin keep the local shortcut. USER questions must still hit
+    // the model, otherwise preset chips like "如何查询我的交通违法记录？" never get a reply.
+    if (!isUserFacingChat &&
+        businessAction != null &&
+        businessAction.actions.isNotEmpty) {
       messages.add(ChatMessage(
         formalContent: businessAction.answer ?? '已识别到可执行业务动作，请点击下方按钮继续。',
         isUser: false,
@@ -282,7 +288,27 @@ class ChatController extends GetxController {
 
       if (!receivedAiContent) {
         _removeThinkingMessages();
+        messages.add(ChatMessage(
+          formalContent: businessAction?.answer ?? '暂时没有生成回复，请稍后再试。',
+          isUser: false,
+          isSystem: true,
+          actions: businessAction?.actions ?? const [],
+          needConfirm: businessAction?.needConfirm ?? false,
+        ));
         return;
+      }
+      if (businessAction != null &&
+          businessAction.actions.isNotEmpty &&
+          aiMessageIndex >= 0 &&
+          aiMessageIndex < messages.length) {
+        final current = messages[aiMessageIndex];
+        messages[aiMessageIndex] = ChatMessage(
+          thinkContent: current.thinkContent,
+          formalContent: current.formalContent,
+          isUser: false,
+          actions: businessAction.actions,
+          needConfirm: businessAction.needConfirm,
+        );
       }
 
       final finalFormalContent = formalBuffer.toString();

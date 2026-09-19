@@ -14,13 +14,18 @@ class AiStreamEvent {
     String? eventName,
   }) {
     final rawType = _stringValue(json['type']) ?? eventName ?? 'unknown';
+    final payload = _payloadValue(json['payload']);
+    final payloadMap = payload is Map<String, Object?> ? payload : null;
     return AiStreamEvent(
       type: AiStreamEventTypeLookup.fromWire(rawType),
       rawType: rawType,
       sessionKey: _stringValue(json['sessionKey']),
       messageId: _stringValue(json['messageId']),
-      token: _stringValue(json['token']),
-      payload: _payloadValue(json['payload']),
+      token: _stringValue(json['token']) ??
+          _stringValue(payloadMap?['token']) ??
+          _stringValue(payloadMap?['content']) ??
+          _stringValue(payloadMap?['text']),
+      payload: payload,
       timestamp: _dateValue(json['timestamp']),
     );
   }
