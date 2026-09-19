@@ -3,7 +3,7 @@ package ai
 import (
 	"testing"
 
-	"final_assignment_backend_go/project/internal/service"
+	service "final_assignment_backend_go/project/internal/service/rag"
 )
 
 func TestContextBuilder_Build(t *testing.T) {

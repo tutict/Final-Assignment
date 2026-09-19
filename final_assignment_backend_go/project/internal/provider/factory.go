@@ -4,7 +4,7 @@ import (
 	"fmt"
 
 	"final_assignment_backend_go/project/internal/config"
-	"final_assignment_backend_go/project/internal/service"
+	service "final_assignment_backend_go/project/internal/service/ai"
 )
 
 // Factory creates AI providers based on configuration

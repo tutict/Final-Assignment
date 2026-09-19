@@ -4,35 +4,44 @@ import (
 	gozerorag "final_assignment_backend_go/project/internal/gozero/rag"
 	"final_assignment_backend_go/project/internal/handler"
 	"final_assignment_backend_go/project/internal/repo"
-	"final_assignment_backend_go/project/internal/service"
+	"final_assignment_backend_go/project/internal/service/admin"
+	"final_assignment_backend_go/project/internal/service/appeal"
+	"final_assignment_backend_go/project/internal/service/audit"
+	authsvc "final_assignment_backend_go/project/internal/service/auth"
+	"final_assignment_backend_go/project/internal/service/business"
+	"final_assignment_backend_go/project/internal/service/driver"
+	"final_assignment_backend_go/project/internal/service/offense"
+	"final_assignment_backend_go/project/internal/service/payment"
+	"final_assignment_backend_go/project/internal/service/statemachine"
+	"final_assignment_backend_go/project/internal/service/system"
 
 	"github.com/gin-gonic/gin"
 	"gorm.io/gorm"
 )
 
-func RegisterHTTP(router *gin.Engine, gormDB *gorm.DB, userService *service.UserManagementService, authService *service.AuthWsService, ragRuntime *gozerorag.Runtime) {
+func RegisterHTTP(router *gin.Engine, gormDB *gorm.DB, userService *admin.UserManagementService, authService *authsvc.AuthWsService, ragRuntime *gozerorag.Runtime) {
 	root := router.Group("")
 	api := router.Group("/api")
 
-	appealService := service.NewAppealManagementService(repo.NewAppealManagementRepo(gormDB))
-	backupService := service.NewBackupRestoreService(repo.NewBackupRestoreRepo(gormDB))
-	deductionService := service.NewDeductionInformationService(repo.NewDeductionInformationRepo(gormDB))
-	driverService := service.NewDriverInformationService(repo.NewDriverInformationRepo(gormDB))
-	fineService := service.NewFineInformationService(repo.NewFineInformationRepo(gormDB))
-	loginLogService := service.NewLoginLogService(repo.NewLoginLogRepo(gormDB))
-	offenseService := service.NewOffenseInformationService(repo.NewOffenseInformationRepo(gormDB))
-	offenseTypeService := service.NewOffenseTypeDictService(repo.NewOffenseTypeDictRepo(gormDB))
-	operationLogService := service.NewOperationLogService(repo.NewOperationLogRepo(gormDB))
-	paymentService := service.NewPaymentRecordService(repo.NewPaymentRecordRepo(gormDB))
-	permissionService := service.NewPermissionManagementService(repo.NewPermissionManagementRepo(gormDB))
-	progressService := service.NewProgressItemService(repo.NewProgressItemRepo(gormDB))
-	roleService := service.NewRoleManagementService(repo.NewRoleManagementRepo(gormDB))
-	systemLogsService := service.NewSystemLogsService(repo.NewSystemLogsRepo(gormDB))
-	systemSettingsService := service.NewSystemSettingsService(repo.NewSystemSettingsRepo(gormDB))
-	vehicleService := service.NewVehicleService(repo.NewVehicleInformationRepo(gormDB))
-	trafficService := service.NewTrafficViolationService(gormDB)
-	workflowService := service.NewWorkflowService(gormDB, offenseService, paymentService)
-	offenseDetailsService := service.NewOffenseDetailsViewService(gormDB)
+	appealService := appeal.NewAppealManagementService(repo.NewAppealManagementRepo(gormDB))
+	backupService := admin.NewBackupRestoreService(repo.NewBackupRestoreRepo(gormDB))
+	deductionService := offense.NewDeductionInformationService(repo.NewDeductionInformationRepo(gormDB))
+	driverService := driver.NewDriverInformationService(repo.NewDriverInformationRepo(gormDB))
+	fineService := offense.NewFineInformationService(repo.NewFineInformationRepo(gormDB))
+	loginLogService := audit.NewLoginLogService(repo.NewLoginLogRepo(gormDB))
+	offenseService := offense.NewOffenseInformationService(repo.NewOffenseInformationRepo(gormDB))
+	offenseTypeService := offense.NewOffenseTypeDictService(repo.NewOffenseTypeDictRepo(gormDB))
+	operationLogService := audit.NewOperationLogService(repo.NewOperationLogRepo(gormDB))
+	paymentService := payment.NewPaymentRecordService(repo.NewPaymentRecordRepo(gormDB))
+	permissionService := admin.NewPermissionManagementService(repo.NewPermissionManagementRepo(gormDB))
+	progressService := system.NewProgressItemService(repo.NewProgressItemRepo(gormDB))
+	roleService := admin.NewRoleManagementService(repo.NewRoleManagementRepo(gormDB))
+	systemLogsService := audit.NewSystemLogsService(repo.NewSystemLogsRepo(gormDB))
+	systemSettingsService := admin.NewSystemSettingsService(repo.NewSystemSettingsRepo(gormDB))
+	vehicleService := driver.NewVehicleService(repo.NewVehicleInformationRepo(gormDB))
+	trafficService := business.NewTrafficViolationService(gormDB)
+	workflowService := statemachine.NewWorkflowService(gormDB, offenseService, paymentService)
+	offenseDetailsService := offense.NewOffenseDetailsViewService(gormDB)
 
 	handler.NewUserManagementController(userService).RegisterRoutes(api)
 	handler.NewBackupRestoreController(backupService).RegisterRoutes(router)
@@ -105,4 +114,3 @@ func registerTrafficRoutes(router *gin.Engine, controller *handler.TrafficViolat
 	mount("/api/traffic-violations")
 	mount("/api/violations")
 }
-

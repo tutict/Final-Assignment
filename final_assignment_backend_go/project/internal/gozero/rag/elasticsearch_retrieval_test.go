@@ -3,7 +3,7 @@ package rag
 import (
 	"testing"
 
-	"final_assignment_backend_go/project/internal/service"
+	service "final_assignment_backend_go/project/internal/service/rag"
 )
 
 func TestRagHitToResultMapsScoresAndAclMetadata(t *testing.T) {

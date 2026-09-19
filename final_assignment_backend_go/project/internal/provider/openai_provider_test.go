@@ -8,7 +8,7 @@ import (
 	"testing"
 	"time"
 
-	"final_assignment_backend_go/project/internal/service"
+	service "final_assignment_backend_go/project/internal/service/ai"
 )
 
 func TestNewOpenAIProvider(t *testing.T) {

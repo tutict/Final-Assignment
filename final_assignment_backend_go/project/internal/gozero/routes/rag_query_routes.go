@@ -6,7 +6,7 @@ import (
 
 	gozerorag "final_assignment_backend_go/project/internal/gozero/rag"
 	"final_assignment_backend_go/project/internal/gozero/response"
-	"final_assignment_backend_go/project/internal/service"
+	service "final_assignment_backend_go/project/internal/service/rag"
 
 	"github.com/zeromicro/go-zero/rest"
 )

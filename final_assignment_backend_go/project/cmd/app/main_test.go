@@ -8,7 +8,7 @@ import (
 
 	appapi "final_assignment_backend_go/project/internal/app"
 	"final_assignment_backend_go/project/internal/repo"
-	"final_assignment_backend_go/project/internal/service"
+	service "final_assignment_backend_go/project/internal/service/admin"
 
 	"github.com/gin-gonic/gin"
 	"github.com/gorilla/websocket"

@@ -5,7 +5,7 @@ import (
 	"testing"
 	"time"
 
-	"final_assignment_backend_go/project/internal/service"
+	service "final_assignment_backend_go/project/internal/service/rag"
 )
 
 func TestBaiduScraper_Search(t *testing.T) {

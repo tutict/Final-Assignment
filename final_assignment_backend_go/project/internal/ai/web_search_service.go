@@ -7,7 +7,7 @@ import (
 	"sync"
 	"time"
 
-	"final_assignment_backend_go/project/internal/service"
+	service "final_assignment_backend_go/project/internal/service/rag"
 )
 
 // WebSearchService provides web search capabilities with caching

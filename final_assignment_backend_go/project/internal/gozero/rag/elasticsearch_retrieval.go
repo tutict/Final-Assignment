@@ -8,7 +8,7 @@ import (
 	"net/http"
 	"strings"
 
-	"final_assignment_backend_go/project/internal/service"
+	service "final_assignment_backend_go/project/internal/service/rag"
 
 	"github.com/elastic/go-elasticsearch/v8/esapi"
 )

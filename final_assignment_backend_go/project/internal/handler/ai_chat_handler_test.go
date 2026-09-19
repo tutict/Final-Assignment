@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	ragsvc "final_assignment_backend_go/project/internal/service/rag"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -13,7 +14,7 @@ import (
 	"github.com/gin-gonic/gin"
 
 	"final_assignment_backend_go/project/internal/ai"
-	"final_assignment_backend_go/project/internal/service"
+	aisvc "final_assignment_backend_go/project/internal/service/ai"
 )
 
 func TestAiChatHandler_StreamChat(t *testing.T) {
@@ -22,9 +23,9 @@ func TestAiChatHandler_StreamChat(t *testing.T) {
 
 	// Create mock services
 	mockRag := &ai.MockRagQueryService{
-		QueryFunc: func(ctx context.Context, req service.RagQueryRequest) (service.RagQueryResponse, error) {
-			return service.RagQueryResponse{
-				Results: []service.RagRetrievalResult{
+		QueryFunc: func(ctx context.Context, req ragsvc.RagQueryRequest) (ragsvc.RagQueryResponse, error) {
+			return ragsvc.RagQueryResponse{
+				Results: []ragsvc.RagRetrievalResult{
 					{
 						ChunkID: "test-1",
 						Title:   "Test Result",
@@ -36,8 +37,8 @@ func TestAiChatHandler_StreamChat(t *testing.T) {
 	}
 
 	mockProvider := &ai.MockAiProvider{
-		StreamFunc: func(ctx context.Context, prompt string, metadata map[string]any, config service.AiChatConfig) (<-chan service.AiToken, <-chan error) {
-			tokenChan := make(chan service.AiToken, 3)
+		StreamFunc: func(ctx context.Context, prompt string, metadata map[string]any, config aisvc.AiChatConfig) (<-chan aisvc.AiToken, <-chan error) {
+			tokenChan := make(chan aisvc.AiToken, 3)
 			errChan := make(chan error, 1)
 
 			go func() {
@@ -46,7 +47,7 @@ func TestAiChatHandler_StreamChat(t *testing.T) {
 
 				tokens := []string{"你好", "，", "世界"}
 				for i, text := range tokens {
-					tokenChan <- service.AiToken{
+					tokenChan <- aisvc.AiToken{
 						Text:     text,
 						Finished: i == len(tokens)-1,
 					}
@@ -58,7 +59,7 @@ func TestAiChatHandler_StreamChat(t *testing.T) {
 		},
 	}
 
-	config := service.DefaultAiChatConfig()
+	config := aisvc.DefaultAiChatConfig()
 	pipeline, err := ai.NewChatPipeline(mockRag, mockProvider, config)
 	if err != nil {
 		t.Fatalf("NewChatPipeline() error = %v", err)
@@ -68,14 +69,14 @@ func TestAiChatHandler_StreamChat(t *testing.T) {
 
 	tests := []struct {
 		name           string
-		request        service.AiChatStreamRequest
+		request        aisvc.AiChatStreamRequest
 		wantStatusCode int
 		wantSSE        bool
 		wantEvents     int // Minimum number of events
 	}{
 		{
 			name: "valid stream request",
-			request: service.AiChatStreamRequest{
+			request: aisvc.AiChatStreamRequest{
 				Message:    "Hello",
 				SessionKey: "test-session",
 				Metadata: map[string]any{
@@ -88,7 +89,7 @@ func TestAiChatHandler_StreamChat(t *testing.T) {
 		},
 		{
 			name: "stream with RAG",
-			request: service.AiChatStreamRequest{
+			request: aisvc.AiChatStreamRequest{
 				Message:    "交通违章如何处理？",
 				SessionKey: "test-session-2",
 				Metadata: map[string]any{
@@ -179,7 +180,7 @@ func TestAiChatHandler_StreamChat_InvalidRequest(t *testing.T) {
 	// Create minimal handler
 	mockRag := &ai.MockRagQueryService{}
 	mockProvider := &ai.MockAiProvider{}
-	config := service.DefaultAiChatConfig()
+	config := aisvc.DefaultAiChatConfig()
 	pipeline, _ := ai.NewChatPipeline(mockRag, mockProvider, config)
 	handler := NewAiChatHandler(pipeline)
 

@@ -2,6 +2,7 @@ package handler
 
 import (
 	"errors"
+	"final_assignment_backend_go/project/internal/service/payment"
 	"net/http"
 	"strconv"
 	"strings"
@@ -9,7 +10,7 @@ import (
 	"github.com/gin-gonic/gin"
 
 	"final_assignment_backend_go/project/internal/domain"
-	"final_assignment_backend_go/project/internal/service"
+	"final_assignment_backend_go/project/internal/service/statemachine"
 )
 
 // WorkflowServiceContract 处理器侧的工作流服务契约。
@@ -45,7 +46,7 @@ func (c *WorkflowController) triggerOffenseEvent(ctx *gin.Context) {
 		return
 	}
 	event := strings.ToUpper(strings.TrimSpace(ctx.Param("event")))
-	if !service.IsKnownOffenseEvent(event) {
+	if !statemachine.IsKnownOffenseEvent(event) {
 		ctx.JSON(http.StatusBadRequest, gin.H{"error": "unknown offense event: " + event})
 		return
 	}
@@ -70,7 +71,7 @@ func (c *WorkflowController) triggerPaymentEvent(ctx *gin.Context) {
 		return
 	}
 	event := strings.ToUpper(strings.TrimSpace(ctx.Param("event")))
-	if !service.IsKnownPaymentEvent(event) {
+	if !statemachine.IsKnownPaymentEvent(event) {
 		ctx.JSON(http.StatusBadRequest, gin.H{"error": "unknown payment event: " + event})
 		return
 	}
@@ -90,7 +91,7 @@ func (c *WorkflowController) triggerAppealEvent(ctx *gin.Context) {
 		return
 	}
 	event := strings.ToUpper(strings.TrimSpace(ctx.Param("event")))
-	if !service.IsKnownAppealEvent(event) {
+	if !statemachine.IsKnownAppealEvent(event) {
 		ctx.JSON(http.StatusBadRequest, gin.H{"error": "unknown appeal event: " + event})
 		return
 	}
@@ -105,13 +106,13 @@ func (c *WorkflowController) triggerAppealEvent(ctx *gin.Context) {
 // workflowError 对齐 Spring WorkflowController 的错误语义：404 / 208 / 409。
 func workflowError(ctx *gin.Context, err error) {
 	switch {
-	case errors.Is(err, service.ErrWorkflowRecordNotFound),
-		errors.Is(err, service.ErrPaymentNotFound):
+	case errors.Is(err, statemachine.ErrWorkflowRecordNotFound),
+		errors.Is(err, payment.ErrPaymentNotFound):
 		ctx.JSON(http.StatusNotFound, gin.H{"error": "record not found"})
-	case errors.Is(err, service.ErrPaymentDuplicate):
+	case errors.Is(err, payment.ErrPaymentDuplicate):
 		ctx.JSON(http.StatusAlreadyReported, apiOK(nil))
-	case errors.Is(err, service.ErrWorkflowTransitionRejected),
-		errors.Is(err, service.ErrPaymentOptimisticLock):
+	case errors.Is(err, statemachine.ErrWorkflowTransitionRejected),
+		errors.Is(err, payment.ErrPaymentOptimisticLock):
 		ctx.JSON(http.StatusConflict, apiError("WORKFLOW_CONFLICT", "该记录已被处理，请刷新页面查看最新状态"))
 	default:
 		ctx.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})

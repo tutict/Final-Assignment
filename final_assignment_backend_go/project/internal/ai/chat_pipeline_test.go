@@ -2,16 +2,17 @@ package ai
 
 import (
 	"context"
+	ragsvc "final_assignment_backend_go/project/internal/service/rag"
 	"testing"
 	"time"
 
-	"final_assignment_backend_go/project/internal/service"
+	aisvc "final_assignment_backend_go/project/internal/service/ai"
 )
 
 func TestNewChatPipeline(t *testing.T) {
 	mockRag := &MockRagQueryService{}
 	mockProvider := &MockAiProvider{}
-	config := service.DefaultAiChatConfig()
+	config := aisvc.DefaultAiChatConfig()
 
 	pipeline, err := NewChatPipeline(mockRag, mockProvider, config)
 	if err != nil {
@@ -30,15 +31,15 @@ func TestNewChatPipeline(t *testing.T) {
 func TestChatPipeline_Stream(t *testing.T) {
 	tests := []struct {
 		name            string
-		request         service.AiChatStreamRequest
-		mockRagResponse *service.RagQueryResponse
+		request         aisvc.AiChatStreamRequest
+		mockRagResponse *ragsvc.RagQueryResponse
 		mockTokens      []string
 		wantMinEvents   int
 		wantEventTypes  []string
 	}{
 		{
 			name: "basic stream without RAG",
-			request: service.AiChatStreamRequest{
+			request: aisvc.AiChatStreamRequest{
 				Message:    "Hello",
 				SessionKey: "test-session",
 				Metadata: map[string]any{
@@ -51,7 +52,7 @@ func TestChatPipeline_Stream(t *testing.T) {
 		},
 		{
 			name: "stream with RAG context",
-			request: service.AiChatStreamRequest{
+			request: aisvc.AiChatStreamRequest{
 				Message:    "交通违章如何处理？",
 				SessionKey: "test-session",
 				Metadata: map[string]any{
@@ -61,8 +62,8 @@ func TestChatPipeline_Stream(t *testing.T) {
 					"roles":      []string{"DRIVER"},
 				},
 			},
-			mockRagResponse: &service.RagQueryResponse{
-				Results: []service.RagRetrievalResult{
+			mockRagResponse: &ragsvc.RagQueryResponse{
+				Results: []ragsvc.RagRetrievalResult{
 					{
 						Title:      "违章处理流程",
 						Content:    "违章处理包括查询、确认、缴纳",
@@ -76,7 +77,7 @@ func TestChatPipeline_Stream(t *testing.T) {
 		},
 		{
 			name: "stream with conversation window",
-			request: service.AiChatStreamRequest{
+			request: aisvc.AiChatStreamRequest{
 				Message:    "继续说",
 				SessionKey: "test-session",
 				Metadata: map[string]any{
@@ -98,15 +99,15 @@ func TestChatPipeline_Stream(t *testing.T) {
 			// Setup mock RAG service
 			mockRag := &MockRagQueryService{}
 			if tt.mockRagResponse != nil {
-				mockRag.QueryFunc = func(ctx context.Context, req service.RagQueryRequest) (service.RagQueryResponse, error) {
+				mockRag.QueryFunc = func(ctx context.Context, req ragsvc.RagQueryRequest) (ragsvc.RagQueryResponse, error) {
 					return *tt.mockRagResponse, nil
 				}
 			}
 
 			// Setup mock AI provider
 			mockProvider := &MockAiProvider{
-				StreamFunc: func(ctx context.Context, prompt string, metadata map[string]any, config service.AiChatConfig) (<-chan service.AiToken, <-chan error) {
-					tokenChan := make(chan service.AiToken, len(tt.mockTokens))
+				StreamFunc: func(ctx context.Context, prompt string, metadata map[string]any, config aisvc.AiChatConfig) (<-chan aisvc.AiToken, <-chan error) {
+					tokenChan := make(chan aisvc.AiToken, len(tt.mockTokens))
 					errChan := make(chan error, 1)
 
 					go func() {
@@ -114,7 +115,7 @@ func TestChatPipeline_Stream(t *testing.T) {
 						defer close(errChan)
 
 						for i, text := range tt.mockTokens {
-							tokenChan <- service.AiToken{
+							tokenChan <- aisvc.AiToken{
 								Text:     text,
 								Finished: i == len(tt.mockTokens)-1,
 							}
@@ -125,7 +126,7 @@ func TestChatPipeline_Stream(t *testing.T) {
 				},
 			}
 
-			config := service.DefaultAiChatConfig()
+			config := aisvc.DefaultAiChatConfig()
 			pipeline, err := NewChatPipeline(mockRag, mockProvider, config)
 			if err != nil {
 				t.Fatalf("NewChatPipeline() error = %v", err)
@@ -141,7 +142,7 @@ func TestChatPipeline_Stream(t *testing.T) {
 			}
 
 			// Collect events
-			var events []service.AiChatStreamEvent
+			var events []aisvc.AiChatStreamEvent
 			for event := range eventChan {
 				events = append(events, event)
 			}
@@ -167,8 +168,8 @@ func TestChatPipeline_Stream(t *testing.T) {
 			// Verify last event is "done"
 			if len(events) > 0 {
 				lastEvent := events[len(events)-1]
-				if lastEvent.Type != service.ChatStreamEventTypeDone {
-					t.Errorf("ChatPipeline.Stream() last event type = %s, want %s", lastEvent.Type, service.ChatStreamEventTypeDone)
+				if lastEvent.Type != aisvc.ChatStreamEventTypeDone {
+					t.Errorf("ChatPipeline.Stream() last event type = %s, want %s", lastEvent.Type, aisvc.ChatStreamEventTypeDone)
 				}
 			}
 		})

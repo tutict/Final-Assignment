@@ -8,7 +8,7 @@ import (
 	"time"
 
 	"final_assignment_backend_go/project/internal/domain"
-	"final_assignment_backend_go/project/internal/service"
+	service "final_assignment_backend_go/project/internal/service/rag"
 
 	"gorm.io/gorm"
 )

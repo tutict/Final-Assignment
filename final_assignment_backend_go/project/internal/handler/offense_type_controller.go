@@ -8,7 +8,7 @@ import (
 	"github.com/gin-gonic/gin"
 
 	"final_assignment_backend_go/project/internal/domain"
-	"final_assignment_backend_go/project/internal/service"
+	service "final_assignment_backend_go/project/internal/service/offense"
 )
 
 // OffenseTypeDictServiceContract 处理器侧的违法类型字典服务契约。

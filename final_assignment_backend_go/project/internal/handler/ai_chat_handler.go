@@ -11,7 +11,7 @@ import (
 	"github.com/gin-gonic/gin"
 
 	"final_assignment_backend_go/project/internal/ai"
-	"final_assignment_backend_go/project/internal/service"
+	service "final_assignment_backend_go/project/internal/service/ai"
 )
 
 // AiChatHandler handles AI chat streaming requests

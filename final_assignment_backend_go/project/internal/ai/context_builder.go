@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"strings"
 
-	"final_assignment_backend_go/project/internal/service"
+	service "final_assignment_backend_go/project/internal/service/rag"
 )
 
 // ContextBuilder formats RAG retrieval results into a readable context string for prompts

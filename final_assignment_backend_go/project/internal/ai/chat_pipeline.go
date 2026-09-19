@@ -2,25 +2,26 @@ package ai
 
 import (
 	"context"
+	ragsvc "final_assignment_backend_go/project/internal/service/rag"
 	"fmt"
 
-	"final_assignment_backend_go/project/internal/service"
+	aisvc "final_assignment_backend_go/project/internal/service/ai"
 )
 
 // ChatPipeline orchestrates the complete AI chat flow:
 // RAG retrieval → prompt assembly → streaming response
 type ChatPipeline struct {
 	promptAssembler *PromptAssembler
-	ragQueryService service.AiChatRagQuerier
-	aiProvider      service.AiProvider
-	config          service.AiChatConfig
+	ragQueryService aisvc.AiChatRagQuerier
+	aiProvider      aisvc.AiProvider
+	config          aisvc.AiChatConfig
 }
 
 // NewChatPipeline creates a new ChatPipeline with all dependencies
 func NewChatPipeline(
-	ragQueryService service.AiChatRagQuerier,
-	aiProvider service.AiProvider,
-	config service.AiChatConfig,
+	ragQueryService aisvc.AiChatRagQuerier,
+	aiProvider aisvc.AiProvider,
+	config aisvc.AiChatConfig,
 ) (*ChatPipeline, error) {
 	promptAssembler, err := NewPromptAssembler()
 	if err != nil {
@@ -41,8 +42,8 @@ func NewChatPipeline(
 // Stream orchestrates the complete chat pipeline and returns a stream of events
 func (cp *ChatPipeline) Stream(
 	ctx context.Context,
-	req service.AiChatStreamRequest,
-) (<-chan service.AiChatStreamEvent, error) {
+	req aisvc.AiChatStreamRequest,
+) (<-chan aisvc.AiChatStreamEvent, error) {
 	// 1. Extract metadata
 	metadata := req.Metadata
 	if metadata == nil {
@@ -50,7 +51,7 @@ func (cp *ChatPipeline) Stream(
 	}
 
 	// 2. Check if RAG is enabled
-	var ragResults []service.RagRetrievalResult
+	var ragResults []ragsvc.RagRetrievalResult
 	if cp.isRagEnabled(metadata) && cp.ragQueryService != nil {
 		ragRequest := cp.buildRagRequest(req.Message, metadata)
 		ragResponse, err := cp.ragQueryService.Query(ctx, ragRequest)
@@ -93,9 +94,9 @@ func (cp *ChatPipeline) isRagEnabled(metadata map[string]any) bool {
 }
 
 // buildRagRequest constructs a RAG query request from metadata
-func (cp *ChatPipeline) buildRagRequest(message string, metadata map[string]any) service.RagQueryRequest {
+func (cp *ChatPipeline) buildRagRequest(message string, metadata map[string]any) ragsvc.RagQueryRequest {
 	defaultTopK := 10
-	req := service.RagQueryRequest{
+	req := ragsvc.RagQueryRequest{
 		Query: message,
 		TopK:  &defaultTopK, // Default
 	}
@@ -209,12 +210,12 @@ func (cp *ChatPipeline) streamFromProvider(
 	prompt string,
 	sessionKey string,
 	metadata map[string]any,
-) (<-chan service.AiChatStreamEvent, error) {
+) (<-chan aisvc.AiChatStreamEvent, error) {
 	// Get token stream from provider
 	tokenChan, errChan := cp.aiProvider.Stream(ctx, prompt, metadata, cp.config)
 
 	// Create output channel
-	outChan := make(chan service.AiChatStreamEvent, 10)
+	outChan := make(chan aisvc.AiChatStreamEvent, 10)
 
 	// Launch goroutine to convert tokens to events
 	go func() {
@@ -223,8 +224,8 @@ func (cp *ChatPipeline) streamFromProvider(
 		for {
 			select {
 			case <-ctx.Done():
-				outChan <- service.AiChatStreamEvent{
-					Type:       service.ChatStreamEventTypeError,
+				outChan <- aisvc.AiChatStreamEvent{
+					Type:       aisvc.ChatStreamEventTypeError,
 					SessionKey: sessionKey,
 					Payload:    "Request cancelled",
 				}
@@ -235,8 +236,8 @@ func (cp *ChatPipeline) streamFromProvider(
 					continue
 				}
 				if err != nil {
-					outChan <- service.AiChatStreamEvent{
-						Type:       service.ChatStreamEventTypeError,
+					outChan <- aisvc.AiChatStreamEvent{
+						Type:       aisvc.ChatStreamEventTypeError,
 						SessionKey: sessionKey,
 						Payload:    err.Error(),
 					}
@@ -245,8 +246,8 @@ func (cp *ChatPipeline) streamFromProvider(
 			case token, ok := <-tokenChan:
 				if !ok {
 					// Stream finished normally
-					outChan <- service.AiChatStreamEvent{
-						Type:       service.ChatStreamEventTypeDone,
+					outChan <- aisvc.AiChatStreamEvent{
+						Type:       aisvc.ChatStreamEventTypeDone,
 						SessionKey: sessionKey,
 					}
 					return
@@ -254,8 +255,8 @@ func (cp *ChatPipeline) streamFromProvider(
 
 				// Send token event
 				tokenText := token.Text
-				outChan <- service.AiChatStreamEvent{
-					Type:       service.ChatStreamEventTypeToken,
+				outChan <- aisvc.AiChatStreamEvent{
+					Type:       aisvc.ChatStreamEventTypeToken,
 					SessionKey: sessionKey,
 					Token:      &tokenText,
 					Payload:    token,
@@ -263,8 +264,8 @@ func (cp *ChatPipeline) streamFromProvider(
 
 				// Check if this is the last token
 				if token.Finished {
-					outChan <- service.AiChatStreamEvent{
-						Type:       service.ChatStreamEventTypeDone,
+					outChan <- aisvc.AiChatStreamEvent{
+						Type:       aisvc.ChatStreamEventTypeDone,
 						SessionKey: sessionKey,
 					}
 					return
@@ -277,8 +278,8 @@ func (cp *ChatPipeline) streamFromProvider(
 }
 
 // normalizeAiChatConfig ensures all config fields have valid values
-func normalizeAiChatConfig(config service.AiChatConfig) service.AiChatConfig {
-	defaults := service.DefaultAiChatConfig()
+func normalizeAiChatConfig(config aisvc.AiChatConfig) aisvc.AiChatConfig {
+	defaults := aisvc.DefaultAiChatConfig()
 
 	if config.PromptContextTokenBudget <= 0 {
 		config.PromptContextTokenBudget = defaults.PromptContextTokenBudget

@@ -20,16 +20,19 @@ import (
 	redisconfig "final_assignment_backend_go/project/configs/redis"
 	"final_assignment_backend_go/project/global_exception"
 	"final_assignment_backend_go/project/internal/ai"
+	appapi "final_assignment_backend_go/project/internal/app"
 	"final_assignment_backend_go/project/internal/auth"
 	aiconfig "final_assignment_backend_go/project/internal/config"
 	"final_assignment_backend_go/project/internal/domain"
 	gozeroconfig "final_assignment_backend_go/project/internal/gozero/config"
 	gozerorag "final_assignment_backend_go/project/internal/gozero/rag"
-	appapi "final_assignment_backend_go/project/internal/app"
 	"final_assignment_backend_go/project/internal/handler"
 	"final_assignment_backend_go/project/internal/provider"
 	"final_assignment_backend_go/project/internal/repo"
-	"final_assignment_backend_go/project/internal/service"
+	"final_assignment_backend_go/project/internal/service/admin"
+	aisvc "final_assignment_backend_go/project/internal/service/ai"
+	authsvc "final_assignment_backend_go/project/internal/service/auth"
+	ragsvc "final_assignment_backend_go/project/internal/service/rag"
 
 	"github.com/gin-gonic/gin"
 	"github.com/gorilla/websocket"
@@ -75,13 +78,13 @@ func main() {
 	}
 
 	// 将 RAG Runtime 转换为 AiChatRagQuerier
-	var ragQuerier service.AiChatRagQuerier
+	var ragQuerier aisvc.AiChatRagQuerier
 	if ragRuntime.Enabled && ragRuntime.Query != nil {
 		ragQuerier = ragRuntime.Query
 	}
 
 	// 转换配置 - 使用默认值
-	chatServiceConfig := service.AiChatConfig{
+	chatServiceConfig := aisvc.AiChatConfig{
 		StreamingEnabled:          true,
 		ProviderPrimary:           aiChatConfig.ProviderType,
 		ProviderTimeout:           30 * time.Second,
@@ -120,16 +123,16 @@ func main() {
 		log.Printf("[WARNING] AutoMigrate refresh_tokens failed: %v", err)
 	}
 	refreshTokenRepo := repo.NewRefreshTokenRepo(db)
-	refreshTokenService := service.NewRefreshTokenService(refreshTokenRepo, pqcCrypto, envInt64OrDefault("JWT_REFRESH_EXPIRATION", 604800))
+	refreshTokenService := authsvc.NewRefreshTokenService(refreshTokenRepo, pqcCrypto, envInt64OrDefault("JWT_REFRESH_EXPIRATION", 604800))
 	// 黑名单 fail-open 默认值对齐 Spring 的 application-dev.yml
 	// (app.security.token-blacklist.fail-open: true): Redis 被禁用 (REDIS_ENABLED=false,
 	// no-op client) 或不可用时放行, 否则本地开发 (无 Redis) 里每个带 access token
 	// 的请求都会被误判为已撤销 → 登录后全部 401。生产可显式设 TOKEN_BLACKLIST_FAIL_OPEN=false 保持 fail-closed。
-	blacklistService := service.NewTokenBlacklistService(redisCfg.Client, envOrDefault("TOKEN_BLACKLIST_FAIL_OPEN", "true") == "true")
+	blacklistService := authsvc.NewTokenBlacklistService(redisCfg.Client, envOrDefault("TOKEN_BLACKLIST_FAIL_OPEN", "true") == "true")
 
 	// 初始化用户和认证服务
-	userService := service.NewUserManagementService(repo.NewUserManagementRepo(db))
-	authService := service.NewAuthWsService(userService, tokenProvider)
+	userService := admin.NewUserManagementService(repo.NewUserManagementRepo(db))
+	authService := authsvc.NewAuthWsService(userService, tokenProvider)
 	authService.SetRefreshTokenService(refreshTokenService)
 	authService.SetTokenBlacklistService(blacklistService)
 	defer tokenProvider.StopRotation()
@@ -406,14 +409,14 @@ func splitColon(s string) []string {
 	return out
 }
 
-func optionalPrincipal(provider *authcfg.TokenProvider, blacklist *service.TokenBlacklistService) gin.HandlerFunc {
+func optionalPrincipal(provider *authcfg.TokenProvider, blacklist *authsvc.TokenBlacklistService) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		_, _ = attachPrincipal(c, provider, blacklist)
 		c.Next()
 	}
 }
 
-func requiredPrincipal(provider *authcfg.TokenProvider, blacklist *service.TokenBlacklistService) gin.HandlerFunc {
+func requiredPrincipal(provider *authcfg.TokenProvider, blacklist *authsvc.TokenBlacklistService) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		if ok, err := attachPrincipal(c, provider, blacklist); !ok {
 			status := http.StatusUnauthorized
@@ -438,7 +441,7 @@ func accessPolicy() gin.HandlerFunc {
 	}
 }
 
-func attachPrincipal(c *gin.Context, provider *authcfg.TokenProvider, blacklist *service.TokenBlacklistService) (bool, error) {
+func attachPrincipal(c *gin.Context, provider *authcfg.TokenProvider, blacklist *authsvc.TokenBlacklistService) (bool, error) {
 	token := authorizationToken(c.GetHeader("Authorization"))
 	if token == "" {
 		return false, nil
@@ -584,7 +587,7 @@ func envDurationOrDefault(name string, fallback time.Duration) time.Duration {
 // ragQueryHandler 处理 RAG 查询请求
 func ragQueryHandler(runtime *gozerorag.Runtime) gin.HandlerFunc {
 	return func(c *gin.Context) {
-		var request service.RagQueryRequest
+		var request ragsvc.RagQueryRequest
 		if err := c.ShouldBindJSON(&request); err != nil {
 			c.JSON(http.StatusBadRequest, gin.H{
 				"success": false,
@@ -594,8 +597,8 @@ func ragQueryHandler(runtime *gozerorag.Runtime) gin.HandlerFunc {
 		}
 
 		if runtime == nil || !runtime.Enabled || runtime.Query == nil {
-			c.JSON(http.StatusOK, service.RagQueryResponse{
-				Results: []service.RagRetrievalResult{},
+			c.JSON(http.StatusOK, ragsvc.RagQueryResponse{
+				Results: []ragsvc.RagRetrievalResult{},
 			})
 			return
 		}

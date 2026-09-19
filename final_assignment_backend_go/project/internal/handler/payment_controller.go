@@ -2,13 +2,14 @@ package handler
 
 import (
 	"errors"
+	"final_assignment_backend_go/project/internal/service/statemachine"
 	"net/http"
 	"strconv"
 
 	"github.com/gin-gonic/gin"
 
 	"final_assignment_backend_go/project/internal/domain"
-	"final_assignment_backend_go/project/internal/service"
+	service "final_assignment_backend_go/project/internal/service/payment"
 )
 
 // PaymentService 处理器侧的支付记录服务契约。
@@ -345,15 +346,15 @@ func (c *PaymentRecordController) canAccessDriver(ctx *gin.Context, driverID int
 func resolvePaymentStateParam(state string) string {
 	switch state {
 	case "Unpaid", "unpaid", "UNPAID":
-		return service.PaymentStateUnpaid
+		return statemachine.PaymentStateUnpaid
 	case "Partial", "partial", "PARTIAL":
-		return service.PaymentStatePartial
+		return statemachine.PaymentStatePartial
 	case "Paid", "paid", "PAID":
-		return service.PaymentStatePaid
+		return statemachine.PaymentStatePaid
 	case "Overdue", "overdue", "OVERDUE":
-		return service.PaymentStateOverdue
+		return statemachine.PaymentStateOverdue
 	case "Waived", "waived", "WAIVED":
-		return service.PaymentStateWaived
+		return statemachine.PaymentStateWaived
 	default:
 		return ""
 	}

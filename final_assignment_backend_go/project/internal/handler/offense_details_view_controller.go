@@ -7,12 +7,13 @@ import (
 
 	"github.com/gin-gonic/gin"
 
-	"final_assignment_backend_go/project/internal/service"
+	"final_assignment_backend_go/project/internal/service/offense"
+	"final_assignment_backend_go/project/internal/service/shared"
 )
 
 // OffenseDetailsViewServiceContract 处理器侧的违法详情视图服务契约。
 type OffenseDetailsViewServiceContract interface {
-	GetOffenseDetail(offenseID int) (*service.OffenseDetailResponse, error)
+	GetOffenseDetail(offenseID int) (*offense.OffenseDetailResponse, error)
 }
 
 // OffenseDetailsViewController 对齐 Spring 的 OffenseDetailsController（/api/view/offenses）。
@@ -40,7 +41,7 @@ func (c *OffenseDetailsViewController) getDetails(ctx *gin.Context) {
 	}
 	detail, err := c.Service.GetOffenseDetail(offenseID)
 	if err != nil {
-		if errors.Is(err, service.ErrNotFound) {
+		if errors.Is(err, shared.ErrNotFound) {
 			ctx.JSON(http.StatusNotFound, apiError("OFFENSE_NOT_FOUND", "Offense not found: "+ctx.Param("offenseId")))
 			return
 		}

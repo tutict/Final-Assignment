@@ -9,7 +9,7 @@ import (
 	"final_assignment_backend_go/project/internal/domain"
 	"final_assignment_backend_go/project/internal/gozero/config"
 	"final_assignment_backend_go/project/internal/repo"
-	"final_assignment_backend_go/project/internal/service"
+	service "final_assignment_backend_go/project/internal/service/rag"
 
 	elasticsearch "github.com/elastic/go-elasticsearch/v8"
 	"gorm.io/driver/mysql"
