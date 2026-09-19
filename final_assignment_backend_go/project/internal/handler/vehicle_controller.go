@@ -56,7 +56,7 @@ func (vc *VehicleController) SearchVehicles(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
-	c.JSON(http.StatusOK, vc.vehicleService.FilterForRequester(c.GetString("username"), elevatedRequester(c), vehicles))
+	c.JSON(http.StatusOK, vc.vehicleService.FilterForRequester(c.GetString("username"), Unscoped(c, ResourceVehicles), vehicles))
 }
 
 func (vc *VehicleController) GetLicensePlateAutocomplete(c *gin.Context) {
@@ -84,8 +84,7 @@ func (vc *VehicleController) GetVehicleTypeAutocomplete(c *gin.Context) {
 }
 
 func (vc *VehicleController) GetLicensePlateAutocompleteGlobally(c *gin.Context) {
-	if !elevatedRequester(c) {
-		c.JSON(http.StatusForbidden, gin.H{"error": "access denied"})
+	if !RequireUnscoped(c, ResourceVehicles) {
 		return
 	}
 	prefix := c.Query("licensePlate")
@@ -96,8 +95,7 @@ func (vc *VehicleController) GetLicensePlateAutocompleteGlobally(c *gin.Context)
 }
 
 func (vc *VehicleController) GetVehicleTypeAutocompleteGlobally(c *gin.Context) {
-	if !elevatedRequester(c) {
-		c.JSON(http.StatusForbidden, gin.H{"error": "access denied"})
+	if !RequireUnscoped(c, ResourceVehicles) {
 		return
 	}
 	prefix := c.Query("vehicleType")
@@ -108,7 +106,7 @@ func (vc *VehicleController) GetVehicleTypeAutocompleteGlobally(c *gin.Context) 
 }
 
 func (vc *VehicleController) CreateVehicle(c *gin.Context) {
-	if !requireStaff(c) {
+	if !RequireWrite(c, ResourceVehicles) {
 		return
 	}
 	var vehicle domain.VehicleInformation
@@ -132,7 +130,7 @@ func (vc *VehicleController) CreateVehicle(c *gin.Context) {
 func (vc *VehicleController) GetVehicleById(c *gin.Context) {
 	id, _ := strconv.Atoi(c.Param("vehicleId"))
 	vehicle, err := vc.vehicleService.GetById(id)
-	if err != nil || !vc.vehicleService.CanAccess(c.GetString("username"), elevatedRequester(c), vehicle) {
+	if err != nil || !vc.vehicleService.CanAccess(c.GetString("username"), Unscoped(c, ResourceVehicles), vehicle) {
 		c.JSON(http.StatusNotFound, gin.H{"error": "vehicle not found"})
 		return
 	}
@@ -142,7 +140,7 @@ func (vc *VehicleController) GetVehicleById(c *gin.Context) {
 func (vc *VehicleController) GetVehicleByLicensePlate(c *gin.Context) {
 	lp := c.Param("licensePlate")
 	vehicle, err := vc.vehicleService.GetByLicensePlate(lp)
-	if err != nil || !vc.vehicleService.CanAccess(c.GetString("username"), elevatedRequester(c), vehicle) {
+	if err != nil || !vc.vehicleService.CanAccess(c.GetString("username"), Unscoped(c, ResourceVehicles), vehicle) {
 		c.JSON(http.StatusNotFound, gin.H{"error": "vehicle not found"})
 		return
 	}
@@ -150,19 +148,19 @@ func (vc *VehicleController) GetVehicleByLicensePlate(c *gin.Context) {
 }
 
 func (vc *VehicleController) GetAllVehicles(c *gin.Context) {
-	c.JSON(http.StatusOK, vc.vehicleService.ListForRequester(c.GetString("username"), elevatedRequester(c)))
+	c.JSON(http.StatusOK, vc.vehicleService.ListForRequester(c.GetString("username"), Unscoped(c, ResourceVehicles)))
 }
 
 func (vc *VehicleController) GetByType(c *gin.Context) {
 	typ := c.Param("vehicleType")
 	list := vc.vehicleService.GetByType(typ)
-	c.JSON(http.StatusOK, vc.vehicleService.FilterForRequester(c.GetString("username"), elevatedRequester(c), list))
+	c.JSON(http.StatusOK, vc.vehicleService.FilterForRequester(c.GetString("username"), Unscoped(c, ResourceVehicles), list))
 }
 
 func (vc *VehicleController) GetByOwnerName(c *gin.Context) {
 	name := c.Param("ownerName")
 	list := vc.vehicleService.GetByOwnerName(name)
-	c.JSON(http.StatusOK, vc.vehicleService.FilterForRequester(c.GetString("username"), elevatedRequester(c), list))
+	c.JSON(http.StatusOK, vc.vehicleService.FilterForRequester(c.GetString("username"), Unscoped(c, ResourceVehicles), list))
 }
 
 func (vc *VehicleController) GetByDriverId(c *gin.Context) {
@@ -171,7 +169,7 @@ func (vc *VehicleController) GetByDriverId(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "driverId must be a positive integer"})
 		return
 	}
-	if !elevatedRequester(c) {
+	if !Unscoped(c, ResourceVehicles) {
 		c.JSON(http.StatusOK, vc.vehicleService.ListForRequester(c.GetString("username"), false))
 		return
 	}
@@ -179,8 +177,7 @@ func (vc *VehicleController) GetByDriverId(c *gin.Context) {
 }
 
 func (vc *VehicleController) GetByIdCardNumber(c *gin.Context) {
-	if !elevatedRequester(c) {
-		c.JSON(http.StatusForbidden, gin.H{"error": "access denied"})
+	if !RequireUnscoped(c, ResourceVehicles) {
 		return
 	}
 	idCard := c.Param("idCardNumber")
@@ -191,11 +188,11 @@ func (vc *VehicleController) GetByIdCardNumber(c *gin.Context) {
 func (vc *VehicleController) GetByStatus(c *gin.Context) {
 	status := c.Param("status")
 	list := vc.vehicleService.GetByStatus(status)
-	c.JSON(http.StatusOK, vc.vehicleService.FilterForRequester(c.GetString("username"), elevatedRequester(c), list))
+	c.JSON(http.StatusOK, vc.vehicleService.FilterForRequester(c.GetString("username"), Unscoped(c, ResourceVehicles), list))
 }
 
 func (vc *VehicleController) UpdateVehicle(c *gin.Context) {
-	if !requireStaff(c) {
+	if !RequireWrite(c, ResourceVehicles) {
 		return
 	}
 	var vehicle domain.VehicleInformation
@@ -219,7 +216,7 @@ func (vc *VehicleController) UpdateVehicle(c *gin.Context) {
 }
 
 func (vc *VehicleController) DeleteById(c *gin.Context) {
-	if !requireStaff(c) {
+	if !RequireWrite(c, ResourceVehicles) {
 		return
 	}
 	id, _ := strconv.Atoi(c.Param("vehicleId"))
@@ -231,7 +228,7 @@ func (vc *VehicleController) DeleteById(c *gin.Context) {
 }
 
 func (vc *VehicleController) DeleteByLicensePlate(c *gin.Context) {
-	if !requireStaff(c) {
+	if !RequireWrite(c, ResourceVehicles) {
 		return
 	}
 	lp := c.Param("licensePlate")

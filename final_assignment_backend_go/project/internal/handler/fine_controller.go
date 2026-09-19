@@ -4,8 +4,8 @@ import (
 	"fmt"
 	"log"
 	"net/http"
-	"strings"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/gin-gonic/gin"
@@ -24,7 +24,7 @@ func NewFineController(fineService FineInformationService) *FineController {
 
 // CreateFine POST /api/fines
 func (fc *FineController) CreateFine(c *gin.Context) {
-	if !requireFinanceStaff(c) {
+	if !RequireWrite(c, ResourceFines) {
 		return
 	}
 	var fine domain.FineInformation
@@ -47,7 +47,7 @@ func (fc *FineController) CreateFine(c *gin.Context) {
 func (fc *FineController) GetFineByID(c *gin.Context) {
 	fineID := c.Param("fineId")
 	fine, err := fc.FineService.GetFineByID(fineID)
-	if err != nil || !fc.FineService.CanAccess(c.GetString("username"), elevatedRequester(c), fine) {
+	if err != nil || !fc.FineService.CanAccess(c.GetString("username"), Unscoped(c, ResourceFines), fine) {
 		c.JSON(http.StatusNotFound, gin.H{"error": "Fine not found"})
 		return
 	}
@@ -56,7 +56,7 @@ func (fc *FineController) GetFineByID(c *gin.Context) {
 
 // GetAllFines GET /api/fines
 func (fc *FineController) GetAllFines(c *gin.Context) {
-	fines, err := fc.FineService.ListForRequester(c.GetString("username"), elevatedRequester(c))
+	fines, err := fc.FineService.ListForRequester(c.GetString("username"), Unscoped(c, ResourceFines))
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to get fines"})
 		return
@@ -66,7 +66,7 @@ func (fc *FineController) GetAllFines(c *gin.Context) {
 
 // UpdateFine PUT /api/fines/:fineId
 func (fc *FineController) UpdateFine(c *gin.Context) {
-	if !requireFinanceStaff(c) {
+	if !RequireWrite(c, ResourceFines) {
 		return
 	}
 	fineID := c.Param("fineId")
@@ -95,7 +95,7 @@ func (fc *FineController) UpdateFine(c *gin.Context) {
 
 // DeleteFine DELETE /api/fines/:fineId
 func (fc *FineController) DeleteFine(c *gin.Context) {
-	if !requireFinanceStaff(c) {
+	if !RequireWrite(c, ResourceFines) {
 		return
 	}
 	fineID := c.Param("fineId")
@@ -117,7 +117,7 @@ func (fc *FineController) GetFinesByPayee(c *gin.Context) {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to get fines"})
 		return
 	}
-	c.JSON(http.StatusOK, fc.FineService.FilterForRequester(c.GetString("username"), elevatedRequester(c), fines))
+	c.JSON(http.StatusOK, fc.FineService.FilterForRequester(c.GetString("username"), Unscoped(c, ResourceFines), fines))
 }
 
 // GetFinesByTimeRange GET /api/fines/timeRange?startTime=1970-01-01&endTime=2100-01-01
@@ -137,14 +137,14 @@ func (fc *FineController) GetFinesByTimeRange(c *gin.Context) {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to get fines"})
 		return
 	}
-	c.JSON(http.StatusOK, fc.FineService.FilterForRequester(c.GetString("username"), elevatedRequester(c), fines))
+	c.JSON(http.StatusOK, fc.FineService.FilterForRequester(c.GetString("username"), Unscoped(c, ResourceFines), fines))
 }
 
 // GetFineByReceiptNumber GET /api/fines/receiptNumber/:receiptNumber
 func (fc *FineController) GetFineByReceiptNumber(c *gin.Context) {
 	receiptNumber := c.Param("receiptNumber")
 	fine, err := fc.FineService.GetFineByReceiptNumber(receiptNumber)
-	if err != nil || !fc.FineService.CanAccess(c.GetString("username"), elevatedRequester(c), fine) {
+	if err != nil || !fc.FineService.CanAccess(c.GetString("username"), Unscoped(c, ResourceFines), fine) {
 		c.JSON(http.StatusNotFound, gin.H{"error": "Fine not found"})
 		return
 	}
@@ -177,9 +177,8 @@ func (fc *FineController) SearchByFineTimeRange(c *gin.Context) {
 		return
 	}
 
-	c.JSON(http.StatusOK, fc.FineService.FilterForRequester(c.GetString("username"), elevatedRequester(c), results))
+	c.JSON(http.StatusOK, fc.FineService.FilterForRequester(c.GetString("username"), Unscoped(c, ResourceFines), results))
 }
-
 
 func (fc *FineController) GetFinesByDriverID(c *gin.Context) {
 	driverID, err := strconv.Atoi(c.Param("driverId"))
@@ -187,7 +186,7 @@ func (fc *FineController) GetFinesByDriverID(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "driverId must be a positive integer"})
 		return
 	}
-	if !elevatedRequester(c) {
+	if !Unscoped(c, ResourceFines) {
 		fines, err := fc.FineService.ListForRequester(c.GetString("username"), false)
 		if err != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to get fines"})
@@ -215,7 +214,7 @@ func (fc *FineController) GetFinesByOffenseID(c *gin.Context) {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to get fines"})
 		return
 	}
-	c.JSON(http.StatusOK, fc.FineService.FilterForRequester(c.GetString("username"), elevatedRequester(c), fines))
+	c.JSON(http.StatusOK, fc.FineService.FilterForRequester(c.GetString("username"), Unscoped(c, ResourceFines), fines))
 }
 
 func (fc *FineController) SearchByPaymentStatus(c *gin.Context) {
@@ -227,7 +226,7 @@ func (fc *FineController) SearchByPaymentStatus(c *gin.Context) {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to get fines"})
 		return
 	}
-	c.JSON(http.StatusOK, fc.FineService.FilterForRequester(c.GetString("username"), elevatedRequester(c), fines))
+	c.JSON(http.StatusOK, fc.FineService.FilterForRequester(c.GetString("username"), Unscoped(c, ResourceFines), fines))
 }
 
 func parseFlexibleTime(value string) (time.Time, error) {

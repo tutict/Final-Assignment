@@ -432,13 +432,7 @@ func requiredPrincipal(provider *authcfg.TokenProvider, blacklist *authsvc.Token
 }
 
 func accessPolicy() gin.HandlerFunc {
-	return func(c *gin.Context) {
-		if handler.RequiresAdminPath(c.Request.URL.Path) && !handler.AllowsGovernanceRole(c) {
-			c.AbortWithStatusJSON(http.StatusForbidden, gin.H{"error": "access denied"})
-			return
-		}
-		c.Next()
-	}
+	return handler.AccessPolicy()
 }
 
 func attachPrincipal(c *gin.Context, provider *authcfg.TokenProvider, blacklist *authsvc.TokenBlacklistService) (bool, error) {
@@ -488,63 +482,6 @@ func normalizeRoles(roles []string) []string {
 		}
 	}
 	return normalized
-}
-
-func hasAnyRole(c *gin.Context, allowed ...string) bool {
-	allowedSet := map[string]bool{}
-	for _, role := range allowed {
-		allowedSet[strings.ToUpper(strings.TrimSpace(strings.TrimPrefix(role, "ROLE_")))] = true
-	}
-	if role := c.GetString("role"); allowedSet[strings.ToUpper(strings.TrimSpace(strings.TrimPrefix(role, "ROLE_")))] {
-		return true
-	}
-	if roles, ok := c.Get("roles"); ok {
-		if values, ok := roles.([]string); ok {
-			for _, role := range values {
-				if allowedSet[strings.ToUpper(strings.TrimSpace(strings.TrimPrefix(role, "ROLE_")))] {
-					return true
-				}
-			}
-		}
-	}
-	if roles, ok := c.Get("normalizedRoles"); ok {
-		if values, ok := roles.([]string); ok {
-			for _, role := range values {
-				if allowedSet[strings.ToUpper(strings.TrimSpace(role))] {
-					return true
-				}
-			}
-		}
-	}
-	return false
-}
-
-func requiresAdmin(path string) bool {
-	if path == "/api/users/me" || path == "/api/users/me/password" {
-		return false
-	}
-	adminPrefixes := []string{
-		"/api/auth/users",
-		"/api/rag/admin",
-		"/api/users",
-		"/api/roles",
-		"/api/permissions",
-		"/api/loginLogs",
-		"/api/operationLogs",
-		"/api/systemLogs",
-		"/api/systemSettings",
-		"/api/backups",
-		"/api/logs",
-		"/api/system/logs",
-		"/api/system/settings",
-		"/api/system/backup",
-	}
-	for _, prefix := range adminPrefixes {
-		if path == prefix || strings.HasPrefix(path, prefix+"/") {
-			return true
-		}
-	}
-	return false
 }
 
 func envOrDefault(name string, fallback string) string {

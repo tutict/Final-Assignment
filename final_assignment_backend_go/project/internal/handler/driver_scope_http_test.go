@@ -55,15 +55,15 @@ type stubUsers struct{}
 func (stubUsers) CheckAndInsertIdempotency(string, *domain.UserManagement, string) error {
 	return nil
 }
-func (stubUsers) DeleteUserByID(string) error          { return nil }
-func (stubUsers) DeleteUserByUsername(string) error    { return nil }
+func (stubUsers) DeleteUserByID(string) error       { return nil }
+func (stubUsers) DeleteUserByUsername(string) error { return nil }
 func (stubUsers) GetAllUsers() ([]domain.UserManagement, error) {
 	return nil, nil
 }
 func (stubUsers) GetPhoneNumbersByPrefixGlobally(string) ([]string, error) { return nil, nil }
-func (stubUsers) GetStatusesByPrefixGlobally(string) ([]string, error)    { return nil, nil }
-func (stubUsers) GetUserByID(string) (*domain.UserManagement, error)      { return nil, nil }
-func (stubUsers) GetUserById(int) (*domain.UserManagement, error)         { return nil, nil }
+func (stubUsers) GetStatusesByPrefixGlobally(string) ([]string, error)     { return nil, nil }
+func (stubUsers) GetUserByID(string) (*domain.UserManagement, error)       { return nil, nil }
+func (stubUsers) GetUserById(int) (*domain.UserManagement, error)          { return nil, nil }
 func (stubUsers) GetUserByUsername(string) (*domain.UserManagement, error) {
 	return nil, nil
 }
@@ -74,7 +74,7 @@ func (stubUsers) GetUsersByRole(string) ([]domain.UserManagement, error) {
 func (stubUsers) GetUsersByStatus(string) ([]domain.UserManagement, error) {
 	return nil, nil
 }
-func (stubUsers) IsUsernameExists(string) bool { return false }
+func (stubUsers) IsUsernameExists(string) bool            { return false }
 func (stubUsers) UpdateUser(*domain.UserManagement) error { return nil }
 func (stubUsers) UpdateUserByID(string, *domain.UserManagement, string) error {
 	return nil
@@ -89,16 +89,17 @@ func TestDriverListIsScopedForUser(t *testing.T) {
 	}}
 	ctrl := NewDriverInformationController(svc, stubUsers{})
 	r := gin.New()
+	r.Use(func(c *gin.Context) {
+		c.Set("username", "driver1")
+		c.Set("role", "USER")
+		c.Set("normalizedRoles", []string{"USER"})
+		c.Next()
+	})
+	r.Use(AccessPolicy())
 	ctrl.RegisterRoutes(r)
 
-	req := httptest.NewRequest(http.MethodGet, "/api/drivers", nil)
 	w := httptest.NewRecorder()
-	c, _ := gin.CreateTestContext(w)
-	c.Request = req
-	c.Set("username", "driver1")
-	c.Set("role", "USER")
-	c.Set("normalizedRoles", []string{"USER"})
-	ctrl.GetAllDrivers(c)
+	r.ServeHTTP(w, httptest.NewRequest(http.MethodGet, "/api/drivers", nil))
 	if w.Code != http.StatusOK {
 		t.Fatalf("status=%d body=%s", w.Code, w.Body.String())
 	}
@@ -114,12 +115,16 @@ func TestDriverListIsScopedForUser(t *testing.T) {
 func TestDriverCreateRejectedForUser(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 	ctrl := NewDriverInformationController(stubDriverService{}, stubUsers{})
+	r := gin.New()
+	r.Use(func(c *gin.Context) {
+		c.Set("role", "USER")
+		c.Set("normalizedRoles", []string{"USER"})
+		c.Next()
+	})
+	r.Use(AccessPolicy())
+	ctrl.RegisterRoutes(r)
 	w := httptest.NewRecorder()
-	c, _ := gin.CreateTestContext(w)
-	c.Request = httptest.NewRequest(http.MethodPost, "/api/drivers", nil)
-	c.Set("role", "USER")
-	c.Set("normalizedRoles", []string{"USER"})
-	ctrl.CreateDriver(c)
+	r.ServeHTTP(w, httptest.NewRequest(http.MethodPost, "/api/drivers", nil))
 	if w.Code != http.StatusForbidden {
 		t.Fatalf("status=%d", w.Code)
 	}

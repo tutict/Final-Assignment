@@ -75,7 +75,7 @@ func (h *ProgressHandler) CreateProgress(c *gin.Context) {
 
 // GetAllProgress GET /api/progress (admin)
 func (h *ProgressHandler) GetAllProgress(c *gin.Context) {
-	if !elevatedRequester(c) {
+	if !Unscoped(c, ResourceProgress) {
 		items, err := h.svc.GetProgressByUsername(c.GetString("username"))
 		if err != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})

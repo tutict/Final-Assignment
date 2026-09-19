@@ -322,7 +322,7 @@ func (c *PaymentRecordController) updatePaymentStatus(ctx *gin.Context) {
 // canAccessDriver 对齐 Spring 的 PaymentRecordController.canAccessDriver：
 // 高权限角色直接放行，普通用户仅能访问本人 driverId。
 func (c *PaymentRecordController) canAccessDriver(ctx *gin.Context, driverID int64) bool {
-	if memberOfRole(ctx, "SUPER_ADMIN", "ADMIN", "FINANCE") {
+	if Unscoped(ctx, ResourcePayments) {
 		return true
 	}
 	if !memberOfRole(ctx, "USER") {

@@ -31,7 +31,7 @@ func (c *OffenseInformationController) RegisterRoutes(r *gin.RouterGroup) {
 
 // POST /api/offenses
 func (c *OffenseInformationController) createOffense(ctx *gin.Context) {
-	if !requireStaff(ctx) {
+	if !RequireWrite(ctx, ResourceOffenses) {
 		return
 	}
 	var offense domain.OffenseInformation
@@ -59,7 +59,7 @@ func (c *OffenseInformationController) getOffenseByID(ctx *gin.Context) {
 	}
 
 	offense, err := c.Service.GetOffenseByID(id)
-	if err != nil || !c.Service.CanAccess(ctx.GetString("username"), elevatedRequester(ctx), offense) {
+	if err != nil || !c.Service.CanAccess(ctx.GetString("username"), Unscoped(ctx, ResourceOffenses), offense) {
 		ctx.JSON(http.StatusNotFound, gin.H{"error": "offense not found"})
 		return
 	}
@@ -69,7 +69,7 @@ func (c *OffenseInformationController) getOffenseByID(ctx *gin.Context) {
 
 // GET /api/offenses
 func (c *OffenseInformationController) getAllOffenses(ctx *gin.Context) {
-	offenses, err := c.Service.ListForRequester(ctx.GetString("username"), elevatedRequester(ctx))
+	offenses, err := c.Service.ListForRequester(ctx.GetString("username"), Unscoped(ctx, ResourceOffenses))
 	if err != nil {
 		ctx.JSON(http.StatusInternalServerError, gin.H{"error": "failed to fetch offenses"})
 		return
@@ -79,7 +79,7 @@ func (c *OffenseInformationController) getAllOffenses(ctx *gin.Context) {
 
 // PUT /api/offenses/:offenseId
 func (c *OffenseInformationController) updateOffense(ctx *gin.Context) {
-	if !requireStaff(ctx) {
+	if !RequireWrite(ctx, ResourceOffenses) {
 		return
 	}
 	id, err := strconv.Atoi(ctx.Param("offenseId"))
@@ -107,7 +107,7 @@ func (c *OffenseInformationController) updateOffense(ctx *gin.Context) {
 
 // DELETE /api/offenses/:offenseId
 func (c *OffenseInformationController) deleteOffense(ctx *gin.Context) {
-	if !requireStaff(ctx) {
+	if !RequireWrite(ctx, ResourceOffenses) {
 		return
 	}
 	id, err := strconv.Atoi(ctx.Param("offenseId"))
@@ -145,7 +145,7 @@ func (c *OffenseInformationController) getOffensesByTimeRange(ctx *gin.Context) 
 		ctx.JSON(http.StatusInternalServerError, gin.H{"error": "query failed"})
 		return
 	}
-	ctx.JSON(http.StatusOK, c.Service.FilterForRequester(ctx.GetString("username"), elevatedRequester(ctx), offenses))
+	ctx.JSON(http.StatusOK, c.Service.FilterForRequester(ctx.GetString("username"), Unscoped(ctx, ResourceOffenses), offenses))
 }
 
 // GET /api/offenses/by-offense-type
@@ -160,7 +160,7 @@ func (c *OffenseInformationController) searchByOffenseType(ctx *gin.Context) {
 		return
 	}
 
-	ctx.JSON(http.StatusOK, c.Service.FilterForRequester(ctx.GetString("username"), elevatedRequester(ctx), results))
+	ctx.JSON(http.StatusOK, c.Service.FilterForRequester(ctx.GetString("username"), Unscoped(ctx, ResourceOffenses), results))
 }
 
 // GET /api/offenses/by-driver-name
@@ -175,7 +175,7 @@ func (c *OffenseInformationController) searchByDriverName(ctx *gin.Context) {
 		return
 	}
 
-	ctx.JSON(http.StatusOK, c.Service.FilterForRequester(ctx.GetString("username"), elevatedRequester(ctx), results))
+	ctx.JSON(http.StatusOK, c.Service.FilterForRequester(ctx.GetString("username"), Unscoped(ctx, ResourceOffenses), results))
 }
 
 // GET /api/offenses/by-license-plate
@@ -190,5 +190,5 @@ func (c *OffenseInformationController) searchByLicensePlate(ctx *gin.Context) {
 		return
 	}
 
-	ctx.JSON(http.StatusOK, c.Service.FilterForRequester(ctx.GetString("username"), elevatedRequester(ctx), results))
+	ctx.JSON(http.StatusOK, c.Service.FilterForRequester(ctx.GetString("username"), Unscoped(ctx, ResourceOffenses), results))
 }
