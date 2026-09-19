@@ -62,6 +62,9 @@ func TestCapabilityTable(t *testing.T) {
 		{"FINANCE", CapFinanceRead, true},
 		{"TRAFFIC_POLICE", CapFinanceRead, false},
 		{"USER", CapFinanceRead, false},
+		{"SUPER_ADMIN", CapSuperAdmin, true},
+		{"ADMIN", CapSuperAdmin, false},
+		{"USER", CapSuperAdmin, false},
 	}
 	for _, tc := range cases {
 		got := HasCapability(contextWithRole(tc.role), tc.cap)

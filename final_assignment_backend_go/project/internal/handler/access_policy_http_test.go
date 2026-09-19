@@ -55,7 +55,10 @@ func TestAccessPolicyHitsGinGovernancePaths(t *testing.T) {
 		{"FINANCE", "/api/logs/login", http.StatusForbidden},
 		{"ADMIN", "/api/users", http.StatusNoContent},
 		{"SUPER_ADMIN", "/api/users", http.StatusNoContent},
+		{"ADMIN", "/api/rag/admin", http.StatusForbidden},
+		{"ADMIN", "/api/logs/login", http.StatusForbidden},
 		{"SUPER_ADMIN", "/api/rag/admin", http.StatusNoContent},
+		{"SUPER_ADMIN", "/api/logs/login", http.StatusNoContent},
 		{"ADMIN", "/api/system/settings", http.StatusNoContent},
 	}
 	for _, tc := range cases {

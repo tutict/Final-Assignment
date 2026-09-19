@@ -64,6 +64,10 @@ class RoleGateAnnotationTest {
         assertTrue(vehicle.contains("VehicleSuggestionFilter.plates"));
         assertTrue(vehicle.contains("VehicleSuggestionFilter.types"));
         assertTrue(vehicle.contains("ownedVehicles("));
+        assertTrue(vehicle.contains("@Path(\"/search/general\")"));
+        assertTrue(vehicle.contains("visibleVehicles("));
+        assertTrue(vehicle.contains("ownsVehicle("));
+        assertTrue(vehicle.contains("@Path(\"/search/license\")"));
     }
 
     private static void assertClassRoles(String file, String expected) throws IOException {

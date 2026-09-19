@@ -16,6 +16,7 @@ const (
 	CapFinanceWrite Capability = "finance_write"
 	CapElevatedRead Capability = "elevated_read"
 	CapFinanceRead  Capability = "finance_read"
+	CapSuperAdmin   Capability = "super_admin"
 )
 
 var capabilityRoles = map[Capability][]string{
@@ -24,6 +25,7 @@ var capabilityRoles = map[Capability][]string{
 	CapFinanceWrite: {"ADMIN", "SUPER_ADMIN", "TRAFFIC_POLICE", "FINANCE"},
 	CapElevatedRead: {"ADMIN", "SUPER_ADMIN", "TRAFFIC_POLICE", "FINANCE"},
 	CapFinanceRead:  {"ADMIN", "SUPER_ADMIN", "FINANCE"},
+	CapSuperAdmin:   {"SUPER_ADMIN"},
 }
 
 // Resource 是业务资源名。写操作和未过滤读取都从 resourcePolicies 取值。
@@ -64,18 +66,22 @@ type pathPolicy struct {
 
 var pathPolicies = []pathPolicy{{
 	prefixes: []string{
-		"/api/auth/users",
 		"/api/rag/admin",
-		"/api/users",
-		"/api/roles",
-		"/api/permissions",
 		"/api/loginLogs",
 		"/api/operationLogs",
 		"/api/systemLogs",
-		"/api/systemSettings",
-		"/api/backups",
 		"/api/logs",
 		"/api/system/logs",
+	},
+	require: CapSuperAdmin,
+}, {
+	prefixes: []string{
+		"/api/auth/users",
+		"/api/users",
+		"/api/roles",
+		"/api/permissions",
+		"/api/systemSettings",
+		"/api/backups",
 		"/api/system/settings",
 		"/api/system/backup",
 	},

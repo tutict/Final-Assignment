@@ -26,8 +26,11 @@ import org.eclipse.microprofile.openapi.annotations.tags.Tag;
 
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
+import java.util.Set;
 import java.util.logging.Level;
 import java.util.logging.Logger;
+import java.util.stream.Collectors;
 
 @Path("/api/vehicles")
 @Produces(MediaType.APPLICATION_JSON)
@@ -156,11 +159,18 @@ public class VehicleInformationController {
 
     @GET
     @Path("/search/license")
+    @RolesAllowed({"SUPER_ADMIN", "ADMIN", "TRAFFIC_POLICE", "USER"})
     @RunOnVirtualThread
     public Response searchByLicense(@QueryParam("licensePlate") String licensePlate) {
         try {
             VehicleInformation vehicle = vehicleInformationService.getVehicleInformationByLicensePlate(licensePlate);
-            return vehicle == null ? Response.status(Response.Status.NOT_FOUND).build() : Response.ok(vehicle).build();
+            if (vehicle == null) {
+                return Response.status(Response.Status.NOT_FOUND).build();
+            }
+            if (!ownsVehicle(vehicle)) {
+                return driverAccessGuard.forbidden();
+            }
+            return Response.ok(vehicle).build();
         } catch (Exception ex) {
             LOG.log(Level.WARNING, "Search vehicle by license failed", ex);
             return Response.status(resolveStatus(ex)).build();
@@ -181,10 +191,11 @@ public class VehicleInformationController {
 
     @GET
     @Path("/search/type")
+    @RolesAllowed({"SUPER_ADMIN", "ADMIN", "TRAFFIC_POLICE", "USER"})
     @RunOnVirtualThread
     public Response searchByType(@QueryParam("type") String type) {
         try {
-            return Response.ok(vehicleInformationService.getVehicleInformationByType(type)).build();
+            return Response.ok(visibleVehicles(vehicleInformationService.getVehicleInformationByType(type))).build();
         } catch (Exception ex) {
             LOG.log(Level.WARNING, "Search vehicle by type failed", ex);
             return Response.status(resolveStatus(ex)).build();
@@ -193,10 +204,11 @@ public class VehicleInformationController {
 
     @GET
     @Path("/search/owner/name")
+    @RolesAllowed({"SUPER_ADMIN", "ADMIN", "TRAFFIC_POLICE", "USER"})
     @RunOnVirtualThread
     public Response searchByOwnerName(@QueryParam("ownerName") String ownerName) {
         try {
-            return Response.ok(vehicleInformationService.getVehicleInformationByOwnerName(ownerName)).build();
+            return Response.ok(visibleVehicles(vehicleInformationService.getVehicleInformationByOwnerName(ownerName))).build();
         } catch (Exception ex) {
             LOG.log(Level.WARNING, "Search vehicle by owner name failed", ex);
             return Response.status(resolveStatus(ex)).build();
@@ -205,10 +217,11 @@ public class VehicleInformationController {
 
     @GET
     @Path("/search/status")
+    @RolesAllowed({"SUPER_ADMIN", "ADMIN", "TRAFFIC_POLICE", "USER"})
     @RunOnVirtualThread
     public Response searchByStatus(@QueryParam("status") String status) {
         try {
-            return Response.ok(vehicleInformationService.getVehicleInformationByStatus(status)).build();
+            return Response.ok(visibleVehicles(vehicleInformationService.getVehicleInformationByStatus(status))).build();
         } catch (Exception ex) {
             LOG.log(Level.WARNING, "Search vehicle by status failed", ex);
             return Response.status(resolveStatus(ex)).build();
@@ -217,6 +230,7 @@ public class VehicleInformationController {
 
     @GET
     @Path("/search/general")
+    @RolesAllowed({"SUPER_ADMIN", "ADMIN", "TRAFFIC_POLICE", "USER"})
     @RunOnVirtualThread
     public Response searchVehicles(@QueryParam("keywords") String keywords,
                                    @QueryParam("page") Integer page,
@@ -224,7 +238,7 @@ public class VehicleInformationController {
         try {
             int resolvedPage = page == null ? 1 : page;
             int resolvedSize = size == null ? 20 : size;
-            return Response.ok(vehicleInformationService.searchVehicles(keywords, resolvedPage, resolvedSize)).build();
+            return Response.ok(visibleVehicles(vehicleInformationService.searchVehicles(keywords, resolvedPage, resolvedSize))).build();
         } catch (Exception ex) {
             LOG.log(Level.WARNING, "General vehicle search failed", ex);
             return Response.status(resolveStatus(ex)).build();
@@ -505,6 +519,27 @@ public class VehicleInformationController {
     private List<VehicleInformation> ownedVehicles(int limit) {
         return driverAccessGuard.scopedOrEmpty(securityContext,
                 id -> vehicleInformationService.getVehicleInformationByDriverId(id, 1, Math.max(limit, 50)));
+    }
+
+    private boolean ownsVehicle(VehicleInformation vehicle) {
+        if (driverAccessGuard.isElevated(securityContext)) {
+            return true;
+        }
+        if (vehicle == null || vehicle.getVehicleId() == null) {
+            return false;
+        }
+        return ownedVehicles(1000).stream().anyMatch(item -> Objects.equals(vehicle.getVehicleId(), item.getVehicleId()));
+    }
+
+    private List<VehicleInformation> visibleVehicles(List<VehicleInformation> found) {
+        if (driverAccessGuard.isElevated(securityContext) || found == null || found.isEmpty()) {
+            return found == null ? List.of() : found;
+        }
+        Set<Long> ownedIds = ownedVehicles(1000).stream()
+                .map(VehicleInformation::getVehicleId)
+                .filter(Objects::nonNull)
+                .collect(Collectors.toSet());
+        return found.stream().filter(item -> ownedIds.contains(item.getVehicleId())).toList();
     }
 
     private boolean hasKey(String value) {
