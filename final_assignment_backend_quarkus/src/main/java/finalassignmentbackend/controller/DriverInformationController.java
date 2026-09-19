@@ -15,8 +15,10 @@ import jakarta.ws.rs.PathParam;
 import jakarta.ws.rs.Produces;
 import jakarta.ws.rs.QueryParam;
 import jakarta.ws.rs.HeaderParam;
+import jakarta.ws.rs.core.Context;
 import jakarta.ws.rs.core.MediaType;
 import jakarta.ws.rs.core.Response;
+import jakarta.ws.rs.core.SecurityContext;
 import org.eclipse.microprofile.openapi.annotations.tags.Tag;
 
 import java.util.List;
@@ -27,13 +29,19 @@ import java.util.logging.Logger;
 @Produces(MediaType.APPLICATION_JSON)
 @Consumes(MediaType.APPLICATION_JSON)
 @Tag(name = "Driver Information", description = "Driver information management")
-@RolesAllowed({"SUPER_ADMIN", "ADMIN", "TRAFFIC_POLICE", "FINANCE", "USER"})
+@RolesAllowed({"SUPER_ADMIN", "ADMIN", "TRAFFIC_POLICE"})
 public class DriverInformationController {
 
     private static final Logger LOG = Logger.getLogger(DriverInformationController.class.getName());
 
     @Inject
     DriverInformationService driverInformationService;
+
+    @Inject
+    DriverAccessGuard driverAccessGuard;
+
+    @Context
+    SecurityContext securityContext;
 
     @POST
     @RunOnVirtualThread
@@ -63,12 +71,16 @@ public class DriverInformationController {
 
     @PUT
     @Path("/{driverId}")
+    @RolesAllowed({"SUPER_ADMIN", "ADMIN", "TRAFFIC_POLICE", "USER"})
     @RunOnVirtualThread
     public Response update(@PathParam("driverId") Long driverId,
                            DriverInformation request,
                            @HeaderParam("Idempotency-Key") String idempotencyKey) {
         boolean useKey = hasKey(idempotencyKey);
         try {
+            if (!driverAccessGuard.canAccessDriver(securityContext, driverId)) {
+                return driverAccessGuard.forbidden();
+            }
             request.setDriverId(driverId);
             if (useKey) {
                 driverInformationService.checkAndInsertIdempotency(idempotencyKey, request, "update");
@@ -102,9 +114,13 @@ public class DriverInformationController {
 
     @GET
     @Path("/{driverId}")
+    @RolesAllowed({"SUPER_ADMIN", "ADMIN", "TRAFFIC_POLICE", "USER"})
     @RunOnVirtualThread
     public Response get(@PathParam("driverId") Long driverId) {
         try {
+            if (!driverAccessGuard.canAccessDriver(securityContext, driverId)) {
+                return driverAccessGuard.forbidden();
+            }
             DriverInformation driver = driverInformationService.getDriverById(driverId);
             return driver == null ? Response.status(Response.Status.NOT_FOUND).build() : Response.ok(driver).build();
         } catch (Exception ex) {
@@ -114,9 +130,16 @@ public class DriverInformationController {
     }
 
     @GET
+    @RolesAllowed({"SUPER_ADMIN", "ADMIN", "TRAFFIC_POLICE", "USER"})
     @RunOnVirtualThread
     public Response list() {
         try {
+            if (!driverAccessGuard.isElevated(securityContext)) {
+                return Response.ok(driverAccessGuard.scopedOrEmpty(securityContext, id -> {
+                    DriverInformation driver = driverInformationService.getDriverById(id);
+                    return driver == null ? List.of() : List.of(driver);
+                })).build();
+            }
             return Response.ok(driverInformationService.getAllDrivers()).build();
         } catch (Exception ex) {
             LOG.log(Level.WARNING, "List drivers failed", ex);
@@ -142,6 +165,7 @@ public class DriverInformationController {
 
     @GET
     @Path("/search/license")
+    @RolesAllowed({"SUPER_ADMIN", "ADMIN", "TRAFFIC_POLICE", "USER"})
     @RunOnVirtualThread
     public Response searchByLicense(@QueryParam("keywords") String keywords,
                                     @QueryParam("page") Integer page,
@@ -149,6 +173,12 @@ public class DriverInformationController {
         try {
             int resolvedPage = page == null ? 1 : page;
             int resolvedSize = size == null ? 20 : size;
+            if (!driverAccessGuard.isElevated(securityContext)) {
+                return Response.ok(driverAccessGuard.scopedOrEmpty(securityContext, id -> {
+                    DriverInformation driver = driverInformationService.getDriverById(id);
+                    return driver == null ? List.of() : List.of(driver);
+                })).build();
+            }
             return Response.ok(driverInformationService.searchByDriverLicenseNumber(keywords, resolvedPage, resolvedSize)).build();
         } catch (Exception ex) {
             LOG.log(Level.WARNING, "Search driver by license failed", ex);
@@ -158,6 +188,7 @@ public class DriverInformationController {
 
     @GET
     @Path("/search/name")
+    @RolesAllowed({"SUPER_ADMIN", "ADMIN", "TRAFFIC_POLICE", "USER"})
     @RunOnVirtualThread
     public Response searchByName(@QueryParam("keywords") String keywords,
                                  @QueryParam("page") Integer page,
@@ -165,6 +196,12 @@ public class DriverInformationController {
         try {
             int resolvedPage = page == null ? 1 : page;
             int resolvedSize = size == null ? 20 : size;
+            if (!driverAccessGuard.isElevated(securityContext)) {
+                return Response.ok(driverAccessGuard.scopedOrEmpty(securityContext, id -> {
+                    DriverInformation driver = driverInformationService.getDriverById(id);
+                    return driver == null ? List.of() : List.of(driver);
+                })).build();
+            }
             return Response.ok(driverInformationService.searchByName(keywords, resolvedPage, resolvedSize)).build();
         } catch (Exception ex) {
             LOG.log(Level.WARNING, "Search driver by name failed", ex);
@@ -174,6 +211,7 @@ public class DriverInformationController {
 
     @GET
     @Path("/search")
+    @RolesAllowed({"SUPER_ADMIN", "ADMIN", "TRAFFIC_POLICE", "USER"})
     @RunOnVirtualThread
     public Response searchDrivers(@QueryParam("keywords") String keywords,
                                   @QueryParam("q") String q,
@@ -183,6 +221,12 @@ public class DriverInformationController {
             String resolvedKeywords = keywords != null && !keywords.isBlank() ? keywords : q;
             int resolvedPage = page == null ? 1 : page;
             int resolvedSize = size == null ? 20 : size;
+            if (!driverAccessGuard.isElevated(securityContext)) {
+                return Response.ok(driverAccessGuard.scopedOrEmpty(securityContext, id -> {
+                    DriverInformation driver = driverInformationService.getDriverById(id);
+                    return driver == null ? List.of() : List.of(driver);
+                })).build();
+            }
             return Response.ok(driverInformationService.searchDrivers(resolvedKeywords, resolvedPage, resolvedSize)).build();
         } catch (Exception ex) {
             LOG.log(Level.WARNING, "Search drivers failed", ex);

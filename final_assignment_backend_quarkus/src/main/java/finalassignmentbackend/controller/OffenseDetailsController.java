@@ -32,7 +32,7 @@ import java.util.logging.Logger;
 @Path("/api/view/offenses")
 @Produces(MediaType.APPLICATION_JSON)
 @Tag(name = "Offense Details View", description = "Offense details aggregation for views")
-@RolesAllowed({"SUPER_ADMIN", "ADMIN", "TRAFFIC_POLICE", "FINANCE", "USER"})
+@RolesAllowed({"SUPER_ADMIN", "ADMIN", "TRAFFIC_POLICE", "FINANCE"})
 public class OffenseDetailsController {
 
     private static final Logger LOG = Logger.getLogger(OffenseDetailsController.class.getName());

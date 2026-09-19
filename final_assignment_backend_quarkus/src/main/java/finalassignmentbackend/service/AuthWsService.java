@@ -8,6 +8,7 @@ import finalassignmentbackend.dto.UserProfileResponse;
 import finalassignmentbackend.dto.UserResponse;
 import io.quarkus.security.AuthenticationFailedException;
 import finalassignmentbackend.entity.AuditLoginLog;
+import finalassignmentbackend.entity.DriverInformation;
 import finalassignmentbackend.entity.SysRole;
 import finalassignmentbackend.entity.SysUser;
 import finalassignmentbackend.entity.SysUserRole;
@@ -60,6 +61,9 @@ public class AuthWsService {
     @Inject
     TokenBlacklistService tokenBlacklistService;
 
+    @Inject
+    DriverInformationService driverInformationService;
+
     @WsAction(service = "AuthWsService", action = "login", allowAuthenticated = true)
     public Map<String, Object> login(LoginRequest loginRequest) {
         validateLoginRequest(loginRequest);
@@ -97,6 +101,8 @@ public class AuthWsService {
             result.put("refreshTokenExpiresIn", refreshTokenService.getRefreshTokenExpirationSeconds());
             result.put("username", user.getUsername());
             result.put("authUserId", user.getUserId());
+            DriverInformation linkedDriver = driverInformationService.findByAuthUserId(user.getUserId());
+            result.put("driverId", linkedDriver != null ? linkedDriver.getDriverId() : null);
             result.put("roles", aggregation.getRoleCodes());
             result.put("roleNames", roles);
             result.put("roleCodes", aggregation.getRoleCodes());
@@ -212,8 +218,7 @@ public class AuthWsService {
     }
 
     /**
-     * 返回当前登录用户的档案（身份 + 角色）。
-     * 注：driver 关联依赖尚未移植的 DriverInformationService.findOrCreateLinkedDriver（P1），暂返回 null。
+     * 返回当前登录用户的档案（身份 + 角色 + 绑定驾驶员）。
      */
     public UserProfileResponse getCurrentUserProfile(String username) {
         if (isBlank(username)) {
@@ -224,6 +229,7 @@ public class AuthWsService {
             throw new RuntimeException("User not found: " + username);
         }
         RoleAggregation aggregation = aggregateRoles(user.getUserId());
+        DriverInformation driver = driverInformationService.findByAuthUserId(user.getUserId());
         return UserProfileResponse.builder()
                 .authUserId(user.getUserId())
                 .username(user.getUsername())
@@ -231,8 +237,8 @@ public class AuthWsService {
                 .email(user.getEmail())
                 .phoneNumber(maskPhone(user.getContactNumber()))
                 .roles(aggregation.getRoleCodes())
-                .driverId(null)
-                .driverName(null)
+                .driverId(driver != null ? driver.getDriverId() : null)
+                .driverName(driver != null ? driver.getName() : null)
                 .build();
     }
 

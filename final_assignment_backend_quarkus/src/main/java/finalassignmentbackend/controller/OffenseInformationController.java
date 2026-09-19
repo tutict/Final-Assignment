@@ -29,7 +29,7 @@ import java.util.logging.Logger;
 @Produces(MediaType.APPLICATION_JSON)
 @Consumes(MediaType.APPLICATION_JSON)
 @Tag(name = "Offense Management", description = "Offense Management Controller for managing offense records")
-@RolesAllowed({"SUPER_ADMIN", "ADMIN", "TRAFFIC_POLICE", "FINANCE", "USER"})
+@RolesAllowed({"SUPER_ADMIN", "ADMIN", "TRAFFIC_POLICE", "APPEAL_REVIEWER"})
 public class OffenseInformationController {
 
     private static final Logger LOG = Logger.getLogger(OffenseInformationController.class.getName());
@@ -113,11 +113,18 @@ public class OffenseInformationController {
 
     @GET
     @Path("/{offenseId}")
+    @RolesAllowed({"SUPER_ADMIN", "ADMIN", "TRAFFIC_POLICE", "APPEAL_REVIEWER", "USER"})
     @RunOnVirtualThread
     public Response get(@PathParam("offenseId") Long offenseId) {
         try {
             OffenseRecord record = offenseRecordService.findById(offenseId);
-            return record == null ? Response.status(Response.Status.NOT_FOUND).build() : Response.ok(record).build();
+            if (record == null) {
+                return Response.status(Response.Status.NOT_FOUND).build();
+            }
+            if (!driverAccessGuard.canAccessDriver(securityContext, record.getDriverId())) {
+                return driverAccessGuard.forbidden();
+            }
+            return Response.ok(record).build();
         } catch (Exception ex) {
             LOG.log(Level.WARNING, "Get offense failed", ex);
             return Response.status(resolveStatus(ex)).build();
@@ -125,9 +132,14 @@ public class OffenseInformationController {
     }
 
     @GET
+    @RolesAllowed({"SUPER_ADMIN", "ADMIN", "TRAFFIC_POLICE", "APPEAL_REVIEWER", "USER"})
     @RunOnVirtualThread
     public Response list() {
         try {
+            if (!driverAccessGuard.isElevated(securityContext)) {
+                return Response.ok(driverAccessGuard.scopedOrEmpty(securityContext,
+                        id -> offenseRecordService.findByDriverId(id, 1, 1000))).build();
+            }
             return Response.ok(offenseRecordService.findAll()).build();
         } catch (Exception ex) {
             LOG.log(Level.WARNING, "List offenses failed", ex);
@@ -137,6 +149,7 @@ public class OffenseInformationController {
 
     @GET
     @Path("/driver/{driverId}")
+    @RolesAllowed({"SUPER_ADMIN", "ADMIN", "TRAFFIC_POLICE", "APPEAL_REVIEWER", "USER"})
     @RunOnVirtualThread
     public Response byDriver(@PathParam("driverId") Long driverId,
                              @QueryParam("page") Integer page,
@@ -145,7 +158,7 @@ public class OffenseInformationController {
             int resolvedPage = page == null ? 1 : page;
             int resolvedSize = size == null ? 20 : size;
             if (!driverAccessGuard.canAccessDriver(securityContext, driverId)) {
-                return Response.status(Response.Status.FORBIDDEN).entity(java.util.Map.of("error", "Forbidden")).build();
+                return driverAccessGuard.forbidden();
             }
             return Response.ok(offenseRecordService.findByDriverId(driverId, resolvedPage, resolvedSize)).build();
         } catch (Exception ex) {

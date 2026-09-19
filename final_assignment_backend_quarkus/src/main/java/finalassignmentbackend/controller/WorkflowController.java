@@ -30,7 +30,7 @@ import java.util.logging.Logger;
 @Path("/api/workflow")
 @Produces(MediaType.APPLICATION_JSON)
 @Tag(name = "Workflow Engine", description = "State machine driven workflow endpoints")
-@RolesAllowed({"SUPER_ADMIN", "ADMIN", "TRAFFIC_POLICE", "FINANCE", "USER"})
+@RolesAllowed({"SUPER_ADMIN", "ADMIN", "TRAFFIC_POLICE", "FINANCE"})
 public class WorkflowController {
 
     private static final Logger LOG = Logger.getLogger(WorkflowController.class.getName());

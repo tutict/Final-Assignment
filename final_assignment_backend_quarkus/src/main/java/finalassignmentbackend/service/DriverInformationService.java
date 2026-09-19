@@ -96,6 +96,15 @@ public class DriverInformationService {
         return driverInformationMapper.selectList(null);
     }
 
+    public DriverInformation findByAuthUserId(Long authUserId) {
+        if (authUserId == null || authUserId <= 0) {
+            return null;
+        }
+        QueryWrapper<DriverInformation> wrapper = new QueryWrapper<>();
+        wrapper.eq("auth_user_id", authUserId).last("LIMIT 1");
+        return driverInformationMapper.selectOne(wrapper);
+    }
+
     @CacheResult(cacheName = "driverCache")
     public List<DriverInformation> searchByIdCardNumber(String keywords, int page, int size) {
         if (isBlank(keywords)) {

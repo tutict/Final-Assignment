@@ -18,7 +18,7 @@ import java.util.Map;
 @Path("/api/rag/admin")
 @Produces(MediaType.APPLICATION_JSON)
 @Consumes(MediaType.APPLICATION_JSON)
-@RolesAllowed({"SUPER_ADMIN", "ADMIN"})
+@RolesAllowed({"SUPER_ADMIN"})
 public class RagManagementController {
 
     @GET

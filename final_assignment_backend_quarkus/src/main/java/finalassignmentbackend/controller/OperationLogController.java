@@ -27,7 +27,7 @@ import java.util.logging.Logger;
 @Produces(MediaType.APPLICATION_JSON)
 @Consumes(MediaType.APPLICATION_JSON)
 @Tag(name = "Operation Audit", description = "Operation audit log management")
-@RolesAllowed({"SUPER_ADMIN", "ADMIN"})
+@RolesAllowed({"SUPER_ADMIN"})
 public class OperationLogController {
 
     private static final Logger LOG = Logger.getLogger(OperationLogController.class.getName());

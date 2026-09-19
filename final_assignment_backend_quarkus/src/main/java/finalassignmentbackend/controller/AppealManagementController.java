@@ -32,7 +32,7 @@ import java.util.logging.Logger;
 @Produces(MediaType.APPLICATION_JSON)
 @Consumes(MediaType.APPLICATION_JSON)
 @Tag(name = "Appeal Management", description = "Appeal Management Controller for managing appeals")
-@RolesAllowed({"SUPER_ADMIN", "ADMIN", "TRAFFIC_POLICE", "APPEAL_REVIEWER", "USER"})
+@RolesAllowed({"SUPER_ADMIN", "ADMIN", "TRAFFIC_POLICE", "APPEAL_REVIEWER"})
 public class AppealManagementController {
 
     private static final Logger LOG = Logger.getLogger(AppealManagementController.class.getName());
@@ -52,6 +52,7 @@ public class AppealManagementController {
 
 
     @POST
+    @RolesAllowed({"SUPER_ADMIN", "ADMIN", "TRAFFIC_POLICE", "APPEAL_REVIEWER", "USER"})
     @RunOnVirtualThread
     public Response createAppeal(AppealRecord request,
                                  @HeaderParam("Idempotency-Key") String idempotencyKey) {
@@ -118,11 +119,21 @@ public class AppealManagementController {
 
     @GET
     @Path("/{appealId}")
+    @RolesAllowed({"SUPER_ADMIN", "ADMIN", "TRAFFIC_POLICE", "APPEAL_REVIEWER", "USER"})
     @RunOnVirtualThread
     public Response getAppeal(@PathParam("appealId") Long appealId) {
         try {
             AppealRecord record = appealManagementService.getAppealById(appealId);
-            return record == null ? Response.status(Response.Status.NOT_FOUND).build() : Response.ok(record).build();
+            if (record == null) {
+                return Response.status(Response.Status.NOT_FOUND).build();
+            }
+            if (!driverAccessGuard.isElevated(securityContext)) {
+                String username = securityContext.getUserPrincipal() == null ? null : securityContext.getUserPrincipal().getName();
+                if (username == null || !username.equals(record.getCreatedBy())) {
+                    return driverAccessGuard.forbidden();
+                }
+            }
+            return Response.ok(record).build();
         } catch (Exception ex) {
             LOG.log(Level.WARNING, "Get appeal failed", ex);
             return Response.status(resolveStatus(ex)).build();
@@ -130,6 +141,7 @@ public class AppealManagementController {
     }
 
     @GET
+    @RolesAllowed({"SUPER_ADMIN", "ADMIN", "TRAFFIC_POLICE", "APPEAL_REVIEWER", "USER"})
     @RunOnVirtualThread
     public Response listAppeals(@QueryParam("offenseId") Long offenseId,
                                 @QueryParam("page") Integer page,
@@ -137,6 +149,10 @@ public class AppealManagementController {
         try {
             int resolvedPage = page == null ? 1 : page;
             int resolvedSize = size == null ? 20 : size;
+            if (!driverAccessGuard.isElevated(securityContext)) {
+                String username = securityContext.getUserPrincipal() == null ? null : securityContext.getUserPrincipal().getName();
+                return Response.ok(appealManagementService.findByCreatedBy(username, resolvedPage, resolvedSize)).build();
+            }
             return Response.ok(appealManagementService.findByOffenseId(offenseId, resolvedPage, resolvedSize)).build();
         } catch (Exception ex) {
             LOG.log(Level.WARNING, "List appeals failed", ex);
@@ -386,6 +402,7 @@ public class AppealManagementController {
 
     @GET
     @Path("/my")
+    @RolesAllowed({"SUPER_ADMIN", "ADMIN", "TRAFFIC_POLICE", "APPEAL_REVIEWER", "USER"})
     @RunOnVirtualThread
     public Response getMyAppeals(@Context SecurityContext securityContext,
                                  @QueryParam("page") Integer page,

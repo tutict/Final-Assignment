@@ -27,6 +27,9 @@ public class DriverInformation implements Serializable {
     @TableId(value = "driver_id", type = IdType.AUTO)
     private Long driverId;
 
+    @TableField("auth_user_id")
+    private Long authUserId;
+
     /**
      * 姓名
      */

@@ -28,7 +28,7 @@ import java.util.stream.Collectors;
 @Path("/api/system/logs")
 @Produces(MediaType.APPLICATION_JSON)
 @Tag(name = "System Logs", description = "System log aggregation endpoints")
-@RolesAllowed({"SUPER_ADMIN", "ADMIN"})
+@RolesAllowed({"SUPER_ADMIN"})
 public class SystemLogsController {
 
     private static final Logger LOG = Logger.getLogger(SystemLogsController.class.getName());

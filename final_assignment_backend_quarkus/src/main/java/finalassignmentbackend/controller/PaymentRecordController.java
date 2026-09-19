@@ -28,7 +28,7 @@ import java.util.logging.Logger;
 @Produces(MediaType.APPLICATION_JSON)
 @Consumes(MediaType.APPLICATION_JSON)
 @Tag(name = "Payment Management", description = "Payment record management")
-@RolesAllowed({"SUPER_ADMIN", "ADMIN", "TRAFFIC_POLICE", "FINANCE", "USER"})
+@RolesAllowed({"SUPER_ADMIN", "ADMIN", "TRAFFIC_POLICE", "FINANCE"})
 public class PaymentRecordController {
 
     private static final Logger LOG = Logger.getLogger(PaymentRecordController.class.getName());
@@ -109,15 +109,27 @@ public class PaymentRecordController {
 
     @GET
     @Path("/{paymentId}")
+    @RolesAllowed({"SUPER_ADMIN", "ADMIN", "TRAFFIC_POLICE", "FINANCE", "USER"})
     @RunOnVirtualThread
     public Response getPayment(@PathParam("paymentId") Long paymentId) {
         PaymentRecord record = paymentRecordService.findById(paymentId);
-        return record == null ? Response.status(Response.Status.NOT_FOUND).build() : Response.ok(record).build();
+        if (record == null) {
+            return Response.status(Response.Status.NOT_FOUND).build();
+        }
+        if (!driverAccessGuard.canAccessDriver(securityContext, record.getDriverId())) {
+            return driverAccessGuard.forbidden();
+        }
+        return Response.ok(record).build();
     }
 
     @GET
+    @RolesAllowed({"SUPER_ADMIN", "ADMIN", "TRAFFIC_POLICE", "FINANCE", "USER"})
     @RunOnVirtualThread
     public Response listPayments() {
+        if (!driverAccessGuard.isElevated(securityContext)) {
+            return Response.ok(driverAccessGuard.scopedOrEmpty(securityContext,
+                    id -> paymentRecordService.findByDriverId(id, 1, 1000))).build();
+        }
         return Response.ok(paymentRecordService.findAll()).build();
     }
 
@@ -237,6 +249,7 @@ public class PaymentRecordController {
 
     @GET
     @Path("/driver/{driverId}")
+    @RolesAllowed({"SUPER_ADMIN", "ADMIN", "TRAFFIC_POLICE", "FINANCE", "USER"})
     @RunOnVirtualThread
     public Response findByDriver(@PathParam("driverId") Long driverId,
                                  @QueryParam("page") Integer page,

@@ -29,7 +29,7 @@ import java.util.logging.Logger;
 @Produces(MediaType.APPLICATION_JSON)
 @Consumes(MediaType.APPLICATION_JSON)
 @Tag(name = "Fine Management", description = "Fine record management")
-@RolesAllowed({"SUPER_ADMIN", "ADMIN", "TRAFFIC_POLICE", "FINANCE", "USER"})
+@RolesAllowed({"SUPER_ADMIN", "ADMIN", "TRAFFIC_POLICE", "FINANCE"})
 public class FineInformationController {
 
     private static final Logger LOG = Logger.getLogger(FineInformationController.class.getName());
@@ -110,11 +110,18 @@ public class FineInformationController {
 
     @GET
     @Path("/{fineId}")
+    @RolesAllowed({"SUPER_ADMIN", "ADMIN", "TRAFFIC_POLICE", "FINANCE", "USER"})
     @RunOnVirtualThread
     public Response get(@PathParam("fineId") Long fineId) {
         try {
             FineRecord record = fineRecordService.findById(fineId);
-            return record == null ? Response.status(Response.Status.NOT_FOUND).build() : Response.ok(record).build();
+            if (record == null) {
+                return Response.status(Response.Status.NOT_FOUND).build();
+            }
+            if (!driverAccessGuard.canAccessDriver(securityContext, record.getDriverId())) {
+                return driverAccessGuard.forbidden();
+            }
+            return Response.ok(record).build();
         } catch (Exception ex) {
             LOG.log(Level.WARNING, "Get fine failed", ex);
             return Response.status(resolveStatus(ex)).build();
@@ -122,9 +129,14 @@ public class FineInformationController {
     }
 
     @GET
+    @RolesAllowed({"SUPER_ADMIN", "ADMIN", "TRAFFIC_POLICE", "FINANCE", "USER"})
     @RunOnVirtualThread
     public Response list() {
         try {
+            if (!driverAccessGuard.isElevated(securityContext)) {
+                return Response.ok(driverAccessGuard.scopedOrEmpty(securityContext,
+                        id -> fineRecordService.findByDriverId(id, 1, 1000))).build();
+            }
             return Response.ok(fineRecordService.findAll()).build();
         } catch (Exception ex) {
             LOG.log(Level.WARNING, "List fines failed", ex);
@@ -150,6 +162,7 @@ public class FineInformationController {
 
     @GET
     @Path("/driver/{driverId}")
+    @RolesAllowed({"SUPER_ADMIN", "ADMIN", "TRAFFIC_POLICE", "FINANCE", "USER"})
     @RunOnVirtualThread
     public Response byDriver(@PathParam("driverId") Long driverId,
                              @QueryParam("page") Integer page,
@@ -158,7 +171,7 @@ public class FineInformationController {
             int resolvedPage = page == null ? 1 : page;
             int resolvedSize = size == null ? 20 : size;
             if (!driverAccessGuard.canAccessDriver(securityContext, driverId)) {
-                return Response.status(Response.Status.FORBIDDEN).entity(java.util.Map.of("error", "Forbidden")).build();
+                return driverAccessGuard.forbidden();
             }
             return Response.ok(fineRecordService.findByDriverId(driverId, resolvedPage, resolvedSize)).build();
         } catch (Exception ex) {

@@ -15,8 +15,10 @@ import jakarta.ws.rs.PathParam;
 import jakarta.ws.rs.Produces;
 import jakarta.ws.rs.QueryParam;
 import jakarta.ws.rs.HeaderParam;
+import jakarta.ws.rs.core.Context;
 import jakarta.ws.rs.core.MediaType;
 import jakarta.ws.rs.core.Response;
+import jakarta.ws.rs.core.SecurityContext;
 import org.eclipse.microprofile.openapi.annotations.tags.Tag;
 
 import java.util.List;
@@ -27,13 +29,19 @@ import java.util.logging.Logger;
 @Produces(MediaType.APPLICATION_JSON)
 @Consumes(MediaType.APPLICATION_JSON)
 @Tag(name = "Deduction Management", description = "Deduction record management")
-@RolesAllowed({"SUPER_ADMIN", "ADMIN", "TRAFFIC_POLICE", "FINANCE", "USER"})
+@RolesAllowed({"SUPER_ADMIN", "ADMIN", "TRAFFIC_POLICE", "FINANCE"})
 public class DeductionInformationController {
 
     private static final Logger LOG = Logger.getLogger(DeductionInformationController.class.getName());
 
     @Inject
     DeductionRecordService deductionRecordService;
+
+    @Inject
+    DriverAccessGuard driverAccessGuard;
+
+    @Context
+    SecurityContext securityContext;
 
     @POST
     @RunOnVirtualThread
@@ -102,11 +110,18 @@ public class DeductionInformationController {
 
     @GET
     @Path("/{deductionId}")
+    @RolesAllowed({"SUPER_ADMIN", "ADMIN", "TRAFFIC_POLICE", "FINANCE", "USER"})
     @RunOnVirtualThread
     public Response get(@PathParam("deductionId") Long deductionId) {
         try {
             DeductionRecord record = deductionRecordService.findById(deductionId);
-            return record == null ? Response.status(Response.Status.NOT_FOUND).build() : Response.ok(record).build();
+            if (record == null) {
+                return Response.status(Response.Status.NOT_FOUND).build();
+            }
+            if (!driverAccessGuard.canAccessDriver(securityContext, record.getDriverId())) {
+                return driverAccessGuard.forbidden();
+            }
+            return Response.ok(record).build();
         } catch (Exception ex) {
             LOG.log(Level.WARNING, "Get deduction failed", ex);
             return Response.status(resolveStatus(ex)).build();
@@ -114,9 +129,14 @@ public class DeductionInformationController {
     }
 
     @GET
+    @RolesAllowed({"SUPER_ADMIN", "ADMIN", "TRAFFIC_POLICE", "FINANCE", "USER"})
     @RunOnVirtualThread
     public Response list() {
         try {
+            if (!driverAccessGuard.isElevated(securityContext)) {
+                return Response.ok(driverAccessGuard.scopedOrEmpty(securityContext,
+                        id -> deductionRecordService.findByDriverId(id, 1, 1000))).build();
+            }
             return Response.ok(deductionRecordService.findAll()).build();
         } catch (Exception ex) {
             LOG.log(Level.WARNING, "List deductions failed", ex);
@@ -126,6 +146,7 @@ public class DeductionInformationController {
 
     @GET
     @Path("/driver/{driverId}")
+    @RolesAllowed({"SUPER_ADMIN", "ADMIN", "TRAFFIC_POLICE", "FINANCE", "USER"})
     @RunOnVirtualThread
     public Response byDriver(@PathParam("driverId") Long driverId,
                              @QueryParam("page") Integer page,
@@ -133,6 +154,9 @@ public class DeductionInformationController {
         try {
             int resolvedPage = page == null ? 1 : page;
             int resolvedSize = size == null ? 20 : size;
+            if (!driverAccessGuard.canAccessDriver(securityContext, driverId)) {
+                return driverAccessGuard.forbidden();
+            }
             return Response.ok(deductionRecordService.findByDriverId(driverId, resolvedPage, resolvedSize)).build();
         } catch (Exception ex) {
             LOG.log(Level.WARNING, "List deductions by driver failed", ex);

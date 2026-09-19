@@ -32,7 +32,7 @@ import java.util.logging.Logger;
 @Produces(MediaType.APPLICATION_JSON)
 @Consumes(MediaType.APPLICATION_JSON)
 @Tag(name = "Vehicle Information", description = "Vehicle information and binding management")
-@RolesAllowed({"SUPER_ADMIN", "ADMIN", "TRAFFIC_POLICE", "FINANCE", "USER"})
+@RolesAllowed({"SUPER_ADMIN", "ADMIN", "TRAFFIC_POLICE"})
 public class VehicleInformationController {
 
     private static final Logger LOG = Logger.getLogger(VehicleInformationController.class.getName());
@@ -114,11 +114,23 @@ public class VehicleInformationController {
 
     @GET
     @Path("/{vehicleId}")
+    @RolesAllowed({"SUPER_ADMIN", "ADMIN", "TRAFFIC_POLICE", "USER"})
     @RunOnVirtualThread
     public Response getVehicle(@PathParam("vehicleId") Long vehicleId) {
         try {
             VehicleInformation vehicle = vehicleInformationService.getVehicleInformationById(vehicleId);
-            return vehicle == null ? Response.status(Response.Status.NOT_FOUND).build() : Response.ok(vehicle).build();
+            if (vehicle == null) {
+                return Response.status(Response.Status.NOT_FOUND).build();
+            }
+            if (!driverAccessGuard.isElevated(securityContext)) {
+                Long driverId = driverAccessGuard.currentDriverId(securityContext);
+                boolean owned = driverId != null && vehicleInformationService.getVehicleInformationByDriverId(driverId, 1, 1000)
+                        .stream().anyMatch(item -> vehicleId.equals(item.getVehicleId()));
+                if (!owned) {
+                    return driverAccessGuard.forbidden();
+                }
+            }
+            return Response.ok(vehicle).build();
         } catch (Exception ex) {
             LOG.log(Level.WARNING, "Get vehicle failed", ex);
             return Response.status(resolveStatus(ex)).build();
@@ -126,9 +138,14 @@ public class VehicleInformationController {
     }
 
     @GET
+    @RolesAllowed({"SUPER_ADMIN", "ADMIN", "TRAFFIC_POLICE", "USER"})
     @RunOnVirtualThread
     public Response listVehicles() {
         try {
+            if (!driverAccessGuard.isElevated(securityContext)) {
+                return Response.ok(driverAccessGuard.scopedOrEmpty(securityContext,
+                        id -> vehicleInformationService.getVehicleInformationByDriverId(id, 1, 1000))).build();
+            }
             return Response.ok(vehicleInformationService.getAllVehicleInformation()).build();
         } catch (Exception ex) {
             LOG.log(Level.WARNING, "List vehicles failed", ex);
@@ -439,6 +456,7 @@ public class VehicleInformationController {
 
     @GET
     @Path("/drivers/{driverId}/records")
+    @RolesAllowed({"SUPER_ADMIN", "ADMIN", "TRAFFIC_POLICE", "USER"})
     @RunOnVirtualThread
     public Response listVehicleRecordsByDriver(@PathParam("driverId") Long driverId,
                                                @QueryParam("page") Integer page,
@@ -447,7 +465,7 @@ public class VehicleInformationController {
             int resolvedPage = page == null ? 1 : page;
             int resolvedSize = size == null ? 20 : size;
             if (!driverAccessGuard.canAccessDriver(securityContext, driverId)) {
-                return Response.status(Response.Status.FORBIDDEN).entity(java.util.Map.of("error", "Forbidden")).build();
+                return driverAccessGuard.forbidden();
             }
             return Response.ok(vehicleInformationService.getVehicleInformationByDriverId(driverId, resolvedPage, resolvedSize)).build();
         } catch (Exception ex) {
