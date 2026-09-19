@@ -54,7 +54,21 @@ Each startup run writes detailed logs to `artifacts/startup/<timestamp>/`, inclu
 
 When a step fails, the scripts print the log directory, recent log tails, port diagnostics, and Docker Compose service status before exiting.
 
-Ctrl-C cleanup is handled by the main startup scripts. Pressing Ctrl-C stops the selected frontend and backend process trees and, by default, the project Docker Compose stack plus the Ollama process started by the script. Set `STOP_LOCAL_SERVICES_ON_EXIT=false` to leave dependencies running, or use `STOP_DOCKER_ON_EXIT=false` / `STOP_OLLAMA_ON_EXIT=false` to control them separately.
+Ctrl-C cleanup is handled by the main startup scripts. Pressing Ctrl-C stops the selected frontend and backend process trees, leftover `go-backend.exe` binaries under `artifacts/startup/`, and, by default, the project Docker Compose stack plus the Ollama process started by the script. Set `STOP_LOCAL_SERVICES_ON_EXIT=false` to leave dependencies running, or use `STOP_DOCKER_ON_EXIT=false` / `STOP_OLLAMA_ON_EXIT=false` to control them separately.
+
+Before starting a backend or frontend, both `start-dev.ps1` and `start-dev.sh` clear leftover **project-owned** processes still holding the usual ports (8080/9080, React 5173, Flutter 3000), including a previous run's `artifacts/startup/*/go-backend` binary. Unrelated processes on those ports are left alone and still cause a startup error. Set `CLEAR_STALE_PROJECT_PROCESSES=false` to keep the old "fail if busy" behavior.
+
+To stop leftovers without starting anything:
+
+```bat
+scripts\stop-all.bat
+```
+
+```sh
+sh scripts/stop-all.sh
+```
+
+`stop-all` is equivalent to `scripts\start-all.bat --stop`. It stops leftover project processes and, unless disabled, the Docker Compose stack / Ollama used by this repo.
 
 ## Common Options
 

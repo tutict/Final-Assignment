@@ -24,7 +24,7 @@ $ErrorActionPreference = "Stop"
 
 function Show-Usage {
     @"
-Usage: scripts\start-dev.bat [-b backend] [-f frontend] [-e] [-h]
+Usage: scripts\start-dev.bat [-b backend] [-f frontend] [-e] [-s] [-h]
 
 Starts:
   1. Local Docker/Ollama environment (unless START_LOCAL_SERVICES=false or -e)
@@ -38,6 +38,7 @@ Optional flags / environment variables:
   -b, --backend <name>         Backend implementation to start (skips the menu).
   -f, --frontend <name>        Frontend app to start (skips the menu).
   -e, --no-env                 Skip local Docker/Ollama environment startup.
+  -s, --stop                   Stop leftover project processes from previous runs, then exit.
   -h, --help                   Show this usage.
 
   START_LOCAL_SERVICES         Start Docker services and Ollama before backend. Default: true
@@ -83,6 +84,7 @@ Optional flags / environment variables:
   BROWSER_OVERRIDE             Force a specific browser (chrome, edge, firefox, default). Default: auto (Firefox -> Chrome)
   NPM_CMD                      npm executable path.
   CLEAR_STALE_FLUTTER_PORT     Clear a stale Flutter web-server holding the web port before startup. Default: true
+  CLEAR_STALE_PROJECT_PROCESSES Clear leftover project backends/frontends holding startup ports. Default: true
 "@ | Write-Host
 }
 
@@ -90,12 +92,14 @@ Optional flags / environment variables:
 $menuBackend = $null
 $menuFrontend = $null
 $skipEnv = $false
+$stopOnly = $false
 for ($i = 0; $i -lt $args.Count; $i++) {
     switch -Regex ($args[$i]) {
         "^-h$|^--help$" { Show-Usage; exit 0 }
         "^-b$|^--backend$" { $menuBackend = $args[++$i]; continue }
         "^-f$|^--frontend$" { $menuFrontend = $args[++$i]; continue }
         "^-e$|^--no-env$" { $skipEnv = $true; continue }
+        "^-s$|^--stop$" { $stopOnly = $true; continue }
         default {
             Write-Host "[ERROR] Unknown argument: $($args[$i])"
             Show-Usage
@@ -207,6 +211,7 @@ $SmokeLogin = Set-DefaultEnv "SMOKE_LOGIN" "false"
 $SmokeLoginUsername = Set-DefaultEnv "SMOKE_LOGIN_USERNAME" "admin"
 $SmokeLoginPassword = Set-DefaultEnv "SMOKE_LOGIN_PASSWORD" "admin123"
 $ClearStaleFlutterPort = Set-DefaultEnv "CLEAR_STALE_FLUTTER_PORT" "true"
+$ClearStaleProjectProcesses = Set-DefaultEnv "CLEAR_STALE_PROJECT_PROCESSES" "true"
 $OpenBrowser = Set-DefaultEnv "OPEN_BROWSER" "true"
 $BrowserUrlExplicit = -not [string]::IsNullOrWhiteSpace((Get-EnvValue "BROWSER_URL"))
 $BrowserUrl = Get-EnvValue "BROWSER_URL"
@@ -556,21 +561,26 @@ if (-not [string]::IsNullOrWhiteSpace($menuFrontend)) {
     }
 }
 
-# Prompt only for whatever was not provided via flags.
-if ([string]::IsNullOrWhiteSpace($menuBackend)) {
-    Write-Host ""
-    Write-Host "Choose the backend to start:"
-    $BackendChoice = Select-Option -Prompt "Backend (0-$($BackendChoices.Count - 1))" -Options $BackendChoices
-}
-if ([string]::IsNullOrWhiteSpace($menuFrontend)) {
-    Write-Host ""
-    Write-Host "Choose the frontend to start:"
-    $FrontendChoice = Select-Option -Prompt "Frontend (0-$($FrontendChoices.Count - 1))" -Options $FrontendChoices
-}
+if ($stopOnly) {
+    $BackendChoice = "none"
+    $FrontendChoice = "none"
+} else {
+    # Prompt only for whatever was not provided via flags.
+    if ([string]::IsNullOrWhiteSpace($menuBackend)) {
+        Write-Host ""
+        Write-Host "Choose the backend to start:"
+        $BackendChoice = Select-Option -Prompt "Backend (0-$($BackendChoices.Count - 1))" -Options $BackendChoices
+    }
+    if ([string]::IsNullOrWhiteSpace($menuFrontend)) {
+        Write-Host ""
+        Write-Host "Choose the frontend to start:"
+        $FrontendChoice = Select-Option -Prompt "Frontend (0-$($FrontendChoices.Count - 1))" -Options $FrontendChoices
+    }
 
-if ($BackendChoice -eq "none" -and $FrontendChoice -eq "none") {
-    Write-Host "[ERROR] You must start at least one of backend or frontend."
-    exit 1
+    if ($BackendChoice -eq "none" -and $FrontendChoice -eq "none") {
+        Write-Host "[ERROR] You must start at least one of backend or frontend."
+        exit 1
+    }
 }
 
 function Update-FrontendRoutingDefaults {
@@ -958,6 +968,93 @@ function Stop-ProcessByExecutablePath([string]$ExecutablePath, [string]$Name) {
     }
 }
 
+function Test-OwnedProjectProcess([string]$ProcessName, [string]$CommandLine, [string]$ExecutablePath) {
+    $haystack = @($ProcessName, $CommandLine, $ExecutablePath) -join " "
+    if ([string]::IsNullOrWhiteSpace($haystack)) { return $false }
+
+    $startupRoot = Join-Path $RootDir "artifacts\startup"
+    if ($ProcessName -match '(?i)^go-backend(\.exe)?$') {
+        if (-not [string]::IsNullOrWhiteSpace($ExecutablePath) -and $ExecutablePath.StartsWith($startupRoot, [System.StringComparison]::OrdinalIgnoreCase)) {
+            return $true
+        }
+        if ($CommandLine -like "*\artifacts\startup\*" -or $CommandLine -like "*/artifacts/startup/*") {
+            return $true
+        }
+    }
+
+    $rootEsc = [regex]::Escape($RootDir)
+    if ($haystack -notmatch $rootEsc) { return $false }
+
+    return $haystack -match "finalAssignmentBackend|final_assignment_backend_go|final_assignment_backend_quarkus|finalAssignmentCloud|final_assignment_front_react|final_assignment_front|artifacts\\startup|artifacts/startup"
+}
+
+function Stop-StaleStartupGoBackends {
+    $startupRoot = Join-Path $RootDir "artifacts\startup"
+    if (-not (Test-Path -LiteralPath $startupRoot)) { return }
+
+    foreach ($process in @(Get-Process -ErrorAction SilentlyContinue)) {
+        if ($process.ProcessName -notmatch '(?i)^go-backend$') { continue }
+        $processPath = $null
+        try { $processPath = $process.Path } catch { $processPath = $null }
+        if ([string]::IsNullOrWhiteSpace($processPath)) { continue }
+        if ($processPath.StartsWith($startupRoot, [System.StringComparison]::OrdinalIgnoreCase)) {
+            Write-Log "Stopping leftover Go backend $($process.Id) ($processPath)..."
+            Stop-ProcessTree -ProcessId $process.Id -Name "Stale Go backend"
+        }
+    }
+}
+
+function Clear-StaleProjectListenersOnPort([int]$Port, [string]$Role) {
+    $listeners = @(Get-PortListenerSummaries -Port $Port)
+    foreach ($listener in $listeners) {
+        $exePath = ""
+        if ($listener.PSObject.Properties.Name -contains "ExecutablePath") {
+            $exePath = [string]$listener.ExecutablePath
+        }
+        if (Test-OwnedProjectProcess -ProcessName $listener.ProcessName -CommandLine $listener.CommandLine -ExecutablePath $exePath) {
+            Write-Log "Port $Port is held by leftover $Role $($listener.ProcessName) (PID $($listener.ProcessId)); stopping it."
+            Stop-ProcessTree -ProcessId $listener.ProcessId -Name "Stale $Role"
+        }
+    }
+}
+
+function Clear-StaleProjectProcesses {
+    if ($ClearStaleProjectProcesses -ine "true") { return }
+
+    Write-Log "Clearing leftover project processes from previous runs..."
+    Stop-StaleStartupGoBackends
+
+    $ports = New-Object "System.Collections.Generic.List[int]"
+    foreach ($port in @([int]$BackendPort, [int]$BackendInternalPort)) {
+        if ($port -gt 0 -and -not $ports.Contains($port)) { [void]$ports.Add($port) }
+    }
+    foreach ($fallback in @((Get-EnvValue "GO_BACKEND_FALLBACK_PORTS" "18080,18081,18082") -split '[,;\s]+')) {
+        if ($fallback -match '^\d+$') {
+            $value = [int]$fallback
+            if ($value -gt 0 -and -not $ports.Contains($value)) { [void]$ports.Add($value) }
+        }
+    }
+    foreach ($port in $ports) {
+        Clear-StaleProjectListenersOnPort -Port $port -Role "backend"
+    }
+
+    $reactPort = 5173
+    if ($ReactDevUrl -match ':(\d+)(?:/|$)') { $reactPort = [int]$Matches[1] }
+    Clear-StaleProjectListenersOnPort -Port $reactPort -Role "React frontend"
+    foreach ($fallback in @((Get-EnvValue "REACT_FALLBACK_PORTS" "15173,4173,51730") -split '[,;\s]+')) {
+        if ($fallback -match '^\d+$') { Clear-StaleProjectListenersOnPort -Port ([int]$fallback) -Role "React frontend" }
+    }
+
+    $flutterPort = 3000
+    if ($FlutterArgs -match "--web-port[= ]\s*(\d+)") { $flutterPort = [int]$Matches[1] }
+    elseif ($FlutterWebUrl -match ':(\d+)(?:/|$)') { $flutterPort = [int]$Matches[1] }
+    if ($ClearStaleFlutterPort -ieq "true") {
+        Clear-StaleFlutterOnPort -Address "127.0.0.1" -Port $flutterPort
+    }
+    Clear-StaleProjectListenersOnPort -Port $flutterPort -Role "Flutter frontend"
+}
+
+
 # Detect and stop stale Flutter web-server processes that still hold the Flutter
 # web port open (e.g. from a previous `flutter run -d web-server` that was not
 # cleaned up). Only processes whose command line matches a Flutter web-server run
@@ -1015,12 +1112,17 @@ function Get-PortListenerSummaries([int]$Port) {
         $fallbackProcess = Get-Process -Id $listenerRow.ProcessId -ErrorAction SilentlyContinue
         $name = if ($process) { $process.Name } elseif ($fallbackProcess) { $fallbackProcess.ProcessName } else { "unknown" }
         $cmdLine = if ($process -and $process.CommandLine) { $process.CommandLine } else { "" }
+        $exePath = ""
+        if ($fallbackProcess) {
+            try { $exePath = [string]$fallbackProcess.Path } catch { $exePath = "" }
+        }
         [pscustomobject]@{
             LocalAddress = $listenerRow.LocalAddress
             LocalPort = $listenerRow.LocalPort
             ProcessId = $listenerRow.ProcessId
             ProcessName = $name
             CommandLine = $cmdLine
+            ExecutablePath = $exePath
         }
     }
 }
@@ -1085,12 +1187,25 @@ function Cleanup {
     if ($BackendChoice -eq "go") {
         Stop-ProcessByExecutablePath -ExecutablePath $GoBackendBinary -Name "Go backend binary"
     }
+    Stop-StaleStartupGoBackends
     if ($StartLocalServices -ieq "true" -and $StopLocalServicesOnExit -ieq "true") {
         Stop-LocalDependencies
     } else {
         Write-Log "Skipping dependency cleanup. START_LOCAL_SERVICES=$StartLocalServices STOP_LOCAL_SERVICES_ON_EXIT=$StopLocalServicesOnExit"
     }
     Write-Log "Cleanup completed."
+}
+
+if ($stopOnly) {
+    Write-Log "Stop-only mode: clearing leftover project processes."
+    Clear-StaleProjectProcesses
+    if ($StartLocalServices -ieq "true" -and $StopLocalServicesOnExit -ieq "true") {
+        Stop-LocalDependencies
+    } else {
+        Write-Log "Skipping dependency cleanup. START_LOCAL_SERVICES=$StartLocalServices STOP_LOCAL_SERVICES_ON_EXIT=$StopLocalServicesOnExit"
+    }
+    Write-Log "Stop completed."
+    exit 0
 }
 
 # ---- backend launcher builders ---------------------------------------------
@@ -1388,6 +1503,10 @@ try {
         $frontendReady = New-ReactRunner -RunnerPath $FrontendRunner
     } else {
         $frontendReady = $false
+    }
+
+    if ($backendReady -or $frontendReady) {
+        Clear-StaleProjectProcesses
     }
 
     if ($backendReady) {

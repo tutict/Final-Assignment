@@ -3,6 +3,7 @@
 # Examples:
 #   sh scripts/start-all.sh -b go -f react
 #   sh scripts/start-all.sh -b spring -f flutter -e
+#   sh scripts/start-all.sh --stop
 # Optional env: SMOKE_LOGIN=true OPEN_BROWSER=false
 # See scripts/README.md
 SCRIPT_DIR="$(CDPATH= cd "$(dirname "$0")" && pwd)"

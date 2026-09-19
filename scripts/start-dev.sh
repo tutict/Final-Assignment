@@ -20,7 +20,7 @@ set -eu
 
 usage() {
   cat <<'EOF'
-Usage: sh scripts/start-dev.sh [-b backend] [-f frontend] [-e] [-h]
+Usage: sh scripts/start-dev.sh [-b backend] [-f frontend] [-e] [-s] [-h]
 
 Starts:
   1. Local Docker/Ollama environment (unless START_LOCAL_SERVICES=false or -e)
@@ -34,6 +34,7 @@ Optional flags:
   -b, --backend <name>   Backend implementation to start (skips the menu).
   -f, --frontend <name>  Frontend app to start (skips the menu).
   -e, --no-env           Skip local Docker/Ollama environment startup.
+  -s, --stop             Stop leftover project processes from previous runs, then exit.
   -h, --help             Show this usage.
 
 Optional environment variables:
@@ -78,6 +79,7 @@ Optional environment variables:
   SMOKE_LOGIN_PASSWORD         Login smoke password. Default: admin123
   OPEN_BROWSER                 Open the frontend in a browser after it is ready. Default: true
   BROWSER_URL                  URL to open when OPEN_BROWSER=true. Default: the selected frontend's ready URL
+  CLEAR_STALE_PROJECT_PROCESSES Clear leftover project backends/frontends holding startup ports. Default: true
 EOF
 }
 
@@ -85,6 +87,7 @@ EOF
 MENU_BACKEND=""
 MENU_FRONTEND=""
 SKIP_ENV="false"
+STOP_ONLY="false"
 while [ $# -gt 0 ]; do
   case "$1" in
     -h|--help) usage; exit 0 ;;
@@ -95,6 +98,7 @@ while [ $# -gt 0 ]; do
       [ $# -ge 2 ] || { echo "[ERROR] Missing value for $1" >&2; usage; exit 1; }
       MENU_FRONTEND="$2"; shift 2 ;;
     -e|--no-env) SKIP_ENV="true"; shift ;;
+    -s|--stop) STOP_ONLY="true"; shift ;;
     *) echo "[ERROR] Unknown argument: $1" >&2; usage; exit 1 ;;
   esac
 done
@@ -218,6 +222,7 @@ REACT_DEV_URL="${REACT_DEV_URL:-http://127.0.0.1:5173}"
 REACT_FALLBACK_PORTS="${REACT_FALLBACK_PORTS:-15173 4173 51730}"
 FLUTTER_FALLBACK_PORTS="${FLUTTER_FALLBACK_PORTS:-13000 3001 24678}"
 SMOKE_LOGIN="${SMOKE_LOGIN:-false}"
+CLEAR_STALE_PROJECT_PROCESSES="${CLEAR_STALE_PROJECT_PROCESSES:-true}"
 SMOKE_LOGIN_USERNAME="${SMOKE_LOGIN_USERNAME:-admin}"
 SMOKE_LOGIN_PASSWORD="${SMOKE_LOGIN_PASSWORD:-admin123}"
 if [ -n "${FRONTEND_URL:-}" ]; then
@@ -348,17 +353,22 @@ if [ -n "$MENU_FRONTEND" ]; then
   esac
 fi
 
-# Prompt only for whatever was not provided via flags.
-if [ -z "$MENU_BACKEND" ]; then
-  choose_backend
-fi
-if [ -z "$MENU_FRONTEND" ]; then
-  choose_frontend
-fi
+if [ "$STOP_ONLY" = "true" ]; then
+  BACKEND_CHOICE="none"
+  FRONTEND_CHOICE="none"
+else
+  # Prompt only for whatever was not provided via flags.
+  if [ -z "$MENU_BACKEND" ]; then
+    choose_backend
+  fi
+  if [ -z "$MENU_FRONTEND" ]; then
+    choose_frontend
+  fi
 
-if [ "$BACKEND_CHOICE" = "none" ] && [ "$FRONTEND_CHOICE" = "none" ]; then
-  echo "[ERROR] You must start at least one of backend or frontend." >&2
-  exit 1
+  if [ "$BACKEND_CHOICE" = "none" ] && [ "$FRONTEND_CHOICE" = "none" ]; then
+    echo "[ERROR] You must start at least one of backend or frontend." >&2
+    exit 1
+  fi
 fi
 
 update_frontend_routing_defaults() {
@@ -842,6 +852,76 @@ require_command() {
   fi
 }
 
+
+owned_project_pid() {
+  pid="$1"
+  args="$(ps -p "$pid" -o args= 2>/dev/null || true)"
+  [ -n "$args" ] || return 1
+  case "$args" in
+    *"$ROOT_DIR"*) ;;
+    *) return 1 ;;
+  esac
+  case "$args" in
+    *finalAssignmentBackend*|*final_assignment_backend_go*|*final_assignment_backend_quarkus*|*finalAssignmentCloud*|*final_assignment_front_react*|*final_assignment_front*|*artifacts/startup*|*artifacts\\startup*)
+      return 0
+      ;;
+  esac
+  return 1
+}
+
+stop_stale_go_backends() {
+  [ "$CLEAR_STALE_PROJECT_PROCESSES" = "true" ] || return 0
+  if command -v pgrep >/dev/null 2>&1; then
+    for pattern in "$ROOT_DIR/artifacts/startup/.*/go-backend" "$ROOT_DIR/artifacts/startup/.*/go-backend.exe"; do
+      pgrep -f "$pattern" 2>/dev/null | while IFS= read -r pid; do
+        case "$pid" in
+          ''|*[!0-9]*) continue ;;
+        esac
+        log "Stopping leftover Go backend PID $pid..."
+        kill_tree "$pid"
+      done
+    done
+  fi
+}
+
+clear_stale_listeners_on_port() {
+  port="$1"
+  role="$2"
+  pids=""
+  if command -v lsof >/dev/null 2>&1; then
+    pids="$(lsof -nP -iTCP:"$port" -sTCP:LISTEN -t 2>/dev/null || true)"
+  elif command -v fuser >/dev/null 2>&1; then
+    pids="$(fuser "$port/tcp" 2>/dev/null || true)"
+  fi
+  for pid in $pids; do
+    case "$pid" in
+      ''|*[!0-9]*) continue ;;
+    esac
+    if owned_project_pid "$pid"; then
+      log "Port $port is held by leftover $role PID $pid; stopping it."
+      kill_tree "$pid"
+    fi
+  done
+}
+
+clear_stale_project_processes() {
+  [ "$CLEAR_STALE_PROJECT_PROCESSES" = "true" ] || return 0
+  log "Clearing leftover project processes from previous runs..."
+  stop_stale_go_backends
+  for port in $BACKEND_PORT $BACKEND_INTERNAL_PORT $GO_BACKEND_FALLBACK_PORTS; do
+    case "$port" in
+      ''|*[!0-9]*) continue ;;
+    esac
+    clear_stale_listeners_on_port "$port" "backend"
+  done
+  react_port=$(printf '%s' "${REACT_DEV_URL:-http://127.0.0.1:5173}" | awk -F: '{print $NF}' | tr -cd '0-9')
+  [ -n "$react_port" ] || react_port=5173
+  clear_stale_listeners_on_port "$react_port" "React frontend"
+  flutter_port=$(printf '%s' "${FLUTTER_ARGS:-}" | awk '{for (i=1;i<=NF;i++) if ($i=="--web-port") {print $(i+1); exit} else if ($i ~ /^--web-port=/) {sub(/^--web-port=/,"",$i); print $i; exit}}')
+  [ -n "$flutter_port" ] || flutter_port=3000
+  clear_stale_listeners_on_port "$flutter_port" "Flutter frontend"
+}
+
 kill_tree() {
   pid="$1"
   if [ -z "$pid" ] || ! kill -0 "$pid" >/dev/null 2>&1; then
@@ -895,6 +975,7 @@ cleanup() {
     log "Stopping backend ($BACKEND_CHOICE) process tree at PID $BACKEND_PID..."
     kill_tree "$BACKEND_PID"
   fi
+  stop_stale_go_backends
   if [ "$START_LOCAL_SERVICES" = "true" ] && [ "$STOP_LOCAL_SERVICES_ON_EXIT" = "true" ]; then
     cleanup_dependencies
   else
@@ -907,6 +988,19 @@ cleanup() {
 trap cleanup EXIT
 trap 'exit 130' INT
 trap 'exit 143' TERM
+
+if [ "$STOP_ONLY" = "true" ]; then
+  log "Stop-only mode: clearing leftover project processes."
+  clear_stale_project_processes
+  if [ "$START_LOCAL_SERVICES" = "true" ] && [ "$STOP_LOCAL_SERVICES_ON_EXIT" = "true" ]; then
+    cleanup_dependencies
+  else
+    log "Skipping dependency cleanup. START_LOCAL_SERVICES=$START_LOCAL_SERVICES STOP_LOCAL_SERVICES_ON_EXIT=$STOP_LOCAL_SERVICES_ON_EXIT"
+  fi
+  log "Stop completed."
+  trap - EXIT INT TERM
+  exit 0
+fi
 
 resolve_redpanda_kafka_host_port
 resolve_go_backend_port
@@ -1156,6 +1250,9 @@ start_frontend() {
 
 HEALTH_URL="$(effective_backend_health_url)"
 
+if [ "$BACKEND_CHOICE" != "none" ] || [ "$FRONTEND_CHOICE" != "none" ]; then
+  clear_stale_project_processes
+fi
 if [ "$BACKEND_CHOICE" != "none" ]; then
   assert_backend_ports_available
 fi
