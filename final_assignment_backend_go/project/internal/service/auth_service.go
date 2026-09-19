@@ -11,7 +11,6 @@ import (
 	"final_assignment_backend_go/project/internal/domain"
 
 	"golang.org/x/crypto/bcrypt"
-	"gorm.io/gorm"
 )
 
 type LoginRequest struct {
@@ -47,10 +46,11 @@ func NewAuthWsService(users *UserManagementService, tokenProvider *authcfg.Token
 	}
 }
 
-// SetRefreshTokenService 注入刷新令牌服务（可选；未注入时 Refresh 走旧的"重签 JWT"退化路径）。
+
 func (s *AuthWsService) SetRefreshTokenService(r *RefreshTokenService) { s.refreshTokens = r }
 
 // SetTokenBlacklistService 注入 access token 黑名单服务（可选；未注入时 Logout 不撤销）。
+
 func (s *AuthWsService) SetTokenBlacklistService(b *TokenBlacklistService) { s.blacklist = b }
 
 type authAccount struct {
@@ -241,6 +241,7 @@ func (s *AuthWsService) Refresh(token string) (map[string]interface{}, error) {
 
 // Logout 登出：撤销该用户所有 refresh token，并把当前 access token 加入黑名单直至其自然过期。
 // 未注入对应服务时静默降级（与历史行为一致）。
+
 func (s *AuthWsService) Logout(username, bearerToken string) error {
 	if username == "" {
 		return errors.New("authenticated user is required")
@@ -267,6 +268,7 @@ func (s *AuthWsService) Logout(username, bearerToken string) error {
 
 // GetCurrentUserProfile 返回当前登录用户的档案（身份 + 角色）。
 // driver 关联尚未移植，暂返回空值（与历史行为一致）。
+
 func (s *AuthWsService) GetCurrentUserProfile(username string) (map[string]interface{}, error) {
 	if strings.TrimSpace(username) == "" {
 		return nil, errors.New("user not found")
@@ -390,141 +392,6 @@ func (s *AuthWsService) GetAllUsers() ([]domain.UserManagement, error) {
 	return s.users.GetAllUsers()
 }
 
-func (s *UserManagementService) DB() *gorm.DB {
-	return s.repo.DB()
-}
-
-func (s *UserManagementService) IsUsernameExists(username string) bool {
-	var count int64
-	s.DB().Model(&domain.UserManagement{}).Where("username = ?", strings.TrimSpace(username)).Count(&count)
-	return count > 0
-}
-
-func (s *UserManagementService) CheckAndInsertIdempotency(key string, user *domain.UserManagement, operation string) error {
-	if err := checkIdempotency(key, operation); err != nil {
-		return err
-	}
-	now := time.Now()
-	switch strings.ToLower(operation) {
-	case "create":
-		if user.CreatedTime == nil {
-			user.CreatedTime = timePtr(now)
-		}
-		user.ModifiedTime = timePtr(now)
-		if user.Status == "" {
-			user.Status = "Active"
-		}
-		if user.Password != "" && !strings.HasPrefix(user.Password, "$2") {
-			hashed, err := hashPassword(user.Password)
-			if err != nil {
-				return err
-			}
-			user.Password = hashed
-		}
-		return s.DB().Create(user).Error
-	case "update":
-		user.ModifiedTime = timePtr(now)
-		if user.Password != "" && !strings.HasPrefix(user.Password, "$2") {
-			hashed, err := hashPassword(user.Password)
-			if err != nil {
-				return err
-			}
-			user.Password = hashed
-		}
-		return s.DB().Save(user).Error
-	default:
-		return fmt.Errorf("unsupported operation: %s", operation)
-	}
-}
-
-func (s *UserManagementService) GetAllUsers() ([]domain.UserManagement, error) {
-	return s.repo.FindAll()
-}
-
-func (s *UserManagementService) GetUserByID(userID string) (*domain.UserManagement, error) {
-	id, err := parseID(userID)
-	if err != nil {
-		return nil, err
-	}
-	return s.GetUserById(id)
-}
-
-func (s *UserManagementService) GetUserById(userID int) (*domain.UserManagement, error) {
-	var user domain.UserManagement
-	err := s.DB().Where("user_id = ?", userID).First(&user).Error
-	return &user, err
-}
-
-func (s *UserManagementService) GetUserByUsername(username string) (*domain.UserManagement, error) {
-	var user domain.UserManagement
-	err := s.DB().Where("username = ?", strings.TrimSpace(username)).First(&user).Error
-	return &user, err
-}
-
-func (s *UserManagementService) GetUsersByRole(roleName string) ([]domain.UserManagement, error) {
-	var users []domain.UserManagement
-	err := s.DB().Table("sys_user").
-		Joins("JOIN sys_user_role ON sys_user_role.user_id = sys_user.user_id AND sys_user_role.deleted_at IS NULL").
-		Joins("JOIN sys_role ON sys_role.role_id = sys_user_role.role_id AND sys_role.deleted_at IS NULL").
-		Where("(sys_role.role_name = ? OR sys_role.role_code = ?) AND sys_user.deleted_at IS NULL", roleName, roleName).
-		Find(&users).Error
-	return users, err
-}
-
-func (s *UserManagementService) GetUsersByStatus(status string) ([]domain.UserManagement, error) {
-	var users []domain.UserManagement
-	err := s.DB().Where("status = ?", status).Find(&users).Error
-	return users, err
-}
-
-func (s *UserManagementService) UpdateUserByID(userID string, updated *domain.UserManagement, key string) error {
-	id, err := parseID(userID)
-	if err != nil {
-		return err
-	}
-	updated.UserID = id
-	return s.CheckAndInsertIdempotency(key, updated, "update")
-}
-
-func (s *UserManagementService) UpdateUser(user *domain.UserManagement) error {
-	user.ModifiedTime = timePtr(time.Now())
-	return s.DB().Save(user).Error
-}
-
-func (s *UserManagementService) DeleteUserByID(userID string) error {
-	id, err := parseID(userID)
-	if err != nil {
-		return err
-	}
-	return s.DB().Where("user_id = ?", id).Delete(&domain.UserManagement{}).Error
-}
-
-func (s *UserManagementService) DeleteUserByUsername(username string) error {
-	return s.DB().Where("username = ?", username).Delete(&domain.UserManagement{}).Error
-}
-
-func (s *UserManagementService) GetUsernamesByPrefixGlobally(prefix string) ([]string, error) {
-	return distinctStrings(s.DB(), "sys_user", "username", prefix, 10), nil
-}
-
-func (s *UserManagementService) GetStatusesByPrefixGlobally(prefix string) ([]string, error) {
-	return distinctStrings(s.DB(), "sys_user", "status", prefix, 10), nil
-}
-
-func (s *UserManagementService) GetPhoneNumbersByPrefixGlobally(prefix string) ([]string, error) {
-	return distinctStrings(s.DB(), "sys_user", "contact_number", prefix, 10), nil
-}
-
-func (s *UserManagementService) GetRoleNamesForUser(userID int) ([]string, error) {
-	var roles []string
-	err := s.DB().Table("sys_role").
-		Select("sys_role.role_code").
-		Joins("JOIN sys_user_role ON sys_user_role.role_id = sys_role.role_id AND sys_user_role.deleted_at IS NULL").
-		Where("sys_user_role.user_id = ? AND sys_role.deleted_at IS NULL", userID).
-		Pluck("sys_role.role_code", &roles).Error
-	return roles, err
-}
-
 func hashPassword(password string) (string, error) {
 	bytes, err := bcrypt.GenerateFromPassword([]byte(password), bcrypt.DefaultCost)
 	return string(bytes), err
@@ -572,4 +439,11 @@ func (s *AuthWsService) clearFailedLogin(username string) {
 	defer s.loginGuard.Unlock()
 	delete(s.failedAttempts, username)
 	delete(s.lockedUntilByUser, username)
+}
+
+// AuthService is the canonical auth application service name.
+type AuthService = AuthWsService
+
+func NewAuthService(users *UserManagementService, tokenProvider *authcfg.TokenProvider) *AuthWsService {
+	return NewAuthWsService(users, tokenProvider)
 }

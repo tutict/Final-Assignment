@@ -6,6 +6,7 @@ import (
 	"strings"
 	"testing"
 
+	appapi "final_assignment_backend_go/project/internal/app"
 	"final_assignment_backend_go/project/internal/repo"
 	"final_assignment_backend_go/project/internal/service"
 
@@ -23,7 +24,7 @@ func TestRegisterRoutesDoesNotPanic(t *testing.T) {
 	router := gin.New()
 	userService := service.NewUserManagementService(repo.NewUserManagementRepo(nil))
 
-	registerRoutes(router, nil, userService, nil, nil)
+	appapi.RegisterHTTP(router, nil, userService, nil, nil)
 
 	if len(router.Routes()) == 0 {
 		t.Fatal("expected routes to be registered")
@@ -47,6 +48,27 @@ func TestAccessPolicyRequiresAdminForAdminPaths(t *testing.T) {
 
 	if res.Code != http.StatusForbidden {
 		t.Fatalf("expected forbidden for non-admin user, got %d", res.Code)
+	}
+}
+
+func TestAccessPolicyAllowsSuperAdminForAdminPaths(t *testing.T) {
+	router := gin.New()
+	router.Use(func(c *gin.Context) {
+		c.Set("role", "SUPER_ADMIN")
+		c.Set("normalizedRoles", []string{"SUPER_ADMIN"})
+		c.Next()
+	})
+	router.Use(accessPolicy())
+	router.GET("/api/users", func(c *gin.Context) {
+		c.Status(http.StatusNoContent)
+	})
+
+	req := httptest.NewRequest(http.MethodGet, "/api/users", nil)
+	res := httptest.NewRecorder()
+	router.ServeHTTP(res, req)
+
+	if res.Code != http.StatusNoContent {
+		t.Fatalf("expected SUPER_ADMIN to access governance path, got %d", res.Code)
 	}
 }
 
