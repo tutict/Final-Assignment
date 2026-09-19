@@ -2,7 +2,7 @@ package finalassignmentbackend.kafkaListener;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import finalassignmentbackend.entity.AuditLoginLog;
-import finalassignmentbackend.service.AuditLoginLogService;
+import finalassignmentbackend.service.audit.AuditLoginLogService;
 import io.smallrye.common.annotation.RunOnVirtualThread;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;

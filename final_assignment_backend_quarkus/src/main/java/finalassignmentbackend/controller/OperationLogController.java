@@ -1,7 +1,7 @@
 package finalassignmentbackend.controller;
 
 import finalassignmentbackend.entity.AuditOperationLog;
-import finalassignmentbackend.service.AuditOperationLogService;
+import finalassignmentbackend.service.audit.AuditOperationLogService;
 import io.smallrye.common.annotation.RunOnVirtualThread;
 import jakarta.annotation.security.RolesAllowed;
 import jakarta.inject.Inject;

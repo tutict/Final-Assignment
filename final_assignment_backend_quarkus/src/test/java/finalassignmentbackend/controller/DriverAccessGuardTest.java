@@ -1,7 +1,7 @@
 package finalassignmentbackend.controller;
 
 import finalassignmentbackend.dto.UserProfileResponse;
-import finalassignmentbackend.service.AuthWsService;
+import finalassignmentbackend.service.auth.AuthWsService;
 import jakarta.ws.rs.core.SecurityContext;
 import org.junit.jupiter.api.Test;
 

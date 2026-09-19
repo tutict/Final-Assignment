@@ -2,8 +2,9 @@ package finalassignmentbackend.controller;
 
 import finalassignmentbackend.entity.DriverVehicle;
 import finalassignmentbackend.entity.VehicleInformation;
-import finalassignmentbackend.service.DriverVehicleService;
-import finalassignmentbackend.service.VehicleInformationService;
+import finalassignmentbackend.service.driver.DriverVehicleService;
+import finalassignmentbackend.service.driver.VehicleInformationService;
+import finalassignmentbackend.service.driver.VehicleSuggestionFilter;
 import io.smallrye.common.annotation.RunOnVirtualThread;
 import jakarta.annotation.security.RolesAllowed;
 import jakarta.inject.Inject;
@@ -399,12 +400,16 @@ public class VehicleInformationController {
 
     @GET
     @Path("/autocomplete/plates")
+    @RolesAllowed({"SUPER_ADMIN", "ADMIN", "TRAFFIC_POLICE", "USER"})
     @RunOnVirtualThread
     public Response plateAutocomplete(@QueryParam("prefix") String prefix,
                                       @QueryParam("size") Integer size,
                                       @QueryParam("idCard") String idCard) {
         try {
             int resolvedSize = size == null ? 10 : size;
+            if (!driverAccessGuard.isElevated(securityContext)) {
+                return Response.ok(VehicleSuggestionFilter.plates(ownedVehicles(resolvedSize), prefix, resolvedSize)).build();
+            }
             return Response.ok(vehicleInformationService.getLicensePlateAutocompleteSuggestions(prefix, resolvedSize, idCard)).build();
         } catch (Exception ex) {
             LOG.log(Level.WARNING, "Fetch plate autocomplete failed", ex);
@@ -414,12 +419,16 @@ public class VehicleInformationController {
 
     @GET
     @Path("/autocomplete/types")
+    @RolesAllowed({"SUPER_ADMIN", "ADMIN", "TRAFFIC_POLICE", "USER"})
     @RunOnVirtualThread
     public Response vehicleTypeAutocomplete(@QueryParam("idCard") String idCard,
                                             @QueryParam("prefix") String prefix,
                                             @QueryParam("size") Integer size) {
         try {
             int resolvedSize = size == null ? 10 : size;
+            if (!driverAccessGuard.isElevated(securityContext)) {
+                return Response.ok(VehicleSuggestionFilter.types(ownedVehicles(resolvedSize), prefix, resolvedSize)).build();
+            }
             return Response.ok(vehicleInformationService.getVehicleTypeAutocompleteSuggestions(idCard, prefix, resolvedSize)).build();
         } catch (Exception ex) {
             LOG.log(Level.WARNING, "Fetch vehicle type autocomplete failed", ex);
@@ -476,17 +485,26 @@ public class VehicleInformationController {
 
     @GET
     @Path("/autocomplete")
+    @RolesAllowed({"SUPER_ADMIN", "ADMIN", "TRAFFIC_POLICE", "USER"})
     @RunOnVirtualThread
     public Response autocompletePlates(@QueryParam("prefix") String prefix,
                                        @QueryParam("limit") Integer limit,
                                        @QueryParam("size") Integer size) {
         try {
             int resolvedLimit = limit != null ? limit : (size == null ? 10 : size);
+            if (!driverAccessGuard.isElevated(securityContext)) {
+                return Response.ok(Map.of("data", VehicleSuggestionFilter.plates(ownedVehicles(resolvedLimit), prefix, resolvedLimit))).build();
+            }
             return Response.ok(Map.of("data", vehicleInformationService.suggestPlates(prefix, resolvedLimit))).build();
         } catch (Exception ex) {
             LOG.log(Level.WARNING, "Fetch plate autocomplete failed", ex);
             return Response.status(resolveStatus(ex)).build();
         }
+    }
+
+    private List<VehicleInformation> ownedVehicles(int limit) {
+        return driverAccessGuard.scopedOrEmpty(securityContext,
+                id -> vehicleInformationService.getVehicleInformationByDriverId(id, 1, Math.max(limit, 50)));
     }
 
     private boolean hasKey(String value) {

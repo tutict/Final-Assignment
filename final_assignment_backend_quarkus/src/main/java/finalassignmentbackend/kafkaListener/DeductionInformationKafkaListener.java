@@ -2,7 +2,7 @@ package finalassignmentbackend.kafkaListener;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import finalassignmentbackend.entity.DeductionRecord;
-import finalassignmentbackend.service.DeductionRecordService;
+import finalassignmentbackend.service.offense.DeductionRecordService;
 import io.smallrye.common.annotation.RunOnVirtualThread;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;

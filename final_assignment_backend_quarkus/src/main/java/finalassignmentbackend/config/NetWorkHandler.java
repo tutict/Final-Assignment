@@ -6,7 +6,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import finalassignmentbackend.config.login.jwt.TokenProvider;
 import finalassignmentbackend.config.websocket.WsActionRegistry;
 import finalassignmentbackend.config.websocket.WsTicketService;
-import finalassignmentbackend.service.TokenBlacklistService;
+import finalassignmentbackend.service.auth.TokenBlacklistService;
 import io.netty.handler.codec.http.HttpResponseStatus;
 import io.vertx.core.MultiMap;
 import io.vertx.core.buffer.Buffer;

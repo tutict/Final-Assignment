@@ -1,6 +1,6 @@
 package finalassignmentbackend.controller;
 
-import finalassignmentbackend.service.SearchService;
+import finalassignmentbackend.service.business.SearchService;
 import jakarta.annotation.security.RolesAllowed;
 import jakarta.inject.Inject;
 import jakarta.ws.rs.GET;

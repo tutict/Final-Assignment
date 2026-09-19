@@ -1,7 +1,7 @@
 package finalassignmentbackend.controller;
 
 import finalassignmentbackend.entity.DeductionRecord;
-import finalassignmentbackend.service.DeductionRecordService;
+import finalassignmentbackend.service.offense.DeductionRecordService;
 import io.smallrye.common.annotation.RunOnVirtualThread;
 import jakarta.annotation.security.RolesAllowed;
 import jakarta.inject.Inject;

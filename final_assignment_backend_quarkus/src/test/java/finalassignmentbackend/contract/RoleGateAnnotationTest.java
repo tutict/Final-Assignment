@@ -57,6 +57,15 @@ class RoleGateAnnotationTest {
         assertTrue(driver.contains("canAccessDriver"));
     }
 
+    @Test
+    void vehicleAutocompleteAllowsUserAndScopesResults() throws IOException {
+        String vehicle = readController("VehicleInformationController.java");
+        assertTrue(vehicle.contains("@Path(\"/autocomplete/plates\")"));
+        assertTrue(vehicle.contains("VehicleSuggestionFilter.plates"));
+        assertTrue(vehicle.contains("VehicleSuggestionFilter.types"));
+        assertTrue(vehicle.contains("ownedVehicles("));
+    }
+
     private static void assertClassRoles(String file, String expected) throws IOException {
         String src = readController(file);
         Matcher matcher = CLASS_ROLES.matcher(src);

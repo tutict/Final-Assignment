@@ -2,8 +2,8 @@ package finalassignmentbackend.controller;
 
 import finalassignmentbackend.entity.SysDict;
 import finalassignmentbackend.entity.SysSettings;
-import finalassignmentbackend.service.SysDictService;
-import finalassignmentbackend.service.SysSettingsService;
+import finalassignmentbackend.service.admin.SysDictService;
+import finalassignmentbackend.service.admin.SysSettingsService;
 import io.smallrye.common.annotation.RunOnVirtualThread;
 import jakarta.annotation.security.RolesAllowed;
 import jakarta.inject.Inject;

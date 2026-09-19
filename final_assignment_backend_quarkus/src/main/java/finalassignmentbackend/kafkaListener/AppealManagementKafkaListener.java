@@ -2,7 +2,7 @@ package finalassignmentbackend.kafkaListener;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import finalassignmentbackend.entity.AppealRecord;
-import finalassignmentbackend.service.AppealManagementService;
+import finalassignmentbackend.service.appeal.AppealManagementService;
 import io.smallrye.common.annotation.RunOnVirtualThread;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;

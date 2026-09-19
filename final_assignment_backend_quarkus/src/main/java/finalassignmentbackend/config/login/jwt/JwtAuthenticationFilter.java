@@ -1,6 +1,6 @@
 package finalassignmentbackend.config.login.jwt;
 
-import finalassignmentbackend.service.TokenBlacklistService;
+import finalassignmentbackend.service.auth.TokenBlacklistService;
 import io.quarkus.security.identity.SecurityIdentity;
 import io.quarkus.security.runtime.QuarkusPrincipal;
 import io.quarkus.security.runtime.QuarkusSecurityIdentity;

@@ -2,7 +2,7 @@ package finalassignmentbackend.controller;
 
 import finalassignmentbackend.config.login.jwt.TokenProvider;
 import finalassignmentbackend.config.websocket.WsTicketService;
-import finalassignmentbackend.service.TokenBlacklistService;
+import finalassignmentbackend.service.auth.TokenBlacklistService;
 import io.smallrye.common.annotation.RunOnVirtualThread;
 import jakarta.annotation.security.RolesAllowed;
 import jakarta.inject.Inject;

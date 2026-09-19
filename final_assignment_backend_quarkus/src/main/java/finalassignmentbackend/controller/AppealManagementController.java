@@ -2,8 +2,8 @@ package finalassignmentbackend.controller;
 
 import finalassignmentbackend.entity.AppealRecord;
 import finalassignmentbackend.entity.AppealReview;
-import finalassignmentbackend.service.AppealManagementService;
-import finalassignmentbackend.service.AppealReviewService;
+import finalassignmentbackend.service.appeal.AppealManagementService;
+import finalassignmentbackend.service.appeal.AppealReviewService;
 import io.smallrye.common.annotation.RunOnVirtualThread;
 import jakarta.annotation.security.RolesAllowed;
 import jakarta.inject.Inject;

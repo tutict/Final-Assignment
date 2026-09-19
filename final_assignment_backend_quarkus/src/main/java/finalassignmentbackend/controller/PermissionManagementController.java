@@ -1,7 +1,7 @@
 package finalassignmentbackend.controller;
 
 import finalassignmentbackend.entity.SysPermission;
-import finalassignmentbackend.service.SysPermissionService;
+import finalassignmentbackend.service.admin.SysPermissionService;
 import io.smallrye.common.annotation.RunOnVirtualThread;
 import jakarta.annotation.security.RolesAllowed;
 import jakarta.inject.Inject;

@@ -1,7 +1,7 @@
 package finalassignmentbackend.controller;
 
 import finalassignmentbackend.entity.DriverInformation;
-import finalassignmentbackend.service.DriverInformationService;
+import finalassignmentbackend.service.driver.DriverInformationService;
 import io.smallrye.common.annotation.RunOnVirtualThread;
 import jakarta.annotation.security.RolesAllowed;
 import jakarta.inject.Inject;

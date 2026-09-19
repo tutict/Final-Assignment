@@ -1,7 +1,7 @@
 package finalassignmentbackend.controller;
 
 import finalassignmentbackend.entity.PaymentRecord;
-import finalassignmentbackend.service.PaymentRecordService;
+import finalassignmentbackend.service.payment.PaymentRecordService;
 import io.smallrye.common.annotation.RunOnVirtualThread;
 import jakarta.annotation.security.RolesAllowed;
 import jakarta.inject.Inject;

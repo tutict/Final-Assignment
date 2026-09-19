@@ -1,7 +1,7 @@
 package finalassignmentbackend.controller;
 
 import finalassignmentbackend.entity.OffenseRecord;
-import finalassignmentbackend.service.OffenseRecordService;
+import finalassignmentbackend.service.offense.OffenseRecordService;
 import io.smallrye.common.annotation.RunOnVirtualThread;
 import jakarta.annotation.security.RolesAllowed;
 import jakarta.inject.Inject;

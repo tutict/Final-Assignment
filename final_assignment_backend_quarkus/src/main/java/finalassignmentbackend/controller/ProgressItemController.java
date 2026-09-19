@@ -1,7 +1,7 @@
 package finalassignmentbackend.controller;
 
 import finalassignmentbackend.entity.SysRequestHistory;
-import finalassignmentbackend.service.SysRequestHistoryService;
+import finalassignmentbackend.service.system.SysRequestHistoryService;
 import io.smallrye.common.annotation.RunOnVirtualThread;
 import jakarta.annotation.security.RolesAllowed;
 import jakarta.inject.Inject;

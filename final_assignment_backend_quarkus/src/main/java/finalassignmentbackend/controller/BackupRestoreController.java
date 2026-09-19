@@ -1,7 +1,7 @@
 package finalassignmentbackend.controller;
 
 import finalassignmentbackend.entity.SysBackupRestore;
-import finalassignmentbackend.service.SysBackupRestoreService;
+import finalassignmentbackend.service.admin.SysBackupRestoreService;
 import io.smallrye.common.annotation.RunOnVirtualThread;
 import jakarta.annotation.security.RolesAllowed;
 import jakarta.inject.Inject;
