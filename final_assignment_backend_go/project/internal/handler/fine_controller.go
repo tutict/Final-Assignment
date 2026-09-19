@@ -24,6 +24,9 @@ func NewFineController(fineService FineInformationService) *FineController {
 
 // CreateFine POST /api/fines
 func (fc *FineController) CreateFine(c *gin.Context) {
+	if !requireFinanceStaff(c) {
+		return
+	}
 	var fine domain.FineInformation
 	idempotencyKey := c.Query("idempotencyKey")
 
@@ -63,6 +66,9 @@ func (fc *FineController) GetAllFines(c *gin.Context) {
 
 // UpdateFine PUT /api/fines/:fineId
 func (fc *FineController) UpdateFine(c *gin.Context) {
+	if !requireFinanceStaff(c) {
+		return
+	}
 	fineID := c.Param("fineId")
 	idempotencyKey := c.Query("idempotencyKey")
 
@@ -89,6 +95,9 @@ func (fc *FineController) UpdateFine(c *gin.Context) {
 
 // DeleteFine DELETE /api/fines/:fineId
 func (fc *FineController) DeleteFine(c *gin.Context) {
+	if !requireFinanceStaff(c) {
+		return
+	}
 	fineID := c.Param("fineId")
 	if err := fc.FineService.DeleteFine(fineID); err != nil {
 		c.JSON(http.StatusNotFound, gin.H{"error": "Fine not found"})

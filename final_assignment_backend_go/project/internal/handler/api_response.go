@@ -49,3 +49,51 @@ func memberOfRole(c *gin.Context, allowed ...string) bool {
 func elevatedRequester(c *gin.Context) bool {
 	return memberOfRole(c, "ADMIN", "SUPER_ADMIN", "TRAFFIC_POLICE", "FINANCE")
 }
+
+func requireStaff(c *gin.Context) bool {
+	if memberOfRole(c, "ADMIN", "SUPER_ADMIN", "TRAFFIC_POLICE") {
+		return true
+	}
+	c.JSON(403, gin.H{"error": "access denied"})
+	return false
+}
+
+func requireFinanceStaff(c *gin.Context) bool {
+	if memberOfRole(c, "ADMIN", "SUPER_ADMIN", "TRAFFIC_POLICE", "FINANCE") {
+		return true
+	}
+	c.JSON(403, gin.H{"error": "access denied"})
+	return false
+}
+
+func RequiresAdminPath(path string) bool {
+	if path == "/api/users/me" || path == "/api/users/me/password" {
+		return false
+	}
+	adminPrefixes := []string{
+		"/api/auth/users",
+		"/api/rag/admin",
+		"/api/users",
+		"/api/roles",
+		"/api/permissions",
+		"/api/loginLogs",
+		"/api/operationLogs",
+		"/api/systemLogs",
+		"/api/systemSettings",
+		"/api/backups",
+		"/api/logs",
+		"/api/system/logs",
+		"/api/system/settings",
+		"/api/system/backup",
+	}
+	for _, prefix := range adminPrefixes {
+		if path == prefix || strings.HasPrefix(path, prefix+"/") {
+			return true
+		}
+	}
+	return false
+}
+
+func AllowsGovernanceRole(c *gin.Context) bool {
+	return memberOfRole(c, "ADMIN", "SUPER_ADMIN")
+}

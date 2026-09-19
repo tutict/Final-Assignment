@@ -46,6 +46,9 @@ func (c *DriverInformationController) RegisterRoutes(r *gin.Engine) {
 
 // CreateDriver 创建司机信息
 func (c *DriverInformationController) CreateDriver(ctx *gin.Context) {
+	if !requireStaff(ctx) {
+		return
+	}
 	var driver domain.DriverInformation
 	idempotencyKey := ctx.Query("idempotencyKey")
 
@@ -74,7 +77,7 @@ func (c *DriverInformationController) GetDriverById(ctx *gin.Context) {
 	}
 
 	driver, err := c.driverService.GetDriverById(id)
-	if err != nil {
+	if err != nil || !c.driverService.CanAccess(ctx.GetString("username"), elevatedRequester(ctx), driver) {
 		ctx.JSON(http.StatusNotFound, gin.H{"error": "driver not found"})
 		return
 	}
@@ -83,7 +86,7 @@ func (c *DriverInformationController) GetDriverById(ctx *gin.Context) {
 
 // GetAllDrivers 获取所有司机信息
 func (c *DriverInformationController) GetAllDrivers(ctx *gin.Context) {
-	drivers, err := c.driverService.GetAllDrivers()
+	drivers, err := c.driverService.ListForRequester(ctx.GetString("username"), elevatedRequester(ctx))
 	if err != nil {
 		ctx.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
@@ -93,6 +96,9 @@ func (c *DriverInformationController) GetAllDrivers(ctx *gin.Context) {
 
 // UpdateDriver 更新司机完整信息
 func (c *DriverInformationController) UpdateDriver(ctx *gin.Context) {
+	if !requireStaff(ctx) {
+		return
+	}
 	id, err := strconv.Atoi(ctx.Param("driverId"))
 	if err != nil {
 		ctx.JSON(http.StatusBadRequest, gin.H{"error": "invalid driver id"})
@@ -122,6 +128,9 @@ func (c *DriverInformationController) UpdateDriver(ctx *gin.Context) {
 
 // UpdateDriverName 更新司机姓名
 func (c *DriverInformationController) UpdateDriverName(ctx *gin.Context) {
+	if !requireStaff(ctx) {
+		return
+	}
 	id, err := strconv.Atoi(ctx.Param("driverId"))
 	if err != nil {
 		ctx.JSON(http.StatusBadRequest, gin.H{"error": "invalid driver id"})
@@ -159,6 +168,9 @@ func (c *DriverInformationController) UpdateDriverName(ctx *gin.Context) {
 
 // UpdateDriverContactNumber 更新司机联系电话
 func (c *DriverInformationController) UpdateDriverContactNumber(ctx *gin.Context) {
+	if !requireStaff(ctx) {
+		return
+	}
 	id, err := strconv.Atoi(ctx.Param("driverId"))
 	if err != nil {
 		ctx.JSON(http.StatusBadRequest, gin.H{"error": "invalid driver id"})
@@ -196,6 +208,9 @@ func (c *DriverInformationController) UpdateDriverContactNumber(ctx *gin.Context
 
 // UpdateDriverIdCardNumber 更新司机身份证号码
 func (c *DriverInformationController) UpdateDriverIdCardNumber(ctx *gin.Context) {
+	if !requireStaff(ctx) {
+		return
+	}
 	id, err := strconv.Atoi(ctx.Param("driverId"))
 	if err != nil {
 		ctx.JSON(http.StatusBadRequest, gin.H{"error": "invalid driver id"})
@@ -233,6 +248,9 @@ func (c *DriverInformationController) UpdateDriverIdCardNumber(ctx *gin.Context)
 
 // DeleteDriver 删除司机信息
 func (c *DriverInformationController) DeleteDriver(ctx *gin.Context) {
+	if !requireStaff(ctx) {
+		return
+	}
 	id, err := strconv.Atoi(ctx.Param("driverId"))
 	if err != nil {
 		ctx.JSON(http.StatusBadRequest, gin.H{"error": "invalid driver id"})
@@ -248,6 +266,10 @@ func (c *DriverInformationController) DeleteDriver(ctx *gin.Context) {
 
 // SearchByIdCardNumber 按身份证号搜索
 func (c *DriverInformationController) SearchByIdCardNumber(ctx *gin.Context) {
+	if !elevatedRequester(ctx) {
+		ctx.JSON(http.StatusForbidden, gin.H{"error": "access denied"})
+		return
+	}
 	query := ctx.Query("query")
 	page, _ := strconv.Atoi(ctx.DefaultQuery("page", "1"))
 	size, _ := strconv.Atoi(ctx.DefaultQuery("size", "10"))
@@ -275,11 +297,7 @@ func (c *DriverInformationController) SearchByLicenseNumber(ctx *gin.Context) {
 		ctx.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
-	if len(results) == 0 {
-		ctx.Status(http.StatusNoContent)
-		return
-	}
-	ctx.JSON(http.StatusOK, results)
+	ctx.JSON(http.StatusOK, c.driverService.FilterForRequester(ctx.GetString("username"), elevatedRequester(ctx), results))
 }
 
 // SearchByName 按姓名搜索
@@ -293,11 +311,7 @@ func (c *DriverInformationController) SearchByName(ctx *gin.Context) {
 		ctx.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
-	if len(results) == 0 {
-		ctx.Status(http.StatusNoContent)
-		return
-	}
-	ctx.JSON(http.StatusOK, results)
+	ctx.JSON(http.StatusOK, c.driverService.FilterForRequester(ctx.GetString("username"), elevatedRequester(ctx), results))
 }
 
 // 更新用户管理修改时间

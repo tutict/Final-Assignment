@@ -526,7 +526,7 @@ func requiredPrincipal(provider *authcfg.TokenProvider, blacklist *service.Token
 
 func accessPolicy() gin.HandlerFunc {
 	return func(c *gin.Context) {
-		if requiresAdmin(c.Request.URL.Path) && !hasAnyRole(c, "ADMIN") {
+		if handler.RequiresAdminPath(c.Request.URL.Path) && !handler.AllowsGovernanceRole(c) {
 			c.AbortWithStatusJSON(http.StatusForbidden, gin.H{"error": "access denied"})
 			return
 		}

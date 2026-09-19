@@ -123,3 +123,17 @@ func atoiDefault(value string, fallback int) int {
 	}
 	return fallback
 }
+
+func requesterAuthUserID(db *gorm.DB, username string) (int64, bool) {
+	username = strings.TrimSpace(username)
+	if username == "" {
+		return 0, false
+	}
+	var id int64
+	err := db.Table("sys_user").
+		Select("user_id").
+		Where("username = ? AND deleted_at IS NULL", username).
+		Limit(1).
+		Scan(&id).Error
+	return id, err == nil && id > 0
+}

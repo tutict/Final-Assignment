@@ -56,7 +56,7 @@ func (vc *VehicleController) SearchVehicles(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
-	c.JSON(http.StatusOK, vehicles)
+	c.JSON(http.StatusOK, vc.vehicleService.FilterForRequester(c.GetString("username"), elevatedRequester(c), vehicles))
 }
 
 func (vc *VehicleController) GetLicensePlateAutocomplete(c *gin.Context) {
@@ -84,6 +84,10 @@ func (vc *VehicleController) GetVehicleTypeAutocomplete(c *gin.Context) {
 }
 
 func (vc *VehicleController) GetLicensePlateAutocompleteGlobally(c *gin.Context) {
+	if !elevatedRequester(c) {
+		c.JSON(http.StatusForbidden, gin.H{"error": "access denied"})
+		return
+	}
 	prefix := c.Query("licensePlate")
 	prefix, _ = url.QueryUnescape(prefix)
 
@@ -92,6 +96,10 @@ func (vc *VehicleController) GetLicensePlateAutocompleteGlobally(c *gin.Context)
 }
 
 func (vc *VehicleController) GetVehicleTypeAutocompleteGlobally(c *gin.Context) {
+	if !elevatedRequester(c) {
+		c.JSON(http.StatusForbidden, gin.H{"error": "access denied"})
+		return
+	}
 	prefix := c.Query("vehicleType")
 	prefix, _ = url.QueryUnescape(prefix)
 
@@ -100,6 +108,9 @@ func (vc *VehicleController) GetVehicleTypeAutocompleteGlobally(c *gin.Context) 
 }
 
 func (vc *VehicleController) CreateVehicle(c *gin.Context) {
+	if !requireStaff(c) {
+		return
+	}
 	var vehicle domain.VehicleInformation
 	idempotencyKey := c.Query("idempotencyKey")
 
@@ -121,8 +132,8 @@ func (vc *VehicleController) CreateVehicle(c *gin.Context) {
 func (vc *VehicleController) GetVehicleById(c *gin.Context) {
 	id, _ := strconv.Atoi(c.Param("vehicleId"))
 	vehicle, err := vc.vehicleService.GetById(id)
-	if err != nil {
-		c.JSON(http.StatusNotFound, gin.H{"error": err.Error()})
+	if err != nil || !vc.vehicleService.CanAccess(c.GetString("username"), elevatedRequester(c), vehicle) {
+		c.JSON(http.StatusNotFound, gin.H{"error": "vehicle not found"})
 		return
 	}
 	c.JSON(http.StatusOK, vehicle)
@@ -131,28 +142,27 @@ func (vc *VehicleController) GetVehicleById(c *gin.Context) {
 func (vc *VehicleController) GetVehicleByLicensePlate(c *gin.Context) {
 	lp := c.Param("licensePlate")
 	vehicle, err := vc.vehicleService.GetByLicensePlate(lp)
-	if err != nil {
-		c.JSON(http.StatusNotFound, gin.H{"error": err.Error()})
+	if err != nil || !vc.vehicleService.CanAccess(c.GetString("username"), elevatedRequester(c), vehicle) {
+		c.JSON(http.StatusNotFound, gin.H{"error": "vehicle not found"})
 		return
 	}
 	c.JSON(http.StatusOK, vehicle)
 }
 
 func (vc *VehicleController) GetAllVehicles(c *gin.Context) {
-	list := vc.vehicleService.GetAll()
-	c.JSON(http.StatusOK, list)
+	c.JSON(http.StatusOK, vc.vehicleService.ListForRequester(c.GetString("username"), elevatedRequester(c)))
 }
 
 func (vc *VehicleController) GetByType(c *gin.Context) {
 	typ := c.Param("vehicleType")
 	list := vc.vehicleService.GetByType(typ)
-	c.JSON(http.StatusOK, list)
+	c.JSON(http.StatusOK, vc.vehicleService.FilterForRequester(c.GetString("username"), elevatedRequester(c), list))
 }
 
 func (vc *VehicleController) GetByOwnerName(c *gin.Context) {
 	name := c.Param("ownerName")
 	list := vc.vehicleService.GetByOwnerName(name)
-	c.JSON(http.StatusOK, list)
+	c.JSON(http.StatusOK, vc.vehicleService.FilterForRequester(c.GetString("username"), elevatedRequester(c), list))
 }
 
 func (vc *VehicleController) GetByDriverId(c *gin.Context) {
@@ -161,10 +171,18 @@ func (vc *VehicleController) GetByDriverId(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "driverId must be a positive integer"})
 		return
 	}
+	if !elevatedRequester(c) {
+		c.JSON(http.StatusOK, vc.vehicleService.ListForRequester(c.GetString("username"), false))
+		return
+	}
 	c.JSON(http.StatusOK, vc.vehicleService.GetByDriverId(driverID))
 }
 
 func (vc *VehicleController) GetByIdCardNumber(c *gin.Context) {
+	if !elevatedRequester(c) {
+		c.JSON(http.StatusForbidden, gin.H{"error": "access denied"})
+		return
+	}
 	idCard := c.Param("idCardNumber")
 	list := vc.vehicleService.GetByIdCardNumber(idCard)
 	c.JSON(http.StatusOK, list)
@@ -173,10 +191,13 @@ func (vc *VehicleController) GetByIdCardNumber(c *gin.Context) {
 func (vc *VehicleController) GetByStatus(c *gin.Context) {
 	status := c.Param("status")
 	list := vc.vehicleService.GetByStatus(status)
-	c.JSON(http.StatusOK, list)
+	c.JSON(http.StatusOK, vc.vehicleService.FilterForRequester(c.GetString("username"), elevatedRequester(c), list))
 }
 
 func (vc *VehicleController) UpdateVehicle(c *gin.Context) {
+	if !requireStaff(c) {
+		return
+	}
 	var vehicle domain.VehicleInformation
 	idempotencyKey := c.Query("idempotencyKey")
 	id, _ := strconv.Atoi(c.Param("vehicleId"))
@@ -198,6 +219,9 @@ func (vc *VehicleController) UpdateVehicle(c *gin.Context) {
 }
 
 func (vc *VehicleController) DeleteById(c *gin.Context) {
+	if !requireStaff(c) {
+		return
+	}
 	id, _ := strconv.Atoi(c.Param("vehicleId"))
 	if err := vc.vehicleService.DeleteById(id); err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
@@ -207,6 +231,9 @@ func (vc *VehicleController) DeleteById(c *gin.Context) {
 }
 
 func (vc *VehicleController) DeleteByLicensePlate(c *gin.Context) {
+	if !requireStaff(c) {
+		return
+	}
 	lp := c.Param("licensePlate")
 	if err := vc.vehicleService.DeleteByLicensePlate(lp); err != nil {
 		log.Println("Failed to delete:", err)

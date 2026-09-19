@@ -31,6 +31,9 @@ func (c *OffenseInformationController) RegisterRoutes(r *gin.RouterGroup) {
 
 // POST /api/offenses
 func (c *OffenseInformationController) createOffense(ctx *gin.Context) {
+	if !requireStaff(ctx) {
+		return
+	}
 	var offense domain.OffenseInformation
 	idempotencyKey := ctx.Query("idempotencyKey")
 
@@ -76,6 +79,9 @@ func (c *OffenseInformationController) getAllOffenses(ctx *gin.Context) {
 
 // PUT /api/offenses/:offenseId
 func (c *OffenseInformationController) updateOffense(ctx *gin.Context) {
+	if !requireStaff(ctx) {
+		return
+	}
 	id, err := strconv.Atoi(ctx.Param("offenseId"))
 	if err != nil {
 		ctx.JSON(http.StatusBadRequest, gin.H{"error": "invalid offense ID"})
@@ -101,6 +107,9 @@ func (c *OffenseInformationController) updateOffense(ctx *gin.Context) {
 
 // DELETE /api/offenses/:offenseId
 func (c *OffenseInformationController) deleteOffense(ctx *gin.Context) {
+	if !requireStaff(ctx) {
+		return
+	}
 	id, err := strconv.Atoi(ctx.Param("offenseId"))
 	if err != nil {
 		ctx.JSON(http.StatusBadRequest, gin.H{"error": "invalid offense ID"})

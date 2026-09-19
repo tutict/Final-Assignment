@@ -40,6 +40,9 @@ func (c *DeductionInformationController) RegisterRoutes(r *gin.Engine) {
 
 // CreateDeduction 创建扣除记录（仅限管理员）
 func (c *DeductionInformationController) CreateDeduction(ctx *gin.Context) {
+	if !requireFinanceStaff(ctx) {
+		return
+	}
 	var deduction domain.DeductionInformation
 	idempotencyKey := ctx.Query("idempotencyKey")
 
@@ -62,7 +65,7 @@ func (c *DeductionInformationController) GetDeductionById(ctx *gin.Context) {
 	deductionId := ctx.Param("deductionId")
 
 	deduction, err := c.deductionService.GetDeductionById(deductionId)
-	if err != nil {
+	if err != nil || !c.deductionService.CanAccess(ctx.GetString("username"), elevatedRequester(ctx), deduction) {
 		ctx.JSON(http.StatusNotFound, gin.H{"error": "deduction not found"})
 		return
 	}
@@ -71,7 +74,7 @@ func (c *DeductionInformationController) GetDeductionById(ctx *gin.Context) {
 
 // GetAllDeductions 获取所有扣除记录
 func (c *DeductionInformationController) GetAllDeductions(ctx *gin.Context) {
-	deductions, err := c.deductionService.GetAllDeductions()
+	deductions, err := c.deductionService.ListForRequester(ctx.GetString("username"), elevatedRequester(ctx))
 	if err != nil {
 		ctx.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
@@ -81,6 +84,9 @@ func (c *DeductionInformationController) GetAllDeductions(ctx *gin.Context) {
 
 // UpdateDeduction 更新扣除记录（仅限管理员）
 func (c *DeductionInformationController) UpdateDeduction(ctx *gin.Context) {
+	if !requireFinanceStaff(ctx) {
+		return
+	}
 	deductionId := ctx.Param("deductionId")
 	idempotencyKey := ctx.Query("idempotencyKey")
 
@@ -113,6 +119,9 @@ func (c *DeductionInformationController) UpdateDeduction(ctx *gin.Context) {
 
 // DeleteDeduction 删除扣除记录（仅限管理员）
 func (c *DeductionInformationController) DeleteDeduction(ctx *gin.Context) {
+	if !requireFinanceStaff(ctx) {
+		return
+	}
 	deductionId := ctx.Param("deductionId")
 
 	if err := c.deductionService.DeleteDeduction(deductionId); err != nil {
@@ -130,7 +139,7 @@ func (c *DeductionInformationController) GetDeductionsByHandler(ctx *gin.Context
 		ctx.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
-	ctx.JSON(http.StatusOK, deductions)
+	ctx.JSON(http.StatusOK, c.deductionService.FilterForRequester(ctx.GetString("username"), elevatedRequester(ctx), deductions))
 }
 
 // GetDeductionsByTimeRange 根据时间范围获取扣除记录
@@ -150,7 +159,7 @@ func (c *DeductionInformationController) GetDeductionsByTimeRange(ctx *gin.Conte
 		ctx.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
-	ctx.JSON(http.StatusOK, deductions)
+	ctx.JSON(http.StatusOK, c.deductionService.FilterForRequester(ctx.GetString("username"), elevatedRequester(ctx), deductions))
 }
 
 // SearchByHandler 按处理人搜索扣除记录
@@ -169,11 +178,7 @@ func (c *DeductionInformationController) SearchByHandler(ctx *gin.Context) {
 		ctx.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
-	if len(results) == 0 {
-		ctx.Status(http.StatusNoContent)
-		return
-	}
-	ctx.JSON(http.StatusOK, results)
+	ctx.JSON(http.StatusOK, c.deductionService.FilterForRequester(ctx.GetString("username"), elevatedRequester(ctx), results))
 }
 
 // SearchByDeductionTimeRange 按时间范围搜索扣除记录
@@ -200,9 +205,5 @@ func (c *DeductionInformationController) SearchByDeductionTimeRange(ctx *gin.Con
 		ctx.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
-	if len(results) == 0 {
-		ctx.Status(http.StatusNoContent)
-		return
-	}
-	ctx.JSON(http.StatusOK, results)
+	ctx.JSON(http.StatusOK, c.deductionService.FilterForRequester(ctx.GetString("username"), elevatedRequester(ctx), results))
 }

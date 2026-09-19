@@ -52,6 +52,9 @@ type DeductionInformationService interface {
 	GetDeductionsByTimeRange(time.Time, time.Time) ([]domain.DeductionInformation, error)
 	SearchByDeductionTimeRange(time.Time, time.Time, int) ([]domain.DeductionInformation, error)
 	SearchByHandler(string, int) ([]domain.DeductionInformation, error)
+	ListForRequester(string, bool) ([]domain.DeductionInformation, error)
+	FilterForRequester(string, bool, []domain.DeductionInformation) []domain.DeductionInformation
+	CanAccess(string, bool, *domain.DeductionInformation) bool
 }
 
 type DriverInformationService interface {
@@ -62,6 +65,9 @@ type DriverInformationService interface {
 	SearchByIdCardNumber(string, int, int) ([]domain.DriverInformation, error)
 	SearchByLicenseNumber(string, int, int) ([]domain.DriverInformation, error)
 	SearchByName(string, int, int) ([]domain.DriverInformation, error)
+	ListForRequester(string, bool) ([]domain.DriverInformation, error)
+	FilterForRequester(string, bool, []domain.DriverInformation) []domain.DriverInformation
+	CanAccess(string, bool, *domain.DriverInformation) bool
 }
 
 type FineInformationService interface {
@@ -223,4 +229,7 @@ type VehicleService interface {
 	IsLicensePlateExists(string) bool
 	SearchVehicles(string, int, int) ([]domain.VehicleInformation, error)
 	UpdateVehicle(string, *domain.VehicleInformation) error
+	ListForRequester(string, bool) []domain.VehicleInformation
+	FilterForRequester(string, bool, []domain.VehicleInformation) []domain.VehicleInformation
+	CanAccess(string, bool, *domain.VehicleInformation) bool
 }

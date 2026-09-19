@@ -68,6 +68,9 @@ func (h *AppealHandler) GetAllAppeals(c *gin.Context) {
 
 // UpdateAppeal 更新申诉（PUT /api/appeals/:id）
 func (h *AppealHandler) UpdateAppeal(c *gin.Context) {
+	if !requireStaff(c) {
+		return
+	}
 	id, err := strconv.Atoi(c.Param("id"))
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid appeal ID"})
@@ -93,6 +96,9 @@ func (h *AppealHandler) UpdateAppeal(c *gin.Context) {
 
 // DeleteAppeal 删除申诉（DELETE /api/appeals/:id）
 func (h *AppealHandler) DeleteAppeal(c *gin.Context) {
+	if !requireStaff(c) {
+		return
+	}
 	id, err := strconv.Atoi(c.Param("id"))
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid appeal ID"})
