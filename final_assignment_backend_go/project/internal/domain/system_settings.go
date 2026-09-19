@@ -1,28 +1,47 @@
 package domain
 
 import (
+	"time"
+
 	"gorm.io/gorm"
 )
 
-// SystemSettings 表示 system_settings 表的实体
-type SystemSettings struct {
-	SystemName        string         `gorm:"column:system_name;primaryKey" json:"system_name"`
-	SystemVersion     string         `gorm:"column:system_version" json:"system_version"`
-	SystemDescription string         `gorm:"column:system_description" json:"system_description"`
-	CopyrightInfo     string         `gorm:"column:copyright_info" json:"copyright_info"`
-	StoragePath       string         `gorm:"column:storage_path" json:"storage_path"`
-	LoginTimeout      int            `gorm:"column:login_timeout" json:"login_timeout"`
-	SessionTimeout    int            `gorm:"column:session_timeout" json:"session_timeout"`
-	DateFormat        string         `gorm:"column:date_format" json:"date_format"`
-	PageSize          int            `gorm:"column:page_size" json:"page_size"`
-	SMTPServer        string         `gorm:"column:smtp_server" json:"smtp_server"`
-	EmailAccount      string         `gorm:"column:email_account" json:"email_account"`
-	EmailPassword     string         `gorm:"column:email_password" json:"email_password"`
-	Remarks           string         `gorm:"column:remarks" json:"remarks"`
-	DeletedAt         gorm.DeletedAt `gorm:"index"` // 软删除字段（可选，GORM 默认支持）
+// SysSetting maps the key-value traffic.sys_settings table.
+type SysSetting struct {
+	SettingID    int            `gorm:"column:setting_id;primaryKey;autoIncrement" json:"settingId"`
+	SettingKey   string         `gorm:"column:setting_key" json:"settingKey"`
+	SettingValue string         `gorm:"column:setting_value" json:"settingValue"`
+	SettingType  string         `gorm:"column:setting_type" json:"settingType"`
+	Category     string         `gorm:"column:category" json:"category"`
+	Description  string         `gorm:"column:description" json:"description"`
+	IsEncrypted  bool           `gorm:"column:is_encrypted" json:"isEncrypted"`
+	IsEditable   bool           `gorm:"column:is_editable" json:"isEditable"`
+	SortOrder    int            `gorm:"column:sort_order" json:"sortOrder"`
+	CreatedAt    *time.Time     `gorm:"column:created_at" json:"createdAt"`
+	UpdatedAt    *time.Time     `gorm:"column:updated_at" json:"updatedAt"`
+	UpdatedBy    string         `gorm:"column:updated_by" json:"updatedBy"`
+	DeletedAt    gorm.DeletedAt `gorm:"column:deleted_at;index" json:"-"`
+	Remarks      string         `gorm:"column:remarks" json:"remarks"`
 }
 
-// TableName 指定数据库表名
-func (SystemSettings) TableName() string {
-	return "system_settings"
+func (SysSetting) TableName() string {
+	return "sys_settings"
+}
+
+// SystemSettings is the aggregated DTO expected by the React settings page.
+type SystemSettings struct {
+	SettingID         int    `json:"settingId"`
+	SystemName        string `json:"systemName"`
+	SystemVersion     string `json:"systemVersion"`
+	SystemDescription string `json:"systemDescription"`
+	CopyrightInfo     string `json:"copyrightInfo"`
+	StoragePath       string `json:"storagePath"`
+	LoginTimeout      int    `json:"loginTimeout"`
+	SessionTimeout    int    `json:"sessionTimeout"`
+	DateFormat        string `json:"dateFormat"`
+	PageSize          int    `json:"pageSize"`
+	SMTPServer        string `json:"smtpServer"`
+	EmailAccount      string `json:"emailAccount"`
+	EmailPassword     string `json:"emailPassword"`
+	Remarks           string `json:"remarks"`
 }

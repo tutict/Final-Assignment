@@ -23,8 +23,11 @@ func NewSystemLogsController(svc SystemLogsService) *SystemLogsController {
 
 // RegisterRoutes 注册路由
 func (ctrl *SystemLogsController) RegisterRoutes(r *gin.Engine) {
-	group := r.Group("/api/systemLogs")
+	ctrl.mountSystemLogs(r.Group("/api/systemLogs"))
+	ctrl.mountSystemLogs(r.Group("/api/system/logs"))
+}
 
+func (ctrl *SystemLogsController) mountSystemLogs(group *gin.RouterGroup) {
 	group.POST("", ctrl.CreateSystemLog)
 	group.GET("", ctrl.GetAllSystemLogs)
 	group.GET("/type/:logType", ctrl.GetSystemLogsByType)

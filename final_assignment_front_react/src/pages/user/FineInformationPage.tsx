@@ -2,7 +2,6 @@ import { useMemo } from 'react';
 import CrudPage from '../shared/CrudPage';
 import { entityConfigs } from '../../config/entities';
 import { listEntities } from '../../api/entities';
-import { useAuth } from '../../auth/AuthContext';
 import { useAgentPrefill, hasBusinessPrefill } from '../../hooks/useAgentPrefill';
 import type { EntityConfig } from '../../config/entityTypes';
 
@@ -11,7 +10,6 @@ import type { EntityConfig } from '../../config/entityTypes';
  * 若由 AI 聊天动作跳转并携带业务编号，按编号过滤罚款。
  */
 export default function FineInformationPage() {
-  const { auth } = useAuth();
   const prefill = useAgentPrefill();
   const businessNumber = hasBusinessPrefill(prefill) ? prefill.businessNumber : '';
 
@@ -23,9 +21,7 @@ export default function FineInformationPage() {
         const data = await listEntities<Record<string, unknown>[]>(
           entityConfigs.fines.basePath
         );
-        let mine = auth?.userId
-          ? data.filter((item) => String(item.driverId || '') === String(auth.userId))
-          : data;
+        let mine = Array.isArray(data) ? data : [];
         if (businessNumber) {
           mine = mine.filter((item) =>
             [item.fineNumber, item.offenseNumber, item.businessNumber]
@@ -36,7 +32,7 @@ export default function FineInformationPage() {
         return mine;
       },
     }),
-    [auth?.userId, businessNumber]
+    [businessNumber]
   );
 
   return (

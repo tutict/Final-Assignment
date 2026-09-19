@@ -20,6 +20,15 @@ func (s *BackupRestoreService) CheckAndInsertIdempotency(key string, backup *dom
 		if backup.BackupTime.IsZero() {
 			backup.BackupTime = time.Now()
 		}
+		if strings.TrimSpace(backup.BackupFilePath) == "" {
+			backup.BackupFilePath = backup.BackupFileName
+		}
+		if strings.TrimSpace(backup.BackupType) == "" {
+			backup.BackupType = "Full"
+		}
+		if strings.TrimSpace(backup.Status) == "" {
+			backup.Status = "Success"
+		}
 		return s.DB().Create(backup).Error
 	}
 	return s.DB().Save(backup).Error
@@ -64,6 +73,17 @@ func (s *DeductionInformationService) CheckAndInsertIdempotency(key string, dedu
 	if strings.EqualFold(operation, "create") {
 		if deduction.DeductionTime.IsZero() {
 			deduction.DeductionTime = time.Now()
+		}
+		if strings.TrimSpace(deduction.ScoringCycle) == "" {
+			year := deduction.DeductionTime.Format("2006")
+			nextYear, _ := strconv.Atoi(year)
+			deduction.ScoringCycle = year + "-01-01至" + strconv.Itoa(nextYear+1) + "-01-01"
+		}
+		if strings.TrimSpace(deduction.Status) == "" {
+			deduction.Status = "Effective"
+		}
+		if strings.TrimSpace(deduction.Handler) == "" {
+			deduction.Handler = "system"
 		}
 		return s.DB().Create(deduction).Error
 	}
@@ -117,8 +137,30 @@ func (s *FineInformationService) CheckAndInsertIdempotency(key string, fine *dom
 		return err
 	}
 	if strings.EqualFold(operation, "create") {
-		if fine.FineTime.IsZero() {
-			fine.FineTime = time.Now()
+		if fine.FineDate == nil {
+			fine.FineDate = timePtr(time.Now())
+		}
+		if strings.TrimSpace(fine.FineNumber) == "" {
+			fine.FineNumber = "FN" + time.Now().Format("20060102150405")
+		}
+		if strings.TrimSpace(fine.PaymentStatus) == "" {
+			if strings.TrimSpace(fine.Status) != "" {
+				fine.PaymentStatus = fine.Status
+			} else {
+				fine.PaymentStatus = "Unpaid"
+			}
+		}
+		if strings.TrimSpace(fine.IssuingAuthority) == "" {
+			fine.IssuingAuthority = "系统"
+		}
+		if strings.TrimSpace(fine.Handler) == "" {
+			fine.Handler = "system"
+		}
+		if fine.TotalAmount == 0 {
+			fine.TotalAmount = fine.FineAmount + fine.LateFee
+		}
+		if fine.UnpaidAmount == 0 && fine.PaymentStatus != "Paid" {
+			fine.UnpaidAmount = fine.TotalAmount
 		}
 		return s.DB().Create(fine).Error
 	}
@@ -146,17 +188,17 @@ func (s *FineInformationService) DeleteFine(id string) error {
 }
 func (s *FineInformationService) GetFinesByPayee(payee string) ([]domain.FineInformation, error) {
 	var fines []domain.FineInformation
-	err := s.DB().Where("payee LIKE ?", like(payee)).Find(&fines).Error
+	err := s.DB().Where("handler LIKE ?", like(payee)).Find(&fines).Error
 	return fines, err
 }
 func (s *FineInformationService) GetFinesByTimeRange(start time.Time, end time.Time) ([]domain.FineInformation, error) {
 	var fines []domain.FineInformation
-	err := s.DB().Where("fine_time BETWEEN ? AND ?", start, end).Find(&fines).Error
+	err := s.DB().Where("fine_date BETWEEN ? AND ?", start, end).Find(&fines).Error
 	return fines, err
 }
 func (s *FineInformationService) GetFineByReceiptNumber(receipt string) (*domain.FineInformation, error) {
 	var fine domain.FineInformation
-	err := s.DB().Where("receipt_number = ?", receipt).First(&fine).Error
+	err := s.DB().Where("fine_number = ?", receipt).First(&fine).Error
 	return &fine, err
 }
 func (s *FineInformationService) SearchByFineTimeRange(start time.Time, end time.Time, maxSuggestions string) ([]domain.FineInformation, error) {
@@ -165,8 +207,62 @@ func (s *FineInformationService) SearchByFineTimeRange(start time.Time, end time
 		max = 10
 	}
 	var fines []domain.FineInformation
-	err := s.DB().Where("fine_time BETWEEN ? AND ?", start, end).Limit(max).Find(&fines).Error
+	err := s.DB().Where("fine_date BETWEEN ? AND ?", start, end).Limit(max).Find(&fines).Error
 	return fines, err
+}
+func (s *FineInformationService) GetFinesByDriverID(driverID int) ([]domain.FineInformation, error) {
+	var fines []domain.FineInformation
+	err := s.DB().Where("driver_id = ?", driverID).Find(&fines).Error
+	return fines, err
+}
+func (s *FineInformationService) GetFinesByOffenseID(offenseID int) ([]domain.FineInformation, error) {
+	var fines []domain.FineInformation
+	err := s.DB().Where("offense_id = ?", offenseID).Find(&fines).Error
+	return fines, err
+}
+func (s *FineInformationService) SearchByPaymentStatus(status string, page int, size int) ([]domain.FineInformation, error) {
+	offset, limit := pageBounds(page, size)
+	var fines []domain.FineInformation
+	err := s.DB().Where("payment_status = ?", status).Offset(offset).Limit(limit).Find(&fines).Error
+	return fines, err
+}
+func (s *FineInformationService) FilterForRequester(username string, elevated bool, fines []domain.FineInformation) []domain.FineInformation {
+	if elevated {
+		return fines
+	}
+	driverID, ok := requesterDriverID(s.DB(), username)
+	if !ok {
+		return []domain.FineInformation{}
+	}
+	out := make([]domain.FineInformation, 0, len(fines))
+	for _, fine := range fines {
+		if fine.DriverID != nil && *fine.DriverID == driverID {
+			out = append(out, fine)
+		}
+	}
+	return out
+}
+
+func (s *FineInformationService) CanAccess(username string, elevated bool, fine *domain.FineInformation) bool {
+	if fine == nil {
+		return false
+	}
+	if elevated {
+		return true
+	}
+	driverID, ok := requesterDriverID(s.DB(), username)
+	return ok && fine.DriverID != nil && *fine.DriverID == driverID
+}
+
+func (s *FineInformationService) ListForRequester(username string, elevated bool) ([]domain.FineInformation, error) {
+	if elevated {
+		return s.GetAllFines()
+	}
+	driverID, ok := requesterDriverID(s.DB(), username)
+	if !ok {
+		return []domain.FineInformation{}, nil
+	}
+	return s.GetFinesByDriverID(driverID)
 }
 
 func (s *DriverInformationService) DB() *gorm.DB { return s.repo.DB() }
@@ -226,10 +322,20 @@ func (s *OffenseInformationService) CheckAndInsertIdempotency(key string, offens
 func (s *OffenseInformationService) GetOffenseByID(id int) (*domain.OffenseInformation, error) {
 	var offense domain.OffenseInformation
 	err := s.DB().Where("offense_id = ?", id).First(&offense).Error
-	return &offense, err
+	if err != nil {
+		return &offense, err
+	}
+	list := []domain.OffenseInformation{offense}
+	s.enrichOffenses(list)
+	return &list[0], nil
 }
 func (s *OffenseInformationService) GetAllOffenses() ([]domain.OffenseInformation, error) {
-	return s.repo.FindAll()
+	offenses, err := s.repo.FindAll()
+	if err != nil {
+		return offenses, err
+	}
+	s.enrichOffenses(offenses)
+	return offenses, nil
 }
 func (s *OffenseInformationService) DeleteOffense(id int) error {
 	return s.DB().Where("offense_id = ?", id).Delete(&domain.OffenseInformation{}).Error
@@ -237,10 +343,11 @@ func (s *OffenseInformationService) DeleteOffense(id int) error {
 func (s *OffenseInformationService) GetOffensesByTimeRange(start time.Time, end time.Time) ([]domain.OffenseInformation, error) {
 	var offenses []domain.OffenseInformation
 	err := s.DB().Where("offense_time BETWEEN ? AND ?", start, end).Find(&offenses).Error
+	s.enrichOffenses(offenses)
 	return offenses, err
 }
 func (s *OffenseInformationService) SearchByOffenseType(query string, page int, size int) ([]domain.OffenseInformation, error) {
-	return s.searchOffenses("offense_type", query, page, size)
+	return s.searchOffenses("offense_name", query, page, size)
 }
 func (s *OffenseInformationService) SearchByDriverName(query string, page int, size int) ([]domain.OffenseInformation, error) {
 	return s.searchOffenses("driver_name", query, page, size)
@@ -250,7 +357,93 @@ func (s *OffenseInformationService) SearchByLicensePlate(query string, page int,
 }
 func (s *OffenseInformationService) searchOffenses(column string, query string, page int, size int) ([]domain.OffenseInformation, error) {
 	offset, limit := pageBounds(page, size)
+	var ids []int
+	q := s.DB().Table("view_offense_details").Select("offense_id")
+	switch column {
+	case "offense_name":
+		q = q.Where("offense_name LIKE ? OR offense_code LIKE ? OR offense_category LIKE ?", like(query), like(query), like(query))
+	default:
+		q = q.Where(column+" LIKE ?", like(query))
+	}
+	if err := q.Offset(offset).Limit(limit).Pluck("offense_id", &ids).Error; err != nil {
+		return nil, err
+	}
+	if len(ids) == 0 {
+		return []domain.OffenseInformation{}, nil
+	}
 	var offenses []domain.OffenseInformation
-	err := s.DB().Where(column+" LIKE ?", like(query)).Offset(offset).Limit(limit).Find(&offenses).Error
+	err := s.DB().Where("offense_id IN ?", ids).Find(&offenses).Error
+	s.enrichOffenses(offenses)
 	return offenses, err
+}
+func (s *OffenseInformationService) FilterForRequester(username string, elevated bool, offenses []domain.OffenseInformation) []domain.OffenseInformation {
+	if elevated {
+		return offenses
+	}
+	driverID, ok := requesterDriverID(s.DB(), username)
+	if !ok {
+		return []domain.OffenseInformation{}
+	}
+	out := make([]domain.OffenseInformation, 0, len(offenses))
+	for _, offense := range offenses {
+		if offense.DriverID != nil && *offense.DriverID == driverID {
+			out = append(out, offense)
+		}
+	}
+	return out
+}
+
+func (s *OffenseInformationService) CanAccess(username string, elevated bool, offense *domain.OffenseInformation) bool {
+	if offense == nil {
+		return false
+	}
+	if elevated {
+		return true
+	}
+	driverID, ok := requesterDriverID(s.DB(), username)
+	return ok && offense.DriverID != nil && *offense.DriverID == driverID
+}
+
+func (s *OffenseInformationService) ListForRequester(username string, elevated bool) ([]domain.OffenseInformation, error) {
+	if elevated {
+		return s.GetAllOffenses()
+	}
+	driverID, ok := requesterDriverID(s.DB(), username)
+	if !ok {
+		return []domain.OffenseInformation{}, nil
+	}
+	var offenses []domain.OffenseInformation
+	err := s.DB().Where("driver_id = ?", driverID).Find(&offenses).Error
+	s.enrichOffenses(offenses)
+	return offenses, err
+}
+func (s *OffenseInformationService) enrichOffenses(offenses []domain.OffenseInformation) {
+	if len(offenses) == 0 {
+		return
+	}
+	ids := make([]int, 0, len(offenses))
+	index := map[int]int{}
+	for i, item := range offenses {
+		ids = append(ids, item.OffenseID)
+		index[item.OffenseID] = i
+	}
+	var rows []domain.OffenseDetails
+	if err := s.DB().Where("offense_id IN ?", ids).Find(&rows).Error; err != nil {
+		return
+	}
+	for _, row := range rows {
+		i, ok := index[row.OffenseID]
+		if !ok {
+			continue
+		}
+		offenses[i].DriverName = row.DriverName
+		offenses[i].DriverLicenseNumber = row.DriverLicenseNumber
+		offenses[i].LicensePlate = row.LicensePlate
+		offenses[i].VehicleType = row.VehicleType
+		if row.OffenseName != "" {
+			offenses[i].OffenseType = row.OffenseName
+		} else {
+			offenses[i].OffenseType = row.OffenseCode
+		}
+	}
 }

@@ -20,12 +20,13 @@ func NewSystemSettingsController(s SystemSettingsService) *SystemSettingsControl
 
 // RegisterRoutes 注册所有路由
 func (ctrl *SystemSettingsController) RegisterRoutes(r *gin.Engine) {
-	group := r.Group("/api/systemSettings")
+	ctrl.mountSettings(r.Group("/api/systemSettings"))
+	ctrl.mountSettings(r.Group("/api/system/settings"))
+}
 
-	// 权限控制可通过中间件实现
+func (ctrl *SystemSettingsController) mountSettings(group *gin.RouterGroup) {
 	group.GET("", ctrl.GetSystemSettings)
 	group.PUT("", ctrl.UpdateSystemSettings)
-
 	group.GET("/systemName", ctrl.GetSystemName)
 	group.GET("/systemVersion", ctrl.GetSystemVersion)
 	group.GET("/systemDescription", ctrl.GetSystemDescription)

@@ -35,6 +35,7 @@ func (vc *VehicleController) RegisterRoutes(r *gin.Engine) {
 		v.GET("/owner/:ownerName", vc.GetByOwnerName)
 		v.GET("/id-card-number/:idCardNumber", vc.GetByIdCardNumber)
 		v.GET("/status/:status", vc.GetByStatus)
+		v.GET("/drivers/:driverId/records", vc.GetByDriverId)
 		v.DELETE("/license-plate/:licensePlate", vc.DeleteByLicensePlate)
 		v.GET("/exists/:licensePlate", vc.IsLicensePlateExists)
 		v.GET("/:vehicleId", vc.GetVehicleById)
@@ -152,6 +153,15 @@ func (vc *VehicleController) GetByOwnerName(c *gin.Context) {
 	name := c.Param("ownerName")
 	list := vc.vehicleService.GetByOwnerName(name)
 	c.JSON(http.StatusOK, list)
+}
+
+func (vc *VehicleController) GetByDriverId(c *gin.Context) {
+	driverID, err := strconv.Atoi(c.Param("driverId"))
+	if err != nil || driverID <= 0 {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "driverId must be a positive integer"})
+		return
+	}
+	c.JSON(http.StatusOK, vc.vehicleService.GetByDriverId(driverID))
 }
 
 func (vc *VehicleController) GetByIdCardNumber(c *gin.Context) {

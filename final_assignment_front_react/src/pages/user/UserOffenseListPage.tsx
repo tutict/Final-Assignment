@@ -2,7 +2,6 @@ import { useMemo, useState } from 'react';
 import CrudPage from '../shared/CrudPage';
 import { entityConfigs } from '../../config/entities';
 import { listEntities } from '../../api/entities';
-import { useAuth } from '../../auth/AuthContext';
 import { useAgentPrefill, hasPlatePrefill } from '../../hooks/useAgentPrefill';
 import OffenseDetailModal from '../../components/OffenseDetailModal';
 import type { EntityConfig } from '../../config/entityTypes';
@@ -12,7 +11,6 @@ import type { EntityConfig } from '../../config/entityTypes';
  * 若由 AI 聊天动作跳转并携带车牌，按车牌过滤；点击「详情」弹出只读违法详情。
  */
 export default function UserOffenseListPage() {
-  const { auth } = useAuth();
   const prefill = useAgentPrefill();
   const plate = hasPlatePrefill(prefill) ? prefill.licensePlate : '';
   const [detail, setDetail] = useState<Record<string, unknown> | null>(null);
@@ -25,9 +23,7 @@ export default function UserOffenseListPage() {
         const data = await listEntities<Record<string, unknown>[]>(
           entityConfigs.offenses.basePath
         );
-        let mine = auth?.userId
-          ? data.filter((item) => String(item.driverId || '') === String(auth.userId))
-          : data;
+        let mine = Array.isArray(data) ? data : [];
         if (plate) {
           mine = mine.filter((item) => String(item.licensePlate || '').toUpperCase().includes(plate));
         }
@@ -35,7 +31,7 @@ export default function UserOffenseListPage() {
       },
       onView: (row: Record<string, unknown>) => setDetail(row),
     };
-  }, [auth?.userId, plate]);
+  }, [plate]);
 
   return (
     <>

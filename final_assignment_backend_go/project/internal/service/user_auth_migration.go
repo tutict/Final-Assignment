@@ -277,6 +277,19 @@ func (s *AuthWsService) GetCurrentUserProfile(username string) (map[string]inter
 	}
 	roles := s.lookupAuthRoles(user)
 	displayName := user.Username
+	var driverID any
+	var driverName any
+	type driverRow struct {
+		DriverID int64  `gorm:"column:driver_id"`
+		Name     string `gorm:"column:name"`
+	}
+	var driver driverRow
+	if err := s.users.DB().Table("driver_information").
+		Where("auth_user_id = ? AND deleted_at IS NULL", user.UserID).
+		Take(&driver).Error; err == nil {
+		driverID = driver.DriverID
+		driverName = driver.Name
+	}
 	return map[string]interface{}{
 		"authUserId":  user.UserID,
 		"username":    user.Username,
@@ -284,8 +297,8 @@ func (s *AuthWsService) GetCurrentUserProfile(username string) (map[string]inter
 		"email":       user.Email,
 		"phoneNumber": maskPhone(user.ContactNumber),
 		"roles":       roles,
-		"driverId":    nil,
-		"driverName":  nil,
+		"driverId":    driverID,
+		"driverName":  driverName,
 	}, nil
 }
 
@@ -363,9 +376,9 @@ func (s *AuthWsService) RegisterUser(req RegisterRequest) (string, error) {
 		Password:      hashed,
 		ContactNumber: req.ContactNumber,
 		Email:         req.Email,
-		Status:        "ACTIVE",
-		CreatedTime:   now,
-		ModifiedTime:  now,
+		Status:        "Active",
+		CreatedTime:   timePtr(now),
+		ModifiedTime:  timePtr(now),
 	}
 	if err := s.users.CreateUser(user); err != nil {
 		return "", err
@@ -394,12 +407,12 @@ func (s *UserManagementService) CheckAndInsertIdempotency(key string, user *doma
 	now := time.Now()
 	switch strings.ToLower(operation) {
 	case "create":
-		if user.CreatedTime.IsZero() {
-			user.CreatedTime = now
+		if user.CreatedTime == nil {
+			user.CreatedTime = timePtr(now)
 		}
-		user.ModifiedTime = now
+		user.ModifiedTime = timePtr(now)
 		if user.Status == "" {
-			user.Status = "ACTIVE"
+			user.Status = "Active"
 		}
 		if user.Password != "" && !strings.HasPrefix(user.Password, "$2") {
 			hashed, err := hashPassword(user.Password)
@@ -410,7 +423,7 @@ func (s *UserManagementService) CheckAndInsertIdempotency(key string, user *doma
 		}
 		return s.DB().Create(user).Error
 	case "update":
-		user.ModifiedTime = now
+		user.ModifiedTime = timePtr(now)
 		if user.Password != "" && !strings.HasPrefix(user.Password, "$2") {
 			hashed, err := hashPassword(user.Password)
 			if err != nil {
@@ -450,10 +463,10 @@ func (s *UserManagementService) GetUserByUsername(username string) (*domain.User
 
 func (s *UserManagementService) GetUsersByRole(roleName string) ([]domain.UserManagement, error) {
 	var users []domain.UserManagement
-	err := s.DB().Table("user_management").
-		Joins("JOIN user_role ON user_role.user_id = user_management.user_id").
-		Joins("JOIN role_management ON role_management.role_id = user_role.role_id").
-		Where("role_management.role_name = ?", roleName).
+	err := s.DB().Table("sys_user").
+		Joins("JOIN sys_user_role ON sys_user_role.user_id = sys_user.user_id AND sys_user_role.deleted_at IS NULL").
+		Joins("JOIN sys_role ON sys_role.role_id = sys_user_role.role_id AND sys_role.deleted_at IS NULL").
+		Where("(sys_role.role_name = ? OR sys_role.role_code = ?) AND sys_user.deleted_at IS NULL", roleName, roleName).
 		Find(&users).Error
 	return users, err
 }
@@ -474,7 +487,7 @@ func (s *UserManagementService) UpdateUserByID(userID string, updated *domain.Us
 }
 
 func (s *UserManagementService) UpdateUser(user *domain.UserManagement) error {
-	user.ModifiedTime = time.Now()
+	user.ModifiedTime = timePtr(time.Now())
 	return s.DB().Save(user).Error
 }
 
@@ -491,24 +504,24 @@ func (s *UserManagementService) DeleteUserByUsername(username string) error {
 }
 
 func (s *UserManagementService) GetUsernamesByPrefixGlobally(prefix string) ([]string, error) {
-	return distinctStrings(s.DB(), "user_management", "username", prefix, 10), nil
+	return distinctStrings(s.DB(), "sys_user", "username", prefix, 10), nil
 }
 
 func (s *UserManagementService) GetStatusesByPrefixGlobally(prefix string) ([]string, error) {
-	return distinctStrings(s.DB(), "user_management", "status", prefix, 10), nil
+	return distinctStrings(s.DB(), "sys_user", "status", prefix, 10), nil
 }
 
 func (s *UserManagementService) GetPhoneNumbersByPrefixGlobally(prefix string) ([]string, error) {
-	return distinctStrings(s.DB(), "user_management", "contact_number", prefix, 10), nil
+	return distinctStrings(s.DB(), "sys_user", "contact_number", prefix, 10), nil
 }
 
 func (s *UserManagementService) GetRoleNamesForUser(userID int) ([]string, error) {
 	var roles []string
-	err := s.DB().Table("role_management").
-		Select("role_management.role_name").
-		Joins("JOIN user_role ON user_role.role_id = role_management.role_id").
-		Where("user_role.user_id = ?", userID).
-		Pluck("role_management.role_name", &roles).Error
+	err := s.DB().Table("sys_role").
+		Select("sys_role.role_code").
+		Joins("JOIN sys_user_role ON sys_user_role.role_id = sys_role.role_id AND sys_user_role.deleted_at IS NULL").
+		Where("sys_user_role.user_id = ? AND sys_role.deleted_at IS NULL", userID).
+		Pluck("sys_role.role_code", &roles).Error
 	return roles, err
 }
 

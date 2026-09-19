@@ -22,11 +22,11 @@ func NewPermissionHandler(svc PermissionService) *PermissionHandler {
 func (h *PermissionHandler) RegisterRoutes(r *gin.Engine) {
 	api := r.Group("/api/permissions")
 	{
-		api.POST("", h.RequireRole("ADMIN"), h.CreatePermission)
-		api.GET("", h.RequireRole("ADMIN", "USER"), h.GetAllPermissions)
-		api.GET("/name/:permissionName", h.RequireRole("ADMIN", "USER"), h.GetPermissionByName)
-		api.GET("/search", h.RequireRole("ADMIN", "USER"), h.SearchPermissionsByName)
-		api.GET("/:permissionId", h.RequireRole("ADMIN", "USER"), h.GetPermissionById)
+		api.POST("", h.RequireRole("ADMIN", "SUPER_ADMIN"), h.CreatePermission)
+		api.GET("", h.RequireRole("ADMIN", "SUPER_ADMIN"), h.GetAllPermissions)
+		api.GET("/name/:permissionName", h.RequireRole("ADMIN", "SUPER_ADMIN"), h.GetPermissionByName)
+		api.GET("/search", h.RequireRole("ADMIN", "SUPER_ADMIN"), h.SearchPermissionsByName)
+		api.GET("/:permissionId", h.RequireRole("ADMIN", "SUPER_ADMIN"), h.GetPermissionById)
 		api.PUT("/:permissionId", h.RequireRole("ADMIN"), h.UpdatePermission)
 		api.DELETE("/name/:permissionName", h.RequireRole("ADMIN"), h.DeletePermissionByName)
 		api.DELETE("/:permissionId", h.RequireRole("ADMIN"), h.DeletePermissionById)
@@ -38,13 +38,9 @@ func (h *PermissionHandler) RequireRole(roles ...string) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		// 这里可以读取 JWT 并验证角色（略）
 		// 假设 userRole 从 context 获取
-		userRole := c.GetString("role")
-
-		for _, role := range roles {
-			if role == userRole {
-				c.Next()
-				return
-			}
+		if memberOfRole(c, roles...) {
+			c.Next()
+			return
 		}
 
 		c.JSON(http.StatusForbidden, gin.H{"error": "access denied"})

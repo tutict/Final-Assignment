@@ -24,8 +24,17 @@ func (s *AppealManagementService) CheckAndInsertIdempotency(key string, appeal *
 		if appeal.AppealTime.IsZero() {
 			appeal.AppealTime = time.Now()
 		}
+		if strings.TrimSpace(appeal.AppealNumber) == "" {
+			appeal.AppealNumber = "AP" + time.Now().Format("20060102150405")
+		}
+		if strings.TrimSpace(appeal.AppealType) == "" {
+			appeal.AppealType = "Other"
+		}
 		if strings.TrimSpace(appeal.ProcessStatus) == "" {
-			appeal.ProcessStatus = "PENDING"
+			appeal.ProcessStatus = "Unprocessed"
+		}
+		if strings.TrimSpace(appeal.AcceptanceStatus) == "" {
+			appeal.AcceptanceStatus = "Pending"
 		}
 		if err := validateAppealStatus("", appeal.ProcessStatus); err != nil {
 			return nil, err
@@ -86,13 +95,13 @@ func (s *AppealManagementService) GetOffenseByAppealID(id uint) (*domain.Offense
 
 func (s *AppealManagementService) GetAppealsByIdCardNumber(idCard string) ([]domain.AppealManagement, error) {
 	var appeals []domain.AppealManagement
-	err := s.DB().Where("id_card_number = ?", idCard).Find(&appeals).Error
+	err := s.DB().Where("appellant_id_card = ?", idCard).Find(&appeals).Error
 	return appeals, err
 }
 
 func (s *AppealManagementService) GetAppealsByContactNumber(contact string) ([]domain.AppealManagement, error) {
 	var appeals []domain.AppealManagement
-	err := s.DB().Where("contact_number = ?", contact).Find(&appeals).Error
+	err := s.DB().Where("appellant_contact = ?", contact).Find(&appeals).Error
 	return appeals, err
 }
 
@@ -108,6 +117,47 @@ func (s *AppealManagementService) GetAppealsByTimeRange(start time.Time, end tim
 	return appeals, err
 }
 
+func (s *AppealManagementService) FilterForRequester(username string, elevated bool, appeals []domain.AppealManagement) []domain.AppealManagement {
+	if elevated {
+		return appeals
+	}
+	driverID, ok := requesterDriverID(s.DB(), username)
+	if !ok {
+		return []domain.AppealManagement{}
+	}
+	out := make([]domain.AppealManagement, 0, len(appeals))
+	for _, appeal := range appeals {
+		if appeal.DriverID != nil && *appeal.DriverID == driverID {
+			out = append(out, appeal)
+		}
+	}
+	return out
+}
+
+func (s *AppealManagementService) CanAccess(username string, elevated bool, appeal *domain.AppealManagement) bool {
+	if appeal == nil {
+		return false
+	}
+	if elevated {
+		return true
+	}
+	driverID, ok := requesterDriverID(s.DB(), username)
+	return ok && appeal.DriverID != nil && *appeal.DriverID == driverID
+}
+
+func (s *AppealManagementService) ListForRequester(username string, elevated bool) ([]domain.AppealManagement, error) {
+	if elevated {
+		return s.GetAllAppeals()
+	}
+	driverID, ok := requesterDriverID(s.DB(), username)
+	if !ok {
+		return []domain.AppealManagement{}, nil
+	}
+	var appeals []domain.AppealManagement
+	err := s.DB().Where("driver_id = ?", driverID).Find(&appeals).Error
+	return appeals, err
+}
+
 func (s *AppealManagementService) CountAppealsByStatus(status string) (int64, error) {
 	var count int64
 	err := s.DB().Model(&domain.AppealManagement{}).Where("process_status = ?", status).Count(&count).Error
@@ -120,11 +170,16 @@ func validateAppealStatus(from string, to string) error {
 		return errors.New("appeal status is required")
 	}
 	valid := map[string]bool{
-		"PENDING":    true,
-		"PROCESSING": true,
-		"APPROVED":   true,
-		"REJECTED":   true,
-		"COMPLETED":  true,
+		"PENDING":       true,
+		"PROCESSING":    true,
+		"APPROVED":      true,
+		"REJECTED":      true,
+		"COMPLETED":     true,
+		"UNPROCESSED":   true,
+		"UNDER_REVIEW":  true,
+		"UNDER-REVIEW":  true,
+		"WITHDRAWN":     true,
+		"ACCEPTED":      true,
 	}
 	if !valid[next] {
 		return errors.New("invalid appeal status")
@@ -157,7 +212,7 @@ func (s *VehicleService) SearchVehicles(query string, page int, size int) ([]dom
 	q := s.DB().Model(&domain.VehicleInformation{})
 	if strings.TrimSpace(query) != "" {
 		pattern := like(query)
-		q = q.Where("license_plate LIKE ? OR owner_name LIKE ? OR id_card_number LIKE ?", pattern, pattern, pattern)
+		q = q.Where("license_plate LIKE ? OR owner_name LIKE ? OR owner_id_card LIKE ?", pattern, pattern, pattern)
 	}
 	err := q.Offset(offset).Limit(limit).Find(&vehicles).Error
 	return vehicles, err
@@ -166,7 +221,7 @@ func (s *VehicleService) SearchVehicles(query string, page int, size int) ([]dom
 func (s *VehicleService) GetLicensePlateAutocomplete(idCard string, prefix string, max int) []string {
 	query := s.DB().Table("vehicle_information").Select("DISTINCT license_plate").Where("license_plate LIKE ?", prefixLike(prefix))
 	if idCard != "" {
-		query = query.Where("id_card_number = ?", idCard)
+		query = query.Where("owner_id_card = ?", idCard)
 	}
 	var values []string
 	_ = query.Order("license_plate").Limit(max).Pluck("license_plate", &values).Error
@@ -176,7 +231,7 @@ func (s *VehicleService) GetLicensePlateAutocomplete(idCard string, prefix strin
 func (s *VehicleService) GetVehicleTypeAutocomplete(idCard string, prefix string, max int) []string {
 	query := s.DB().Table("vehicle_information").Select("DISTINCT vehicle_type").Where("vehicle_type LIKE ?", prefixLike(prefix))
 	if idCard != "" {
-		query = query.Where("id_card_number = ?", idCard)
+		query = query.Where("owner_id_card = ?", idCard)
 	}
 	var values []string
 	_ = query.Order("vehicle_type").Limit(max).Pluck("vehicle_type", &values).Error
@@ -227,15 +282,21 @@ func (s *VehicleService) GetByOwnerName(ownerName string) []domain.VehicleInform
 	return vehicles
 }
 
+func (s *VehicleService) GetByDriverId(driverID int) []domain.VehicleInformation {
+	var vehicles []domain.VehicleInformation
+	_ = s.DB().Where("driver_id = ?", driverID).Find(&vehicles).Error
+	return vehicles
+}
+
 func (s *VehicleService) GetByIdCardNumber(idCard string) []domain.VehicleInformation {
 	var vehicles []domain.VehicleInformation
-	_ = s.DB().Where("id_card_number = ?", idCard).Find(&vehicles).Error
+	_ = s.DB().Where("owner_id_card = ?", idCard).Find(&vehicles).Error
 	return vehicles
 }
 
 func (s *VehicleService) GetByStatus(status string) []domain.VehicleInformation {
 	var vehicles []domain.VehicleInformation
-	_ = s.DB().Where("current_status = ?", status).Find(&vehicles).Error
+	_ = s.DB().Where("status = ?", status).Find(&vehicles).Error
 	return vehicles
 }
 
@@ -269,7 +330,7 @@ func NewTrafficViolationService(db *gorm.DB) *TrafficViolationService {
 }
 
 func (s *TrafficViolationService) GetViolationTypeCounts(startTime string, driverName string, licensePlate string) (map[string]int64, error) {
-	query := s.db.Model(&domain.OffenseInformation{})
+	query := s.db.Table("view_offense_details")
 	if startTime != "" {
 		query = query.Where("offense_time >= ?", startTime)
 	}
@@ -279,7 +340,7 @@ func (s *TrafficViolationService) GetViolationTypeCounts(startTime string, drive
 	if licensePlate != "" {
 		query = query.Where("license_plate = ?", licensePlate)
 	}
-	return groupedCount(query, "offense_type")
+	return groupedCount(query, "COALESCE(NULLIF(offense_name, ''), offense_code)")
 }
 
 func (s *TrafficViolationService) GetTimeSeriesData(startTime string, driverName string) ([]map[string]interface{}, error) {
@@ -287,7 +348,7 @@ func (s *TrafficViolationService) GetTimeSeriesData(startTime string, driverName
 		Day   string
 		Count int64
 	}
-	query := s.db.Model(&domain.OffenseInformation{}).
+	query := s.db.Table("view_offense_details").
 		Select("DATE(offense_time) AS day, COUNT(*) AS count").
 		Group("DATE(offense_time)").
 		Order("day")
@@ -322,13 +383,9 @@ func (s *TrafficViolationService) GetAppealReasonCounts(startTime string, appeal
 func (s *TrafficViolationService) GetFinePaymentStatus(startTime string) (map[string]int64, error) {
 	query := s.db.Model(&domain.FineInformation{})
 	if startTime != "" {
-		query = query.Where("fine_time >= ?", startTime)
+		query = query.Where("fine_date >= ?", startTime)
 	}
-	var total int64
-	if err := query.Count(&total).Error; err != nil {
-		return nil, err
-	}
-	return map[string]int64{"recorded": total}, nil
+	return groupedCount(query, "payment_status")
 }
 
 func groupedCount(query *gorm.DB, column string) (map[string]int64, error) {

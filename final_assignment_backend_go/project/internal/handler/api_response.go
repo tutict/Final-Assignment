@@ -1,6 +1,10 @@
 package handler
 
-import "github.com/gin-gonic/gin"
+import (
+	"strings"
+
+	"github.com/gin-gonic/gin"
+)
 
 // apiResponse 对齐 Spring 的 com.tutict.finalassignmentbackend.dto.response.ApiResponse 信封。
 type apiResponse struct {
@@ -22,19 +26,26 @@ func apiError(code string, message string) apiResponse {
 func memberOfRole(c *gin.Context, allowed ...string) bool {
 	allowedSet := make(map[string]bool, len(allowed))
 	for _, role := range allowed {
-		allowedSet[role] = true
+		allowedSet[strings.ToUpper(strings.TrimPrefix(strings.TrimSpace(role), "ROLE_"))] = true
 	}
-	if allowedSet[c.GetString("role")] {
+	if allowedSet[strings.ToUpper(strings.TrimPrefix(strings.TrimSpace(c.GetString("role")), "ROLE_"))] {
 		return true
 	}
-	if roles, ok := c.Get("roles"); ok {
-		if values, ok := roles.([]string); ok {
-			for _, role := range values {
-				if allowedSet[role] {
-					return true
+	for _, key := range []string{"roles", "normalizedRoles"} {
+		if roles, ok := c.Get(key); ok {
+			if values, ok := roles.([]string); ok {
+				for _, role := range values {
+					role = strings.ToUpper(strings.TrimPrefix(strings.TrimSpace(role), "ROLE_"))
+					if allowedSet[role] {
+						return true
+					}
 				}
 			}
 		}
 	}
 	return false
+}
+
+func elevatedRequester(c *gin.Context) bool {
+	return memberOfRole(c, "ADMIN", "SUPER_ADMIN", "TRAFFIC_POLICE", "FINANCE")
 }

@@ -26,20 +26,24 @@ func NewLoginLogController(s *service.LoginLogService) *LoginLogController {
 
 // RegisterRoutes 注册路由
 func (c *LoginLogController) RegisterRoutes(r *gin.Engine) {
-	group := r.Group("/api/loginLogs")
-	{
-		group.POST("", c.CreateLoginLog)
-		group.GET("", c.GetAllLoginLogs)
-		group.GET("/timeRange", c.GetLoginLogsByTimeRange)
-		group.GET("/username/:username", c.GetLoginLogsByUsername)
-		group.GET("/loginResult/:loginResult", c.GetLoginLogsByLoginResult)
+	c.mountLoginLogs(r.Group("/api/loginLogs"))
+	c.mountLoginLogs(r.Group("/api/logs/login"))
+}
 
-		group.GET("/autocomplete/usernames/me", c.GetUsernameAutocomplete)
-		group.GET("/autocomplete/login-results/me", c.GetLoginResultAutocomplete)
-		group.GET("/:logId", c.GetLoginLogByID)
-		group.PUT("/:logId", c.UpdateLoginLog)
-		group.DELETE("/:logId", c.DeleteLoginLog)
-	}
+func (c *LoginLogController) mountLoginLogs(group *gin.RouterGroup) {
+	group.POST("", c.CreateLoginLog)
+	group.GET("", c.GetAllLoginLogs)
+	group.GET("/timeRange", c.GetLoginLogsByTimeRange)
+	group.GET("/search/time-range", c.GetLoginLogsByTimeRange)
+	group.GET("/username/:username", c.GetLoginLogsByUsername)
+	group.GET("/search/username", c.GetLoginLogsByUsername)
+	group.GET("/loginResult/:loginResult", c.GetLoginLogsByLoginResult)
+	group.GET("/search/result", c.GetLoginLogsByLoginResult)
+	group.GET("/autocomplete/usernames/me", c.GetUsernameAutocomplete)
+	group.GET("/autocomplete/login-results/me", c.GetLoginResultAutocomplete)
+	group.GET("/:logId", c.GetLoginLogByID)
+	group.PUT("/:logId", c.UpdateLoginLog)
+	group.DELETE("/:logId", c.DeleteLoginLog)
 }
 
 // CreateLoginLog POST /api/loginLogs
@@ -134,6 +138,9 @@ func (c *LoginLogController) GetLoginLogsByTimeRange(ctx *gin.Context) {
 // GetLoginLogsByUsername GET /api/loginLogs/username/:username
 func (c *LoginLogController) GetLoginLogsByUsername(ctx *gin.Context) {
 	username := ctx.Param("username")
+	if username == "" {
+		username = ctx.Query("username")
+	}
 	logs, err := c.service.GetLoginLogsByUsername(username)
 	if err != nil {
 		ctx.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
@@ -145,6 +152,9 @@ func (c *LoginLogController) GetLoginLogsByUsername(ctx *gin.Context) {
 // GetLoginLogsByLoginResult GET /api/loginLogs/loginResult/:loginResult
 func (c *LoginLogController) GetLoginLogsByLoginResult(ctx *gin.Context) {
 	result := ctx.Param("loginResult")
+	if result == "" {
+		result = ctx.Query("result")
+	}
 	logs, err := c.service.GetLoginLogsByLoginResult(result)
 	if err != nil {
 		ctx.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})

@@ -20,6 +20,9 @@ type AppealService interface {
 	GetAppealsByProcessStatus(string) ([]domain.AppealManagement, error)
 	GetAppealsByTimeRange(time.Time, time.Time) ([]domain.AppealManagement, error)
 	GetOffenseByAppealID(uint) (*domain.OffenseInformation, error)
+	ListForRequester(string, bool) ([]domain.AppealManagement, error)
+	FilterForRequester(string, bool, []domain.AppealManagement) []domain.AppealManagement
+	CanAccess(string, bool, *domain.AppealManagement) bool
 }
 
 type AuthService interface {
@@ -69,7 +72,13 @@ type FineInformationService interface {
 	GetFineByReceiptNumber(string) (*domain.FineInformation, error)
 	GetFinesByPayee(string) ([]domain.FineInformation, error)
 	GetFinesByTimeRange(time.Time, time.Time) ([]domain.FineInformation, error)
+	GetFinesByDriverID(int) ([]domain.FineInformation, error)
+	GetFinesByOffenseID(int) ([]domain.FineInformation, error)
+	ListForRequester(string, bool) ([]domain.FineInformation, error)
+	FilterForRequester(string, bool, []domain.FineInformation) []domain.FineInformation
+	CanAccess(string, bool, *domain.FineInformation) bool
 	SearchByFineTimeRange(time.Time, time.Time, string) ([]domain.FineInformation, error)
+	SearchByPaymentStatus(string, int, int) ([]domain.FineInformation, error)
 }
 
 type LoginLogService interface {
@@ -93,6 +102,9 @@ type OffenseInformationService interface {
 	SearchByDriverName(string, int, int) ([]domain.OffenseInformation, error)
 	SearchByLicensePlate(string, int, int) ([]domain.OffenseInformation, error)
 	SearchByOffenseType(string, int, int) ([]domain.OffenseInformation, error)
+	ListForRequester(string, bool) ([]domain.OffenseInformation, error)
+	FilterForRequester(string, bool, []domain.OffenseInformation) []domain.OffenseInformation
+	CanAccess(string, bool, *domain.OffenseInformation) bool
 }
 
 type OperationLogService interface {
@@ -201,6 +213,7 @@ type VehicleService interface {
 	GetByIdCardNumber(string) []domain.VehicleInformation
 	GetByLicensePlate(string) (*domain.VehicleInformation, error)
 	GetByOwnerName(string) []domain.VehicleInformation
+	GetByDriverId(int) []domain.VehicleInformation
 	GetByStatus(string) []domain.VehicleInformation
 	GetByType(string) []domain.VehicleInformation
 	GetLicensePlateAutocomplete(string, string, int) []string

@@ -1,6 +1,7 @@
 package service
 
 import (
+	"strconv"
 	"strings"
 	"time"
 
@@ -57,10 +58,10 @@ func (s *LoginLogService) GetLoginLogsByLoginResult(result string) ([]domain.Log
 	return logs, err
 }
 func (s *LoginLogService) GetUsernamesByPrefixGlobally(prefix string) []string {
-	return distinctStrings(s.DB(), "login_log", "username", prefix, 10)
+	return distinctStrings(s.DB(), "audit_login_log", "username", prefix, 10)
 }
 func (s *LoginLogService) GetLoginResultsByPrefixGlobally(prefix string) []string {
-	return distinctStrings(s.DB(), "login_log", "login_result", prefix, 10)
+	return distinctStrings(s.DB(), "audit_login_log", "login_result", prefix, 10)
 }
 
 func (s *OperationLogService) DB() *gorm.DB { return s.repo.DB() }
@@ -105,10 +106,10 @@ func (s *OperationLogService) GetOperationLogsByResult(result string) ([]domain.
 	return logs, err
 }
 func (s *OperationLogService) GetUserIdsByPrefixGlobally(prefix string) ([]string, error) {
-	return distinctStrings(s.DB(), "operation_log", "CAST(user_id AS CHAR)", prefix, 10), nil
+	return distinctStrings(s.DB(), "audit_operation_log", "CAST(user_id AS CHAR)", prefix, 10), nil
 }
 func (s *OperationLogService) GetOperationResultsByPrefixGlobally(prefix string) ([]string, error) {
-	return distinctStrings(s.DB(), "operation_log", "operation_result", prefix, 10), nil
+	return distinctStrings(s.DB(), "audit_operation_log", "operation_result", prefix, 10), nil
 }
 
 func (s *SystemLogsService) DB() *gorm.DB { return s.repo.DB() }
@@ -138,7 +139,7 @@ func (s *SystemLogsService) GetSystemLogByID(id string) (*domain.SystemLogs, err
 func (s *SystemLogsService) GetAllSystemLogs() ([]domain.SystemLogs, error) { return s.repo.FindAll() }
 func (s *SystemLogsService) GetSystemLogsByType(logType string) ([]domain.SystemLogs, error) {
 	var logs []domain.SystemLogs
-	err := s.DB().Where("log_type = ?", logType).Find(&logs).Error
+	err := s.DB().Where("operation_type = ?", logType).Find(&logs).Error
 	return logs, err
 }
 func (s *SystemLogsService) GetSystemLogsByTimeRange(start time.Time, end time.Time) ([]domain.SystemLogs, error) {
@@ -148,7 +149,7 @@ func (s *SystemLogsService) GetSystemLogsByTimeRange(start time.Time, end time.T
 }
 func (s *SystemLogsService) GetSystemLogsByOperationUser(user string) ([]domain.SystemLogs, error) {
 	var logs []domain.SystemLogs
-	err := s.DB().Where("operation_user = ?", user).Find(&logs).Error
+	err := s.DB().Where("username = ?", user).Find(&logs).Error
 	return logs, err
 }
 func (s *SystemLogsService) DeleteSystemLog(id string) error {
@@ -159,10 +160,10 @@ func (s *SystemLogsService) DeleteSystemLog(id string) error {
 	return s.DB().Where("log_id = ?", parsed).Delete(&domain.SystemLogs{}).Error
 }
 func (s *SystemLogsService) GetLogTypesByPrefixGlobally(prefix string) ([]string, error) {
-	return distinctStrings(s.DB(), "system_logs", "log_type", prefix, 10), nil
+	return distinctStrings(s.DB(), "audit_operation_log", "operation_type", prefix, 10), nil
 }
 func (s *SystemLogsService) GetOperationUsersByPrefixGlobally(prefix string) ([]string, error) {
-	return distinctStrings(s.DB(), "system_logs", "operation_user", prefix, 10), nil
+	return distinctStrings(s.DB(), "audit_operation_log", "username", prefix, 10), nil
 }
 
 func (s *PermissionManagementService) DB() *gorm.DB { return s.repo.DB() }
@@ -173,11 +174,20 @@ func (s *PermissionManagementService) CheckAndInsertIdempotency(key string, perm
 	}
 	now := time.Now()
 	if strings.EqualFold(operation, "create") {
-		permission.CreatedTime = now
-		permission.ModifiedTime = now
+		if strings.TrimSpace(permission.PermissionCode) == "" {
+			permission.PermissionCode = strings.ToLower(strings.ReplaceAll(permission.PermissionName, " ", ":"))
+		}
+		if strings.TrimSpace(permission.PermissionType) == "" {
+			permission.PermissionType = "Menu"
+		}
+		if strings.TrimSpace(permission.Status) == "" {
+			permission.Status = "Active"
+		}
+		permission.CreatedTime = timePtr(now)
+		permission.ModifiedTime = timePtr(now)
 		return s.DB().Create(permission).Error
 	}
-	permission.ModifiedTime = now
+	permission.ModifiedTime = timePtr(now)
 	return s.DB().Save(permission).Error
 }
 func (s *PermissionManagementService) GetPermissionById(id int) (*domain.PermissionManagement, error) {
@@ -217,11 +227,23 @@ func (s *RoleManagementService) CheckAndInsertIdempotency(key string, role *doma
 	}
 	now := time.Now()
 	if strings.EqualFold(operation, "create") {
-		role.CreatedTime = now
-		role.ModifiedTime = now
+		if strings.TrimSpace(role.RoleCode) == "" {
+			role.RoleCode = strings.ToUpper(strings.ReplaceAll(role.RoleName, " ", "_"))
+		}
+		if strings.TrimSpace(role.RoleType) == "" {
+			role.RoleType = "Business"
+		}
+		if strings.TrimSpace(role.DataScope) == "" {
+			role.DataScope = "Self"
+		}
+		if strings.TrimSpace(role.Status) == "" {
+			role.Status = "Active"
+		}
+		role.CreatedTime = timePtr(now)
+		role.ModifiedTime = timePtr(now)
 		return s.DB().Create(role).Error
 	}
-	role.ModifiedTime = now
+	role.ModifiedTime = timePtr(now)
 	return s.DB().Save(role).Error
 }
 func (s *RoleManagementService) GetRoleById(id string) (*domain.RoleManagement, error) {
@@ -269,11 +291,18 @@ func (s *ProgressItemService) CreateProgress(progress *domain.ProgressItem) (*do
 	return progress, s.DB().Create(progress).Error
 }
 func (s *ProgressItemService) GetAllProgress() ([]domain.ProgressItem, error) {
-	return s.repo.FindAll()
+	items, err := s.repo.FindAll()
+	if isMissingTable(err) {
+		return []domain.ProgressItem{}, nil
+	}
+	return items, err
 }
 func (s *ProgressItemService) GetProgressByUsername(username string) ([]domain.ProgressItem, error) {
 	var items []domain.ProgressItem
 	err := s.DB().Where("username = ?", username).Find(&items).Error
+	if isMissingTable(err) {
+		return []domain.ProgressItem{}, nil
+	}
 	return items, err
 }
 func (s *ProgressItemService) UpdateProgressStatus(id int, status string) (*domain.ProgressItem, error) {
@@ -301,15 +330,61 @@ func (s *ProgressItemService) GetProgressByTimeRange(start time.Time, end time.T
 func (s *SystemSettingsService) DB() *gorm.DB { return s.repo.DB() }
 
 func (s *SystemSettingsService) GetSystemSettings() (*domain.SystemSettings, error) {
-	var settings domain.SystemSettings
-	err := s.DB().First(&settings).Error
-	return &settings, err
+	var rows []domain.SysSetting
+	if err := s.DB().Find(&rows).Error; err != nil {
+		if isMissingTable(err) {
+			return &domain.SystemSettings{SystemName: "交通违法处理管理系统", SystemVersion: "2.0.0", DateFormat: "YYYY-MM-DD", PageSize: 20}, nil
+		}
+		return nil, err
+	}
+	values := map[string]string{}
+	for _, row := range rows {
+		values[row.SettingKey] = row.SettingValue
+	}
+	settings := &domain.SystemSettings{
+		SystemName:        firstNonEmpty(values["system.name"], "交通违法处理管理系统"),
+		SystemVersion:     firstNonEmpty(values["system.version"], "2.0.0"),
+		SystemDescription: values["system.description"],
+		CopyrightInfo:     values["system.copyright"],
+		StoragePath:       values["system.storage_path"],
+		LoginTimeout:      atoiDefault(values["system.login_timeout"], 30),
+		SessionTimeout:    atoiDefault(values["system.session_timeout"], 120),
+		DateFormat:        firstNonEmpty(values["system.date_format"], "YYYY-MM-DD"),
+		PageSize:          atoiDefault(values["system.page_size"], 20),
+		SMTPServer:        values["system.smtp_server"],
+		EmailAccount:      values["system.email_account"],
+		EmailPassword:     values["system.email_password"],
+	}
+	if len(rows) > 0 {
+		settings.SettingID = rows[0].SettingID
+	}
+	return settings, nil
 }
 func (s *SystemSettingsService) CheckAndInsertIdempotency(key string, settings *domain.SystemSettings) error {
 	if err := checkIdempotency(key, "system-settings:update"); err != nil {
 		return err
 	}
-	return s.DB().Save(settings).Error
+	pairs := map[string]string{
+		"system.name":            settings.SystemName,
+		"system.version":         settings.SystemVersion,
+		"system.description":     settings.SystemDescription,
+		"system.copyright":       settings.CopyrightInfo,
+		"system.storage_path":    settings.StoragePath,
+		"system.login_timeout":   strconv.Itoa(settings.LoginTimeout),
+		"system.session_timeout": strconv.Itoa(settings.SessionTimeout),
+		"system.date_format":     settings.DateFormat,
+		"system.page_size":       strconv.Itoa(settings.PageSize),
+		"system.smtp_server":     settings.SMTPServer,
+		"system.email_account":   settings.EmailAccount,
+		"system.email_password":  settings.EmailPassword,
+	}
+	for settingKey, value := range pairs {
+		if strings.TrimSpace(settingKey) == "" {
+			continue
+		}
+		_ = s.DB().Model(&domain.SysSetting{}).Where("setting_key = ?", settingKey).Update("setting_value", value).Error
+	}
+	return nil
 }
 func (s *SystemSettingsService) current() *domain.SystemSettings {
 	settings, err := s.GetSystemSettings()
