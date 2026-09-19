@@ -5,8 +5,10 @@ import com.tutict.finalassignmentcloud.dto.response.UserProfileResponse;
 import org.springframework.security.core.Authentication;
 import org.springframework.stereotype.Service;
 
+import java.util.List;
 import java.util.Objects;
 import java.util.Set;
+import java.util.function.Function;
 
 @Service
 public class DriverAccessService {
@@ -27,13 +29,29 @@ public class DriverAccessService {
         if (!SecurityRoleUtils.hasRole(authentication, "USER")) {
             return false;
         }
-        UserProfileResponse profile = userProfileService.getCurrentUserProfile(authentication);
-        return Objects.equals(profile.getDriverId(), driverId);
+        return Objects.equals(currentDriverId(authentication), driverId);
     }
 
     public boolean isRegularUser(Authentication authentication, Set<String> elevatedRoles) {
         return authentication != null
                 && !SecurityRoleUtils.hasAnyRole(authentication, elevatedRoles)
                 && SecurityRoleUtils.hasRole(authentication, "USER");
+    }
+
+    public Long currentDriverId(Authentication authentication) {
+        if (authentication == null) {
+            return null;
+        }
+        UserProfileResponse profile = userProfileService.getCurrentUserProfile(authentication);
+        return profile == null ? null : profile.getDriverId();
+    }
+
+    public <T> List<T> scopedOrEmpty(Authentication authentication, Function<Long, List<T>> byDriver) {
+        Long driverId = currentDriverId(authentication);
+        if (driverId == null) {
+            return List.of();
+        }
+        List<T> result = byDriver.apply(driverId);
+        return result == null ? List.of() : result;
     }
 }

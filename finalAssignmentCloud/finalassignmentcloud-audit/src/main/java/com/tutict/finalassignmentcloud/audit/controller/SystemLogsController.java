@@ -30,7 +30,7 @@ import java.util.stream.Collectors;
 @RequestMapping("/api/system/logs")
 @Tag(name = "System Logs", description = "系统日志综合查询接口")
 @SecurityRequirement(name = "bearerAuth")
-@RolesAllowed({"SUPER_ADMIN", "ADMIN"})
+@RolesAllowed({"SUPER_ADMIN"})
 public class SystemLogsController {
 
     private static final Logger LOG = Logger.getLogger(SystemLogsController.class.getName());

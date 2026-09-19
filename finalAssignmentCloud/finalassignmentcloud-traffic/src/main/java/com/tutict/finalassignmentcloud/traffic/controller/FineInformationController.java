@@ -132,9 +132,14 @@ public class FineInformationController {
     }
 
     @GetMapping
+    @RolesAllowed({"SUPER_ADMIN", "ADMIN", "TRAFFIC_POLICE", "FINANCE", "USER"})
     @Operation(summary = "查询全部罚款记录")
-    public ResponseEntity<List<FineRecord>> list() {
+    public ResponseEntity<List<FineRecord>> list(Authentication authentication) {
         try {
+            if (driverAccessService.isRegularUser(authentication, ELEVATED_ROLES)) {
+                return ResponseEntity.ok(enrich(driverAccessService.scopedOrEmpty(authentication,
+                        id -> fineRecordService.findByDriverId(id, 1, 1000))));
+            }
             return ResponseEntity.ok(enrich(fineRecordService.findAll()));
         } catch (Exception ex) {
             LOG.log(Level.WARNING, "List fines failed", ex);

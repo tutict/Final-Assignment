@@ -127,9 +127,14 @@ public class DeductionInformationController {
     }
 
     @GetMapping
+    @RolesAllowed({"SUPER_ADMIN", "ADMIN", "TRAFFIC_POLICE", "USER"})
     @Operation(summary = "查询全部扣分记录")
-    public ResponseEntity<List<DeductionRecord>> list() {
+    public ResponseEntity<List<DeductionRecord>> list(Authentication authentication) {
         try {
+            if (driverAccessService.isRegularUser(authentication, ELEVATED_ROLES)) {
+                return ResponseEntity.ok(enrich(driverAccessService.scopedOrEmpty(authentication,
+                        id -> deductionRecordService.findByDriverId(id, 1, 1000))));
+            }
             return ResponseEntity.ok(enrich(deductionRecordService.findAll()));
         } catch (Exception ex) {
             LOG.log(Level.WARNING, "List deductions failed", ex);

@@ -27,7 +27,9 @@ import org.springframework.web.bind.annotation.RestController;
 
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Set;
+import java.util.stream.Collectors;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
@@ -117,11 +119,18 @@ public class VehicleInformationController {
     }
 
     @GetMapping("/{vehicleId}")
+    @RolesAllowed({"SUPER_ADMIN", "ADMIN", "TRAFFIC_POLICE", "USER"})
     @Operation(summary = "查询车辆详情")
-    public ResponseEntity<VehicleInformation> getVehicle(@PathVariable Long vehicleId) {
+    public ResponseEntity<VehicleInformation> getVehicle(@PathVariable Long vehicleId, Authentication authentication) {
         try {
             VehicleInformation vehicle = vehicleInformationService.getVehicleInformationById(vehicleId);
-            return vehicle == null ? ResponseEntity.notFound().build() : ResponseEntity.ok(enrich(vehicle));
+            if (vehicle == null) {
+                return ResponseEntity.notFound().build();
+            }
+            if (!ownsVehicle(authentication, vehicle)) {
+                return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
+            }
+            return ResponseEntity.ok(enrich(vehicle));
         } catch (Exception ex) {
             LOG.log(Level.WARNING, "Get vehicle failed", ex);
             return ResponseEntity.status(resolveStatus(ex)).build();
@@ -129,9 +138,13 @@ public class VehicleInformationController {
     }
 
     @GetMapping
+    @RolesAllowed({"SUPER_ADMIN", "ADMIN", "TRAFFIC_POLICE", "USER"})
     @Operation(summary = "查询全部车辆")
-    public ResponseEntity<List<VehicleInformation>> listVehicles() {
+    public ResponseEntity<List<VehicleInformation>> listVehicles(Authentication authentication) {
         try {
+            if (driverAccessService.isRegularUser(authentication, ELEVATED_ROLES)) {
+                return ResponseEntity.ok(enrich(ownedVehicles(authentication)));
+            }
             return ResponseEntity.ok(enrich(vehicleInformationService.getAllVehicleInformation()));
         } catch (Exception ex) {
             LOG.log(Level.WARNING, "List vehicles failed", ex);
@@ -140,11 +153,19 @@ public class VehicleInformationController {
     }
 
     @GetMapping("/search/license")
+    @RolesAllowed({"SUPER_ADMIN", "ADMIN", "TRAFFIC_POLICE", "USER"})
     @Operation(summary = "按车牌号搜索车辆")
-    public ResponseEntity<VehicleInformation> searchByLicense(@RequestParam String licensePlate) {
+    public ResponseEntity<VehicleInformation> searchByLicense(@RequestParam String licensePlate,
+                                                              Authentication authentication) {
         try {
             VehicleInformation vehicle = vehicleInformationService.getVehicleInformationByLicensePlate(licensePlate);
-            return vehicle == null ? ResponseEntity.notFound().build() : ResponseEntity.ok(enrich(vehicle));
+            if (vehicle == null) {
+                return ResponseEntity.notFound().build();
+            }
+            if (!ownsVehicle(authentication, vehicle)) {
+                return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
+            }
+            return ResponseEntity.ok(enrich(vehicle));
         } catch (Exception ex) {
             LOG.log(Level.WARNING, "Search vehicle by license failed", ex);
             return ResponseEntity.status(resolveStatus(ex)).build();
@@ -163,10 +184,11 @@ public class VehicleInformationController {
     }
 
     @GetMapping("/search/type")
+    @RolesAllowed({"SUPER_ADMIN", "ADMIN", "TRAFFIC_POLICE", "USER"})
     @Operation(summary = "按车辆类型查询")
-    public ResponseEntity<List<VehicleInformation>> searchByType(@RequestParam String type) {
+    public ResponseEntity<List<VehicleInformation>> searchByType(@RequestParam String type, Authentication authentication) {
         try {
-            return ResponseEntity.ok(enrich(vehicleInformationService.getVehicleInformationByType(type)));
+            return ResponseEntity.ok(enrich(visibleVehicles(authentication, vehicleInformationService.getVehicleInformationByType(type))));
         } catch (Exception ex) {
             LOG.log(Level.WARNING, "Search vehicle by type failed", ex);
             return ResponseEntity.status(resolveStatus(ex)).build();
@@ -174,10 +196,12 @@ public class VehicleInformationController {
     }
 
     @GetMapping("/search/owner/name")
+    @RolesAllowed({"SUPER_ADMIN", "ADMIN", "TRAFFIC_POLICE", "USER"})
     @Operation(summary = "按车主姓名查询车辆")
-    public ResponseEntity<List<VehicleInformation>> searchByOwnerName(@RequestParam String ownerName) {
+    public ResponseEntity<List<VehicleInformation>> searchByOwnerName(@RequestParam String ownerName,
+                                                                      Authentication authentication) {
         try {
-            return ResponseEntity.ok(enrich(vehicleInformationService.getVehicleInformationByOwnerName(ownerName)));
+            return ResponseEntity.ok(enrich(visibleVehicles(authentication, vehicleInformationService.getVehicleInformationByOwnerName(ownerName))));
         } catch (Exception ex) {
             LOG.log(Level.WARNING, "Search vehicle by owner name failed", ex);
             return ResponseEntity.status(resolveStatus(ex)).build();
@@ -185,10 +209,11 @@ public class VehicleInformationController {
     }
 
     @GetMapping("/search/status")
+    @RolesAllowed({"SUPER_ADMIN", "ADMIN", "TRAFFIC_POLICE", "USER"})
     @Operation(summary = "按车辆状态查询")
-    public ResponseEntity<List<VehicleInformation>> searchByStatus(@RequestParam String status) {
+    public ResponseEntity<List<VehicleInformation>> searchByStatus(@RequestParam String status, Authentication authentication) {
         try {
-            return ResponseEntity.ok(enrich(vehicleInformationService.getVehicleInformationByStatus(status)));
+            return ResponseEntity.ok(enrich(visibleVehicles(authentication, vehicleInformationService.getVehicleInformationByStatus(status))));
         } catch (Exception ex) {
             LOG.log(Level.WARNING, "Search vehicle by status failed", ex);
             return ResponseEntity.status(resolveStatus(ex)).build();
@@ -196,12 +221,14 @@ public class VehicleInformationController {
     }
 
     @GetMapping("/search/general")
+    @RolesAllowed({"SUPER_ADMIN", "ADMIN", "TRAFFIC_POLICE", "USER"})
     @Operation(summary = "关键字分页搜索车辆")
     public ResponseEntity<List<VehicleInformation>> searchVehicles(@RequestParam String keywords,
                                                                    @RequestParam(defaultValue = "1") int page,
-                                                                   @RequestParam(defaultValue = "20") int size) {
+                                                                   @RequestParam(defaultValue = "20") int size,
+                                                                   Authentication authentication) {
         try {
-            return ResponseEntity.ok(enrich(vehicleInformationService.searchVehicles(keywords, page, size)));
+            return ResponseEntity.ok(enrich(visibleVehicles(authentication, vehicleInformationService.searchVehicles(keywords, page, size))));
         } catch (Exception ex) {
             LOG.log(Level.WARNING, "General vehicle search failed", ex);
             return ResponseEntity.status(resolveStatus(ex)).build();
@@ -379,10 +406,15 @@ public class VehicleInformationController {
     }
 
     @GetMapping("/autocomplete")
+    @RolesAllowed({"SUPER_ADMIN", "ADMIN", "TRAFFIC_POLICE", "USER"})
     @Operation(summary = "Search global plate autocomplete suggestions")
     public ResponseEntity<ApiResponse<List<String>>> autocompletePlates(@RequestParam String prefix,
-                                                                        @RequestParam(defaultValue = "10") int limit) {
+                                                                        @RequestParam(defaultValue = "10") int limit,
+                                                                        Authentication authentication) {
         try {
+            if (driverAccessService.isRegularUser(authentication, ELEVATED_ROLES)) {
+                return ResponseEntity.ok(ApiResponse.ok(ownedPlates(authentication, prefix, limit)));
+            }
             return ResponseEntity.ok(ApiResponse.ok(vehicleInformationService.suggestPlates(prefix, limit)));
         } catch (Exception ex) {
             LOG.log(Level.WARNING, "Fetch plate autocomplete failed", ex);
@@ -392,11 +424,16 @@ public class VehicleInformationController {
     }
 
     @GetMapping("/autocomplete/plates")
+    @RolesAllowed({"SUPER_ADMIN", "ADMIN", "TRAFFIC_POLICE", "USER"})
     @Operation(summary = "获取指定车主的车牌补全建议")
     public ResponseEntity<List<String>> plateAutocomplete(@RequestParam String prefix,
                                                           @RequestParam(defaultValue = "10") int size,
-                                                          @RequestParam String idCard) {
+                                                          @RequestParam(required = false) String idCard,
+                                                          Authentication authentication) {
         try {
+            if (driverAccessService.isRegularUser(authentication, ELEVATED_ROLES)) {
+                return ResponseEntity.ok(ownedPlates(authentication, prefix, size));
+            }
             return ResponseEntity.ok(vehicleInformationService.getLicensePlateAutocompleteSuggestions(prefix, size, idCard));
         } catch (Exception ex) {
             LOG.log(Level.WARNING, "Fetch plate autocomplete failed", ex);
@@ -405,11 +442,16 @@ public class VehicleInformationController {
     }
 
     @GetMapping("/autocomplete/types")
+    @RolesAllowed({"SUPER_ADMIN", "ADMIN", "TRAFFIC_POLICE", "USER"})
     @Operation(summary = "获取指定车主的车辆类型补全")
-    public ResponseEntity<List<String>> vehicleTypeAutocomplete(@RequestParam String idCard,
+    public ResponseEntity<List<String>> vehicleTypeAutocomplete(@RequestParam(required = false) String idCard,
                                                                 @RequestParam String prefix,
-                                                                @RequestParam(defaultValue = "10") int size) {
+                                                                @RequestParam(defaultValue = "10") int size,
+                                                                Authentication authentication) {
         try {
+            if (driverAccessService.isRegularUser(authentication, ELEVATED_ROLES)) {
+                return ResponseEntity.ok(ownedTypes(authentication, prefix, size));
+            }
             return ResponseEntity.ok(vehicleInformationService.getVehicleTypeAutocompleteSuggestions(idCard, prefix, size));
         } catch (Exception ex) {
             LOG.log(Level.WARNING, "Fetch vehicle type autocomplete failed", ex);
@@ -443,6 +485,55 @@ public class VehicleInformationController {
 
     private boolean hasKey(String value) {
         return value != null && !value.isBlank();
+    }
+
+    private List<VehicleInformation> ownedVehicles(Authentication authentication) {
+        return driverAccessService.scopedOrEmpty(authentication,
+                id -> vehicleInformationService.getVehicleInformationByDriverId(id, 1, 1000));
+    }
+
+    private boolean ownsVehicle(Authentication authentication, VehicleInformation vehicle) {
+        if (!driverAccessService.isRegularUser(authentication, ELEVATED_ROLES)) {
+            return true;
+        }
+        if (vehicle == null || vehicle.getVehicleId() == null) {
+            return false;
+        }
+        return ownedVehicles(authentication).stream()
+                .anyMatch(item -> Objects.equals(vehicle.getVehicleId(), item.getVehicleId()));
+    }
+
+    private List<VehicleInformation> visibleVehicles(Authentication authentication, List<VehicleInformation> found) {
+        if (!driverAccessService.isRegularUser(authentication, ELEVATED_ROLES) || found == null || found.isEmpty()) {
+            return found == null ? List.of() : found;
+        }
+        Set<Long> ownedIds = ownedVehicles(authentication).stream()
+                .map(VehicleInformation::getVehicleId)
+                .filter(Objects::nonNull)
+                .collect(Collectors.toSet());
+        return found.stream().filter(item -> ownedIds.contains(item.getVehicleId())).toList();
+    }
+
+    private List<String> ownedPlates(Authentication authentication, String prefix, int limit) {
+        String needle = prefix == null ? "" : prefix;
+        return ownedVehicles(authentication).stream()
+                .map(VehicleInformation::getLicensePlate)
+                .filter(Objects::nonNull)
+                .filter(plate -> plate.startsWith(needle))
+                .distinct()
+                .limit(Math.max(limit, 1))
+                .toList();
+    }
+
+    private List<String> ownedTypes(Authentication authentication, String prefix, int limit) {
+        String needle = prefix == null ? "" : prefix;
+        return ownedVehicles(authentication).stream()
+                .map(VehicleInformation::getVehicleType)
+                .filter(Objects::nonNull)
+                .filter(type -> type.startsWith(needle))
+                .distinct()
+                .limit(Math.max(limit, 1))
+                .toList();
     }
 
     private VehicleInformation enrich(VehicleInformation vehicle) {

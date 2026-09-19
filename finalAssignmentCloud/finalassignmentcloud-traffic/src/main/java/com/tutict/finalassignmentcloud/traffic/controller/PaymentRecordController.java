@@ -119,8 +119,13 @@ public class PaymentRecordController {
     }
 
     @GetMapping
+    @RolesAllowed({"SUPER_ADMIN", "ADMIN", "FINANCE", "USER"})
     @Operation(summary = "查询全部支付记录")
-    public ResponseEntity<List<PaymentRecord>> listPayments() {
+    public ResponseEntity<List<PaymentRecord>> listPayments(Authentication authentication) {
+        if (driverAccessService.isRegularUser(authentication, ELEVATED_ROLES)) {
+            return ResponseEntity.ok(driverAccessService.scopedOrEmpty(authentication,
+                    id -> paymentRecordService.findByDriverId(id, 1, 1000)));
+        }
         return ResponseEntity.ok(paymentRecordService.findAll());
     }
 

@@ -132,9 +132,14 @@ public class OffenseInformationController {
     }
 
     @GetMapping
+    @RolesAllowed({"SUPER_ADMIN", "ADMIN", "TRAFFIC_POLICE", "APPEAL_REVIEWER", "USER"})
     @Operation(summary = "查询全部违法记录")
-    public ResponseEntity<List<OffenseRecord>> list() {
+    public ResponseEntity<List<OffenseRecord>> list(Authentication authentication) {
         try {
+            if (driverAccessService.isRegularUser(authentication, ELEVATED_ROLES)) {
+                return ResponseEntity.ok(enrich(driverAccessService.scopedOrEmpty(authentication,
+                        id -> offenseRecordService.findByDriverId(id, 1, 1000))));
+            }
             return ResponseEntity.ok(enrich(offenseRecordService.findAll()));
         } catch (Exception ex) {
             LOG.log(Level.WARNING, "List offenses failed", ex);

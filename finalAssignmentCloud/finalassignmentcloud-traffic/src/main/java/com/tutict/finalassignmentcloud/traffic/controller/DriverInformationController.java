@@ -5,6 +5,7 @@ import com.tutict.finalassignmentcloud.entity.DriverInformation;
 import com.tutict.finalassignmentcloud.entity.SysUser;
 import com.tutict.finalassignmentcloud.dto.response.UserProfileResponse;
 import com.tutict.finalassignmentcloud.traffic.service.BusinessRecordViewService;
+import com.tutict.finalassignmentcloud.traffic.service.DriverAccessService;
 import com.tutict.finalassignmentcloud.traffic.service.DriverInformationService;
 import com.tutict.finalassignmentcloud.traffic.service.TrafficUserProfileService;
 import io.swagger.v3.oas.annotations.Operation;
@@ -44,13 +45,16 @@ public class DriverInformationController {
     private final DriverInformationService driverInformationService;
     private final TrafficUserProfileService userProfileService;
     private final BusinessRecordViewService businessRecordViewService;
+    private final DriverAccessService driverAccessService;
 
     public DriverInformationController(DriverInformationService driverInformationService,
                                        TrafficUserProfileService userProfileService,
-                                       BusinessRecordViewService businessRecordViewService) {
+                                       BusinessRecordViewService businessRecordViewService,
+                                       DriverAccessService driverAccessService) {
         this.driverInformationService = driverInformationService;
         this.userProfileService = userProfileService;
         this.businessRecordViewService = businessRecordViewService;
+        this.driverAccessService = driverAccessService;
     }
 
     @PostMapping
@@ -140,9 +144,18 @@ public class DriverInformationController {
     }
 
     @GetMapping
+    @RolesAllowed({"SUPER_ADMIN", "ADMIN", "TRAFFIC_POLICE", "USER"})
     @Operation(summary = "查询全部驾驶员")
-    public ResponseEntity<List<DriverInformation>> list() {
+    public ResponseEntity<List<DriverInformation>> list(Authentication authentication) {
         try {
+            if (driverAccessService.isRegularUser(authentication, ELEVATED_ROLES)) {
+                Long driverId = driverAccessService.currentDriverId(authentication);
+                if (driverId == null) {
+                    return ResponseEntity.ok(List.of());
+                }
+                DriverInformation driver = driverInformationService.getDriverById(driverId);
+                return ResponseEntity.ok(driver == null ? List.of() : List.of(enrich(driver)));
+            }
             return ResponseEntity.ok(enrich(driverInformationService.getAllDrivers()));
         } catch (Exception ex) {
             LOG.log(Level.WARNING, "List drivers failed", ex);
