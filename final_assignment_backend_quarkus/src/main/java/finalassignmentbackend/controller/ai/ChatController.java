@@ -5,10 +5,15 @@ import dev.langchain4j.model.chat.StreamingChatModel;
 import dev.langchain4j.model.chat.request.ChatRequest;
 import dev.langchain4j.model.chat.response.ChatResponse;
 import dev.langchain4j.model.chat.response.StreamingChatResponseHandler;
+import finalassignmentbackend.ai.agent.AgentModels;
+import finalassignmentbackend.ai.agent.AgentRuntime;
+import finalassignmentbackend.controller.DriverAccessGuard;
 import finalassignmentbackend.service.ai.AIChatSearchService;
 import jakarta.annotation.security.RolesAllowed;
 import io.smallrye.mutiny.Multi;
 import jakarta.inject.Inject;
+import jakarta.json.bind.Jsonb;
+import jakarta.json.bind.JsonbBuilder;
 import jakarta.ws.rs.Consumes;
 import jakarta.ws.rs.DefaultValue;
 import jakarta.ws.rs.GET;
@@ -16,10 +21,16 @@ import jakarta.ws.rs.POST;
 import jakarta.ws.rs.Path;
 import jakarta.ws.rs.Produces;
 import jakarta.ws.rs.QueryParam;
+import jakarta.ws.rs.core.Context;
 import jakarta.ws.rs.core.MediaType;
+import jakarta.ws.rs.core.SecurityContext;
 
+import java.time.Instant;
+import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.UUID;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
@@ -34,6 +45,9 @@ public class ChatController {
 
     @Inject
     AIChatSearchService aiChatSearchService;
+    @Inject AgentRuntime agentRuntime;
+    @Inject DriverAccessGuard driverAccessGuard;
+    private final Jsonb jsonb = JsonbBuilder.create();
 
     @GET
     @Path("/chat")
@@ -79,11 +93,44 @@ public class ChatController {
     @Path("/chat/stream")
     @Consumes(MediaType.APPLICATION_JSON)
     @Produces(MediaType.SERVER_SENT_EVENTS)
-    public Multi<String> chatStream(Map<String, Object> request) {
+    public Multi<String> chatStream(@Context SecurityContext securityContext, Map<String, Object> request) {
         String message = stringValue(request, "message");
         String massage = stringValue(request, "massage");
         boolean webSearch = booleanValue(request, "webSearch");
-        return chat(message, massage, webSearch);
+        String userMessage = resolveMessage(message, massage);
+        String sessionKey = stringValue(request, "sessionKey");
+        if (sessionKey == null || sessionKey.isBlank()) sessionKey = UUID.randomUUID().toString();
+        String username = securityContext != null && securityContext.getUserPrincipal() != null ? securityContext.getUserPrincipal().getName() : "anonymous";
+        String role = "USER";
+        if (securityContext != null) {
+            if (securityContext.isUserInRole("SUPER_ADMIN")) role = "SUPER_ADMIN";
+            else if (securityContext.isUserInRole("ADMIN")) role = "ADMIN";
+            else role = "DRIVER";
+        }
+        Long driverId = driverAccessGuard.currentDriverId(securityContext);
+        if (!agentRuntime.bindSession(username, sessionKey)) {
+            String json = jsonb.toJson(Map.of("type", "error", "sessionKey", sessionKey, "payload", Map.of("message", "不能使用其他用户的会话"), "timestamp", Instant.now().toString()));
+            return Multi.createFrom().item(json);
+        }
+        AgentModels.Context context = new AgentModels.Context(role, sessionKey, username, username, driverId, false);
+        List<String> prefix = new ArrayList<>();
+        for (Map<String, Object> event : agentRuntime.execute(userMessage, context)) {
+            prefix.add(jsonb.toJson(event));
+        }
+        String finalSession = sessionKey;
+        return Multi.createFrom().iterable(prefix)
+                .onCompletion().switchTo(() -> chat(userMessage, null, webSearch)
+                        .map(token -> jsonb.toJson(tokenEvent(finalSession, token)))
+                        .onCompletion().continueWith(jsonb.toJson(Map.of("type", "done", "sessionKey", finalSession, "timestamp", Instant.now().toString()))));
+    }
+
+    private static Map<String, Object> tokenEvent(String sessionKey, String token) {
+        Map<String, Object> event = new LinkedHashMap<>();
+        event.put("type", "token");
+        event.put("sessionKey", sessionKey);
+        event.put("token", token);
+        event.put("timestamp", Instant.now().toString());
+        return event;
     }
 
     @GET
