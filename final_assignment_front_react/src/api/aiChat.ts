@@ -25,6 +25,10 @@ export type AiStreamEventType =
   | "error"
   | "usage"
   | "keepalive"
+  | "tool"
+  | "result"
+  | "draft"
+  | "action"
   | "unknown";
 
 export interface AiStreamEvent {
@@ -47,6 +51,7 @@ export interface ChatStreamChunk {
 
 export interface ChatStreamHandlers {
   onChunk: (chunk: ChatStreamChunk) => void;
+  onEvent?: (event: AiStreamEvent) => void;
   onError?: (message: string) => void;
   onDone?: () => void;
 }
@@ -109,6 +114,10 @@ const WIRE_TO_TYPE: Record<string, AiStreamEventType> = {
   error: "error",
   usage: "usage",
   keepalive: "keepalive",
+  tool: "tool",
+  result: "result",
+  draft: "draft",
+  action: "action",
 };
 
 function lookupType(rawType: string | undefined): AiStreamEventType {
@@ -329,6 +338,15 @@ export function streamChat(
           const event = parseEvent(rawData, eventName);
           if (!event) return;
           switch (event.type) {
+            case "tool":
+            case "result":
+            case "draft":
+            case "action": {
+              firstTokenReceived = true;
+              window.clearTimeout(firstTokenTimer);
+              handlers.onEvent?.(event);
+              break;
+            }
             case "token": {
               const raw = event.token ?? "";
               const cleaned = cleanAiText(raw);

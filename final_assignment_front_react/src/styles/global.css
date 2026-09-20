@@ -141,6 +141,16 @@ a {
   flex: 1;
   display: flex;
   flex-direction: column;
+  min-width: 0;
+  min-height: 0;
+}
+
+.app-body {
+  flex: 1;
+  display: flex;
+  min-width: 0;
+  min-height: 0;
+  position: relative;
 }
 
 .app-header {
@@ -190,14 +200,31 @@ a {
 
 .icon-button {
   background: var(--panel-muted);
-  border: none;
+  border: 1px solid transparent;
   border-radius: 10px;
   padding: 6px 10px;
   cursor: pointer;
   color: var(--text);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.icon-button:disabled {
+  opacity: 0.6;
+  cursor: default;
+}
+
+.icon-button.is-active {
+  color: var(--accent);
+  background: color-mix(in srgb, var(--accent) 14%, var(--panel-muted));
+  border-color: color-mix(in srgb, var(--accent) 28%, var(--border));
 }
 
 .app-content {
+  flex: 1;
+  min-width: 0;
+  overflow: auto;
   padding: 32px;
 }
 
@@ -1088,6 +1115,25 @@ a {
   text-decoration: underline;
 }
 
+.chip {
+  border: 1px solid var(--border);
+  background: var(--panel);
+  color: var(--text-muted);
+  border-radius: 999px;
+  padding: 6px 12px;
+  font-size: 12px;
+}
+
+button.chip {
+  cursor: pointer;
+  font: inherit;
+}
+
+button.chip:hover {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
 .chat-panel {
   background: var(--panel);
   border-radius: 18px;
@@ -1096,6 +1142,14 @@ a {
   flex-direction: column;
   gap: 12px;
   min-height: 480px;
+}
+
+.chat-panel.is-embedded {
+  min-height: 0;
+  height: 100%;
+  border-radius: 0;
+  padding: 12px;
+  background: transparent;
 }
 
 .chat-search-strip {
@@ -1245,6 +1299,41 @@ a {
   border: 1px solid color-mix(in srgb, var(--accent) 60%, var(--border));
   background: color-mix(in srgb, var(--accent) 10%, transparent);
   color: var(--accent-strong);
+}
+
+.chat-tool-status {
+  font-size: 12px;
+  color: var(--muted);
+}
+
+.chat-result-list,
+.chat-draft-card {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: 8px;
+}
+
+.chat-result-card,
+.chat-draft-card {
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 10px 12px;
+  background: color-mix(in srgb, var(--panel) 88%, var(--accent));
+}
+
+.chat-result-summary,
+.chat-draft-title {
+  font-weight: 600;
+}
+
+.chat-draft-meta {
+  font-size: 12px;
+  color: var(--muted);
+}
+
+.chat-draft-card button {
+  align-self: flex-start;
 }
 
 .chat-predefined {
@@ -1492,6 +1581,128 @@ a {
 
   .app-content {
     padding: 20px;
+  }
+}
+
+/* ===== AI 助手窗口（对齐 Flutter dashboard chat drawer / side panel） ===== */
+.agent-backdrop {
+  display: none;
+}
+
+.agent-window {
+  display: flex;
+  flex-direction: column;
+  width: min(400px, 32vw);
+  min-width: 320px;
+  background: var(--panel);
+  border-left: 1px solid var(--border);
+  box-shadow: -12px 0 28px var(--shadow);
+  overflow: hidden;
+  transition: width 0.26s ease, min-width 0.26s ease, opacity 0.18s ease;
+}
+
+.agent-window.is-closed {
+  width: 0;
+  min-width: 0;
+  opacity: 0;
+  border-left: none;
+  box-shadow: none;
+  pointer-events: none;
+}
+
+.agent-window-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 12px 14px;
+  border-bottom: 1px solid var(--border);
+}
+
+.agent-window-brand {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+}
+
+.agent-window-icon {
+  width: 34px;
+  height: 34px;
+  border-radius: 8px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: color-mix(in srgb, var(--accent) 14%, var(--panel-muted));
+  color: var(--accent);
+  flex-shrink: 0;
+}
+
+.agent-window-title {
+  font-weight: 700;
+  line-height: 1.2;
+}
+
+.agent-window-subtitle {
+  font-size: 12px;
+  color: var(--text-muted);
+}
+
+.agent-window-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
+.agent-window-body {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+}
+
+.agent-window-body .chat-panel {
+  flex: 1;
+}
+
+@media (max-width: 1024px) {
+  .agent-backdrop.is-open {
+    display: block;
+    position: fixed;
+    inset: 0;
+    border: 0;
+    padding: 0;
+    margin: 0;
+    background: color-mix(in srgb, #000 22%, transparent);
+    z-index: 40;
+    cursor: pointer;
+  }
+
+  [data-theme='dark'] .agent-backdrop.is-open {
+    background: color-mix(in srgb, #000 38%, transparent);
+  }
+
+  .agent-window {
+    position: fixed;
+    top: 12px;
+    right: 12px;
+    bottom: 12px;
+    width: min(420px, calc(100vw - 24px));
+    min-width: 260px;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    z-index: 41;
+    box-shadow: -10px 18px 30px var(--shadow);
+    transform: translateX(0);
+    transition: transform 0.26s ease, opacity 0.18s ease;
+  }
+
+  .agent-window.is-closed {
+    width: min(420px, calc(100vw - 24px));
+    min-width: 260px;
+    opacity: 0;
+    transform: translateX(calc(100% + 24px));
+    pointer-events: none;
   }
 }
 

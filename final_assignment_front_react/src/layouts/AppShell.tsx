@@ -2,7 +2,9 @@ import { useEffect } from 'react';
 import { Outlet } from 'react-router-dom';
 import Sidebar from '../components/Sidebar';
 import Header from '../components/Header';
+import AgentWindow from '../components/AgentWindow';
 import { useTheme } from '../theme/ThemeContext';
+import { AgentWindowProvider } from './AgentWindowContext';
 import type { NavItem } from '../config/navigation';
 
 interface AppShellProps {
@@ -27,19 +29,24 @@ export default function AppShell({
   }, [theme]);
 
   return (
-    <div className="app-shell">
-      <Sidebar title={navTitle} items={navItems} footerItems={footerItems} />
-      <div className="app-main">
-        <Header
-          title={headerTitle}
-          subtitle={headerSubtitle}
-          onToggleTheme={toggleTheme}
-          theme={theme}
-        />
-        <main className="app-content">
-          <Outlet />
-        </main>
+    <AgentWindowProvider>
+      <div className="app-shell">
+        <Sidebar title={navTitle} items={navItems} footerItems={footerItems} />
+        <div className="app-main">
+          <Header
+            title={headerTitle}
+            subtitle={headerSubtitle}
+            onToggleTheme={toggleTheme}
+            theme={theme}
+          />
+          <div className="app-body">
+            <main className="app-content">
+              <Outlet />
+            </main>
+            <AgentWindow />
+          </div>
+        </div>
       </div>
-    </div>
+    </AgentWindowProvider>
   );
 }

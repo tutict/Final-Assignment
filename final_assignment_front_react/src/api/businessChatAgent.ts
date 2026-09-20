@@ -175,12 +175,17 @@ function resolveFromSpecs(
  * - 其余使用驾驶员动作。
  * 未命中返回 null。
  */
+function isExplicitOpen(message: string): boolean {
+  return /打开|进入|跳转|前往/.test(message);
+}
+
 export function resolveBusinessAction(
   message: string,
   role: Role
 ): ChatActionResponse | null {
   const normalized = message.trim().toLowerCase();
   if (!normalized) return null;
+  if (!isExplicitOpen(message)) return null;
 
   if (role === "SUPER_ADMIN") {
     return (

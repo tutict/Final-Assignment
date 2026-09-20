@@ -16,6 +16,7 @@ import {
   streamChat,
   splitThinkAndFormal,
   cleanAiText,
+  type AiStreamEvent,
   type ChatStreamChunk,
   type ChatStreamSession,
   type ConversationTurn,
@@ -35,6 +36,16 @@ export interface ChatMessage {
   /** 预填动作建议（系统气泡） */
   actions?: { type?: string; label?: string; target?: string; value?: string }[];
   needConfirm?: boolean;
+  results?: { summary?: string; items?: Record<string, unknown>[]; ok?: boolean }[];
+  draft?: {
+    draftId: string;
+    summary?: string;
+    risk?: string;
+    serviceName?: string;
+    preview?: Record<string, unknown>;
+    expiresAt?: string;
+  };
+  toolStatus?: string;
 }
 
 const MAX_WINDOW = 10;
@@ -109,8 +120,8 @@ export function useAiChatStream() {
         i === index
           ? {
               ...msg,
-              thinkContent: think.trim(),
-              formalContent: withPrefix(formal),
+              thinkContent: think.trim() || msg.thinkContent,
+              formalContent: withPrefix(formal) || msg.formalContent,
               isThinkingPlaceholder: false,
             }
           : msg
@@ -185,6 +196,82 @@ export function useAiChatStream() {
     [webSearch, flushAiMessage, removeThinkingPlaceholders]
   );
 
+  const patchCurrentMessage = useCallback((updater: (msg: ChatMessage) => ChatMessage) => {
+    const index = messageIndexRef.current;
+    setMessages((prev) => {
+      if (index >= 0 && index < prev.length) {
+        return prev.map((msg, i) => (i === index ? updater({ ...msg, isThinkingPlaceholder: false }) : msg));
+      }
+      const next = [...prev.filter((msg) => !msg.isThinkingPlaceholder), updater({
+        role: "assistant",
+        thinkContent: "",
+        formalContent: "",
+        isSystem: false,
+      })];
+      messageIndexRef.current = next.length - 1;
+      return next;
+    });
+  }, []);
+
+  const processEvent = useCallback((event: AiStreamEvent) => {
+    if (event.sessionKey) {
+      sessionRef.current = event.sessionKey;
+    }
+    if (event.type === "tool") {
+      const name = String(event.payload?.name ?? "tool");
+      const phase = String(event.payload?.phase ?? "");
+      patchCurrentMessage((msg) => ({
+        ...msg,
+        toolStatus: phase === "start" ? `正在调用 ${name}` : msg.toolStatus,
+      }));
+      return;
+    }
+    if (event.type === "result") {
+      const summary = String(event.payload?.summary ?? "");
+      const items = Array.isArray(event.payload?.items)
+        ? (event.payload?.items as Record<string, unknown>[])
+        : [];
+      patchCurrentMessage((msg) => ({
+        ...msg,
+        formalContent: msg.formalContent || summary,
+        results: [...(msg.results || []), { summary, items, ok: event.payload?.ok !== false }],
+      }));
+      return;
+    }
+    if (event.type === "draft") {
+      const draftId = String(event.payload?.draftId ?? "");
+      const summary = String(event.payload?.summary ?? "请确认后办理");
+      patchCurrentMessage((msg) => ({
+        ...msg,
+        formalContent: msg.formalContent || summary,
+        needConfirm: true,
+        draft: {
+          draftId,
+          summary,
+          risk: event.payload?.risk as string | undefined,
+          serviceName: event.payload?.serviceName as string | undefined,
+          preview: (event.payload?.preview as Record<string, unknown>) || {},
+          expiresAt: event.payload?.expiresAt as string | undefined,
+        },
+      }));
+      return;
+    }
+    if (event.type === "action") {
+      patchCurrentMessage((msg) => ({
+        ...msg,
+        actions: [
+          ...(msg.actions || []),
+          {
+            type: String(event.payload?.type ?? "NAVIGATE"),
+            label: String(event.payload?.label ?? "查看详情"),
+            target: String(event.payload?.target ?? ""),
+            value: String(event.payload?.value ?? ""),
+          },
+        ],
+      }));
+    }
+  }, [patchCurrentMessage]);
+
   const sendMessage = useCallback(
     (messageText?: string) => {
       const message = (messageText ?? input).trim();
@@ -256,6 +343,7 @@ export function useAiChatStream() {
         },
         {
           onChunk: processChunk,
+          onEvent: processEvent,
           onError: (msg) => {
             removeThinkingPlaceholders();
             setStreaming(false);
@@ -286,6 +374,7 @@ export function useAiChatStream() {
       webSearch,
       buildConversationWindow,
       processChunk,
+      processEvent,
       flushAiMessage,
       removeThinkingPlaceholders,
     ]
