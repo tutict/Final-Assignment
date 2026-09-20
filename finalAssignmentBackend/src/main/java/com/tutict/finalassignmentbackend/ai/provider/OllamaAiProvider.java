@@ -91,11 +91,15 @@ public class OllamaAiProvider implements AiProvider {
     }
 
     private Map<String, Object> requestBody(AiChatPrompt prompt, boolean stream) {
-        return Map.of(
-                "model", properties.getOllama().getChatModel(),
-                "stream", stream,
-                "messages", List.of(Map.of("role", "user", "content", prompt.message()))
-        );
+        java.util.LinkedHashMap<String, Object> body = new java.util.LinkedHashMap<>();
+        body.put("model", properties.getOllama().getChatModel());
+        body.put("stream", stream);
+        body.put("messages", AiProviderToolSupport.messagesFrom(prompt));
+        java.util.List<java.util.Map<String, Object>> tools = AiProviderToolSupport.toolsFrom(prompt);
+        if (!tools.isEmpty()) {
+            body.put("tools", tools);
+        }
+        return body;
     }
 
     private List<AiToken> parseStreamChunk(String chunk) {
@@ -106,7 +110,11 @@ public class OllamaAiProvider implements AiProvider {
             }
             JsonNode node = readJson(line);
             boolean finished = node.path("done").asBoolean(false);
-            tokens.add(new AiToken(extractText(node), finished, Map.of()));
+            java.util.List<java.util.Map<String, Object>> toolCalls = AiProviderToolSupport.parseToolCalls(node);
+            java.util.Map<String, Object> metadata = toolCalls.isEmpty()
+                    ? Map.of()
+                    : Map.of("toolCalls", toolCalls);
+            tokens.add(new AiToken(extractText(node), finished, metadata));
         }
         return tokens;
     }

@@ -108,11 +108,15 @@ public class OpenAiCompatibleProvider implements AiProvider {
     }
 
     private Map<String, Object> requestBody(AiChatPrompt prompt, boolean stream) {
-        return Map.of(
-                "model", properties.getOpenaiCompatible().getChatModel(),
-                "stream", stream,
-                "messages", List.of(Map.of("role", "user", "content", prompt.message()))
-        );
+        java.util.LinkedHashMap<String, Object> body = new java.util.LinkedHashMap<>();
+        body.put("model", properties.getOpenaiCompatible().getChatModel());
+        body.put("stream", stream);
+        body.put("messages", AiProviderToolSupport.messagesFrom(prompt));
+        java.util.List<java.util.Map<String, Object>> tools = AiProviderToolSupport.toolsFrom(prompt);
+        if (!tools.isEmpty()) {
+            body.put("tools", tools);
+        }
+        return body;
     }
 
     private List<AiToken> parseStreamChunk(String chunk) {
@@ -134,8 +138,12 @@ public class OpenAiCompatibleProvider implements AiProvider {
                 String text = node.path("choices").path(0).path("delta").path("content").asText("");
                 boolean finished = !node.path("choices").path(0).path("finish_reason").isMissingNode()
                         && !node.path("choices").path(0).path("finish_reason").isNull();
-                if (!text.isEmpty() || finished) {
-                    tokens.add(new AiToken(text, finished, Map.of()));
+                java.util.List<java.util.Map<String, Object>> toolCalls = AiProviderToolSupport.parseToolCalls(node);
+                java.util.Map<String, Object> metadata = toolCalls.isEmpty()
+                        ? Map.of()
+                        : Map.of("toolCalls", toolCalls);
+                if (!text.isEmpty() || finished || !toolCalls.isEmpty()) {
+                    tokens.add(new AiToken(text, finished, metadata));
                 }
             } catch (Exception ignored) {
                 tokens.add(new AiToken("", false, Map.of("parse_error", true)));

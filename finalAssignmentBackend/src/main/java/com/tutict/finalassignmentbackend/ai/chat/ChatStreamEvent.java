@@ -68,4 +68,15 @@ public record ChatStreamEvent(
                 Instant.now()
         );
     }
+
+    public static ChatStreamEvent payload(String type, String sessionKey, String messageId, Object payload) {
+        return new ChatStreamEvent(
+                type,
+                sessionKey,
+                messageId,
+                null,
+                payload,
+                Instant.now()
+        );
+    }
 }

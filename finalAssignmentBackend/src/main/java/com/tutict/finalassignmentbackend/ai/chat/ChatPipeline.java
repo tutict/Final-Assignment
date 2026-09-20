@@ -1,5 +1,6 @@
 package com.tutict.finalassignmentbackend.ai.chat;
 
+import com.tutict.finalassignmentbackend.ai.agent.AgentRuntime;
 import com.tutict.finalassignmentbackend.ai.prompt.ContextBuilder;
 import com.tutict.finalassignmentbackend.ai.prompt.AgentConstraintService;
 import com.tutict.finalassignmentbackend.ai.prompt.AiAgentRole;
@@ -37,6 +38,8 @@ public class ChatPipeline {
     private final AIChatSearchService aiChatSearchService;
     private final AiAgentRoleResolver aiAgentRoleResolver;
     private final AgentConstraintService agentConstraintService;
+    private final AgentRuntime agentRuntime;
+    private final ObjectProvider<AgentRuntime> agentRuntimeProvider;
 
     @Autowired
     public ChatPipeline(
@@ -46,7 +49,8 @@ public class ChatPipeline {
             ObjectProvider<RagRetrievalProperties> ragRetrievalProperties,
             ObjectProvider<AIChatSearchService> aiChatSearchService,
             AiAgentRoleResolver aiAgentRoleResolver,
-            AgentConstraintService agentConstraintService
+            AgentConstraintService agentConstraintService,
+            ObjectProvider<AgentRuntime> agentRuntime
     ) {
         this(
                 chatStreamService,
@@ -55,7 +59,9 @@ public class ChatPipeline {
                 ragRetrievalProperties.getIfAvailable(),
                 aiChatSearchService.getIfAvailable(),
                 aiAgentRoleResolver,
-                agentConstraintService
+                agentConstraintService,
+                null,
+                agentRuntime
         );
     }
 
@@ -104,6 +110,44 @@ public class ChatPipeline {
         this.aiChatSearchService = aiChatSearchService;
         this.aiAgentRoleResolver = aiAgentRoleResolver;
         this.agentConstraintService = agentConstraintService;
+        this.agentRuntime = null;
+        this.agentRuntimeProvider = null;
+    }
+
+    ChatPipeline(
+            ChatStreamService chatStreamService,
+            PromptAssembler promptAssembler,
+            RagQueryService ragQueryService,
+            RagRetrievalProperties ragRetrievalProperties,
+            AIChatSearchService aiChatSearchService,
+            AiAgentRoleResolver aiAgentRoleResolver,
+            AgentConstraintService agentConstraintService,
+            AgentRuntime agentRuntime
+    ) {
+        this(chatStreamService, promptAssembler, ragQueryService, ragRetrievalProperties,
+                aiChatSearchService, aiAgentRoleResolver, agentConstraintService, agentRuntime, null);
+    }
+
+    ChatPipeline(
+            ChatStreamService chatStreamService,
+            PromptAssembler promptAssembler,
+            RagQueryService ragQueryService,
+            RagRetrievalProperties ragRetrievalProperties,
+            AIChatSearchService aiChatSearchService,
+            AiAgentRoleResolver aiAgentRoleResolver,
+            AgentConstraintService agentConstraintService,
+            AgentRuntime agentRuntime,
+            ObjectProvider<AgentRuntime> agentRuntimeProvider
+    ) {
+        this.chatStreamService = chatStreamService;
+        this.promptAssembler = promptAssembler;
+        this.ragQueryService = ragQueryService;
+        this.ragRetrievalProperties = ragRetrievalProperties;
+        this.aiChatSearchService = aiChatSearchService;
+        this.aiAgentRoleResolver = aiAgentRoleResolver;
+        this.agentConstraintService = agentConstraintService;
+        this.agentRuntime = agentRuntime;
+        this.agentRuntimeProvider = agentRuntimeProvider;
     }
 
     public Flux<ChatStreamEvent> stream(AiChatStreamRequest request) {
@@ -135,6 +179,10 @@ public class ChatPipeline {
                 retrievalResults,
                 agentConstraintService.constraintsFor(agentRole)
         );
+        AgentRuntime runtime = resolveAgentRuntime();
+        if (runtime != null) {
+            return runtime.run(userMessage, request.sessionKey(), prompt, metadata);
+        }
         return chatStreamService.stream(new AiChatStreamRequest(
                 prompt,
                 request.sessionKey(),
@@ -229,6 +277,13 @@ public class ChatPipeline {
                 roles,
                 department
         ));
+    }
+
+    private AgentRuntime resolveAgentRuntime() {
+        if (agentRuntime != null) {
+            return agentRuntime;
+        }
+        return agentRuntimeProvider == null ? null : agentRuntimeProvider.getIfAvailable();
     }
 
     private boolean ragEnabled(Map<String, Object> metadata) {

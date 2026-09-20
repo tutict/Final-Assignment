@@ -8,7 +8,11 @@ public enum ChatStreamEventType {
     DONE,
     ERROR,
     USAGE,
-    KEEPALIVE;
+    KEEPALIVE,
+    TOOL,
+    RESULT,
+    DRAFT,
+    ACTION;
 
     public String wireName() {
         return name().toLowerCase(Locale.ROOT);

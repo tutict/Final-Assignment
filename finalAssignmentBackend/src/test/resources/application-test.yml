@@ -36,6 +36,10 @@ ai:
   chat:
     streaming:
       enabled: true
+  agent:
+    max-rounds: 4
+    draft:
+      store: memory
   ollama:
     chat:
       enabled: false

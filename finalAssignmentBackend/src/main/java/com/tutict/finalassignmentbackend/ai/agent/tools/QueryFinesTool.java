@@ -1,0 +1,46 @@
+package com.tutict.finalassignmentbackend.ai.agent.tools;
+
+import com.tutict.finalassignmentbackend.ai.agent.AgentArgs;
+import com.tutict.finalassignmentbackend.ai.agent.AgentDrafts;
+import com.tutict.finalassignmentbackend.ai.agent.AgentTool;
+import com.tutict.finalassignmentbackend.ai.agent.AgentToolContext;
+import com.tutict.finalassignmentbackend.ai.agent.AgentToolResult;
+import com.tutict.finalassignmentbackend.ai.prompt.AiAgentRole;
+import com.tutict.finalassignmentbackend.entity.offense.FineRecord;
+import com.tutict.finalassignmentbackend.service.offense.FineRecordService;
+import org.springframework.stereotype.Component;
+
+import java.util.ArrayList;
+import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
+
+@Component
+public class QueryFinesTool implements AgentTool {
+    private final FineRecordService fineRecordService;
+    public QueryFinesTool(FineRecordService fineRecordService) { this.fineRecordService = fineRecordService; }
+    @Override public String name() { return "query_my_fines"; }
+    @Override public String description() { return "查询当前驾驶员自己的罚款记录。"; }
+    @Override public Map<String, Object> parameterSchema() { return AgentDrafts.schema(); }
+    @Override public Set<AiAgentRole> roles() { return Set.of(AiAgentRole.DRIVER); }
+    @Override public boolean mutation() { return false; }
+    @Override public AgentToolResult execute(AgentToolContext context, Map<String, Object> arguments) {
+        if (context.driverId() == null) return AgentToolResult.error("当前账号尚未绑定驾驶员档案，无法查询罚款。");
+        List<FineRecord> records = fineRecordService.findByDriverId(context.driverId(), AgentArgs.page(arguments), AgentArgs.size(arguments, 10));
+        return AgentToolResult.result(records.isEmpty() ? "没有查询到您的罚款记录。" : "共找到 " + records.size() + " 条罚款记录。", summarize(records), AgentDrafts.navigate("查看罚款信息", "/fineInformation"));
+    }
+    static List<Map<String, Object>> summarize(List<FineRecord> records) {
+        List<Map<String, Object>> items = new ArrayList<>();
+        for (FineRecord record : records) {
+            Map<String, Object> item = new LinkedHashMap<>();
+            item.put("id", record.getFineId());
+            item.put("number", record.getFineNumber());
+            item.put("amount", record.getFineAmount());
+            item.put("status", record.getPaymentStatus());
+            item.put("plate", record.getLicensePlate());
+            items.add(item);
+        }
+        return items;
+    }
+}

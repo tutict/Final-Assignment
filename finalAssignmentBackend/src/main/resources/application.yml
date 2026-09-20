@@ -17,6 +17,10 @@ ai:
     retry-attempts: 1
     circuit-breaker-failure-threshold: 3
     health-cache-ttl: PT30S
+  agent:
+    max-rounds: 4
+    draft:
+      store: memory
   ollama:
     enabled: ${OLLAMA_ENABLED:true}
     base-url: ${OLLAMA_URL:http://localhost:11434}
