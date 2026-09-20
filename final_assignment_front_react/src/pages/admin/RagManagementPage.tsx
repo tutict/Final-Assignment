@@ -10,15 +10,20 @@ import { getErrorMessage } from "../../utils/errorMessages";
 import {
   createManualRagDocument,
   deleteRagDocument,
+  getRagDocument,
   getRagOverview,
   listRagDocuments,
   migrateRagIndex,
+  previewRag,
   requeueRagEmbeddingTasks,
   runRagBackfill,
   runRagEmbeddingBatch,
+  updateRagDocument,
   uploadRagDocument,
   type RagDocument,
+  type RagDocumentDetail,
   type RagOverview,
+  type RagPreviewHit,
 } from "../../api/rag";
 
 const ACL_SCOPES = ["PUBLIC", "USER", "ROLE", "DEPARTMENT"] as const;
@@ -169,6 +174,8 @@ export default function RagManagementPage() {
   const [form, setForm] = useState<ManualFormState>(EMPTY_FORM);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [search, setSearch] = useState("");
+  const [page, setPage] = useState(1);
+  const pageSize = 20;
   const [toast, setToast] = useState<{ message: string; isError?: boolean } | null>(null);
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
 
@@ -178,9 +185,17 @@ export default function RagManagementPage() {
   });
 
   const documentsQuery = useQuery({
-    queryKey: ["rag", "documents", search.trim()],
-    queryFn: () => listRagDocuments(search.trim() || undefined),
+    queryKey: ["rag", "documents", search.trim(), page, pageSize],
+    queryFn: () => listRagDocuments(search.trim() || undefined, page, pageSize),
   });
+  const [previewRole, setPreviewRole] = useState<"USER" | "ADMIN" | "SUPER_ADMIN">("USER");
+  const [previewQuery, setPreviewQuery] = useState("");
+  const [previewHits, setPreviewHits] = useState<RagPreviewHit[]>([]);
+  const [detail, setDetail] = useState<RagDocumentDetail | null>(null);
+  const [detailTitle, setDetailTitle] = useState("");
+  const [detailContent, setDetailContent] = useState("");
+  const [detailAcl, setDetailAcl] = useState<AclScope>("PUBLIC");
+  const [detailRoute, setDetailRoute] = useState("");
 
   const reloadAll = () => {
     void queryClient.invalidateQueries({ queryKey: ["rag"] });
@@ -241,12 +256,20 @@ export default function RagManagementPage() {
   });
 
   const deleteMutation = useMutation({
-    mutationFn: (documentId: string) => deleteRagDocument(documentId),
+    mutationFn: (documentId: string) => {
+      if (!window.confirm("删除该 RAG 资料及其切片？此操作不可恢复。")) {
+        return Promise.reject(new Error("cancelled"));
+      }
+      return deleteRagDocument(documentId);
+    },
     onSuccess: () => {
       setToast({ message: "资料已删除" });
       reloadAll();
     },
-    onError: (error) => setToast({ message: `删除失败：${getErrorMessage(error)}`, isError: true }),
+    onError: (error) => {
+      if (String((error as Error)?.message) === "cancelled") return;
+      setToast({ message: `删除失败：${getErrorMessage(error)}`, isError: true });
+    },
   });
 
   const backfillMutation = useMutation({
@@ -281,14 +304,22 @@ export default function RagManagementPage() {
   });
 
   const migrateMutation = useMutation({
-    mutationFn: () => migrateRagIndex({ requeue: true }),
+    mutationFn: () => {
+      if (!window.confirm("迁移 RAG 索引将创建新索引并切换别名，确认继续？")) {
+        return Promise.reject(new Error("cancelled"));
+      }
+      return migrateRagIndex({ requeue: true });
+    },
     onSuccess: (result) => {
       setToast({
         message: result.message || `索引迁移完成：${result.targetIndexName || "未知"}`,
       });
       reloadAll();
     },
-    onError: (error) => setToast({ message: `索引迁移失败：${getErrorMessage(error)}`, isError: true }),
+    onError: (error) => {
+      if (String((error as Error)?.message) === "cancelled") return;
+      setToast({ message: `索引迁移失败：${getErrorMessage(error)}`, isError: true });
+    },
   });
 
   useEffect(() => {
@@ -299,7 +330,9 @@ export default function RagManagementPage() {
 
   const overview = overviewQuery.data;
   const metrics = useMemo(() => buildOverviewMetrics(overview), [overview]);
-  const documents = documentsQuery.data || [];
+  const documents = documentsQuery.data?.items || [];
+  const documentTotal = documentsQuery.data?.total || 0;
+  const totalPages = Math.max(1, Math.ceil(documentTotal / pageSize));
   const charCount = form.content.length;
   const estimatedChunks = charCount === 0 ? 0 : Math.floor((charCount - 1) / 400) + 1;
   const disabled = manualMutation.isPending || uploadMutation.isPending;
@@ -369,6 +402,56 @@ export default function RagManagementPage() {
         <button type="button" className="ghost" onClick={() => migrateMutation.mutate()} disabled={migrateMutation.isPending}>
           {migrateMutation.isPending ? "迁移中..." : "索引迁移"}
         </button>
+      </div>
+
+      <div className="panel rag-form-panel" style={{ marginBottom: 16 }}>
+        <h3>试检索</h3>
+        <p className="rag-hint">按模拟角色验证知识库 ACL，不会返回他人违法等业务活数据。</p>
+        <div className="rag-templates">
+          {(["USER", "ADMIN", "SUPER_ADMIN"] as const).map((role) => (
+            <button
+              key={role}
+              type="button"
+              className={previewRole === role ? "chip chip-active" : "chip"}
+              onClick={() => setPreviewRole(role)}
+            >
+              {role}
+            </button>
+          ))}
+        </div>
+        <div className="rag-file-row">
+          <input
+            type="text"
+            value={previewQuery}
+            placeholder="输入问题，例如：如何查询我的违法"
+            onChange={(event) => setPreviewQuery(event.target.value)}
+            onKeyDown={(event) => {
+              if (event.key === "Enter") {
+                event.preventDefault();
+                void previewRag({ query: previewQuery, asRole: previewRole }).then(setPreviewHits).catch((error) =>
+                  setToast({ message: getErrorMessage(error), isError: true })
+                );
+              }
+            }}
+          />
+          <button
+            type="button"
+            className="ghost"
+            onClick={() =>
+              previewRag({ query: previewQuery, asRole: previewRole })
+                .then(setPreviewHits)
+                .catch((error) => setToast({ message: getErrorMessage(error), isError: true }))
+            }
+          >
+            试检索
+          </button>
+        </div>
+        {previewHits.map((hit) => (
+          <div key={`${hit.documentId}-${hit.snippet}`} className="rag-doc-meta">
+            {hit.score.toFixed(2)} · {hit.aclScope} · {hit.title}
+            <div className="rag-hint">{hit.snippet}</div>
+          </div>
+        ))}
       </div>
 
       <div className="rag-layout">
@@ -562,7 +645,10 @@ export default function RagManagementPage() {
               type="text"
               value={search}
               placeholder="搜索标题、来源、标签、路由或权限范围"
-              onChange={(event) => setSearch(event.target.value)}
+              onChange={(event) => {
+                setSearch(event.target.value);
+                setPage(1);
+              }}
               onKeyDown={(event) => {
                 if (event.key === "Enter") documentsQuery.refetch();
               }}
@@ -583,12 +669,75 @@ export default function RagManagementPage() {
             <DocumentTile
               key={document.id}
               document={document}
+              onOpen={() => {
+                void getRagDocument(document.id).then((next) => {
+                  setDetail(next);
+                  setDetailTitle(next.document.title);
+                  setDetailContent(next.content);
+                  setDetailAcl((next.document.aclScope as AclScope) || "PUBLIC");
+                  setDetailRoute(next.document.route);
+                }).catch((error) => setToast({ message: getErrorMessage(error), isError: true }));
+              }}
               onDelete={() => deleteMutation.mutate(document.id)}
               deleting={deleteMutation.isPending}
             />
           ))}
+          {documentTotal > 0 ? (
+            <div className="rag-search-row" style={{ marginTop: 12 }}>
+              <button type="button" className="ghost" disabled={page <= 1} onClick={() => setPage((current) => Math.max(1, current - 1))}>
+                上一页
+              </button>
+              <span className="rag-hint">第 {page} / {totalPages} 页 · 共 {documentTotal} 篇</span>
+              <button type="button" className="ghost" disabled={page >= totalPages} onClick={() => setPage((current) => current + 1)}>
+                下一页
+              </button>
+            </div>
+          ) : null}
         </div>
       </div>
+      {detail ? (
+        <div className="panel rag-form-panel" style={{ marginTop: 16 }}>
+          <h3>资料详情</h3>
+          <div className="rag-hint">
+            切片 {detail.chunks.length} · 失败 {detail.chunks.filter((chunk) => ["FAILED", "POISONED"].includes(chunk.embeddingStatus.toUpperCase())).length}
+          </div>
+          <input value={detailTitle} onChange={(event) => setDetailTitle(event.target.value)} />
+          <select value={detailAcl} onChange={(event) => setDetailAcl(event.target.value as AclScope)}>
+            {ACL_SCOPES.map((scope) => (
+              <option key={scope} value={scope}>{scope}</option>
+            ))}
+          </select>
+          <input value={detailRoute} onChange={(event) => setDetailRoute(event.target.value)} placeholder="路由" />
+          <textarea rows={10} value={detailContent} onChange={(event) => setDetailContent(event.target.value)} />
+          {detail.chunks.map((chunk) => (
+            <div key={chunk.id} className={["FAILED", "POISONED"].includes(chunk.embeddingStatus.toUpperCase()) ? "form-error" : "rag-doc-meta"}>
+              #{chunk.chunkNo} {chunk.embeddingStatus || chunk.status}
+              <div>{chunk.content}</div>
+            </div>
+          ))}
+          <div className="rag-upload-actions">
+            <button
+              type="button"
+              onClick={() => {
+                void updateRagDocument(detail.document.id, {
+                  title: detailTitle,
+                  content: detailContent,
+                  aclScope: detailAcl,
+                  route: detailRoute,
+                  metadataJson: detail.document.metadataJson,
+                }).then((result) => {
+                  setToast({ message: `已重索引：${result.chunkCount} 个切片，${result.embeddingTaskCount} 个向量任务` });
+                  setDetail(null);
+                  reloadAll();
+                }).catch((error) => setToast({ message: getErrorMessage(error), isError: true }));
+              }}
+            >
+              保存并重索引
+            </button>
+            <button type="button" className="ghost" onClick={() => setDetail(null)}>关闭</button>
+          </div>
+        </div>
+      ) : null}
     </PageLayout>
   );
 }
@@ -599,7 +748,7 @@ interface DocumentTileProps {
   deleting: boolean;
 }
 
-function DocumentTile({ document, onDelete, deleting }: DocumentTileProps) {
+function DocumentTile({ document, onDelete, deleting, onOpen }: DocumentTileProps & { onOpen?: () => void }) {
   const metadata = parseMetadata(document.metadataJson);
   const tags = Array.isArray(metadata.tags) ? metadata.tags.map(String) : [];
   const category = metadata.category ? String(metadata.category) : "";
@@ -611,7 +760,7 @@ function DocumentTile({ document, onDelete, deleting }: DocumentTileProps) {
         ? "rag-status-failed"
         : "rag-status-other";
   return (
-    <div className="rag-doc-tile">
+    <div className="rag-doc-tile" onClick={onOpen} style={{ cursor: onOpen ? "pointer" : "default" }}>
       <div className="rag-doc-main">
         <div className="rag-doc-title-row">
           <span className="rag-doc-title">{document.title || "未命名资料"}</span>
@@ -633,7 +782,15 @@ function DocumentTile({ document, onDelete, deleting }: DocumentTileProps) {
           <div className="rag-doc-hash">Hash {shortHash(document.contentHash)}</div>
         ) : null}
       </div>
-      <button type="button" className="link-button danger" onClick={onDelete} disabled={deleting}>
+      <button
+        type="button"
+        className="link-button danger"
+        onClick={(event) => {
+          event.stopPropagation();
+          onDelete();
+        }}
+        disabled={deleting}
+      >
         删除
       </button>
     </div>

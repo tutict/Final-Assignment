@@ -24,17 +24,96 @@ class RagManagementControllerApi with BaseApiClient {
     );
   }
 
-  Future<List<RagDocumentDto>> listDocuments({
+  Future<RagDocumentPage> listDocuments({
     String? query,
-    int limit = 50,
+    int page = 1,
+    int size = 20,
   }) {
-    return requestList(
+    return requestObject(
       'GET',
       '/api/rag/admin/documents',
-      RagDocumentDto.fromJson,
+      RagDocumentPage.fromJson,
       queryParams: queryParamsFromMap({
         'query': query?.trim().isEmpty == true ? null : query?.trim(),
-        'limit': limit,
+        'page': page,
+        'size': size,
+      }),
+    );
+  }
+
+  Future<RagDocumentDetail> getDocument(String documentId) {
+    return requestObject(
+      'GET',
+      '/api/rag/admin/documents/$documentId',
+      RagDocumentDetail.fromJson,
+    );
+  }
+
+  Future<RagIndexResult> updateDocument({
+    required String documentId,
+    required String title,
+    required String content,
+    String aclScope = 'PUBLIC',
+    String route = '',
+    String metadataJson = '{}',
+  }) {
+    return requestObject(
+      'PUT',
+      '/api/rag/admin/documents/$documentId',
+      RagIndexResult.fromJson,
+      body: {
+        'title': title.trim(),
+        'content': content.trim(),
+        'aclScope': aclScope,
+        'route': route.trim(),
+        'metadataJson':
+            metadataJson.trim().isEmpty ? '{}' : metadataJson.trim(),
+      },
+      contentType: BaseApiClient.defaultContentType,
+    );
+  }
+
+  Future<List<RagPreviewHit>> preview({
+    required String query,
+    String asRole = 'USER',
+    int topK = 8,
+  }) {
+    return requestList(
+      'POST',
+      '/api/rag/admin/preview',
+      RagPreviewHit.fromJson,
+      body: {
+        'query': query.trim(),
+        'asRole': asRole,
+        'topK': topK,
+      },
+      contentType: BaseApiClient.defaultContentType,
+    );
+  }
+
+  Future<void> runEmbeddingBatch({int limit = 25}) {
+    return requestVoid(
+      'POST',
+      '/api/rag/admin/embedding/run',
+      queryParams: queryParamsFromMap({'limit': limit}),
+    );
+  }
+
+  Future<void> requeueEmbeddingTasks({int limit = 1000}) {
+    return requestVoid(
+      'POST',
+      '/api/rag/admin/embedding/requeue',
+      queryParams: queryParamsFromMap({'limit': limit}),
+    );
+  }
+
+  Future<void> migrateIndex() {
+    return requestVoid(
+      'POST',
+      '/api/rag/admin/index/migrate',
+      queryParams: queryParamsFromMap({
+        'requeue': true,
+        'requeueLimit': 1000,
       }),
     );
   }
@@ -241,6 +320,130 @@ class RagIndexResult {
   final RagDocumentDto document;
   final int chunkCount;
   final int embeddingTaskCount;
+}
+
+class RagDocumentPage {
+  const RagDocumentPage({
+    required this.items,
+    required this.total,
+    required this.page,
+    required this.size,
+  });
+
+  factory RagDocumentPage.fromJson(Map<String, dynamic> json) {
+    final rawItems = json['items'] ?? json['records'] ?? json['data'] ?? [];
+    final items = rawItems is List
+        ? rawItems
+            .whereType<Map>()
+            .map((item) => RagDocumentDto.fromJson(Map<String, dynamic>.from(item)))
+            .toList()
+        : <RagDocumentDto>[];
+    return RagDocumentPage(
+      items: items,
+      total: _asInt(json['total'] ?? items.length),
+      page: _asInt(json['page'] == 0 ? 1 : json['page'] ?? 1),
+      size: _asInt(json['size'] ?? items.length),
+    );
+  }
+
+  final List<RagDocumentDto> items;
+  final int total;
+  final int page;
+  final int size;
+}
+
+class RagDocumentDetail {
+  const RagDocumentDetail({
+    required this.document,
+    required this.content,
+    required this.chunks,
+  });
+
+  factory RagDocumentDetail.fromJson(Map<String, dynamic> json) {
+    final document = json['document'];
+    final chunks = json['chunks'];
+    return RagDocumentDetail(
+      document: RagDocumentDto.fromJson(
+        document is Map ? Map<String, dynamic>.from(document) : const {},
+      ),
+      content: (json['content'] ?? '').toString(),
+      chunks: chunks is List
+          ? chunks
+              .whereType<Map>()
+              .map((item) => RagChunkView.fromJson(Map<String, dynamic>.from(item)))
+              .toList()
+          : const [],
+    );
+  }
+
+  final RagDocumentDto document;
+  final String content;
+  final List<RagChunkView> chunks;
+}
+
+class RagChunkView {
+  const RagChunkView({
+    required this.id,
+    required this.chunkNo,
+    required this.content,
+    required this.status,
+    required this.embeddingStatus,
+    required this.lastError,
+  });
+
+  factory RagChunkView.fromJson(Map<String, dynamic> json) {
+    return RagChunkView(
+      id: (json['id'] ?? '').toString(),
+      chunkNo: _asInt(json['chunkNo']),
+      content: (json['content'] ?? '').toString(),
+      status: (json['status'] ?? '').toString(),
+      embeddingStatus: (json['embeddingStatus'] ?? '').toString(),
+      lastError: (json['lastError'] ?? '').toString(),
+    );
+  }
+
+  final String id;
+  final int chunkNo;
+  final String content;
+  final String status;
+  final String embeddingStatus;
+  final String lastError;
+
+  bool get failed =>
+      embeddingStatus.toUpperCase() == 'FAILED' ||
+      embeddingStatus.toUpperCase() == 'POISONED';
+}
+
+class RagPreviewHit {
+  const RagPreviewHit({
+    required this.documentId,
+    required this.title,
+    required this.snippet,
+    required this.score,
+    required this.route,
+    required this.aclScope,
+    required this.sourceType,
+  });
+
+  factory RagPreviewHit.fromJson(Map<String, dynamic> json) {
+    return RagPreviewHit(
+      documentId: (json['documentId'] ?? '').toString(),
+      title: (json['title'] ?? '').toString(),
+      snippet: (json['snippet'] ?? '').toString(),
+      score: json['score'] is num ? (json['score'] as num).toDouble() : 0,
+      route: (json['route'] ?? '').toString(),
+      aclScope: (json['aclScope'] ?? '').toString(),
+      sourceType: (json['sourceType'] ?? '').toString(),
+    );
+  }
+
+  final String documentId;
+  final String title;
+  final String snippet;
+  final double score;
+  final String route;
+  final String aclScope;
+  final String sourceType;
 }
 
 int _asInt(Object? value) {

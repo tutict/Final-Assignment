@@ -29,15 +29,22 @@ class _RagManagementPageState extends State<RagManagementPage> {
   final TextEditingController tagsController = TextEditingController();
   final TextEditingController sourceUrlController = TextEditingController();
   final TextEditingController metadataController = TextEditingController();
+  final TextEditingController previewQueryController = TextEditingController();
   late ManagerDashboardController controller;
 
   RagOverview? overview;
   List<RagDocumentDto> documents = const [];
+  List<RagPreviewHit> previewHits = const [];
+  int page = 1;
+  int pageSize = 20;
+  int documentTotal = 0;
   bool loading = true;
   bool saving = false;
   bool uploading = false;
+  bool previewing = false;
   String? errorMessage;
   String selectedAclScope = 'PUBLIC';
+  String previewRole = 'USER';
   PickedRagFile? selectedUploadFile;
 
   @override
@@ -60,6 +67,7 @@ class _RagManagementPageState extends State<RagManagementPage> {
     tagsController.dispose();
     sourceUrlController.dispose();
     metadataController.dispose();
+    previewQueryController.dispose();
     super.dispose();
   }
 
@@ -73,11 +81,16 @@ class _RagManagementPageState extends State<RagManagementPage> {
       final nextOverview = await api.getOverview();
       final nextDocuments = await api.listDocuments(
         query: queryController.text,
+        page: page,
+        size: pageSize,
       );
       if (!mounted) return;
       setState(() {
         overview = nextOverview;
-        documents = nextDocuments;
+        documents = nextDocuments.items;
+        documentTotal = nextDocuments.total;
+        page = nextDocuments.page;
+        pageSize = nextDocuments.size == 0 ? pageSize : nextDocuments.size;
       });
     } catch (error) {
       if (!mounted) return;
@@ -207,6 +220,108 @@ class _RagManagementPageState extends State<RagManagementPage> {
     }
   }
 
+  Future<void> _runEmbedding() async {
+    setState(() => saving = true);
+    try {
+      await api.runEmbeddingBatch();
+      _showSnack('已执行一批向量任务');
+      await _load();
+    } catch (error) {
+      _showSnack('向量任务失败：$error', isError: true);
+    } finally {
+      if (mounted) setState(() => saving = false);
+    }
+  }
+
+  Future<void> _requeueEmbedding() async {
+    setState(() => saving = true);
+    try {
+      await api.requeueEmbeddingTasks();
+      _showSnack('已重新入队向量任务');
+      await _load();
+    } catch (error) {
+      _showSnack('重新入队失败：$error', isError: true);
+    } finally {
+      if (mounted) setState(() => saving = false);
+    }
+  }
+
+  Future<void> _migrateIndex() async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('迁移 RAG 索引？'),
+        content: const Text('将创建新索引并切换别名，可能短暂影响检索。'),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('取消')),
+          FilledButton(onPressed: () => Navigator.pop(context, true), child: const Text('确认迁移')),
+        ],
+      ),
+    );
+    if (confirmed != true) return;
+    setState(() => saving = true);
+    try {
+      await api.migrateIndex();
+      _showSnack('已触发索引迁移');
+      await _load();
+    } catch (error) {
+      _showSnack('索引迁移失败：$error', isError: true);
+    } finally {
+      if (mounted) setState(() => saving = false);
+    }
+  }
+
+  Future<void> _runPreview() async {
+    final query = previewQueryController.text.trim();
+    if (query.isEmpty) {
+      _showSnack('请输入试检索问题', isError: true);
+      return;
+    }
+    setState(() => previewing = true);
+    try {
+      final hits = await api.preview(query: query, asRole: previewRole);
+      if (!mounted) return;
+      setState(() => previewHits = hits);
+    } catch (error) {
+      _showSnack('试检索失败：$error', isError: true);
+    } finally {
+      if (mounted) setState(() => previewing = false);
+    }
+  }
+
+  Future<void> _openDocument(RagDocumentDto document) async {
+    try {
+      final detail = await api.getDocument(document.id);
+      if (!mounted) return;
+      await showModalBottomSheet<void>(
+        context: context,
+        isScrollControlled: true,
+        showDragHandle: true,
+        builder: (context) => _DocumentDetailSheet(
+          detail: detail,
+          onSave: (title, content, acl, route) async {
+            final result = await api.updateDocument(
+              documentId: document.id,
+              title: title,
+              content: content,
+              aclScope: acl,
+              route: route,
+              metadataJson: document.metadataJson,
+            );
+            if (!mounted) return;
+            Navigator.pop(context);
+            _showSnack(
+              '已重索引：${result.chunkCount} 个切片，${result.embeddingTaskCount} 个向量任务',
+            );
+            await _load();
+          },
+        ),
+      );
+    } catch (error) {
+      _showSnack('打开资料失败：$error', isError: true);
+    }
+  }
+
   Future<void> _selectUploadFile() async {
     try {
       final picked = await _pickRagFile();
@@ -264,6 +379,18 @@ class _RagManagementPageState extends State<RagManagementPage> {
   }
 
   Future<void> _deleteDocument(RagDocumentDto document) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('删除 RAG 资料？'),
+        content: Text('将删除「${document.title}」及其切片和向量任务，且不可恢复。'),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('取消')),
+          FilledButton(onPressed: () => Navigator.pop(context, true), child: const Text('确认删除')),
+        ],
+      ),
+    );
+    if (confirmed != true) return;
     setState(() => saving = true);
     try {
       await api.deleteDocument(document.id);
@@ -367,16 +494,43 @@ class _RagManagementPageState extends State<RagManagementPage> {
       ('待向量', overview?.pendingEmbeddingTaskCount ?? 0, Icons.pending_actions),
       ('失败任务', overview?.failedEmbeddingTaskCount ?? 0, Icons.error_outline),
     ];
-    return Wrap(
-      spacing: 10,
-      runSpacing: 10,
-      children: metrics
-          .map((metric) => _MetricPill(
-                label: metric.$1,
-                value: metric.$2,
-                icon: metric.$3,
-              ))
-          .toList(growable: false),
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Wrap(
+          spacing: 10,
+          runSpacing: 10,
+          children: metrics
+              .map((metric) => _MetricPill(
+                    label: metric.$1,
+                    value: metric.$2,
+                    icon: metric.$3,
+                  ))
+              .toList(growable: false),
+        ),
+        const SizedBox(height: 10),
+        Wrap(
+          spacing: 8,
+          runSpacing: 8,
+          children: [
+            OutlinedButton.icon(
+              onPressed: saving ? null : _runEmbedding,
+              icon: const Icon(Icons.memory_rounded),
+              label: const Text('跑一批向量'),
+            ),
+            OutlinedButton.icon(
+              onPressed: saving ? null : _requeueEmbedding,
+              icon: const Icon(Icons.replay_rounded),
+              label: const Text('重新入队'),
+            ),
+            OutlinedButton.icon(
+              onPressed: saving ? null : _migrateIndex,
+              icon: const Icon(Icons.swap_horiz_rounded),
+              label: const Text('迁索引'),
+            ),
+          ],
+        ),
+      ],
     );
   }
 
@@ -598,6 +752,12 @@ class _RagManagementPageState extends State<RagManagementPage> {
                   tooltip: '回填业务资料',
                   icon: const Icon(Icons.sync_rounded),
                 ),
+                const SizedBox(width: 8),
+                IconButton.filledTonal(
+                  onPressed: saving ? null : _runEmbedding,
+                  tooltip: '跑一批向量',
+                  icon: const Icon(Icons.memory_rounded),
+                ),
               ],
             ),
           ],
@@ -617,7 +777,10 @@ class _RagManagementPageState extends State<RagManagementPage> {
               Expanded(
                 child: TextField(
                   controller: queryController,
-                  onSubmitted: (_) => _load(),
+                  onSubmitted: (_) {
+                    setState(() => page = 1);
+                    _load();
+                  },
                   decoration: const InputDecoration(
                     prefixIcon: Icon(Icons.search_rounded),
                     hintText: '搜索标题、来源、标签、路由或权限范围',
@@ -633,6 +796,8 @@ class _RagManagementPageState extends State<RagManagementPage> {
               ),
             ],
           ),
+          const SizedBox(height: 12),
+          _buildPreviewPanel(themeData),
           const SizedBox(height: 12),
           if (documents.isEmpty)
             Padding(
@@ -651,11 +816,98 @@ class _RagManagementPageState extends State<RagManagementPage> {
             ...documents.map(
               (document) => _DocumentTile(
                 document: document,
+                onOpen: saving ? null : () => _openDocument(document),
                 onDelete: saving ? null : () => _deleteDocument(document),
               ),
             ),
+          if (documentTotal > 0) ...[
+            const SizedBox(height: 12),
+            Row(
+              children: [
+                TextButton(
+                  onPressed: page <= 1 || loading
+                      ? null
+                      : () {
+                          setState(() => page = page - 1);
+                          _load();
+                        },
+                  child: const Text('上一页'),
+                ),
+                Expanded(
+                  child: Text(
+                    '第 $page / ${((documentTotal + pageSize - 1) / pageSize).ceil()} 页 · 共 $documentTotal 篇',
+                    textAlign: TextAlign.center,
+                  ),
+                ),
+                TextButton(
+                  onPressed: page >= ((documentTotal + pageSize - 1) / pageSize).ceil() || loading
+                      ? null
+                      : () {
+                          setState(() => page = page + 1);
+                          _load();
+                        },
+                  child: const Text('下一页'),
+                ),
+              ],
+            ),
+          ],
         ],
       ),
+    );
+  }
+
+  Widget _buildPreviewPanel(ThemeData themeData) {
+    final scheme = themeData.colorScheme;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text('试检索', style: themeData.textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w800)),
+        const SizedBox(height: 8),
+        Wrap(
+          spacing: 8,
+          runSpacing: 8,
+          children: [
+            for (final role in const ['USER', 'ADMIN', 'SUPER_ADMIN'])
+              ChoiceChip(
+                label: Text(role),
+                selected: previewRole == role,
+                onSelected: (_) => setState(() => previewRole = role),
+              ),
+          ],
+        ),
+        const SizedBox(height: 8),
+        Row(
+          children: [
+            Expanded(
+              child: TextField(
+                controller: previewQueryController,
+                onSubmitted: (_) => _runPreview(),
+                decoration: const InputDecoration(
+                  hintText: '输入问题，验证不同角色能命中哪些资料',
+                  border: OutlineInputBorder(),
+                ),
+              ),
+            ),
+            const SizedBox(width: 8),
+            FilledButton.tonal(
+              onPressed: previewing ? null : _runPreview,
+              child: Text(previewing ? '检索中' : '试检索'),
+            ),
+          ],
+        ),
+        if (previewHits.isNotEmpty) ...[
+          const SizedBox(height: 8),
+          ...previewHits.map(
+            (hit) => Padding(
+              padding: const EdgeInsets.only(bottom: 8),
+              child: Text(
+                '${hit.score.toStringAsFixed(2)} · ${hit.aclScope} · ${hit.title}\n${hit.snippet}',
+                style: themeData.textTheme.bodySmall?.copyWith(color: scheme.onSurfaceVariant),
+              ),
+            ),
+          ),
+        ],
+      ],
     );
   }
 }
@@ -917,10 +1169,12 @@ class _DocumentTile extends StatelessWidget {
   const _DocumentTile({
     required this.document,
     required this.onDelete,
+    this.onOpen,
   });
 
   final RagDocumentDto document;
   final VoidCallback? onDelete;
+  final VoidCallback? onOpen;
 
   @override
   Widget build(BuildContext context) {
@@ -931,7 +1185,9 @@ class _DocumentTile extends StatelessWidget {
         ? (metadata['tags'] as List).map((tag) => tag.toString()).toList()
         : const <String>[];
     final category = metadata['category']?.toString() ?? '';
-    return Container(
+    return InkWell(
+      onTap: onOpen,
+      child: Container(
       margin: const EdgeInsets.only(bottom: 10),
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
@@ -1018,6 +1274,7 @@ class _DocumentTile extends StatelessWidget {
           ),
         ],
       ),
+    ),
     );
   }
 
@@ -1195,3 +1452,121 @@ const _ragTemplates = [
 ''',
   ),
 ];
+
+
+class _DocumentDetailSheet extends StatefulWidget {
+  const _DocumentDetailSheet({required this.detail, required this.onSave});
+
+  final RagDocumentDetail detail;
+  final Future<void> Function(String title, String content, String acl, String route) onSave;
+
+  @override
+  State<_DocumentDetailSheet> createState() => _DocumentDetailSheetState();
+}
+
+class _DocumentDetailSheetState extends State<_DocumentDetailSheet> {
+  late final TextEditingController titleController;
+  late final TextEditingController contentController;
+  late final TextEditingController routeController;
+  late String aclScope;
+  bool saving = false;
+
+  @override
+  void initState() {
+    super.initState();
+    titleController = TextEditingController(text: widget.detail.document.title);
+    contentController = TextEditingController(text: widget.detail.content);
+    routeController = TextEditingController(text: widget.detail.document.route);
+    aclScope = widget.detail.document.aclScope.isEmpty
+        ? 'PUBLIC'
+        : widget.detail.document.aclScope;
+  }
+
+  @override
+  void dispose() {
+    titleController.dispose();
+    contentController.dispose();
+    routeController.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final failed = widget.detail.chunks.where((chunk) => chunk.failed).length;
+    return Padding(
+      padding: EdgeInsets.only(
+        left: 16,
+        right: 16,
+        top: 8,
+        bottom: MediaQuery.of(context).viewInsets.bottom + 16,
+      ),
+      child: SingleChildScrollView(
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text('资料详情', style: Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w800)),
+            const SizedBox(height: 8),
+            Text('切片 ${widget.detail.chunks.length} · 失败 $failed'),
+            const SizedBox(height: 12),
+            TextField(
+              controller: titleController,
+              decoration: const InputDecoration(labelText: '标题', border: OutlineInputBorder()),
+            ),
+            const SizedBox(height: 8),
+            DropdownButtonFormField<String>(
+              initialValue: aclScope,
+              items: const [
+                DropdownMenuItem(value: 'PUBLIC', child: Text('PUBLIC')),
+                DropdownMenuItem(value: 'USER', child: Text('USER')),
+                DropdownMenuItem(value: 'ROLE', child: Text('ROLE')),
+                DropdownMenuItem(value: 'DEPARTMENT', child: Text('DEPARTMENT')),
+              ],
+              onChanged: (value) => setState(() => aclScope = value ?? 'PUBLIC'),
+              decoration: const InputDecoration(labelText: 'ACL', border: OutlineInputBorder()),
+            ),
+            const SizedBox(height: 8),
+            TextField(
+              controller: routeController,
+              decoration: const InputDecoration(labelText: '路由', border: OutlineInputBorder()),
+            ),
+            const SizedBox(height: 8),
+            TextField(
+              controller: contentController,
+              minLines: 8,
+              maxLines: 16,
+              decoration: const InputDecoration(labelText: '正文', border: OutlineInputBorder()),
+            ),
+            const SizedBox(height: 12),
+            ...widget.detail.chunks.map(
+              (chunk) => Padding(
+                padding: const EdgeInsets.only(bottom: 8),
+                child: Text(
+                  '#${chunk.chunkNo} ${chunk.embeddingStatus.isEmpty ? chunk.status : chunk.embeddingStatus}${chunk.failed ? " · 失败" : ""}\n${chunk.content}',
+                ),
+              ),
+            ),
+            const SizedBox(height: 8),
+            FilledButton(
+              onPressed: saving
+                  ? null
+                  : () async {
+                      setState(() => saving = true);
+                      try {
+                        await widget.onSave(
+                          titleController.text.trim(),
+                          contentController.text.trim(),
+                          aclScope,
+                          routeController.text.trim(),
+                        );
+                      } finally {
+                        if (mounted) setState(() => saving = false);
+                      }
+                    },
+              child: Text(saving ? '保存中' : '保存并重索引'),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}

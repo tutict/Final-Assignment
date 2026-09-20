@@ -62,6 +62,7 @@ export const API_PATHS = {
   RAG_EMBEDDING_RUN: '/api/rag/admin/embedding/run',
   RAG_EMBEDDING_REQUEUE: '/api/rag/admin/embedding/requeue',
   RAG_INDEX_MIGRATE: '/api/rag/admin/index/migrate',
+  RAG_PREVIEW: '/api/rag/admin/preview',
   FEEDBACK: '/api/feedback',
   FEEDBACK_BY_ID: (id: string | number) => `/api/feedback/${id}`,
 } as const;

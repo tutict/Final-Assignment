@@ -39,6 +39,38 @@ export interface RagIndexResult {
   embeddingTaskCount: number;
 }
 
+export interface RagDocumentPage {
+  items: RagDocument[];
+  total: number;
+  page: number;
+  size: number;
+}
+
+export interface RagChunkView {
+  id: string;
+  chunkNo: number;
+  content: string;
+  status: string;
+  embeddingStatus: string;
+  lastError: string;
+}
+
+export interface RagDocumentDetail {
+  document: RagDocument;
+  content: string;
+  chunks: RagChunkView[];
+}
+
+export interface RagPreviewHit {
+  documentId: string;
+  title: string;
+  snippet: string;
+  score: number;
+  route: string;
+  aclScope: string;
+  sourceType: string;
+}
+
 export interface RagBackfillResult {
   processedDocuments: number;
   failedDocuments: number;
@@ -78,6 +110,17 @@ export interface RagIndexMigrationResult {
   requeuedTasks: number;
   createdTasks: number;
   message: string;
+}
+
+function payloadOf(response: { data?: unknown }): Record<string, unknown> {
+  const raw = response.data;
+  if (raw && typeof raw === "object" && "success" in raw && "data" in raw) {
+    const inner = (raw as { data?: unknown }).data;
+    if (inner && typeof inner === "object" && !Array.isArray(inner)) {
+      return inner as Record<string, unknown>;
+    }
+  }
+  return (raw as Record<string, unknown>) || {};
 }
 
 function asInt(value: unknown): number {
@@ -138,22 +181,106 @@ export async function getRagOverview(): Promise<RagOverview> {
   return normalizeOverview(response.data || {});
 }
 
-/** GET /api/rag/admin/documents?query=&limit= */
+/** GET /api/rag/admin/documents?query=&page=&size= */
 export async function listRagDocuments(
   query?: string,
-  limit = 50
-): Promise<RagDocument[]> {
+  page = 1,
+  size = 20
+): Promise<RagDocumentPage> {
   const trimmed = query?.trim();
-  const response = await api.get<unknown[]>(API_PATHS.RAG_DOCUMENTS, {
+  const response = await api.get<Record<string, unknown>>(API_PATHS.RAG_DOCUMENTS, {
     params: {
       ...(trimmed ? { query: trimmed } : {}),
-      limit,
+      page,
+      size,
     },
   });
-  const list = Array.isArray(response.data) ? response.data : [];
-  return list.map((item) =>
+  const data = payloadOf(response);
+  const rawItems = Array.isArray(data.items) ? data.items : Array.isArray(data) ? data : [];
+  const items = rawItems.map((item) =>
     normalizeDocument((item as Record<string, unknown>) || {})
   );
+  return {
+    items,
+    total: asInt(data.total ?? items.length),
+    page: asInt(data.page ?? page),
+    size: asInt(data.size ?? size),
+  };
+}
+
+/** GET /api/rag/admin/documents/{id} */
+export async function getRagDocument(documentId: string): Promise<RagDocumentDetail> {
+  const response = await api.get<Record<string, unknown>>(
+    API_PATHS.RAG_DOCUMENTS_BY_ID(documentId)
+  );
+  const data = payloadOf(response);
+  const chunks = Array.isArray(data.chunks) ? data.chunks : [];
+  return {
+    document: normalizeDocument((data.document as Record<string, unknown>) || {}),
+    content: String(data.content ?? ""),
+    chunks: chunks.map((item) => {
+      const chunk = (item as Record<string, unknown>) || {};
+      return {
+        id: String(chunk.id ?? ""),
+        chunkNo: asInt(chunk.chunkNo),
+        content: String(chunk.content ?? ""),
+        status: String(chunk.status ?? ""),
+        embeddingStatus: String(chunk.embeddingStatus ?? ""),
+        lastError: String(chunk.lastError ?? ""),
+      };
+    }),
+  };
+}
+
+/** PUT /api/rag/admin/documents/{id} */
+export async function updateRagDocument(
+  documentId: string,
+  payload: {
+    title: string;
+    content: string;
+    aclScope?: string;
+    route?: string;
+    metadataJson?: string;
+  }
+): Promise<RagIndexResult> {
+  const response = await api.put<Record<string, unknown>>(
+    API_PATHS.RAG_DOCUMENTS_BY_ID(documentId),
+    {
+      title: payload.title.trim(),
+      content: payload.content.trim(),
+      aclScope: payload.aclScope || "PUBLIC",
+      route: payload.route?.trim() || "",
+      metadataJson: payload.metadataJson?.trim() || "{}",
+    },
+    { headers: { "Idempotency-Key": generateIdempotencyKey() } }
+  );
+  return normalizeIndexResult(response.data || {});
+}
+
+/** POST /api/rag/admin/preview */
+export async function previewRag(payload: {
+  query: string;
+  asRole?: string;
+  topK?: number;
+}): Promise<RagPreviewHit[]> {
+  const response = await api.post<unknown[]>(API_PATHS.RAG_PREVIEW, {
+    query: payload.query.trim(),
+    asRole: payload.asRole || "USER",
+    topK: payload.topK ?? 8,
+  });
+  const list = Array.isArray(response.data) ? response.data : [];
+  return list.map((item) => {
+    const hit = (item as Record<string, unknown>) || {};
+    return {
+      documentId: String(hit.documentId ?? ""),
+      title: String(hit.title ?? ""),
+      snippet: String(hit.snippet ?? ""),
+      score: typeof hit.score === "number" ? hit.score : Number(hit.score || 0),
+      route: String(hit.route ?? ""),
+      aclScope: String(hit.aclScope ?? ""),
+      sourceType: String(hit.sourceType ?? ""),
+    };
+  });
 }
 
 /** POST /api/rag/admin/documents/manual —— 手动录入文档 */
