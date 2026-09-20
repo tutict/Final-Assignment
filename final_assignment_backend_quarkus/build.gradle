@@ -48,6 +48,7 @@ dependencies {
     implementation 'io.quarkus:quarkus-rest'
     implementation 'io.quarkus:quarkus-rest-client'
     implementation 'io.quarkus:quarkus-rest-jsonb'
+    implementation 'org.apache.pdfbox:pdfbox:3.0.8'
     implementation 'org.graalvm.polyglot:polyglot:25.3.4.1'
     implementation 'org.testcontainers:testcontainers:2.0.5'
     compileOnly 'org.projectlombok:lombok:1.18.46'

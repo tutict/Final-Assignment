@@ -67,6 +67,10 @@ type pathPolicy struct {
 var pathPolicies = []pathPolicy{{
 	prefixes: []string{
 		"/api/rag/admin",
+	},
+	require: CapGovernance,
+}, {
+	prefixes: []string{
 		"/api/loginLogs",
 		"/api/operationLogs",
 		"/api/systemLogs",

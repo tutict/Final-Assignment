@@ -113,7 +113,8 @@ class AgentToolRegistryTest {
                 "confirm_draft"
         );
         assertThat(registry.namesFor(AiAgentRole.ADMIN))
-                .doesNotContain("query_my_offenses", "query_logs", "query_users", "ingest_rag_document");
+                .doesNotContain("query_my_offenses", "query_logs", "query_users");
+        assertThat(registry.namesFor(AiAgentRole.ADMIN)).contains("ingest_rag_document", "query_rag_status");
     }
 
     @Test

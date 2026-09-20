@@ -64,7 +64,7 @@ import java.util.UUID;
 @RequestMapping("/api/rag/admin")
 @Tag(name = "RAG Management", description = "RAG document management APIs")
 @SecurityRequirement(name = "bearerAuth")
-@RolesAllowed({"SUPER_ADMIN"})
+@RolesAllowed({"SUPER_ADMIN", "ADMIN"})
 public class RagManagementController {
 
     private final RagDocumentMapper documentMapper;

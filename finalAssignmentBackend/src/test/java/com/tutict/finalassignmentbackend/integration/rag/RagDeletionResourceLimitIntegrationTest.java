@@ -73,20 +73,15 @@ class RagDeletionResourceLimitIntegrationTest extends BaseIntegrationTest {
 
     @Test
     @Order(5)
-    @DisplayName("ADMIN 无法访问 RAG 管理接口")
-    void admin_cannot_call_rag_admin() {
+    @DisplayName("ADMIN 可以访问 RAG 管理接口")
+    void admin_can_call_rag_admin() {
         String token = loginAsAdmin();
-        authSpec(token).get("/api/rag/admin/documents").then().statusCode(403);
-        authSpec(token)
-            .body(Map.of("title", "t", "content", "c"))
-            .put("/api/rag/admin/documents/doc-1")
-            .then()
-            .statusCode(403);
+        authSpec(token).get("/api/rag/admin/documents").then().statusCode(200);
         authSpec(token)
             .body(Map.of("query", "license", "asRole", "ADMIN"))
             .post("/api/rag/admin/preview")
             .then()
-            .statusCode(403);
+            .statusCode(200);
     }
 
     @Test

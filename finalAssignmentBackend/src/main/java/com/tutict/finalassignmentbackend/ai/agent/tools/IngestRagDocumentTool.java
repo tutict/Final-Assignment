@@ -38,7 +38,7 @@ public class IngestRagDocumentTool implements AgentTool {
                 "required", List.of("title", "content")
         );
     }
-    @Override public Set<AiAgentRole> roles() { return Set.of(AiAgentRole.SUPER_ADMIN); }
+    @Override public Set<AiAgentRole> roles() { return Set.of(AiAgentRole.ADMIN, AiAgentRole.SUPER_ADMIN); }
     @Override public boolean mutation() { return true; }
     @Override public String risk() { return "high"; }
     @Override public String serviceName() { return "RagIndexingService.index"; }
@@ -80,7 +80,7 @@ public class IngestRagDocumentTool implements AgentTool {
                         "title", title,
                         "chunkCount", result.chunks().size()
                 )),
-                AgentDrafts.navigate("打开 RAG 资料管理", "/admin/ragManagement")
+                AgentDrafts.navigate("打开 RAG 资料管理", "/ragManagement")
         );
     }
 }

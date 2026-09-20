@@ -7,7 +7,7 @@ Spring Boot 主后端按“领域归属优先，框架分层其次”的原则�
 - 业务概念优先：驾驶员、车辆、违法、罚款、扣分、申诉、日志、RAG 等代码按领域归属放置。
 - 框架细节后置：Controller、Service、Mapper、Entity 仍保留框架分层，但包名要体现所属领域。
 - 共享能力集中：幂等、敏感数据、CDC、Elasticsearch、Kafka 公共处理器放在共享基础设施包，不散落到各业务模块。
-- 角色边界清晰：普通管理员处理业务，超级管理员处理日志、RAG、系统治理等高风险能力。
+- 角色边界清晰：普通管理员处理业务和 RAG 资料，超级管理员处理日志、系统治理等高风险能力。
 
 ## Controller 层
 
@@ -54,7 +54,7 @@ Service 层应保持事务边界清楚。跨表组合查询可以放在专门的
 | `rag.service` | RAG 文档、chunk、embedding task 的持久化服务 |
 | `rag.entity` / `rag.mapper` | RAG MySQL 表对应的实体和 Mapper |
 
-当前 RAG 上传解析支持 `txt`、`md`、`csv`、`tsv`、`json`、`docx`、`xlsx` 和文本型 `pdf`。扫描版 PDF 需要先 OCR。
+当前 RAG 上传解析支持 `txt`、`md`、`csv`、`tsv`、`json`、`docx`、`xlsx` 和 `pdf`。扫描版 PDF 在本机安装 Tesseract（chi_sim+eng）后自动 OCR。
 
 ## 持久化层
 
@@ -101,7 +101,7 @@ Kafka Listener 默认应使用 `IdempotentKafkaMessageProcessor`。只有违法�
 - 应用层统一使用 `USER`、`ADMIN`、`SUPER_ADMIN` 等规范角色名。
 - `USER` 表示驾驶员端用户。
 - `ADMIN` 表示普通业务管理员，负责交通违法处理业务。
-- `SUPER_ADMIN` 表示技术治理管理员，负责日志审查、RAG 管理、系统配置、权限治理和高风险操作。
+- `SUPER_ADMIN` 表示技术治理管理员，负责日志审查、系统配置、权限治理和高风险操作；也可使用 RAG 管理。
 - 历史上的 `ROLE_ADMIN` 只应在兼容边界被归一化为 `ADMIN`，业务代码不要继续新增 `ROLE_ADMIN` 分支。
 - Spring Security 的 `ROLE_` 前缀由 `SecurityRoleUtils` 或认证边界处理，业务代码不要硬编码带前缀的 authority。
 

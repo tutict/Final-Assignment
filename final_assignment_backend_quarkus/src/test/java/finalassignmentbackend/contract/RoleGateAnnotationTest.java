@@ -39,13 +39,12 @@ class RoleGateAnnotationTest {
     }
 
     @Test
-    void auditAndRagAdminAreSuperAdminOnly() throws IOException {
+    void auditLogsAreSuperAdminOnlyAndRagAllowsAdmin() throws IOException {
         assertClassRoles("LoginLogController.java", "\"SUPER_ADMIN\"");
         assertClassRoles("OperationLogController.java", "\"SUPER_ADMIN\"");
         assertClassRoles("SystemLogsController.java", "\"SUPER_ADMIN\"");
         String rag = Files.readString(controllerRoot().resolve("rag").resolve("RagManagementController.java"), StandardCharsets.UTF_8);
-        assertTrue(rag.contains("@RolesAllowed({\"SUPER_ADMIN\"})"));
-        assertFalse(rag.contains("@RolesAllowed({\"SUPER_ADMIN\", \"ADMIN\"})"));
+        assertTrue(rag.contains("@RolesAllowed({\"SUPER_ADMIN\", \"ADMIN\"})"));
     }
 
     @Test

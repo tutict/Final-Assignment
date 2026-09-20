@@ -2,7 +2,6 @@ package com.tutict.finalassignmentbackend.rag.ingestion;
 
 import org.apache.pdfbox.Loader;
 import org.apache.pdfbox.pdmodel.PDDocument;
-import org.apache.pdfbox.text.PDFTextStripper;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.stereotype.Component;
 import org.springframework.web.multipart.MultipartFile;
@@ -148,12 +147,7 @@ public class RagUploadedFileParser {
             if (document.isEncrypted()) {
                 throw new IllegalArgumentException("encrypted pdf is not supported");
             }
-            PDFTextStripper stripper = new PDFTextStripper();
-            stripper.setSortByPosition(true);
-            String text = stripper.getText(document).trim();
-            if (text.isBlank()) {
-                throw new IllegalArgumentException("pdf text is empty; scanned image-only PDFs are not supported");
-            }
+            String text = RagPdfOcr.extractText(document);
             int pageCount = document.getNumberOfPages();
             String content = "PDF file: " + fileName + "\n"
                     + "Pages: " + pageCount + "\n\n"

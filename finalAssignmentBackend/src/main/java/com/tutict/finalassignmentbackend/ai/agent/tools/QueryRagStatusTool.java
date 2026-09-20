@@ -38,7 +38,7 @@ public class QueryRagStatusTool implements AgentTool {
     @Override public String name() { return "query_rag_status"; }
     @Override public String description() { return "查询 RAG 资料数量、索引和向量化任务状态。"; }
     @Override public Map<String, Object> parameterSchema() { return AgentDrafts.schema(); }
-    @Override public Set<AiAgentRole> roles() { return Set.of(AiAgentRole.SUPER_ADMIN); }
+    @Override public Set<AiAgentRole> roles() { return Set.of(AiAgentRole.ADMIN, AiAgentRole.SUPER_ADMIN); }
     @Override public boolean mutation() { return false; }
 
     @Override
@@ -58,7 +58,7 @@ public class QueryRagStatusTool implements AgentTool {
         return AgentToolResult.result(
                 "当前知识库共 " + item.get("documents") + " 份资料。",
                 List.of(item),
-                AgentDrafts.navigate("打开 RAG 资料管理", "/admin/ragManagement")
+                AgentDrafts.navigate("打开 RAG 资料管理", "/ragManagement")
         );
     }
 }

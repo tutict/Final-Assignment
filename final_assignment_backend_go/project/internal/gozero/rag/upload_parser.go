@@ -9,7 +9,10 @@ import (
 	"io"
 	"mime/multipart"
 	"net/http"
+	"os"
+	"os/exec"
 	"path"
+	"path/filepath"
 	"sort"
 	"strconv"
 	"strings"
@@ -254,7 +257,14 @@ func pdfTextFile(fileName, contentType string, raw []byte) (ParsedRagFile, error
 	}
 	text := strings.TrimSpace(builder.String())
 	if text == "" {
-		return ParsedRagFile{}, fmt.Errorf("pdf text is empty; scanned image-only PDFs are not supported")
+		ocrText, ocrErr := ocrPdf(raw)
+		if ocrErr != nil {
+			return ParsedRagFile{}, ocrErr
+		}
+		text = strings.TrimSpace(ocrText)
+	}
+	if text == "" {
+		return ParsedRagFile{}, fmt.Errorf("pdf text is empty; scanned PDFs require Tesseract OCR (install tesseract with chi_sim+eng)")
 	}
 	content := fmt.Sprintf("PDF file: %s\nPages: %d\n\n%s", fileName, pageCount, text)
 	return ParsedRagFile{
@@ -498,4 +508,44 @@ func titleFromFileName(fileName string) string {
 		return fileName
 	}
 	return fileName[:index]
+}
+
+func ocrPdf(raw []byte) (string, error) {
+	workDir, err := os.MkdirTemp("", "rag-ocr-*")
+	if err != nil {
+		return "", err
+	}
+	defer os.RemoveAll(workDir)
+	pdfPath := filepath.Join(workDir, "input.pdf")
+	if err := os.WriteFile(pdfPath, raw, 0o600); err != nil {
+		return "", err
+	}
+	prefix := filepath.Join(workDir, "page")
+	if err := exec.Command("pdftoppm", "-png", "-f", "1", "-l", "8", pdfPath, prefix).Run(); err != nil {
+		out, tesseractErr := exec.Command("tesseract", pdfPath, "stdout", "-l", "chi_sim+eng", "--psm", "6").Output()
+		if tesseractErr != nil {
+			return "", fmt.Errorf("pdf text is empty; scanned PDFs require Tesseract OCR (install tesseract/pdftoppm with chi_sim+eng)")
+		}
+		return string(out), nil
+	}
+	entries, err := filepath.Glob(prefix + "*.png")
+	if err != nil {
+		return "", err
+	}
+	var builder strings.Builder
+	for _, image := range entries {
+		out, err := exec.Command("tesseract", image, "stdout", "-l", "chi_sim+eng", "--psm", "6").Output()
+		if err != nil {
+			continue
+		}
+		text := strings.TrimSpace(string(out))
+		if text == "" {
+			continue
+		}
+		if builder.Len() > 0 {
+			builder.WriteString("\n\n")
+		}
+		builder.WriteString(text)
+	}
+	return builder.String(), nil
 }
