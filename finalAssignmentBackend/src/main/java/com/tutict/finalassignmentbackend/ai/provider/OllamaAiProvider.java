@@ -2,6 +2,8 @@ package com.tutict.finalassignmentbackend.ai.provider;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.tutict.finalassignmentbackend.ai.chat.OllamaSlotLimiter;
+import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.stereotype.Component;
 import org.springframework.web.reactive.function.client.WebClient;
 import reactor.core.publisher.Flux;
@@ -17,15 +19,27 @@ public class OllamaAiProvider implements AiProvider {
     private final AiProviderProperties properties;
     private final WebClient.Builder webClientBuilder;
     private final ObjectMapper objectMapper;
+    private final OllamaSlotLimiter slotLimiter;
 
     public OllamaAiProvider(
             AiProviderProperties properties,
             WebClient.Builder webClientBuilder,
             ObjectMapper objectMapper
     ) {
+        this(properties, webClientBuilder, objectMapper, null);
+    }
+
+    @org.springframework.beans.factory.annotation.Autowired
+    public OllamaAiProvider(
+            AiProviderProperties properties,
+            WebClient.Builder webClientBuilder,
+            ObjectMapper objectMapper,
+            ObjectProvider<OllamaSlotLimiter> slotLimiter
+    ) {
         this.properties = properties;
         this.webClientBuilder = webClientBuilder;
         this.objectMapper = objectMapper;
+        this.slotLimiter = slotLimiter == null ? null : slotLimiter.getIfAvailable();
     }
 
     @Override
@@ -43,7 +57,7 @@ public class OllamaAiProvider implements AiProvider {
         if (!properties.getOllama().isEnabled()) {
             return Flux.error(new IllegalStateException("Ollama provider is disabled"));
         }
-        return client()
+        Flux<AiToken> tokens = client()
                 .post()
                 .uri("/api/chat")
                 .bodyValue(requestBody(prompt, true))
@@ -53,6 +67,7 @@ public class OllamaAiProvider implements AiProvider {
                 .timeout(options.streamingTimeout())
                 .doOnCancel(() -> {
                 });
+        return slotLimiter == null ? tokens : slotLimiter.protect(tokens);
     }
 
     @Override
@@ -60,7 +75,7 @@ public class OllamaAiProvider implements AiProvider {
         if (!properties.getOllama().isEnabled()) {
             return Mono.error(new IllegalStateException("Ollama provider is disabled"));
         }
-        return client()
+        Mono<AiMessage> completion = client()
                 .post()
                 .uri("/api/chat")
                 .bodyValue(requestBody(prompt, false))
@@ -69,6 +84,15 @@ public class OllamaAiProvider implements AiProvider {
                 .timeout(options.timeout())
                 .map(this::readJson)
                 .map(node -> new AiMessage(extractText(node), Map.of("provider", providerName())));
+        if (slotLimiter == null) {
+            return completion;
+        }
+        Flux<AiToken> protectedTokens = slotLimiter.protect(completion.map(message ->
+                new AiToken(message.text(), true, message.metadata())
+        ).flux());
+        return protectedTokens
+                .reduce(new StringBuilder(), (buffer, token) -> buffer.append(token.text() == null ? "" : token.text()))
+                .map(buffer -> new AiMessage(buffer.toString(), Map.of("provider", providerName())));
     }
 
     @Override

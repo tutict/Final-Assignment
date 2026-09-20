@@ -271,3 +271,91 @@ final class ProviderLayerTestSupport {
 interface HealthSupplier {
     ProviderHealth get();
 }
+
+
+class OpenAiCompatibleProviderTest {
+
+    @Test
+    void requeuesOn429ThenStreamsTokensWithoutLeakingApiKey() throws IOException {
+        AtomicInteger calls = new AtomicInteger();
+        HttpServer server = HttpServer.create(new InetSocketAddress(0), 0);
+        server.createContext("/chat/completions", exchange -> {
+            int attempt = calls.incrementAndGet();
+            if (attempt == 1) {
+                exchange.getResponseHeaders().add("Retry-After", "0");
+                exchange.sendResponseHeaders(429, -1);
+                exchange.close();
+                return;
+            }
+            byte[] body = """
+                    data: {"choices":[{"delta":{"content":"ok"},"finish_reason":null}]}
+                    data: [DONE]
+                    """.getBytes(StandardCharsets.UTF_8);
+            exchange.getResponseHeaders().add("Content-Type", "text/event-stream");
+            exchange.sendResponseHeaders(200, body.length);
+            try (OutputStream output = exchange.getResponseBody()) {
+                output.write(body);
+            }
+        });
+        server.start();
+        try {
+            AiProviderProperties properties = ProviderLayerTestSupport.properties(
+                    "openai-compatible",
+                    "noop",
+                    Duration.ofSeconds(3)
+            );
+            properties.getOpenaiCompatible().setEnabled(true);
+            properties.getOpenaiCompatible().setBaseUrl("http://localhost:" + server.getAddress().getPort());
+            properties.getOpenaiCompatible().setApiKey("sk-secret-should-not-leak");
+            properties.getOpenaiCompatible().setChatModel("demo-model");
+            properties.getOpenaiCompatible().setMaxRateLimitRetries(2);
+            OpenAiCompatibleProvider provider = new OpenAiCompatibleProvider(
+                    properties,
+                    WebClient.builder(),
+                    new ObjectMapper()
+            );
+
+            List<AiToken> tokens = provider.stream(
+                            new AiChatPrompt("hello", Map.of()),
+                            ProviderLayerTestSupport.options(Duration.ofSeconds(3))
+                    )
+                    .collectList()
+                    .block(Duration.ofSeconds(5));
+
+            assertThat(calls).hasValue(2);
+            assertThat(tokens).extracting(AiToken::text).contains("ok");
+            assertThat(tokens).allSatisfy(token ->
+                    assertThat(String.valueOf(token.metadata())).doesNotContain("sk-secret"));
+        } finally {
+            server.stop(0);
+        }
+    }
+
+    @Test
+    void rateLimitDoesNotOpenCircuit() {
+        AtomicInteger primaryCalls = new AtomicInteger();
+        AiProvider primary = ProviderLayerTestSupport.provider("openai-compatible", Flux.defer(() -> {
+            primaryCalls.incrementAndGet();
+            return Flux.error(new com.tutict.finalassignmentbackend.ai.chat.AiRateLimitException(Duration.ofMillis(1)));
+        }));
+        AiProvider fallback = ProviderLayerTestSupport.provider(
+                "fallback",
+                Flux.just(new AiToken("fallback", true, Map.of()))
+        );
+        AiProviderProperties properties = ProviderLayerTestSupport.properties(
+                "openai-compatible",
+                "fallback",
+                Duration.ofMillis(200)
+        );
+        properties.getProvider().setCircuitBreakerFailureThreshold(1);
+        AiProviderRegistry registry = new AiProviderRegistry(
+                List.of(primary, fallback, new NoopAiProvider()),
+                properties
+        );
+
+        registry.stream("hello", Map.of()).collectList().block(Duration.ofSeconds(1));
+        registry.stream("hello", Map.of()).collectList().block(Duration.ofSeconds(1));
+
+        assertThat(primaryCalls.get()).isGreaterThanOrEqualTo(2);
+    }
+}

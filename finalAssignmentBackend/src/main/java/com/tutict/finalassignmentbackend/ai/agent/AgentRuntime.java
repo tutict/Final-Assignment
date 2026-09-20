@@ -3,8 +3,11 @@ package com.tutict.finalassignmentbackend.ai.agent;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.tutict.finalassignmentbackend.ai.chat.AiCallerIdentity;
+import com.tutict.finalassignmentbackend.ai.chat.AiQueueException;
 import com.tutict.finalassignmentbackend.ai.chat.ChatStreamEvent;
 import com.tutict.finalassignmentbackend.ai.chat.ChatStreamEventType;
+import com.tutict.finalassignmentbackend.ai.chat.ChatStreamKeepAlive;
 import com.tutict.finalassignmentbackend.ai.prompt.AiAgentRole;
 import com.tutict.finalassignmentbackend.ai.provider.AiProviderRegistry;
 import com.tutict.finalassignmentbackend.ai.provider.AiToken;
@@ -15,6 +18,7 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import reactor.core.publisher.Flux;
 
+import java.time.Duration;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
@@ -55,7 +59,7 @@ public class AgentRuntime {
     }
 
     public Flux<ChatStreamEvent> run(String userMessage, String sessionKey, String assembledPrompt) {
-        return run(userMessage, sessionKey, assembledPrompt, Map.of());
+        return run(userMessage, sessionKey, assembledPrompt, Map.of(), null);
     }
 
     public Flux<ChatStreamEvent> run(
@@ -64,12 +68,24 @@ public class AgentRuntime {
             String assembledPrompt,
             Map<String, Object> metadata
     ) {
+        return run(userMessage, sessionKey, assembledPrompt, metadata, null);
+    }
+
+    public Flux<ChatStreamEvent> run(
+            String userMessage,
+            String sessionKey,
+            String assembledPrompt,
+            Map<String, Object> metadata,
+            AiCallerIdentity identity
+    ) {
         String effectiveSession = sessionKey == null || sessionKey.isBlank()
                 ? UUID.randomUUID().toString()
                 : sessionKey;
         String messageId = UUID.randomUUID().toString();
         Map<String, Object> requestMetadata = metadata == null ? Map.of() : metadata;
-        AgentToolContext context = contextFactory.create(effectiveSession, requestMetadata);
+        AgentToolContext context = identity == null
+                ? contextFactory.create(effectiveSession, requestMetadata)
+                : contextFactory.create(effectiveSession, requestMetadata, identity);
         AiAgentRole role = context.role();
 
         List<AgentToolCall> seeded = new ArrayList<>();
@@ -77,7 +93,7 @@ public class AgentRuntime {
             Map<String, Object> args = new LinkedHashMap<>();
             String draftId = intentRouter.extractDraftId(userMessage);
             if (draftId == null) {
-                draftId = draftStore.lastDraftId(effectiveSession).orElse(null);
+                draftId = draftStore.lastDraftId(context.userKey(), effectiveSession).orElse(null);
             }
             if (draftId != null) {
                 args.put("draftId", draftId);
@@ -97,8 +113,13 @@ public class AgentRuntime {
         }
 
         List<Map<String, Object>> tools = toolRegistry.openAiTools(role);
-        return seedEvents.concatWith(Flux.defer(() -> loop(0, messages, tools, context, effectiveSession, messageId)))
-                .concatWithValues(ChatStreamEvent.done(effectiveSession, messageId));
+        Flux<ChatStreamEvent> events = seedEvents
+                .concatWith(Flux.defer(() -> loop(0, messages, tools, context, effectiveSession, messageId)))
+                .concatWithValues(ChatStreamEvent.done(effectiveSession, messageId))
+                .onErrorResume(error -> Flux.just(toErrorEvent(effectiveSession, messageId, error)))
+                .takeUntil(event -> ChatStreamEventType.DONE.wireName().equals(event.type())
+                        || ChatStreamEventType.ERROR.wireName().equals(event.type()));
+        return ChatStreamKeepAlive.attach(events, effectiveSession, messageId, Duration.ofSeconds(15));
     }
 
     private Flux<ChatStreamEvent> loop(
@@ -117,16 +138,24 @@ public class AgentRuntime {
         metadata.put("messages", messages);
         metadata.put("agentRound", round);
         return providerRegistry.stream(lastUserContent(messages), metadata)
-                .collectList()
-                .flatMapMany(tokens -> {
-                    List<AgentToolCall> calls = extractToolCalls(tokens);
-                    if (!calls.isEmpty()) {
-                        return executeCalls(calls, context, sessionKey, messageId, messages)
-                                .concatWith(Flux.defer(() ->
-                                        loop(round + 1, messages, tools, context, sessionKey, messageId)));
-                    }
-                    return tokenEvents(tokens, sessionKey, messageId);
-                });
+                .publish(shared -> {
+                    Flux<ChatStreamEvent> queueEvents = shared
+                            .filter(AgentRuntime::isQueueToken)
+                            .map(token -> ChatStreamEvent.queue(sessionKey, messageId, queuePosition(token)));
+                    reactor.core.publisher.Mono<java.util.List<AiToken>> collected = shared
+                            .filter(token -> !isQueueToken(token))
+                            .collectList();
+                    return queueEvents.mergeWith(collected.flatMapMany(tokens -> {
+                        List<AgentToolCall> calls = extractToolCalls(tokens);
+                        if (!calls.isEmpty()) {
+                            return executeCalls(calls, context, sessionKey, messageId, messages)
+                                    .concatWith(Flux.defer(() ->
+                                            loop(round + 1, messages, tools, context, sessionKey, messageId)));
+                        }
+                        return tokenEvents(tokens, sessionKey, messageId);
+                    }));
+                })
+                .onErrorResume(error -> Flux.just(toErrorEvent(sessionKey, messageId, error)));
     }
 
     private Flux<ChatStreamEvent> executeCalls(
@@ -352,6 +381,35 @@ public class AgentRuntime {
         } catch (Exception ex) {
             return "{}";
         }
+    }
+
+    private static boolean isQueueToken(AiToken token) {
+        return token != null && token.metadata() != null && token.metadata().containsKey("queue");
+    }
+
+    private static int queuePosition(AiToken token) {
+        Object raw = token.metadata().get("queue");
+        if (raw instanceof Map<?, ?> map) {
+            Object position = map.get("position");
+            if (position instanceof Number number) {
+                return Math.max(1, number.intValue());
+            }
+            if (position != null) {
+                try {
+                    return Math.max(1, Integer.parseInt(position.toString()));
+                } catch (NumberFormatException ignored) {
+                    return 1;
+                }
+            }
+        }
+        return 1;
+    }
+
+    private static ChatStreamEvent toErrorEvent(String sessionKey, String messageId, Throwable error) {
+        String message = error instanceof AiQueueException && error.getMessage() != null
+                ? error.getMessage()
+                : "AI stream failed";
+        return ChatStreamEvent.error(sessionKey, messageId, message);
     }
 
     private static String lastUserContent(List<Map<String, Object>> messages) {

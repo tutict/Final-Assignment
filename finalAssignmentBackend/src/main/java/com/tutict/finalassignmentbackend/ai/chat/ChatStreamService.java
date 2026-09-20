@@ -7,7 +7,6 @@ import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import reactor.core.publisher.Flux;
-import reactor.core.publisher.Mono;
 import reactor.core.publisher.BufferOverflowStrategy;
 
 import java.time.Duration;
@@ -52,7 +51,7 @@ public class ChatStreamService {
                         messageId
                 ));
 
-        return withKeepAlive(providerEvents, sessionKey, messageId)
+        return ChatStreamKeepAlive.attach(providerEvents, sessionKey, messageId, keepAliveInterval)
                 .onBackpressureBuffer(
                         BACKPRESSURE_BUFFER_SIZE,
                         dropped -> logger.warn(
@@ -67,6 +66,17 @@ public class ChatStreamService {
     }
 
     private Flux<ChatStreamEvent> toStreamEvents(AiToken token, String sessionKey, String messageId) {
+        if (token.metadata() != null && token.metadata().containsKey("queue")) {
+            Object raw = token.metadata().get("queue");
+            int position = 1;
+            if (raw instanceof java.util.Map<?, ?> map) {
+                Object value = map.get("position");
+                if (value instanceof Number number) {
+                    position = Math.max(1, number.intValue());
+                }
+            }
+            return Flux.just(ChatStreamEvent.queue(sessionKey, messageId, position));
+        }
         Flux<ChatStreamEvent> events = Flux.empty();
         if (token.text() != null && !token.text().isEmpty()) {
             events = events.concatWithValues(new ChatStreamEvent(
@@ -84,36 +94,15 @@ public class ChatStreamService {
         return events;
     }
 
-    private Flux<ChatStreamEvent> withKeepAlive(
-            Flux<ChatStreamEvent> source,
-            String sessionKey,
-            String messageId
-    ) {
-        return source.publish(shared -> {
-            Flux<Long> resetSignals = Flux.concat(
-                    Mono.just(0L),
-                    shared.filter(this::resetsKeepAlive).map(ignored -> 0L)
-            );
-            Flux<ChatStreamEvent> keepAlives = resetSignals
-                    .switchMap(ignored -> Flux.interval(keepAliveInterval)
-                            .map(tick -> ChatStreamEvent.keepalive(sessionKey, messageId)))
-                    .takeUntilOther(shared.then());
-
-            return Flux.merge(shared, keepAlives);
-        });
-    }
-
-    private boolean resetsKeepAlive(ChatStreamEvent event) {
-        return !ChatStreamEventType.KEEPALIVE.wireName().equals(event.type());
-    }
-
     private boolean isTerminalEvent(ChatStreamEvent event) {
         return ChatStreamEventType.DONE.wireName().equals(event.type())
                 || ChatStreamEventType.ERROR.wireName().equals(event.type());
     }
 
     private ChatStreamEvent toErrorEvent(String sessionKey, String messageId, Throwable error) {
-        String message = "AI stream failed";
+        String message = error instanceof AiQueueException && error.getMessage() != null && !error.getMessage().isBlank()
+                ? error.getMessage()
+                : "AI stream failed";
         logger.warn(
                 "AI chat stream failed. sessionKey={}, messageId={}, reason={}",
                 sessionKey,

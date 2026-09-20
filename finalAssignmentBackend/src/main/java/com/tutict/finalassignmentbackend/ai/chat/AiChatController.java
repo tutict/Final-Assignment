@@ -1,9 +1,12 @@
 package com.tutict.finalassignmentbackend.ai.chat;
 
+import com.tutict.finalassignmentbackend.ai.agent.AgentDraftStore;
 import com.tutict.finalassignmentbackend.dto.response.ApiResponse;
 import com.tutict.finalassignmentbackend.model.ai.ChatActionResponse;
 import com.tutict.finalassignmentbackend.service.ai.ChatAgent;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.http.codec.ServerSentEvent;
@@ -15,6 +18,8 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 import reactor.core.publisher.Flux;
 
+import java.util.UUID;
+
 @RestController
 @RequestMapping("/api/ai/chat")
 public class AiChatController {
@@ -23,6 +28,9 @@ public class AiChatController {
     private final StreamEventWriter streamEventWriter;
     private final ChatAgent chatAgent;
     private final boolean streamingEnabled;
+    private final AiCallerIdentityFactory identityFactory;
+    private final AiUserStreamLimiter userStreamLimiter;
+    private final AgentDraftStore draftStore;
 
     public AiChatController(
             AiChatService aiChatService,
@@ -30,10 +38,26 @@ public class AiChatController {
             ChatAgent chatAgent,
             @Value("${ai.chat.streaming.enabled:true}") boolean streamingEnabled
     ) {
+        this(aiChatService, streamEventWriter, chatAgent, streamingEnabled, null, null, null);
+    }
+
+    @Autowired
+    public AiChatController(
+            AiChatService aiChatService,
+            StreamEventWriter streamEventWriter,
+            ChatAgent chatAgent,
+            @Value("${ai.chat.streaming.enabled:true}") boolean streamingEnabled,
+            @Autowired(required = false) AiCallerIdentityFactory identityFactory,
+            @Autowired(required = false) AiUserStreamLimiter userStreamLimiter,
+            @Autowired(required = false) AgentDraftStore draftStore
+    ) {
         this.aiChatService = aiChatService;
         this.streamEventWriter = streamEventWriter;
         this.chatAgent = chatAgent;
         this.streamingEnabled = streamingEnabled;
+        this.identityFactory = identityFactory;
+        this.userStreamLimiter = userStreamLimiter;
+        this.draftStore = draftStore;
     }
 
     @PostMapping(
@@ -47,10 +71,56 @@ public class AiChatController {
                     .contentType(MediaType.APPLICATION_JSON)
                     .body(ApiResponse.error("SERVICE_UNAVAILABLE", "AI \u6d41\u5f0f\u670d\u52a1\u6682\u672a\u542f\u7528"));
         }
-        Flux<ServerSentEvent<String>> stream = streamEventWriter.write(aiChatService.stream(request));
+        AiCallerIdentity identity = identityFactory == null
+                ? AiCallerIdentity.anonymous()
+                : identityFactory.capture();
+        String sessionKey = request == null || request.sessionKey() == null || request.sessionKey().isBlank()
+                ? UUID.randomUUID().toString()
+                : request.sessionKey();
+        if (draftStore != null && !draftStore.bindSession(identity.userKey(), sessionKey)) {
+            String messageId = UUID.randomUUID().toString();
+            Flux<ServerSentEvent<String>> rejected = streamEventWriter.write(Flux.just(
+                    ChatStreamEvent.error(sessionKey, messageId, "不能使用其他用户的会话")
+            ));
+            return ResponseEntity.ok()
+                    .contentType(MediaType.TEXT_EVENT_STREAM)
+                    .body(rejected);
+        }
+        AiUserStreamLimiter.Lease lease = userStreamLimiter == null
+                ? null
+                : userStreamLimiter.tryAdmit(identity.userKey());
+        if (userStreamLimiter != null && lease == null) {
+            return ResponseEntity.status(HttpStatus.TOO_MANY_REQUESTS)
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .body(ApiResponse.error("TOO_MANY_REQUESTS", AiUserStreamLimiter.REJECT_MESSAGE));
+        }
+        AiChatStreamRequest normalized = new AiChatStreamRequest(
+                request == null ? null : request.message(),
+                sessionKey,
+                request == null ? null : request.metadata()
+        );
+        String messageId = UUID.randomUUID().toString();
+        Flux<ChatStreamEvent> work = Flux.defer(() -> aiChatService.stream(normalized, identity));
+        Flux<ChatStreamEvent> events = work;
+        if (lease != null && lease.decision() == AiUserStreamLimiter.Decision.QUEUE) {
+            reactor.core.publisher.Mono<Void> turn = lease.awaitTurn().cache();
+            events = Flux.just(ChatStreamEvent.queue(sessionKey, messageId, 1))
+                    .concatWith(Flux.interval(java.time.Duration.ofSeconds(15))
+                            .map(tick -> ChatStreamEvent.keepalive(sessionKey, messageId))
+                            .takeUntilOther(turn.onErrorResume(error -> reactor.core.publisher.Mono.empty())))
+                    .concatWith(turn.thenMany(work))
+                    .onErrorResume(error -> Flux.just(ChatStreamEvent.error(
+                            sessionKey,
+                            messageId,
+                            error.getMessage() == null ? "AI stream failed" : error.getMessage()
+                    )));
+        }
+        if (lease != null) {
+            events = events.doFinally(signal -> lease.release());
+        }
         return ResponseEntity.ok()
                 .contentType(MediaType.TEXT_EVENT_STREAM)
-                .body(stream);
+                .body(streamEventWriter.write(events));
     }
 
     @Deprecated

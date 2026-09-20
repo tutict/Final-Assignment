@@ -3,8 +3,10 @@ package com.tutict.finalassignmentbackend.ai.rag.retrieval;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.tutict.finalassignmentbackend.ai.chat.OllamaSlotLimiter;
 import com.tutict.finalassignmentbackend.ai.provider.AiProviderProperties;
 import com.tutict.finalassignmentbackend.rag.config.RagProperties;
+import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.stereotype.Component;
 
@@ -24,11 +26,22 @@ public class OllamaEmbeddingProvider implements EmbeddingProvider {
     private final AiProviderProperties aiProviderProperties;
     private final ObjectMapper objectMapper;
     private final HttpClient httpClient;
+    private final OllamaSlotLimiter slotLimiter;
 
     public OllamaEmbeddingProvider(
             RagProperties properties,
             AiProviderProperties aiProviderProperties,
             ObjectMapper objectMapper
+    ) {
+        this(properties, aiProviderProperties, objectMapper, null);
+    }
+
+    @org.springframework.beans.factory.annotation.Autowired
+    public OllamaEmbeddingProvider(
+            RagProperties properties,
+            AiProviderProperties aiProviderProperties,
+            ObjectMapper objectMapper,
+            ObjectProvider<OllamaSlotLimiter> slotLimiter
     ) {
         this.properties = properties;
         this.aiProviderProperties = aiProviderProperties;
@@ -36,6 +49,7 @@ public class OllamaEmbeddingProvider implements EmbeddingProvider {
         this.httpClient = HttpClient.newBuilder()
                 .connectTimeout(aiProviderProperties.getProvider().getTimeout())
                 .build();
+        this.slotLimiter = slotLimiter == null ? null : slotLimiter.getIfAvailable();
     }
 
     @Override
@@ -58,6 +72,13 @@ public class OllamaEmbeddingProvider implements EmbeddingProvider {
         if (!aiProviderProperties.getOllama().isEnabled()) {
             throw new IllegalStateException("Ollama provider is disabled");
         }
+        if (slotLimiter == null) {
+            return embedUnprotected(text);
+        }
+        return slotLimiter.call(() -> embedUnprotected(text));
+    }
+
+    private float[] embedUnprotected(String text) {
         String prompt = text == null ? "" : text;
         JsonNode response;
         try {

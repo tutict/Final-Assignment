@@ -69,6 +69,17 @@ public record ChatStreamEvent(
         );
     }
 
+    public static ChatStreamEvent queue(String sessionKey, String messageId, int position) {
+        return new ChatStreamEvent(
+                ChatStreamEventType.QUEUE.wireName(),
+                sessionKey,
+                messageId,
+                null,
+                Map.of("position", position),
+                Instant.now()
+        );
+    }
+
     public static ChatStreamEvent payload(String type, String sessionKey, String messageId, Object payload) {
         return new ChatStreamEvent(
                 type,

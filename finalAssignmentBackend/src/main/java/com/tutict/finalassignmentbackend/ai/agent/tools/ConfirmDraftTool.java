@@ -63,7 +63,7 @@ public class ConfirmDraftTool implements AgentTool {
     public AgentToolResult execute(AgentToolContext context, Map<String, Object> arguments) {
         String draftId = AgentArgs.str(arguments, "draftId");
         if (draftId == null || draftId.isBlank()) {
-            draftId = draftStore.lastDraftId(context.sessionKey()).orElse(null);
+            draftId = draftStore.lastDraftId(context.userKey(), context.sessionKey()).orElse(null);
         }
         AgentDraft draft = draftStore.find(draftId).orElse(null);
         if (draft == null) {

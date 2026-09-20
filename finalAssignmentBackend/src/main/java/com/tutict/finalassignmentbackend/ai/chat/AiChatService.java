@@ -33,6 +33,10 @@ public class AiChatService {
     }
 
     public Flux<ChatStreamEvent> stream(AiChatStreamRequest request) {
+        return stream(request, AiCallerIdentity.anonymous());
+    }
+
+    public Flux<ChatStreamEvent> stream(AiChatStreamRequest request, AiCallerIdentity identity) {
         if (request == null || !request.hasMessage()) {
             return Flux.just(ChatStreamEvent.error(
                     null,
@@ -46,7 +50,7 @@ public class AiChatService {
                 request.sessionKey(),
                 request.metadata()
         );
-        return chatPipeline.stream(normalizedRequest);
+        return chatPipeline.stream(normalizedRequest, identity == null ? AiCallerIdentity.anonymous() : identity);
     }
 
     public List<RetrievalResult> retrieve(ServerSideRagQueryRequest request) {

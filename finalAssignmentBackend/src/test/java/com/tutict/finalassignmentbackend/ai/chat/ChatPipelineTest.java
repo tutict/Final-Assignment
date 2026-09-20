@@ -22,6 +22,9 @@ import com.tutict.finalassignmentbackend.ai.rag.query.ServerSideRagQueryRequest;
 import com.tutict.finalassignmentbackend.ai.rag.query.RagQueryService;
 import org.springframework.core.io.DefaultResourceLoader;
 import org.junit.jupiter.api.Test;
+import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
+import org.springframework.security.core.authority.SimpleGrantedAuthority;
+import org.springframework.security.core.context.SecurityContextHolder;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
@@ -74,6 +77,29 @@ class ChatPipelineTest {
                 .contains(PromptTemplateService.INJECTION_WARNING);
         assertThat(events).extracting(ChatStreamEvent::type)
                 .containsExactly(ChatStreamEventType.TOKEN.wireName(), ChatStreamEventType.DONE.wireName());
+    }
+
+    @Test
+    void usesCapturedIdentityAfterSecurityContextIsCleared() {
+        CapturingProvider provider = new CapturingProvider("primary", tokenStream("answer"));
+        StubRagQueryService rag = new StubRagQueryService(List.of(result("Own", "private record")));
+        ChatPipeline pipeline = pipeline(provider, rag, ragProperties(true));
+        UsernamePasswordAuthenticationToken authentication = new UsernamePasswordAuthenticationToken(
+                "driver-a",
+                "n/a",
+                List.of(new SimpleGrantedAuthority("ROLE_USER"))
+        );
+        SecurityContextHolder.getContext().setAuthentication(authentication);
+        AiCallerIdentity identity = AiCallerIdentity.from(authentication, null);
+        SecurityContextHolder.clearContext();
+
+        pipeline.stream(new AiChatStreamRequest("我的违法", "session-a", Map.of("ragTopK", 3)), identity)
+                .collectList()
+                .block(Duration.ofSeconds(1));
+
+        assertThat(rag.lastRequest().userId()).isEqualTo("driver-a");
+        assertThat(rag.lastRequest().roles()).contains("USER");
+        assertThat(rag.lastRequest().query()).isEqualTo("我的违法");
     }
 
     @Test

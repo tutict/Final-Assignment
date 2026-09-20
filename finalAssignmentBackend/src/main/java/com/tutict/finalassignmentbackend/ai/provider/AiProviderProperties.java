@@ -107,6 +107,9 @@ public class AiProviderProperties {
         private boolean enabled = true;
         private String baseUrl = "http://localhost:11434";
         private String chatModel = "llama3.2";
+        private int slots = 2;
+        private int maxQueue = 32;
+        private Duration queueTimeout = Duration.ofSeconds(90);
 
         public boolean isEnabled() {
             return enabled;
@@ -131,6 +134,30 @@ public class AiProviderProperties {
         public void setChatModel(String chatModel) {
             this.chatModel = chatModel;
         }
+
+        public int getSlots() {
+            return slots;
+        }
+
+        public void setSlots(int slots) {
+            this.slots = slots;
+        }
+
+        public int getMaxQueue() {
+            return maxQueue;
+        }
+
+        public void setMaxQueue(int maxQueue) {
+            this.maxQueue = maxQueue;
+        }
+
+        public Duration getQueueTimeout() {
+            return queueTimeout;
+        }
+
+        public void setQueueTimeout(Duration queueTimeout) {
+            this.queueTimeout = queueTimeout;
+        }
     }
 
     public static class OpenAiCompatible {
@@ -138,6 +165,10 @@ public class AiProviderProperties {
         private String baseUrl = "";
         private String apiKey = "";
         private String chatModel = "";
+        private int slots = 16;
+        private int maxQueue = 64;
+        private Duration queueTimeout = Duration.ofSeconds(90);
+        private int maxRateLimitRetries = 3;
 
         public boolean isEnabled() {
             return enabled;
@@ -169,6 +200,38 @@ public class AiProviderProperties {
 
         public void setChatModel(String chatModel) {
             this.chatModel = chatModel;
+        }
+
+        public int getSlots() {
+            return slots;
+        }
+
+        public void setSlots(int slots) {
+            this.slots = slots;
+        }
+
+        public int getMaxQueue() {
+            return maxQueue;
+        }
+
+        public void setMaxQueue(int maxQueue) {
+            this.maxQueue = maxQueue;
+        }
+
+        public Duration getQueueTimeout() {
+            return queueTimeout;
+        }
+
+        public void setQueueTimeout(Duration queueTimeout) {
+            this.queueTimeout = queueTimeout;
+        }
+
+        public int getMaxRateLimitRetries() {
+            return maxRateLimitRetries;
+        }
+
+        public void setMaxRateLimitRetries(int maxRateLimitRetries) {
+            this.maxRateLimitRetries = maxRateLimitRetries;
         }
     }
 }

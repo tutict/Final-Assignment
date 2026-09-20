@@ -17,7 +17,19 @@ import java.util.Set;
 public class AiAgentRoleResolver {
 
     public AiAgentRole resolve(Map<String, Object> metadata) {
-        Set<String> roles = roleCodes(metadata);
+        return resolve(roleCodes(metadata));
+    }
+
+    public AiAgentRole resolve(Iterable<String> roleCodes) {
+        Set<String> roles = new LinkedHashSet<>();
+        if (roleCodes != null) {
+            for (String role : roleCodes) {
+                String normalized = normalize(role);
+                if (!normalized.isBlank()) {
+                    roles.add(normalized);
+                }
+            }
+        }
         if (roles.contains("SUPER_ADMIN")) {
             return AiAgentRole.SUPER_ADMIN;
         }

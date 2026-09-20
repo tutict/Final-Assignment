@@ -9,16 +9,12 @@ import com.tutict.finalassignmentbackend.ai.prompt.PromptAssembler;
 import com.tutict.finalassignmentbackend.ai.prompt.PromptTemplateService;
 import com.tutict.finalassignmentbackend.ai.rag.config.RagRetrievalProperties;
 import com.tutict.finalassignmentbackend.ai.rag.dto.RetrievalResult;
-import com.tutict.finalassignmentbackend.ai.rag.query.RagQueryRequest;
 import com.tutict.finalassignmentbackend.ai.rag.query.ServerSideRagQueryRequest;
 import com.tutict.finalassignmentbackend.ai.rag.query.RagQueryService;
-import com.tutict.finalassignmentbackend.config.security.SecurityRoleUtils;
 import com.tutict.finalassignmentbackend.service.ai.AIChatSearchService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.core.io.DefaultResourceLoader;
-import org.springframework.security.core.Authentication;
-import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 import reactor.core.publisher.Flux;
 
@@ -151,28 +147,36 @@ public class ChatPipeline {
     }
 
     public Flux<ChatStreamEvent> stream(AiChatStreamRequest request) {
+        return stream(request, AiCallerIdentity.anonymous());
+    }
+
+    public Flux<ChatStreamEvent> stream(AiChatStreamRequest request, AiCallerIdentity identity) {
+        AiCallerIdentity snapshot = identity == null ? AiCallerIdentity.anonymous() : identity;
         if (!request.isWebSearchEnabled()) {
-            return streamWithContext(request, List.of());
+            return streamWithContext(request, List.of(), snapshot);
         }
         String messageId = UUID.randomUUID().toString();
         return Flux.just(ChatStreamEvent.keepalive(request.sessionKey(), messageId))
                 .concatWith(Flux.defer(() -> {
                     List<RetrievalResult> webResults = webSearch(request.normalizedMessage(), request);
                     return Flux.just(ChatStreamEvent.keepalive(request.sessionKey(), messageId))
-                            .concatWith(streamWithContext(request, webResults));
+                            .concatWith(streamWithContext(request, webResults, snapshot));
                 }));
     }
 
     private Flux<ChatStreamEvent> streamWithContext(
             AiChatStreamRequest request,
-            List<RetrievalResult> webResults
+            List<RetrievalResult> webResults,
+            AiCallerIdentity identity
     ) {
         String userMessage = request.normalizedMessage();
         Map<String, Object> metadata = request.metadata();
         List<RetrievalResult> retrievalResults = new ArrayList<>();
-        retrievalResults.addAll(retrieve(userMessage, metadata));
+        retrievalResults.addAll(retrieve(userMessage, metadata, identity));
         retrievalResults.addAll(webResults);
-        AiAgentRole agentRole = aiAgentRoleResolver.resolve(metadata);
+        AiAgentRole agentRole = identity.isAuthenticated()
+                ? aiAgentRoleResolver.resolve(identity.roles())
+                : aiAgentRoleResolver.resolve(metadata);
         String prompt = promptAssembler.assemble(
                 userMessage,
                 conversationWindow(metadata),
@@ -181,7 +185,7 @@ public class ChatPipeline {
         );
         AgentRuntime runtime = resolveAgentRuntime();
         if (runtime != null) {
-            return runtime.run(userMessage, request.sessionKey(), prompt, metadata);
+            return runtime.run(userMessage, request.sessionKey(), prompt, metadata, identity);
         }
         return chatStreamService.stream(new AiChatStreamRequest(
                 prompt,
@@ -245,37 +249,21 @@ public class ChatPipeline {
         }
     }
 
-    private List<RetrievalResult> retrieve(String userMessage, Map<String, Object> metadata) {
+    private List<RetrievalResult> retrieve(
+            String userMessage,
+            Map<String, Object> metadata,
+            AiCallerIdentity identity
+    ) {
         if (!ragEnabled(metadata) || ragQueryService == null) {
             return List.of();
         }
-        // Derive ACL from security context, never from client metadata
-        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
-        String userId = null;
-        List<String> roles = List.of();
-        String department = null;
-        if (authentication != null && authentication.isAuthenticated() && !"anonymousUser".equals(authentication.getPrincipal())) {
-            userId = authentication.getName();
-            roles = authentication.getAuthorities().stream()
-                    .map(a -> SecurityRoleUtils.normalizeRoleCode(a.getAuthority()))
-                    .filter(role -> !role.isBlank())
-                    .toList();
-            for (String role : roles) {
-                if ("SUPER_ADMIN".equals(role) || "ADMIN".equals(role)) {
-                    department = "ALL";
-                    break;
-                } else if ("TRAFFIC_POLICE".equals(role) || "FINANCE".equals(role) || "APPEAL_REVIEWER".equals(role)) {
-                    department = "DEPARTMENT";
-                    break;
-                }
-            }
-        }
+        AiCallerIdentity snapshot = identity == null ? AiCallerIdentity.anonymous() : identity;
         return ragQueryService.query(new ServerSideRagQueryRequest(
                 userMessage,
                 intValue(metadata, "ragTopK", "topK"),
-                userId,
-                roles,
-                department
+                snapshot.userId(),
+                snapshot.roles(),
+                snapshot.department()
         ));
     }
 

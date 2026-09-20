@@ -107,6 +107,16 @@ class AgentDraftConfirmTest {
         verify(service, never()).createAppeal(any());
     }
 
+    @Test
+    void foreignSessionKeyCannotSeeLastDraft() {
+        InMemoryAgentDraftStore store = new InMemoryAgentDraftStore();
+        assertThat(store.bindSession("10", "s1")).isTrue();
+        store.rememberSessionDraft("10", "s1", "draft-a");
+        assertThat(store.bindSession("other-user", "s1")).isFalse();
+        assertThat(store.lastDraftId("other-user", "s1")).isEmpty();
+        assertThat(store.lastDraftId("10", "s1")).contains("draft-a");
+    }
+
     private static AgentToolContext driver() {
         return new AgentToolContext(null, AiAgentRole.DRIVER, "s1", "testuser", 10L, 100L, false, null);
     }

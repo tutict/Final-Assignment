@@ -20,16 +20,23 @@ ai:
   agent:
     max-rounds: 4
     draft:
-      store: memory
+      store: ${AI_AGENT_DRAFT_STORE:redis}
   ollama:
     enabled: ${OLLAMA_ENABLED:true}
     base-url: ${OLLAMA_URL:http://localhost:11434}
     chat-model: ${OLLAMA_MODEL:${OLLAMA_CHAT_MODEL:llama3.2}}
+    slots: ${OLLAMA_SLOTS:2}
+    max-queue: ${OLLAMA_MAX_QUEUE:32}
+    queue-timeout: ${OLLAMA_QUEUE_TIMEOUT:PT90S}
   openai-compatible:
-    enabled: false
-    base-url: ""
-    api-key: ""
-    chat-model: ""
+    enabled: ${OPENAI_COMPAT_ENABLED:false}
+    base-url: ${OPENAI_COMPAT_BASE_URL:}
+    api-key: ${OPENAI_COMPAT_API_KEY:}
+    chat-model: ${OPENAI_COMPAT_CHAT_MODEL:}
+    slots: ${OPENAI_COMPAT_SLOTS:16}
+    max-queue: ${OPENAI_COMPAT_MAX_QUEUE:64}
+    queue-timeout: ${OPENAI_COMPAT_QUEUE_TIMEOUT:PT90S}
+    max-rate-limit-retries: ${OPENAI_COMPAT_MAX_RATE_LIMIT_RETRIES:3}
 
 rag:
   enabled: ${RAG_ENABLED:true}

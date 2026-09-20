@@ -40,6 +40,17 @@ class SseEventSerializationTest {
     }
 
     @Test
+    void serializesQueueEventWithPosition() throws Exception {
+        ServerSentEvent<String> sse = writer.toServerSentEvent(
+                ChatStreamEvent.queue("session-1", "message-1", 2)
+        );
+        JsonNode data = objectMapper.readTree(sse.data());
+        assertThat(sse.event()).isEqualTo("queue");
+        assertThat(data.get("type").asText()).isEqualTo("queue");
+        assertThat(data.get("payload").get("position").asInt()).isEqualTo(2);
+    }
+
+    @Test
     void serializesDraftResultToolAndActionEvents() throws Exception {
         StreamEventWriter writer = new StreamEventWriter(objectMapper);
         var draft = writer.toServerSentEvent(ChatStreamEvent.payload(

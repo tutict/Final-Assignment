@@ -9,6 +9,7 @@ public enum ChatStreamEventType {
     ERROR,
     USAGE,
     KEEPALIVE,
+    QUEUE,
     TOOL,
     RESULT,
     DRAFT,

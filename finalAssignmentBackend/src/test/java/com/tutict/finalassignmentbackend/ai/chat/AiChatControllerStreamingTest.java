@@ -57,6 +57,44 @@ class AiChatControllerStreamingTest {
     }
 
     @Test
+    void thirdStreamFromSameUserReturns429() {
+        AiUserStreamLimiter limiter = new AiUserStreamLimiter();
+        AiChatController controller = new AiChatController(
+                new AiChatService(service(
+                        provider("primary", Flux.never()),
+                        Duration.ofSeconds(5),
+                        Duration.ofSeconds(15)
+                )),
+                new StreamEventWriter(objectMapper),
+                mock(ChatAgent.class),
+                true,
+                null,
+                limiter,
+                new com.tutict.finalassignmentbackend.ai.agent.InMemoryAgentDraftStore()
+        );
+        org.springframework.security.core.context.SecurityContextHolder.getContext().setAuthentication(
+                new org.springframework.security.authentication.UsernamePasswordAuthenticationToken(
+                        "driver-a",
+                        "n/a",
+                        java.util.List.of(new org.springframework.security.core.authority.SimpleGrantedAuthority("ROLE_USER"))
+                )
+        );
+        try {
+            ResponseEntity<?> first = controller.stream(new AiChatStreamRequest("hello", "s1", Map.of()));
+            ResponseEntity<?> second = controller.stream(new AiChatStreamRequest("hello", "s2", Map.of()));
+            ResponseEntity<?> third = controller.stream(new AiChatStreamRequest("hello", "s3", Map.of()));
+            assertThat(first.getStatusCode().value()).isEqualTo(200);
+            assertThat(second.getStatusCode().value()).isEqualTo(200);
+            assertThat(third.getStatusCode().value()).isEqualTo(429);
+            ApiResponse<?> body = (ApiResponse<?>) third.getBody();
+            assertThat(body.getErrorCode()).isEqualTo("TOO_MANY_REQUESTS");
+            assertThat(body.getMessage()).isEqualTo("请等待当前回答结束");
+        } finally {
+            org.springframework.security.core.context.SecurityContextHolder.clearContext();
+        }
+    }
+
+    @Test
     void rejectsWhenStreamingFeatureFlagIsDisabled() {
         AiChatController controller = controller(
                 provider("primary", Flux.empty()),

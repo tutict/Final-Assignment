@@ -13,12 +13,13 @@ public class InMemoryAgentDraftStore implements AgentDraftStore {
 
     private final ConcurrentHashMap<String, AgentDraft> drafts = new ConcurrentHashMap<>();
     private final ConcurrentHashMap<String, String> sessionDrafts = new ConcurrentHashMap<>();
+    private final ConcurrentHashMap<String, String> sessionOwners = new ConcurrentHashMap<>();
 
     @Override
     public void save(AgentDraft draft) {
         drafts.put(draft.draftId(), draft);
         if (draft.sessionKey() != null && !draft.sessionKey().isBlank()) {
-            rememberSessionDraft(draft.sessionKey(), draft.draftId());
+            rememberSessionDraft(draft.userId(), draft.sessionKey(), draft.draftId());
         }
     }
 
@@ -58,5 +59,47 @@ public class InMemoryAgentDraftStore implements AgentDraftStore {
             return Optional.empty();
         }
         return Optional.ofNullable(sessionDrafts.get(sessionKey));
+    }
+
+    @Override
+    public boolean bindSession(String userId, String sessionKey) {
+        if (sessionKey == null || sessionKey.isBlank()) {
+            return true;
+        }
+        String ownerKey = ownerKey(sessionKey);
+        String boundUser = userId == null || userId.isBlank() ? "anonymous" : userId;
+        String existing = sessionOwners.putIfAbsent(ownerKey, boundUser);
+        return existing == null || existing.equals(boundUser);
+    }
+
+    @Override
+    public void rememberSessionDraft(String userId, String sessionKey, String draftId) {
+        if (sessionKey == null || sessionKey.isBlank() || draftId == null) {
+            return;
+        }
+        bindSession(userId, sessionKey);
+        sessionDrafts.put(sessionKey, draftId);
+        sessionDrafts.put(userSessionKey(userId, sessionKey), draftId);
+    }
+
+    @Override
+    public Optional<String> lastDraftId(String userId, String sessionKey) {
+        if (sessionKey == null || sessionKey.isBlank()) {
+            return Optional.empty();
+        }
+        if (userId == null || userId.isBlank()) {
+            return lastDraftId(sessionKey);
+        }
+        return Optional.ofNullable(sessionDrafts.get(userSessionKey(userId, sessionKey)))
+                .filter(value -> !value.isBlank());
+    }
+
+    private static String userSessionKey(String userId, String sessionKey) {
+        String boundUser = userId == null || userId.isBlank() ? "anonymous" : userId;
+        return boundUser + ":" + sessionKey;
+    }
+
+    private static String ownerKey(String sessionKey) {
+        return "owner:" + sessionKey;
     }
 }

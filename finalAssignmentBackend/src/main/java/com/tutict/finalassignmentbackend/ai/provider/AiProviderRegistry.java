@@ -1,5 +1,7 @@
 package com.tutict.finalassignmentbackend.ai.provider;
 
+import com.tutict.finalassignmentbackend.ai.chat.AiQueueException;
+
 import io.micrometer.core.instrument.MeterRegistry;
 import io.micrometer.core.instrument.Metrics;
 import io.micrometer.core.instrument.Timer;
@@ -191,6 +193,14 @@ public class AiProviderRegistry {
     }
 
     private void recordFailure(AiProvider provider, Throwable error) {
+        if (error instanceof AiQueueException) {
+            logger.info(
+                    "AI provider throttled or queued. provider={}, reason={}",
+                    provider.providerName(),
+                    error.toString()
+            );
+            return;
+        }
         int count = failures.computeIfAbsent(provider.providerName(), ignored -> new AtomicInteger())
                 .incrementAndGet();
         logger.warn(
