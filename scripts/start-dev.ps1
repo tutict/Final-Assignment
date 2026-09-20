@@ -193,6 +193,11 @@ $BackendHealthUrl = Set-DefaultEnv "BACKEND_HEALTH_URL" "http://127.0.0.1:$Backe
 $FlutterDevice = Set-DefaultEnv "FLUTTER_DEVICE" "web-server"
 $FlutterArgs = Set-DefaultEnv "FLUTTER_ARGS" "--web-hostname 127.0.0.1 --web-port 3000"
 $ReactDevUrlExplicit = -not [string]::IsNullOrWhiteSpace((Get-EnvValue "REACT_DEV_URL"))
+# Flutter Web's debug (DDC) build loads thousands of modules over DWDS WebSockets
+# and renders a blank page in some browsers (Firefox; sometimes Chrome). The
+# release build is a single precompiled main.dart.js and renders reliably. Default
+# to release; set FLUTTER_WEB_RELEASE=false to go back to the debug build.
+$FlutterWebRelease = Set-DefaultEnv "FLUTTER_WEB_RELEASE" "true"
 $ReactDevUrl = Set-DefaultEnv "REACT_DEV_URL" "http://127.0.0.1:5173"
 $ReactFallbackPorts = Set-DefaultEnv "REACT_FALLBACK_PORTS" "15173,4173,51730"
 $FrontendUrlExplicit = -not [string]::IsNullOrWhiteSpace((Get-EnvValue "FRONTEND_URL"))
@@ -685,6 +690,7 @@ function Write-StartupSummary {
         "FLUTTER_URL=$env:FLUTTER_URL",
         "FLUTTER_DEVICE=$FlutterDevice",
         "FLUTTER_ARGS=$FlutterArgs",
+        "FLUTTER_WEB_RELEASE=$FlutterWebRelease",
         "FLUTTER_WAIT_SECONDS=$FlutterWaitSeconds",
         "FLUTTER_WEB_URL=$FlutterWebUrl",
         "REACT_DEV_URL=$ReactDevUrl",
@@ -1368,10 +1374,17 @@ function New-FlutterRunner {
     }
     Write-Log "flutter pub get completed. Log: $FlutterPubLog"
 
+    # Release build renders reliably (web-server + DDC/debug blank-screen workaround).
+    # Only applied for the Flutter web-server device; other devices (chrome, edge, ...)
+    # keep their behavior and own browser lifecycle.
+    $releaseFlag = ""
+    if ($FlutterDevice -ieq "web-server" -and $FlutterWebRelease -ieq "true") {
+        $releaseFlag = " --release"
+    }
     $flutterCommand = if ([string]::IsNullOrWhiteSpace($FlutterDevice)) {
-        "call `"$FlutterCmd`" run --dart-define=APP_ENV=$AppEnv --dart-define=API_BASE_URL=$ApiBaseUrl --dart-define=WS_BASE_URL=$WsBaseUrl $FlutterArgs"
+        "call `"$FlutterCmd`" run$releaseFlag --dart-define=APP_ENV=$AppEnv --dart-define=API_BASE_URL=$ApiBaseUrl --dart-define=WS_BASE_URL=$WsBaseUrl $FlutterArgs"
     } else {
-        "call `"$FlutterCmd`" run -d `"$FlutterDevice`" --dart-define=APP_ENV=$AppEnv --dart-define=API_BASE_URL=$ApiBaseUrl --dart-define=WS_BASE_URL=$WsBaseUrl $FlutterArgs"
+        "call `"$FlutterCmd`" run -d `"$FlutterDevice`"$releaseFlag --dart-define=APP_ENV=$AppEnv --dart-define=API_BASE_URL=$ApiBaseUrl --dart-define=WS_BASE_URL=$WsBaseUrl $FlutterArgs"
     }
     $flutterCommand = "$flutterCommand 1> `"$FrontendLog`" 2> `"$FrontendErrLog`""
     Set-Content -LiteralPath $RunnerPath -Encoding Default -Value @("@echo off", "cd /d `"$FlutterDir`"", $flutterCommand, "exit /b %ERRORLEVEL%")
@@ -1594,8 +1607,12 @@ try {
         }
 
         if ($FrontendChoice -eq "flutter" -and $FlutterDevice -ieq "web-server") {
-            Write-Log "Waiting up to $FrontendWaitSeconds seconds for $FlutterWebUrl..."
-            $flutterDeadline = (Get-Date).AddSeconds($FrontendWaitSeconds)
+            # First release compile is slow (no incremental module split like DDC),
+            # so give it more time than the generic FRONTEND_WAIT_SECONDS budget.
+            $flutterWaitSecs = $FrontendWaitSeconds
+            if ($FlutterWebRelease -ieq "true") { $flutterWaitSecs = [Math]::Max($FrontendWaitSeconds, 600) }
+            Write-Log "Waiting up to $flutterWaitSecs seconds for $FlutterWebUrl..."
+            $flutterDeadline = (Get-Date).AddSeconds($flutterWaitSecs)
             $reachable = $false
             while ((Get-Date) -lt $flutterDeadline) {
                 if ($script:FrontendProcess.HasExited) {
@@ -1613,7 +1630,7 @@ try {
                 Start-Sleep -Seconds 2
             }
             if (-not $reachable) {
-                Fail "Flutter web server did not become reachable within $FrontendWaitSeconds seconds."
+                Fail "Flutter web server did not become reachable within $flutterWaitSecs seconds."
             }
             Open-FrontendInBrowser
         } elseif ($FrontendChoice -eq "react") {
