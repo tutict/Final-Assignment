@@ -79,7 +79,7 @@ final class RagPdfOcr {
             );
             try {
                 Process process = new ProcessBuilder(command)
-                        .redirectErrorStream(true)
+                        .redirectError(ProcessBuilder.Redirect.DISCARD)
                         .start();
                 boolean finished = process.waitFor(30, TimeUnit.SECONDS);
                 if (!finished) {

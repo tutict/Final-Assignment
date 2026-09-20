@@ -1,19 +1,18 @@
-package com.tutict.finalassignmentcloud.rag.service;
+package finalassignmentbackend.rag.service;
 
-import com.tutict.finalassignmentcloud.rag.chunk.ChineseTextChunker;
-import com.tutict.finalassignmentcloud.rag.chunk.Chunker;
-import com.tutict.finalassignmentcloud.rag.config.RagProperties;
-import com.tutict.finalassignmentcloud.rag.dto.RagSourceDocument;
-import com.tutict.finalassignmentcloud.rag.entity.RagChunk;
-import com.tutict.finalassignmentcloud.rag.entity.RagDocument;
-import com.tutict.finalassignmentcloud.rag.entity.RagEmbeddingTask;
-import com.tutict.finalassignmentcloud.rag.mapper.RagChunkMapper;
-import com.tutict.finalassignmentcloud.rag.mapper.RagDocumentMapper;
-import com.tutict.finalassignmentcloud.rag.mapper.RagEmbeddingTaskMapper;
-import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
+import finalassignmentbackend.rag.chunk.ChineseTextChunker;
+import finalassignmentbackend.rag.chunk.Chunker;
+import finalassignmentbackend.rag.config.RagProperties;
+import finalassignmentbackend.rag.dto.RagSourceDocument;
+import finalassignmentbackend.rag.entity.RagChunk;
+import finalassignmentbackend.rag.entity.RagDocument;
+import finalassignmentbackend.rag.entity.RagEmbeddingTask;
+import finalassignmentbackend.mapper.RagChunkMapper;
+import finalassignmentbackend.mapper.RagDocumentMapper;
+import finalassignmentbackend.mapper.RagEmbeddingTaskMapper;
+import jakarta.inject.Inject;
+import jakarta.enterprise.context.ApplicationScoped;
+import jakarta.transaction.Transactional;
 
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
@@ -27,8 +26,7 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Set;
 
-@Service
-@ConditionalOnProperty(prefix = "rag", name = "enabled", havingValue = "true")
+@ApplicationScoped
 public class RagIndexingService {
 
     private final RagDocumentService documentService;
@@ -75,8 +73,7 @@ public class RagIndexingService {
     }
 }
 
-@Service
-@ConditionalOnProperty(prefix = "rag", name = "enabled", havingValue = "true")
+@ApplicationScoped
 class RagDocumentService {
 
     private static final Set<String> ACL_SCOPES = Set.of("PUBLIC", "ROLE", "USER", "DEPARTMENT");
@@ -134,8 +131,7 @@ class RagDocumentService {
     }
 }
 
-@Service
-@ConditionalOnProperty(prefix = "rag", name = "enabled", havingValue = "true")
+@ApplicationScoped
 class RagChunkService {
 
     private final RagChunkMapper mapper;
@@ -191,8 +187,7 @@ class RagChunkService {
     }
 }
 
-@Service
-@ConditionalOnProperty(prefix = "rag", name = "enabled", havingValue = "true")
+@ApplicationScoped
 class RagEmbeddingTaskService {
 
     static final String STATUS_PENDING = "PENDING";
@@ -204,7 +199,7 @@ class RagEmbeddingTaskService {
     private final RagEmbeddingTaskMapper mapper;
     private final RagProperties properties;
 
-    @Autowired
+    @Inject
     RagEmbeddingTaskService(RagEmbeddingTaskMapper mapper, RagProperties properties) {
         this.mapper = mapper;
         this.properties = properties;
@@ -229,8 +224,8 @@ class RagEmbeddingTaskService {
     }
 
     RagEmbeddingTask ensurePendingTask(RagChunk chunk) {
-        String provider = normalize(properties.getEmbedding().getProvider(), "unassigned");
-        String model = normalize(properties.getEmbedding().getModel(), "unassigned");
+        String provider = normalize(properties.getEmbeddingProvider(), "unassigned");
+        String model = normalize(properties.getEmbeddingModel(), "unassigned");
         String taskKey = RagHashSupport.stableId(
                 "emb",
                 chunk.getId(),

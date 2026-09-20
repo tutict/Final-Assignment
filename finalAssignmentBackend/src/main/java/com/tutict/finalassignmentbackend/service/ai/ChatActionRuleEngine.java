@@ -52,6 +52,9 @@ public class ChatActionRuleEngine {
     );
 
     private static final List<ActionRule> ADMIN_RULES = List.of(
+            new ActionRule(List.of("rag", "知识库", "资料录入", "文档录入", "向量", "检索资料"),
+                    "已定位到 RAG 资料管理页面，可录入文档、表格并维护检索资料。",
+                    "打开 RAG 资料管理", "/ragManagement"),
             new ActionRule(List.of("申诉审批", "申诉管理", "审核申诉", "申诉办理", "appeal management", "appeal approval"),
                     "已定位到申诉审批管理页面，可处理驾驶员提交的申诉。",
                     "打开申诉审批", "/appealManagement"),
@@ -76,9 +79,6 @@ public class ChatActionRuleEngine {
     );
 
     private static final List<ActionRule> SUPER_ADMIN_RULES = List.of(
-            new ActionRule(List.of("rag", "知识库", "资料录入", "文档录入", "向量", "检索资料"),
-                    "已定位到 RAG 资料管理页面，可录入文档、表格并维护检索资料。",
-                    "打开 RAG 资料管理", "/admin/ragManagement"),
             new ActionRule(List.of("日志审查", "操作日志", "登录日志", "审计日志", "operation log", "login log"),
                     "已定位到日志审查页面，可查看登录和操作审计记录。",
                     "打开日志审查", "/admin/logManagement"),

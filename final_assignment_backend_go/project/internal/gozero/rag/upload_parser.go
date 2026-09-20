@@ -3,6 +3,7 @@ package rag
 import (
 	"archive/zip"
 	"bytes"
+	"context"
 	"encoding/csv"
 	"encoding/xml"
 	"fmt"
@@ -16,6 +17,7 @@ import (
 	"sort"
 	"strconv"
 	"strings"
+	"time"
 	"unicode/utf8"
 
 	pdf "github.com/ledongthuc/pdf"
@@ -520,9 +522,11 @@ func ocrPdf(raw []byte) (string, error) {
 	if err := os.WriteFile(pdfPath, raw, 0o600); err != nil {
 		return "", err
 	}
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
 	prefix := filepath.Join(workDir, "page")
-	if err := exec.Command("pdftoppm", "-png", "-f", "1", "-l", "8", pdfPath, prefix).Run(); err != nil {
-		out, tesseractErr := exec.Command("tesseract", pdfPath, "stdout", "-l", "chi_sim+eng", "--psm", "6").Output()
+	if err := exec.CommandContext(ctx, "pdftoppm", "-png", "-f", "1", "-l", "8", pdfPath, prefix).Run(); err != nil {
+		out, tesseractErr := exec.CommandContext(ctx, "tesseract", pdfPath, "stdout", "-l", "chi_sim+eng", "--psm", "6").Output()
 		if tesseractErr != nil {
 			return "", fmt.Errorf("pdf text is empty; scanned PDFs require Tesseract OCR (install tesseract/pdftoppm with chi_sim+eng)")
 		}
@@ -534,7 +538,7 @@ func ocrPdf(raw []byte) (string, error) {
 	}
 	var builder strings.Builder
 	for _, image := range entries {
-		out, err := exec.Command("tesseract", image, "stdout", "-l", "chi_sim+eng", "--psm", "6").Output()
+		out, err := exec.CommandContext(ctx, "tesseract", image, "stdout", "-l", "chi_sim+eng", "--psm", "6").Output()
 		if err != nil {
 			continue
 		}

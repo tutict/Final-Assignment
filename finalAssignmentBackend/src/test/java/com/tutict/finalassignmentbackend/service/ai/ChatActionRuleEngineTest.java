@@ -43,11 +43,15 @@ class ChatActionRuleEngineTest {
         ).orElseThrow();
 
         assertThat(response.getActions()).hasSize(1);
-        assertThat(response.getActions().getFirst().getTarget()).isEqualTo("/admin/ragManagement");
+        assertThat(response.getActions().getFirst().getTarget()).isEqualTo("/ragManagement");
     }
 
     @Test
-    void doesNotEscalateRagIntentForAdminRole() {
-        assertThat(engine.resolve("打开RAG资料管理", AiAgentRole.ADMIN)).isEmpty();
+    void resolvesAdminRagAction() {
+        ChatActionResponse response = engine.resolve(
+                "打开RAG资料管理",
+                AiAgentRole.ADMIN
+        ).orElseThrow();
+        assertThat(response.getActions().getFirst().getTarget()).isEqualTo("/ragManagement");
     }
 }
