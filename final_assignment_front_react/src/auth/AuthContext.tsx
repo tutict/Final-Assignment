@@ -136,7 +136,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       const roles = extractRoles(token);
       const normalizedRoles = roles.map((role) => role.replace('ROLE_', ''));
       const userRole = (normalizedRoles[0] as RoleValue) || ROLES.USER;
-      const user = result?.user || {};
+      const user = result?.user;
       const resolvedName = user?.name || user?.realName || username.split('@')[0];
       const resolvedEmail = user?.email || username;
       const userId = user?.userId ? String(user.userId) : '';

@@ -48,7 +48,7 @@ export default defineConfig({
           if (!id.includes('node_modules')) {
             return undefined;
           }
-          if (id.includes('react-router-dom')) {
+          if (id.includes('react-router')) {
             return 'router';
           }
           if (id.includes('@tanstack/react-query')) {

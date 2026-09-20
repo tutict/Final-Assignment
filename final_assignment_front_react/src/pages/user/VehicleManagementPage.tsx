@@ -2,7 +2,7 @@ import { useMemo } from 'react';
 import CrudPage from '../shared/CrudPage';
 import { entityConfigs } from '../../config/entities';
 import { listEntities } from '../../api/entities';
-import { getCurrentProfile } from '../../api/profile';
+import { getCurrentProfile, type UserProfile } from '../../api/profile';
 import { useAuth } from '../../auth/AuthContext';
 import { useAgentPrefill, hasPlatePrefill } from '../../hooks/useAgentPrefill';
 import type { EntityConfig } from '../../config/entityTypes';
@@ -12,13 +12,13 @@ function matchesCurrentUser(
   tokens: string[],
   driverId?: number
 ): boolean {
+  const itemDriverId = item.driverId ?? item.driver_id;
   if (driverId != null && Number(itemDriverId) === Number(driverId)) {
     return true;
   }
   const ownerName = String(item.ownerName || item.owner_name || '').trim().toLowerCase();
   const ownerContact = String(item.ownerContact || item.contact_number || item.owner_contact || '').trim();
   const ownerIdCard = String(item.ownerIdCard || item.id_card_number || item.owner_id_card || '').trim();
-  const itemDriverId = item.driverId ?? item.driver_id;
   return tokens.some((token) => {
     if (!token) return false;
     return (
@@ -45,7 +45,7 @@ export default function VehicleManagementPage() {
       label: '我的车辆',
       subtitle: '查看和管理您名下的车辆',
       list: async () => {
-        const profile = await getCurrentProfile().catch(() => ({}));
+        const profile = await getCurrentProfile().catch((): UserProfile => ({}));
         const driverId = Number(profile.driverId) || undefined;
         const tokens = [
           auth?.userName,

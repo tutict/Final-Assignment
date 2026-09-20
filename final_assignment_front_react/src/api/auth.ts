@@ -8,6 +8,8 @@ export interface LoginPayload {
 
 export interface LoginResult {
   jwtToken?: string;
+  accessToken?: string;
+  refreshToken?: string;
   message?: string;
   error?: string;
   user?: {
@@ -16,9 +18,7 @@ export interface LoginResult {
     email?: string;
     userId?: number | string;
     driverName?: string;
-    [key: string]: unknown;
   };
-  [key: string]: unknown;
 }
 
 export interface RegisterPayload {
