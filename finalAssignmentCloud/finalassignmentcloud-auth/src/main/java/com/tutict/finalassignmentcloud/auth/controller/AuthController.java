@@ -4,7 +4,6 @@ import com.tutict.finalassignmentcloud.auth.config.websocket.WsTicketService;
 import com.tutict.finalassignmentcloud.auth.service.AuthWsService;
 import com.tutict.finalassignmentcloud.dto.request.RefreshRequest;
 import com.tutict.finalassignmentcloud.dto.response.SysUserResponse;
-import com.tutict.finalassignmentcloud.dto.response.ApiResponse;
 import com.tutict.finalassignmentcloud.dto.response.TokenResponse;
 import com.tutict.finalassignmentcloud.dto.response.UserProfileResponse;
 import com.tutict.finalassignmentcloud.entity.SysUser;
