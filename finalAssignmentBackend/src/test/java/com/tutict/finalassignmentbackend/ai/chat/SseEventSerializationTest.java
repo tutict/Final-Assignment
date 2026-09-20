@@ -38,4 +38,29 @@ class SseEventSerializationTest {
         assertThat(data.get("type").asText()).isEqualTo("error");
         assertThat(data.get("payload").get("message").asText()).isEqualTo("boom");
     }
+
+    @Test
+    void serializesDraftResultToolAndActionEvents() throws Exception {
+        StreamEventWriter writer = new StreamEventWriter(objectMapper);
+        var draft = writer.toServerSentEvent(ChatStreamEvent.payload(
+                ChatStreamEventType.DRAFT.wireName(), "session-1", "message-1",
+                java.util.Map.of("draftId", "d1", "summary", "请确认")
+        ));
+        var result = writer.toServerSentEvent(ChatStreamEvent.payload(
+                ChatStreamEventType.RESULT.wireName(), "session-1", "message-1",
+                java.util.Map.of("summary", "共找到 1 条")
+        ));
+        var tool = writer.toServerSentEvent(ChatStreamEvent.payload(
+                ChatStreamEventType.TOOL.wireName(), "session-1", "message-1",
+                java.util.Map.of("phase", "start", "name", "query_my_offenses")
+        ));
+        var action = writer.toServerSentEvent(ChatStreamEvent.payload(
+                ChatStreamEventType.ACTION.wireName(), "session-1", "message-1",
+                java.util.Map.of("type", "NAVIGATE", "target", "/userOffenseListPage")
+        ));
+        assertThat(draft.event()).isEqualTo("draft");
+        assertThat(result.event()).isEqualTo("result");
+        assertThat(tool.event()).isEqualTo("tool");
+        assertThat(action.event()).isEqualTo("action");
+    }
 }
