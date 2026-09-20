@@ -1,7 +1,6 @@
 package com.tutict.finalassignmentbackend.integration.rag;
 
 import static org.hamcrest.Matchers.equalTo;
-import static org.hamcrest.Matchers.notNullValue;
 
 import com.tutict.finalassignmentbackend.integration.BaseIntegrationTest;
 import java.util.Map;
@@ -34,8 +33,6 @@ class RagDeletionResourceLimitIntegrationTest extends BaseIntegrationTest {
     @Order(2)
     @DisplayName("AI 消息长度被截断到 10000")
     void ai_message_truncated_to_max_length() {
-        // The record truncation is tested via unit test, but we verify the endpoint
-        // still works with a long message. The stream endpoint serves SSE.
         String token = loginAsAdmin();
 
         String longMsg = "x".repeat(11000);
@@ -49,15 +46,59 @@ class RagDeletionResourceLimitIntegrationTest extends BaseIntegrationTest {
 
     @Test
     @Order(3)
-    @DisplayName("管理员可删除 RAG 文档")
-    void admin_can_delete_rag_document() {
+    @DisplayName("SUPER_ADMIN 可删除 RAG 文档")
+    void super_admin_can_delete_rag_document() {
         String token = loginAsSuperAdmin();
 
-        // Try to delete a document that may not exist — should still return success
         authSpec(token)
             .delete("/api/rag/admin/documents/nonexistent-doc")
             .then()
             .statusCode(200)
             .body("success", equalTo(true));
+    }
+
+    @Test
+    @Order(4)
+    @DisplayName("USER 无法访问 RAG 管理接口")
+    void user_cannot_call_rag_admin() {
+        String token = loginAsUser();
+        authSpec(token).get("/api/rag/admin/documents").then().statusCode(403);
+        authSpec(token).get("/api/rag/admin/documents/doc-1").then().statusCode(403);
+        authSpec(token)
+            .body(Map.of("query", "license", "asRole", "USER"))
+            .post("/api/rag/admin/preview")
+            .then()
+            .statusCode(403);
+    }
+
+    @Test
+    @Order(5)
+    @DisplayName("ADMIN 无法访问 RAG 管理接口")
+    void admin_cannot_call_rag_admin() {
+        String token = loginAsAdmin();
+        authSpec(token).get("/api/rag/admin/documents").then().statusCode(403);
+        authSpec(token)
+            .body(Map.of("title", "t", "content", "c"))
+            .put("/api/rag/admin/documents/doc-1")
+            .then()
+            .statusCode(403);
+        authSpec(token)
+            .body(Map.of("query", "license", "asRole", "ADMIN"))
+            .post("/api/rag/admin/preview")
+            .then()
+            .statusCode(403);
+    }
+
+    @Test
+    @Order(6)
+    @DisplayName("SUPER_ADMIN 可以访问列表和 preview")
+    void super_admin_can_call_detail_and_preview() {
+        String token = loginAsSuperAdmin();
+        authSpec(token).get("/api/rag/admin/documents").then().statusCode(200);
+        authSpec(token)
+            .body(Map.of("query", "license", "asRole", "USER"))
+            .post("/api/rag/admin/preview")
+            .then()
+            .statusCode(200);
     }
 }

@@ -7,6 +7,8 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.tutict.finalassignmentbackend.common.PageLimits;
+import com.tutict.finalassignmentbackend.rag.service.RagAdminDocumentSupport;
+
 import com.tutict.finalassignmentbackend.dto.response.ApiResponse;
 import com.tutict.finalassignmentbackend.rag.dto.RagSourceDocument;
 import com.tutict.finalassignmentbackend.rag.entity.RagChunk;
@@ -42,6 +44,7 @@ import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
@@ -49,7 +52,11 @@ import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.time.Instant;
+import java.util.ArrayList;
+import java.util.Comparator;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.UUID;
 
@@ -182,11 +189,20 @@ public class RagManagementController {
 
     @GetMapping("/documents")
     @Operation(summary = "List RAG source documents")
-    @Cacheable(cacheNames = "ragAdminReadCache", key = "'documents:' + (#query == null ? '' : #query) + ':' + #limit")
-    public ResponseEntity<ApiResponse<List<RagDocument>>> listDocuments(
+    @Cacheable(
+            cacheNames = "ragAdminReadCache",
+            key = "'documents:' + (#query == null ? '' : #query) + ':' + #page + ':' + #size + ':' + #limit"
+    )
+    public ResponseEntity<ApiResponse<RagDocumentPage>> listDocuments(
             @RequestParam(required = false) String query,
-            @RequestParam(defaultValue = "50") int limit
+            @RequestParam(defaultValue = "1") int page,
+            @RequestParam(required = false) Integer size,
+            @RequestParam(required = false) Integer limit
     ) {
+        int pageNo = PageLimits.normalizePage(page);
+        int pageSize = size != null
+                ? PageLimits.normalizeSize(size)
+                : PageLimits.normalizeLimit(limit == null ? PageLimits.DEFAULT_SIZE : limit);
         QueryWrapper<RagDocument> wrapper = new QueryWrapper<RagDocument>()
                 .orderByDesc("updated_at");
         if (query != null && !query.isBlank()) {
@@ -204,11 +220,168 @@ public class RagManagementController {
                     .or()
                     .apply("CAST(metadata_json AS CHAR) LIKE {0}", "%" + keyword + "%"));
         }
-        Page<RagDocument> page = documentMapper.selectPage(
-                new Page<>(1, normalizeLimit(limit)),
+        Page<RagDocument> result = documentMapper.selectPage(
+                new Page<>(pageNo, pageSize),
                 wrapper
         );
-        return ResponseEntity.ok(ApiResponse.ok(page.getRecords()));
+        return ResponseEntity.ok(ApiResponse.ok(new RagDocumentPage(
+                result.getRecords(),
+                result.getTotal(),
+                pageNo,
+                pageSize
+        )));
+    }
+
+    @GetMapping("/documents/{documentId}")
+    @Operation(summary = "Get a RAG document with reconstructed content and chunks")
+    public ResponseEntity<ApiResponse<RagDocumentDetailResponse>> getDocument(@PathVariable String documentId) {
+        if (documentId == null || documentId.isBlank()) {
+            return ResponseEntity.badRequest()
+                    .body(ApiResponse.error("INVALID_DOCUMENT_ID", "documentId must not be blank"));
+        }
+        RagDocument document = documentMapper.selectById(documentId);
+        if (document == null) {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND)
+                    .body(ApiResponse.error("DOCUMENT_NOT_FOUND", "RAG document not found"));
+        }
+        List<RagChunk> chunks = chunkMapper.selectList(
+                new QueryWrapper<RagChunk>().eq("document_id", documentId).orderByAsc("chunk_no")
+        );
+        Map<String, RagEmbeddingTask> tasks = latestTasks(chunks);
+        List<RagChunkView> views = new ArrayList<>();
+        for (RagChunk chunk : chunks) {
+            RagEmbeddingTask task = tasks.get(chunk.getId());
+            views.add(new RagChunkView(
+                    chunk.getId(),
+                    chunk.getChunkNo() == null ? 0 : chunk.getChunkNo(),
+                    chunk.getContent(),
+                    chunk.getStatus(),
+                    chunk.getCharCount(),
+                    task == null ? "" : task.getStatus(),
+                    task == null ? "" : defaultIfBlank(task.getLastError(), "")
+            ));
+        }
+        return ResponseEntity.ok(ApiResponse.ok(new RagDocumentDetailResponse(
+                document,
+                RagAdminDocumentSupport.stitchContent(chunks),
+                views
+        )));
+    }
+
+    @PutMapping("/documents/{documentId}")
+    @Operation(summary = "Update a RAG document and re-index it")
+    @CacheEvict(cacheNames = "ragAdminReadCache", allEntries = true)
+    public ResponseEntity<ApiResponse<RagIndexResponse>> updateDocument(
+            @PathVariable String documentId,
+            @Valid @RequestBody UpdateRagDocumentRequest request
+    ) {
+        RagIndexingService indexingService = indexingServiceProvider.getIfAvailable();
+        if (!ragEnabled || !ragIndexingEnabled || indexingService == null) {
+            return ResponseEntity.status(HttpStatus.CONFLICT)
+                    .body(ApiResponse.error("RAG_DISABLED", "RAG indexing is not enabled"));
+        }
+        if (documentId == null || documentId.isBlank()) {
+            return ResponseEntity.badRequest()
+                    .body(ApiResponse.error("INVALID_DOCUMENT_ID", "documentId must not be blank"));
+        }
+        RagDocument existing = documentMapper.selectById(documentId);
+        if (existing == null) {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND)
+                    .body(ApiResponse.error("DOCUMENT_NOT_FOUND", "RAG document not found"));
+        }
+        String metadataJson;
+        try {
+            metadataJson = normalizeMetadataJson(request.metadataJson());
+        } catch (IllegalArgumentException error) {
+            return ResponseEntity.badRequest()
+                    .body(ApiResponse.error("INVALID_METADATA_JSON", error.getMessage()));
+        }
+        RagSourceDocument source = new RagSourceDocument(
+                existing.getSourceType(),
+                existing.getSourceTable(),
+                existing.getSourceId(),
+                existing.getSourceVersion(),
+                request.title(),
+                request.content(),
+                defaultIfBlank(request.aclScope(), existing.getAclScope()),
+                request.route() == null ? existing.getRoute() : request.route(),
+                metadataJson,
+                "content"
+        );
+        RagIndexingService.RagIndexingResult result = indexingService.index(source);
+        return ResponseEntity.ok(ApiResponse.ok(new RagIndexResponse(
+                result.document(),
+                result.chunks().size(),
+                result.embeddingTasks().size()
+        )));
+    }
+
+    @PostMapping("/preview")
+    @Operation(summary = "Preview knowledge-base hits for a simulated role")
+    public ResponseEntity<ApiResponse<List<RagPreviewHit>>> preview(@Valid @RequestBody RagPreviewRequest request) {
+        String asRole = RagAdminDocumentSupport.normalizePreviewRole(request.asRole());
+        String query = request.query() == null ? "" : request.query().trim();
+        if (query.isBlank()) {
+            return ResponseEntity.badRequest()
+                    .body(ApiResponse.error("INVALID_QUERY", "query must not be blank"));
+        }
+        int topK = request.topK() == null ? 8 : Math.max(1, Math.min(request.topK(), 20));
+        List<RagPreviewHit> hits = new ArrayList<>();
+        List<RagDocument> knowledgeDocs = documentMapper.selectList(
+                new QueryWrapper<RagDocument>().in("source_type", List.of("MANUAL", "UPLOAD"))
+        );
+        Map<String, RagDocument> documents = new LinkedHashMap<>();
+        List<String> allowedIds = new ArrayList<>();
+        for (RagDocument document : knowledgeDocs) {
+            if (document == null || document.getId() == null || document.getId().isBlank()) {
+                continue;
+            }
+            if (!RagAdminDocumentSupport.isKnowledgeDocument(document)) {
+                continue;
+            }
+            if (!RagAdminDocumentSupport.previewAllows(asRole, document.getAclScope())) {
+                continue;
+            }
+            documents.put(document.getId(), document);
+            allowedIds.add(document.getId());
+        }
+        if (allowedIds.isEmpty()) {
+            return ResponseEntity.ok(ApiResponse.ok(List.of()));
+        }
+        List<RagChunk> chunks = chunkMapper.selectList(
+                new QueryWrapper<RagChunk>().in("document_id", allowedIds).orderByAsc("chunk_no")
+        );
+        for (RagChunk chunk : chunks) {
+            RagDocument document = documents.get(chunk.getDocumentId());
+            if (document == null) {
+                continue;
+            }
+            boolean contentHit = chunk.getContent() != null
+                    && chunk.getContent().toLowerCase(Locale.ROOT).contains(query.toLowerCase(Locale.ROOT));
+            boolean titleHit = document.getTitle() != null
+                    && document.getTitle().toLowerCase(Locale.ROOT).contains(query.toLowerCase(Locale.ROOT));
+            if (!contentHit && !titleHit) {
+                continue;
+            }
+            double score = RagAdminDocumentSupport.keywordScore(query, document.getTitle(), chunk.getContent());
+            if (score <= 0) {
+                continue;
+            }
+            hits.add(new RagPreviewHit(
+                    document.getId(),
+                    document.getTitle(),
+                    RagAdminDocumentSupport.snippet(chunk.getContent(), 180),
+                    score,
+                    defaultIfBlank(document.getRoute(), ""),
+                    defaultIfBlank(document.getAclScope(), "PUBLIC"),
+                    defaultIfBlank(document.getSourceType(), "")
+            ));
+        }
+        hits.sort(Comparator.comparingDouble(RagPreviewHit::score).reversed());
+        if (hits.size() > topK) {
+            hits = new ArrayList<>(hits.subList(0, topK));
+        }
+        return ResponseEntity.ok(ApiResponse.ok(hits));
     }
 
     @PostMapping("/documents/manual")
@@ -347,8 +520,12 @@ public class RagManagementController {
         List<RagChunk> chunks = chunkMapper.selectList(
                 new QueryWrapper<RagChunk>().eq("document_id", documentId)
         );
+        List<String> chunkIds = new ArrayList<>();
         int deletedTasks = 0;
         for (RagChunk chunk : chunks) {
+            if (chunk.getId() != null && !chunk.getId().isBlank()) {
+                chunkIds.add(chunk.getId());
+            }
             deletedTasks += taskMapper.delete(
                     new QueryWrapper<RagEmbeddingTask>().eq("chunk_id", chunk.getId())
             );
@@ -362,9 +539,13 @@ public class RagManagementController {
             @Override
             public void afterCommit() {
                 RagChunkVectorIndexService vectorIndexService = vectorIndexServiceProvider.getIfAvailable();
-                if (vectorIndexService != null) {
-                    vectorIndexService.deleteByDocumentId(documentId);
+                if (vectorIndexService == null) {
+                    return;
                 }
+                for (String chunkId : chunkIds) {
+                    vectorIndexService.deleteByChunkId(chunkId);
+                }
+                vectorIndexService.deleteByDocumentId(documentId);
             }
         });
 
@@ -423,6 +604,90 @@ public class RagManagementController {
         } catch (JsonProcessingException error) {
             throw new IllegalArgumentException("metadataJson is not valid JSON", error);
         }
+    }
+
+    private Map<String, RagEmbeddingTask> latestTasks(List<RagChunk> chunks) {
+        Map<String, RagEmbeddingTask> latest = new LinkedHashMap<>();
+        if (chunks == null || chunks.isEmpty()) {
+            return latest;
+        }
+        List<String> chunkIds = new ArrayList<>();
+        for (RagChunk chunk : chunks) {
+            if (chunk.getId() != null && !chunk.getId().isBlank()) {
+                chunkIds.add(chunk.getId());
+            }
+        }
+        if (chunkIds.isEmpty()) {
+            return latest;
+        }
+        List<RagEmbeddingTask> tasks = taskMapper.selectList(
+                new QueryWrapper<RagEmbeddingTask>().in("chunk_id", chunkIds)
+        );
+        for (RagEmbeddingTask task : tasks) {
+            if (task.getChunkId() == null || task.getChunkId().isBlank()) {
+                continue;
+            }
+            RagEmbeddingTask chosen = latest.get(task.getChunkId());
+            if (chosen == null
+                    || (task.getUpdatedAt() != null
+                    && (chosen.getUpdatedAt() == null || task.getUpdatedAt().isAfter(chosen.getUpdatedAt())))) {
+                latest.put(task.getChunkId(), task);
+            }
+        }
+        return latest;
+    }
+
+    public record RagDocumentPage(
+            List<RagDocument> items,
+            long total,
+            int page,
+            int size
+    ) {
+    }
+
+    public record RagDocumentDetailResponse(
+            RagDocument document,
+            String content,
+            List<RagChunkView> chunks
+    ) {
+    }
+
+    public record RagChunkView(
+            String id,
+            int chunkNo,
+            String content,
+            String status,
+            Integer charCount,
+            String embeddingStatus,
+            String lastError
+    ) {
+    }
+
+    public record UpdateRagDocumentRequest(
+            @NotBlank @Size(max = 200) String title,
+            @NotBlank @Size(max = 20000) String content,
+            String aclScope,
+            String route,
+            String metadataJson
+    ) {
+    }
+
+    public record RagPreviewRequest(
+            @NotBlank String query,
+            String asRole,
+            Integer topK
+    ) {
+    }
+
+    public record RagPreviewHit(
+            String documentId,
+            String title,
+            String snippet,
+            double score,
+            String route,
+            String aclScope,
+            String sourceType
+    ) {
     }
 
     public record ManualRagDocumentRequest(

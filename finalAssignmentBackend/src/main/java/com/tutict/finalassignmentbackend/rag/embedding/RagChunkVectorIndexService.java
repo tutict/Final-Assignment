@@ -14,6 +14,9 @@ import org.springframework.data.elasticsearch.core.index.AliasAction;
 import org.springframework.data.elasticsearch.core.index.AliasActionParameters;
 import org.springframework.data.elasticsearch.core.index.AliasActions;
 import org.springframework.data.elasticsearch.core.mapping.IndexCoordinates;
+import org.springframework.data.elasticsearch.core.query.Criteria;
+import org.springframework.data.elasticsearch.core.query.CriteriaQuery;
+import org.springframework.data.elasticsearch.core.query.DeleteQuery;
 import org.springframework.data.elasticsearch.core.query.IndexQuery;
 import org.springframework.data.elasticsearch.core.query.IndexQueryBuilder;
 import org.springframework.stereotype.Service;
@@ -62,17 +65,41 @@ public class RagChunkVectorIndexService {
         }
     }
 
-    public void deleteByDocumentId(String documentId) {
+    public void deleteByChunkId(String chunkId) {
+        if (chunkId == null || chunkId.isBlank()) {
+            return;
+        }
         ElasticsearchOperations operations = operationsProvider.getIfAvailable();
         if (operations == null) {
             return;
         }
-        String deleteQuery = "{\"query\":{\"term\":{\"document_id\":\"" + documentId + "\"}}}";
         try {
-            operations.delete(deleteQuery, IndexCoordinates.of(mapping.aliasName()));
+            operations.delete(chunkId, IndexCoordinates.of(mapping.aliasName()));
         } catch (RuntimeException error) {
             try {
-                operations.delete(deleteQuery, IndexCoordinates.of(mapping.indexName()));
+                operations.delete(chunkId, IndexCoordinates.of(mapping.indexName()));
+            } catch (RuntimeException ignored) {
+                // best-effort
+            }
+        }
+    }
+
+    public void deleteByDocumentId(String documentId) {
+        if (documentId == null || documentId.isBlank()) {
+            return;
+        }
+        ElasticsearchOperations operations = operationsProvider.getIfAvailable();
+        if (operations == null) {
+            return;
+        }
+        DeleteQuery deleteQuery = DeleteQuery.builder(new CriteriaQuery(Criteria.where("document_id").is(documentId)))
+                .withRefresh(true)
+                .build();
+        try {
+            operations.delete(deleteQuery, Map.class, IndexCoordinates.of(mapping.aliasName()));
+        } catch (RuntimeException error) {
+            try {
+                operations.delete(deleteQuery, Map.class, IndexCoordinates.of(mapping.indexName()));
             } catch (RuntimeException ignored) {
                 // ES may not be available; DB deletion is the primary concern
             }

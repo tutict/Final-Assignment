@@ -108,6 +108,92 @@ class RagDocumentLifecycleTest {
         assertThat(first.document().getAclScope()).isEqualTo("ROLE");
         assertThat(mappers.tasks.values()).extracting(RagEmbeddingTask::getStatus).containsOnly("PENDING");
     }
+
+    @Test
+    void reindexReplacesStaleChunksWhenContentShrinks() {
+        InMemoryRagMappers mappers = new InMemoryRagMappers();
+        RagIndexingService service = new RagIndexingService(
+                new RagDocumentService(mappers.documentMapper),
+                new RagChunkService(mappers.chunkMapper),
+                new RagEmbeddingTaskService(mappers.taskMapper),
+                new ChineseTextChunker(5, 1)
+        );
+        RagSourceDocument longDoc = new RagSourceDocument(
+                "MANUAL",
+                "manual_rag_document",
+                "manual-1",
+                "v1",
+                "title",
+                "一二三四五六",
+                "ROLE",
+                "/route",
+                "{}",
+                "content"
+        );
+        RagIndexingService.RagIndexingResult first = service.index(longDoc);
+        assertThat(first.chunks()).hasSize(2);
+
+        RagSourceDocument shortDoc = new RagSourceDocument(
+                "MANUAL",
+                "manual_rag_document",
+                "manual-1",
+                "v1",
+                "title",
+                "一二三",
+                "PUBLIC",
+                "/route",
+                "{}",
+                "content"
+        );
+        RagIndexingService.RagIndexingResult second = service.index(shortDoc);
+        assertThat(second.chunks()).hasSize(1);
+        assertThat(mappers.chunks).hasSize(1);
+        assertThat(mappers.tasks).hasSize(1);
+        assertThat(mappers.documents.values()).extracting(RagDocument::getAclScope).containsExactly("PUBLIC");
+    }
+
+    @Test
+    void reindexRequeuesSucceededEmbeddingTasksWhenAclChanges() {
+        InMemoryRagMappers mappers = new InMemoryRagMappers();
+        RagIndexingService service = new RagIndexingService(
+                new RagDocumentService(mappers.documentMapper),
+                new RagChunkService(mappers.chunkMapper),
+                new RagEmbeddingTaskService(mappers.taskMapper),
+                new ChineseTextChunker(20, 0)
+        );
+        RagSourceDocument firstDoc = new RagSourceDocument(
+                "MANUAL",
+                "manual_rag_document",
+                "manual-acl",
+                "v1",
+                "title",
+                "abcdef",
+                "ROLE",
+                "/route",
+                "{}",
+                "content"
+        );
+        RagIndexingService.RagIndexingResult first = service.index(firstDoc);
+        assertThat(first.embeddingTasks()).extracting(RagEmbeddingTask::getStatus).containsOnly("PENDING");
+        mappers.tasks.values().forEach(task -> task.setStatus("SUCCEEDED"));
+
+        RagSourceDocument secondDoc = new RagSourceDocument(
+                "MANUAL",
+                "manual_rag_document",
+                "manual-acl",
+                "v1",
+                "title",
+                "abcdef",
+                "PUBLIC",
+                "/route",
+                "{}",
+                "content"
+        );
+        RagIndexingService.RagIndexingResult second = service.index(secondDoc);
+        assertThat(second.embeddingTasks()).extracting(RagEmbeddingTask::getStatus).containsOnly("PENDING");
+        assertThat(mappers.tasks.values()).extracting(RagEmbeddingTask::getStatus).containsOnly("PENDING");
+        assertThat(mappers.documents.values()).extracting(RagDocument::getAclScope).containsExactly("PUBLIC");
+    }
 }
 
 class RagBackfillJobTest {
@@ -199,6 +285,16 @@ final class InMemoryRagMappers {
             RagEmbeddingTask task = invocation.getArgument(0);
             tasks.put(task.getId(), task);
             return 1;
+        });
+        when(chunkMapper.selectList(any())).thenAnswer(invocation -> List.copyOf(chunks.values()));
+        when(chunkMapper.deleteById(any(Serializable.class))).thenAnswer(invocation -> {
+            Object id = invocation.getArgument(0);
+            return chunks.remove(String.valueOf(id)) == null ? 0 : 1;
+        });
+        when(taskMapper.selectList(any())).thenAnswer(invocation -> List.copyOf(tasks.values()));
+        when(taskMapper.deleteById(any(Serializable.class))).thenAnswer(invocation -> {
+            Object id = invocation.getArgument(0);
+            return tasks.remove(String.valueOf(id)) == null ? 0 : 1;
         });
     }
 }

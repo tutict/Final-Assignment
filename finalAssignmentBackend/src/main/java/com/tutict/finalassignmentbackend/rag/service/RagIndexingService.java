@@ -7,9 +7,12 @@ import com.tutict.finalassignmentbackend.rag.dto.RagSourceDocument;
 import com.tutict.finalassignmentbackend.rag.entity.RagChunk;
 import com.tutict.finalassignmentbackend.rag.entity.RagDocument;
 import com.tutict.finalassignmentbackend.rag.entity.RagEmbeddingTask;
+import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
+import com.tutict.finalassignmentbackend.rag.embedding.RagChunkVectorIndexService;
 import com.tutict.finalassignmentbackend.rag.mapper.RagChunkMapper;
 import com.tutict.finalassignmentbackend.rag.mapper.RagDocumentMapper;
 import com.tutict.finalassignmentbackend.rag.mapper.RagEmbeddingTaskMapper;
+import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
@@ -20,6 +23,7 @@ import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.HexFormat;
 import java.util.List;
 import java.util.Locale;
@@ -33,6 +37,7 @@ public class RagIndexingService {
     private final RagChunkService chunkService;
     private final RagEmbeddingTaskService embeddingTaskService;
     private final Chunker chunker;
+    private final ObjectProvider<RagChunkVectorIndexService> vectorIndexService;
 
     public RagIndexingService(
             RagDocumentService documentService,
@@ -40,10 +45,22 @@ public class RagIndexingService {
             RagEmbeddingTaskService embeddingTaskService,
             Chunker chunker
     ) {
+        this(documentService, chunkService, embeddingTaskService, chunker, null);
+    }
+
+    @Autowired
+    public RagIndexingService(
+            RagDocumentService documentService,
+            RagChunkService chunkService,
+            RagEmbeddingTaskService embeddingTaskService,
+            Chunker chunker,
+            ObjectProvider<RagChunkVectorIndexService> vectorIndexService
+    ) {
         this.documentService = documentService;
         this.chunkService = chunkService;
         this.embeddingTaskService = embeddingTaskService;
         this.chunker = chunker;
+        this.vectorIndexService = vectorIndexService;
     }
 
     @Transactional
@@ -56,7 +73,18 @@ public class RagIndexingService {
             chunks.add(ragChunk);
             tasks.add(embeddingTaskService.ensurePendingTask(ragChunk));
         }
+        List<String> removedChunkIds = chunkService.replaceExcept(
+                document.getId(),
+                chunks.stream().map(RagChunk::getId).toList()
+        );
+        embeddingTaskService.deleteByChunkIds(removedChunkIds);
         documentService.markIndexed(document);
+        RagChunkVectorIndexService vectors = vectorIndexService == null ? null : vectorIndexService.getIfAvailable();
+        if (vectors != null) {
+            for (String chunkId : removedChunkIds) {
+                vectors.deleteByChunkId(chunkId);
+            }
+        }
         return new RagIndexingResult(document, List.copyOf(chunks), List.copyOf(tasks));
     }
 
@@ -137,6 +165,23 @@ class RagChunkService {
         this.mapper = mapper;
     }
 
+    List<String> replaceExcept(String documentId, List<String> keepIds) {
+        Set<String> keep = new HashSet<>(keepIds == null ? List.of() : keepIds);
+        List<RagChunk> existing = mapper.selectList(new QueryWrapper<RagChunk>().eq("document_id", documentId));
+        List<String> removed = new ArrayList<>();
+        for (RagChunk chunk : existing) {
+            if (chunk.getId() == null || keep.contains(chunk.getId())) {
+                continue;
+            }
+            if (documentId != null && !documentId.equals(chunk.getDocumentId())) {
+                continue;
+            }
+            mapper.deleteById(chunk.getId());
+            removed.add(chunk.getId());
+        }
+        return removed;
+    }
+
     RagChunk upsert(RagDocument document, Chunker.Chunk chunk) {
         String id = RagHashSupport.stableId(
                 "chk",
@@ -193,6 +238,20 @@ class RagEmbeddingTaskService {
         this(mapper, new RagProperties());
     }
 
+    void deleteByChunkIds(List<String> chunkIds) {
+        if (chunkIds == null || chunkIds.isEmpty()) {
+            return;
+        }
+        List<RagEmbeddingTask> tasks = mapper.selectList(
+                new QueryWrapper<RagEmbeddingTask>().in("chunk_id", chunkIds)
+        );
+        for (RagEmbeddingTask task : tasks) {
+            if (task.getChunkId() != null && chunkIds.contains(task.getChunkId())) {
+                mapper.deleteById(task.getId());
+            }
+        }
+    }
+
     RagEmbeddingTask ensurePendingTask(RagChunk chunk) {
         String provider = normalize(properties.getEmbedding().getProvider(), "unassigned");
         String model = normalize(properties.getEmbedding().getModel(), "unassigned");
@@ -205,10 +264,8 @@ class RagEmbeddingTaskService {
         LocalDateTime now = LocalDateTime.now();
         RagEmbeddingTask task = mapper.selectById(taskKey);
         if (task != null) {
-            if (!STATUS_SUCCEEDED.equals(task.getStatus())) {
-                task.setStatus(STATUS_PENDING);
-                task.setNextRetryAt(null);
-            }
+            task.setStatus(STATUS_PENDING);
+            task.setNextRetryAt(null);
             task.setUpdatedAt(now);
             mapper.updateById(task);
             return task;
