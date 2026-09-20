@@ -4,7 +4,7 @@
     <parent>
         <groupId>org.springframework.boot</groupId>
         <artifactId>spring-boot-starter-parent</artifactId>
-        <version>4.0.1</version>
+        <version>4.1.1</version>
         <relativePath />
         <!-- lookup parent from repository -->
     </parent>
@@ -19,7 +19,7 @@
         <maven.compiler.parameters>true</maven.compiler.parameters>
         <lombok.version>1.18.46</lombok.version>
         <jmh.version>1.37</jmh.version>
-        <rest-assured.version>5.5.2</rest-assured.version>
+        <rest-assured.version>5.5.7</rest-assured.version>
         <groovy.version>4.0.26</groovy.version>
     </properties>
     <dependencies>
@@ -83,22 +83,22 @@
         <dependency>
             <groupId>io.vertx</groupId>
             <artifactId>vertx-web</artifactId>
-            <version>5.1.6</version>
+            <version>5.2.0</version>
         </dependency>
         <dependency>
             <groupId>io.vertx</groupId>
             <artifactId>vertx-web-client</artifactId>
-            <version>5.1.6</version>
+            <version>5.2.0</version>
         </dependency>
         <dependency>
             <groupId>io.vertx</groupId>
             <artifactId>vertx-core</artifactId>
-            <version>5.1.6</version>
+            <version>5.2.0</version>
         </dependency>
         <dependency>
             <groupId>io.vertx</groupId>
             <artifactId>vertx-kafka-client</artifactId>
-            <version>5.1.6</version>
+            <version>5.2.0</version>
         </dependency>
         <dependency>
             <groupId>junit</groupId>
@@ -139,7 +139,7 @@
         <dependency>
             <groupId>com.mysql</groupId>
             <artifactId>mysql-connector-j</artifactId>
-            <version>9.7.0</version>
+            <version>26.7.0</version>
             <scope>runtime</scope>
         </dependency>
         <dependency>
@@ -276,7 +276,7 @@
         <dependency>
             <groupId>io.micrometer</groupId>
             <artifactId>micrometer-registry-prometheus</artifactId>
-            <version>1.17.0</version>
+            <version>1.17.1</version>
         </dependency>
         <dependency>
             <groupId>org.aspectj</groupId>
@@ -310,19 +310,19 @@
         <dependency>
             <groupId>org.graalvm.polyglot</groupId>
             <artifactId>polyglot</artifactId>
-            <version>25.2.4</version>
+            <version>25.3.4.1</version>
         </dependency>
         <dependency>
             <groupId>org.graalvm.polyglot</groupId>
             <artifactId>python</artifactId>
-            <version>25.2.4</version>
+            <version>25.3.4.1</version>
             <type>pom</type>
             <scope>runtime</scope>
         </dependency>
         <dependency>
             <groupId>org.graalvm.python</groupId>
             <artifactId>python-embedding</artifactId>
-            <version>25.2.4</version>
+            <version>25.3.4.1</version>
         </dependency>
         <dependency>
             <groupId>org.springframework.statemachine</groupId>
@@ -338,12 +338,12 @@
         <dependency>
             <groupId>org.bouncycastle</groupId>
             <artifactId>bcprov-jdk18on</artifactId>
-            <version>1.85.2</version>
+            <version>1.86</version>
         </dependency>
         <dependency>
             <groupId>org.bouncycastle</groupId>
             <artifactId>bcpkix-jdk18on</artifactId>
-            <version>1.85</version>
+            <version>1.86</version>
         </dependency>
     </dependencies>
     <pluginRepositories>
@@ -441,7 +441,7 @@
             <dependency>
                 <groupId>org.springframework.ai</groupId>
                 <artifactId>spring-ai-bom</artifactId>
-                <version>2.0.0</version>
+                <version>2.0.1</version>
                 <type>pom</type>
                 <scope>import</scope>
             </dependency>
@@ -489,7 +489,7 @@
                     <plugin>
                         <groupId>org.graalvm.python</groupId>
                         <artifactId>graalpy-maven-plugin</artifactId>
-                        <version>25.2.4</version>
+                        <version>25.3.4.1</version>
                         <executions>
                             <execution>
                                 <configuration>
