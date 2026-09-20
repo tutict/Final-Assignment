@@ -20,6 +20,7 @@ import (
 	redisconfig "final_assignment_backend_go/project/configs/redis"
 	"final_assignment_backend_go/project/global_exception"
 	"final_assignment_backend_go/project/internal/ai"
+	"final_assignment_backend_go/project/internal/ai/agent"
 	appapi "final_assignment_backend_go/project/internal/app"
 	"final_assignment_backend_go/project/internal/auth"
 	aiconfig "final_assignment_backend_go/project/internal/config"
@@ -31,7 +32,9 @@ import (
 	"final_assignment_backend_go/project/internal/repo"
 	"final_assignment_backend_go/project/internal/service/admin"
 	aisvc "final_assignment_backend_go/project/internal/service/ai"
+	"final_assignment_backend_go/project/internal/service/appeal"
 	authsvc "final_assignment_backend_go/project/internal/service/auth"
+	"final_assignment_backend_go/project/internal/service/offense"
 	ragsvc "final_assignment_backend_go/project/internal/service/rag"
 
 	"github.com/gin-gonic/gin"
@@ -107,6 +110,14 @@ func main() {
 		chatPipeline, err = ai.NewChatPipeline(ragQuerier, aiProvider, chatServiceConfig)
 		if err != nil {
 			log.Printf("[WARNING] Failed to initialize chat pipeline: %v", err)
+		} else {
+			facade := &agent.DomainFacade{
+				DB:      db,
+				Offense: offense.NewOffenseInformationService(repo.NewOffenseInformationRepo(db)),
+				Fine:    offense.NewFineInformationService(repo.NewFineInformationRepo(db)),
+				Appeal:  appeal.NewAppealManagementService(repo.NewAppealManagementRepo(db)),
+			}
+			chatPipeline.SetAgent(agent.NewRuntime(facade))
 		}
 	}
 

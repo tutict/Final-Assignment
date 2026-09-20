@@ -87,6 +87,7 @@ type RagEmbeddingTaskStore interface {
 	CountByStatus(ctx context.Context, status string) (int64, error)
 	ResetByChunkID(ctx context.Context, chunkID, provider, model string, now time.Time) (int64, error)
 	DeleteByChunkID(ctx context.Context, chunkID string) (int64, error)
+	ListByChunkIDs(ctx context.Context, chunkIDs []string) ([]domain.RagEmbeddingTask, error)
 }
 
 type RagChunker interface {

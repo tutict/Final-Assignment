@@ -389,6 +389,20 @@ func (s *memoryRagEmbeddingTaskStore) DeleteByChunkID(_ context.Context, chunkID
 	return count, nil
 }
 
+func (s *memoryRagEmbeddingTaskStore) ListByChunkIDs(_ context.Context, chunkIDs []string) ([]domain.RagEmbeddingTask, error) {
+	wanted := map[string]struct{}{}
+	for _, id := range chunkIDs {
+		wanted[id] = struct{}{}
+	}
+	out := make([]domain.RagEmbeddingTask, 0)
+	for _, task := range s.items {
+		if _, ok := wanted[task.ChunkID]; ok {
+			out = append(out, task)
+		}
+	}
+	return out, nil
+}
+
 type memoryRagBatchProvider struct {
 	batches [][]domain.RagSourceDocument
 }

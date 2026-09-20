@@ -2,10 +2,11 @@ package ai
 
 import (
 	"context"
-	ragsvc "final_assignment_backend_go/project/internal/service/rag"
 	"fmt"
 
+	"final_assignment_backend_go/project/internal/ai/agent"
 	aisvc "final_assignment_backend_go/project/internal/service/ai"
+	ragsvc "final_assignment_backend_go/project/internal/service/rag"
 )
 
 // ChatPipeline orchestrates the complete AI chat flow:
@@ -15,6 +16,7 @@ type ChatPipeline struct {
 	ragQueryService aisvc.AiChatRagQuerier
 	aiProvider      aisvc.AiProvider
 	config          aisvc.AiChatConfig
+	agentRuntime    *agent.Runtime
 }
 
 // NewChatPipeline creates a new ChatPipeline with all dependencies
@@ -37,6 +39,14 @@ func NewChatPipeline(
 		aiProvider:      aiProvider,
 		config:          normalizedConfig,
 	}, nil
+}
+
+func (cp *ChatPipeline) SetAgent(runtime *agent.Runtime) {
+	cp.agentRuntime = runtime
+}
+
+func (cp *ChatPipeline) Agent() *agent.Runtime {
+	return cp.agentRuntime
 }
 
 // Stream orchestrates the complete chat pipeline and returns a stream of events
@@ -80,8 +90,84 @@ func (cp *ChatPipeline) Stream(
 		return nil, fmt.Errorf("failed to assemble prompt: %w", err)
 	}
 
+	if cp.agentRuntime != nil {
+		agentEvents := cp.agentRuntime.Execute(req.Message, cp.agentContext(req.SessionKey, metadata))
+		if len(agentEvents) > 0 {
+			out := make(chan aisvc.AiChatStreamEvent, len(agentEvents)+8)
+			go func() {
+				defer close(out)
+				for _, event := range agentEvents {
+					out <- aisvc.AiChatStreamEvent{
+						Type:       event.Type,
+						SessionKey: event.SessionKey,
+						MessageID:  event.MessageID,
+						Token:      event.Token,
+						Payload:    event.Payload,
+						Timestamp:  event.Timestamp,
+					}
+				}
+				providerChan, err := cp.streamFromProvider(ctx, finalPrompt, req.SessionKey, metadata)
+				if err != nil {
+					out <- aisvc.AiChatStreamEvent{Type: aisvc.ChatStreamEventTypeError, SessionKey: req.SessionKey, Payload: err.Error()}
+					return
+				}
+				for event := range providerChan {
+					out <- event
+				}
+			}()
+			return out, nil
+		}
+	}
+
 	// 6. Stream from AI provider
 	return cp.streamFromProvider(ctx, finalPrompt, req.SessionKey, metadata)
+}
+
+func (cp *ChatPipeline) agentContext(sessionKey string, metadata map[string]any) agent.Context {
+	roles := extractRoles(metadata)
+	role := agent.RoleDriver
+	elevated := false
+	for _, item := range roles {
+		switch item {
+		case "SUPER_ADMIN":
+			role = agent.RoleSuperAdmin
+			elevated = true
+		case "ADMIN":
+			if role != agent.RoleSuperAdmin {
+				role = agent.RoleAdmin
+			}
+			elevated = true
+		}
+	}
+	username, _ := metadata["username"].(string)
+	userID, _ := metadata["userId"].(string)
+	if userID == "" {
+		userID = username
+	}
+	var driverID *int
+	switch typed := metadata["driverId"].(type) {
+	case int:
+		driverID = &typed
+	case int64:
+		v := int(typed)
+		driverID = &v
+	case float64:
+		v := int(typed)
+		driverID = &v
+	}
+	if driverID == nil && cp.agentRuntime != nil {
+		if resolver, ok := cp.agentRuntime.Facade.(interface{ ResolveDriverID(string) *int }); ok {
+			driverID = resolver.ResolveDriverID(username)
+		}
+	}
+	return agent.Context{
+		Role:       role,
+		SessionKey: sessionKey,
+		Username:   username,
+		UserID:     userID,
+		DriverID:   driverID,
+		Elevated:   elevated,
+	}
 }
 
 // isRagEnabled checks if RAG retrieval is enabled for this request

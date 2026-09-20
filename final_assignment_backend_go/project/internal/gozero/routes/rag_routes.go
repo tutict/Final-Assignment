@@ -2,6 +2,7 @@ package routes
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net/http"
 	"strconv"
@@ -12,9 +13,11 @@ import (
 	"final_assignment_backend_go/project/internal/domain"
 	gozerorag "final_assignment_backend_go/project/internal/gozero/rag"
 	"final_assignment_backend_go/project/internal/gozero/response"
+	"final_assignment_backend_go/project/internal/service/shared"
 
 	"github.com/zeromicro/go-zero/rest"
 	"github.com/zeromicro/go-zero/rest/httpx"
+	"gorm.io/gorm"
 )
 
 type manualRagDocumentRequest struct {
@@ -37,6 +40,9 @@ func ragAdminRoutes(runtime *gozerorag.Runtime) []rest.Route {
 	return []rest.Route{
 		{Method: http.MethodGet, Path: "/api/rag/admin/overview", Handler: RagOverviewHandler(runtime)},
 		{Method: http.MethodGet, Path: "/api/rag/admin/documents", Handler: ListRagDocumentsHandler(runtime)},
+		{Method: http.MethodGet, Path: "/api/rag/admin/documents/:documentId", Handler: GetRagDocumentHandler(runtime)},
+		{Method: http.MethodPut, Path: "/api/rag/admin/documents/:documentId", Handler: UpdateRagDocumentHandler(runtime)},
+		{Method: http.MethodPost, Path: "/api/rag/admin/preview", Handler: PreviewRagHandler(runtime)},
 		{Method: http.MethodPost, Path: "/api/rag/admin/documents/upload", Handler: UploadRagDocumentHandler(runtime)},
 		{Method: http.MethodPost, Path: "/api/rag/admin/documents/manual", Handler: CreateManualRagDocumentHandler(runtime)},
 		{Method: http.MethodPost, Path: "/api/rag/admin/backfill", Handler: RunRagBackfillHandler(runtime)},
@@ -333,6 +339,136 @@ func DeleteRagDocumentHandler(runtime *gozerorag.Runtime) http.HandlerFunc {
 	}
 }
 
+func GetRagDocumentHandler(runtime *gozerorag.Runtime) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		if !requireRAGRuntime(w, runtime, "RAG_DISABLED", "RAG document listing is not enabled") {
+			return
+		}
+		var request struct {
+			DocumentID string `path:"documentId"`
+		}
+		if err := httpx.ParsePath(r, &request); err != nil || strings.TrimSpace(request.DocumentID) == "" {
+			response.Error(w, http.StatusBadRequest, "INVALID_DOCUMENT_ID", "documentId must not be blank")
+			return
+		}
+		detail, err := runtime.Documents.GetDetail(r.Context(), strings.TrimSpace(request.DocumentID))
+		if err != nil {
+			if isNotFound(err) {
+				response.Error(w, http.StatusNotFound, "DOCUMENT_NOT_FOUND", "RAG document not found")
+				return
+			}
+			serviceError(w, err)
+			return
+		}
+		response.OK(w, detail)
+	}
+}
+
+type updateRagDocumentRequest struct {
+	Title        string `json:"title"`
+	Content      string `json:"content"`
+	ACLScope     string `json:"aclScope"`
+	Route        string `json:"route"`
+	MetadataJSON string `json:"metadataJson"`
+}
+
+func UpdateRagDocumentHandler(runtime *gozerorag.Runtime) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		if !requireIndexingRuntime(w, runtime, "RAG_DISABLED", "RAG indexing is not enabled") {
+			return
+		}
+		var pathRequest struct {
+			DocumentID string `path:"documentId"`
+		}
+		if err := httpx.ParsePath(r, &pathRequest); err != nil || strings.TrimSpace(pathRequest.DocumentID) == "" {
+			response.Error(w, http.StatusBadRequest, "INVALID_DOCUMENT_ID", "documentId must not be blank")
+			return
+		}
+		var request updateRagDocumentRequest
+		if err := json.NewDecoder(r.Body).Decode(&request); err != nil {
+			response.Error(w, http.StatusBadRequest, "INVALID_REQUEST", "request body is not valid JSON")
+			return
+		}
+		if strings.TrimSpace(request.Title) == "" || strings.TrimSpace(request.Content) == "" {
+			response.Error(w, http.StatusBadRequest, "INVALID_REQUEST", "title and content are required")
+			return
+		}
+		existing, err := runtime.Documents.GetDetail(r.Context(), strings.TrimSpace(pathRequest.DocumentID))
+		if err != nil {
+			if isNotFound(err) {
+				response.Error(w, http.StatusNotFound, "DOCUMENT_NOT_FOUND", "RAG document not found")
+				return
+			}
+			serviceError(w, err)
+			return
+		}
+		metadataJSON, err := normalizeMetadataJSON(request.MetadataJSON)
+		if err != nil {
+			response.Error(w, http.StatusBadRequest, "INVALID_METADATA_JSON", err.Error())
+			return
+		}
+		acl := defaultString(request.ACLScope, existing.Document.ACLScope)
+		route := request.Route
+		if request.Route == "" {
+			route = existing.Document.Route
+		}
+		result, err := runtime.Indexing.Index(r.Context(), domain.RagSourceDocument{
+			SourceType:    existing.Document.SourceType,
+			SourceTable:   existing.Document.SourceTable,
+			SourceID:      existing.Document.SourceID,
+			SourceVersion: existing.Document.SourceVersion,
+			Title:         strings.TrimSpace(request.Title),
+			Content:       strings.TrimSpace(request.Content),
+			ACLScope:      acl,
+			Route:         route,
+			MetadataJSON:  metadataJSON,
+			SourceField:   "content",
+		})
+		if err != nil {
+			serviceError(w, err)
+			return
+		}
+		response.OK(w, ragIndexResponse{
+			Document:           result.Document,
+			ChunkCount:         len(result.Chunks),
+			EmbeddingTaskCount: len(result.EmbeddingTasks),
+		})
+	}
+}
+
+type ragPreviewRequest struct {
+	Query  string `json:"query"`
+	AsRole string `json:"asRole"`
+	TopK   *int   `json:"topK"`
+}
+
+func PreviewRagHandler(runtime *gozerorag.Runtime) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		if !requireRAGRuntime(w, runtime, "RAG_DISABLED", "RAG preview is not enabled") {
+			return
+		}
+		var request ragPreviewRequest
+		if err := json.NewDecoder(r.Body).Decode(&request); err != nil {
+			response.Error(w, http.StatusBadRequest, "INVALID_REQUEST", "request body is not valid JSON")
+			return
+		}
+		if strings.TrimSpace(request.Query) == "" {
+			response.Error(w, http.StatusBadRequest, "INVALID_QUERY", "query must not be blank")
+			return
+		}
+		topK := 8
+		if request.TopK != nil {
+			topK = *request.TopK
+		}
+		hits, err := runtime.Documents.Preview(r.Context(), request.Query, request.AsRole, topK)
+		if err != nil {
+			serviceError(w, err)
+			return
+		}
+		response.OK(w, hits)
+	}
+}
+
 func requireRAGRuntime(w http.ResponseWriter, runtime *gozerorag.Runtime, code, message string) bool {
 	if runtime == nil || !runtime.Ready() {
 		response.Error(w, http.StatusConflict, code, message)
@@ -484,6 +620,10 @@ func newSourceID(prefix string) string {
 
 func newSourceVersion() string {
 	return fmt.Sprintf("v%d", time.Now().UnixMilli())
+}
+
+func isNotFound(err error) bool {
+	return errors.Is(err, shared.ErrNotFound) || errors.Is(err, gorm.ErrRecordNotFound)
 }
 
 func badRequest(w http.ResponseWriter, err error) {

@@ -174,3 +174,12 @@ func (r *RagEmbeddingTaskRepo) DeleteByChunkID(ctx context.Context, chunkID stri
 	result := r.db.WithContext(ctx).Where("chunk_id = ?", chunkID).Delete(&domain.RagEmbeddingTask{})
 	return result.RowsAffected, result.Error
 }
+
+func (r *RagEmbeddingTaskRepo) ListByChunkIDs(ctx context.Context, chunkIDs []string) ([]domain.RagEmbeddingTask, error) {
+	if len(chunkIDs) == 0 {
+		return []domain.RagEmbeddingTask{}, nil
+	}
+	var tasks []domain.RagEmbeddingTask
+	err := r.db.WithContext(ctx).Where("chunk_id IN ?", chunkIDs).Find(&tasks).Error
+	return tasks, err
+}

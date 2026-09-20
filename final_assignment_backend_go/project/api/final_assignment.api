@@ -1070,6 +1070,15 @@ service finalAssignmentGoApi {
 	@handler listRagDocuments
 	get /api/rag/admin/documents returns (ApiResponse)
 
+	@handler getRagDocument
+	get /api/rag/admin/documents/:documentId returns (ApiResponse)
+
+	@handler updateRagDocument
+	put /api/rag/admin/documents/:documentId returns (ApiResponse)
+
+	@handler previewRag
+	post /api/rag/admin/preview returns (ApiResponse)
+
 	@handler uploadRagDocument
 	post /api/rag/admin/documents/upload returns (ApiResponse)
 

@@ -54,6 +54,30 @@ func (h *AiChatHandler) StreamChat(c *gin.Context) {
 	c.Header("Connection", "keep-alive")
 	c.Header("X-Accel-Buffering", "no") // Disable nginx buffering
 
+	if req.Metadata == nil {
+		req.Metadata = map[string]any{}
+	}
+	if username, ok := c.Get("username"); ok {
+		req.Metadata["username"] = username
+	}
+	if roles, ok := c.Get("normalizedRoles"); ok {
+		req.Metadata["roles"] = roles
+	}
+	if req.SessionKey == "" {
+		req.SessionKey = fmt.Sprintf("sess-%d", time.Now().UnixNano())
+	}
+	if runtime := h.chatPipeline.Agent(); runtime != nil {
+		userKey := fmt.Sprint(req.Metadata["username"])
+		if !runtime.Store.BindSession(userKey, req.SessionKey) {
+			h.writeSSE(c.Writer, "error", map[string]any{
+				"type":       "error",
+				"sessionKey": req.SessionKey,
+				"payload":    map[string]any{"message": "不能使用其他用户的会话"},
+			})
+			return
+		}
+	}
+
 	// Create context with timeout
 	ctx, cancel := context.WithTimeout(c.Request.Context(), 2*time.Minute)
 	defer cancel()
@@ -86,7 +110,8 @@ func (h *AiChatHandler) StreamChat(c *gin.Context) {
 
 	for event := range eventChan {
 		// Convert event to SSE format
-		h.writeSSE(c.Writer, "data", h.eventToMap(event))
+		payload := h.eventToMap(event)
+		fmt.Fprintf(c.Writer, "event: %s\ndata: %s\n\n", event.Type, mustJSON(payload))
 		flusher.Flush()
 
 		// Stop on done or error
@@ -148,4 +173,12 @@ func RegisterAiChatRoutes(router *gin.Engine, handler *AiChatHandler) {
 			ai.POST("/chat/stream", handler.StreamChat)
 		}
 	}
+}
+
+func mustJSON(value any) string {
+	raw, err := json.Marshal(value)
+	if err != nil {
+		return `{"type":"error","payload":{"message":"SSE serialization failed"}}`
+	}
+	return string(raw)
 }

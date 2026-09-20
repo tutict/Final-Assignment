@@ -28,6 +28,9 @@ func RagManagementRouteSpecs() []RouteSpec {
 	return []RouteSpec{
 		ragManagementRoute(http.MethodGet, "/api/rag/admin/overview", "overview", `@GetMapping("/overview")`),
 		ragManagementRoute(http.MethodGet, "/api/rag/admin/documents", "listDocuments", `@GetMapping("/documents")`),
+		ragManagementRoute(http.MethodGet, "/api/rag/admin/documents/:documentId", "getDocument", `@GetMapping("/documents/{documentId}")`),
+		ragManagementRoute(http.MethodPut, "/api/rag/admin/documents/:documentId", "updateDocument", `@PutMapping("/documents/{documentId}")`),
+		ragManagementRoute(http.MethodPost, "/api/rag/admin/preview", "preview", `@PostMapping("/preview")`),
 		ragManagementRoute(http.MethodPost, "/api/rag/admin/documents/upload", "uploadDocument", `@PostMapping(value = "/documents/upload")`),
 		ragManagementRoute(http.MethodPost, "/api/rag/admin/documents/manual", "createManualDocument", `@PostMapping("/documents/manual")`),
 		ragManagementRoute(http.MethodPost, "/api/rag/admin/backfill", "runBackfill", `@PostMapping("/backfill")`),
