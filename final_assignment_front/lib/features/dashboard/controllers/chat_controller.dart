@@ -32,7 +32,7 @@ class ChatMessage {
   final bool needConfirm;
 }
 
-enum ChatLoadingState { idle, thinking, searching, generating }
+enum ChatLoadingState { idle, thinking, searching, generating, queuing }
 
 class ChatController extends GetxController {
   static ChatController get to => Get.find();
@@ -71,6 +71,7 @@ class ChatController extends GetxController {
       ChatLoadingState.thinking => '思考中...',
       ChatLoadingState.searching => '正在搜索相关信息...',
       ChatLoadingState.generating => '生成中...',
+      ChatLoadingState.queuing => '正在排队',
     };
   }
 
@@ -148,6 +149,19 @@ class ChatController extends GetxController {
       }
 
       final chunk = streamChunk.text;
+      if (streamChunk.isQueue) {
+        loadingState.value = ChatLoadingState.queuing;
+        if (aiMessageIndex >= 0 &&
+            aiMessageIndex < messages.length &&
+            messages[aiMessageIndex].formalContent.startsWith('THINKING:')) {
+          messages[aiMessageIndex] = const ChatMessage(
+            formalContent: 'THINKING: Queuing...',
+            isUser: false,
+          );
+        }
+        return;
+      }
+
       if (streamChunk.isFallback) {
         receivedFallback = true;
         _removeThinkingMessages();

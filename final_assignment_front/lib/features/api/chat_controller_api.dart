@@ -16,6 +16,8 @@ class ChatStreamChunk {
     this.messageId,
     this.isFallback = false,
     this.fallbackReason,
+    this.isQueue = false,
+    this.queuePosition,
   });
 
   final String text;
@@ -23,6 +25,8 @@ class ChatStreamChunk {
   final String? messageId;
   final bool isFallback;
   final String? fallbackReason;
+  final bool isQueue;
+  final int? queuePosition;
 }
 
 class ChatControllerApi with BaseApiClient {
@@ -136,6 +140,15 @@ class ChatControllerApi with BaseApiClient {
             message: event.message ?? 'AI stream failed',
           );
         case AiStreamEventType.keepalive:
+          break;
+        case AiStreamEventType.queue:
+          yield ChatStreamChunk(
+            text: '',
+            sessionKey: event.sessionKey,
+            messageId: event.messageId,
+            isQueue: true,
+            queuePosition: event.queuePosition,
+          );
           break;
         case AiStreamEventType.session:
         case AiStreamEventType.usage:

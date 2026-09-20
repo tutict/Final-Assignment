@@ -270,6 +270,7 @@ class AppException implements Exception {
       'DUPLICATE_REQUEST' => AppErrorType.duplicate,
       'VALIDATION_ERROR' => AppErrorType.validationError,
       'SERVICE_UNAVAILABLE' => AppErrorType.serviceUnavailable,
+      'TOO_MANY_REQUESTS' => AppErrorType.businessError,
       _ => _typeFromStatusCode(statusCode),
     };
   }

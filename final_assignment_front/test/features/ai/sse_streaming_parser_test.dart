@@ -40,6 +40,17 @@ void main() {
     expect(events.single.type, AiStreamEventType.keepalive);
   });
 
+  test('parses queue event with position', () async {
+    final events = await Stream<String>.fromIterable([
+      'event: queue\n',
+      'data: {"type":"queue","sessionKey":"s1","messageId":"m1","payload":{"position":2}}\n\n',
+    ]).transform(const SseStreamingParser()).toList();
+
+    expect(events, hasLength(1));
+    expect(events.single.type, AiStreamEventType.queue);
+    expect(events.single.queuePosition, 2);
+  });
+
   test('parses done event', () async {
     final events = await Stream<String>.fromIterable([
       'event: done\n',

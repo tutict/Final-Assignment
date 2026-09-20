@@ -203,7 +203,15 @@ class _MessageList extends StatelessWidget {
           itemBuilder: (context, index) {
             final msg = controller.messages[index];
             if (msg.formalContent.startsWith('THINKING:')) {
-              return _ThinkingBubble(maxWidth: constraints.maxWidth * 0.86);
+              final queuing = controller.loadingState.value ==
+                      ChatLoadingState.queuing ||
+                  msg.formalContent.contains('Queuing');
+              return _ThinkingBubble(
+                maxWidth: constraints.maxWidth * 0.86,
+                label: queuing ? '正在排队' : (controller.loadingText.isEmpty
+                    ? '思考中...'
+                    : controller.loadingText),
+              );
             }
             return _MessageBubble(
               controller: controller,
@@ -218,9 +226,13 @@ class _MessageList extends StatelessWidget {
 }
 
 class _ThinkingBubble extends StatelessWidget {
-  const _ThinkingBubble({required this.maxWidth});
+  const _ThinkingBubble({
+    required this.maxWidth,
+    this.label = '思考中...',
+  });
 
   final double maxWidth;
+  final String label;
 
   @override
   Widget build(BuildContext context) {
@@ -256,7 +268,7 @@ class _ThinkingBubble extends StatelessWidget {
             ),
             const SizedBox(width: 9),
             Text(
-              '思考中...',
+              label,
               style: theme.textTheme.bodySmall?.copyWith(
                 color: scheme.onSurfaceVariant,
                 fontWeight: FontWeight.w700,

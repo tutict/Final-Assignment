@@ -74,6 +74,15 @@ class AiStreamEvent {
     return null;
   }
 
+  int? get queuePosition {
+    final payloadValue = payloadMap;
+    if (payloadValue == null) return null;
+    final value = payloadValue['position'];
+    if (value is int) return value;
+    if (value is num) return value.toInt();
+    return int.tryParse(value?.toString() ?? '');
+  }
+
   static String? _stringValue(Object? value) {
     if (value == null) return null;
     if (value is String) return value;
@@ -101,6 +110,7 @@ enum AiStreamEventType {
   error('error'),
   usage('usage'),
   keepalive('keepalive'),
+  queue('queue'),
   unknown('unknown');
 
   const AiStreamEventType(this.wireName);

@@ -123,7 +123,8 @@ class AiChatApi {
           if (event.type == AiStreamEventType.token) {
             completeFirstToken();
           }
-          if (event.type == AiStreamEventType.keepalive &&
+          if ((event.type == AiStreamEventType.keepalive ||
+                  event.type == AiStreamEventType.queue) &&
               !receivedFirstToken) {
             startFirstTokenTimer();
           }
@@ -257,9 +258,11 @@ class AiChatApi {
     if (response.statusCode == 200) return;
     final body = await response.stream.bytesToString();
     final message = _messageFromBody(body) ??
-        (response.statusCode == 503
-            ? 'AI service is temporarily unavailable. Please try again later.'
-            : 'AI stream request failed: ${response.statusCode}');
+        (response.statusCode == 429
+            ? '请等待当前回答结束'
+            : response.statusCode == 503
+                ? 'AI service is temporarily unavailable. Please try again later.'
+                : 'AI stream request failed: ${response.statusCode}');
     throw AppException.fromStatusCode(response.statusCode, message: message);
   }
 
