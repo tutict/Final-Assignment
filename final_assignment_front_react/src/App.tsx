@@ -143,6 +143,14 @@ export default function App() {
         <Route path="/offenseType" element={renderLazyPage(OffenseTypePage)} />
         <Route path="/paymentRecord" element={renderLazyPage(PaymentRecordPage)} />
         <Route path="/progressDetailPage/:id" element={renderLazyPage(ProgressDetailPage)} />
+        <Route
+          path="/ragManagement"
+          element={
+            <ProtectedRoute allowRoles={[ROLES.ADMIN, ROLES.SUPER_ADMIN]}>
+              {renderBoundedPage(RagManagementPage, 'RAG 资料管理')}
+            </ProtectedRoute>
+          }
+        />
       </Route>
 
       <Route
@@ -168,14 +176,7 @@ export default function App() {
         <Route path="systemSettings" element={renderLazyPage(SystemSettingsPage)} />
         <Route path="aiChat" element={renderLazyPage(AiChatPage)} />
         <Route path="map" element={renderLazyPage(MapPage)} />
-        <Route
-          path="ragManagement"
-          element={
-            <ProtectedRoute allowRoles={[ROLES.SUPER_ADMIN]}>
-              {renderBoundedPage(RagManagementPage, 'RAG 资料管理')}
-            </ProtectedRoute>
-          }
-        />
+        <Route path="ragManagement" element={<Navigate to="/ragManagement" replace />} />
         <Route
           path="systemGovernance"
           element={

@@ -34,6 +34,13 @@ class _SidebarState extends State<_Sidebar> {
             label: '\u4e1a\u52a1\u5904\u7406',
             routeName: Routes.managerBusinessProcessing,
           ),
+        if (controller.isSuperAdmin || controller.isBusinessAdmin)
+          SelectionButtonData(
+            activeIcon: Icons.library_books_rounded,
+            icon: Icons.library_books_outlined,
+            label: 'RAG 资料',
+            routeName: Routes.ragManagement,
+          ),
         SelectionButtonData(
           activeIcon: EvaIcons.email,
           icon: EvaIcons.emailOutline,

@@ -293,7 +293,7 @@ class RoutePaths {
   static const systemGovernance = '/admin/systemGovernance';
 
   // RAG 资料管理页面路由
-  static const ragManagement = '/admin/ragManagement';
+  static const ragManagement = '/ragManagement';
 
   // 用户管理页面路由
   static const userManagementPage = '/admin/userManagementPage';

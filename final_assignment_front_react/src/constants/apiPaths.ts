@@ -50,7 +50,7 @@ export const API_PATHS = {
   AI_CHAT: '/api/ai/chat',
   AI_CHAT_STREAM: '/api/ai/chat/stream',
   AI_CHAT_ACTIONS: '/api/ai/chat/actions',
-  // RAG 管理（仅超级管理员，对齐后端 RagManagementController /api/rag/admin）
+  // RAG 管理（ADMIN/SUPER_ADMIN，对齐后端 RagManagementController /api/rag/admin）
   RAG_ADMIN: '/api/rag/admin',
   RAG_OVERVIEW: '/api/rag/admin/overview',
   RAG_DOCUMENTS: '/api/rag/admin/documents',

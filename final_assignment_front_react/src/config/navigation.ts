@@ -12,6 +12,7 @@ import {
   FiLayers,
   FiBookOpen,
   FiTool,
+  FiDatabase,
   FiLogOut,
 } from 'react-icons/fi';
 
@@ -34,6 +35,7 @@ export const businessNav: NavItem[] = [
   { label: '驾驶员管理', path: '/driverList', icon: FiUsers },
   { label: '车辆管理', path: '/vehicleList', icon: FiTruck },
   { label: '业务进度', path: '/progressManagement', icon: FiLayers },
+  { label: 'RAG 资料管理', path: '/ragManagement', icon: FiDatabase },
 ];
 
 export const managerNav = businessNav;

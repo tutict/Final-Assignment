@@ -93,6 +93,14 @@ class BusinessChatAgent {
     String message,
     Map<String, String> prefill,
   ) {
+    if (_containsAny(message, const ['rag', '知识库', '知识', '资料录入', '向量'])) {
+      return _single(
+        answer: '可以进入 RAG 资料管理页面，维护知识资料和向量化任务。',
+        label: '打开 RAG 管理',
+        route: Routes.ragManagement,
+        prefill: prefill,
+      );
+    }
     if (_containsAny(message, const ['申诉', '审批', '审核', '复核'])) {
       return _single(
         answer: '可以进入申诉审批管理页面，处理用户提交的申诉材料和审核进度。',

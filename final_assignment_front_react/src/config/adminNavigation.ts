@@ -2,7 +2,6 @@ import type { IconType } from 'react-icons';
 import {
   FiBookOpen,
   FiClipboard,
-  FiDatabase,
   FiMap,
   FiMessageCircle,
   FiSearch,
@@ -22,7 +21,6 @@ export const adminNav: NavItem[] = [
   { label: '系统治理', path: '/admin/systemGovernance', icon: FiShield },
   { label: '系统设置', path: '/admin/systemSettings', icon: FiSettings },
   { label: '备份与恢复', path: '/admin/backupAndRestore', icon: FiTool },
-  { label: 'RAG 资料管理', path: '/admin/ragManagement', icon: FiDatabase },
   { label: 'AI 助手', path: '/admin/aiChat', icon: FiMessageCircle },
   { label: '数据地图', path: '/admin/map', icon: FiMap },
   { label: '管理员信息', path: '/admin/managerPersonalPage', icon: FiBookOpen },

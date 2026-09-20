@@ -86,6 +86,11 @@ const DRIVER_ACTIONS: ActionSpec[] = [
 
 const ADMIN_EXTRA: ActionSpec[] = [
   {
+    label: "打开 RAG 资料管理",
+    target: "/ragManagement",
+    keywords: ["rag", "知识库", "知识", "资料录入", "向量"],
+  },
+  {
     label: "打开申诉审批",
     target: "/appealManagement",
     keywords: ["申诉", "审批", "审核", "复核"],
@@ -123,11 +128,6 @@ const ADMIN_EXTRA: ActionSpec[] = [
 ];
 
 const SUPER_ADMIN_EXTRA: ActionSpec[] = [
-  {
-    label: "打开 RAG 资料管理",
-    target: "/admin/ragManagement",
-    keywords: ["rag", "知识库", "知识", "资料录入", "向量"],
-  },
   {
     label: "打开日志审查",
     target: "/admin/logManagement",

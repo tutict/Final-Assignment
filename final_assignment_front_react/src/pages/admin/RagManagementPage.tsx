@@ -1,5 +1,5 @@
 /**
- * RAG 知识资料管理页（仅 SUPER_ADMIN），对齐 Flutter RagManagementPage。
+ * RAG 知识资料管理页（ADMIN / SUPER_ADMIN），对齐 Flutter RagManagementPage。
  * 功能：概览统计、文档列表（搜索 + 删除）、手动录入、文件上传、回填/向量/索引维护按钮。
  */
 import { useEffect, useMemo, useState } from "react";

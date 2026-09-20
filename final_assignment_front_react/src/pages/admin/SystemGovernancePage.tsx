@@ -38,7 +38,7 @@ const OPTIONS = [
     description: '录入知识资料、触发回填并检查索引切片状态。',
     badge: 'RAG',
     icon: FiBookOpen,
-    target: '/admin/ragManagement',
+    target: '/ragManagement',
   },
 ];
 
@@ -48,7 +48,7 @@ export default function SystemGovernancePage() {
       title="系统治理"
       subtitle="超级管理员工作区"
       headerIcon={FiShield}
-      headerNote="集中审查系统日志、异常链路和 RAG 知识资料，普通管理员仅处理业务。"
+      headerNote="集中审查系统日志和异常链路。RAG 资料已下放给普通管理员。"
       options={OPTIONS}
       countLabel="4 个入口"
     />

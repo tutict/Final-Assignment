@@ -1,5 +1,5 @@
 ﻿/**
- * RAG 知识资料管理 API，对齐后端 RagManagementController（/api/rag/admin，仅 SUPER_ADMIN）。
+ * RAG 知识资料管理 API，对齐后端 RagManagementController（/api/rag/admin，ADMIN / SUPER_ADMIN）。
  * 对齐 Flutter RagManagementControllerApi。所有写入操作附带 Idempotency-Key。
  */
 import { api, generateIdempotencyKey } from "./client";
