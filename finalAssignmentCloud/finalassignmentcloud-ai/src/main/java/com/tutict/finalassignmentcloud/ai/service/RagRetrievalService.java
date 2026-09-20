@@ -31,7 +31,13 @@ public class RagRetrievalService {
         }
         try {
             RagClient.RagQueryApiResponse response = ragClient.query(
-                    new RagQueryRequest(query, topK(metadata), null, List.of(), department(metadata))
+                    new RagQueryRequest(
+                            query,
+                            topK(metadata),
+                            stringValue(metadata, "userId"),
+                            roles(metadata),
+                            department(metadata)
+                    )
             );
             if (response == null || !response.success() || response.data() == null) {
                 return List.of();
@@ -80,6 +86,23 @@ public class RagRetrievalService {
 
     private static String department(Map<String, Object> metadata) {
         Object value = firstValue(metadata, "department", "dept");
+        return value == null || value.toString().isBlank() ? null : value.toString().trim();
+    }
+
+
+    private static List<String> roles(Map<String, Object> metadata) {
+        Object value = firstValue(metadata, "roles", "role");
+        if (value instanceof List<?> list) {
+            return list.stream().map(String::valueOf).toList();
+        }
+        if (value == null || value.toString().isBlank()) {
+            return List.of();
+        }
+        return List.of(value.toString());
+    }
+
+    private static String stringValue(Map<String, Object> metadata, String key) {
+        Object value = firstValue(metadata, key);
         return value == null || value.toString().isBlank() ? null : value.toString().trim();
     }
 
