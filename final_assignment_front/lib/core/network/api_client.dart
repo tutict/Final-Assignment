@@ -217,7 +217,7 @@ class ApiClient {
           !passThroughStatusCodes.contains(401)) {
         final refreshed = await _safeRefreshToken();
         if (refreshed) {
-          return invokeAPI(
+          return await invokeAPI(
             path,
             method,
             queryParams,

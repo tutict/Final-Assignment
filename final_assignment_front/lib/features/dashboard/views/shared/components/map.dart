@@ -869,7 +869,7 @@ class _RetryNetworkImage extends ImageProvider<_RetryNetworkImage> {
       try {
         final response = await http.get(Uri.parse(url)).timeout(maxTimeout);
         if (response.statusCode == 200) {
-          return decode(
+          return await decode(
             await ImmutableBuffer.fromUint8List(response.bodyBytes),
           );
         }

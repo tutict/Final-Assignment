@@ -47,7 +47,7 @@ class ChatControllerApi with BaseApiClient {
     bool webSearch,
   ) async {
     try {
-      return requestNullableObject<ChatActionResponse>(
+      return await requestNullableObject<ChatActionResponse>(
         'GET',
         '/api/ai/chat/actions',
         ChatActionResponse.fromJson,
