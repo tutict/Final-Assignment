@@ -2,6 +2,7 @@ package com.tutict.finalassignmentbackend.ai.chat;
 
 import com.tutict.finalassignmentbackend.ai.provider.AiProviderProperties;
 import com.tutict.finalassignmentbackend.ai.provider.AiToken;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 import reactor.core.publisher.Flux;
 
@@ -20,6 +21,7 @@ public class ExternalApiSlotLimiter {
 
     private final FairSlotLimiter delegate;
 
+    @Autowired
     public ExternalApiSlotLimiter(AiProviderProperties properties) {
         this(
                 properties.getOpenaiCompatible().getSlots(),

@@ -13,10 +13,13 @@ import io.vertx.core.AbstractVerticle;
 import io.vertx.core.MultiMap;
 import io.vertx.core.buffer.Buffer;
 import io.vertx.core.http.*;
+import io.vertx.core.http.PoolOptions;
 import io.vertx.core.json.JsonObject;
 import io.vertx.ext.web.Router;
-import io.vertx.ext.web.client.HttpResponse;
-import io.vertx.ext.web.client.WebClient;
+import io.vertx.core.http.HttpClient;
+import io.vertx.core.http.HttpClientRequest;
+import io.vertx.core.http.HttpClientResponse;
+import io.vertx.core.http.RequestOptions;
 import io.vertx.ext.web.handler.CorsHandler;
 import jakarta.annotation.PostConstruct;
 import lombok.extern.slf4j.Slf4j;
@@ -59,7 +62,7 @@ public class NetWorkHandler extends AbstractVerticle {
     private final ObjectMapper objectMapper;
     private final CorsProperties corsProperties;
     private final Map<String, Set<ServerWebSocket>> webSocketsByUsername = new ConcurrentHashMap<>();
-    private WebClient webClient;
+    private HttpClient httpClient;
 
     public NetWorkHandler(TokenProvider tokenProvider,
                           @Lazy WsActionRegistry wsActionRegistry,
@@ -77,13 +80,20 @@ public class NetWorkHandler extends AbstractVerticle {
 
     @PostConstruct
     public void init() {
-        io.vertx.core.Vertx coreVertx = vertx();
-        webClient = io.vertx.ext.web.client.WebClient.create(coreVertx);
+        // WebClient is created in start() against the deployed Vert.x instance,
+        // with an HTTP pool large enough to forward concurrent browser/k6 traffic.
     }
 
     @Override
     public void start() {
-        this.webClient = WebClient.create(vertx);
+        HttpClientOptions clientOptions = new HttpClientOptions()
+                .setKeepAlive(true)
+                .setConnectTimeout(3_000)
+                .setIdleTimeout(90);
+        PoolOptions poolOptions = new PoolOptions()
+                .setHttp1MaxSize(64)
+                .setMaxWaitQueueSize(512);
+        this.httpClient = vertx.createHttpClient(clientOptions, poolOptions);
 
         Router router = Router.router(vertx);
         configureCors(router);
@@ -158,7 +168,9 @@ public class NetWorkHandler extends AbstractVerticle {
 
         HttpServerOptions options = new HttpServerOptions()
                 .setMaxWebSocketFrameSize(1000000)
-                .setTcpKeepAlive(true);
+                .setTcpKeepAlive(true)
+                .setIdleTimeout(0)
+                .setCompressionSupported(false);
 
         vertx.createHttpServer(options)
                 .requestHandler(router)
@@ -445,7 +457,7 @@ public class NetWorkHandler extends AbstractVerticle {
         String path = request.path();
         String query = request.query();
         String targetUrl = backendUrl + ":" + backendPort + path + (query != null ? "?" + query : "");
-        log.info("[{}] Forwarding request from path: {} to targetUrl: {}", requestId, path, targetUrl);
+        log.debug("[{}] Forwarding request from path: {} to targetUrl: {}", requestId, path, targetUrl);
 
         if (request.headers().contains("X-Forwarded-By")) {
             log.error("[{}] Detected circular forwarding, aborting request", requestId);
@@ -453,8 +465,6 @@ public class NetWorkHandler extends AbstractVerticle {
             return;
         }
 
-        // Remove client-supplied forwarding headers; only NetWorkHandler rewrites them.
-        // This prevents spoofed X-Forwarded-For/X-Real-IP from reaching the backend.
         MultiMap headers = MultiMap.caseInsensitiveMultiMap();
         request.headers().forEach(entry -> {
             if (!"X-Forwarded-For".equalsIgnoreCase(entry.getKey())
@@ -463,107 +473,69 @@ public class NetWorkHandler extends AbstractVerticle {
                 headers.add(entry.getKey(), entry.getValue());
             }
         });
-        // Write trusted link info: the direct peer is the trusted forwarder itself.
         headers.add("X-Forwarded-By", "NetWorkHandler");
         headers.add("X-Forwarded-For", request.remoteAddress().host());
-        log.debug("[{}] Forward headers: {}", requestId, sanitizeHeaders(headers));
-
-        MultiMap queryParams = request.params();
-        log.debug("[{}] Query params: {}", requestId, sanitizeParameters(queryParams));
 
         HttpMethod method = request.method();
-        var httpRequest = webClient.requestAbs(method, targetUrl).putHeaders(headers);
+        boolean expectBody = method != HttpMethod.GET && method != HttpMethod.DELETE
+                && method != HttpMethod.HEAD;
+        if (expectBody) {
+            request.pause();
+        }
+        RequestOptions options = new RequestOptions()
+                .setMethod(method)
+                .setAbsoluteURI(targetUrl)
+                .setTimeout(120_000);
 
-        if (method == HttpMethod.GET || method == HttpMethod.DELETE) {
-            log.info("[{}] Forwarding {} request with query param names: {}", requestId, method, queryParams.names());
-            httpRequest.send()
-                    .onSuccess(response -> handleResponse(request, response, requestId))
-                    .onFailure(failure -> {
-                        log.error("[{}] Forwarding {} request failed: {}", requestId, method, failure.getMessage(), failure);
-                        request.response().setStatusCode(500).setStatusMessage("Forwarding failed").end();
-                    });
-        } else {
+        httpClient.request(options).onSuccess(upstreamReq -> {
+            headers.forEach(entry -> upstreamReq.putHeader(entry.getKey(), entry.getValue()));
+            bindUpstreamResponse(request, upstreamReq, requestId);
+            if (!expectBody) {
+                upstreamReq.send().onFailure(failure -> failForward(request, requestId, failure));
+                return;
+            }
             request.bodyHandler(body -> {
-                try {
-                    String contentType = request.getHeader("Content-Type");
-                    if (body.length() == 0) {
-                        log.info("[{}] No body provided for {} request, proceeding with empty request", requestId, method);
-                        httpRequest.send()
-                                .onSuccess(response -> handleResponse(request, response, requestId))
-                                .onFailure(failure -> {
-                                    log.error("[{}] Forwarding {} request failed: {}", requestId, method, failure.getMessage(), failure);
-                                    request.response().setStatusCode(500).setStatusMessage("Forwarding failed").end();
-                                });
-                    } else if (contentType != null && contentType.toLowerCase().contains("text/plain")) {
-                        String rawBody = body.toString();
-                        log.debug("[{}] Request body length for {}: {} bytes", requestId, method, body.length());
-                        httpRequest.putHeader("Content-Type", contentType);
-                        httpRequest.sendBuffer(Buffer.buffer(rawBody))
-                                .onSuccess(response -> handleResponse(request, response, requestId))
-                                .onFailure(failure -> {
-                                    log.error("[{}] Forwarding {} request failed: {}", requestId, method, failure.getMessage(), failure);
-                                    request.response().setStatusCode(500).setStatusMessage("Forwarding failed").end();
-                                });
-                    } else if (contentType != null && contentType.toLowerCase().contains("application/json")) {
-                        JsonObject jsonBody = body.toJsonObject();
-                        log.debug("[{}] Request body length for {}: {} bytes", requestId, method, body.length());
-                        httpRequest.putHeader("Content-Type", "application/json");
-                        httpRequest.sendJsonObject(jsonBody)
-                                .onSuccess(response -> handleResponse(request, response, requestId))
-                                .onFailure(failure -> {
-                                    log.error("[{}] Forwarding {} request failed: {}", requestId, method, failure.getMessage(), failure);
-                                    request.response().setStatusCode(500).setStatusMessage("Forwarding failed").end();
-                                });
-                    } else {
-                        log.warn("[{}] Unrecognized Content-Type: {} for {}, forwarding as raw buffer", requestId, contentType, method);
-                        httpRequest.sendBuffer(body)
-                                .onSuccess(response -> handleResponse(request, response, requestId))
-                                .onFailure(failure -> {
-                                    log.error("[{}] Forwarding {} request failed: {}", requestId, method, failure.getMessage(), failure);
-                                    request.response().setStatusCode(500).setStatusMessage("Forwarding failed").end();
-                                });
-                    }
-                } catch (Exception e) {
-                    log.error("[{}] Request body parsing failed for {}: {}", requestId, method, e.getMessage(), e);
-                    request.response().setStatusCode(400).setStatusMessage("Request body parsing failed").end();
+                if (body == null || body.length() == 0) {
+                    upstreamReq.send().onFailure(failure -> failForward(request, requestId, failure));
+                } else {
+                    upstreamReq.send(body).onFailure(failure -> failForward(request, requestId, failure));
                 }
             });
-        }
+            request.resume();
+        }).onFailure(failure -> failForward(request, requestId, failure));
     }
 
-    private void handleResponse(HttpServerRequest request, HttpResponse<io.vertx.core.buffer.Buffer> response, String requestId) {
-        log.info("[{}] Response status code: {}", requestId, response.statusCode());
-        log.debug("[{}] Response headers: {}", requestId, sanitizeHeaders(response.headers()));
-        String responseBody = response.bodyAsString();
-        log.debug("[{}] Backend response body length: {} bytes",
-                requestId,
-                responseBody != null ? responseBody.length() : 0);
-
-        HttpServerResponse clientResponse = request.response();
-        clientResponse.setStatusCode(response.statusCode());
-
-        String statusMessage = response.statusMessage();
-        if (statusMessage != null) {
-            clientResponse.setStatusMessage(statusMessage);
-        } else {
-            log.warn("[{}] Backend response statusMessage is null", requestId);
-            clientResponse.setStatusMessage(HttpResponseStatus.valueOf(response.statusCode()).reasonPhrase());
-        }
-
-        response.headers().forEach(entry -> {
-            if (!entry.getKey().equalsIgnoreCase("Transfer-Encoding")) {
-                clientResponse.putHeader(entry.getKey(), entry.getValue());
+    private void bindUpstreamResponse(HttpServerRequest inbound, HttpClientRequest upstreamReq, String requestId) {
+        upstreamReq.response().onSuccess(upstream -> {
+            HttpServerResponse outbound = inbound.response();
+            outbound.setStatusCode(upstream.statusCode());
+            String statusMessage = upstream.statusMessage();
+            if (statusMessage != null) {
+                outbound.setStatusMessage(statusMessage);
             }
-        });
+            upstream.headers().forEach(entry -> {
+                if (!isHopByHopHeader(entry.getKey())) {
+                    outbound.putHeader(entry.getKey(), entry.getValue());
+                }
+            });
+            if (upstream.getHeader("Content-Length") == null) {
+                outbound.setChunked(true);
+            }
+            upstream.pipeTo(outbound).onFailure(failure -> failForward(inbound, requestId, failure));
+        }).onFailure(failure -> failForward(inbound, requestId, failure));
+    }
 
-        if (responseBody != null && !responseBody.isEmpty()) {
-            clientResponse.putHeader("Content-Type", "application/json");
-            clientResponse.end(responseBody);
-        } else {
-            log.warn("[{}] Response body is null or empty, status: {}", requestId, response.statusCode());
-            clientResponse.putHeader("Content-Type", "application/json");
-            clientResponse.end();
+    private void failForward(HttpServerRequest request, String requestId, Throwable failure) {
+        log.error("[{}] Forwarding failed: {}", requestId, failure.getMessage(), failure);
+        HttpServerResponse response = request.response();
+        if (response.ended()) {
+            return;
         }
+        if (!response.headWritten()) {
+            response.setStatusCode(502).setStatusMessage("Forwarding failed").end();
+            return;
+        }
+        response.end();
     }
 
     private Map<String, String> sanitizeHeaders(MultiMap headers) {
@@ -573,6 +545,19 @@ public class NetWorkHandler extends AbstractVerticle {
                         Map.Entry::getKey,
                         Map.Entry::getValue,
                         (first, ignored) -> first));
+    }
+
+    private boolean isHopByHopHeader(String headerName) {
+        if (headerName == null) {
+            return false;
+        }
+        return headerName.equalsIgnoreCase("Transfer-Encoding")
+                || headerName.equalsIgnoreCase("Connection")
+                || headerName.equalsIgnoreCase("Keep-Alive")
+                || headerName.equalsIgnoreCase("Proxy-Connection")
+                || headerName.equalsIgnoreCase("TE")
+                || headerName.equalsIgnoreCase("Trailer")
+                || headerName.equalsIgnoreCase("Upgrade");
     }
 
     private boolean isSensitiveHeader(String headerName) {

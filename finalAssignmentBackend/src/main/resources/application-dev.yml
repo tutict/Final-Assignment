@@ -1,9 +1,19 @@
 server:
   port: 9080
+  tomcat:
+    threads:
+      max: 200
+      min-spare: 20
+    max-connections: 10000
+    accept-count: 200
 
 spring:
   datasource:
-    password: dev_password_local
+    password: ${DB_PASSWORD:root}
+    hikari:
+      maximum-pool-size: 32
+      minimum-idle: 8
+      connection-timeout: 5000
   data:
     redis:
       host: localhost
@@ -20,6 +30,9 @@ spring:
 backend:
   url: http://localhost
   port: 9080
+
+jwt:
+  secret: ${JWT_SECRET:dev-jwt-secret-key-for-local-startup-please-change-1234567890}
 
 app:
   dev-services:
@@ -46,3 +59,8 @@ management:
   health:
     elasticsearch:
       enabled: false
+
+rag:
+  retrieval:
+    enabled: true
+    candidate-multiplier: 2
