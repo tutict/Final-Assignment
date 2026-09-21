@@ -54,7 +54,12 @@ public class SystemLogsController {
             Map<String, Object> result = new HashMap<>();
             result.put("loginLogCount", auditLoginLogService.findAll().size());
             result.put("operationLogCount", auditOperationLogService.findAll().size());
-            result.put("requestHistoryCount", requestHistoryClient.list().size());
+            try {
+                result.put("requestHistoryCount", requestHistoryClient.list().size());
+            } catch (Exception feignEx) {
+                LOG.log(Level.WARNING, "request history unavailable for overview", feignEx);
+                result.put("requestHistoryCount", 0);
+            }
             return ResponseEntity.ok(result);
         } catch (Exception ex) {
             LOG.log(Level.WARNING, "Fetch log overview failed", ex);

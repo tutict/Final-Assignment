@@ -135,6 +135,25 @@ public class AppealManagementController {
         }
     }
 
+    @GetMapping("/my")
+    @RolesAllowed({"USER", "ADMIN", "APPEAL_REVIEWER", "SUPER_ADMIN"})
+    @Operation(summary = "查询当前用户的申诉")
+    public ResponseEntity<List<AppealRecord>> getMyAppeals(
+            Authentication authentication,
+            @RequestParam(defaultValue = "1") int page,
+            @RequestParam(defaultValue = "20") int size) {
+        try {
+            var profile = userProfileService.getCurrentUserProfile(authentication);
+            if (profile.getDriverId() == null) {
+                return ResponseEntity.ok(List.of());
+            }
+            return ResponseEntity.ok(enrich(appealRecordService.findByDriverId(profile.getDriverId(), page, size)));
+        } catch (Exception ex) {
+            LOG.log(Level.WARNING, "List my appeals failed", ex);
+            return ResponseEntity.status(resolveStatus(ex)).build();
+        }
+    }
+
     @GetMapping("/{appealId}")
     @Operation(summary = "查询申诉详情")
     public ResponseEntity<AppealRecord> getAppeal(@PathVariable Long appealId) {
@@ -148,12 +167,15 @@ public class AppealManagementController {
     }
 
     @GetMapping
-    @Operation(summary = "按违法记录分页查询申诉记录")
-    public ResponseEntity<List<AppealRecord>> listAppeals(@RequestParam Long offenseId,
+    @Operation(summary = "分页查询申诉记录")
+    public ResponseEntity<List<AppealRecord>> listAppeals(@RequestParam(required = false) Long offenseId,
                                                           @RequestParam(defaultValue = "1") int page,
                                                           @RequestParam(defaultValue = "20") int size) {
         try {
-            return ResponseEntity.ok(enrich(appealRecordService.findByOffenseId(offenseId, page, size)));
+            List<AppealRecord> records = offenseId == null
+                    ? businessRecordViewService.listAppeals(page, size)
+                    : enrich(appealRecordService.findByOffenseId(offenseId, page, size));
+            return ResponseEntity.ok(records);
         } catch (Exception ex) {
             LOG.log(Level.WARNING, "List appeals failed", ex);
             return ResponseEntity.status(resolveStatus(ex)).build();

@@ -1,6 +1,15 @@
 spring:
   application:
     name: finalassignmentcloud-ai
+  ai:
+    ollama:
+      base-url: ${OLLAMA_URL:http://localhost:11434}
+      chat:
+        options:
+          model: ${OLLAMA_CHAT_MODEL:${OLLAMA_MODEL:llama3.2}}
+      embedding:
+        options:
+          model: ${RAG_EMBEDDING_MODEL:nomic-embed-text}
   main:
     keep-alive: ${SPRING_MAIN_KEEP_ALIVE:${SPRING_THREADS_VIRTUAL_ENABLED:false}}
   threads:
@@ -36,7 +45,10 @@ ai:
   rag:
     enabled: ${AI_RAG_ENABLED:false}
     top-k: ${AI_RAG_TOP_K:5}
-
+  ollama:
+    enabled: ${OLLAMA_ENABLED:true}
+    base-url: ${OLLAMA_URL:http://localhost:11434}
+    chat-model: ${OLLAMA_CHAT_MODEL:${OLLAMA_MODEL:llama3.2}}
   agent:
     max-rounds: ${AI_AGENT_MAX_ROUNDS:4}
     draft:

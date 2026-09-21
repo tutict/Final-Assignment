@@ -14,7 +14,7 @@ public interface UserClient {
     @GetMapping("/api/users/{userId}")
     SysUser getById(@PathVariable("userId") Long userId);
 
-    @GetMapping("/api/users/search/username/{username}")
+    @GetMapping("/api/users/internal/search/username/{username}")
     SysUser getByUsername(@PathVariable("username") String username);
 
     @PutMapping("/api/users/{userId}")
