@@ -1,7 +1,15 @@
 // k6 Test Configuration
 // Centralized configuration for all test scenarios
 
-export const BASE_URL = __ENV.BASE_URL || 'http://localhost:8080';
+const BACKENDS = {
+  spring: 'http://localhost:8080',
+  cloud: 'http://localhost:8080',
+  go: 'http://localhost:8080',
+  quarkus: 'http://localhost:8080',
+};
+const BACKEND = String(__ENV.BACKEND || __ENV.PERF_BACKEND || 'spring').toLowerCase();
+export const BASE_URL = (__ENV.BASE_URL || BACKENDS[BACKEND] || BACKENDS.spring).replace(/\/$/, '');
+export const BACKEND_NAME = BACKEND;
 export const AUTH_URL = `${BASE_URL}/api/auth`;
 export const USER_URL = `${BASE_URL}/api/users`;
 export const TRAFFIC_URL = `${BASE_URL}/api`;
@@ -18,6 +26,12 @@ export const TEST_USERS = [
   { username: 'testuser4', password: 'Test123456!' },
   { username: 'testuser5', password: 'Test123456!' },
 ];
+
+export const ROLE_USERS = {
+  driver: { username: __ENV.PERF_USERNAME || 'ce@ce.com', password: __ENV.PERF_PASSWORD || '123456' },
+  admin: { username: __ENV.PERF_ADMIN_USERNAME || 'admin', password: __ENV.PERF_ADMIN_PASSWORD || 'Admin@123456' },
+  superAdmin: { username: __ENV.PERF_SUPER_USERNAME || 'superadmin', password: __ENV.PERF_SUPER_PASSWORD || 'SuperAdmin@123456' },
+};
 
 // Performance thresholds
 export const THRESHOLDS = {

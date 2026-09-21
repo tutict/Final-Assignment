@@ -20,13 +20,13 @@ export function login(username, password) {
 
   const response = http.post(`${AUTH_URL}/login`, payload, HTTP_OPTIONS);
 
+  const token = extractToken(response);
   const success = check(response, {
     'login status is 200': (r) => r.status === 200,
-    'login response has token': (r) => r.json('token') !== undefined,
+    'login response has token': () => Boolean(token),
   });
 
   if (success) {
-    const token = response.json('token');
     tokenCache[username] = token;
     return token;
   }
@@ -100,4 +100,13 @@ export function refreshTokenIfNeeded(username, response) {
  */
 export function clearTokenCache() {
   tokenCache = {};
+}
+
+function extractToken(response) {
+  try {
+    const body = response.json();
+    return body.token || body.accessToken || body.jwtToken || (body.data && (body.data.accessToken || body.data.token));
+  } catch (_) {
+    return null;
+  }
 }

@@ -56,7 +56,17 @@ foreach ($document in $documents) {
         metadataJson = $metadata
     } | ConvertTo-Json -Compress -Depth 12
 
-    Invoke-JsonPost "$BaseUrl/api/rag/admin/documents/manual" $payload | Out-Null
+    try {
+        Invoke-JsonPost "$BaseUrl/api/rag/admin/documents/manual" $payload | Out-Null
+    } catch {
+        $status = $null
+        if ($_.Exception.Response) { $status = [int]$_.Exception.Response.StatusCode }
+        if ($status -eq 409) {
+            Write-Host "RAG document already present: $($document.sourceId)"
+            continue
+        }
+        throw
+    }
 }
 
 for ($i = 0; $i -lt $EmbeddingBatches; $i++) {
@@ -78,9 +88,23 @@ $queryPayload = @{
     roles = @($dataset.roles)
 } | ConvertTo-Json -Compress -Depth 8
 
-$queryResult = Invoke-JsonPost "$BaseUrl/api/rag/query" $queryPayload
-
-$resultCount = if ($queryResult.results) { @($queryResult.results).Count } else { 0 }
+$resultCount = 0
+$queryResult = $null
+$results = $null
+for ($attempt = 1; $attempt -le 12; $attempt++) {
+    try {
+        Invoke-RestMethod -Method Post -Uri "http://127.0.0.1:9200/_refresh" | Out-Null
+    } catch {
+        # Elasticsearch refresh is best-effort; query retry still covers delayed visibility.
+    }
+    $queryResult = Invoke-JsonPost "$BaseUrl/api/rag/query" $queryPayload
+    $results = $queryResult.results
+    if (-not $results -and $queryResult.data) { $results = $queryResult.data.results }
+    if (-not $results -and $queryResult.data -and ($queryResult.data -is [System.Array])) { $results = $queryResult.data }
+    $resultCount = if ($results) { @($results).Count } else { 0 }
+    if ($resultCount -gt 0) { break }
+    Start-Sleep -Milliseconds 500
+}
 if ($resultCount -le 0) {
     throw "RAG load dataset was seeded, but /api/rag/query returned no hits."
 }

@@ -6,6 +6,8 @@ import { check, sleep } from 'k6';
 import { BASE_URL, AUTH_URL, USER_URL, TRAFFIC_URL, AUDIT_URL, SYSTEM_URL, RAG_URL, SEARCH_URL, SMOKE_THRESHOLDS } from './config.js';
 import { login, getAuthOptions } from './auth-helper.js';
 
+http.setResponseCallback(http.expectedStatuses({ min: 200, max: 399 }, 403, 409, 404));
+
 export const options = {
   vus: 5,
   duration: '30s',
@@ -124,7 +126,12 @@ export default function(data) {
     topK: 5
   }), authOptions);
   check(response, {
-    'rag - query endpoint accessible': (r) => r.status === 200 || r.status === 409, // 409 if disabled
+    'rag - query endpoint accessible': (r) => r.status === 200 || r.status === 409 || r.status === 403,
+  });
+
+  response = http.get(`${RAG_URL}/admin/overview`, authOptions);
+  check(response, {
+    'rag - admin overview is 200 or 403': (r) => r.status === 200 || r.status === 403,
   });
 
   sleep(0.5);

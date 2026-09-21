@@ -1,5 +1,7 @@
 param(
-    [string]$BaseUrl = "http://127.0.0.1:8080",
+    [ValidateSet("spring", "cloud", "go", "quarkus")]
+    [string]$Backend = "spring",
+    [string]$BaseUrl = "",
     [string]$Duration = "20s",
     [int]$DriverVus = 8,
     [int]$AdminVus = 6,
@@ -20,6 +22,11 @@ param(
 )
 
 $ErrorActionPreference = "Stop"
+
+if ([string]::IsNullOrWhiteSpace($BaseUrl)) {
+    $BaseUrl = "http://127.0.0.1:8080"
+}
+$BaseUrl = $BaseUrl.TrimEnd("/")
 
 $Root = (Resolve-Path (Join-Path $PSScriptRoot "..\..")).Path
 $K6Dir = Join-Path $Root "artifacts\k6"
@@ -88,9 +95,28 @@ function Invoke-Wrk([string]$Name, [string]$LuaScript, [string]$Url, [int]$Conne
     }
 }
 
-Write-Step "Check backend health"
-Invoke-RestMethod -Uri "$BaseUrl/actuator/health/liveness" | Out-Null
-Invoke-RestMethod -Uri "$BaseUrl/actuator/health/readiness" | Out-Null
+function Test-Health([string]$Url) {
+    $paths = @(
+        "/actuator/health/liveness",
+        "/actuator/health",
+        "/q/health/live",
+        "/api/health",
+        "/api/actuator/health",
+        "/readyz"
+    )
+    foreach ($path in $paths) {
+        try {
+            Invoke-RestMethod -Uri "$Url$path" | Out-Null
+            return
+        } catch {
+            continue
+        }
+    }
+    throw "Backend health check failed at $Url"
+}
+
+Write-Step "Check backend health ($Backend $BaseUrl)"
+Test-Health $BaseUrl
 
 $ragDataset = Get-Content -LiteralPath $RagDatasetPath -Raw -Encoding UTF8 | ConvertFrom-Json
 $ragQuery = [string]$ragDataset.query
@@ -132,6 +158,8 @@ Invoke-K6 "full-api-load" "$Root\scripts\k6\full-api-load.js" @{
     PERF_SUPER_USERNAME = $SuperUsername
     PERF_SUPER_PASSWORD = $SuperPassword
     PERF_INCLUDE_AI = "false"
+    BACKEND = $Backend
+    PERF_BACKEND = $Backend
     PERF_SUMMARY_JSON = "artifacts/k6/full-api-load-summary.json"
 }
 
@@ -142,10 +170,15 @@ Invoke-K6 "ai-rag-staged-load" "$Root\scripts\k6\ai-rag-staged-load.js" @{
     PERF_ADMIN_PASSWORD = $AdminPassword
     PERF_SUPER_USERNAME = $SuperUsername
     PERF_SUPER_PASSWORD = $SuperPassword
+    PERF_USERNAME = $DriverUsername
+    PERF_PASSWORD = $DriverPassword
     PERF_AI_ACTION_RATE = "1"
     PERF_RAG_RATE = "1"
     PERF_INCLUDE_MODEL = if ($IncludeModel) { "true" } else { "false" }
+    PERF_INCLUDE_AGENT = "true"
     PERF_MODEL_RATE = "1"
+    BACKEND = $Backend
+    PERF_BACKEND = $Backend
     PERF_RAG_QUERY = $ragQuery
     PERF_ACTION_MESSAGE = $aiActionMessage
     PERF_MODEL_MESSAGE = $aiModelMessage
@@ -153,31 +186,40 @@ Invoke-K6 "ai-rag-staged-load" "$Root\scripts\k6\ai-rag-staged-load.js" @{
     PERF_SUMMARY_JSON = "artifacts/k6/ai-rag-staged-load-summary.json"
 }
 
-Invoke-Wrk "driver-read-mix" "driver-read-mix.lua" "http://host.docker.internal:8080" $WrkDriverConnections @{
+$wrkPort = ([Uri]$BaseUrl).Port
+if ($wrkPort -le 0) { $wrkPort = 8080 }
+$wrkBase = "http://host.docker.internal:$wrkPort"
+
+Invoke-Wrk "driver-read-mix" "driver-read-mix.lua" $wrkBase $WrkDriverConnections @{
     PERF_TOKEN = $driver.token
     PERF_DRIVER_ID = $driverId
 }
 
-Invoke-Wrk "admin-read-mix" "read-mix.lua" "http://host.docker.internal:8080" $WrkAdminConnections @{
+Invoke-Wrk "admin-read-mix" "read-mix.lua" $wrkBase $WrkAdminConnections @{
     PERF_TOKEN = $admin.token
 }
 
-Invoke-Wrk "super-read-mix" "super-read-mix.lua" "http://host.docker.internal:8080" $WrkSuperConnections @{
+Invoke-Wrk "super-read-mix" "super-read-mix.lua" $wrkBase $WrkSuperConnections @{
     PERF_TOKEN = $super.token
 }
 
-Invoke-Wrk "rag-query" "rag-query.lua" "http://host.docker.internal:8080/api/rag/query" $WrkAiConnections @{
+Invoke-Wrk "rag-query" "rag-query.lua" "$wrkBase/api/rag/query" $WrkAiConnections @{
     PERF_TOKEN = $admin.token
     PERF_QUERY = $ragQuery
 }
 
-Invoke-Wrk "ai-actions" "ai-actions.lua" "http://host.docker.internal:8080" $WrkAiConnections @{
+Invoke-Wrk "rag-admin-preview" "rag-admin-preview.lua" "$wrkBase/api/rag/admin/preview" $WrkAiConnections @{
+    PERF_TOKEN = $super.token
+    PERF_QUERY = $ragQuery
+}
+
+Invoke-Wrk "ai-actions" "ai-actions.lua" $wrkBase $WrkAiConnections @{
     PERF_TOKEN = $admin.token
     PERF_MESSAGE = $aiActionMessage
 }
 
 # Run login pressure last so the login rate-limit window does not affect token fetching or read tests.
-Invoke-Wrk "login" "login.lua" "http://host.docker.internal:8080/api/auth/login" 16 @{
+Invoke-Wrk "login" "login.lua" "$wrkBase/api/auth/login" 16 @{
     PERF_USERNAME = $AdminUsername
     PERF_PASSWORD = $AdminPassword
 }

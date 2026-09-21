@@ -87,3 +87,17 @@ docker run --rm `
 - `Non-2xx responses by endpoint`：按 endpoint 汇总已收到响应中的非 2xx。
 
 wrk 的 Lua `response` 回调不会在超时请求上触发，所以 timeout 无法像 HTTP 状态码一样被直接归因；这里的 missing 统计用于快速定位尾延迟端点，最终结论仍应结合后端访问日志、慢查询日志和 `endpoint` 标签指标。
+
+## RAG 管理 preview
+
+SUPER_ADMIN token 才能打 `/api/rag/admin/preview`。Cloud / Go / Quarkus 与 Spring 路径相同。
+
+```powershell
+docker run --rm `
+  -e PERF_TOKEN="$env:PERF_TOKEN" `
+  -e PERF_QUERY='违法申诉' `
+  -v "${PWD}\scripts\wrk:/scripts:ro" `
+  williamyeh/wrk -t4 -c8 -d20s `
+  -s /scripts/rag-admin-preview.lua `
+  http://host.docker.internal:8080/api/rag/admin/preview
+```

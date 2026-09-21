@@ -39,11 +39,14 @@ k6 run k6-tests/03-stress-test.js
 k6 run k6-tests/06-critical-flows.js
 ```
 
-### Custom Base URL
+### Custom Base URL / Backend
 
 ```bash
-BASE_URL=http://your-server:8080 ./run-tests.sh
+BASE_URL=http://127.0.0.1:8080 BACKEND=go ./run-tests.sh
+k6 run k6-tests/07-rag-test.js
 ```
+
+`BACKEND` 可取 `spring` / `cloud` / `go` / `quarkus`。RAG 脚本会测管理详情、preview、ADMIN 可管理、USER 403 以及帮办 SSE。
 
 ## Test Files
 
@@ -193,3 +196,13 @@ For issues or questions about the performance tests:
 **Project Status**: Ready for performance testing ✅
 **Quality Grade**: A+ (Perfect) 🌟
 **Services Tested**: 7 microservices (Gateway, Auth, User, Traffic, Audit, System, Common)
+
+## High concurrency (Cloud / Go / Quarkus)
+
+Canonical script lives in `scripts/k6/high-concurrency-load.js`.
+
+```bash
+BACKEND=cloud k6 run scripts/k6/high-concurrency-load.js
+BACKEND=go BASE_URL=http://127.0.0.1:18080 k6 run scripts/k6/high-concurrency-load.js
+BACKEND=quarkus k6 run scripts/k6/high-concurrency-load.js
+```

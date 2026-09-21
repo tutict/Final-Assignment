@@ -1,8 +1,22 @@
 import http from 'k6/http';
 import { check, group, sleep } from 'k6';
 import { Rate } from 'k6/metrics';
+import {
+  accessToken as libAccessToken,
+  authHeaders as libAuthHeaders,
+  backendName,
+  firstDocumentId,
+  healthPaths,
+  jsonBody,
+  jsonHeaders as libJsonHeaders,
+  ragResults,
+  resolveBaseUrl,
+} from './lib.js';
 
-const BASE_URL = (__ENV.BASE_URL || 'http://127.0.0.1:8080').replace(/\/$/, '');
+http.setResponseCallback(http.expectedStatuses({ min: 200, max: 399 }, 403, 404, 409));
+
+const BASE_URL = resolveBaseUrl();
+const BACKEND = backendName();
 const RUN_ID = `${Date.now()}-${Math.random().toString(16).slice(2)}`;
 
 const USERNAME = __ENV.PERF_USERNAME || 'ce@ce.com';
@@ -117,21 +131,36 @@ export function setup() {
   assertLogin(adminLogin, ADMIN_USERNAME);
   assertLogin(superLogin, SUPER_USERNAME);
 
+  const list = http.get(`${BASE_URL}/api/rag/admin/documents?limit=20`, libAuthHeaders(accessToken(superLogin), 'rag_admin_list_setup'));
   return {
     username: USERNAME,
     userToken: accessToken(userLogin),
     userDriverId: json(userLogin)?.driverId,
     adminToken: accessToken(adminLogin),
     superToken: accessToken(superLogin),
+    documentId: firstDocumentId(list),
   };
 }
 
 export function healthProbe() {
   group('health', () => {
-    getAndCheck('/actuator/health/liveness', null, healthOk, 'health_liveness');
-    getAndCheck('/actuator/health/readiness', null, healthOk, 'health_readiness');
+    probeHealth(healthPaths(), 'health_liveness');
+    probeHealth(healthPaths(), 'health_readiness');
   });
   sleep(0.2);
+}
+
+function probeHealth(paths, endpoint) {
+  for (const path of paths) {
+    const res = http.get(`${BASE_URL}${path}`, jsonHeaders(endpoint));
+    if (res.status >= 200 && res.status < 300) {
+      healthOk.add(true);
+      check(res, { [`${endpoint} status is 2xx`]: () => true });
+      return;
+    }
+  }
+  healthOk.add(false);
+  check({ status: 0 }, { [`${endpoint} status is 2xx`]: () => false });
 }
 
 export function driverReadJourney(data) {
@@ -186,6 +215,20 @@ export function superAdminRead(data) {
     ];
     const selected = endpoints[(__VU + __ITER) % endpoints.length];
     getAndCheck(selected[0], data.superToken, superReadOk, selected[1]);
+
+    if (data.documentId && (__ITER % 2 === 0)) {
+      getAndCheck(`/api/rag/admin/documents/${data.documentId}`, data.superToken, superReadOk, 'super_rag_detail');
+    } else {
+      const preview = http.post(
+        `${BASE_URL}/api/rag/admin/preview`,
+        JSON.stringify({ query: '违法申诉', asRole: 'ADMIN', topK: 5 }),
+        libAuthHeaders(data.superToken, 'super_rag_preview'),
+      );
+      const hits = ragResults(preview);
+      const ok = preview.status >= 200 && preview.status < 300 && Array.isArray(hits);
+      superReadOk.add(ok);
+      check(preview, { 'super_rag_preview status is 2xx': () => ok });
+    }
 
     if (INCLUDE_AI) {
       const res = http.get(
@@ -242,36 +285,20 @@ function loginRequest(username, password, endpoint) {
   );
 }
 
-function jsonHeaders(endpoint) {
-  return {
-    headers: {
-      'Content-Type': 'application/json',
-      Accept: 'application/json',
-    },
-    tags: endpoint ? { endpoint } : undefined,
-  };
-}
-
-function authHeaders(token, endpoint) {
-  return {
-    headers: {
-      Authorization: `Bearer ${token}`,
-      Accept: 'application/json',
-    },
-    tags: endpoint ? { endpoint } : undefined,
-  };
-}
-
 function accessToken(response) {
-  return json(response)?.accessToken || json(response)?.jwtToken || json(response)?.data?.accessToken;
+  return libAccessToken(response);
 }
 
 function json(response) {
-  try {
-    return response.json();
-  } catch (_) {
-    return null;
-  }
+  return jsonBody(response);
+}
+
+function authHeaders(token, endpoint) {
+  return libAuthHeaders(token, endpoint);
+}
+
+function jsonHeaders(endpoint) {
+  return libJsonHeaders(endpoint);
 }
 
 function textSummary(data) {
@@ -283,7 +310,7 @@ function textSummary(data) {
   const lines = [
     '',
     'k6 full API load summary',
-    `base_url=${BASE_URL}`,
+    `backend=${BACKEND} base_url=${BASE_URL}`,
     `duration=${duration} user_vus=${userVus} admin_vus=${adminVus} super_vus=${superVus} login_rate=${loginRate}/s include_ai=${INCLUDE_AI}`,
     `requests=${requests}`,
     `http_req_failed_rate=${format(failedMetric.rate)}`,

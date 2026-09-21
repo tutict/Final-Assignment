@@ -19,6 +19,7 @@ echo "=========================================="
 echo "k6 Performance Test Suite"
 echo "=========================================="
 echo "Base URL: $BASE_URL"
+echo "Backend: ${BACKEND:-spring}"
 echo "Results Directory: $RESULTS_DIR"
 echo ""
 
@@ -36,7 +37,7 @@ echo -e "${GREEN}✅ Services are accessible${NC}"
 echo ""
 
 # Test 1: Smoke Test (Quick validation - 30 seconds)
-echo -e "${YELLOW}[1/4] Running Smoke Test (30s)...${NC}"
+echo -e "${YELLOW}[1/5] Running Smoke Test (30s)...${NC}"
 if k6 run --out json="$RESULTS_DIR/smoke-test.json" k6-tests/01-smoke-test.js; then
     echo -e "${GREEN}✅ Smoke Test PASSED${NC}"
 else
@@ -47,7 +48,7 @@ fi
 echo ""
 
 # Test 2: Load Test (Normal operations - 9 minutes)
-echo -e "${YELLOW}[2/4] Running Load Test (9 min)...${NC}"
+echo -e "${YELLOW}[2/5] Running Load Test (9 min)...${NC}"
 if k6 run --out json="$RESULTS_DIR/load-test.json" k6-tests/02-load-test.js; then
     echo -e "${GREEN}✅ Load Test PASSED${NC}"
 else
@@ -56,7 +57,7 @@ fi
 echo ""
 
 # Test 3: Stress Test (Peak load - 15 minutes)
-echo -e "${YELLOW}[3/4] Running Stress Test (15 min)...${NC}"
+echo -e "${YELLOW}[3/5] Running Stress Test (15 min)...${NC}"
 if k6 run --out json="$RESULTS_DIR/stress-test.json" k6-tests/03-stress-test.js; then
     echo -e "${GREEN}✅ Stress Test PASSED${NC}"
 else
@@ -64,8 +65,17 @@ else
 fi
 echo ""
 
-# Test 4: Critical Flows (Business workflows)
-echo -e "${YELLOW}[4/4] Running Critical Flow Test...${NC}"
+# Test 4: RAG admin + assistant loop
+echo -e "${YELLOW}[4/5] Running RAG / Agent Test...${NC}"
+if k6 run --out json="$RESULTS_DIR/rag-test.json" k6-tests/07-rag-test.js; then
+    echo -e "${GREEN}✅ RAG / Agent Test PASSED${NC}"
+else
+    echo -e "${RED}⚠️  RAG / Agent Test had issues - Check RAG admin and chat stream${NC}"
+fi
+echo ""
+
+# Test 5: Critical Flows (Business workflows)
+echo -e "${YELLOW}[5/5] Running Critical Flow Test...${NC}"
 if k6 run --out json="$RESULTS_DIR/critical-flows.json" k6-tests/06-critical-flows.js; then
     echo -e "${GREEN}✅ Critical Flow Test PASSED${NC}"
 else
