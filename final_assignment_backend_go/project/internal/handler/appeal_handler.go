@@ -40,6 +40,20 @@ func (h *AppealHandler) CreateAppeal(c *gin.Context) {
 	c.JSON(http.StatusCreated, created)
 }
 
+// GetMyAppeals 当前用户自己的申诉（GET /api/appeals/my）。
+// 必须注册在 /:id 之前，否则 gin 会把 "my" 当成 appeal ID。
+func (h *AppealHandler) GetMyAppeals(c *gin.Context) {
+	appeals, err := h.appealService.ListForRequester(c.GetString("username"), Unscoped(c, ResourceAppeals))
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+	if appeals == nil {
+		appeals = []domain.AppealManagement{}
+	}
+	c.JSON(http.StatusOK, appeals)
+}
+
 // GetAppealByID 获取单个申诉（GET /api/appeals/:id）
 func (h *AppealHandler) GetAppealByID(c *gin.Context) {
 	id, err := strconv.Atoi(c.Param("id"))

@@ -165,6 +165,7 @@ func (s *AuthWsService) Login(req LoginRequest) (map[string]interface{}, error) 
 	if err != nil {
 		return nil, err
 	}
+	driverID, driverName := s.lookupDriverProfile(user.UserID)
 	result := map[string]interface{}{
 		"jwtToken":    token,
 		"accessToken": token,
@@ -172,6 +173,8 @@ func (s *AuthWsService) Login(req LoginRequest) (map[string]interface{}, error) 
 		"expiresIn":   s.tokenProvider.GetAccessTokenExpirationSeconds(),
 		"username":    user.Username,
 		"roles":       roles,
+		"driverId":    driverID,
+		"driverName":  driverName,
 	}
 	// 若注入了刷新令牌服务，则签发独立的 refresh token（与 Spring/Quarkus 对齐）。
 	// 签发失败不应静默吞掉：否则客户端拿到无 refreshToken 的 200，无法区分"未启用 refresh"与
@@ -267,8 +270,7 @@ func (s *AuthWsService) Logout(username, bearerToken string) error {
 	return nil
 }
 
-// GetCurrentUserProfile 返回当前登录用户的档案（身份 + 角色）。
-// driver 关联尚未移植，暂返回空值（与历史行为一致）。
+// GetCurrentUserProfile 返回当前登录用户的档案（身份 + 角色 + 绑定的驾驶员）。
 
 func (s *AuthWsService) GetCurrentUserProfile(username string) (map[string]interface{}, error) {
 	if strings.TrimSpace(username) == "" {
@@ -280,19 +282,7 @@ func (s *AuthWsService) GetCurrentUserProfile(username string) (map[string]inter
 	}
 	roles := s.lookupAuthRoles(user)
 	displayName := user.Username
-	var driverID any
-	var driverName any
-	type driverRow struct {
-		DriverID int64  `gorm:"column:driver_id"`
-		Name     string `gorm:"column:name"`
-	}
-	var driver driverRow
-	if err := s.users.DB().Table("driver_information").
-		Where("auth_user_id = ? AND deleted_at IS NULL", user.UserID).
-		Take(&driver).Error; err == nil {
-		driverID = driver.DriverID
-		driverName = driver.Name
-	}
+	driverID, driverName := s.lookupDriverProfile(user.UserID)
 	return map[string]interface{}{
 		"authUserId":  user.UserID,
 		"username":    user.Username,
@@ -303,6 +293,20 @@ func (s *AuthWsService) GetCurrentUserProfile(username string) (map[string]inter
 		"driverId":    driverID,
 		"driverName":  driverName,
 	}, nil
+}
+
+func (s *AuthWsService) lookupDriverProfile(userID uint64) (any, any) {
+	type driverRow struct {
+		DriverID int64  `gorm:"column:driver_id"`
+		Name     string `gorm:"column:name"`
+	}
+	var driver driverRow
+	if err := s.users.DB().Table("driver_information").
+		Where("auth_user_id = ? AND deleted_at IS NULL", userID).
+		Take(&driver).Error; err == nil {
+		return driver.DriverID, driver.Name
+	}
+	return nil, nil
 }
 
 func extractBearer(header string) string {

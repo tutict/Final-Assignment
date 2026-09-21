@@ -9,11 +9,11 @@ Rag:
   EmbeddingEnabled: true
   RetrievalEnabled: true
   MySQLDSN: "root:root@tcp(localhost:3306)/rag_db?charset=utf8mb4&parseTime=True&loc=Local"
-  ElasticsearchAddresses: ["${ELASTICSEARCH_URL}"]
+  ElasticsearchAddresses: ["http://127.0.0.1:9200"]
   ElasticsearchUsername: ""
   ElasticsearchPassword: ""
-  ElasticsearchIndex: rag_chunk
-  ElasticsearchAlias: rag_chunk_current
+  ElasticsearchIndex: rag_chunk_go_v1
+  ElasticsearchAlias: rag_chunk_go_current
   EmbeddingProvider: deterministic
   EmbeddingModel: deterministic-384
   EmbeddingDimensions: 384

@@ -104,11 +104,12 @@ func TestLoginReturnsFullAuthContractForFrontends(t *testing.T) {
 		"jwtToken":     "jwt-value",
 		"accessToken":  "jwt-value",
 		"refreshToken": "refresh-value",
-		"username":     "admin",
-		"roles":        []string{"ADMIN"},
+		"username":     "ce@ce.com",
+		"roles":        []string{"USER"},
+		"driverId":     42,
 	}}).Login)
 
-	body := bytes.NewBufferString(`{"username":"admin","password":"admin123"}`)
+	body := bytes.NewBufferString(`{"username":"ce@ce.com","password":"123456"}`)
 	req := httptest.NewRequest(http.MethodPost, "/api/auth/login", body)
 	req.Header.Set("Content-Type", "application/json")
 	res := httptest.NewRecorder()
@@ -121,9 +122,12 @@ func TestLoginReturnsFullAuthContractForFrontends(t *testing.T) {
 	if err := json.Unmarshal(res.Body.Bytes(), &response); err != nil {
 		t.Fatalf("decode response: %v", err)
 	}
-	for _, key := range []string{"jwtToken", "accessToken", "refreshToken", "username"} {
+	for _, key := range []string{"jwtToken", "accessToken", "refreshToken", "username", "driverId"} {
 		if response[key] == nil || response[key] == "" {
 			t.Fatalf("expected %s in login payload, got %#v", key, response)
 		}
+	}
+	if response["driverId"] != float64(42) {
+		t.Fatalf("expected driverId 42, got %#v", response["driverId"])
 	}
 }
