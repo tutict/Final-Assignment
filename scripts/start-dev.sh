@@ -120,6 +120,7 @@ STOP_DOCKER_ON_EXIT="${STOP_DOCKER_ON_EXIT:-$STOP_LOCAL_SERVICES_ON_EXIT}"
 STOP_OLLAMA_ON_EXIT="${STOP_OLLAMA_ON_EXIT:-$STOP_LOCAL_SERVICES_ON_EXIT}"
 BACKEND_PROFILE="${BACKEND_PROFILE:-dev}"
 JWT_SECRET="${JWT_SECRET:-dev-jwt-secret-key-for-local-startup-please-change-1234567890}"
+INTERNAL_SERVICE_TOKEN="${INTERNAL_SERVICE_TOKEN:-dev-internal-service-token-32bytes-ok}"
 APP_DEV_SERVICES_ENABLED="${APP_DEV_SERVICES_ENABLED:-false}"
 APP_DOCKER_STARTUP_SCRIPT_ENABLED="${APP_DOCKER_STARTUP_SCRIPT_ENABLED:-false}"
 APP_OLLAMA_STARTUP_SCRIPT_ENABLED="${APP_OLLAMA_STARTUP_SCRIPT_ENABLED:-false}"
@@ -497,7 +498,17 @@ backend_listen_ports() {
   case "$BACKEND_CHOICE" in
     go) printf '%s\n' "$BACKEND_PORT" ;;
     spring|quarkus) printf '%s\n%s\n' "$BACKEND_PORT" "$BACKEND_INTERNAL_PORT" ;;
-    cloud) printf '%s\n' "$BACKEND_PORT" ;;
+    cloud)
+      printf '%s\n' "$BACKEND_PORT"
+      printf '%s\n' "${CLOUD_AUTH_PORT:-8081}"
+      printf '%s\n' "${CLOUD_USER_PORT:-18082}"
+      printf '%s\n' "${CLOUD_TRAFFIC_PORT:-18083}"
+      printf '%s\n' "${CLOUD_AUDIT_PORT:-8084}"
+      printf '%s\n' "${CLOUD_SYSTEM_PORT:-8085}"
+      printf '%s\n' "${CLOUD_AI_PORT:-8086}"
+      printf '%s\n' "${CLOUD_SEARCH_PORT:-8087}"
+      printf '%s\n' "${CLOUD_RAG_PORT:-8088}"
+      ;;
   esac
 }
 
@@ -1157,9 +1168,17 @@ start_backend() {
     cloud)
       [ -f "$CLOUD_DIR/pom.xml" ] || fail "Spring Cloud project not found: $CLOUD_DIR"
       require_command "$MVN_CMD"
+      BACKEND_HEALTH_WAIT_SECONDS="$BACKEND_HEALTH_WAIT_SECONDS"
+      if [ "$BACKEND_HEALTH_WAIT_SECONDS" -lt 420 ]; then
+        BACKEND_HEALTH_WAIT_SECONDS=420
+      fi
+      export INTERNAL_SERVICE_TOKEN JWT_SECRET
+      if [ -z "${JWT_SECRET_KEY:-}" ]; then
+        JWT_SECRET_KEY="$(printf '%s' "$JWT_SECRET" | base64 | tr -d '\n')"
+        export JWT_SECRET_KEY
+      fi
       (
-        cd "$CLOUD_DIR"
-        "$MVN_CMD" -pl finalassignmentcloud-gateway -am spring-boot:run "-Dspring-boot.run.profiles=$BACKEND_PROFILE"
+        "$SCRIPT_DIR/start-cloud-backend.sh" --wait --log-dir "$STARTUP_LOG_DIR" --profile "$BACKEND_PROFILE" --gateway-port "$BACKEND_PORT"
       ) >"$BACKEND_LOG" 2>"$BACKEND_ERR_LOG" &
       BACKEND_PID=$!
       ;;

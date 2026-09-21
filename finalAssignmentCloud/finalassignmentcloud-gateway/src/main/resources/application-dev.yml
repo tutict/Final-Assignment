@@ -1,0 +1,70 @@
+spring:
+  main:
+    web-application-type: reactive
+    allow-bean-definition-overriding: true
+    allow-circular-references: true
+  autoconfigure:
+    exclude:
+      - org.springframework.boot.autoconfigure.jdbc.DataSourceAutoConfiguration
+      - org.springframework.boot.jdbc.autoconfigure.DataSourceAutoConfiguration
+  cloud:
+    nacos:
+      config:
+        enabled: false
+        import-check:
+          enabled: false
+      discovery:
+        enabled: ${CLOUD_NACOS_DISCOVERY:false}
+        server-addr: ${NACOS_SERVER:localhost:8848}
+    gateway:
+      discovery:
+        locator:
+          enabled: false
+      server:
+        webflux:
+          discovery:
+            locator:
+              enabled: false
+          routes:
+            - id: auth-service
+              uri: http://127.0.0.1:${CLOUD_AUTH_PORT:8081}
+              predicates:
+                - Path=/api/auth/**
+            - id: user-service
+              uri: http://127.0.0.1:${CLOUD_USER_PORT:18082}
+              predicates:
+                - Path=/api/users/**,/api/permissions/**,/api/roles/**
+            - id: traffic-service
+              uri: http://127.0.0.1:${CLOUD_TRAFFIC_PORT:18083}
+              predicates:
+                - Path=/api/offenses/**,/api/offense-types/**,/api/violations/**,/api/deductions/**,/api/fines/**,/api/payments/**,/api/vehicles/**,/api/drivers/**,/api/appeals/**,/api/progress/**,/api/workflow/**,/api/view/offenses/**
+            - id: audit-service
+              uri: http://127.0.0.1:${CLOUD_AUDIT_PORT:8084}
+              predicates:
+                - Path=/api/audit/**,/api/system/logs/**,/api/logs/**
+            - id: system-service
+              uri: http://127.0.0.1:${CLOUD_SYSTEM_PORT:8085}
+              predicates:
+                - Path=/api/system/**
+            - id: rag-service
+              uri: http://127.0.0.1:${CLOUD_RAG_PORT:8088}
+              predicates:
+                - Path=/api/rag/**
+            - id: search-service
+              uri: http://127.0.0.1:${CLOUD_SEARCH_PORT:8087}
+              predicates:
+                - Path=/api/search/**
+            - id: ai-service
+              uri: http://127.0.0.1:${CLOUD_AI_PORT:8086}
+              predicates:
+                - Path=/api/ai/**
+
+server:
+  port: ${CLOUD_GATEWAY_PORT:8080}
+
+jwt:
+  secret:
+    key: ${JWT_SECRET_KEY:ZGV2LWp3dC1zZWNyZXQta2V5LWZvci1sb2NhbC1zdGFydHVwLXBsZWFzZS1jaGFuZ2UtMTIzNDU2Nzg5MA==}
+
+internal:
+  service-token: ${INTERNAL_SERVICE_TOKEN:dev-internal-service-token-32bytes-ok}

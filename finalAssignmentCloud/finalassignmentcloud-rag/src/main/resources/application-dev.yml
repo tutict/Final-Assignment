@@ -1,0 +1,40 @@
+spring:
+  main:
+    allow-bean-definition-overriding: true
+    allow-circular-references: true
+  cloud:
+    nacos:
+      config:
+        enabled: false
+        import-check:
+          enabled: false
+      discovery:
+        enabled: ${CLOUD_NACOS_DISCOVERY:false}
+        server-addr: ${NACOS_SERVER:localhost:8848}
+  datasource:
+    url: ${SPRING_DATASOURCE_URL:jdbc:mysql://localhost:3306/traffic?useSSL=false&serverTimezone=Asia/Shanghai&allowPublicKeyRetrieval=true}
+    username: ${SPRING_DATASOURCE_USERNAME:${DB_USERNAME:root}}
+    password: ${SPRING_DATASOURCE_PASSWORD:${DB_PASSWORD:root}}
+    driver-class-name: com.mysql.cj.jdbc.Driver
+  kafka:
+    listener:
+      auto-startup: false
+  data:
+    redis:
+      host: ${SPRING_DATA_REDIS_HOST:localhost}
+      port: ${SPRING_DATA_REDIS_PORT:6379}
+
+server:
+  port: ${CLOUD_RAG_PORT:8088}
+
+jwt:
+  secret:
+    key: ${JWT_SECRET_KEY:ZGV2LWp3dC1zZWNyZXQta2V5LWZvci1sb2NhbC1zdGFydHVwLXBsZWFzZS1jaGFuZ2UtMTIzNDU2Nzg5MA==}
+
+internal:
+  service-token: ${INTERNAL_SERVICE_TOKEN:dev-internal-service-token-32bytes-ok}
+
+rag:
+  enabled: true
+  retrieval:
+    enabled: true

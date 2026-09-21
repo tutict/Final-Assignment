@@ -1,0 +1,27 @@
+spring:
+  main:
+    allow-bean-definition-overriding: true
+    allow-circular-references: true
+  autoconfigure:
+    exclude:
+      - org.springframework.boot.autoconfigure.jdbc.DataSourceAutoConfiguration
+      - org.springframework.boot.jdbc.autoconfigure.DataSourceAutoConfiguration
+  cloud:
+    nacos:
+      config:
+        enabled: false
+        import-check:
+          enabled: false
+      discovery:
+        enabled: ${CLOUD_NACOS_DISCOVERY:false}
+        server-addr: ${NACOS_SERVER:localhost:8848}
+
+server:
+  port: ${CLOUD_SEARCH_PORT:8087}
+
+jwt:
+  secret:
+    key: ${JWT_SECRET_KEY:ZGV2LWp3dC1zZWNyZXQta2V5LWZvci1sb2NhbC1zdGFydHVwLXBsZWFzZS1jaGFuZ2UtMTIzNDU2Nzg5MA==}
+
+internal:
+  service-token: ${INTERNAL_SERVICE_TOKEN:dev-internal-service-token-32bytes-ok}

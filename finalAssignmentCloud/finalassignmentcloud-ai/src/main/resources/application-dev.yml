@@ -1,0 +1,48 @@
+spring:
+  ai:
+    ollama:
+      base-url: ${OLLAMA_URL:http://localhost:11434}
+      chat:
+        options:
+          model: ${OLLAMA_CHAT_MODEL:${OLLAMA_MODEL:llama3.2}}
+      embedding:
+        options:
+          model: ${RAG_EMBEDDING_MODEL:nomic-embed-text}
+  main:
+    allow-bean-definition-overriding: true
+    allow-circular-references: true
+  autoconfigure:
+    exclude:
+      - org.springframework.boot.autoconfigure.jdbc.DataSourceAutoConfiguration
+      - org.springframework.boot.jdbc.autoconfigure.DataSourceAutoConfiguration
+  cloud:
+    nacos:
+      config:
+        enabled: false
+        import-check:
+          enabled: false
+      discovery:
+        enabled: ${CLOUD_NACOS_DISCOVERY:false}
+        server-addr: ${NACOS_SERVER:localhost:8848}
+  kafka:
+    listener:
+      auto-startup: false
+  data:
+    redis:
+      host: ${SPRING_DATA_REDIS_HOST:localhost}
+      port: ${SPRING_DATA_REDIS_PORT:6379}
+
+server:
+  port: ${CLOUD_AI_PORT:8086}
+
+jwt:
+  secret:
+    key: ${JWT_SECRET_KEY:ZGV2LWp3dC1zZWNyZXQta2V5LWZvci1sb2NhbC1zdGFydHVwLXBsZWFzZS1jaGFuZ2UtMTIzNDU2Nzg5MA==}
+
+internal:
+  service-token: ${INTERNAL_SERVICE_TOKEN:dev-internal-service-token-32bytes-ok}
+
+ai:
+  agent:
+    draft:
+      store: memory

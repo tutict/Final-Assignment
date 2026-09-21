@@ -1,0 +1,72 @@
+# Shared local-dev overlay loaded by scripts/start-cloud-backend.*
+# Keeps one-click startup working without Nacos config, extra MySQL shards,
+# or the Redpanda/Debezium host ports that collide with the default Cloud
+# user (8082) and traffic (8083) listeners.
+
+jwt:
+  secret:
+    key: ${JWT_SECRET_KEY:ZGV2LWp3dC1zZWNyZXQta2V5LWZvci1sb2NhbC1zdGFydHVwLXBsZWFzZS1jaGFuZ2UtMTIzNDU2Nzg5MA==}
+
+internal:
+  service-token: ${INTERNAL_SERVICE_TOKEN:dev-internal-service-token-32bytes-ok}
+
+spring:
+  main:
+    allow-bean-definition-overriding: true
+    allow-circular-references: true
+  cloud:
+    nacos:
+      config:
+        enabled: false
+        import-check:
+          enabled: false
+      discovery:
+        enabled: ${CLOUD_NACOS_DISCOVERY:false}
+        server-addr: ${NACOS_SERVER:localhost:8848}
+    discovery:
+      client:
+        simple:
+          instances:
+            finalassignmentcloud-auth:
+              - uri: http://127.0.0.1:${CLOUD_AUTH_PORT:8081}
+            finalassignmentcloud-user:
+              - uri: http://127.0.0.1:${CLOUD_USER_PORT:18082}
+            finalassignmentcloud-traffic:
+              - uri: http://127.0.0.1:${CLOUD_TRAFFIC_PORT:18083}
+            finalassignmentcloud-audit:
+              - uri: http://127.0.0.1:${CLOUD_AUDIT_PORT:8084}
+            finalassignmentcloud-system:
+              - uri: http://127.0.0.1:${CLOUD_SYSTEM_PORT:8085}
+            finalassignmentcloud-ai:
+              - uri: http://127.0.0.1:${CLOUD_AI_PORT:8086}
+            finalassignmentcloud-search:
+              - uri: http://127.0.0.1:${CLOUD_SEARCH_PORT:8087}
+            finalassignmentcloud-rag:
+              - uri: http://127.0.0.1:${CLOUD_RAG_PORT:8088}
+            finalassignmentcloud-gateway:
+              - uri: http://127.0.0.1:${CLOUD_GATEWAY_PORT:8080}
+    service-registry:
+      auto-registration:
+        enabled: ${CLOUD_NACOS_DISCOVERY:false}
+  kafka:
+    bootstrap-servers: ${SPRING_KAFKA_BOOTSTRAP_SERVERS:localhost:9092}
+    listener:
+      auto-startup: false
+  data:
+    redis:
+      host: ${SPRING_DATA_REDIS_HOST:localhost}
+      port: ${SPRING_DATA_REDIS_PORT:6379}
+  elasticsearch:
+    uris: ${ELASTICSEARCH_URIS:http://localhost:9200}
+
+management:
+  health:
+    elasticsearch:
+      enabled: false
+    redis:
+      enabled: ${MANAGEMENT_HEALTH_REDIS_ENABLED:true}
+
+rag:
+  enabled: true
+  retrieval:
+    enabled: true

@@ -143,6 +143,7 @@ $StartLocalServices = Set-DefaultEnv "START_LOCAL_SERVICES" "true"
 if ($skipEnv) { $StartLocalServices = "false" }
 $BackendProfile = Set-DefaultEnv "BACKEND_PROFILE" "dev"
 Set-DefaultEnv "JWT_SECRET" "dev-jwt-secret-key-for-local-startup-please-change-1234567890" | Out-Null
+Set-DefaultEnv "INTERNAL_SERVICE_TOKEN" "dev-internal-service-token-32bytes-ok" | Out-Null
 Set-DefaultEnv "APP_DEV_SERVICES_ENABLED" "false" | Out-Null
 Set-DefaultEnv "APP_DOCKER_STARTUP_SCRIPT_ENABLED" "false" | Out-Null
 Set-DefaultEnv "APP_OLLAMA_STARTUP_SCRIPT_ENABLED" "false" | Out-Null
@@ -1094,7 +1095,17 @@ function Get-BackendListenPorts {
         "go" { return @([int]$BackendPort) }
         "spring" { return @([int]$BackendPort, [int]$BackendInternalPort) }
         "quarkus" { return @([int]$BackendPort, [int]$BackendInternalPort) }
-        "cloud" { return @([int]$BackendPort) }
+        "cloud" {
+            $cloudPorts = @([int]$BackendPort)
+            foreach ($name in @("CLOUD_AUTH_PORT","CLOUD_USER_PORT","CLOUD_TRAFFIC_PORT","CLOUD_AUDIT_PORT","CLOUD_SYSTEM_PORT","CLOUD_AI_PORT","CLOUD_SEARCH_PORT","CLOUD_RAG_PORT")) {
+                $raw = Get-EnvValue $name
+                if ($raw -match '^\d+$') { $cloudPorts += [int]$raw }
+            }
+            foreach ($fallback in @(8081, 18082, 18083, 8084, 8085, 8086, 8087, 8088)) {
+                if ($cloudPorts -notcontains $fallback) { $cloudPorts += $fallback }
+            }
+            return @($cloudPorts | Select-Object -Unique)
+        }
         default { return @() }
     }
 }
@@ -1341,11 +1352,26 @@ function New-CloudRunner {
     $MvnCmd = Get-ExecutablePath -Configured (Get-EnvValue "MVN_CMD") -Candidates @("mvn.cmd", "mvn") -FallbackPath $MavenFallback -Name "Maven"
     $env:MVN_CMD = $MvnCmd
     Write-Log "Using Maven: $MvnCmd"
-    $service = "finalassignmentcloud-gateway"
+    Set-DefaultEnv "INTERNAL_SERVICE_TOKEN" "dev-internal-service-token-32bytes-ok" | Out-Null
+    $JwtSecret = Get-EnvValue "JWT_SECRET" "dev-jwt-secret-key-for-local-startup-please-change-1234567890"
+    if ([string]::IsNullOrWhiteSpace((Get-EnvValue "JWT_SECRET_KEY"))) {
+        try {
+            [Convert]::FromBase64String($JwtSecret) | Out-Null
+            [Environment]::SetEnvironmentVariable("JWT_SECRET_KEY", $JwtSecret, "Process")
+        } catch {
+            $encoded = [Convert]::ToBase64String([Text.Encoding]::UTF8.GetBytes($JwtSecret))
+            [Environment]::SetEnvironmentVariable("JWT_SECRET_KEY", $encoded, "Process")
+        }
+    }
+    $cloudScript = Join-Path $ScriptDir "start-cloud-backend.ps1"
+    if (-not (Test-Path -LiteralPath $cloudScript)) { Fail "Cloud startup script not found: $cloudScript" }
+    $script:BackendHealthWaitSeconds = [Math]::Max($BackendHealthWaitSeconds, 420)
+    Write-Log "Cloud one-click launcher: $cloudScript"
     Set-Content -LiteralPath $RunnerPath -Encoding ASCII -Value @(
         "@echo off",
         "cd /d `"$CloudDir`"",
-        "call `"$MvnCmd`" -pl $service -am spring-boot:run -Dspring-boot.run.profiles=$BackendProfile 1> `"$BackendLog`" 2> `"$BackendErrLog`"",
+        "set `"MVN_CMD=$MvnCmd`"",
+        "powershell.exe -NoProfile -ExecutionPolicy Bypass -File `"$cloudScript`" -Wait -LogDir `"$StartupLogDir`" -Profile `"$BackendProfile`" -GatewayPort $BackendPort 1>> `"$BackendLog`" 2>> `"$BackendErrLog`"",
         "exit /b %ERRORLEVEL%"
     )
     return $true
