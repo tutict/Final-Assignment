@@ -11,7 +11,7 @@
 | [一键启动](#一键启动) | 启动 Docker 依赖、后端、Flutter Web 和本地 AI 环境 |
 | [后端包结构](finalAssignmentBackend/PACKAGE_LAYOUT.md) | Spring Boot 主后端的分层、领域包和命名规则 |
 | [数据库设计](database/DATABASE_DESIGN.md) | MySQL 表、角色、业务关联、敏感字段和 RAG 表设计 |
-| [压测报告](docs/performance/load-test-2026-06-01.md) | k6 / wrk 本地性能基线、AI/RAG 分段压测和瓶颈分析 |
+| [压测报告](docs/performance/load-test-2026-09-21.md) | 2026-09-21 四后端 k6（Spring / Cloud / Go / Quarkus）；历史 Spring 基线见 2026-06-01 |
 | [脚本说明](scripts/README.md) | 启动、Debezium、AI 链路测试等脚本参数 |
 
 ## 当前主线
@@ -72,11 +72,17 @@ Flutter Web
 
 ## 压测与性能基线
 
-- [2026-06-01 k6 / wrk 全链路压测报告](docs/performance/load-test-2026-06-01.md)
+- [2026-09-21 四后端 k6 总览](docs/performance/load-test-2026-09-21.md)
+  - [Spring 单体](docs/performance/load-test-2026-09-21-spring.md)
+  - [Spring Cloud 网关](docs/performance/load-test-2026-09-21-cloud.md)
+  - [Quarkus](docs/performance/load-test-2026-09-21-quarkus.md)
+  - [Go](docs/performance/load-test-2026-09-21-go.md)
+- [2026-06-01 k6 / wrk 全链路压测报告](docs/performance/load-test-2026-06-01.md) — 更早的 Spring 单体基线
 - [2026-05-31 k6 / wrk 压测报告](docs/performance/load-test-2026-05-31.md)
 - [2026-05-31 Kafka / Redpanda 专项压测报告](docs/performance/kafka-load-test-2026-05-31.md)
 - [2026-05-30 k6 / wrk 压测报告](docs/performance/load-test-2026-05-30.md)
-- 一键压测编排脚本位于 `scripts/performance/run-load-tests.ps1`
+- 一键压测：`scripts/performance/run-load-tests.ps1 -Backend spring|cloud|go|quarkus`
+- Cloud 一键启动：`scripts/start-cloud-backend.ps1 -IncludeAi`
 - k6 脚本位于 `scripts/k6/`，wrk Lua 脚本位于 `scripts/wrk/`
 
 ## 一键启动

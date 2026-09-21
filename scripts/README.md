@@ -28,6 +28,28 @@ Backend choices:
 - `go`      — Go / Gin (`final_assignment_backend_go`; REST 8080 / DB `cesi`)
 - `quarkus` — Quarkus (`final_assignment_backend_quarkus`; external REST+WS 8080 / internal REST 9080 / DB `cesi`)
 - `cloud`   — Spring Cloud microservices (`finalAssignmentCloud`; gateway 8080)
+
+`cloud` starts the full Spring Cloud chain, not just the gateway:
+
+1. Packages `finalAssignmentCloud` (`mvn -DskipTests package`)
+2. Starts user/auth/traffic/audit/system/search/rag, then the gateway on 8080
+3. Uses `finalAssignmentCloud/config/local-dev.yml` so local startup does not need Nacos config or extra MySQL shards
+4. Remaps user to `18082` and traffic to `18083` so they do not collide with Redpanda Pandaproxy (`8082`) and Debezium (`8083`)
+
+Standalone (no frontend, leave the stack running):
+
+```bat
+powershell -ExecutionPolicy Bypass -File scripts\start-cloud-backend.ps1 -LogDir artifacts\startup\cloud-manual
+```
+
+Then run k6 against the gateway:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File scripts\performance\run-load-tests.ps1 -Backend cloud -Duration 20s
+```
+
+Set `CLOUD_INCLUDE_AI=true` (or `scripts\start-cloud-backend.ps1 -IncludeAi`) to also start `finalassignmentcloud-ai` on 8086. The module is in the Maven reactor; the jar is large because of GraalPy. Chat defaults to local Ollama **llama3.2** (`OLLAMA_CHAT_MODEL`). Set `CLOUD_USE_NACOS=true` to register services with the Nacos container from `finalAssignmentCloud/compose.yaml`.
+
 - `none`    — no backend
 
 Frontend choices:
@@ -381,7 +403,25 @@ powershell -ExecutionPolicy Bypass -File scripts\performance\run-load-tests.ps1 
   -IncludeModel
 ```
 
-The report is maintained at `docs\performance\load-test-2026-05-30.md`. The generated raw outputs are written to `artifacts\k6` and `artifacts\wrk`; those directories are ignored by Git.
+Cloud 网关压测：
+
+```powershell
+powershell -ExecutionPolicy Bypass -File scripts\start-cloud-backend.ps1 -IncludeAi
+powershell -ExecutionPolicy Bypass -File scripts\performance\run-load-tests.ps1 `
+  -Backend cloud -Duration 20s -DriverVus 8 -AdminVus 6 -SuperVus 2 -LoginRate 0
+```
+
+压测报告：
+
+- 2026-09-21 四后端总览：`docs\performance\load-test-2026-09-21.md`
+  - Spring：`docs\performance\load-test-2026-09-21-spring.md`
+  - Cloud：`docs\performance\load-test-2026-09-21-cloud.md`
+  - Quarkus：`docs\performance\load-test-2026-09-21-quarkus.md`
+  - Go：`docs\performance\load-test-2026-09-21-go.md`
+- Spring 单体（2026-06-01）：`docs\performance\load-test-2026-06-01.md`
+- 更早记录：`docs\performance\load-test-2026-05-30.md`
+
+原始输出写到 `artifacts\k6` 和 `artifacts\wrk`（Git 忽略）。
 
 Run the Kafka/Redpanda Pandaproxy load-test orchestration:
 

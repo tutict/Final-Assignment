@@ -1,6 +1,81 @@
 # k6 压测脚本
 
 脚本默认连接 `http://127.0.0.1:8080`。本地种子账号默认值如下，可通过环境变量覆盖：
+## 多后端
+
+同一套脚本覆盖 Spring / Cloud / Go / Quarkus。路径不变：`/api/rag/admin` 与 `/api/ai/chat/stream`。
+
+| 后端 | `BACKEND` | 默认 `BASE_URL` |
+| --- | --- | --- |
+| Spring 单体 | `spring` | `http://127.0.0.1:8080` |
+| Spring Cloud 网关 | `cloud` | `http://127.0.0.1:8080` |
+| Go | `go` | `http://127.0.0.1:8080` |
+| Quarkus | `quarkus` | `http://127.0.0.1:8080` |
+
+```powershell
+$env:BACKEND='go'
+$env:BASE_URL='http://127.0.0.1:8080'
+k6 run scripts/k6/ai-rag-staged-load.js
+```
+
+统一编排：
+
+```powershell
+powershell -ExecutionPolicy Bypass -File scripts\performance\run-load-tests.ps1 -Backend quarkus -Duration 20s
+```
+
+`ai-rag-staged-load.js` 额外覆盖：
+
+- SUPER_ADMIN：`GET /api/rag/admin/overview|documents/{id}`、`POST /preview`
+- ADMIN：可访问 RAG 管理接口（200）
+- USER/驾驶员：RAG 管理接口 403
+- 驾驶员帮办循环：`POST /api/ai/chat/stream` 查询自己的违法、写操作先草稿、他人 draft 拒绝
+
+响应体会自动解开 `{ success, data }` 包装，因此 Cloud / Go / Quarkus 与 Spring 可共用脚本。
+
+
+
+
+## Cloud / Go / Quarkus 高并发
+
+`high-concurrency-load.js` 专门打三端高并发：驾驶员读、管理员读、RAG 管理/preview、RAG 检索，以及限流后的帮办 SSE。默认峰值约 160/120/40 VU + RAG 25 req/s + agent 6 req/s。
+
+单独打一个后端：
+
+```powershell
+$env:BACKEND='cloud'
+$env:BASE_URL='http://127.0.0.1:8080'
+k6 run scripts/k6/high-concurrency-load.js
+```
+
+Go / Quarkus 若占用不同端口：
+
+```powershell
+$env:BACKEND='go'
+$env:BASE_URL_GO='http://127.0.0.1:18080'
+k6 run scripts/k6/high-concurrency-load.js
+```
+
+一次打三端（健康检查失败的会跳过）：
+
+```powershell
+powershell -ExecutionPolicy Bypass -File scripts\performance\run-high-concurrency.ps1 `
+  -Backend all `
+  -CloudUrl http://127.0.0.1:8080 `
+  -GoUrl http://127.0.0.1:18080 `
+  -QuarkusUrl http://127.0.0.1:8081 `
+  -Hold 2m `
+  -DriverVus 160 `
+  -AdminVus 120
+```
+
+只打业务读、不要帮办 SSE：
+
+```powershell
+powershell -ExecutionPolicy Bypass -File scripts\performance\run-high-concurrency.ps1 -Backend quarkus -SkipAgent
+```
+
+摘要输出到 `artifacts/k6/high-concurrency-<backend>-summary.json`。
 
 | 角色 | 用户名 | 密码 | 环境变量 |
 | --- | --- | --- | --- |
@@ -60,6 +135,23 @@ k6 run scripts/k6/ai-rag-staged-load.js
 ```
 
 `scripts/performance/run-load-tests.ps1` 会先调用 `scripts/performance/seed-rag-load-dataset.ps1` 写入专用 RAG 压测资料，再以 `PERF_STRICT=true` 执行 AI/RAG 分段压测。`ai-rag-staged-load.js` 会在 AI stream 摘要中分别输出真实 `ollama` 调用成功率和 `noop fallback` 比例。
+
+## 2026-09-21 四后端结果
+
+同一套脚本、`Duration 20s`。总览：`docs/performance/load-test-2026-09-21.md`。
+
+| 后端 | 全 API checks | p95 | 报告 |
+| --- | ---: | ---: | --- |
+| spring | 1.000 | 56ms | [spring](../../docs/performance/load-test-2026-09-21-spring.md) |
+| cloud | 1.000 | 97ms | [cloud](../../docs/performance/load-test-2026-09-21-cloud.md) |
+| quarkus | 1.000 | 101ms | [quarkus](../../docs/performance/load-test-2026-09-21-quarkus.md) |
+| go | 0.571 | 3.6ms | [go](../../docs/performance/load-test-2026-09-21-go.md) |
+
+```powershell
+powershell -ExecutionPolicy Bypass -File scripts\performance\run-load-tests.ps1 -Backend spring -Duration 20s
+powershell -ExecutionPolicy Bypass -File scripts\start-cloud-backend.ps1 -IncludeAi
+powershell -ExecutionPolicy Bypass -File scripts\performance\run-load-tests.ps1 -Backend cloud -Duration 20s
+```
 
 ## 本地完整编排
 
