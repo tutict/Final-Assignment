@@ -3,11 +3,13 @@ package com.tutict.finalassignmentcloud.traffic.config;
 import jakarta.annotation.PostConstruct;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.context.annotation.Profile;
 
 import java.util.Locale;
 import java.util.Set;
 
 @Configuration
+@Profile("sharding")
 public class DatabaseCredentialGuard {
 
     private final String ds0Username;

@@ -9,6 +9,7 @@ import com.tutict.finalassignmentcloud.repository.AppealRecordSearchRepository;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
@@ -27,7 +28,7 @@ public class AppealSearchQueryAdapter {
     private final AppealReadAssembler readAssembler = new AppealReadAssembler();
 
     public AppealSearchQueryAdapter(
-            AppealRecordSearchRepository appealRecordSearchRepository,
+            @Autowired(required = false) AppealRecordSearchRepository appealRecordSearchRepository,
             AppealRecordProjectionAssembler projectionAssembler
     ) {
         this.appealRecordSearchRepository = appealRecordSearchRepository;

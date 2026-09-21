@@ -59,8 +59,8 @@ public class ServiceSecurityConfig {
                 .exceptionHandling(ex -> ex
                         .authenticationEntryPoint(SecurityResponseWriter::writeUnauthorized)
                         .accessDeniedHandler(SecurityResponseWriter::writeForbidden))
-                .addFilterBefore(internalServiceTokenFilter, ServiceJwtAuthenticationFilter.class)
-                .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class);
+                .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class)
+                .addFilterBefore(internalServiceTokenFilter, UsernamePasswordAuthenticationFilter.class);
         return http.build();
     }
 }

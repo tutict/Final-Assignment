@@ -4,6 +4,7 @@ import com.tutict.finalassignmentcloud.entity.appeal.AppealRecord;
 import com.tutict.finalassignmentcloud.repository.AppealRecordSearchRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.support.TransactionSynchronization;
 import org.springframework.transaction.support.TransactionSynchronizationManager;
@@ -22,19 +23,21 @@ public class AppealRecordSearchIndexer {
 
     private final AppealRecordSearchRepository appealRecordSearchRepository;
 
-    public AppealRecordSearchIndexer(AppealRecordSearchRepository appealRecordSearchRepository) {
+    public AppealRecordSearchIndexer(@Autowired(required = false) AppealRecordSearchRepository appealRecordSearchRepository) {
         this.appealRecordSearchRepository = appealRecordSearchRepository;
         log.info("AppealRecordSearchIndexer initialized with repository: {}",
-                appealRecordSearchRepository.getClass().getSimpleName());
+                appealRecordSearchRepository != null ? appealRecordSearchRepository.getClass().getSimpleName() : "none");
     }
 
     public void indexAfterCommit(AppealRecord appealRecord) {
+        if (appealRecordSearchRepository == null) { return; }
         log.debug("Scheduling index after commit for appealId={}",
                  appealRecord != null ? appealRecord.getAppealId() : null);
         runAfterCommit(() -> index(appealRecord));
     }
 
     public void deleteAfterCommit(Long appealId) {
+        if (appealRecordSearchRepository == null) { return; }
         log.debug("Scheduling delete after commit for appealId={}", appealId);
         runAfterCommit(() -> {
             log.info("Deleting appeal from search index: appealId={}", appealId);

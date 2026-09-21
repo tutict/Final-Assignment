@@ -1,5 +1,6 @@
 package com.tutict.finalassignmentcloud.audit.config;
 
+import com.tutict.finalassignmentcloud.config.security.InternalServiceTokenFilter;
 import com.tutict.finalassignmentcloud.config.security.SecurityResponseWriter;
 import com.tutict.finalassignmentcloud.config.security.ServiceJwtAuthenticationFilter;
 import com.tutict.finalassignmentcloud.config.security.ServiceTokenProvider;
@@ -38,8 +39,15 @@ public class ServiceSecurityConfig {
     }
 
     @Bean
+    public InternalServiceTokenFilter internalServiceTokenFilter(
+            @Value("${internal.service-token:${INTERNAL_SERVICE_TOKEN:}}") String token) {
+        return new InternalServiceTokenFilter(token);
+    }
+
+    @Bean
     public SecurityFilterChain serviceSecurityFilterChain(HttpSecurity http,
-                                                          ServiceJwtAuthenticationFilter jwtAuthenticationFilter)
+                                                          ServiceJwtAuthenticationFilter jwtAuthenticationFilter,
+                                                          InternalServiceTokenFilter internalServiceTokenFilter)
             throws Exception {
         http
                 .csrf(AbstractHttpConfigurer::disable)
@@ -50,7 +58,8 @@ public class ServiceSecurityConfig {
                 .exceptionHandling(ex -> ex
                         .authenticationEntryPoint(SecurityResponseWriter::writeUnauthorized)
                         .accessDeniedHandler(SecurityResponseWriter::writeForbidden))
-                .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class);
+                .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class)
+                .addFilterBefore(internalServiceTokenFilter, UsernamePasswordAuthenticationFilter.class);
         return http.build();
     }
 }

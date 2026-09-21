@@ -5,18 +5,20 @@ import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import org.springframework.http.HttpStatus;
+import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
+import org.springframework.security.core.authority.SimpleGrantedAuthority;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.filter.OncePerRequestFilter;
 
 import java.io.IOException;
+import java.util.List;
 import java.util.Set;
 
 /**
  * 校验内部服务间调用的 X-Internal-Service-Token 请求头。
  *
- * 仅对 /api 下含 /internal/ 段的路径生效（这些路径在 Spring Security 层通常 permitAll，
- * 由本过滤器用共享 service token 强校验）。缺失或不匹配返回 401。非 internal 路径直接放行。
- *
- * token 通过构造器注入，启动时空或弱值即抛异常（fail-fast，与 jwt.secret.key 一致）。
+ * /internal/ 路径必须带合法 token。其它路径若带合法 token，则提升为内部服务身份，
+ * 以便 Feign 在登录等尚无用户 JWT 的场景下访问受保护接口。
  */
 public class InternalServiceTokenFilter extends OncePerRequestFilter {
 
@@ -41,15 +43,25 @@ public class InternalServiceTokenFilter extends OncePerRequestFilter {
     protected void doFilterInternal(HttpServletRequest request,
                                     HttpServletResponse response,
                                     FilterChain filterChain) throws ServletException, IOException {
-        if (!isInternalPath(request)) {
-            filterChain.doFilter(request, response);
-            return;
-        }
         String presented = request.getHeader(HEADER);
-        if (!constantTimeEquals(presented)) {
+        boolean valid = constantTimeEquals(presented);
+        if (isInternalPath(request) && !valid) {
             SecurityResponseWriter.writeStatus(response, HttpStatus.UNAUTHORIZED,
                     "UNAUTHORIZED", "Missing or invalid internal service token");
             return;
+        }
+        if (valid && SecurityContextHolder.getContext().getAuthentication() == null) {
+            UsernamePasswordAuthenticationToken authentication =
+                    new UsernamePasswordAuthenticationToken(
+                            "internal-service",
+                            null,
+                            List.of(
+                                    new SimpleGrantedAuthority("ROLE_INTERNAL"),
+                                    new SimpleGrantedAuthority("ROLE_ADMIN"),
+                                    new SimpleGrantedAuthority("ADMIN"),
+                                    new SimpleGrantedAuthority("ROLE_SUPER_ADMIN"),
+                                    new SimpleGrantedAuthority("SUPER_ADMIN")));
+            SecurityContextHolder.getContext().setAuthentication(authentication);
         }
         filterChain.doFilter(request, response);
     }
