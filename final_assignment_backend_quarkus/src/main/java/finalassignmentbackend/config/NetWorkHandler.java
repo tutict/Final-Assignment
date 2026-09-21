@@ -133,6 +133,7 @@ public class NetWorkHandler extends AbstractVerticle {
         // Quarkus /q/* management endpoints (health, openapi) to the internal REST
         // server so health probes against the external port keep working.
         router.route("/q/*").handler(ctx -> forwardHttpRequest(ctx.request()));
+        router.route("/actuator/*").handler(ctx -> forwardHttpRequest(ctx.request()));
 
         router.route("/eventbus/*").handler(ctx -> {
             HttpServerRequest request = ctx.request();

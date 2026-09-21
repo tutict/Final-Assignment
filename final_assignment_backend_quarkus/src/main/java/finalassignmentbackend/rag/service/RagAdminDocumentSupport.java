@@ -81,6 +81,17 @@ public final class RagAdminDocumentSupport {
             from = index + needle.length();
         }
         score += Math.min(3.0, hits * 0.5);
+        for (String token : needle.split("[\\s、，,。；;：:]+")) {
+            if (token.length() < 2) {
+                continue;
+            }
+            if (titleText.contains(token)) {
+                score += 0.8;
+            }
+            if (body.contains(token)) {
+                score += 0.4;
+            }
+        }
         return score;
     }
 

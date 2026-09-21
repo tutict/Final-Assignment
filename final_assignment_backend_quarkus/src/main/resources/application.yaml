@@ -67,6 +67,11 @@ quarkus:
       methods: GET,POST,PUT,DELETE,PATCH,OPTIONS
       headers: Authorization,Content-Type,Idempotency-Key,X-Trace-Id,Cache-Control,Accept,X-Requested-With
       exposed-headers: X-Trace-Id
+    auth:
+      permission:
+        health-public:
+          paths: /q/*,/actuator/health,/actuator/health/liveness,/actuator/health/readiness,/api/health,/api/actuator/health,/readyz
+          policy: permit
 
 rag:
   enabled: true
@@ -75,3 +80,38 @@ rag:
   chunk:
     size: 500
     overlap: 100
+
+# Align HTTP Bearer verification (quarkus-smallrye-jwt) with TokenProvider HS256 signing.
+# TokenProvider HMAC-SHA256s jwt.secret.key as UTF-8 (or standard-Base64 if the value decodes).
+# SmallRye HTTP auth only accepts HMAC secrets as an oct JWK, not a raw string (it tries PEM/JWK).
+# The k value is base64url(UTF-8 bytes of the default jwt.secret.key). Override both together.
+jwt:
+  secret:
+    key: ${JWT_SECRET_KEY:${JWT_SECRET:dev-jwt-secret-key-for-local-startup-please-change-1234567890}}
+smallrye:
+  jwt:
+    new-token:
+      issuer: https://quarkus.io/issuer
+    path:
+      groups: roles
+    groups-separator: ','
+    verify:
+      algorithm: HS256
+      secretkey: '{"kty":"oct","alg":"HS256","k":"ZGV2LWp3dC1zZWNyZXQta2V5LWZvci1sb2NhbC1zdGFydHVwLXBsZWFzZS1jaGFuZ2UtMTIzNDU2Nzg5MA"}'
+    sign:
+      # DevModeProcessor only skips RSA key generation when smallrye.jwt.sign.key is set.
+      key: ${jwt.secret.key}
+mp:
+  jwt:
+    verify:
+      publickey:
+        algorithm: HS256
+      issuer: https://quarkus.io/issuer
+kafka:
+  bootstrap:
+    servers: ${KAFKA_BOOTSTRAP_SERVERS:localhost:9092}
+"%dev":
+  app:
+    security:
+      token-blacklist:
+        fail-open: true

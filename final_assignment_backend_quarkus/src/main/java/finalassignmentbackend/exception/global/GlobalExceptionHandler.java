@@ -2,6 +2,7 @@ package finalassignmentbackend.exception.global;
 
 import com.baomidou.mybatisplus.core.exceptions.MybatisPlusException;
 import jakarta.ws.rs.ForbiddenException;
+import jakarta.ws.rs.WebApplicationException;
 import jakarta.ws.rs.NotAuthorizedException;
 import jakarta.ws.rs.core.Response;
 import jakarta.ws.rs.ext.ExceptionMapper;
@@ -70,6 +71,9 @@ public class GlobalExceptionHandler {
     public static class GenericExceptionHandler implements ExceptionMapper<Exception> {
         @Override
         public Response toResponse(Exception ex) {
+            if (ex instanceof WebApplicationException wae && wae.getResponse() != null) {
+                return wae.getResponse();
+            }
             logger.log(Level.SEVERE, "An error occurred", ex);
             return Response.status(Response.Status.INTERNAL_SERVER_ERROR).entity("服务器内部错误: " + ex.getMessage()).build();
         }

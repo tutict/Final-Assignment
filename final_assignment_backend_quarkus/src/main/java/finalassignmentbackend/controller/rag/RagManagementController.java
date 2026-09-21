@@ -270,6 +270,7 @@ public class RagManagementController {
 
     @POST
     @Path("/backfill/run")
+    @Consumes(MediaType.WILDCARD)
     @RunOnVirtualThread
     public Response backfillRun() {
         return Response.ok(ApiResponse.ok(Map.of("processedDocuments", 0, "failedDocuments", 0, "processedPages", 0, "hasMore", false, "enabled", ragProperties.isIndexingEnabled()))).build();
@@ -277,6 +278,7 @@ public class RagManagementController {
 
     @POST
     @Path("/embedding/run")
+    @Consumes(MediaType.WILDCARD)
     @RunOnVirtualThread
     public Response embeddingRun() {
         return Response.ok(ApiResponse.ok(Map.of("selectedTasks", 0, "succeededTasks", 0, "failedTasks", 0, "enabled", ragProperties.isEnabled(), "alreadyRunning", false))).build();

@@ -9,6 +9,7 @@ import finalassignmentbackend.ai.agent.AgentModels;
 import finalassignmentbackend.ai.agent.AgentRuntime;
 import finalassignmentbackend.controller.DriverAccessGuard;
 import finalassignmentbackend.service.ai.AIChatSearchService;
+import io.smallrye.common.annotation.RunOnVirtualThread;
 import jakarta.annotation.security.RolesAllowed;
 import io.smallrye.mutiny.Multi;
 import jakarta.inject.Inject;
@@ -23,8 +24,10 @@ import jakarta.ws.rs.Produces;
 import jakarta.ws.rs.QueryParam;
 import jakarta.ws.rs.core.Context;
 import jakarta.ws.rs.core.MediaType;
+import jakarta.ws.rs.core.Response;
 import jakarta.ws.rs.core.SecurityContext;
 
+import java.time.Duration;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
@@ -92,8 +95,9 @@ public class ChatController {
     @POST
     @Path("/chat/stream")
     @Consumes(MediaType.APPLICATION_JSON)
-    @Produces(MediaType.SERVER_SENT_EVENTS)
-    public Multi<String> chatStream(@Context SecurityContext securityContext, Map<String, Object> request) {
+    @Produces("text/event-stream")
+    @RunOnVirtualThread
+    public Response chatStream(@Context SecurityContext securityContext, Map<String, Object> request) {
         String message = stringValue(request, "message");
         String massage = stringValue(request, "massage");
         boolean webSearch = booleanValue(request, "webSearch");
@@ -105,23 +109,36 @@ public class ChatController {
         if (securityContext != null) {
             if (securityContext.isUserInRole("SUPER_ADMIN")) role = "SUPER_ADMIN";
             else if (securityContext.isUserInRole("ADMIN")) role = "ADMIN";
-            else role = "DRIVER";
+            else if (securityContext.isUserInRole("USER") || securityContext.isUserInRole("DRIVER")) role = "USER";
         }
         Long driverId = driverAccessGuard.currentDriverId(securityContext);
+        StringBuilder sse = new StringBuilder();
         if (!agentRuntime.bindSession(username, sessionKey)) {
-            String json = jsonb.toJson(Map.of("type", "error", "sessionKey", sessionKey, "payload", Map.of("message", "不能使用其他用户的会话"), "timestamp", Instant.now().toString()));
-            return Multi.createFrom().item(json);
+            sse.append("data: ").append(jsonb.toJson(Map.of("type", "error", "sessionKey", sessionKey, "payload", Map.of("message", "不能使用其他用户的会话"), "timestamp", Instant.now().toString()))).append("\n\n");
+            return Response.ok(sse.toString()).type("text/event-stream;charset=UTF-8").build();
         }
         AgentModels.Context context = new AgentModels.Context(role, sessionKey, username, username, driverId, false);
         List<String> prefix = new ArrayList<>();
         for (Map<String, Object> event : agentRuntime.execute(userMessage, context)) {
             prefix.add(jsonb.toJson(event));
         }
-        String finalSession = sessionKey;
-        return Multi.createFrom().iterable(prefix)
-                .onCompletion().switchTo(() -> chat(userMessage, null, webSearch)
-                        .map(token -> jsonb.toJson(tokenEvent(finalSession, token)))
-                        .onCompletion().continueWith(jsonb.toJson(Map.of("type", "done", "sessionKey", finalSession, "timestamp", Instant.now().toString()))));
+        for (String json : prefix) {
+            sse.append("data: ").append(json).append("\n\n");
+        }
+        String done = jsonb.toJson(Map.of("type", "done", "sessionKey", sessionKey, "timestamp", Instant.now().toString()));
+        boolean skipModel = prefix.stream().anyMatch(json -> json.contains("\"type\":\"draft\"") || json.contains("\"type\":\"result\"") || json.contains("\"type\":\"error\""));
+        if (!skipModel) {
+            try {
+                List<String> tokens = chat(userMessage, null, webSearch).collect().asList().await().atMost(Duration.ofSeconds(45));
+                for (String token : tokens) {
+                    sse.append("data: ").append(jsonb.toJson(tokenEvent(sessionKey, token))).append("\n\n");
+                }
+            } catch (RuntimeException ex) {
+                sse.append("data: ").append(jsonb.toJson(Map.of("type", "error", "sessionKey", sessionKey, "payload", Map.of("message", "模型生成失败"), "timestamp", Instant.now().toString()))).append("\n\n");
+            }
+        }
+        sse.append("data: ").append(done).append("\n\n");
+        return Response.ok(sse.toString()).type("text/event-stream;charset=UTF-8").build();
     }
 
     private static Map<String, Object> tokenEvent(String sessionKey, String token) {

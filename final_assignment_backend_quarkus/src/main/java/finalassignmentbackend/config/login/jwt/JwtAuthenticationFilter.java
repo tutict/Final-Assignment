@@ -64,7 +64,10 @@ public class JwtAuthenticationFilter implements ContainerRequestFilter {
 
         String username = tokenProvider.getUsernameFromToken(jwt);
         List<String> roles = tokenProvider.extractRoles(jwt);
-        Set<String> authorities = roles.stream().collect(Collectors.toSet());
+        Set<String> authorities = roles.stream()
+                .filter(role -> role != null && !role.isBlank())
+                .map(role -> role.startsWith("ROLE_") ? role.substring("ROLE_".length()) : role)
+                .collect(Collectors.toSet());
         SecurityIdentity identity = QuarkusSecurityIdentity.builder()
                 .setPrincipal(new QuarkusPrincipal(username))
                 .addRoles(authorities)
@@ -85,7 +88,12 @@ public class JwtAuthenticationFilter implements ContainerRequestFilter {
                 || path.equals("api/auth/refresh")
                 || path.startsWith("api/auth/login/")
                 || path.startsWith("api/auth/register/")
-                || path.startsWith("api/auth/refresh/");
+                || path.startsWith("api/auth/refresh/")
+                || path.equals("readyz")
+                || path.equals("api/health")
+                || path.equals("api/actuator/health")
+                || path.startsWith("q/health")
+                || path.startsWith("actuator/health");
     }
 
     private String getJwtFromRequest(ContainerRequestContext requestContext) {

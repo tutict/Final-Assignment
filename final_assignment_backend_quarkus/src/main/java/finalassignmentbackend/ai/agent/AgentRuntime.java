@@ -76,18 +76,18 @@ public class AgentRuntime {
             // still allow driver role
         }
         if (self) {
-            List<OffenseRecord> records = offenseRecordService.findByDriverId(context.driverId(), 0, 10);
+            List<OffenseRecord> records = offenseRecordService.findByDriverId(context.driverId(), 1, 10);
             return AgentModels.Result.result(records.isEmpty() ? "没有查询到您的违法记录。" : "共找到 " + records.size() + " 条违法记录。", summarizeOffenses(records), AgentModels.navigate("查看违法详情", "/userOffenseListPage"));
         }
         if (!isAdmin(context.role())) return AgentModels.Result.error("当前角色无权使用工具 query_offenses");
-        List<OffenseRecord> records = offenseRecordService.findPage(0, 10).getRecords();
+        List<OffenseRecord> records = offenseRecordService.findPage(1, 10).getRecords();
         return AgentModels.Result.result(records.isEmpty() ? "没有查询到违法记录。" : "共找到 " + records.size() + " 条违法记录。", summarizeOffenses(records), AgentModels.navigate("打开违法管理", "/offenseList"));
     }
 
     private AgentModels.Result queryFines(AgentModels.Context context, boolean self) {
         if (self && context.driverId() == null) return AgentModels.Result.error("当前账号尚未绑定驾驶员档案，无法查询罚款。");
         if (self) {
-            List<FineRecord> records = fineRecordService.findByDriverId(context.driverId(), 0, 10);
+            List<FineRecord> records = fineRecordService.findByDriverId(context.driverId(), 1, 10);
             return AgentModels.Result.result(records.isEmpty() ? "没有查询到您的罚款记录。" : "共找到 " + records.size() + " 条罚款记录。", summarizeFines(records), AgentModels.navigate("查看罚款信息", "/fineInformation"));
         }
         if (!isAdmin(context.role())) return AgentModels.Result.error("当前角色无权使用工具 query_fines");
@@ -98,7 +98,7 @@ public class AgentRuntime {
     private AgentModels.Result queryAppeals(AgentModels.Context context, boolean self) {
         if (self && context.driverId() == null) return AgentModels.Result.error("当前账号尚未绑定驾驶员档案，无法查询申诉。");
         if (self) {
-            List<AppealRecord> records = appealManagementService.findByDriverId(context.driverId(), 0, 10);
+            List<AppealRecord> records = appealManagementService.findByDriverId(context.driverId(), 1, 10);
             return AgentModels.Result.result(records.isEmpty() ? "没有查询到您的申诉记录。" : "共找到 " + records.size() + " 条申诉记录。", summarizeAppeals(records), AgentModels.navigate("查看我的申诉", "/userAppeal"));
         }
         if (!isAdmin(context.role())) return AgentModels.Result.error("当前角色无权使用工具 query_appeals");
@@ -158,7 +158,7 @@ public class AgentRuntime {
         if (contains(text, "违法", "违章", "offense")) calls.add(driver ? "query_my_offenses" : "query_offenses");
         if (contains(text, "罚款", "fine")) calls.add(driver ? "query_my_fines" : "query_fines");
         if (contains(text, "申诉", "appeal")) {
-            if (contains(text, "提交", "申请", "起草")) calls.add("prepare_appeal");
+            if (contains(text, "提交", "申请", "起草", "要申诉", "我要申诉")) calls.add("prepare_appeal");
             else calls.add(driver ? "query_my_appeals" : "query_appeals");
         }
         if (contains(text, "备份", "恢复") && contains(text, "打开", "进入", "系统")) calls.add("navigate_backup");

@@ -6,6 +6,7 @@ import finalassignmentbackend.config.ai.chat.GraalPyContext;
 import io.quarkus.runtime.ShutdownEvent;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.enterprise.event.Observes;
+import jakarta.annotation.PostConstruct;
 import jakarta.inject.Inject;
 import org.graalvm.polyglot.PolyglotException;
 import org.graalvm.polyglot.Value;
@@ -35,26 +36,34 @@ public class AIChatSearchService {
 
     // 单线程执行器，用于异步执行Python脚本
     private final ExecutorService executor = Executors.newSingleThreadExecutor();
+    private volatile boolean graalPyReady = false;
 
-    // 构造函数，初始化GraalPy环境
-    public AIChatSearchService() {
+    @PostConstruct
+    void initGraalPy() {
+        if (graalPyContext == null) {
+            logger.log(Level.WARNING, "GraalPyContext 未注入，AI 网页搜索不可用");
+            return;
+        }
         try {
             graalPyContext.eval(
                     "import json\n" +
                             "from baidu_crawler import search\n"
             );
+            graalPyReady = true;
             logger.log(Level.INFO, "GraalPy Python环境已就绪，模块baidu_crawler.search可用");
         } catch (PolyglotException e) {
-            logger.log(Level.SEVERE, "无法导入baidu_crawler.search: {0}\nPython stacktrace: {1}", new Object[]{e.getMessage(), e.getPolyglotStackTrace()});
-            throw new RuntimeException("无法初始化AIChatSearchService: " + e.getMessage(), e);
+            logger.log(Level.WARNING, "无法导入baidu_crawler.search: {0}", e.getMessage());
         } catch (Exception e) {
-            logger.log(Level.SEVERE, "初始化GraalPy环境失败: {0}", e.getMessage());
-            throw new RuntimeException("无法初始化AIChatSearchService: " + e.getMessage(), e);
+            logger.log(Level.WARNING, "初始化GraalPy环境失败: {0}", e.getMessage());
         }
     }
 
     // 执行搜索操作
     public List<Map<String, String>> search(String query) {
+        if (!graalPyReady) {
+            logger.log(Level.WARNING, "GraalPy 搜索未就绪，返回空列表");
+            return Collections.emptyList();
+        }
         if (query == null || query.trim().isEmpty()) {
             logger.log(Level.WARNING, "搜索query为空，直接返回空列表");
             return Collections.emptyList();
