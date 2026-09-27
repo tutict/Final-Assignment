@@ -18,6 +18,7 @@ export default function UserOffenseListPage() {
   const config: EntityConfig = useMemo(() => {
     return {
       ...entityConfigs.offenses,
+      layout: 'cards',
       label: '我的违法记录',
       list: async () => {
         const data = await listEntities<Record<string, unknown>[]>(

@@ -132,9 +132,11 @@ class _PersonalMainPageState extends State<PersonalMainPage> {
 
       Get.find<UserProfileService>().invalidate();
       await _loadCurrentUser();
+      if (!mounted) return;
       AppSnackbar.showSuccess(context, message: '资料已更新');
     } catch (error) {
-      AppSnackbar.showError(context, message: _formatErrorMessage(error));
+      if (!mounted) return;
+      AppSnackbar.showError(context, message: '资料没有保存成功，请重试。');
     } finally {
       if (mounted) {
         setState(() => _isSaving = false);
@@ -256,6 +258,7 @@ class _PersonalMainPageState extends State<PersonalMainPage> {
       return DashboardPageTemplate(
         theme: theme,
         title: '个人资料',
+        reading: true,
         pageType: DashboardPageType.user,
         // body 自带 Scrollbar+ListView，模板不再额外包一层 SingleChildScrollView，
         // 否则 ListView 会拿到无限高度并触发 "Vertical viewport was given unbounded height"。

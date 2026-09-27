@@ -461,18 +461,18 @@ class _UserAppealPageState extends State<UserAppealPage> {
           backgroundColor: themeData.colorScheme.surfaceContainer,
           shape:
               RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-          child: ConstrainedBox(
-            constraints:
-                const BoxConstraints(maxWidth: 300.0, minHeight: 200.0),
+          child: SizedBox(
+            width: 420,
+            height: MediaQuery.sizeOf(ctx).height * 0.85 > 560
+                ? 560
+                : MediaQuery.sizeOf(ctx).height * 0.85,
             child: Padding(
               padding: const EdgeInsets.all(12.0),
-              child: SingleChildScrollView(
-                child: Form(
-                  key: formKey,
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    crossAxisAlignment: CrossAxisAlignment.stretch,
-                    children: [
+              child: Form(
+                key: formKey,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
                       Text(
                         '提交申诉',
                         style: themeData.textTheme.titleMedium?.copyWith(
@@ -482,9 +482,14 @@ class _UserAppealPageState extends State<UserAppealPage> {
                         textAlign: TextAlign.center,
                       ),
                       const SizedBox(height: 12.0),
+                      Expanded(
+                        child: SingleChildScrollView(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.stretch,
+                            children: [
                       DropdownButtonFormField<int>(
                         decoration: InputDecoration(
-                          labelText: '选择违法记录 *',
+                          labelText: '选择违法记录 必填',
                           labelStyle: TextStyle(
                               color: themeData.colorScheme.onSurfaceVariant),
                           filled: true,
@@ -513,7 +518,7 @@ class _UserAppealPageState extends State<UserAppealPage> {
                         controller: nameController,
                         readOnly: isNameReadOnly,
                         decoration: InputDecoration(
-                          labelText: '申诉人姓名 *',
+                          labelText: '申诉人姓名 必填',
                           labelStyle: TextStyle(
                               color: themeData.colorScheme.onSurfaceVariant),
                           filled: true,
@@ -547,7 +552,7 @@ class _UserAppealPageState extends State<UserAppealPage> {
                         controller: idCardController,
                         readOnly: isIdCardReadOnly,
                         decoration: InputDecoration(
-                          labelText: '身份证号码 *',
+                          labelText: '身份证号码 必填',
                           labelStyle: TextStyle(
                               color: themeData.colorScheme.onSurfaceVariant),
                           filled: true,
@@ -586,7 +591,7 @@ class _UserAppealPageState extends State<UserAppealPage> {
                         controller: contactController,
                         readOnly: isContactReadOnly,
                         decoration: InputDecoration(
-                          labelText: '联系电话 *',
+                          labelText: '联系电话 必填',
                           labelStyle: TextStyle(
                               color: themeData.colorScheme.onSurfaceVariant),
                           filled: true,
@@ -624,7 +629,7 @@ class _UserAppealPageState extends State<UserAppealPage> {
                       TextFormField(
                         controller: reasonController,
                         decoration: InputDecoration(
-                          labelText: '申诉原因 *',
+                          labelText: '申诉原因 必填',
                           labelStyle: TextStyle(
                               color: themeData.colorScheme.onSurfaceVariant),
                           filled: true,
@@ -647,9 +652,13 @@ class _UserAppealPageState extends State<UserAppealPage> {
                         style:
                             TextStyle(color: themeData.colorScheme.onSurface),
                       ),
-                      const SizedBox(height: 16.0),
+                    ],
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 12.0),
                       Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                        mainAxisAlignment: MainAxisAlignment.end,
                         children: [
                           TextButton(
                             onPressed: () => Navigator.pop(ctx),
@@ -728,7 +737,6 @@ class _UserAppealPageState extends State<UserAppealPage> {
                     ],
                   ),
                 ),
-              ),
             ),
           ),
         );

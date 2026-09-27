@@ -1,4 +1,5 @@
 import { useMemo } from 'react';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import CrudPage from '../shared/CrudPage';
 import { entityConfigs } from '../../config/entities';
 import { listEntities } from '../../api/entities';
@@ -10,12 +11,16 @@ import type { EntityConfig } from '../../config/entityTypes';
  * 若由 AI 聊天动作跳转并携带业务编号，按编号过滤罚款。
  */
 export default function FineInformationPage() {
+  const navigate = useNavigate();
+  const [, setParams] = useSearchParams();
   const prefill = useAgentPrefill();
   const businessNumber = hasBusinessPrefill(prefill) ? prefill.businessNumber : '';
 
   const config: EntityConfig = useMemo(
     () => ({
       ...entityConfigs.fines,
+      layout: 'cards',
+      hideCreate: true,
       label: '罚款信息',
       list: async () => {
         const data = await listEntities<Record<string, unknown>[]>(
@@ -37,6 +42,14 @@ export default function FineInformationPage() {
 
   return (
     <>
+      <div className="page-actions">
+        <button type="button" className="primary" onClick={() => navigate('/mainScan')}>
+          出示缴费码
+        </button>
+        <button type="button" className="ghost" onClick={() => setParams({ guide: 'payment' })}>
+          缴费说明
+        </button>
+      </div>
       {businessNumber ? (
         <div className="panel" role="status">
           <h3>AI 助手已为您定位</h3>

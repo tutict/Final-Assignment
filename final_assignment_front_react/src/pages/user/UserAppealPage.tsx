@@ -17,6 +17,7 @@ export default function UserAppealPage() {
 
   const config: EntityConfig = {
     ...entityConfigs.appeals,
+    layout: 'cards',
     label: '我的申诉',
     queryResult: appealsQuery,
     errorRowMessage: (row) =>

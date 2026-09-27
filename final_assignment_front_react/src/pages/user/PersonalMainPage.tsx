@@ -100,7 +100,7 @@ export default function PersonalMainPage() {
   const isDriverEditable = Boolean(driver && driver.driverId);
 
   return (
-    <PageLayout
+    <PageLayout reading
       title="个人主页"
       subtitle="账户信息总览"
       headerActions={

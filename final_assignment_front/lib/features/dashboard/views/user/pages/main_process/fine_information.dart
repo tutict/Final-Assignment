@@ -16,6 +16,7 @@ import 'package:final_assignment_front/features/model/fine_information.dart';
 import 'package:final_assignment_front/utils/helpers/app_helpers.dart';
 import 'package:final_assignment_front/utils/workflow_permissions.dart';
 import 'package:flutter/material.dart';
+import 'package:final_assignment_front/features/dashboard/views/shared/widgets/guide_controller.dart';
 import 'package:qr_flutter/qr_flutter.dart';
 import 'package:get/get.dart';
 import 'package:jwt_decoder/jwt_decoder.dart';
@@ -461,9 +462,18 @@ class _FineInformationPageState extends State<FineInformationPage> {
       padding: EdgeInsets.zero,
       actions: [
         DashboardPageBarAction(
-          icon: Icons.refresh,
-          onPressed: _refreshFines,
-          tooltip: '刷新罚款记录',
+          icon: Icons.qr_code_rounded,
+          tooltip: '出示缴费码',
+          onPressed: () {
+            if (Get.isRegistered<UserDashboardController>()) {
+              Get.find<UserDashboardController>().navigateToPage(Routes.mainScan);
+            }
+          },
+        ),
+        DashboardPageBarAction(
+          icon: Icons.menu_book_outlined,
+          tooltip: '缴费说明',
+          onPressed: () => GuideController.open('payment'),
         ),
       ],
       body: Column(

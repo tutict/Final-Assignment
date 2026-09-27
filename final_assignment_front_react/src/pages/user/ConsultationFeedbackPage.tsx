@@ -52,7 +52,7 @@ export default function ConsultationFeedbackPage() {
   const records: FeedbackRecord[] = Array.isArray(listQuery.data) ? listQuery.data : [];
 
   return (
-    <PageLayout title="咨询反馈" subtitle="提交问题与建议">
+    <PageLayout title="咨询反馈" subtitle="提交问题与建议" reading>
       <form className="feedback-form" onSubmit={handleSubmit}>
         <label className="form-field">
           <span>反馈类型</span>
@@ -86,9 +86,11 @@ export default function ConsultationFeedbackPage() {
         </label>
         {submitError ? <div className="form-error">{submitError}</div> : null}
         {submitted ? <div className="form-success">反馈已提交，感谢您的支持。</div> : null}
-        <button type="submit" className="primary" disabled={createMutation.isPending}>
-          {createMutation.isPending ? '提交中...' : '提交反馈'}
-        </button>
+        <div className="form-actions-sticky">
+          <button type="submit" className="primary" disabled={createMutation.isPending}>
+            {createMutation.isPending ? '提交中...' : '提交反馈'}
+          </button>
+        </div>
       </form>
 
       <div className="panel">

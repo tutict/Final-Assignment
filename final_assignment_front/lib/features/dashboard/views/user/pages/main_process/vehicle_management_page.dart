@@ -784,6 +784,7 @@ class _AddVehiclePageState extends State<AddVehiclePage> {
     return DashboardPageTemplate(
       theme: themeData,
       title: '添加新车辆',
+      reading: true,
       pageType: hideAppBar ? DashboardPageType.custom : DashboardPageType.user,
       bodyIsScrollable: true,
       padding: EdgeInsets.zero,
@@ -793,7 +794,10 @@ class _AddVehiclePageState extends State<AddVehiclePage> {
             ? const Center(child: CircularProgressIndicator())
             : Form(
                 key: _formKey,
-                child: SingleChildScrollView(
+                child: Column(
+                  children: [
+                    Expanded(
+                      child: SingleChildScrollView(
                   child: Column(
                     children: [
                       // Surface tint previously provided by themeData.colorScheme.surfaceContainer.
@@ -848,8 +852,14 @@ class _AddVehiclePageState extends State<AddVehiclePage> {
                           ],
                         ),
                       ),
-                      const SizedBox(height: 20),
-                      ElevatedButton(
+                      
+                    ],
+                  ),
+                ),
+                    ),
+                    Align(
+                      alignment: Alignment.centerRight,
+                      child: ElevatedButton(
                         onPressed: _submitVehicle,
                         style: ElevatedButton.styleFrom(
                           backgroundColor: themeData.colorScheme.primary,
@@ -863,8 +873,8 @@ class _AddVehiclePageState extends State<AddVehiclePage> {
                         ),
                         child: const Text('提交'),
                       ),
-                    ],
-                  ),
+                    ),
+                  ],
                 ),
               ),
       ),
@@ -1145,6 +1155,7 @@ class _EditVehiclePageState extends State<EditVehiclePage> {
     return DashboardPageTemplate(
       theme: themeData,
       title: '编辑车辆信息',
+      reading: true,
       pageType: DashboardPageType.user,
       bodyIsScrollable: true,
       padding: EdgeInsets.zero,
@@ -1154,7 +1165,10 @@ class _EditVehiclePageState extends State<EditVehiclePage> {
             ? const Center(child: CircularProgressIndicator())
             : Form(
                 key: _formKey,
-                child: SingleChildScrollView(
+                child: Column(
+                  children: [
+                    Expanded(
+                      child: SingleChildScrollView(
                   child: Column(
                     children: [
                       // Surface tint previously provided by themeData.colorScheme.surfaceContainer.
@@ -1201,8 +1215,14 @@ class _EditVehiclePageState extends State<EditVehiclePage> {
                           ],
                         ),
                       ),
-                      const SizedBox(height: 20),
-                      ElevatedButton(
+                      
+                    ],
+                  ),
+                ),
+                    ),
+                    Align(
+                      alignment: Alignment.centerRight,
+                      child: ElevatedButton(
                         onPressed: _submitVehicle,
                         style: ElevatedButton.styleFrom(
                           backgroundColor: themeData.colorScheme.primary,
@@ -1216,8 +1236,8 @@ class _EditVehiclePageState extends State<EditVehiclePage> {
                         ),
                         child: const Text('保存'),
                       ),
-                    ],
-                  ),
+                    ),
+                  ],
                 ),
               ),
       ),

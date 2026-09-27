@@ -403,29 +403,20 @@ class _UserBusinessRecordCardState extends State<UserBusinessRecordCard> {
       onEnter: (_) => setState(() => _hovered = true),
       onExit: (_) => setState(() => _hovered = false),
       child: Padding(
-        padding: const EdgeInsets.symmetric(vertical: 6),
+        padding: const EdgeInsets.symmetric(vertical: 8),
         child: Material(
           color: Colors.transparent,
           child: InkWell(
             onTap: widget.onTap,
-            borderRadius: BorderRadius.circular(8),
+            borderRadius: BorderRadius.circular(12),
             child: AnimatedContainer(
               duration: const Duration(milliseconds: 180),
               curve: Curves.easeOutCubic,
-              padding: const EdgeInsets.all(14),
+              padding: const EdgeInsets.all(12),
               decoration: BoxDecoration(
                 color: background,
-                borderRadius: BorderRadius.circular(8),
-                border: Border.all(color: border, width: 1.1),
-                boxShadow: [
-                  BoxShadow(
-                    color: theme.shadowColor.withValues(
-                      alpha: _hovered ? (dark ? 0.20 : 0.08) : 0.03,
-                    ),
-                    blurRadius: _hovered ? 16 : 8,
-                    offset: Offset(0, _hovered ? 8 : 4),
-                  ),
-                ],
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: border),
               ),
               child: LayoutBuilder(
                 builder: (context, constraints) {
@@ -435,7 +426,7 @@ class _UserBusinessRecordCardState extends State<UserBusinessRecordCard> {
                     height: compact ? 40 : 44,
                     decoration: BoxDecoration(
                       color: accent.withValues(alpha: dark ? 0.22 : 0.12),
-                      borderRadius: BorderRadius.circular(8),
+                      borderRadius: BorderRadius.circular(10),
                     ),
                     child: Icon(widget.icon, color: accent, size: 22),
                   );

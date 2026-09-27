@@ -111,41 +111,38 @@ class _ConsultationFeedbackState extends State<ConsultationFeedback> {
       return DashboardPageTemplate(
         theme: theme,
         title: '咨询与反馈',
+        reading: true,
         pageType: DashboardPageType.user,
         onThemeToggle: _dashboardController.toggleBodyTheme,
-        body: Padding(
-          padding: const EdgeInsets.all(20),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              DashboardSectionHeader(
-                title: '请输入您的反馈或咨询内容',
-                subtitle: '提交后将由管理员审核处理。',
+        footer: _isLoading
+            ? const Center(child: CircularProgressIndicator())
+            : FilledButton(
+                onPressed: _submitFeedback,
+                child: const Text('提交反馈'),
               ),
-              const SizedBox(height: 16),
-              DashboardPanel(
-                padding: const EdgeInsets.all(16),
-                child: TextField(
-                  controller: _feedbackController,
-                  maxLines: 5,
-                  decoration: const InputDecoration(
-                    hintText: '请输入反馈内容...',
-                    border: InputBorder.none,
-                  ),
-                  style: theme.textTheme.bodyMedium?.copyWith(
-                    color: theme.colorScheme.onSurface,
-                  ),
+        body: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            DashboardSectionHeader(
+              title: '请输入您的反馈或咨询内容',
+              subtitle: '提交后将由管理员审核处理。',
+            ),
+            const SizedBox(height: 16),
+            DashboardPanel(
+              padding: const EdgeInsets.all(16),
+              child: TextField(
+                controller: _feedbackController,
+                maxLines: 5,
+                decoration: const InputDecoration(
+                  hintText: '请输入反馈内容...',
+                  border: InputBorder.none,
+                ),
+                style: theme.textTheme.bodyLarge?.copyWith(
+                  color: theme.colorScheme.onSurface,
                 ),
               ),
-              const SizedBox(height: 20),
-              _isLoading
-                  ? const Center(child: CircularProgressIndicator())
-                  : ElevatedButton(
-                      onPressed: _submitFeedback,
-                      child: const Text('提交反馈'),
-                    ),
-            ],
-          ),
+            ),
+          ],
         ),
       );
     });

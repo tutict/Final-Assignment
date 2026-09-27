@@ -1,3 +1,4 @@
+import 'package:final_assignment_front/config/routes/app_routes.dart';
 // ignore_for_file: use_build_context_synchronously
 
 import 'dart:convert';
@@ -1133,5 +1134,55 @@ Color _statusColor(String? status, ThemeData themeData) {
       return scheme.onSurfaceVariant;
     default:
       return scheme.outline;
+  }
+}
+
+
+class MissingProgressDetailPage extends StatelessWidget {
+  const MissingProgressDetailPage({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return Scaffold(
+      body: SafeArea(
+        child: Center(
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 720),
+            child: Padding(
+              padding: const EdgeInsets.all(24),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(Icons.error_outline, color: theme.colorScheme.error, size: 36),
+                  const SizedBox(height: 12),
+                  Text(
+                    '没有找到这条进度',
+                    style: theme.textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w700),
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    '请从消息列表重新打开。已填内容不在这个地址上，也不会显示原始错误。',
+                    textAlign: TextAlign.center,
+                    style: theme.textTheme.bodyLarge,
+                  ),
+                  const SizedBox(height: 16),
+                  TextButton(
+                    onPressed: () {
+                      if (Navigator.of(context).canPop()) {
+                        Navigator.of(context).pop();
+                        return;
+                      }
+                      Get.offNamed(RoutePaths.login);
+                    },
+                    child: const Text('返回'),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
   }
 }

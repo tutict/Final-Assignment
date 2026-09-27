@@ -109,7 +109,7 @@ class ProgressMessagePageBody extends StatelessWidget {
                 onCreate: onCreate,
               ),
               const SizedBox(height: 12),
-              Expanded(child: _buildContent(context)),
+              Expanded(child: _buildContent(context, width)),
             ],
           ),
         );
@@ -117,7 +117,7 @@ class ProgressMessagePageBody extends StatelessWidget {
     );
   }
 
-  Widget _buildContent(BuildContext context) {
+  Widget _buildContent(BuildContext context, double width) {
     if (isLoading) {
       return const ProgressStatePanel(
         child: LoadingView(message: '正在加载进度消息'),
@@ -150,29 +150,16 @@ class ProgressMessagePageBody extends StatelessWidget {
       );
     }
 
-    return Scrollbar(
-      thumbVisibility: true,
-      child: RefreshIndicator(
-        onRefresh: onRetry ?? () async {},
-        child: ListView.separated(
-          physics: const AlwaysScrollableScrollPhysics(),
-          padding: const EdgeInsets.only(bottom: 12),
-          itemCount: items.length,
-          separatorBuilder: (_, __) => const SizedBox(height: 10),
-          itemBuilder: (context, index) {
-            final item = items[index];
-            return ProgressMessageCard(
-              item: item,
-              businessContext: businessContextBuilder(item),
-              statusCategories: statusCategories,
-              onOpen: onOpen,
-              onEdit: onEdit,
-              onDelete: onDelete,
-              onStatusChange: onStatusChange,
-            );
-          },
-        ),
-      ),
+    return _ProgressMasterDetail(
+      wide: width >= 1100,
+      items: items,
+      businessContextBuilder: businessContextBuilder,
+      statusCategories: statusCategories,
+      onOpen: onOpen,
+      onEdit: onEdit,
+      onDelete: onDelete,
+      onStatusChange: onStatusChange,
+      onRetry: onRetry,
     );
   }
 
@@ -1014,4 +1001,162 @@ Color progressStatusColor(String? status, ThemeData themeData) {
 
 String _shortDate(DateTime date) {
   return DateFormat('MM-dd').format(date);
+}
+
+class _ProgressMasterDetail extends StatefulWidget {
+  const _ProgressMasterDetail({
+    required this.wide,
+    required this.items,
+    required this.businessContextBuilder,
+    required this.statusCategories,
+    required this.onOpen,
+    this.onEdit,
+    this.onDelete,
+    this.onStatusChange,
+    this.onRetry,
+  });
+
+  final bool wide;
+  final List<ProgressItem> items;
+  final ProgressContextBuilder businessContextBuilder;
+  final List<String> statusCategories;
+  final ProgressItemCallback onOpen;
+  final ProgressItemCallback? onEdit;
+  final ProgressItemCallback? onDelete;
+  final ProgressStatusCallback? onStatusChange;
+  final Future<void> Function()? onRetry;
+
+  @override
+  State<_ProgressMasterDetail> createState() => _ProgressMasterDetailState();
+}
+
+class _ProgressMasterDetailState extends State<_ProgressMasterDetail> {
+  ProgressItem? _selected;
+
+  @override
+  Widget build(BuildContext context) {
+    final list = Scrollbar(
+      thumbVisibility: true,
+      child: RefreshIndicator(
+        onRefresh: widget.onRetry ?? () async {},
+        child: ListView.separated(
+          physics: const AlwaysScrollableScrollPhysics(),
+          padding: const EdgeInsets.only(bottom: 12),
+          itemCount: widget.items.length,
+          separatorBuilder: (_, __) => const SizedBox(height: 10),
+          itemBuilder: (context, index) {
+            final item = widget.items[index];
+            return ProgressMessageCard(
+              item: item,
+              businessContext: widget.businessContextBuilder(item),
+              statusCategories: widget.statusCategories,
+              onOpen: (opened) {
+                if (widget.wide) {
+                  setState(() => _selected = opened);
+                  return;
+                }
+                widget.onOpen(opened);
+              },
+              onEdit: widget.onEdit,
+              onDelete: widget.onDelete,
+              onStatusChange: widget.onStatusChange,
+            );
+          },
+        ),
+      ),
+    );
+
+    if (!widget.wide) return list;
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Expanded(child: list),
+        if (_selected != null) ...[
+          const SizedBox(width: 12),
+          SizedBox(
+            width: 360,
+            child: _InlineProgressDetail(
+              item: _selected!,
+              onClose: () => setState(() => _selected = null),
+            ),
+          ),
+        ],
+      ],
+    );
+  }
+}
+
+class _InlineProgressDetail extends StatelessWidget {
+  const _InlineProgressDetail({required this.item, required this.onClose});
+
+  final ProgressItem item;
+  final VoidCallback onClose;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final scheme = theme.colorScheme;
+    final statusColor = progressStatusColor(item.status, theme);
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        color: scheme.surface,
+        border: Border.all(color: scheme.outlineVariant),
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Expanded(
+                  child: Text(
+                    '进度详情',
+                    style: theme.textTheme.titleMedium?.copyWith(
+                      fontSize: 18,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                ),
+                IconButton(
+                  tooltip: '关闭详情',
+                  onPressed: onClose,
+                  icon: const Icon(Icons.close),
+                ),
+              ],
+            ),
+            Text(
+              item.title.isEmpty ? '未命名进度' : item.title,
+              style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700),
+            ),
+            const SizedBox(height: 8),
+            Row(
+              children: [
+                Icon(progressStatusIcon(item.status), color: statusColor, size: 18),
+                const SizedBox(width: 8),
+                Text(
+                  progressStatusLabel(item.status),
+                  style: theme.textTheme.bodyMedium?.copyWith(color: statusColor),
+                ),
+              ],
+            ),
+            const SizedBox(height: 8),
+            Text(DateFormat('yyyy-MM-dd HH:mm').format(item.submitTime)),
+            const SizedBox(height: 12),
+            Expanded(
+              child: SingleChildScrollView(
+                child: Text(
+                  (item.details == null || item.details!.trim().isEmpty)
+                      ? '暂无补充说明。'
+                      : item.details!,
+                  style: theme.textTheme.bodyLarge,
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
 }

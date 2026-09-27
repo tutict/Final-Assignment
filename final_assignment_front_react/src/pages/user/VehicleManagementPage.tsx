@@ -42,6 +42,7 @@ export default function VehicleManagementPage() {
   const config: EntityConfig = useMemo(
     () => ({
       ...entityConfigs.vehicles,
+      layout: 'cards',
       label: '我的车辆',
       subtitle: '查看和管理您名下的车辆',
       list: async () => {

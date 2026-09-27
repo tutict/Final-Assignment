@@ -3,6 +3,7 @@
  * 头部统计 + 状态分类筛选 chips + 时间范围筛选 + 进度卡片列表。
  * 复用于管理员（ProgressManagementPage）与用户（OnlineProcessingProgressPage）。
  */
+import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   formatProgressDateRange,
@@ -13,6 +14,7 @@ import type { ProgressItem } from '../api/progress';
 import { getErrorMessage } from '../utils/errorMessages';
 import { formatDateTime } from '../utils/format';
 import ErrorStateView from './ErrorStateView';
+import { rememberProgressItem } from '../utils/progressDetailCache';
 
 interface ProgressMessageListProps {
   title: string;
@@ -31,7 +33,14 @@ export default function ProgressMessageList({
   canManage = false,
 }: ProgressMessageListProps) {
   const navigate = useNavigate();
+  const [wide, setWide] = useState(() => window.innerWidth >= 1100);
+  const [selected, setSelected] = useState<ProgressItem | null>(null);
   const progress = useProgress({ canManage });
+  useEffect(() => {
+    const onResize = () => setWide(window.innerWidth >= 1100);
+    window.addEventListener('resize', onResize);
+    return () => window.removeEventListener('resize', onResize);
+  }, []);
   const {
     items,
     totalCount,
@@ -50,18 +59,32 @@ export default function ProgressMessageList({
     clearFilters,
   } = progress;
 
+  const [draftStart, setDraftStart] = useState('');
+  const [draftEnd, setDraftEnd] = useState('');
+  const [rangeError, setRangeError] = useState('');
+
   const handleOpen = (item: ProgressItem) => {
+    rememberProgressItem(item);
+    if (wide) {
+      setSelected(item);
+      return;
+    }
     if (item.id != null) {
       navigate(`/progressDetailPage/${item.id}`, { state: { progressItem: item } });
     }
   };
 
   const handleDateRangeSearch = () => {
-    const start = window.prompt('开始日期（YYYY-MM-DD）');
-    if (!start) return;
-    const end = window.prompt('结束日期（YYYY-MM-DD）');
-    if (!end) return;
-    filterByTimeRange(start, end);
+    if (!draftStart || !draftEnd) {
+      setRangeError('请同时选择开始和结束日期。');
+      return;
+    }
+    if (draftStart > draftEnd) {
+      setRangeError('结束日期不能早于开始日期。');
+      return;
+    }
+    setRangeError('');
+    filterByTimeRange(draftStart, draftEnd);
   };
 
   return (
@@ -107,9 +130,25 @@ export default function ProgressMessageList({
           ))}
         </div>
         <div className="progress-filter-actions">
+          <label>
+            开始
+            <input type="date" value={draftStart} onChange={(event) => setDraftStart(event.target.value)} />
+          </label>
+          <label>
+            结束
+            <input type="date" value={draftEnd} onChange={(event) => setDraftEnd(event.target.value)} />
+          </label>
           <button type="button" className="ghost" onClick={handleDateRangeSearch}>
-            {formatProgressDateRange(startDate, endDate)}
+            应用日期
           </button>
+          {startDate && endDate ? (
+            <span className="filter-chip">
+              日期：{formatProgressDateRange(startDate, endDate)}
+              <button type="button" className="link-button" onClick={clearFilters}>
+                清除
+              </button>
+            </span>
+          ) : null}
           <button
             type="button"
             className="ghost"
@@ -120,6 +159,7 @@ export default function ProgressMessageList({
           </button>
         </div>
       </div>
+      {rangeError ? <p className="form-error">{rangeError}</p> : null}
 
       {isError ? (
         <ErrorStateView message={getErrorMessage(error)} onRetry={refresh} />
@@ -134,6 +174,7 @@ export default function ProgressMessageList({
       ) : null}
 
       {!isLoading && !isError && items.length > 0 ? (
+        <div className={wide && selected ? "progress-split" : "progress-stack"}>
         <ul className="progress-card-list">
           {items.map((item) => (
             <li
@@ -188,6 +229,18 @@ export default function ProgressMessageList({
             </li>
           ))}
         </ul>
+        {wide && selected ? (
+          <aside className="detail-drawer" aria-label="进度详情">
+            <h2>{selected.title || '未命名进度'}</h2>
+            <p>{progressStatusLabel(selected.status)}</p>
+            <p>{formatDateTime(selected.submitTime)}</p>
+            <p>{selected.details || '暂无补充说明。'}</p>
+            <button type="button" className="ghost" onClick={() => setSelected(null)}>
+              关闭
+            </button>
+          </aside>
+        ) : null}
+        </div>
       ) : null}
     </div>
   );

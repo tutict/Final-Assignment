@@ -1,7 +1,5 @@
 import 'package:final_assignment_front/config/routes/app_routes.dart';
-import 'package:final_assignment_front/core/auth/auth_service.dart';
 import 'package:final_assignment_front/core/utils/app_logger.dart';
-import 'package:final_assignment_front/features/dashboard/controllers/chat_controller.dart';
 import 'package:final_assignment_front/features/dashboard/controllers/user_dashboard_screen_controller.dart';
 import 'package:final_assignment_front/features/dashboard/views/shared/widgets/dashboard_chrome.dart';
 import 'package:final_assignment_front/features/dashboard/views/shared/widgets/dashboard_page_template.dart';
@@ -25,6 +23,11 @@ class _SettingPageState extends State<SettingPage> {
   void initState() {
     super.initState();
     _calculateCacheSize();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted || !controller.focusAppearance.value) return;
+      controller.focusAppearance.value = false;
+      _showThemeDialog();
+    });
   }
 
   Future<void> _calculateCacheSize() async {
@@ -45,13 +48,6 @@ class _SettingPageState extends State<SettingPage> {
     _showSuccessDialog('缓存已清除');
   }
 
-  Future<void> _logout() async {
-    if (Get.isRegistered<ChatController>()) {
-      final chatController = Get.find<ChatController>();
-      chatController.clearMessages();
-    }
-    await Get.find<AuthService>().logout();
-  }
 
   void _showSuccessDialog(String message) {
     if (!mounted) return;
@@ -93,6 +89,8 @@ class _SettingPageState extends State<SettingPage> {
       _ThemeOption('Material Dark', 'Material', 'Dark'),
       _ThemeOption('Ionic Light', 'Ionic', 'Light'),
       _ThemeOption('Ionic Dark', 'Ionic', 'Dark'),
+      _ThemeOption('Traffic Light', 'Traffic', 'Light'),
+      _ThemeOption('Traffic Dark', 'Traffic', 'Dark'),
       _ThemeOption('Basic Light', 'Basic', 'Light'),
       _ThemeOption('Basic Dark', 'Basic', 'Dark'),
     ];
@@ -144,11 +142,13 @@ class _SettingPageState extends State<SettingPage> {
       return DashboardPageTemplate(
         theme: theme,
         title: '设置管理',
+        reading: true,
         pageType: DashboardPageType.user,
         onThemeToggle: controller.toggleBodyTheme,
         body: Padding(
           padding: const EdgeInsets.all(16.0),
-          child: ListView(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
               _SettingTile(
                 icon: Icons.palette_outlined,
@@ -182,39 +182,7 @@ class _SettingPageState extends State<SettingPage> {
                 title: '反馈',
                 onTap: () => controller.navigateToPage(Routes.consultation),
               ),
-              const SizedBox(height: 12),
-              _SettingTile(
-                icon: Icons.logout_rounded,
-                title: '登出',
-                tone: _SettingTileTone.danger,
-                onTap: () {
-                  showDialog(
-                    context: context,
-                    builder: (BuildContext context) {
-                      return Theme(
-                        data: theme,
-                        child: AlertDialog(
-                          title: const Text('登出'),
-                          content: const Text('确定要登出吗？'),
-                          actions: [
-                            TextButton(
-                              onPressed: () => Navigator.pop(context),
-                              child: const Text('取消'),
-                            ),
-                            TextButton(
-                              onPressed: () {
-                                _logout();
-                                Navigator.pop(context);
-                              },
-                              child: const Text('确定'),
-                            ),
-                          ],
-                        ),
-                      );
-                    },
-                  );
-                },
-              ),
+              
             ],
           ),
         ),
@@ -267,29 +235,24 @@ class _ThemeOptionTile extends StatelessWidget {
   }
 }
 
-enum _SettingTileTone { neutral, danger }
-
 class _SettingTile extends StatelessWidget {
   const _SettingTile({
     required this.icon,
     required this.title,
     this.subtitle,
     required this.onTap,
-    this.tone = _SettingTileTone.neutral,
   });
 
   final IconData icon;
   final String title;
   final String? subtitle;
   final VoidCallback onTap;
-  final _SettingTileTone tone;
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final scheme = theme.colorScheme;
-    final isDanger = tone == _SettingTileTone.danger;
-    final accent = isDanger ? scheme.error : scheme.primary;
+    final accent = scheme.primary;
 
     return DashboardPanel(
       padding: EdgeInsets.zero,

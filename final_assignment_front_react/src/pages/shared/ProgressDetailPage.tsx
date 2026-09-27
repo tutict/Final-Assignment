@@ -3,7 +3,7 @@
  * 摘要面板 + 办理时间线 + 关联业务 + 详情内容，管理员可更新状态/删除。
  * 优先取路由 state.progressItem（来自列表页传入），否则按 id 拉取后端 GET /api/progress/{id}。
  */
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useLocation, useNavigate, useParams } from 'react-router-dom';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import PageLayout from '../../components/PageLayout';
@@ -14,6 +14,8 @@ import {
   useProgress,
 } from '../../hooks/useProgress';
 import { useAuth } from '../../auth/AuthContext';
+import { messagePathForRole } from '../../config/navigation';
+import { readRememberedProgressItem, rememberProgressItem } from '../../utils/progressDetailCache';
 import { formatDateTime } from '../../utils/format';
 import { getErrorMessage } from '../../utils/errorMessages';
 
@@ -33,22 +35,32 @@ export default function ProgressDetailPage() {
   const location = useLocation();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
-  const { auth } = useAuth();
-  const canManage = (auth?.roles || []).some((role) => role.toUpperCase().includes('ADMIN'));
+  const { auth, userRole } = useAuth();
+  const canManage = (auth?.roles || []).some((role) => {
+    const code = role.replace(/^ROLE_/, '').toUpperCase();
+    return code === 'ADMIN' || code === 'SUPER_ADMIN';
+  });
+  const canReadById = canManage;
   const progress = useProgress({ canManage });
   const [toast, setToast] = useState<{ message: string; isError?: boolean } | null>(null);
 
   const passedItem = (location.state as RouteState | null)?.progressItem;
+  const remembered = readRememberedProgressItem(id);
+  const localItem = passedItem || remembered;
+
+  useEffect(() => {
+    if (passedItem) rememberProgressItem(passedItem);
+  }, [passedItem]);
 
   const query = useQuery({
     queryKey: ['progress', 'detail', id],
     queryFn: () => getProgress(Number(id)),
-    enabled: Boolean(id) && !passedItem,
+    enabled: Boolean(id) && !localItem && canReadById,
   });
 
-  const item: ProgressItem | undefined = passedItem || query.data;
-  const isLoading = !passedItem && query.isLoading;
-  const isError = !passedItem && query.isError;
+  const item: ProgressItem | undefined = localItem || query.data;
+  const isLoading = !localItem && canReadById && query.isLoading;
+  const isError = !localItem && canReadById && query.isError;
   const error = query.error;
 
   const flash = (message: string, isError?: boolean) => {
@@ -92,6 +104,14 @@ export default function ProgressDetailPage() {
       ) : null}
 
       {isLoading ? <div className="placeholder">加载中...</div> : null}
+      {!localItem && !canReadById ? (
+        <div className="error-state" role="alert">
+          <span>当前账号不能按编号读取这条进度。请回到消息列表，从对应记录打开。</span>
+          <button type="button" className="ghost" onClick={() => navigate(messagePathForRole(userRole))}>
+            返回消息
+          </button>
+        </div>
+      ) : null}
       {isError ? (
         <ErrorStateView message={getErrorMessage(error)} onRetry={() => query.refetch()} />
       ) : null}
