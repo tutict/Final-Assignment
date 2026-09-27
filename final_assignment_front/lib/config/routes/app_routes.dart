@@ -155,7 +155,14 @@ class Routes {
   static const offenseScreen = RoutePaths.offenseScreen;
 
   static const progressManagementPage = RoutePaths.progressManagementPage;
+  static const paymentRecord = RoutePaths.paymentRecord;
+  static const offenseType = RoutePaths.offenseType;
+  static const roleManagement = RoutePaths.roleManagement;
+  static const permissionManagement = RoutePaths.permissionManagement;
+  static const systemSettings = RoutePaths.systemSettings;
+  static const requestHistory = RoutePaths.requestHistory;
 }
+
 
 /// 包含路由名称列表。
 /// 单独创建以方便管理路由命名。
@@ -255,6 +262,8 @@ class RoutePaths {
 
   // 切换主题
   static const changeThemes = '/admin/changeThemes';
+  static const userChangeThemes = '/changeThemes';
+  static const trafficViolationScreen = '/trafficViolationScreen';
 
   // 用户业务办理页面
   static const businessProgress = '/businessProgress';
@@ -314,4 +323,11 @@ class RoutePaths {
   static const offenseScreen = '/offenseScreen';
 
   static const progressManagementPage = '/progressManagementPage';
+  static const paymentRecord = '/paymentRecord';
+  static const offenseType = '/offenseType';
+  static const roleManagement = '/admin/roleManagement';
+  static const permissionManagement = '/admin/permissionManagement';
+  static const systemSettings = '/admin/systemSettings';
+  static const requestHistory = '/admin/requestHistory';
 }
+

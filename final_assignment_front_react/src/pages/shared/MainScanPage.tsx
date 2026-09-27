@@ -51,7 +51,7 @@ export default function MainScanPage() {
   };
 
   return (
-    <PageLayout title="扫码服务" subtitle="事故与业务办理快速入口">
+    <PageLayout title="扫码服务" subtitle="事故与业务办理快速入口" reading>
       <div className="scanner-panel">
         <div className="scanner-frame">
           <QRCodeCanvas value={qrData} size={240} includeMargin level="M" />

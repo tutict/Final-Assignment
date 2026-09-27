@@ -86,8 +86,9 @@ class DashboardPageAppBar extends StatelessWidget
         title,
         maxLines: 1,
         overflow: TextOverflow.ellipsis,
-        style: theme.textTheme.titleLarge?.copyWith(
-          fontWeight: FontWeight.w800,
+        style: theme.textTheme.headlineLarge?.copyWith(
+          fontSize: 24,
+          fontWeight: FontWeight.w700,
           color: colorScheme.onSurface,
           letterSpacing: 0,
         ),

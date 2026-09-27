@@ -1,5 +1,13 @@
+import 'package:final_assignment_front/features/dashboard/views/shared/widgets/motion.dart';
+import 'package:final_assignment_front/features/dashboard/views/shared/widgets/guide_controller.dart';
 import 'package:final_assignment_front/shared/eva_icons_compat.dart';
 import 'package:final_assignment_front/config/routes/app_routes.dart';
+import 'package:final_assignment_front/core/auth/auth_service.dart';
+import 'package:final_assignment_front/config/navigation/shell_navigation.dart';
+import 'package:final_assignment_front/features/dashboard/views/shared/widgets/app_sidebar.dart';
+import 'package:final_assignment_front/features/dashboard/views/shared/widgets/skip_to_content.dart';
+import 'package:final_assignment_front/features/dashboard/views/shared/widgets/guide_drawer.dart';
+import 'package:final_assignment_front/features/dashboard/views/user/widgets/driver_home_counts.dart';
 import 'package:final_assignment_front/constants/app_constants.dart';
 import 'package:final_assignment_front/features/dashboard/controllers/user_dashboard_screen_controller.dart';
 import 'package:final_assignment_front/features/dashboard/models/profile.dart';
@@ -8,13 +16,8 @@ import 'package:final_assignment_front/features/dashboard/views/shared/component
 import 'package:final_assignment_front/features/dashboard/views/shared/components/profile_tile.dart';
 import 'package:final_assignment_front/features/dashboard/views/shared/widgets/dashboard_chrome.dart';
 import 'package:final_assignment_front/features/dashboard/views/shared/widgets/dashboard_top_bar_actions.dart';
-import 'package:final_assignment_front/features/dashboard/views/shared/widgets/sidebar_settings_button.dart';
 import 'package:final_assignment_front/utils/components/floating_window.dart';
-import 'package:final_assignment_front/utils/components/post_card.dart';
 import 'package:final_assignment_front/utils/components/responsive_builder.dart';
-import 'package:final_assignment_front/utils/components/selection_button.dart';
-import 'package:final_assignment_front/utils/components/user_screen_swiper.dart';
-import 'package:final_assignment_front/utils/components/user_news_card.dart';
 import 'package:final_assignment_front/utils/navigation/page_resolver.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
@@ -26,17 +29,32 @@ part 'components/user_header.dart';
 
 part 'components/user_sidebar.dart';
 
+final userContentFocus = FocusNode(debugLabel: "userContentFocus");
+
 class UserDashboard extends GetView<UserDashboardController> with FloatingBase {
   const UserDashboard({super.key});
 
   @override
   Widget build(BuildContext context) {
     controller.pageResolver ??= resolveDashboardPage;
+    if (!controller.shellArgsConsumed) {
+      controller.shellArgsConsumed = true;
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        controller.consumeShellArguments();
+      });
+    }
     final double screenWidth = MediaQuery.of(context).size.width;
     final double screenHeight = MediaQuery.of(context).size.height;
-    final double expandedSidebarWidth =
-        (screenWidth * 0.2).clamp(260.0, 320.0).toDouble();
+    const double expandedSidebarWidth = 248;
+    if (!controller.sidebarDefaultApplied) {
+      controller.sidebarDefaultApplied = true;
+      final collapse = screenWidth < 1100;
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (collapse) controller.isSidebarCollapsed.value = true;
+      });
+    }
     const double kHeaderTotalHeight = 112;
+
 
     return Obx(() {
       final themeData = controller.currentBodyTheme.value;
@@ -55,7 +73,12 @@ class UserDashboard extends GetView<UserDashboardController> with FloatingBase {
             builder: (context) => Material(
               color: themeData.scaffoldBackgroundColor,
               child: DashboardBackdrop(
-                child: ResponsiveBuilder(
+                child: Stack(
+                  children: [
+                    SkipToContent(target: userContentFocus),
+                    Focus(
+                      focusNode: userContentFocus,
+                      child: ResponsiveBuilder(
                   mobileBuilder: (context, constraints) {
                     return Stack(
                       children: [
@@ -63,7 +86,6 @@ class UserDashboard extends GetView<UserDashboardController> with FloatingBase {
                           child: _buildLayout(context),
                         ),
                         Obx(() => _buildSidebar(context)),
-                        _buildResponsiveChatDrawer(context, screenWidth),
                       ],
                     );
                   },
@@ -76,11 +98,11 @@ class UserDashboard extends GetView<UserDashboardController> with FloatingBase {
                           children: [
                             Obx(
                               () => AnimatedContainer(
-                                duration: const Duration(milliseconds: 220),
+                                duration: shellMotion(context),
                                 curve: Curves.easeOutCubic,
                                 width: controller.isSidebarCollapsed.value
-                                    ? 76.0
-                                    : screenWidth * 0.3,
+                                    ? 72.0
+                                    : 248,
                                 height: screenHeight,
                                 decoration: BoxDecoration(
                                   color: theme.colorScheme.surface
@@ -105,7 +127,6 @@ class UserDashboard extends GetView<UserDashboardController> with FloatingBase {
                             ),
                           ],
                         ),
-                        _buildResponsiveChatDrawer(context, screenWidth),
                       ],
                     );
                   },
@@ -116,10 +137,10 @@ class UserDashboard extends GetView<UserDashboardController> with FloatingBase {
                       children: [
                         Obx(
                           () => AnimatedContainer(
-                            duration: const Duration(milliseconds: 220),
+                            duration: shellMotion(context),
                             curve: Curves.easeOutCubic,
                             width: controller.isSidebarCollapsed.value
-                                ? 76.0
+                                ? 72.0
                                 : expandedSidebarWidth,
                             height: screenHeight,
                             decoration: BoxDecoration(
@@ -146,34 +167,21 @@ class UserDashboard extends GetView<UserDashboardController> with FloatingBase {
                             ),
                           ),
                         ),
-                        Obx(
-                          () => AnimatedContainer(
-                            duration: const Duration(milliseconds: 260),
-                            curve: Curves.easeOutCubic,
-                            width: controller.isChatExpanded.value
-                                ? (screenWidth * 0.3 > 150
-                                    ? screenWidth * 0.3
-                                    : 150)
-                                : 0,
-                            height: screenHeight,
-                            decoration: BoxDecoration(
-                              color: theme.colorScheme.surface
-                                  .withValues(alpha: 0.96),
-                              border: Border(
-                                left: BorderSide(
-                                  color: theme.colorScheme.outlineVariant
-                                      .withValues(alpha: 0.55),
-                                ),
-                              ),
-                            ),
-                            child: controller.isChatExpanded.value
-                                ? _buildSideContent(context)
-                                : null,
-                          ),
-                        ),
                       ],
                     );
                   },
+                ),
+                    ),
+                    if ((GuideController.guideId.value ?? '').isNotEmpty)
+                      Positioned(
+                        top: 0,
+                        right: 0,
+                        bottom: 0,
+                        width: screenWidth >= 1100 ? 440 : screenWidth,
+                        child: GuideDrawerPanel(id: GuideController.guideId.value!),
+                      ),
+                    _buildResponsiveChatDrawer(context, screenWidth),
+                  ],
                 ),
               ),
             ),
@@ -181,10 +189,6 @@ class UserDashboard extends GetView<UserDashboardController> with FloatingBase {
         ),
       );
     });
-  }
-
-  Widget _buildSideContent(BuildContext context) {
-    return const AiChat();
   }
 
   Widget _buildResponsiveChatDrawer(BuildContext context, double screenWidth) {
@@ -216,7 +220,7 @@ class UserDashboard extends GetView<UserDashboardController> with FloatingBase {
                 ),
               ),
               AnimatedPositioned(
-                duration: const Duration(milliseconds: 260),
+                duration: shellMotion(context),
                 curve: Curves.easeOutCubic,
                 top: 12,
                 right: expanded ? 12 : -drawerWidth - 12,
@@ -312,10 +316,11 @@ class UserDashboard extends GetView<UserDashboardController> with FloatingBase {
   }
 
   Widget _buildLayout(BuildContext context, {bool isDesktop = false}) {
+    final margin = shellPageMargin(MediaQuery.sizeOf(context).width);
     return Padding(
-      padding: const EdgeInsets.symmetric(
-        horizontal: kSpacing,
-        vertical: kSpacing / 4,
+      padding: EdgeInsets.symmetric(
+        horizontal: margin,
+        vertical: 4,
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -352,9 +357,7 @@ class UserDashboard extends GetView<UserDashboardController> with FloatingBase {
                 _buildUserOverview(context),
                 const SizedBox(height: kSpacing),
                 _buildProfileSection(context),
-                _buildUserScreenSwiper(context),
-                const SizedBox(height: kSpacing),
-                _buildUserToolsCard(context),
+                _buildDriverTasks(context),
               ],
             );
           }),
@@ -389,14 +392,54 @@ class UserDashboard extends GetView<UserDashboardController> with FloatingBase {
     );
   }
 
-  Widget _buildUserScreenSwiper(BuildContext context) {
-    return RepaintBoundary(
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: kSpacing),
-        child: UserScreenSwiper(onPressed: () {}),
+
+  Widget _buildDriverTasks(BuildContext context) {
+    final tasks = [
+      ('我的违法', Routes.userOffenseListPage, '查看本人违法记录'),
+      ('缴费', Routes.fineInformation, '核对并缴纳罚款'),
+      ('申诉', Routes.userAppeal, '提交或查看申诉'),
+      ('我的车辆', Routes.vehicleManagement, '管理已登记车辆'),
+    ];
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 16),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          DriverHomeCounts(onOpen: controller.navigateToPage),
+          const SizedBox(height: 12),
+          Wrap(
+            spacing: 12,
+            runSpacing: 12,
+            children: [
+              for (final task in tasks)
+                SizedBox(
+                  width: 220,
+                  child: OutlinedButton(
+                    onPressed: () => controller.navigateToPage(task.$2),
+                    child: Align(
+                      alignment: Alignment.centerLeft,
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(task.$1),
+                          Text(task.$3, style: Theme.of(context).textTheme.bodySmall),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          FilledButton(
+            onPressed: () => controller.navigateToPage(Routes.latestOffenseNewsPage),
+            child: const Text('办事指引'),
+          ),
+        ],
       ),
     );
   }
+
 
   Widget _buildUserScreenSidebarTools(BuildContext context) {
     return Padding(
@@ -409,49 +452,15 @@ class UserDashboard extends GetView<UserDashboardController> with FloatingBase {
     );
   }
 
-  Widget _buildUserToolsCard(BuildContext context) {
-    final height = (MediaQuery.of(context).size.height * 0.58)
-        .clamp(470.0, 560.0)
-        .toDouble();
-
-    return RepaintBoundary(
-      child: DashboardPanel(
-        height: height,
-        margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-        padding: EdgeInsets.zero,
-        child: UserNewsCard(
-          onPressed: () {
-            controller.navigateToPage(Routes.latestOffenseNewsPage);
-          },
-          onPressedSecond: () {
-            controller.navigateToPage(Routes.finePaymentNoticePage);
-          },
-          onPressedThird: () {
-            controller.navigateToPage(Routes.accidentQuickGuidePage);
-          },
-          onPressedFourth: () {
-            controller.navigateToPage(Routes.accidentProgressPage);
-          },
-          onPressedFifth: () {
-            controller.navigateToPage(Routes.accidentEvidencePage);
-          },
-          onPressedSixth: () {
-            controller.navigateToPage(Routes.accidentVideoQuickPage);
-          },
-        ),
-      ),
-    );
-  }
-
   Widget _buildSidebar(BuildContext context) {
     final bool isDesktop = ResponsiveBuilder.isDesktop(context);
     final bool showSidebar = isDesktop || controller.isSidebarOpen.value;
     final scheme = Theme.of(context).colorScheme;
 
     return AnimatedContainer(
-      duration: const Duration(milliseconds: 260),
+      duration: shellMotion(context),
       curve: Curves.easeOutCubic,
-      width: showSidebar ? 300 : 0,
+      width: showSidebar ? 248 : 0,
       height: double.infinity,
       decoration: BoxDecoration(
         color: scheme.surface.withValues(alpha: 0.98),
@@ -573,6 +582,13 @@ class UserDashboard extends GetView<UserDashboardController> with FloatingBase {
                     chatActive: controller.isChatExpanded.value,
                     onChatPressed: controller.toggleChat,
                     onThemePressed: controller.toggleBodyTheme,
+                    onMessagesPressed: () => controller.navigateToPage(Routes.onlineProcessingProgress),
+                    onProfilePressed: () => controller.navigateToPage(Routes.personalMain),
+                    onSettingsPressed: () => controller.navigateToPage(Routes.userSetting),
+                    onLogoutPressed: () async {
+                      await Get.find<AuthService>().logout();
+                      Get.offAllNamed(Routes.login);
+                    },
                     compact: compactActions,
                   ),
                 ),

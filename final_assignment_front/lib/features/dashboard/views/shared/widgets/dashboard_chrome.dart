@@ -84,39 +84,13 @@ class _DashboardPanelState extends State<DashboardPanel> {
 
     final decoration = BoxDecoration(
       color: scheme.surface.withValues(alpha: dark ? 0.92 : 0.96),
-      borderRadius: BorderRadius.circular(elevated ? widget.hoverRadius : 8),
+      borderRadius: BorderRadius.circular(12),
       border: Border.all(
         color: elevated
             ? scheme.primary.withValues(alpha: dark ? 0.5 : 0.6)
             : scheme.outlineVariant.withValues(alpha: dark ? 0.45 : 0.58),
       ),
-      boxShadow: elevated
-          ? [
-              // 抬升时投影更强调，营造"浮起"。
-              BoxShadow(
-                color: theme.shadowColor.withValues(alpha: dark ? 0.34 : 0.16),
-                blurRadius: 30,
-                offset: const Offset(0, 16),
-              ),
-              BoxShadow(
-                color: theme.shadowColor.withValues(alpha: dark ? 0.22 : 0.1),
-                blurRadius: 10,
-                offset: const Offset(0, 4),
-              ),
-            ]
-          : [
-              // 双层软阴影：近处贴身 + 远处柔和，比单层更有质感。
-              BoxShadow(
-                color: theme.shadowColor.withValues(alpha: dark ? 0.16 : 0.07),
-                blurRadius: 14,
-                offset: const Offset(0, 6),
-              ),
-              BoxShadow(
-                color: theme.shadowColor.withValues(alpha: dark ? 0.12 : 0.05),
-                blurRadius: 34,
-                offset: const Offset(0, 14),
-              ),
-            ],
+      boxShadow: null,
     );
 
     Widget child = widget.child;
@@ -129,8 +103,10 @@ class _DashboardPanelState extends State<DashboardPanel> {
             ? (_) => setState(() => _hovered = false)
             : null,
         child: AnimatedScale(
-          scale: elevated ? 1.008 : 1.0,
-          duration: const Duration(milliseconds: 180),
+          scale: MediaQuery.disableAnimationsOf(context) ? 1 : (elevated ? 1.008 : 1),
+          duration: MediaQuery.disableAnimationsOf(context)
+              ? Duration.zero
+              : const Duration(milliseconds: 180),
           curve: Curves.easeOutCubic,
           child: child,
         ),
@@ -148,7 +124,7 @@ class _DashboardPanelState extends State<DashboardPanel> {
     if (widget.onTap != null) {
       return InkWell(
         onTap: widget.onTap,
-        borderRadius: BorderRadius.circular(elevated ? widget.hoverRadius : 8),
+        borderRadius: BorderRadius.circular(12),
         splashColor: scheme.primary.withValues(alpha: 0.06),
         highlightColor: scheme.primary.withValues(alpha: 0.04),
         child: container,
@@ -184,7 +160,8 @@ class DashboardSectionHeader extends StatelessWidget {
             children: [
               Text(
                 title,
-                style: theme.textTheme.titleLarge?.copyWith(
+                style: theme.textTheme.titleMedium?.copyWith(
+                  fontSize: 18,
                   fontWeight: FontWeight.w700,
                   color: scheme.onSurface,
                   letterSpacing: 0,

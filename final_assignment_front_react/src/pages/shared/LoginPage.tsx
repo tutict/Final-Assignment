@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { Navigate, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../auth/AuthContext';
 import { ROLES } from '../../constants/roles';
+import { homePathForRole } from '../../config/navigation';
 import LocalCaptcha from '../../components/LocalCaptcha';
 import Modal from '../../components/Modal';
 import { updateCurrentPassword } from '../../api/profile';
@@ -46,7 +47,7 @@ export default function LoginPage() {
   }, [success]);
 
   if (isAuthenticated) {
-    return <Navigate to={userRole === ROLES.ADMIN ? '/dashboard' : '/userDashboard'} replace />;
+    return <Navigate to={homePathForRole(userRole)} replace />;
   }
 
   const handleChange = (key: keyof LoginForm, value: string) => {
@@ -130,7 +131,7 @@ export default function LoginPage() {
 
     const storedRole = localStorage.getItem('userRole') || userRole;
     const from = (location.state as { from?: { pathname?: string } } | null)?.from?.pathname;
-    const redirectTo = from || (storedRole === ROLES.ADMIN ? '/dashboard' : '/userDashboard');
+    const redirectTo = from || homePathForRole(storedRole);
     navigate(redirectTo, { replace: true });
   };
 

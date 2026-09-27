@@ -1,6 +1,8 @@
 import 'package:final_assignment_front/core/utils/app_logger.dart';
 import 'package:final_assignment_front/core/auth/role_utils.dart';
+import 'package:final_assignment_front/config/navigation/shell_navigation.dart';
 import 'package:final_assignment_front/config/routes/app_routes.dart';
+import 'package:final_assignment_front/features/dashboard/views/shared/widgets/guide_controller.dart';
 import 'package:final_assignment_front/config/themes/app_theme.dart';
 import 'package:final_assignment_front/constants/app_constants.dart';
 import 'package:final_assignment_front/features/api/offense_information_controller_api.dart';
@@ -21,6 +23,9 @@ import 'package:final_assignment_front/utils/services/auth_token_store.dart';
 class ManagerDashboardController extends GetxController {
   final caseCardDataList = <CaseCardData>[].obs;
   var selectedStyle = 'Basic'.obs;
+  final activeNavRoute = 'homePage'.obs;
+  bool shellArgsConsumed = false;
+  bool sidebarDefaultApplied = false;
   final currentTheme = 'Light'.obs;
   final Rx<ThemeData> currentBodyTheme = AppTheme.basicLight.obs;
   final selectedCaseType = CaseType.caseManagement.obs;
@@ -31,6 +36,7 @@ class ManagerDashboardController extends GetxController {
   final isSidebarCollapsed = false.obs;
   final selectedPage = Rx<Widget?>(null);
   final isChatExpanded = false.obs;
+  final focusAppearance = false.obs;
   final Rx<Profile?> currentUser = Rx<Profile?>(null);
   late Rx<Future<List<OffenseInformation>>> offensesFuture;
   final RxString currentDriverName = ''.obs;
@@ -54,6 +60,11 @@ class ManagerDashboardController extends GetxController {
 
   Future<void> _loadTheme() async {
     final prefs = await SharedPreferences.getInstance();
+    final storedStyle = prefs.getString('selectedStyle');
+    if (storedStyle != null &&
+        const {'Basic', 'Traffic', 'Ionic', 'Material'}.contains(storedStyle)) {
+      selectedStyle.value = storedStyle;
+    }
     final themeKey = 'dashboardTheme_${selectedStyle.value}';
     final storedTheme = prefs.getString(themeKey);
     final sharedDarkMode = prefs.getBool('isDarkMode');
@@ -87,7 +98,7 @@ class ManagerDashboardController extends GetxController {
         userName != null &&
         userEmail != null &&
         userRole != null &&
-        RoleUtils.canAccessAdminDashboard(userRole)) {
+        RoleUtils.canAccessStaffDashboard(userRole)) {
       currentUser.value = Profile(
         photo: const AssetImage(ImageRasterPath.avatar1),
         name: userName,
@@ -96,6 +107,10 @@ class ManagerDashboardController extends GetxController {
       currentDriverName.value = userName;
       currentEmail.value = userEmail;
       currentRole.value = RoleUtils.preferredRole(userRole);
+      if (!shellArgsConsumed) {
+        shellArgsConsumed = true;
+        consumeShellArguments();
+      }
       await offenseApi.initializeWithJwt();
       await roleApi.initializeWithJwt();
     } else {
@@ -112,7 +127,7 @@ class ManagerDashboardController extends GetxController {
       final prefs = await SharedPreferences.getInstance();
       final roleSource =
           prefs.getString('roles') ?? prefs.getString('userRole');
-      if (!RoleUtils.canAccessAdminDashboard(roleSource)) {
+      if (!RoleUtils.canAccessStaffDashboard(roleSource)) {
         throw Exception('Manager role is required');
       }
     } catch (e) {
@@ -155,7 +170,9 @@ class ManagerDashboardController extends GetxController {
 
   bool get isBusinessAdmin => RoleUtils.isAdminRole(currentRole.value);
 
-  String get roleDisplayName => isSuperAdmin ? '超级管理员端' : '管理端';
+  bool get isAppealReviewer => currentRole.value == 'APPEAL_REVIEWER';
+
+  String get roleDisplayName => isSuperAdmin ? '超级管理员端' : isAppealReviewer ? '申诉审核员' : '管理端';
 
   void toggleSidebar() => isSidebarOpen.value = !isSidebarOpen.value;
 
@@ -178,6 +195,7 @@ class ManagerDashboardController extends GetxController {
     _applyTheme();
     final prefs = await SharedPreferences.getInstance();
     await prefs.setBool('isDarkMode', mode == 'Dark');
+    await prefs.setString('selectedStyle', style);
     await prefs.setString('dashboardTheme_$style', mode);
   }
 
@@ -263,13 +281,61 @@ class ManagerDashboardController extends GetxController {
       caseCardDataList.where((task) => task.type == type).toList();
 
   void navigateToPage(String routeName) {
-    AppLogger.debug('导航至: $routeName');
-    selectedPage.value = pageResolver?.call(routeName);
+    final mapped = mapLegacyRoute(routeName);
+    if (mapped.guide != null) {
+      GuideController.open(mapped.guide!);
+    } else {
+      GuideController.close();
+    }
+    if (mapped.openChat) isChatExpanded.value = true;
+    if (mapped.preservePage) return;
+    if (mapped.section == 'appearance') focusAppearance.value = true;
+    if (mapped.home || mapped.route == 'homePage') {
+      exitSidebarContent();
+      return;
+    }
+    if (!shellAllowsManagerRoute(mapped.route, currentRole.value)) {
+      return;
+    }
+    AppLogger.debug('导航至: ${mapped.route}');
+    activeNavRoute.value = mapped.route;
+    ShellSession.rememberManager(mapped.route);
+    selectedPage.value = pageResolver?.call(mapped.route);
     isShowingSidebarContent.value = true;
+  }
+
+  void consumeShellArguments() {
+    final args = Get.arguments;
+    final guideFromArgs = args is Map ? args['guide'] : null;
+    final pageFromArgs = args is Map ? args['page'] : null;
+    final openChat = args is Map && args['openChat'] == true;
+    final queryGuide = Uri.base.queryParameters['guide'];
+    final guide = guideFromArgs is String && guideFromArgs.isNotEmpty
+        ? guideFromArgs
+        : queryGuide;
+    var page = pageFromArgs is String && pageFromArgs.isNotEmpty ? pageFromArgs : null;
+    if ((page == null || page == 'homePage') && guide != null && guide.isNotEmpty) {
+      page = switch (guide) {
+        'payment' => RoutePaths.fineInformation,
+        'quick' || 'flow' || 'evidence' || 'video' => RoutePaths.userOffenseListPage,
+        _ => page,
+      };
+    }
+    if (openChat) isChatExpanded.value = true;
+    final section = args is Map ? args['section'] : null;
+    if (section == 'appearance' || Uri.base.queryParameters['section'] == 'appearance') {
+      focusAppearance.value = true;
+    }
+    if (page != null && page.isNotEmpty && page != 'homePage') {
+      navigateToPage(page);
+    }
+    if (guide != null && guide.isNotEmpty) GuideController.open(guide);
   }
 
   void exitSidebarContent() {
     AppLogger.debug('退出侧边栏内容');
+    activeNavRoute.value = 'homePage';
+    ShellSession.rememberManager('homePage');
     isShowingSidebarContent.value = false;
     selectedPage.value = null;
   }
@@ -363,6 +429,12 @@ class ManagerDashboardController extends GetxController {
   void setSelectedStyle(String style) {
     selectedStyle.value = style;
     _loadTheme();
+  }
+
+  @override
+  void onClose() {
+    ShellSession.rememberManager(activeNavRoute.value);
+    super.onClose();
   }
 
   RxBool get refreshPersonalPage => _refreshPersonalPage;

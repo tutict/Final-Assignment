@@ -1,76 +1,94 @@
+import { useEffect, useState } from 'react';
 import { NavLink } from 'react-router-dom';
 import clsx from 'clsx';
 import { useAuth } from '../auth/AuthContext';
+import { navForRole, normalizeRole } from '../config/navigation';
 import { ROLES } from '../constants/roles';
-import type { NavItem } from '../config/navigation';
-
-interface SidebarItemProps {
-  item: NavItem;
-}
-
-function SidebarItem({ item }: SidebarItemProps) {
-  const Icon = item.icon;
-  return (
-    <NavLink
-      to={item.path}
-      className={({ isActive }) =>
-        clsx('sidebar-link', isActive && 'is-active', item.isLogout && 'is-logout')
-      }
-    >
-      {Icon ? <Icon className="sidebar-icon" /> : null}
-      <span>{item.label}</span>
-    </NavLink>
-  );
-}
 
 interface SidebarProps {
-  title: string;
-  items: NavItem[];
-  footerItems?: NavItem[];
+  collapsed: boolean;
+  mobile: boolean;
+  onNavigate?: () => void;
 }
 
-export default function Sidebar({ title, items, footerItems }: SidebarProps) {
-  const { logout, userRole } = useAuth();
-  const staffRoles: string[] = [ROLES.ADMIN, ROLES.SUPER_ADMIN, ROLES.APPEAL_REVIEWER];
-  const isStaff = staffRoles.includes(userRole);
+export default function Sidebar({ collapsed, mobile, onNavigate }: SidebarProps) {
+  const { userRole } = useAuth();
+  const groups = navForRole(userRole);
+  const staff = [ROLES.ADMIN, ROLES.SUPER_ADMIN, ROLES.APPEAL_REVIEWER].includes(
+    normalizeRole(userRole) as typeof ROLES.ADMIN
+  );
+  const [collapsedGroups, setCollapsedGroups] = useState<Record<string, boolean>>(() =>
+    Object.fromEntries(groups.map((group) => [group.id, Boolean(group.defaultCollapsed)]))
+  );
 
-  const handleClick = (item: NavItem) => {
-    if (item.isLogout) {
-      logout();
-    }
-  };
+  useEffect(() => {
+    setCollapsedGroups((prev) => {
+      const next = { ...prev };
+      groups.forEach((group) => {
+        if (!(group.id in next)) next[group.id] = Boolean(group.defaultCollapsed);
+      });
+      return next;
+    });
+  }, [userRole]);
 
   return (
-    <aside className="sidebar">
+    <aside className="sidebar" aria-label="主导航">
       <div className="sidebar-brand">
-        <div className="brand-mark">{isStaff ? '管' : '办'}</div>
-        <div>
-          <div className="brand-title">{isStaff ? '交通违法管理' : '交通违法办事'}</div>
-          <div className="brand-sub">{isStaff ? '管理后台' : '个人中心'}</div>
-        </div>
+        <div className="brand-mark">{staff ? '管' : '办'}</div>
+        {collapsed && !mobile ? null : (
+          <div>
+            <div className="brand-title">{staff ? '交通违法管理' : '交通违法办事'}</div>
+            <div className="brand-sub">{staff ? '管理后台' : '个人中心'}</div>
+          </div>
+        )}
       </div>
-      <div className="sidebar-section">
-        <div className="sidebar-section-title">{title}</div>
-        <nav className="sidebar-nav">
-          {items.map((item) => (
-            <div key={item.path} onClick={() => handleClick(item)}>
-              <SidebarItem item={item} />
+      <nav className="sidebar-nav">
+        {groups.map((group) => {
+          const hidden = collapsedGroups[group.id] && !(collapsed && !mobile);
+          return (
+            <div key={group.id}>
+              {collapsed && !mobile ? null : (
+                <button
+                  type="button"
+                  className="nav-group-label"
+                  aria-expanded={!hidden}
+                  onClick={() =>
+                    setCollapsedGroups((prev) => ({ ...prev, [group.id]: !prev[group.id] }))
+                  }
+                >
+                  <span>{group.label}</span>
+                  <span>{hidden ? '展开' : '收起'}</span>
+                </button>
+              )}
+              {hidden ? null : (
+                <div className="sidebar-nav">
+                  {group.items.map((item) => {
+                    const Icon = item.icon;
+                    const link = (
+                      <NavLink
+                        to={item.path}
+                        title={collapsed ? item.label : undefined}
+                        onClick={onNavigate}
+                        className={({ isActive }) => clsx('sidebar-link', isActive && 'is-active')}
+                      >
+                        {Icon ? <Icon className="sidebar-icon" aria-hidden /> : null}
+                        {collapsed && !mobile ? <span className="sr-only">{item.label}</span> : <span>{item.label}</span>}
+                      </NavLink>
+                    );
+                    return collapsed && !mobile ? (
+                      <div key={item.path} title={item.label}>
+                        {link}
+                      </div>
+                    ) : (
+                      <div key={item.path}>{link}</div>
+                    );
+                  })}
+                </div>
+              )}
             </div>
-          ))}
-        </nav>
-      </div>
-      {footerItems?.length ? (
-        <div className="sidebar-section sidebar-footer">
-          <div className="sidebar-section-title">快捷入口</div>
-          <nav className="sidebar-nav">
-            {footerItems.map((item) => (
-              <div key={item.path} onClick={() => handleClick(item)}>
-                <SidebarItem item={item} />
-              </div>
-            ))}
-          </nav>
-        </div>
-      ) : null}
+          );
+        })}
+      </nav>
     </aside>
   );
 }

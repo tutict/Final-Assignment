@@ -377,7 +377,7 @@ class _LoginScreenState extends State<LoginScreen> {
 
   void _navigateAfterAuth() {
     NavigationHelper.offAllNamed(
-      RoleUtils.canAccessAdminDashboard(_userRole)
+      RoleUtils.canAccessStaffDashboard(_userRole)
           ? Routes.dashboard
           : Routes.userDashboard,
     );

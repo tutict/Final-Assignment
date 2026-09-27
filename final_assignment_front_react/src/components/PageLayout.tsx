@@ -3,9 +3,10 @@ interface PageLayoutProps {
   subtitle?: string;
   headerActions?: React.ReactNode;
   children?: React.ReactNode;
+  reading?: boolean;
 }
 
-export default function PageLayout({ title, subtitle, headerActions, children }: PageLayoutProps) {
+export default function PageLayout({ title, subtitle, headerActions, children, reading = false }: PageLayoutProps) {
   return (
     <section className="page">
       <div className="page-header">
@@ -15,7 +16,7 @@ export default function PageLayout({ title, subtitle, headerActions, children }:
         </div>
         {headerActions ? <div className="page-actions">{headerActions}</div> : null}
       </div>
-      <div className="page-body">{children}</div>
+      <div className={reading ? "page-body reading-wrap" : "page-body"}>{children}</div>
     </section>
   );
 }

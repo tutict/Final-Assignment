@@ -1,3 +1,20 @@
+
+import 'package:final_assignment_front/features/dashboard/views/manager/pages/backup_and_restore_page.dart';
+import 'package:final_assignment_front/features/dashboard/views/manager/pages/logs/login_log_page.dart';
+import 'package:final_assignment_front/features/dashboard/views/manager/pages/logs/operation_log_page.dart';
+import 'package:final_assignment_front/features/dashboard/views/manager/pages/logs/system_log_page.dart';
+import 'package:final_assignment_front/features/dashboard/views/manager/pages/main_process/deduction_management_page.dart';
+import 'package:final_assignment_front/features/dashboard/views/manager/pages/main_process/driver_list_page.dart';
+import 'package:final_assignment_front/features/dashboard/views/manager/pages/main_process/fine_list_page.dart';
+import 'package:final_assignment_front/features/dashboard/views/manager/pages/main_process/manager_appeal_management_page.dart';
+import 'package:final_assignment_front/features/dashboard/views/manager/pages/main_process/offense_list.dart';
+import 'package:final_assignment_front/features/dashboard/views/manager/pages/main_process/vehicle_list.dart';
+import 'package:final_assignment_front/features/dashboard/views/manager/pages/manager_personal_page.dart';
+import 'package:final_assignment_front/features/dashboard/views/manager/pages/manager_setting_page.dart';
+import 'package:final_assignment_front/features/dashboard/views/manager/pages/sidebar_management/user_management_page.dart';
+import 'package:final_assignment_front/features/dashboard/views/manager/pages/system/system_record_pages.dart';
+import 'package:final_assignment_front/features/dashboard/views/user/pages/main_process/fine_information.dart';
+import 'package:final_assignment_front/features/dashboard/views/user/pages/main_process/user_appeal.dart';
 import 'package:final_assignment_front/core/utils/app_logger.dart';
 import 'package:final_assignment_front/config/routes/app_routes.dart';
 import 'package:final_assignment_front/features/dashboard/views/manager/pages/progress_management.dart';
@@ -8,6 +25,7 @@ import 'package:final_assignment_front/features/dashboard/views/shared/component
 import 'package:final_assignment_front/features/dashboard/views/user/pages/main_process/business_progress.dart';
 import 'package:final_assignment_front/features/dashboard/views/user/pages/main_process/online_processing_progress.dart';
 import 'package:final_assignment_front/features/dashboard/views/user/pages/main_process/user_offense_list_page.dart';
+import 'package:final_assignment_front/features/dashboard/views/user/pages/main_process/vehicle_management_page.dart';
 import 'package:final_assignment_front/features/dashboard/views/user/pages/news/accident_evidence_page.dart';
 import 'package:final_assignment_front/features/dashboard/views/user/pages/news/accident_progress_page.dart';
 import 'package:final_assignment_front/features/dashboard/views/user/pages/news/accident_quick_guide_page.dart';
@@ -60,6 +78,51 @@ Widget? resolveDashboardPage(String routeName) {
       return const ProgressManagementPage();
     case Routes.userOffenseListPage:
       return const UserOffenseListPage();
+    case Routes.userAppeal:
+      return const UserAppealPage();
+    case Routes.fineInformation:
+      return const FineInformationPage();
+    case Routes.vehicleManagement:
+      return const VehicleManagementPage();
+    case Routes.offenseList:
+      return const OffenseList();
+    case Routes.fineList:
+      return const FineListPage();
+    case Routes.deductionManagement:
+      return const DeductionManagementPage();
+    case Routes.appealManagement:
+      return const ManagerAppealManagementPage();
+    case Routes.driverList:
+      return const DriverListPage();
+    case Routes.vehicleList:
+      return const VehicleList();
+    case Routes.paymentRecord:
+      return const PaymentRecordsPage();
+    case Routes.offenseType:
+      return const OffenseTypeRecordsPage();
+    case Routes.roleManagement:
+      return const RoleRecordsPage();
+    case Routes.permissionManagement:
+      return const PermissionRecordsPage();
+    case Routes.systemSettings:
+      return const SystemSettingsRecordsPage();
+    case Routes.requestHistory:
+      return const RequestHistoryPage();
+    case Routes.backupAndRestore:
+      return const BackupAndRestorePage();
+    case Routes.userManagementPage:
+      return const UserManagementPage();
+    case Routes.loginLogPage:
+      return const LoginLogPage();
+    case Routes.operationLogPage:
+      return const OperationLogPage();
+    case Routes.systemLogPage:
+      return const SystemLogPage();
+    case Routes.managerPersonalPage:
+      return const ManagerPersonalPage();
+    case Routes.managerSetting:
+    case Routes.changeThemes:
+      return const ManagerSettingPage();
     default:
       AppLogger.debug('Unknown route: $routeName');
       return const Center(child: Text('Page not found'));

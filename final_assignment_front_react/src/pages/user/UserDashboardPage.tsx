@@ -1,52 +1,45 @@
 import { useMemo } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import PageLayout from '../../components/PageLayout';
 import StatCard from '../../components/StatCard';
-import UserCarousel from '../../components/UserCarousel';
 import { useAuth } from '../../auth/AuthContext';
 import { useUserDashboardMetrics } from '../../hooks/useUserDashboard';
 import { useUserAppeals } from '../../hooks/useUserAppeals';
+import { useProgress } from '../../hooks/useProgress';
 import { getDriver } from '../../api/profile';
 
-/**
- * 用户首页，对齐 Flutter user_dashboard。
- * 顶部安全驾驶轮播 + 资料完善提醒条 + 个人 KPI + 快速入口。
- */
-const QUICK_LINKS = [
-  { label: '违法记录', path: '/userOffenseListPage', desc: '查看我的违法行为' },
-  { label: '车辆管理', path: '/vehicleManagement', desc: '管理已绑定车辆' },
-  { label: '罚款信息', path: '/fineInformation', desc: '在线缴纳罚款' },
-  { label: '业务进度', path: '/businessProgress', desc: '跟踪办理进度' },
+const TASKS = [
+  { label: '我的违法', path: '/userOffenseListPage', desc: '查看本人违法记录' },
+  { label: '缴费', path: '/fineInformation', desc: '核对并缴纳罚款' },
+  { label: '申诉', path: '/userAppeal', desc: '提交或查看申诉' },
+  { label: '我的车辆', path: '/vehicleManagement', desc: '管理已登记车辆' },
 ];
 
 export default function UserDashboardPage() {
   const { auth } = useAuth();
   const navigate = useNavigate();
+  const [, setParams] = useSearchParams();
   const driverId = auth?.userId;
-  const { metrics, isLoading, refresh } = useUserDashboardMetrics(driverId);
+  const { metrics, isLoading, isError, refresh } = useUserDashboardMetrics(driverId);
   const appealsQuery = useUserAppeals(driverId);
-
-  // 对齐 Flutter NotificationBar：检测 idCardNumber / driverLicenseNumber 是否缺失，
-  // 缺失时提示用户前往个人资料补全。
+  const progress = useProgress({ canManage: false });
   const profileNoticeQuery = useProfileNotice(driverId);
 
   const activeAppeals = useMemo(() => {
-    const list = (appealsQuery.data || []) as Array<{ status?: string; appealStatus?: string }>;
+    const list = (appealsQuery.data || []) as Array<{ status?: string; appealStatus?: string; processStatus?: string }>;
     return list.filter((item) => {
-      const status = (item.appealStatus || item.status || '').toUpperCase();
-      return status && !['APPROVED', 'REJECTED', 'CLOSED'].includes(status);
+      const status = (item.processStatus || item.appealStatus || item.status || '').toUpperCase();
+      return status && !['APPROVED', 'REJECTED', 'CLOSED', 'COMPLETED', 'ARCHIVED'].includes(status);
     }).length;
   }, [appealsQuery.data]);
 
   return (
-    <PageLayout title="用户首页" subtitle="查看违法记录与业务进度">
-      <UserCarousel />
-
+    <PageLayout title="首页" subtitle="待办、消息和办事入口">
       {profileNoticeQuery?.incomplete ? (
         <div className="profile-notice" role="status">
           <span className="profile-notice-text">
-            您的个人资料尚不完善（{profileNoticeQuery.missing.join('、')}），补全后可办理相关业务。
+            个人资料还不完整（{profileNoticeQuery.missing.join('、')}）。补全后才能继续办理。
           </span>
           <button type="button" className="primary" onClick={() => navigate('/personalMain')}>
             去完善
@@ -55,46 +48,39 @@ export default function UserDashboardPage() {
       ) : null}
 
       <div className="stat-grid">
+        <StatCard title="待缴费" value={isLoading ? '-' : metrics.unpaidFines} description="可进入缴费页处理" />
+        <StatCard title="处理中申诉" value={appealsQuery.isLoading ? '-' : activeAppeals} description="尚未办结的申诉" />
         <StatCard
-          title="待处理违法"
-          value={isLoading ? '-' : metrics.pendingOffenses}
-          description="待处理违法记录"
-        />
-        <StatCard
-          title="待缴罚款"
-          value={isLoading ? '-' : metrics.unpaidFines}
-          description="可在线缴纳"
-        />
-        <StatCard
-          title="处理中申诉"
-          value={activeAppeals}
-          description="等待审核"
-        />
-        <StatCard
-          title="车辆信息"
-          value={metrics.vehicleCount || '-'}
-          description="已绑定车辆"
+          title="未读消息"
+          value={progress.isLoading ? '-' : progress.items.length}
+          description="办理进度与通知"
         />
       </div>
 
+      {isError ? (
+        <div className="error-state">
+          <p>首页数据没有加载成功。已填内容不受影响，可以重试。</p>
+          <button type="button" className="ghost" onClick={refresh}>重试</button>
+        </div>
+      ) : null}
+
       <div className="panel">
-        <h3>快速入口</h3>
-        <div className="grid-two">
-          {QUICK_LINKS.map((link) => (
-            <button
-              key={link.path}
-              type="button"
-              className="quick-link"
-              onClick={() => navigate(link.path)}
-            >
-              <span className="quick-link-title">{link.label}</span>
-              <span className="quick-link-desc">{link.desc}</span>
+        <h3>办事</h3>
+        <div className="task-grid">
+          {TASKS.map((task) => (
+            <button key={task.path} type="button" className="task-card" onClick={() => navigate(task.path)}>
+              <strong>{task.label}</strong>
+              <span>{task.desc}</span>
             </button>
           ))}
         </div>
         <div style={{ marginTop: 16 }}>
-          <button type="button" className="ghost" onClick={refresh} disabled={isLoading}>
-            {isLoading ? '刷新中...' : '刷新数据'}
+          <button
+            type="button"
+            className={profileNoticeQuery?.incomplete ? 'ghost' : 'primary'}
+            onClick={() => setParams({ guide: 'news' })}
+          >
+            办事指引
           </button>
         </div>
       </div>
@@ -102,7 +88,6 @@ export default function UserDashboardPage() {
   );
 }
 
-/** 检测驾驶员档案资料完善度（对齐 Flutter NotificationBar 的补全提醒）。 */
 function useProfileNotice(driverId?: string | number):
   | { incomplete: true; missing: string[] }
   | { incomplete: false; missing: never[] }

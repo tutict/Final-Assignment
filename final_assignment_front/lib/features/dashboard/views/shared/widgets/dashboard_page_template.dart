@@ -4,6 +4,7 @@ import 'package:final_assignment_front/features/dashboard/views/user/widgets/use
 import 'package:final_assignment_front/features/dashboard/views/shared/widgets/dashboard_page_app_bar.dart';
 import 'package:final_assignment_front/features/dashboard/views/shared/widgets/motion.dart';
 import 'package:final_assignment_front/features/dashboard/views/shared/widgets/skeleton.dart';
+import 'package:final_assignment_front/config/navigation/shell_navigation.dart';
 import 'package:flutter/material.dart';
 
 enum DashboardPageType { manager, user, custom }
@@ -18,7 +19,8 @@ class DashboardPageTemplate extends StatelessWidget {
     this.actions = const [],
     this.onRefresh,
     this.onThemeToggle,
-    this.padding = const EdgeInsets.all(16),
+    this.padding,
+    this.footer,
     this.bodyIsScrollable = false,
     this.safeArea = true,
     this.backgroundColor,
@@ -30,6 +32,7 @@ class DashboardPageTemplate extends StatelessWidget {
     this.loadingWidget,
     this.centerTitle,
     this.floatingActionButton,
+    this.reading = false,
   });
 
   final ThemeData theme;
@@ -39,7 +42,8 @@ class DashboardPageTemplate extends StatelessWidget {
   final List<DashboardPageBarAction> actions;
   final Future<void> Function()? onRefresh;
   final VoidCallback? onThemeToggle;
-  final EdgeInsetsGeometry padding;
+  final EdgeInsetsGeometry? padding;
+  final Widget? footer;
   final bool bodyIsScrollable;
   final bool safeArea;
   final Color? backgroundColor;
@@ -51,20 +55,40 @@ class DashboardPageTemplate extends StatelessWidget {
   final Widget? loadingWidget;
   final bool? centerTitle;
   final FloatingActionButton? floatingActionButton;
+  final bool reading;
 
   @override
   Widget build(BuildContext context) {
     final pageAppBar = appBar ?? _buildAppBar();
     Widget content = _resolveContent();
+    final resolvedPadding = padding ??
+        EdgeInsets.all(shellPageMargin(MediaQuery.sizeOf(context).width));
 
-    if (padding != EdgeInsets.zero) {
-      content = Padding(padding: padding, child: content);
+    if (resolvedPadding != EdgeInsets.zero) {
+      content = Padding(padding: resolvedPadding, child: content);
     }
 
     if (!bodyIsScrollable) {
+      final scrolled = reading
+          ? Align(
+              alignment: Alignment.topCenter,
+              child: ConstrainedBox(
+                constraints: const BoxConstraints(maxWidth: 720),
+                child: content,
+              ),
+            )
+          : content;
       content = SingleChildScrollView(
         physics: const AlwaysScrollableScrollPhysics(),
-        child: content,
+        child: scrolled,
+      );
+    } else if (reading) {
+      content = Align(
+        alignment: Alignment.topCenter,
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 720),
+          child: content,
+        ),
       );
     }
 
@@ -74,6 +98,18 @@ class DashboardPageTemplate extends StatelessWidget {
         color: theme.colorScheme.primary,
         backgroundColor: theme.colorScheme.surfaceContainer,
         child: content,
+      );
+    }
+
+    if (footer != null) {
+      content = Column(
+        children: [
+          Expanded(child: content),
+          Padding(
+            padding: resolvedPadding,
+            child: footer!,
+          ),
+        ],
       );
     }
 

@@ -1,4 +1,5 @@
-import { useMemo, useState, useEffect } from 'react';
+import { useEffect, useMemo, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useBusinessEventInvalidator } from '../../hooks/useBusinessEventInvalidator';
 import PageLayout from '../../components/PageLayout';
 import StatCard from '../../components/StatCard';
@@ -7,13 +8,26 @@ import TrendChart from '../../components/TrendChart';
 import PieChart from '../../components/PieChart';
 import ErrorStateView from '../../components/ErrorStateView';
 import { useOffenseDashboard } from '../../hooks/useOffenseDashboard';
+import { useAuth } from '../../auth/AuthContext';
+import { ROLES } from '../../constants/roles';
 
 /**
  * 管理总览页，对齐 Flutter manager_dashboard_screen + OffenseScreen。
  * 数据源 GET /api/offenses 客户端聚合；刷新按钮 + 业务事件触发自动刷新。
  */
+const BUSINESS_LINKS = [
+  { label: '违法行为', path: '/offenseList' },
+  { label: '罚款', path: '/fineList' },
+  { label: '扣分', path: '/deductionManagement' },
+  { label: '申诉', path: '/appealManagement' },
+  { label: '驾驶员', path: '/driverList' },
+  { label: '车辆', path: '/vehicleList' },
+];
+
 export default function ManagerDashboardPage() {
-  const { metrics, isLoading, isError, error, refresh } = useOffenseDashboard();
+  const navigate = useNavigate();
+  const { userRole } = useAuth();
+  const { metrics, isLoading, isError, refresh } = useOffenseDashboard();
   const invalidate = useBusinessEventInvalidator();
   const [lastUpdated, setLastUpdated] = useState<string>('');
 
@@ -28,6 +42,14 @@ export default function ManagerDashboardPage() {
     invalidate([['offenses']]);
   }, [invalidate, metrics.total]);
 
+  const role = (userRole || '').replace(/^ROLE_/, '');
+  const businessLinks = role === ROLES.APPEAL_REVIEWER
+    ? [
+        { label: '申诉', path: '/appealManagement' },
+        { label: '消息', path: '/progressManagement' },
+      ]
+    : BUSINESS_LINKS;
+
   const offenseTypeData = useMemo(
     () => metrics.offenseTypes.slice(0, 6).map((item) => ({ label: item.label, value: item.value })),
     [metrics.offenseTypes]
@@ -40,6 +62,24 @@ export default function ManagerDashboardPage() {
     // 暂以聚合指标替代明细队列（明细需额外接口），展示分布前 5
     return metrics.offenseTypes.slice(0, 5);
   }, [metrics.offenseTypes]);
+
+  if (role === ROLES.APPEAL_REVIEWER) {
+    return (
+      <PageLayout title="申诉审核" subtitle="处理申诉，并查看相关消息。">
+        <div className="panel">
+          <h3>可办理事项</h3>
+          <div className="task-grid">
+            {businessLinks.map((item) => (
+              <button key={item.path} type="button" className="task-card" onClick={() => navigate(item.path)}>
+                <strong>{item.label}</strong>
+                <span>进入处理</span>
+              </button>
+            ))}
+          </div>
+        </div>
+      </PageLayout>
+    );
+  }
 
   return (
     <PageLayout
@@ -63,6 +103,25 @@ export default function ManagerDashboardPage() {
         <StatCard title="罚款合计" value={`¥${metrics.finesTotal}`} description="近 30 天罚款金额" />
       </div>
 
+      <div className="panel">
+        <h3>业务入口</h3>
+        <div className="task-grid">
+          {businessLinks.map((item) => (
+            <button key={item.path} type="button" className="task-card" onClick={() => navigate(item.path)}>
+              <strong>{item.label}</strong>
+              <span>进入处理</span>
+            </button>
+          ))}
+        </div>
+        {role === ROLES.SUPER_ADMIN ? (
+          <div style={{ marginTop: 16 }}>
+            <button type="button" className="ghost" onClick={() => navigate('/admin/operationLogPage')}>
+              治理快捷入口
+            </button>
+          </div>
+        ) : null}
+      </div>
+
       <div className="grid-two">
         <div className="panel">
           <h3>违法类型分布</h3>
@@ -81,7 +140,7 @@ export default function ManagerDashboardPage() {
         </div>
         <div className="panel">
           <h3>罚款支付状态</h3>
-          {isLoading ? <div className="placeholder">加载中...</div> : <PieChart data={metrics.paymentStatus} centerLabel="总数" />}
+          {isLoading ? <div className="placeholder">加载中...</div> : <PieChart data={metrics.paymentStatus} centerLabel="总数" statusSeries />}
         </div>
       </div>
 

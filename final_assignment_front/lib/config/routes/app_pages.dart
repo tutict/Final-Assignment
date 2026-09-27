@@ -1,29 +1,5 @@
 import 'package:final_assignment_front/features/dashboard/views/manager/manager_dashboard_screen.dart';
-import 'package:final_assignment_front/features/dashboard/views/manager/pages/main_process/deduction_management_page.dart';
-import 'package:final_assignment_front/features/dashboard/views/manager/pages/main_process/manager_appeal_management_page.dart';
-import 'package:final_assignment_front/features/dashboard/views/manager/pages/main_process/driver_list_page.dart';
-import 'package:final_assignment_front/features/dashboard/views/manager/pages/main_process/fine_list_page.dart';
-import 'package:final_assignment_front/features/dashboard/views/manager/pages/main_process/offense_list.dart';
-import 'package:final_assignment_front/features/dashboard/views/manager/pages/main_process/vehicle_list.dart';
-import 'package:final_assignment_front/features/dashboard/views/manager/pages/progress_management.dart';
-import 'package:final_assignment_front/features/dashboard/views/manager/pages/sidebar_management/manager_business_processing.dart';
-import 'package:final_assignment_front/features/dashboard/views/manager/pages/offense_screen.dart';
 import 'package:final_assignment_front/features/dashboard/views/shared/components/progress_detail.dart';
-import 'package:final_assignment_front/features/dashboard/views/user/pages/main_process/business_progress.dart';
-import 'package:final_assignment_front/features/dashboard/views/user/pages/main_process/fine_information.dart';
-import 'package:final_assignment_front/features/dashboard/views/user/pages/main_process/online_processing_progress.dart';
-import 'package:final_assignment_front/features/dashboard/views/user/pages/main_process/user_offense_list_page.dart';
-import 'package:final_assignment_front/features/dashboard/views/user/pages/main_process/vehicle_management_page.dart';
-import 'package:final_assignment_front/features/dashboard/views/user/pages/news/accident_evidence_page.dart';
-import 'package:final_assignment_front/features/dashboard/views/user/pages/news/accident_progress_page.dart';
-import 'package:final_assignment_front/features/dashboard/views/user/pages/news/accident_quick_guide_page.dart';
-import 'package:final_assignment_front/features/dashboard/views/user/pages/news/accident_video_quick_page.dart';
-import 'package:final_assignment_front/features/dashboard/views/user/pages/news/fine_payment_notice_page.dart';
-import 'package:final_assignment_front/features/dashboard/views/user/pages/news/latest_offense_news_page.dart';
-import 'package:final_assignment_front/features/dashboard/views/user/pages/personal/consultation_feedback.dart';
-import 'package:final_assignment_front/features/dashboard/views/user/pages/personal/personal_main.dart';
-import 'package:final_assignment_front/features/dashboard/views/user/pages/personal/setting/setting_main.dart';
-import 'package:final_assignment_front/features/dashboard/views/user/pages/scanner/main_scan.dart';
 import 'package:final_assignment_front/features/dashboard/views/user/user_dashboard.dart';
 import 'package:final_assignment_front/features/login_screen/login.dart';
 import 'package:final_assignment_front/features/model/progress_item.dart';
@@ -36,6 +12,7 @@ import 'package:get/get.dart';
 
 import 'admin_pages.dart';
 import 'app_routes.dart';
+import 'shell_redirect.dart';
 
 class AppPages {
   static const initial = Routes.dashboard;
@@ -106,129 +83,206 @@ class AppPages {
     ),
     GetPage(
       name: RoutePaths.onlineProcessingProgress,
-      page: () => const OnlineProcessingProgress(),
+      page: () => const ShellRedirect(page: RoutePaths.onlineProcessingProgress, forceUser: true),
       binding: ProgressBinding(),
     ),
     GetPage(
       name: RoutePaths.userSetting,
-      page: () => const SettingPage(),
+      page: () => const ShellRedirect(page: RoutePaths.userSetting, forceUser: true),
     ),
     GetPage(
       name: RoutePaths.consultation,
-      page: () => const ConsultationFeedback(),
+      page: () => const ShellRedirect(page: RoutePaths.consultation, forceUser: true),
       binding: ProgressBinding(),
     ),
     GetPage(
       name: RoutePaths.personalMain,
-      page: () => const PersonalMainPage(),
+      page: () => const ShellRedirect(page: RoutePaths.personalMain, forceUser: true),
+    ),
+    GetPage(
+      name: RoutePaths.accountAndSecurity,
+      page: () => const ShellRedirect(page: RoutePaths.userSetting, forceUser: true),
+    ),
+    GetPage(
+      name: RoutePaths.changePassword,
+      page: () => const ShellRedirect(page: RoutePaths.userSetting, forceUser: true),
+    ),
+    GetPage(
+      name: RoutePaths.deleteAccount,
+      page: () => const ShellRedirect(page: RoutePaths.userSetting, forceUser: true),
+    ),
+    GetPage(
+      name: RoutePaths.informationStatement,
+      page: () => const ShellRedirect(page: RoutePaths.userSetting, forceUser: true),
+    ),
+    GetPage(
+      name: RoutePaths.migrateAccount,
+      page: () => const ShellRedirect(page: RoutePaths.userSetting, forceUser: true),
+    ),
+    GetPage(
+      name: RoutePaths.changeMobilePhoneNumber,
+      page: () => const ShellRedirect(page: RoutePaths.personalMain, forceUser: true),
+    ),
+    GetPage(
+      name: RoutePaths.personalInfo,
+      page: () => const ShellRedirect(page: RoutePaths.personalMain, forceUser: true),
     ),
     GetPage(
       name: RoutePaths.mainScan,
-      page: () => const MainScan(),
+      page: () => const ShellRedirect(page: RoutePaths.mainScan, forceUser: true),
     ),
     GetPage(
       name: RoutePaths.appealManagement,
-      page: () => const ManagerAppealManagementPage(),
+      page: () => const ShellRedirect(page: RoutePaths.appealManagement, forceManager: true),
       binding: DashboardBinding(),
     ),
     GetPage(
       name: RoutePaths.driverList,
-      page: () => const DriverListPage(),
+      page: () => const ShellRedirect(page: RoutePaths.driverList, forceManager: true),
       binding: DashboardBinding(),
     ),
     GetPage(
       name: RoutePaths.deductionManagement,
-      page: () => const DeductionManagementPage(),
+      page: () => const ShellRedirect(page: RoutePaths.deductionManagement, forceManager: true),
       binding: DashboardBinding(),
     ),
     GetPage(
       name: RoutePaths.fineList,
-      page: () => const FineListPage(),
+      page: () => const ShellRedirect(page: RoutePaths.fineList, forceManager: true),
       binding: DashboardBinding(),
     ),
     GetPage(
       name: RoutePaths.offenseList,
-      page: () => const OffenseList(),
+      page: () => const ShellRedirect(page: RoutePaths.offenseList, forceManager: true),
       binding: DashboardBinding(),
     ),
     GetPage(
       name: RoutePaths.vehicleList,
-      page: () => const VehicleList(),
+      page: () => const ShellRedirect(page: RoutePaths.vehicleList, forceManager: true),
       binding: DashboardBinding(),
     ),
     GetPage(
       name: RoutePaths.fineInformation,
-      page: () => const FineInformationPage(),
+      page: () => const ShellRedirect(page: RoutePaths.fineInformation, forceUser: true),
       binding: DashboardBinding(),
     ),
     GetPage(
       name: RoutePaths.onlineProcessingProgress,
-      page: () => const OnlineProcessingProgress(),
+      page: () => const ShellRedirect(page: RoutePaths.onlineProcessingProgress, forceUser: true),
       binding: ProgressBinding(),
     ),
     GetPage(
       name: RoutePaths.vehicleManagement,
-      page: () => const VehicleManagementPage(),
+      page: () => const ShellRedirect(page: RoutePaths.vehicleManagement, forceUser: true),
     ),
     GetPage(
       name: RoutePaths.businessProgress,
-      page: () => const BusinessProgressPage(),
+      page: () => const ShellRedirect(home: true, forceUser: true),
+    ),
+    GetPage(
+      name: RoutePaths.userChangeThemes,
+      page: () => const ShellRedirect(
+        page: RoutePaths.userSetting,
+        forceUser: true,
+        section: 'appearance',
+      ),
+    ),
+    GetPage(
+      name: RoutePaths.trafficViolationScreen,
+      page: () => const ShellRedirect(home: true, forceManager: true),
     ),
     GetPage(
       name: RoutePaths.managerBusinessProcessing,
-      page: () => const ManagerBusinessProcessing(),
+      page: () => const ShellRedirect(home: true, forceManager: true),
       binding: DashboardBinding(),
     ),
     GetPage(
       name: RoutePaths.accidentEvidencePage,
-      page: () => const AccidentEvidencePage(),
+      page: () => const ShellRedirect(page: RoutePaths.userOffenseListPage, guide: 'evidence', forceUser: true),
     ),
     GetPage(
       name: RoutePaths.accidentProgressPage,
-      page: () => const AccidentProgressPage(),
+      page: () => const ShellRedirect(page: RoutePaths.userOffenseListPage, guide: 'flow', forceUser: true),
     ),
     GetPage(
       name: RoutePaths.accidentQuickGuidePage,
-      page: () => const AccidentQuickGuidePage(),
+      page: () => const ShellRedirect(page: RoutePaths.userOffenseListPage, guide: 'quick', forceUser: true),
     ),
     GetPage(
       name: RoutePaths.accidentVideoQuickPage,
-      page: () => const AccidentVideoQuickPage(),
+      page: () => const ShellRedirect(page: RoutePaths.userOffenseListPage, guide: 'video', forceUser: true),
     ),
     GetPage(
       name: RoutePaths.finePaymentNoticePage,
-      page: () => const FinePaymentNoticePage(),
+      page: () => const ShellRedirect(page: RoutePaths.fineInformation, guide: 'payment', forceUser: true),
     ),
     GetPage(
       name: RoutePaths.latestOffenseNewsPage,
-      page: () => const LatestOffenseNewsPage(),
+      page: () => const ShellRedirect(home: true, guide: 'news', forceUser: true),
     ),
     GetPage(
       name: RoutePaths.progressManagement,
-      page: () => const ProgressManagementPage(),
+      page: () => const ShellRedirect(page: RoutePaths.progressManagement, forceManager: true),
       binding: DashboardProgressBinding(),
     ),
     GetPage(
       name: RoutePaths.progressDetailPage,
-      page: () => ProgressDetailPage(
-        item: Get.arguments as ProgressItem,
-      ),
+      page: () {
+        final args = Get.arguments;
+        if (args is ProgressItem) {
+          return ProgressDetailPage(item: args);
+        }
+        return const MissingProgressDetailPage();
+      },
       binding: ProgressBinding(),
       transition: Transition.fadeIn,
     ),
     GetPage(
       name: RoutePaths.userOffenseListPage,
-      page: () => const UserOffenseListPage(),
+      page: () => const ShellRedirect(page: RoutePaths.userOffenseListPage, forceUser: true),
     ),
     GetPage(
       name: RoutePaths.offenseScreen,
-      page: () => const OffenseScreen(),
+      page: () => const ShellRedirect(home: true, forceManager: true),
       binding: OffenseBinding(),
     ),
     GetPage(
       name: RoutePaths.progressManagementPage,
-      page: () => const ProgressManagementPage(),
+      page: () => const ShellRedirect(page: RoutePaths.progressManagement, forceManager: true),
       binding: DashboardProgressBinding(),
+    ),
+
+    GetPage(
+      name: RoutePaths.userAppeal,
+      page: () => const ShellRedirect(page: RoutePaths.userAppeal, forceUser: true),
+    ),
+    GetPage(
+      name: RoutePaths.paymentRecord,
+      page: () => const ShellRedirect(page: RoutePaths.paymentRecord, forceManager: true),
+    ),
+    GetPage(
+      name: RoutePaths.offenseType,
+      page: () => const ShellRedirect(page: RoutePaths.offenseType, forceManager: true),
+    ),
+    GetPage(
+      name: RoutePaths.roleManagement,
+      page: () => const ShellRedirect(page: RoutePaths.roleManagement, forceManager: true),
+    ),
+    GetPage(
+      name: RoutePaths.permissionManagement,
+      page: () => const ShellRedirect(page: RoutePaths.permissionManagement, forceManager: true),
+    ),
+    GetPage(
+      name: RoutePaths.systemSettings,
+      page: () => const ShellRedirect(page: RoutePaths.systemSettings, forceManager: true),
+    ),
+    GetPage(
+      name: RoutePaths.requestHistory,
+      page: () => const ShellRedirect(page: RoutePaths.requestHistory, forceManager: true),
+    ),
+    GetPage(
+      name: RoutePaths.onlineProcessing,
+      page: () => const ShellRedirect(page: RoutePaths.onlineProcessingProgress, forceUser: true),
     ),
     ...AdminPages.routes,
   ];

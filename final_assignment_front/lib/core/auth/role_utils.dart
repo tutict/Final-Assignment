@@ -35,6 +35,7 @@ class RoleUtils {
     if (roles.isEmpty) return 'USER';
     if (roles.any(_isSuperAdminCode)) return 'SUPER_ADMIN';
     if (roles.any(_isAdminCode)) return 'ADMIN';
+    if (roles.any(_isAppealReviewerCode)) return 'APPEAL_REVIEWER';
     return roles.first;
   }
 
@@ -52,8 +53,20 @@ class RoleUtils {
     return isSuperAdminRole(value) || isAdminRole(value);
   }
 
+  static bool isAppealReviewerRole(Object? value) {
+    return parseRoles(value).any(_isAppealReviewerCode);
+  }
+
+  static bool canAccessStaffDashboard(Object? value) {
+    return canAccessAdminDashboard(value) || isAppealReviewerRole(value);
+  }
+
   static bool _isAdminCode(String role) {
     return role == 'ADMIN';
+  }
+
+  static bool _isAppealReviewerCode(String role) {
+    return role == 'APPEAL_REVIEWER';
   }
 
   static bool _isSuperAdminCode(String role) {

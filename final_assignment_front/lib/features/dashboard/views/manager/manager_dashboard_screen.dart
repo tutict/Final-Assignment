@@ -1,7 +1,13 @@
+import 'package:final_assignment_front/features/dashboard/views/shared/widgets/motion.dart';
+import 'package:final_assignment_front/features/dashboard/views/shared/widgets/guide_drawer.dart';
+import 'package:final_assignment_front/features/dashboard/views/shared/widgets/guide_controller.dart';
 import 'dart:developer';
 import 'package:final_assignment_front/shared/eva_icons_compat.dart';
 import 'package:final_assignment_front/config/routes/app_routes.dart';
-import 'package:final_assignment_front/core/utils/app_logger.dart';
+import 'package:final_assignment_front/core/auth/auth_service.dart';
+import 'package:final_assignment_front/config/navigation/shell_navigation.dart';
+import 'package:final_assignment_front/features/dashboard/views/shared/widgets/app_sidebar.dart';
+import 'package:final_assignment_front/features/dashboard/views/shared/widgets/skip_to_content.dart';
 import 'package:final_assignment_front/core/theme/app_colors.dart';
 import 'package:final_assignment_front/constants/app_constants.dart';
 import 'package:final_assignment_front/features/dashboard/controllers/manager_dashboard_controller.dart';
@@ -14,14 +20,11 @@ import 'package:final_assignment_front/features/dashboard/views/shared/component
 import 'package:final_assignment_front/features/dashboard/views/shared/components/profile_tile.dart';
 import 'package:final_assignment_front/features/dashboard/views/shared/widgets/dashboard_chrome.dart';
 import 'package:final_assignment_front/features/dashboard/views/shared/widgets/dashboard_top_bar_actions.dart';
-import 'package:final_assignment_front/features/dashboard/views/shared/widgets/sidebar_settings_button.dart';
 import 'package:final_assignment_front/features/dashboard/views/manager/pages/offense_screen.dart';
 import 'package:final_assignment_front/utils/components/offense_card.dart';
 import 'package:final_assignment_front/utils/components/list_profil_image.dart';
-import 'package:final_assignment_front/utils/components/police_card.dart';
 import 'package:final_assignment_front/utils/components/progress_report_card.dart';
 import 'package:final_assignment_front/utils/components/responsive_builder.dart';
-import 'package:final_assignment_front/utils/components/selection_button.dart';
 import 'package:final_assignment_front/utils/widgets/index.dart';
 import 'package:final_assignment_front/utils/helpers/app_helpers.dart';
 import 'package:final_assignment_front/utils/navigation/page_resolver.dart';
@@ -41,6 +44,8 @@ part 'components/sidebar.dart';
 
 part 'components/team_member.dart';
 
+final managerContentFocus = FocusNode(debugLabel: "managerContentFocus");
+
 class DashboardScreen extends GetView<ManagerDashboardController> {
   const DashboardScreen({super.key});
 
@@ -49,9 +54,16 @@ class DashboardScreen extends GetView<ManagerDashboardController> {
     controller.pageResolver ??= resolveDashboardPage;
     final double screenWidth = MediaQuery.of(context).size.width;
     final double screenHeight = MediaQuery.of(context).size.height;
-    final double expandedSidebarWidth =
-        (screenWidth * 0.2).clamp(260.0, 320.0).toDouble();
+    const double expandedSidebarWidth = 248;
+    if (!controller.sidebarDefaultApplied) {
+      controller.sidebarDefaultApplied = true;
+      final collapse = screenWidth < 1100;
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (collapse) controller.isSidebarCollapsed.value = true;
+      });
+    }
     const double kHeaderTotalHeight = 112;
+
 
     return Obx(() {
       final themeData = controller.currentBodyTheme.value;
@@ -69,7 +81,12 @@ class DashboardScreen extends GetView<ManagerDashboardController> {
           body: Builder(
             builder: (context) => Material(
               color: themeData.scaffoldBackgroundColor,
-              child: ResponsiveBuilder(
+              child: Stack(
+                children: [
+                  SkipToContent(target: managerContentFocus),
+                  Focus(
+                    focusNode: managerContentFocus,
+                    child: ResponsiveBuilder(
                 mobileBuilder: (context, constraints) {
                   return DashboardBackdrop(
                     child: Stack(
@@ -78,7 +95,6 @@ class DashboardScreen extends GetView<ManagerDashboardController> {
                           child: _buildLayout(context),
                         ),
                         Obx(() => _buildSidebar(context)),
-                        _buildResponsiveChatDrawer(context, screenWidth),
                       ],
                     ),
                   );
@@ -92,18 +108,17 @@ class DashboardScreen extends GetView<ManagerDashboardController> {
                           children: [
                             Obx(
                               () => AnimatedContainer(
-                                duration: const Duration(milliseconds: 220),
+                                duration: shellMotion(context),
                                 curve: Curves.easeOutCubic,
                                 width: controller.isSidebarCollapsed.value
-                                    ? 76.0
-                                    : screenWidth * 0.3,
+                                    ? 72.0
+                                    : 248,
                                 child: const ClipRect(child: _Sidebar()),
                               ),
                             ),
                             Expanded(child: _buildScrollableLayout(context)),
                           ],
                         ),
-                        _buildResponsiveChatDrawer(context, screenWidth),
                       ],
                     ),
                   );
@@ -116,10 +131,10 @@ class DashboardScreen extends GetView<ManagerDashboardController> {
                       children: [
                         Obx(
                           () => AnimatedContainer(
-                            duration: const Duration(milliseconds: 220),
+                            duration: shellMotion(context),
                             curve: Curves.easeOutCubic,
                             width: controller.isSidebarCollapsed.value
-                                ? 76.0
+                                ? 72.0
                                 : expandedSidebarWidth,
                             height: screenHeight,
                             decoration: BoxDecoration(
@@ -141,45 +156,28 @@ class DashboardScreen extends GetView<ManagerDashboardController> {
                             isDesktop: true,
                           ),
                         ),
-                        Obx(
-                          () => AnimatedContainer(
-                            duration: const Duration(milliseconds: 260),
-                            curve: Curves.easeOutCubic,
-                            width: controller.isChatExpanded.value
-                                ? (screenWidth * 0.3 > 150
-                                    ? screenWidth * 0.3
-                                    : 150)
-                                : 0,
-                            height: screenHeight,
-                            decoration: BoxDecoration(
-                              color: theme.colorScheme.surface
-                                  .withValues(alpha: 0.96),
-                              border: Border(
-                                left: BorderSide(
-                                  color: theme.colorScheme.outlineVariant
-                                      .withValues(alpha: 0.55),
-                                ),
-                              ),
-                            ),
-                            child: controller.isChatExpanded.value
-                                ? _buildSideContent(context)
-                                : null,
-                          ),
-                        ),
                       ],
                     ),
                   );
                 },
+              ),
+                  ),
+                  if ((GuideController.guideId.value ?? '').isNotEmpty)
+                    Positioned(
+                      top: 0,
+                      right: 0,
+                      bottom: 0,
+                      width: screenWidth >= 1100 ? 440 : screenWidth,
+                      child: GuideDrawerPanel(id: GuideController.guideId.value!),
+                    ),
+                  _buildResponsiveChatDrawer(context, screenWidth),
+                ],
               ),
             ),
           ),
         ),
       );
     });
-  }
-
-  Widget _buildSideContent(BuildContext context) {
-    return const AiChat();
   }
 
   Widget _buildResponsiveChatDrawer(BuildContext context, double screenWidth) {
@@ -211,7 +209,7 @@ class DashboardScreen extends GetView<ManagerDashboardController> {
                 ),
               ),
               AnimatedPositioned(
-                duration: const Duration(milliseconds: 260),
+                duration: shellMotion(context),
                 curve: Curves.easeOutCubic,
                 top: 12,
                 right: expanded ? 12 : -drawerWidth - 12,
@@ -307,10 +305,11 @@ class DashboardScreen extends GetView<ManagerDashboardController> {
   }
 
   Widget _buildLayout(BuildContext context, {bool isDesktop = false}) {
+    final margin = shellPageMargin(MediaQuery.sizeOf(context).width);
     return Padding(
-      padding: const EdgeInsets.symmetric(
-        horizontal: kSpacing,
-        vertical: kSpacing / 4,
+      padding: EdgeInsets.symmetric(
+        horizontal: margin,
+        vertical: 4,
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -359,6 +358,18 @@ class DashboardScreen extends GetView<ManagerDashboardController> {
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: kSpacing),
       child: Obx(() {
+        if (controller.isAppealReviewer) {
+          return Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text('申诉审核', style: Theme.of(context).textTheme.headlineSmall),
+              const SizedBox(height: 8),
+              Text('处理申诉，并查看相关消息。', style: Theme.of(context).textTheme.bodyMedium),
+              const SizedBox(height: 16),
+              _buildBusinessEntries(context),
+            ],
+          );
+        }
         final offenses = offenseController.offenses.toList(growable: false);
         final isInitialLoading =
             offenseController.isLoading.value && offenses.isEmpty;
@@ -412,6 +423,8 @@ class DashboardScreen extends GetView<ManagerDashboardController> {
                 ),
                 const SizedBox(height: 14),
                 _buildMetricsGrid(context, stats),
+                const SizedBox(height: 14),
+                _buildBusinessEntries(context),
                 const SizedBox(height: 14),
                 if (compact)
                   Column(
@@ -578,6 +591,39 @@ class DashboardScreen extends GetView<ManagerDashboardController> {
     );
   }
 
+
+  Widget _buildBusinessEntries(BuildContext context) {
+    final entries = controller.isAppealReviewer
+        ? <(String, String)>[
+            ('申诉', Routes.appealManagement),
+            ('消息', Routes.progressManagement),
+          ]
+        : <(String, String)>[
+            ('违法行为', Routes.offenseList),
+            ('罚款', Routes.fineList),
+            ('扣分', Routes.deductionManagement),
+            ('申诉', Routes.appealManagement),
+            ('驾驶员', Routes.driverList),
+            ('车辆', Routes.vehicleList),
+          ];
+    return Wrap(
+      spacing: 12,
+      runSpacing: 12,
+      children: [
+        for (final entry in entries)
+          OutlinedButton(
+            onPressed: () => controller.navigateToPage(entry.$2),
+            child: Text(entry.$1),
+          ),
+        if (controller.isSuperAdmin)
+          TextButton(
+            onPressed: () => controller.navigateToPage(Routes.operationLogPage),
+            child: const Text('治理快捷入口'),
+          ),
+      ],
+    );
+  }
+
   Widget _buildMetricsGrid(
     BuildContext context,
     _ManagerWorkbenchStats stats,
@@ -733,7 +779,7 @@ class DashboardScreen extends GetView<ManagerDashboardController> {
               ),
               TextButton.icon(
                 onPressed: () {
-                  controller.navigateToPage(Routes.managerBusinessProcessing);
+                  controller.navigateToPage(Routes.offenseList);
                 },
                 icon: const Icon(Icons.open_in_new_rounded, size: 18),
                 label: const Text('进入业务'),
@@ -1025,21 +1071,21 @@ class DashboardScreen extends GetView<ManagerDashboardController> {
                       context,
                       '待处理',
                       stats.pendingCount,
-                      const Color(0xFFFFB020),
+                      (Theme.of(context).extension<AppColors>() ?? AppColors.light).warning,
                     ),
                     const SizedBox(height: 8),
                     _buildStatusLine(
                       context,
                       '已办结',
                       stats.completedCount,
-                      const Color(0xFF34C759),
+                      (Theme.of(context).extension<AppColors>() ?? AppColors.light).success,
                     ),
                     const SizedBox(height: 8),
                     _buildStatusLine(
                       context,
                       '申诉中',
                       stats.appealCount,
-                      const Color(0xFF4DA3FF),
+                      (Theme.of(context).extension<AppColors>() ?? AppColors.light).info,
                     ),
                   ],
                 ),
@@ -1667,8 +1713,8 @@ class DashboardScreen extends GetView<ManagerDashboardController> {
                           toY: value,
                           gradient: LinearGradient(
                             colors: [
-                              theme.colorScheme.primary,
-                              theme.colorScheme.primaryContainer,
+                              ChartColors.category[0],
+                              ChartColors.category[1],
                             ],
                             begin: Alignment.bottomCenter,
                             end: Alignment.topCenter,
@@ -1845,9 +1891,9 @@ class DashboardScreen extends GetView<ManagerDashboardController> {
     final scheme = Theme.of(context).colorScheme;
 
     return AnimatedContainer(
-      duration: const Duration(milliseconds: 260),
+      duration: shellMotion(context),
       curve: Curves.easeOutCubic,
-      width: showSidebar ? 300 : 0,
+      width: showSidebar ? 248 : 0,
       height: double.infinity,
       decoration: BoxDecoration(
         color: scheme.surface.withValues(alpha: 0.98),
@@ -1967,6 +2013,13 @@ class DashboardScreen extends GetView<ManagerDashboardController> {
                     chatActive: controller.isChatExpanded.value,
                     onChatPressed: controller.toggleChat,
                     onThemePressed: controller.toggleBodyTheme,
+                    onMessagesPressed: () => controller.navigateToPage(Routes.progressManagement),
+                    onProfilePressed: () => controller.navigateToPage(Routes.managerPersonalPage),
+                    onSettingsPressed: () => controller.navigateToPage(Routes.managerSetting),
+                    onLogoutPressed: () async {
+                      await Get.find<AuthService>().logout();
+                      Get.offAllNamed(Routes.login);
+                    },
                     compact: compactActions,
                   ),
                 ),

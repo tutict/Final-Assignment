@@ -1,52 +1,64 @@
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { Outlet } from 'react-router-dom';
 import Sidebar from '../components/Sidebar';
 import Header from '../components/Header';
 import AgentWindow from '../components/AgentWindow';
-import { useTheme } from '../theme/ThemeContext';
-import { AgentWindowProvider } from './AgentWindowContext';
-import type { NavItem } from '../config/navigation';
+import HelpDrawer from '../components/HelpDrawer';
 
-interface AppShellProps {
-  navTitle: string;
-  navItems: NavItem[];
-  footerItems?: NavItem[];
-  headerTitle: string;
-  headerSubtitle?: string;
+function useViewportWidth() {
+  const [width, setWidth] = useState(() => window.innerWidth);
+  useEffect(() => {
+    const onResize = () => setWidth(window.innerWidth);
+    window.addEventListener('resize', onResize);
+    return () => window.removeEventListener('resize', onResize);
+  }, []);
+  return width;
 }
 
-export default function AppShell({
-  navTitle,
-  navItems,
-  footerItems,
-  headerTitle,
-  headerSubtitle,
-}: AppShellProps) {
-  const { theme, toggleTheme } = useTheme();
+export default function AppShell() {
+  const width = useViewportWidth();
+  const mobile = width < 700;
+  const desktop = width >= 1100;
+  const [collapsed, setCollapsed] = useState(!desktop);
+  const [navOpen, setNavOpen] = useState(false);
+  const [widthBand, setWidthBand] = useState(desktop ? 'desktop' : 'narrow');
 
   useEffect(() => {
-    document.documentElement.setAttribute('data-theme', theme);
-  }, [theme]);
+    const band = desktop ? 'desktop' : 'narrow';
+    if (band !== widthBand) {
+      setWidthBand(band);
+      setCollapsed(!desktop);
+      if (!mobile) setNavOpen(false);
+    }
+  }, [desktop, mobile, widthBand]);
 
   return (
-    <AgentWindowProvider>
-      <div className="app-shell">
-        <Sidebar title={navTitle} items={navItems} footerItems={footerItems} />
+    <>
+      <a className="skip-link" href="#main-content">
+        跳到内容
+      </a>
+      <div className={`app-shell${collapsed && !mobile ? ' is-collapsed' : ''}${mobile ? ' is-mobile' : ''}${navOpen ? ' nav-open' : ''}`}>
+        {mobile && navOpen ? (
+          <button className="nav-backdrop" type="button" aria-label="关闭导航" onClick={() => setNavOpen(false)} />
+        ) : null}
+        <Sidebar
+          collapsed={!mobile && collapsed}
+          mobile={mobile}
+          onNavigate={() => {
+            if (mobile) setNavOpen(false);
+          }}
+        />
         <div className="app-main">
-          <Header
-            title={headerTitle}
-            subtitle={headerSubtitle}
-            onToggleTheme={toggleTheme}
-            theme={theme}
-          />
+          <Header showMenu={mobile || !desktop} onOpenNav={() => (mobile ? setNavOpen(true) : setCollapsed((value) => !value))} />
           <div className="app-body">
-            <main className="app-content">
+            <main id="main-content" className="app-content">
               <Outlet />
             </main>
             <AgentWindow />
+            <HelpDrawer />
           </div>
         </div>
       </div>
-    </AgentWindowProvider>
+    </>
   );
 }

@@ -6,6 +6,7 @@ type ChatSession = ReturnType<typeof useAiChatStream>;
 interface AgentWindowContextValue {
   open: boolean;
   toggle: () => void;
+  openAgent: () => void;
   close: () => void;
   chat: ChatSession;
 }
@@ -16,10 +17,11 @@ export function AgentWindowProvider({ children }: { children: ReactNode }) {
   const [open, setOpen] = useState(false);
   const chat = useAiChatStream();
   const toggle = useCallback(() => setOpen((value) => !value), []);
+  const openAgent = useCallback(() => setOpen(true), []);
   const close = useCallback(() => setOpen(false), []);
   const value = useMemo(
-    () => ({ open, toggle, close, chat }),
-    [open, toggle, close, chat]
+    () => ({ open, toggle, openAgent, close, chat }),
+    [open, toggle, openAgent, close, chat]
   );
 
   return (
