@@ -111,7 +111,10 @@ export default function EntityForm({
 
         return (
           <label key={field.name} className="form-field">
-            <span>{label}</span>
+            <span>
+              {label}
+              {field.validation?.required ? " 必填" : ""}
+            </span>
             {inputType === 'checkbox' ? (
               <input
                 type="checkbox"
@@ -119,6 +122,7 @@ export default function EntityForm({
                 onChange={(event) => onChange(field.name, event.target.checked)}
                 disabled={isDisabled}
                 aria-invalid={Boolean(error)}
+                aria-required={Boolean(field.validation?.required)}
                 aria-describedby={error ? errorId : undefined}
               />
             ) : isSelect ? (
@@ -127,6 +131,7 @@ export default function EntityForm({
                 onChange={(event) => onChange(field.name, event.target.value)}
                 disabled={isDisabled}
                 aria-invalid={Boolean(error)}
+                aria-required={Boolean(field.validation?.required)}
                 aria-describedby={error ? errorId : undefined}
               >
                 <option value="">请选择</option>
@@ -143,6 +148,7 @@ export default function EntityForm({
                 disabled={isDisabled}
                 rows={3}
                 aria-invalid={Boolean(error)}
+                aria-required={Boolean(field.validation?.required)}
                 aria-describedby={error ? errorId : undefined}
               />
             ) : (
@@ -162,6 +168,7 @@ export default function EntityForm({
                 }}
                 disabled={isDisabled}
                 aria-invalid={Boolean(error)}
+                aria-required={Boolean(field.validation?.required)}
                 aria-describedby={error ? errorId : undefined}
               />
             )}

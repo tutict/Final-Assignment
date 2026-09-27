@@ -1,4 +1,5 @@
 // ignore_for_file: use_build_context_synchronously
+import 'package:final_assignment_front/features/dashboard/views/manager/pages/main_process/manager_record_table.dart';
 import 'package:final_assignment_front/core/utils/app_logger.dart';
 
 import 'package:final_assignment_front/features/api/driver_information_controller_api.dart';
@@ -99,7 +100,7 @@ class _VehicleListState extends State<VehicleList> with PageAuthMixin {
       await _fetchVehicles(reset: true);
     } catch (e) {
       setState(() {
-        _errorMessage = '初始化失败: $e';
+        _errorMessage = '页面初始化失败，请稍后重试。';
       });
     } finally {
       setState(() => _isLoading = false);
@@ -147,7 +148,7 @@ class _VehicleListState extends State<VehicleList> with PageAuthMixin {
           _errorMessage = '未找到车辆记录';
           _hasMore = false;
         } else {
-          _errorMessage = '获取车辆信息失败: $e';
+          _errorMessage = '车辆记录没有加载成功，请重试。';
         }
       });
     } finally {
@@ -245,11 +246,6 @@ class _VehicleListState extends State<VehicleList> with PageAuthMixin {
     await _fetchVehicles(reset: true, query: query);
   }
 
-  Future<void> _loadMoreVehicles() async {
-    if (!_isLoading && _hasMore) {
-      await _fetchVehicles();
-    }
-  }
 
   void _goToDetailPage(VehicleInformation vehicle) {
     Navigator.push(
@@ -302,7 +298,7 @@ class _VehicleListState extends State<VehicleList> with PageAuthMixin {
         await _refreshVehicleList();
       } catch (e) {
         setState(() {
-          _errorMessage = '删除车辆失败: $e';
+          _errorMessage = '没有删除成功，请重试。';
         });
       } finally {
         setState(() => _isLoading = false);
@@ -401,107 +397,54 @@ class _VehicleListState extends State<VehicleList> with PageAuthMixin {
           emptyIcon: Icons.directions_car_outlined,
           onRetry: () => _refreshVehicleList(),
           onLogin: () => Navigator.pushReplacementNamed(context, '/login'),
-          child: NotificationListener<ScrollNotification>(
-            onNotification: (scrollInfo) {
-              if (scrollInfo.metrics.pixels ==
-                      scrollInfo.metrics.maxScrollExtent &&
-                  _hasMore) {
-                _loadMoreVehicles();
-              }
-              return false;
-            },
-            child: ListView.builder(
-              itemCount: _filteredVehicleList.length + (_hasMore ? 1 : 0),
-              itemBuilder: (context, index) {
-                if (index == _filteredVehicleList.length && _hasMore) {
-                  return const Padding(
-                    padding: EdgeInsets.all(8.0),
-                    child: Center(
-                      child: CircularProgressIndicator(),
+          child: ManagerRecordTable(
+            rows: [
+              for (final vehicle in _filteredVehicleList)
+                ManagerTableRow(
+                  cells: [
+                    ManagerTableCell(
+                      label: '车牌',
+                      value: vehicle.licensePlate ?? '未知车牌',
                     ),
-                  );
-                }
-                final vehicle = _filteredVehicleList[index];
-                return DashboardPanel(
-                  margin: const EdgeInsets.symmetric(vertical: 8.0),
-                  padding: EdgeInsets.zero,
-                  child: ListTile(
-                    contentPadding: const EdgeInsets.symmetric(
-                        horizontal: 16.0, vertical: 12.0),
-                    title: Text(
-                      '车牌号: ${vehicle.licensePlate ?? '未知车牌'}',
-                      style: themeData.textTheme.titleMedium?.copyWith(
-                        color: themeData.colorScheme.onSurface,
-                        fontWeight: FontWeight.w600,
+                    ManagerTableCell(
+                      label: '类型',
+                      value: vehicle.vehicleType ?? '未知类型',
+                    ),
+                    ManagerTableCell(
+                      label: '车主',
+                      value: vehicle.ownerName ?? '未知车主',
+                    ),
+                    ManagerTableCell(
+                      label: '状态',
+                      value: vehicle.currentStatus ?? '无',
+                    ),
+                  ],
+                  actions: [
+                    ManagerRecordAction(
+                      label: '详情',
+                      onPressed: () => _goToDetailPage(vehicle),
+                    ),
+                    if (_isAdmin)
+                      ManagerRecordAction(
+                        label: '编辑',
+                        onPressed: () => _editVehicle(vehicle),
                       ),
-                    ),
-                    subtitle: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        const SizedBox(height: 4),
-                        Text(
-                          '类型: ${vehicle.vehicleType ?? '未知类型'}',
-                          style: themeData.textTheme.bodyMedium?.copyWith(
-                            color: themeData.colorScheme.onSurfaceVariant,
-                          ),
-                        ),
-                        Text(
-                          '车主: ${vehicle.ownerName ?? '未知车主'}',
-                          style: themeData.textTheme.bodyMedium?.copyWith(
-                            color: themeData.colorScheme.onSurfaceVariant,
-                          ),
-                        ),
-                        Text(
-                          '状态: ${vehicle.currentStatus ?? '无'}',
-                          style: themeData.textTheme.bodyMedium?.copyWith(
-                            color: themeData.colorScheme.onSurfaceVariant,
-                          ),
-                        ),
-                      ],
-                    ),
-                    trailing: _isAdmin
-                        ? Row(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              IconButton(
-                                icon: const Icon(Icons.edit, size: 18),
-                                color: themeData.colorScheme.primary,
-                                onPressed: () => _editVehicle(vehicle),
-                                tooltip: '编辑车辆',
-                              ),
-                              IconButton(
-                                icon: Icon(
-                                  Icons.delete,
-                                  size: 18,
-                                  color: themeData.colorScheme.error,
-                                ),
-                                onPressed: () {
-                                  final vehicleId = vehicle.vehicleId;
-                                  if (vehicleId == null) {
-                                    _showSnackBar('无法删除：缺少车辆ID', isError: true);
-                                    return;
-                                  }
-                                  _deleteVehicle(vehicleId);
-                                },
-                                tooltip: '删除车辆',
-                              ),
-                              Icon(
-                                Icons.arrow_forward_ios,
-                                color: themeData.colorScheme.onSurfaceVariant,
-                                size: 18,
-                              ),
-                            ],
-                          )
-                        : Icon(
-                            Icons.arrow_forward_ios,
-                            color: themeData.colorScheme.onSurfaceVariant,
-                            size: 18,
-                          ),
-                    onTap: () => _goToDetailPage(vehicle),
-                  ),
-                );
-              },
-            ),
+                    if (_isAdmin)
+                      ManagerRecordAction(
+                        label: '删除',
+                        danger: true,
+                        onPressed: () {
+                          final vehicleId = vehicle.vehicleId;
+                          if (vehicleId == null) {
+                            _showSnackBar('无法删除：缺少车辆编号', isError: true);
+                            return;
+                          }
+                          _deleteVehicle(vehicleId);
+                        },
+                      ),
+                  ],
+                ),
+            ],
           ),
         ),
       );
@@ -563,7 +506,7 @@ class _AddVehiclePageState extends State<AddVehiclePage> with PageAuthMixin {
         _contactNumberController.text = '';
       });
     } catch (e) {
-      _showSnackBar('初始化失败: $e', isError: true);
+      _showSnackBar('页面没有准备好，请稍后重试。', isError: true);
     } finally {
       setState(() => _isLoading = false);
     }
@@ -640,7 +583,7 @@ class _AddVehiclePageState extends State<AddVehiclePage> with PageAuthMixin {
         widget.onVehicleAdded?.call();
       }
     } catch (e) {
-      _showSnackBar('创建车辆失败: $e', isError: true);
+      _showSnackBar('没有创建成功，请重试。', isError: true);
     } finally {
       if (mounted) setState(() => _isLoading = false);
     }
@@ -767,6 +710,7 @@ class _AddVehiclePageState extends State<AddVehiclePage> with PageAuthMixin {
       return DashboardPageTemplate(
         theme: themeData,
         title: '添加新车辆',
+        reading: true,
         pageType: widget.onVehicleAdded != null
             ? DashboardPageType.custom
             : DashboardPageType.manager,
@@ -778,7 +722,10 @@ class _AddVehiclePageState extends State<AddVehiclePage> with PageAuthMixin {
               ? const LoadingView()
               : Form(
                   key: _formKey,
-                  child: SingleChildScrollView(
+                  child: Column(
+                    children: [
+                      Expanded(
+                        child: SingleChildScrollView(
                     child: Column(
                       children: [
                         DashboardPanel(
@@ -834,8 +781,14 @@ class _AddVehiclePageState extends State<AddVehiclePage> with PageAuthMixin {
                               ],
                             ),
                         ),
-                        const SizedBox(height: 20),
-                        ElevatedButton(
+                        
+                      ],
+                    ),
+                  ),
+                      ),
+                      Align(
+                        alignment: Alignment.centerRight,
+                        child: ElevatedButton(
                           onPressed: _submitVehicle,
                           style: ElevatedButton.styleFrom(
                             backgroundColor: themeData.colorScheme.primary,
@@ -849,8 +802,8 @@ class _AddVehiclePageState extends State<AddVehiclePage> with PageAuthMixin {
                           ),
                           child: const Text('提交'),
                         ),
-                      ],
-                    ),
+                      ),
+                    ],
                   ),
                 ),
         ),
@@ -903,7 +856,7 @@ class _EditVehiclePageState extends State<EditVehiclePage> with PageAuthMixin {
       await driverApi.initializeWithJwt();
       _initializeFields();
     } catch (e) {
-      _showSnackBar('初始化失败: $e', isError: true);
+      _showSnackBar('页面没有准备好，请稍后重试。', isError: true);
     } finally {
       setState(() => _isLoading = false);
     }
@@ -1124,6 +1077,7 @@ class _EditVehiclePageState extends State<EditVehiclePage> with PageAuthMixin {
       return DashboardPageTemplate(
         theme: themeData,
         title: '编辑车辆信息',
+        reading: true,
         pageType: DashboardPageType.manager,
         bodyIsScrollable: true,
         padding: EdgeInsets.zero,
@@ -1133,7 +1087,10 @@ class _EditVehiclePageState extends State<EditVehiclePage> with PageAuthMixin {
               ? const LoadingView()
               : Form(
                   key: _formKey,
-                  child: SingleChildScrollView(
+                  child: Column(
+                    children: [
+                      Expanded(
+                        child: SingleChildScrollView(
                     child: Column(
                       children: [
                         DashboardPanel(
@@ -1179,8 +1136,14 @@ class _EditVehiclePageState extends State<EditVehiclePage> with PageAuthMixin {
                               ],
                             ),
                         ),
-                        const SizedBox(height: 20),
-                        ElevatedButton(
+                        
+                      ],
+                    ),
+                  ),
+                      ),
+                      Align(
+                        alignment: Alignment.centerRight,
+                        child: ElevatedButton(
                           onPressed: _submitVehicle,
                           style: ElevatedButton.styleFrom(
                             backgroundColor: themeData.colorScheme.primary,
@@ -1194,8 +1157,8 @@ class _EditVehiclePageState extends State<EditVehiclePage> with PageAuthMixin {
                           ),
                           child: const Text('保存'),
                         ),
-                      ],
-                    ),
+                      ),
+                    ],
                   ),
                 ),
         ),
@@ -1246,7 +1209,7 @@ class _VehicleDetailPageState extends State<VehicleDetailPage>
       _currentDriverName = driverInfo?.name ?? username;
       await _checkUserRole();
     } catch (e) {
-      setState(() => _errorMessage = '初始化失败: $e');
+      setState(() => _errorMessage = '页面没有准备好，请稍后重试。');
     } finally {
       setState(() => _isLoading = false);
     }
@@ -1300,7 +1263,7 @@ class _VehicleDetailPageState extends State<VehicleDetailPage>
       _showSnackBar('删除车辆成功！');
       if (mounted) Navigator.pop(context, true);
     } catch (e) {
-      _showSnackBar('删除失败: $e', isError: true);
+      _showSnackBar('没有删除成功，请重试。', isError: true);
     } finally {
       if (mounted) setState(() => _isLoading = false);
     }

@@ -1,4 +1,5 @@
 // ignore_for_file: use_build_context_synchronously
+import 'package:final_assignment_front/features/dashboard/views/manager/pages/main_process/manager_record_table.dart';
 import 'dart:async';
 import 'package:final_assignment_front/config/routes/app_routes.dart';
 import 'package:final_assignment_front/core/auth/auth_service.dart';
@@ -6,7 +7,6 @@ import 'package:final_assignment_front/core/auth/role_utils.dart';
 import 'package:final_assignment_front/features/api/auth_controller_api.dart';
 import 'package:final_assignment_front/features/dashboard/controllers/manager_dashboard_controller.dart';
 import 'package:final_assignment_front/features/dashboard/views/shared/widgets/dashboard_page_template.dart';
-import 'package:final_assignment_front/features/dashboard/views/shared/widgets/dashboard_chrome.dart';
 import 'package:final_assignment_front/features/api/user_management_controller_api.dart';
 import 'package:final_assignment_front/features/model/user_management.dart';
 import 'package:final_assignment_front/shared/dialogs/app_dialog.dart';
@@ -37,7 +37,6 @@ class _UserManagementPageState extends State<UserManagementPage> {
   final UserManagementControllerApi userApi = UserManagementControllerApi();
   final List<UserManagement> _userList = [];
   List<UserManagement>? _cachedAllUsers;
-  final ScrollController _scrollController = ScrollController();
   final ManagerDashboardController controller =
       Get.find<ManagerDashboardController>();
   final Logger _logger = Logger('UserManagementPage');
@@ -71,20 +70,11 @@ class _UserManagementPageState extends State<UserManagementPage> {
       if (_debounce?.isActive ?? false) _debounce!.cancel();
       _debounce = Timer(const Duration(milliseconds: 300), _searchUsers);
     });
-    _scrollController.addListener(() {
-      if (_scrollController.position.pixels ==
-              _scrollController.position.maxScrollExtent &&
-          _hasMore &&
-          !_isLoading) {
-        _loadMoreUsers();
-      }
-    });
   }
 
   @override
   void dispose() {
     _searchController.dispose();
-    _scrollController.dispose();
     _debounce?.cancel();
     super.dispose();
   }
@@ -154,7 +144,7 @@ class _UserManagementPageState extends State<UserManagementPage> {
         setState(() => _errorMessage = '仅管理员可访问用户管理页面');
       }
     } catch (e) {
-      setState(() => _errorMessage = '初始化失败: $e');
+      setState(() => _errorMessage = '页面没有准备好，请稍后重试。');
       _logger.severe('Initialization error: $e', StackTrace.current);
     } finally {
       setState(() => _isLoading = false);
@@ -255,15 +245,12 @@ class _UserManagementPageState extends State<UserManagementPage> {
       users = users.where((u) => u.username != _currentUsername).toList();
 
       setState(() {
-        _userList.addAll(users);
-        _hasMore = hasMoreResults;
-        if (_userList.isEmpty && _currentPage == 1) {
+        _userList
+          ..clear()
+          ..addAll(users);
+        _hasMore = hasMoreResults && users.isNotEmpty;
+        if (_userList.isEmpty) {
           _errorMessage = searchQuery.isNotEmpty ? '未找到符合条件的用户' : '当前没有用户记录';
-        }
-        if (users.isNotEmpty) {
-          _currentPage++;
-        } else {
-          _hasMore = false;
         }
       });
     } catch (e) {
@@ -278,10 +265,10 @@ class _UserManagementPageState extends State<UserManagementPage> {
               _hasMore = false;
               break;
             default:
-              _errorMessage = '获取用户失败: ${e.message}';
+              _errorMessage = '用户列表没有加载成功，请重试。';
           }
         } else {
-          _errorMessage = '获取用户失败: $e';
+          _errorMessage = '用户列表没有加载成功，请重试。';
         }
       });
       _logger.severe('Fetch users error: $e', StackTrace.current);
@@ -362,8 +349,14 @@ class _UserManagementPageState extends State<UserManagementPage> {
     return _cachedAllUsers!;
   }
 
-  Future<void> _loadMoreUsers() async {
-    if (!_hasMore || _isLoading) return;
+  Future<void> _showPage(int page) async {
+    if (page < 1 || _isLoading) return;
+    setState(() {
+      _currentPage = page;
+      _hasMore = true;
+      _userList.clear();
+      _isLoading = true;
+    });
     await _fetchUsers(query: _searchController.text);
   }
 
@@ -984,7 +977,7 @@ class _UserManagementPageState extends State<UserManagementPage> {
               if (_isAdmin) _buildSearchField(themeData),
               const SizedBox(height: 20),
               Expanded(
-                child: _isLoading && _currentPage == 1
+                child: _isLoading && _userList.isEmpty
                     ? Center(
                         child: CupertinoActivityIndicator(
                           color: themeData.colorScheme.primary,
@@ -1065,143 +1058,55 @@ class _UserManagementPageState extends State<UserManagementPage> {
                                   ],
                                 ),
                               )
-                            : CupertinoScrollbar(
-                                controller: _scrollController,
-                                thumbVisibility: true,
-                                thickness: 6.0,
-                                thicknessWhileDragging: 10.0,
-                                child: RefreshIndicator(
-                                  onRefresh: () => _refreshUserList(),
-                                  color: themeData.colorScheme.primary,
-                                  backgroundColor:
-                                      themeData.colorScheme.surfaceContainer,
-                                  child: ListView.builder(
-                                    controller: _scrollController,
-                                    itemCount:
-                                        _userList.length + (_hasMore ? 1 : 0),
-                                    itemBuilder: (context, index) {
-                                      if (index == _userList.length &&
-                                          _hasMore) {
-                                        return const Padding(
-                                          padding: EdgeInsets.all(8.0),
-                                          child: Center(
-                                              child:
-                                                  CupertinoActivityIndicator()),
-                                        );
-                                      }
-                                      final user = _userList[index];
-                                      return DashboardPanel(
-                                        padding: const EdgeInsets.symmetric(
-                                            horizontal: 16.0, vertical: 4.0),
-                                        margin: const EdgeInsets.symmetric(
-                                            vertical: 8.0),
-                                        child: ListTile(
-                                          dense: true,
-                                          contentPadding: EdgeInsets.zero,
-                                          title: Text(
-                                            '账号: ${user.username ?? '未知用户'}',
-                                            style: themeData
-                                                .textTheme.titleMedium
-                                                ?.copyWith(
-                                              color: themeData
-                                                  .colorScheme.onSurface,
-                                              fontWeight: FontWeight.w800,
-                                            ),
+                            : RefreshIndicator(
+                                onRefresh: () => _refreshUserList(),
+                                color: themeData.colorScheme.primary,
+                                backgroundColor: themeData.colorScheme.surfaceContainer,
+                                child: ManagerRecordTable(
+                                  rows: [
+                                    for (final user in _userList)
+                                      ManagerTableRow(
+                                        cells: [
+                                          ManagerTableCell(
+                                            label: '姓名',
+                                            value: (user.realName ?? '').isEmpty
+                                                ? (user.username ?? '未知用户')
+                                                : user.realName!,
                                           ),
-                                          subtitle: Column(
-                                            crossAxisAlignment:
-                                                CrossAxisAlignment.start,
-                                            children: [
-                                              const SizedBox(height: 4),
-                                              Text(
-                                                '状态: ${_statusDisplayMap[user.status] ?? '未知状态'}',
-                                                style: themeData
-                                                    .textTheme.bodyMedium
-                                                    ?.copyWith(
-                                                  color: themeData.colorScheme
-                                                      .onSurfaceVariant,
-                                                ),
-                                              ),
-                                              Text(
-                                                '联系电话: ${user.contactNumber ?? '无'}',
-                                                style: themeData
-                                                    .textTheme.bodyMedium
-                                                    ?.copyWith(
-                                                  color: themeData.colorScheme
-                                                      .onSurfaceVariant,
-                                                ),
-                                              ),
-                                              Text(
-                                                '邮箱: ${user.email ?? '无'}',
-                                                style: themeData
-                                                    .textTheme.bodyMedium
-                                                    ?.copyWith(
-                                                  color: themeData.colorScheme
-                                                      .onSurfaceVariant,
-                                                ),
-                                              ),
-                                              Text(
-                                                '创建时间: ${user.createdTime?.toString() ?? '无'}',
-                                                style: themeData
-                                                    .textTheme.bodyMedium
-                                                    ?.copyWith(
-                                                  color: themeData.colorScheme
-                                                      .onSurfaceVariant,
-                                                ),
-                                              ),
-                                              Text(
-                                                '修改时间: ${user.modifiedTime?.toString() ?? '无'}',
-                                                style: themeData
-                                                    .textTheme.bodyMedium
-                                                    ?.copyWith(
-                                                  color: themeData.colorScheme
-                                                      .onSurfaceVariant,
-                                                ),
-                                              ),
-                                              Text(
-                                                '备注: ${user.remarks ?? '无'}',
-                                                style: themeData
-                                                    .textTheme.bodyMedium
-                                                    ?.copyWith(
-                                                  color: themeData.colorScheme
-                                                      .onSurfaceVariant,
-                                                ),
-                                              ),
-                                            ],
+                                          ManagerTableCell(label: '账号', value: user.username ?? '未知用户'),
+                                          ManagerTableCell(
+                                            label: '状态',
+                                            value: _statusDisplayMap[user.status] ?? '未知状态',
                                           ),
-                                          trailing: _isAdmin
-                                              ? Row(
-                                                  mainAxisSize:
-                                                      MainAxisSize.min,
-                                                  children: [
-                                                    IconButton(
-                                                      icon: Icon(Icons.edit,
-                                                          color: themeData
-                                                              .colorScheme
-                                                              .primary),
-                                                      onPressed: () =>
-                                                          _showEditUserDialog(
-                                                              user),
-                                                      tooltip: '编辑用户',
-                                                    ),
-                                                    IconButton(
-                                                      icon: Icon(Icons.delete,
-                                                          color: themeData
-                                                              .colorScheme
-                                                              .error),
-                                                      onPressed: () =>
-                                                          _deleteUser(user
-                                                              .userId
-                                                              .toString()),
-                                                      tooltip: '删除用户',
-                                                    ),
-                                                  ],
-                                                )
-                                              : null,
-                                        ),
-                                      );
-                                    },
-                                  ),
+                                          ManagerTableCell(label: '电话', value: user.contactNumber ?? '无'),
+                                          ManagerTableCell(label: '邮箱', value: user.email ?? '无'),
+                                        ],
+                                        actions: _isAdmin
+                                            ? [
+                                                ManagerRecordAction(
+                                                  label: '编辑',
+                                                  onPressed: () => _showEditUserDialog(user),
+                                                ),
+                                                ManagerRecordAction(
+                                                  label: '删除',
+                                                  danger: true,
+                                                  onPressed: () {
+                                                    final id = user.userId;
+                                                    if (id == null) return;
+                                                    _deleteUser(id.toString());
+                                                  },
+                                                ),
+                                              ]
+                                            : const <ManagerRecordAction>[],
+                                      ),
+                                  ],
+                                  page: (_hasMore || _currentPage > 1) ? _currentPage : null,
+                                  hasNext: _hasMore,
+                                  onPage: !(_hasMore || _currentPage > 1)
+                                      ? null
+                                      : (int next) {
+                                          _showPage(next);
+                                        },
                                 ),
                               ),
               ),

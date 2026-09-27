@@ -41,6 +41,10 @@ export interface EntityConfig {
   errorRowMessage?: (row: Record<string, unknown>) => string | null | undefined;
   /** 行级「详情」回调；CrudPage 若提供则向 DataTable 透传 onView（对齐 Flutter OffenseDetailPage）。 */
   onView?: (row: Record<string, unknown>) => void;
+  /** 驾驶员办事页用记录卡；管理页保持表格。 */
+  layout?: 'table' | 'cards';
+  /** 页面已经有自己的主按钮时，不再放「新增」。 */
+  hideCreate?: boolean;
 }
 
 export type EntityKey =

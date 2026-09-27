@@ -1,4 +1,5 @@
 // ignore_for_file: use_build_context_synchronously
+import 'package:final_assignment_front/features/dashboard/views/manager/pages/main_process/manager_record_table.dart';
 import 'package:final_assignment_front/features/api/offense_information_controller_api.dart';
 import 'package:final_assignment_front/features/api/vehicle_information_controller_api.dart';
 import 'package:final_assignment_front/core/network/app_exception.dart';
@@ -64,7 +65,6 @@ class _FineListState extends State<FineListPage> with PageAuthMixin {
   List<FineInformation> _filteredFineList = [];
   String _searchType = 'payee';
   int _currentPage = 1;
-  final int _pageSize = 20;
   bool _hasMore = true;
   bool _isLoading = false;
   String _errorMessage = '';
@@ -73,7 +73,6 @@ class _FineListState extends State<FineListPage> with PageAuthMixin {
   DateTime? _endDate;
   final ManagerDashboardController controller =
       Get.find<ManagerDashboardController>();
-  final ScrollController _scrollController = ScrollController();
 
   @override
   void initState() {
@@ -87,7 +86,6 @@ class _FineListState extends State<FineListPage> with PageAuthMixin {
   @override
   void dispose() {
     _searchController.dispose();
-    _scrollController.dispose();
     super.dispose();
   }
 
@@ -104,7 +102,7 @@ class _FineListState extends State<FineListPage> with PageAuthMixin {
       await fineApi.initializeWithJwt();
       await _fetchFines(reset: true);
     } catch (e) {
-      setState(() => _errorMessage = '初始化失败: $e');
+      setState(() => _errorMessage = '页面没有准备好，请稍后重试。');
     } finally {
       setState(() => _isLoading = false);
     }
@@ -112,7 +110,7 @@ class _FineListState extends State<FineListPage> with PageAuthMixin {
 
   Future<void> _fetchFines(
       {bool reset = false, String? query, int retries = 5}) async {
-    if (!_isAdmin || !_hasMore) return;
+    if (!_isAdmin || (!_hasMore && !reset)) return;
 
     if (reset) {
       _currentPage = 1;
@@ -160,23 +158,18 @@ class _FineListState extends State<FineListPage> with PageAuthMixin {
       }
 
       setState(() {
-        _fineList.addAll(fines);
+        _fineList
+          ..clear()
+          ..addAll(fines);
         _cachedFineList = List.from(fines);
-        _hasMore = fines.length == _pageSize;
+        _hasMore = false;
+        _currentPage = 1;
         _applyFilters(query ?? _searchController.text);
         if (_filteredFineList.isEmpty) {
           _errorMessage =
               searchQuery.isNotEmpty || (_startDate != null && _endDate != null)
                   ? '未找到符合条件的罚款信息'
                   : '当前没有罚款记录';
-        }
-        _currentPage++;
-        if (reset && _scrollController.hasClients) {
-          _scrollController.animateTo(
-            0,
-            duration: const Duration(milliseconds: 300),
-            curve: Curves.easeInOut,
-          );
         }
       });
     } catch (e) {
@@ -281,11 +274,6 @@ class _FineListState extends State<FineListPage> with PageAuthMixin {
     }
   }
 
-  Future<void> _loadMoreFines() async {
-    if (!_isLoading && _hasMore) {
-      await _fetchFines();
-    }
-  }
 
   void _createFine() {
     Navigator.push(
@@ -453,97 +441,48 @@ class _FineListState extends State<FineListPage> with PageAuthMixin {
             context,
             Routes.login,
           ),
-          child: NotificationListener<ScrollNotification>(
-            onNotification: (scrollInfo) {
-              if (scrollInfo.metrics.pixels ==
-                      scrollInfo.metrics.maxScrollExtent &&
-                  _hasMore) {
-                _loadMoreFines();
-              }
-              return false;
-            },
-            child: ListView.builder(
-              controller: _scrollController,
-              itemCount: _filteredFineList.length + (_hasMore ? 1 : 0),
-              itemBuilder: (context, index) {
-                if (index == _filteredFineList.length && _hasMore) {
-                  return const Padding(
-                    padding: EdgeInsets.all(8.0),
-                    child: Center(child: CircularProgressIndicator()),
-                  );
-                }
-                final fijne = _filteredFineList[index];
-                return DashboardPanel(
-                  padding: const EdgeInsets.symmetric(
-                      horizontal: 16.0, vertical: 4.0),
-                  margin: const EdgeInsets.symmetric(vertical: 8.0),
-                  child: ListTile(
-                    dense: true,
-                    contentPadding: EdgeInsets.zero,
-                    title: Text(
-                      '金额: ${fijne.fineAmount ?? 0} 元',
-                      style: themeData.textTheme.titleMedium?.copyWith(
-                        color: themeData.colorScheme.onSurface,
-                        fontWeight: FontWeight.w600,
+          child: ManagerRecordTable(
+            rows: [
+              for (final fine in _filteredFineList)
+                ManagerTableRow(
+                  cells: [
+                    ManagerTableCell(label: '缴款人', value: fine.payee ?? '未知缴款人'),
+                    ManagerTableCell(
+                      label: '时间',
+                      value: formatDate(_resolvedFineDate(fine)),
+                    ),
+                    ManagerTableCell(
+                      label: '状态',
+                      value: (PaymentStatus.fromCode(finePaymentStatus(fine)) ??
+                              PaymentStatus.unpaid)
+                          .label,
+                      child: PaymentStatusChip(
+                        status: PaymentStatus.fromCode(finePaymentStatus(fine)) ??
+                            PaymentStatus.unpaid,
+                        dense: true,
                       ),
                     ),
-                    subtitle: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        const SizedBox(height: 4),
-                        Text(
-                          '缴款人: ${fijne.payee ?? '未知'}',
-                          style: themeData.textTheme.bodyMedium?.copyWith(
-                            color: themeData.colorScheme.onSurfaceVariant,
-                          ),
-                        ),
-                        Text(
-                          '时间: ${formatDate(_resolvedFineDate(fijne))}',
-                          style: themeData.textTheme.bodyMedium?.copyWith(
-                            color: themeData.colorScheme.onSurfaceVariant,
-                          ),
-                        ),
-                        Padding(
-                          padding: const EdgeInsets.only(top: 4),
-                          child: PaymentStatusChip(
-                            status: PaymentStatus.fromCode(
-                                    finePaymentStatus(fijne)) ??
-                                PaymentStatus.unpaid,
-                            dense: true,
-                          ),
-                        ),
-                      ],
+                  ],
+                  actions: [
+                    ManagerRecordAction(
+                      label: '详情',
+                      onPressed: () => _goToDetailPage(fine),
                     ),
-                    trailing: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        IconButton(
-                          icon: Icon(Icons.edit,
-                              size: 18, color: themeData.colorScheme.primary),
-                          onPressed: () => _editFine(fijne),
-                          tooltip: '编辑罚款',
-                        ),
-                        IconButton(
-                          icon: Icon(Icons.delete,
-                              size: 18, color: themeData.colorScheme.error),
-                          onPressed: () => _deleteFine(fijne.fineId ?? 0),
-                          tooltip: '删除罚款',
-                        ),
-                        Icon(
-                          Icons.arrow_forward_ios,
-                          color: themeData.colorScheme.onSurfaceVariant,
-                          size: 18,
-                        ),
-                      ],
+                    ManagerRecordAction(
+                      label: '编辑',
+                      onPressed: () => _editFine(fine),
                     ),
-                    onTap: () => _goToDetailPage(fijne),
-                  ),
-                );
-              },
-            ),
+                    ManagerRecordAction(
+                      label: '删除',
+                      danger: true,
+                      onPressed: () => _deleteFine(fine.fineId ?? 0),
+                    ),
+                  ],
+                ),
+            ],
           ),
-        ),
-      );
+          ),
+          );
     });
   }
 }
@@ -609,7 +548,7 @@ class _AddFinePageState extends State<AddFinePage> with PageAuthMixin {
       await offenseApi.initializeWithJwt();
       await vehicleApi.initializeWithJwt();
     } catch (e) {
-      _showSnackBar('初始化失败: $e', isError: true);
+      _showSnackBar('页面没有准备好，请稍后重试。', isError: true);
     } finally {
       setState(() => _isLoading = false);
     }
@@ -947,7 +886,10 @@ class _AddFinePageState extends State<AddFinePage> with PageAuthMixin {
               ? const LoadingView()
               : Form(
                   key: _formKey,
-                  child: SingleChildScrollView(
+                  child: Column(
+                    children: [
+                      Expanded(
+                        child: SingleChildScrollView(
                     child: Column(
                       children: [
                         DashboardPanel(
@@ -986,8 +928,14 @@ class _AddFinePageState extends State<AddFinePage> with PageAuthMixin {
                               ],
                             ),
                           ),
-                        const SizedBox(height: 20),
-                        ElevatedButton(
+                        
+                      ],
+                    ),
+                  ),
+                      ),
+                      Align(
+                        alignment: Alignment.centerRight,
+                        child: ElevatedButton(
                           onPressed: _submitFine,
                           style: ElevatedButton.styleFrom(
                             backgroundColor: themeData.colorScheme.primary,
@@ -1001,8 +949,8 @@ class _AddFinePageState extends State<AddFinePage> with PageAuthMixin {
                           ),
                           child: Text(widget.isEditMode ? '保存' : '提交'),
                         ),
-                      ],
-                    ),
+                      ),
+                    ],
                   ),
                 ),
         ),
@@ -1048,7 +996,7 @@ class _FineDetailPageState extends State<FineDetailPage> with PageAuthMixin {
       }
       await fineApi.initializeWithJwt();
     } catch (e) {
-      setState(() => _errorMessage = '初始化失败: $e');
+      setState(() => _errorMessage = '页面没有准备好，请稍后重试。');
     } finally {
       setState(() => _isLoading = false);
     }
@@ -1108,7 +1056,7 @@ class _FineDetailPageState extends State<FineDetailPage> with PageAuthMixin {
       } on AppException catch (e) {
         _showSnackBar('删除失败: ${e.message}', isError: true);
       } catch (e) {
-        _showSnackBar('删除失败: $e', isError: true);
+        _showSnackBar('没有删除成功，请重试。', isError: true);
       } finally {
         if (mounted) setState(() => _isLoading = false);
       }

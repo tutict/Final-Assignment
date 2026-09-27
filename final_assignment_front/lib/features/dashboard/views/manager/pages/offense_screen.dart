@@ -1,3 +1,4 @@
+import 'package:final_assignment_front/core/theme/app_colors.dart';
 import 'package:final_assignment_front/features/dashboard/views/shared/components/active_project_card.dart';
 import 'package:final_assignment_front/features/dashboard/views/shared/widgets/dashboard_chrome.dart';
 import 'package:final_assignment_front/features/dashboard/views/shared/widgets/dashboard_page_template.dart';
@@ -198,8 +199,8 @@ class OffenseScreen extends GetView<OffenseController> {
                     toY: value,
                     gradient: LinearGradient(
                       colors: [
-                        theme.colorScheme.primary,
-                        theme.colorScheme.primaryContainer,
+                        ChartColors.category[0],
+                        ChartColors.category[1],
                       ],
                       begin: Alignment.bottomCenter,
                       end: Alignment.topCenter,
@@ -410,13 +411,7 @@ class OffensePieChart extends StatelessWidget {
 
     final colors = List<Color>.generate(
       dataList.length,
-      (index) => [
-        theme.colorScheme.primary,
-        theme.colorScheme.secondary,
-        theme.colorScheme.tertiary,
-        theme.colorScheme.error,
-        theme.colorScheme.primaryContainer,
-      ][index % 5],
+      ChartColors.at,
     );
 
     return SizedBox(
@@ -639,8 +634,8 @@ class OffenseBarChart extends StatelessWidget {
                   borderRadius: BorderRadius.circular(6),
                   gradient: LinearGradient(
                     colors: [
-                      theme.colorScheme.primary,
-                      theme.colorScheme.secondary,
+                      ChartColors.at(index),
+                      ChartColors.at(index),
                     ],
                     begin: Alignment.bottomCenter,
                     end: Alignment.topCenter,

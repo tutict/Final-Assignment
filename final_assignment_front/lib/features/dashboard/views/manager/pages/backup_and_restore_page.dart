@@ -1,7 +1,7 @@
 import 'package:final_assignment_front/features/api/backup_restore_controller_api.dart';
 import 'package:final_assignment_front/features/dashboard/controllers/manager_dashboard_controller.dart';
 import 'package:final_assignment_front/features/dashboard/views/manager/pages/main_process/manager_business_page_chrome.dart';
-import 'package:final_assignment_front/features/dashboard/views/shared/widgets/dashboard_chrome.dart';
+import 'package:final_assignment_front/features/dashboard/views/manager/pages/main_process/manager_record_table.dart';
 import 'package:final_assignment_front/features/dashboard/views/shared/widgets/dashboard_page_template.dart';
 import 'package:final_assignment_front/features/model/backup_restore.dart';
 import 'package:final_assignment_front/shared/controllers/base_list_controller.dart';
@@ -206,6 +206,7 @@ class _BackupAndRestoreState extends State<BackupAndRestorePage> {
         idempotencyKey: idempotencyKey,
       );
 
+      if (!mounted) return;
       showManagerBusinessToast(context, message: '备份创建成功');
       await _loadBackups();
     } catch (e) {
@@ -231,6 +232,7 @@ class _BackupAndRestoreState extends State<BackupAndRestorePage> {
         backupRestore: payload,
         idempotencyKey: idempotencyKey,
       );
+      if (!mounted) return;
       showManagerBusinessToast(context, message: '备份更新成功');
       await _loadBackups();
     } catch (e) {
@@ -261,6 +263,7 @@ class _BackupAndRestoreState extends State<BackupAndRestorePage> {
         backupRestore: payload,
         idempotencyKey: idempotencyKey,
       );
+      if (!mounted) return;
       showManagerBusinessToast(context, message: '恢复备份成功');
       await _loadBackups();
     } catch (e) {
@@ -280,6 +283,7 @@ class _BackupAndRestoreState extends State<BackupAndRestorePage> {
 
     try {
       await backupApi.deleteBackup(backupId: backupId);
+      if (!mounted) return;
       showManagerBusinessToast(context, message: '删除备份成功');
       await _loadBackups();
     } catch (e) {
@@ -397,7 +401,6 @@ class _BackupAndRestoreState extends State<BackupAndRestorePage> {
 
     return Obx(() {
       final themeData = controller.currentBodyTheme.value;
-      final scheme = themeData.colorScheme;
       return DashboardPageTemplate(
         theme: themeData,
         title: '备份与恢复管理',
@@ -480,95 +483,52 @@ class _BackupAndRestoreState extends State<BackupAndRestorePage> {
                         ? ErrorStateView(message: _errorMessage)
                         : _filteredBackups.isEmpty
                             ? const EmptyStateView(
-                                message: '没有找到备份记录',
+                                message: '没有找到备份记录。可以调整筛选，或创建一份新备份。',
                                 icon: Icons.backup_outlined,
                               )
-                            : RefreshIndicator(
-                                onRefresh: _loadBackups,
-                                child: ListView.builder(
-                                  physics:
-                                      const AlwaysScrollableScrollPhysics(),
-                                  itemCount: _filteredBackups.length,
-                                  itemBuilder: (context, index) {
-                                    final backup = _filteredBackups[index];
-                                    return Padding(
-                                      padding: const EdgeInsets.symmetric(
-                                          vertical: 8.0),
-                                      child: DashboardPanel(
-                                        padding: const EdgeInsets.symmetric(
-                                            horizontal: 16, vertical: 12),
-                                        child: Row(
-                                          children: [
-                                            Expanded(
-                                              child: Column(
-                                                crossAxisAlignment:
-                                                    CrossAxisAlignment.start,
-                                                children: [
-                                                  Text(
-                                                    '文件名: ${backup.backupFileName ?? '无'}',
-                                                    style: themeData
-                                                        .textTheme.titleMedium
-                                                        ?.copyWith(
-                                                      color: scheme.onSurface,
-                                                      fontWeight:
-                                                          FontWeight.w800,
-                                                      letterSpacing: 0,
-                                                    ),
-                                                  ),
-                                                  const SizedBox(height: 6),
-                                                  Text(
-                                                    '备份时间: ${_formatDateTime(backup.backupTime)}\n恢复时间: ${_formatDateTime(backup.restoreTime)}\n恢复状态: ${backup.restoreStatus ?? '未恢复'}',
-                                                    style: themeData
-                                                        .textTheme.bodySmall
-                                                        ?.copyWith(
-                                                      color: scheme
-                                                          .onSurfaceVariant,
-                                                      height: 1.5,
-                                                      letterSpacing: 0,
-                                                    ),
-                                                  ),
-                                                ],
-                                              ),
-                                            ),
-                                            IconButton(
-                                              icon: const Icon(
-                                                  Icons.restore_rounded),
-                                              color: const Color(0xFF41B86A),
-                                              onPressed: () =>
-                                                  _restoreBackup(backup),
-                                              tooltip: '恢复此备份',
-                                            ),
-                                            IconButton(
-                                              icon: const Icon(
-                                                  Icons.edit_outlined),
-                                              color: scheme.primary,
-                                              onPressed: () =>
-                                                  _showUpdateBackupDialog(
-                                                      backup),
-                                              tooltip: '编辑此备份',
-                                            ),
-                                            IconButton(
-                                              icon: const Icon(
-                                                  Icons.delete_outline_rounded),
-                                              color: scheme.error,
-                                              onPressed: () => _deleteBackup(
-                                                  backup.backupId!),
-                                              tooltip: '删除此备份',
-                                            ),
-                                            IconButton(
-                                              icon: const Icon(
-                                                  Icons.info_outline_rounded),
-                                              color: scheme.primary,
-                                              onPressed: () =>
-                                                  _goToDetailPage(backup),
-                                              tooltip: '查看详情',
-                                            ),
-                                          ],
+                            : ManagerRecordTable(
+                                rows: [
+                                  for (final backup in _filteredBackups)
+                                    ManagerTableRow(
+                                      cells: [
+                                        ManagerTableCell(
+                                          label: '文件名',
+                                          value: backup.backupFileName ?? '未命名备份',
                                         ),
-                                      ),
-                                    );
-                                  },
-                                ),
+                                        ManagerTableCell(
+                                          label: '备份时间',
+                                          value: _formatDateTime(backup.backupTime),
+                                        ),
+                                        ManagerTableCell(
+                                          label: '恢复状态',
+                                          value: backup.restoreStatus ?? '未恢复',
+                                        ),
+                                      ],
+                                      actions: [
+                                        ManagerRecordAction(
+                                          label: '恢复',
+                                          onPressed: () => _restoreBackup(backup),
+                                        ),
+                                        ManagerRecordAction(
+                                          label: '编辑',
+                                          onPressed: () => _showUpdateBackupDialog(backup),
+                                        ),
+                                        ManagerRecordAction(
+                                          label: '删除',
+                                          danger: true,
+                                          onPressed: () {
+                                            final id = backup.backupId;
+                                            if (id == null) return;
+                                            _deleteBackup(id);
+                                          },
+                                        ),
+                                        ManagerRecordAction(
+                                          label: '详情',
+                                          onPressed: () => _goToDetailPage(backup),
+                                        ),
+                                      ],
+                                    ),
+                                ],
                               ),
               ),
             ],
@@ -676,6 +636,7 @@ class _BackupDetailPageState extends State<BackupDetailPage> {
         idempotencyKey: idempotencyKey,
       );
 
+      if (!mounted) return;
       showManagerBusinessToast(context, message: '备份更新成功');
       setState(() {
         _backup = result;

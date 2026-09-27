@@ -1,10 +1,10 @@
 // ignore_for_file: use_build_context_synchronously
+import 'package:final_assignment_front/features/dashboard/views/manager/pages/main_process/manager_record_table.dart';
 import 'dart:developer' as developer;
 
 import 'package:final_assignment_front/config/routes/app_routes.dart';
 import 'package:final_assignment_front/features/api/login_log_controller_api.dart';
 import 'package:final_assignment_front/features/dashboard/controllers/manager_dashboard_controller.dart';
-import 'package:final_assignment_front/features/dashboard/views/shared/widgets/dashboard_chrome.dart';
 import 'package:final_assignment_front/features/dashboard/views/shared/widgets/dashboard_page_template.dart';
 import 'package:final_assignment_front/features/dashboard/views/shared/widgets/page_auth_mixin.dart';
 import 'package:final_assignment_front/features/model/login_log.dart';
@@ -37,7 +37,6 @@ class LoginLogPage extends StatefulWidget {
 class _LoginLogPageState extends State<LoginLogPage> with PageAuthMixin {
   final LoginLogControllerApi logApi = LoginLogControllerApi();
   final TextEditingController _searchController = TextEditingController();
-  final ScrollController _scrollController = ScrollController();
   final ManagerDashboardController controller =
       Get.find<ManagerDashboardController>();
   final List<LoginLog> _logs = [];
@@ -59,20 +58,11 @@ class _LoginLogPageState extends State<LoginLogPage> with PageAuthMixin {
     _searchController.addListener(() {
       _applyFilters(_searchController.text);
     });
-    _scrollController.addListener(() {
-      if (_scrollController.position.pixels ==
-              _scrollController.position.maxScrollExtent &&
-          _hasMore &&
-          !_isLoading) {
-        _loadMoreLogs();
-      }
-    });
   }
 
   @override
   void dispose() {
     _searchController.dispose();
-    _scrollController.dispose();
     super.dispose();
   }
 
@@ -92,14 +82,14 @@ class _LoginLogPageState extends State<LoginLogPage> with PageAuthMixin {
       await logApi.initializeWithJwt();
       await _fetchLogs(reset: true);
     } catch (e) {
-      setState(() => _errorMessage = '初始化失败: $e');
+      setState(() => _errorMessage = '页面没有准备好，请稍后重试。');
     } finally {
       setState(() => _isLoading = false);
     }
   }
 
   Future<void> _fetchLogs({bool reset = false, String? query}) async {
-    if (!_isAdmin || !_hasMore) return;
+    if (!_isAdmin || (!_hasMore && !reset)) return;
 
     if (reset) {
       _currentPage = 1;
@@ -140,7 +130,7 @@ class _LoginLogPageState extends State<LoginLogPage> with PageAuthMixin {
         } else if (e.toString().contains('403')) {
           _errorMessage = '您没有权限查看日志信息';
         } else {
-          _errorMessage = '加载日志信息失败: ${_formatErrorMessage(e)}';
+          _errorMessage = '日志没有加载成功，请重试。';
         }
       });
     } finally {
@@ -199,11 +189,6 @@ class _LoginLogPageState extends State<LoginLogPage> with PageAuthMixin {
         .toList();
   }
 
-  Future<void> _loadMoreLogs() async {
-    if (!_isLoading && _hasMore) {
-      await _fetchLogs();
-    }
-  }
 
   Future<void> _refreshLogs({String? query}) async {
     setState(() {
@@ -682,100 +667,6 @@ class _LoginLogPageState extends State<LoginLogPage> with PageAuthMixin {
     );
   }
 
-  Widget _buildLogCard(LoginLog log, ThemeData themeData) {
-    return DashboardPanel(
-      padding:
-          const EdgeInsets.symmetric(horizontal: 16.0, vertical: 4.0),
-      margin: const EdgeInsets.symmetric(vertical: 8.0),
-      child: ListTile(
-        dense: true,
-        contentPadding: EdgeInsets.zero,
-        title: Text(
-          '日志ID: ${log.logId ?? "未知"}',
-          style: themeData.textTheme.titleMedium?.copyWith(
-            color: themeData.colorScheme.onSurface,
-            fontWeight: FontWeight.w800,
-          ),
-        ),
-        subtitle: Padding(
-          padding: const EdgeInsets.only(top: 4.0),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                '用户名: ${log.username ?? "未知"}',
-                style: themeData.textTheme.bodyMedium?.copyWith(
-                  color: themeData.colorScheme.onSurfaceVariant,
-                ),
-              ),
-              Text(
-                '登录IP地址: ${log.loginIp ?? "无"}',
-                style: themeData.textTheme.bodyMedium?.copyWith(
-                  color: themeData.colorScheme.onSurfaceVariant,
-                ),
-              ),
-              Text(
-                '登录结果: ${log.loginResult ?? "无"}',
-                style: themeData.textTheme.bodyMedium?.copyWith(
-                  color: themeData.colorScheme.onSurfaceVariant,
-                ),
-              ),
-              Text(
-                '登录时间: ${formatDateTime(log.loginTime)}',
-                style: themeData.textTheme.bodyMedium?.copyWith(
-                  color: themeData.colorScheme.onSurfaceVariant,
-                ),
-              ),
-              Text(
-                '浏览器类型: ${log.browserType ?? "无"}',
-                style: themeData.textTheme.bodyMedium?.copyWith(
-                  color: themeData.colorScheme.onSurfaceVariant,
-                ),
-              ),
-              Text(
-                '操作系统版本: ${log.osVersion ?? "无"}',
-                style: themeData.textTheme.bodyMedium?.copyWith(
-                  color: themeData.colorScheme.onSurfaceVariant,
-                ),
-              ),
-              Text(
-                '备注: ${log.remarks ?? "无"}',
-                style: themeData.textTheme.bodyMedium?.copyWith(
-                  color: themeData.colorScheme.onSurfaceVariant,
-                ),
-              ),
-            ],
-          ),
-        ),
-        trailing: _isAdmin
-            ? Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  IconButton(
-                    icon:
-                        Icon(Icons.edit, color: themeData.colorScheme.primary),
-                    onPressed: () => _showEditLogDialog(log),
-                    tooltip: '编辑日志',
-                  ),
-                  IconButton(
-                    icon:
-                        Icon(Icons.delete, color: themeData.colorScheme.error),
-                    onPressed: () {
-                      final logId = log.logId;
-                      if (logId == null) {
-                        _showSnackBar('无法删除：日志ID缺失', isError: true);
-                        return;
-                      }
-                      _deleteLog(logId);
-                    },
-                    tooltip: '删除日志',
-                  ),
-                ],
-              )
-            : null,
-      ),
-    );
-  }
 
   @override
   Widget build(BuildContext context) {
@@ -877,34 +768,43 @@ class _LoginLogPageState extends State<LoginLogPage> with PageAuthMixin {
                                   ],
                                 ),
                               )
-                            : CupertinoScrollbar(
-                                controller: _scrollController,
-                                thumbVisibility: true,
-                                thickness: 6.0,
-                                thicknessWhileDragging: 10.0,
-                                child: RefreshIndicator(
-                                  onRefresh: () => _refreshLogs(),
-                                  color: themeData.colorScheme.primary,
-                                  backgroundColor:
-                                      themeData.colorScheme.surfaceContainer,
-                                  child: ListView.builder(
-                                    controller: _scrollController,
-                                    itemCount: _filteredLogs.length +
-                                        (_hasMore ? 1 : 0),
-                                    itemBuilder: (context, index) {
-                                      if (index == _filteredLogs.length &&
-                                          _hasMore) {
-                                        return const Padding(
-                                          padding: EdgeInsets.all(8.0),
-                                          child: Center(
-                                              child:
-                                                  CupertinoActivityIndicator()),
-                                        );
-                                      }
-                                      final log = _filteredLogs[index];
-                                      return _buildLogCard(log, themeData);
-                                    },
-                                  ),
+                            : RefreshIndicator(
+                                onRefresh: () => _refreshLogs(),
+                                color: themeData.colorScheme.primary,
+                                backgroundColor: themeData.colorScheme.surfaceContainer,
+                                child: ManagerRecordTable(
+                                  rows: [
+                                    for (final log in _filteredLogs)
+                                      ManagerTableRow(
+                                        cells: [
+                                          ManagerTableCell(label: '用户', value: log.username ?? '未知用户'),
+                                          ManagerTableCell(label: '结果', value: log.loginResult ?? '无'),
+                                          ManagerTableCell(label: '时间', value: formatDateTime(log.loginTime)),
+                                          ManagerTableCell(label: 'IP', value: log.loginIp ?? '无'),
+                                          ManagerTableCell(label: '浏览器', value: log.browserType ?? '无'),
+                                        ],
+                                        actions: _isAdmin
+                                            ? [
+                                                ManagerRecordAction(
+                                                  label: '编辑',
+                                                  onPressed: () => _showEditLogDialog(log),
+                                                ),
+                                                ManagerRecordAction(
+                                                  label: '删除',
+                                                  danger: true,
+                                                  onPressed: () {
+                                                    final logId = log.logId;
+                                                    if (logId == null) {
+                                                      _showSnackBar('无法删除：日志编号缺失', isError: true);
+                                                      return;
+                                                    }
+                                                    _deleteLog(logId);
+                                                  },
+                                                ),
+                                              ]
+                                            : const <ManagerRecordAction>[],
+                                      ),
+                                  ],
                                 ),
                               ),
               ),

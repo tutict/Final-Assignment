@@ -1,4 +1,5 @@
 // ignore_for_file: use_build_context_synchronously
+import 'package:final_assignment_front/features/dashboard/views/manager/pages/main_process/manager_record_table.dart';
 import 'package:final_assignment_front/config/routes/app_routes.dart';
 import 'package:final_assignment_front/features/api/offense_information_controller_api.dart';
 import 'package:final_assignment_front/features/dashboard/controllers/manager_dashboard_controller.dart';
@@ -86,7 +87,7 @@ class _OffenseListPageState extends State<OffenseList> with PageAuthMixin {
       await offenseApi.initializeWithJwt();
       await _fetchOffenses(reset: true);
     } catch (e) {
-      setState(() => _errorMessage = '初始化失败: $e');
+      setState(() => _errorMessage = '页面没有准备好，请稍后重试。');
     } finally {
       setState(() => _isLoading = false);
     }
@@ -132,7 +133,7 @@ class _OffenseListPageState extends State<OffenseList> with PageAuthMixin {
           _errorMessage = '未找到违法记录';
           _hasMore = false;
         } else {
-          _errorMessage = '获取违法信息失败: $e';
+          _errorMessage = '违法记录没有加载成功，请重试。';
         }
       });
     } finally {
@@ -244,11 +245,6 @@ class _OffenseListPageState extends State<OffenseList> with PageAuthMixin {
     await _fetchOffenses(reset: true, query: query);
   }
 
-  Future<void> _loadMoreOffenses() async {
-    if (!_isLoading && _hasMore) {
-      await _fetchOffenses();
-    }
-  }
 
   void _createOffense() {
     Get.to<bool>(
@@ -310,7 +306,7 @@ class _OffenseListPageState extends State<OffenseList> with PageAuthMixin {
         await offenseApi.deleteOffense(offenseId: offenseId);
         await _refreshOffenses();
       } catch (e) {
-        setState(() => _errorMessage = '删除违法信息失败: $e');
+        setState(() => _errorMessage = '没有删除成功，请重试。');
       } finally {
         setState(() => _isLoading = false);
       }
@@ -416,112 +412,48 @@ class _OffenseListPageState extends State<OffenseList> with PageAuthMixin {
             context,
             Routes.login,
           ),
-          child: NotificationListener<ScrollNotification>(
-            onNotification: (scrollInfo) {
-              if (scrollInfo.metrics.pixels ==
-                      scrollInfo.metrics.maxScrollExtent &&
-                  _hasMore) {
-                _loadMoreOffenses();
-              }
-              return false;
-            },
-            child: ListView.builder(
-              itemCount: _filteredOffenseList.length + (_hasMore ? 1 : 0),
-              itemBuilder: (context, index) {
-                if (index == _filteredOffenseList.length && _hasMore) {
-                  return const Padding(
-                    padding: EdgeInsets.all(8.0),
-                    child: Center(child: CircularProgressIndicator()),
-                  );
-                }
-                final offense = _filteredOffenseList[index];
-                return DashboardPanel(
-                  padding: const EdgeInsets.symmetric(
-                      horizontal: 16.0, vertical: 4.0),
-                  margin: const EdgeInsets.symmetric(vertical: 8.0),
-                  child: ListTile(
-                    dense: true,
-                    contentPadding: EdgeInsets.zero,
-                    title: Text(
-                      '违法类型: ${offense.offenseType ?? '未知类型'}',
-                      style: themeData.textTheme.titleMedium?.copyWith(
-                        color: themeData.colorScheme.onSurface,
-                        fontWeight: FontWeight.w600,
+          child: ManagerRecordTable(
+            rows: [
+              for (final offense in _filteredOffenseList)
+                ManagerTableRow(
+                  cells: [
+                    ManagerTableCell(
+                      label: '车牌',
+                      value: offense.licensePlate ?? '未知车牌',
+                    ),
+                    ManagerTableCell(
+                      label: '驾驶员',
+                      value: offense.driverName ?? '未知司机',
+                    ),
+                    ManagerTableCell(
+                      label: '状态',
+                      value: getOffenseProcessStatusLabel(offense.processStatus),
+                      child: OffenseProcessStatus.fromCode(offense.processStatus) == null
+                          ? null
+                          : StatusBadge.offenseProcess(
+                              OffenseProcessStatus.fromCode(offense.processStatus)!,
+                            ),
+                    ),
+                  ],
+                  actions: [
+                    ManagerRecordAction(
+                      label: '详情',
+                      onPressed: () => _goToDetailPage(offense),
+                    ),
+                    if (_isAdmin)
+                      ManagerRecordAction(
+                        label: '编辑',
+                        onPressed: () => _editOffense(offense),
                       ),
-                    ),
-                    subtitle: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        const SizedBox(height: 4),
-                        Text(
-                          '车牌号: ${offense.licensePlate ?? '未知车牌'}',
-                          style: themeData.textTheme.bodyMedium?.copyWith(
-                            color: themeData.colorScheme.onSurfaceVariant,
-                          ),
-                        ),
-                        Text(
-                          '司机姓名: ${offense.driverName ?? '未知司机'}',
-                          style: themeData.textTheme.bodyMedium?.copyWith(
-                            color: themeData.colorScheme.onSurfaceVariant,
-                          ),
-                        ),
-                        Padding(
-                          padding: const EdgeInsets.only(top: 4),
-                          child: OffenseProcessStatus.fromCode(
-                                      offense.processStatus) ==
-                                  null
-                              ? Text(
-                                  getOffenseProcessStatusLabel(
-                                      offense.processStatus),
-                                  style: themeData.textTheme.bodyMedium
-                                      ?.copyWith(
-                                    color: themeData
-                                        .colorScheme.onSurfaceVariant,
-                                  ),
-                                )
-                              : StatusBadge.offenseProcess(
-                                  OffenseProcessStatus.fromCode(
-                                      offense.processStatus)!,
-                                  dense: true,
-                                ),
-                        ),
-                      ],
-                    ),
-                    trailing: _isAdmin
-                        ? Row(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              IconButton(
-                                icon: const Icon(Icons.edit, size: 18),
-                                color: themeData.colorScheme.primary,
-                                onPressed: () => _editOffense(offense),
-                                tooltip: '编辑违法信息',
-                              ),
-                              IconButton(
-                                icon: Icon(Icons.delete,
-                                    size: 18,
-                                    color: themeData.colorScheme.error),
-                                onPressed: () =>
-                                    _deleteOffense(offense.offenseId ?? 0),
-                                tooltip: '删除违法信息',
-                              ),
-                              Icon(
-                                Icons.arrow_forward_ios,
-                                color: themeData.colorScheme.onSurfaceVariant,
-                                size: 18,
-                              ),
-                            ],
-                          )
-                        : Icon(
-                            Icons.arrow_forward_ios,
-                            color: themeData.colorScheme.onSurfaceVariant,
-                            size: 18,
-                          ),
-                    onTap: () => _goToDetailPage(offense),
-                  ),
-                );
-              },
-            ),
+                    if (_isAdmin)
+                      ManagerRecordAction(
+                        label: '删除',
+                        danger: true,
+                        onPressed: () => _deleteOffense(offense.offenseId ?? 0),
+                      ),
+                  ],
+                ),
+            ],
           ),
         ),
       );
@@ -735,6 +667,7 @@ class _AddOffensePageState extends State<AddOffensePage> {
       return DashboardPageTemplate(
         theme: themeData,
         title: '添加新违法行为',
+        reading: true,
         pageType: DashboardPageType.manager,
         bodyIsScrollable: true,
         padding: EdgeInsets.zero,
@@ -744,7 +677,10 @@ class _AddOffensePageState extends State<AddOffensePage> {
               ? const LoadingView()
               : Form(
                   key: _formKey,
-                  child: SingleChildScrollView(
+                  child: Column(
+                    children: [
+                      Expanded(
+                        child: SingleChildScrollView(
                     child: Column(
                       children: [
                         DashboardPanel(
@@ -788,8 +724,14 @@ class _AddOffensePageState extends State<AddOffensePage> {
                               ],
                             ),
                         ),
-                        const SizedBox(height: 20),
-                        ElevatedButton(
+                        
+                      ],
+                    ),
+                  ),
+                      ),
+                      Align(
+                        alignment: Alignment.centerRight,
+                        child: ElevatedButton(
                           onPressed: _submitOffense,
                           style: ElevatedButton.styleFrom(
                             backgroundColor: themeData.colorScheme.primary,
@@ -803,8 +745,8 @@ class _AddOffensePageState extends State<AddOffensePage> {
                           ),
                           child: const Text('提交'),
                         ),
-                      ],
-                    ),
+                      ),
+                    ],
                   ),
                 ),
         ),
@@ -850,7 +792,7 @@ class _OffenseDetailPageState extends State<OffenseDetailPage>
       }
       await offenseApi.initializeWithJwt();
     } catch (e) {
-      setState(() => _errorMessage = '初始化失败: $e');
+      setState(() => _errorMessage = '页面没有准备好，请稍后重试。');
     } finally {
       setState(() => _isLoading = false);
     }
@@ -871,7 +813,7 @@ class _OffenseDetailPageState extends State<OffenseDetailPage>
         _showSnackBar('删除违法信息成功！');
         if (mounted) Navigator.pop(context, true);
       } catch (e) {
-        _showSnackBar('删除失败: $e', isError: true);
+        _showSnackBar('没有删除成功，请重试。', isError: true);
       } finally {
         if (mounted) setState(() => _isLoading = false);
       }
@@ -1214,6 +1156,7 @@ class _EditOffensePageState extends State<EditOffensePage> {
       return DashboardPageTemplate(
         theme: themeData,
         title: '编辑违法行为信息',
+        reading: true,
         pageType: DashboardPageType.manager,
         bodyIsScrollable: true,
         padding: EdgeInsets.zero,
@@ -1223,7 +1166,10 @@ class _EditOffensePageState extends State<EditOffensePage> {
               ? const LoadingView()
               : Form(
                   key: _formKey,
-                  child: SingleChildScrollView(
+                  child: Column(
+                    children: [
+                      Expanded(
+                        child: SingleChildScrollView(
                     child: Column(
                       children: [
                         DashboardPanel(
@@ -1267,8 +1213,14 @@ class _EditOffensePageState extends State<EditOffensePage> {
                               ],
                             ),
                         ),
-                        const SizedBox(height: 20),
-                        ElevatedButton(
+                        
+                      ],
+                    ),
+                  ),
+                      ),
+                      Align(
+                        alignment: Alignment.centerRight,
+                        child: ElevatedButton(
                           onPressed: _updateOffense,
                           style: ElevatedButton.styleFrom(
                             backgroundColor: themeData.colorScheme.primary,
@@ -1282,8 +1234,8 @@ class _EditOffensePageState extends State<EditOffensePage> {
                           ),
                           child: const Text('保存'),
                         ),
-                      ],
-                    ),
+                      ),
+                    ],
                   ),
                 ),
         ),

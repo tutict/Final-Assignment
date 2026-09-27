@@ -12,6 +12,8 @@ interface DataTableProps {
   onEdit?: (row: Record<string, unknown>) => void;
   onDelete?: (row: Record<string, unknown>) => void;
   onView?: (row: Record<string, unknown>) => void;
+  onRowClick?: (row: Record<string, unknown>) => void;
+  emptyMessage?: string;
   getRowErrorMessage?: (row: Record<string, unknown>) => string | null | undefined;
 }
 
@@ -21,9 +23,13 @@ export default function DataTable({
   onEdit,
   onDelete,
   onView,
+  onRowClick,
+  emptyMessage = '暂无记录。可以调整筛选，或使用页面上的主操作新增。',
   getRowErrorMessage,
 }: DataTableProps) {
-  const hasActions = Boolean(onEdit || onDelete || onView);
+  const actionCount = [onEdit, onDelete, onView].filter(Boolean).length;
+  const hasActions = actionCount > 0;
+  const useMenu = actionCount > 2;
   const colSpan = columns.length + (hasActions ? 1 : 0);
 
   return (
@@ -41,7 +47,7 @@ export default function DataTable({
           {rows.length === 0 ? (
             <tr>
               <td colSpan={colSpan} className="table-empty">
-                暂无数据
+                {emptyMessage}
               </td>
             </tr>
           ) : (
@@ -60,29 +66,28 @@ export default function DataTable({
               }
 
               return (
-                <tr key={rowKey}>
+                <tr key={rowKey} onClick={onRowClick ? () => onRowClick(row) : undefined} style={onRowClick ? { cursor: 'pointer' } : undefined}>
                   {columns.map((col) => (
                     <td key={col.key}>
                       {col.render ? col.render(row) : (row[col.key] as React.ReactNode)}
                     </td>
                   ))}
                   {hasActions ? (
-                    <td className="table-actions">
-                      {onView ? (
-                        <button type="button" className="link-button" onClick={() => onView(row)}>
-                          详情
-                        </button>
-                      ) : null}
-                      {onEdit ? (
-                        <button type="button" className="link-button" onClick={() => onEdit(row)}>
-                          编辑
-                        </button>
-                      ) : null}
-                      {onDelete ? (
-                        <button type="button" className="link-button danger" onClick={() => onDelete(row)}>
-                          删除
-                        </button>
-                      ) : null}
+                    <td className="table-actions" onClick={(event) => event.stopPropagation()}>
+                      {useMenu ? (
+                        <details className="row-menu">
+                          <summary>操作</summary>
+                          {onView ? <button type="button" className="link-button" onClick={() => onView(row)}>详情</button> : null}
+                          {onEdit ? <button type="button" className="link-button" onClick={() => onEdit(row)}>编辑</button> : null}
+                          {onDelete ? <button type="button" className="link-button danger" onClick={() => onDelete(row)}>删除</button> : null}
+                        </details>
+                      ) : (
+                        <>
+                          {onView ? <button type="button" className="link-button" onClick={() => onView(row)}>详情</button> : null}
+                          {onEdit ? <button type="button" className="link-button" onClick={() => onEdit(row)}>编辑</button> : null}
+                          {onDelete ? <button type="button" className="link-button danger" onClick={() => onDelete(row)}>删除</button> : null}
+                        </>
+                      )}
                     </td>
                   ) : null}
                 </tr>

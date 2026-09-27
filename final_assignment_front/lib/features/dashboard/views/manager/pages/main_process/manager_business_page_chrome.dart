@@ -254,6 +254,7 @@ class _ManagerBusinessContentPanel extends StatelessWidget {
               return const ManagerBusinessStateView(
                 icon: Icons.sync_rounded,
                 message: '正在加载业务数据',
+                detail: '请稍候，加载完成后会显示在这里。',
                 tone: ManagerBusinessStateTone.neutral,
                 busy: true,
               );

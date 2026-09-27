@@ -97,6 +97,13 @@ class SearchFilterBar extends StatelessWidget {
     final theme = Theme.of(context);
     final dark = theme.brightness == Brightness.dark;
     final hasDateRange = startDate != null && endDate != null;
+    String two(int value) => value.toString().padLeft(2, '0');
+    String fmt(DateTime value) => '${value.year}-${two(value.month)}-${two(value.day)}';
+    final rangeLabel = !hasDateRange
+        ? ''
+        : (dateRangeTextBuilder != null
+            ? dateRangeTextBuilder!(startDate!, endDate!)
+            : '${fmt(startDate!)} 至 ${fmt(endDate!)}');
     final content = Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -188,6 +195,37 @@ class SearchFilterBar extends StatelessWidget {
             onChanged: onDateRangeChanged!,
           ),
         ],
+        if ((controller?.text.trim().isNotEmpty ?? false) || hasDateRange)
+          Padding(
+            padding: const EdgeInsets.only(top: 8),
+            child: Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              children: [
+                if ((controller?.text.trim().isNotEmpty ?? false))
+                  InputChip(
+                    label: Text('筛选：${controller!.text.trim()}'),
+                    labelStyle: TextStyle(color: theme.colorScheme.onSurface),
+                    deleteIconColor: theme.colorScheme.onSurface,
+                    onDeleted: () {
+                      controller?.clear();
+                      if (onClear != null) {
+                        onClear!();
+                      } else {
+                        onSearch('');
+                      }
+                    },
+                  ),
+                if (hasDateRange)
+                  InputChip(
+                    label: Text('日期：$rangeLabel'),
+                    labelStyle: TextStyle(color: theme.colorScheme.onSurface),
+                    deleteIconColor: theme.colorScheme.onSurface,
+                    onDeleted: () => onDateRangeChanged?.call(null),
+                  ),
+              ],
+            ),
+          ),
       ],
     );
 

@@ -1,4 +1,5 @@
 // ignore_for_file: use_build_context_synchronously
+import 'package:final_assignment_front/features/dashboard/views/manager/pages/main_process/manager_record_table.dart';
 import 'dart:developer' as developer;
 
 import 'package:final_assignment_front/config/routes/app_routes.dart';
@@ -107,7 +108,7 @@ class _AppealManagementAdminState extends State<ManagerAppealManagementPage> {
       developer.log('JWT token validated successfully for appeal request');
       return true;
     } catch (e) {
-      setState(() => _errorMessage = '无效的登录信息：$e，请重新登录');
+      setState(() => _errorMessage = '登录信息无效，请重新登录');
       developer.log('JWT validation failed: $e',
           stackTrace: StackTrace.current);
       return false;
@@ -130,7 +131,7 @@ class _AppealManagementAdminState extends State<ManagerAppealManagementPage> {
         setState(() => _errorMessage = '权限不足：仅管理员可访问此页面');
       }
     } catch (e) {
-      setState(() => _errorMessage = '初始化失败: $e');
+      setState(() => _errorMessage = '页面没有准备好，请稍后重试。');
       developer.log('Initialization failed: $e',
           stackTrace: StackTrace.current);
     } finally {
@@ -470,58 +471,6 @@ class _AppealManagementAdminState extends State<ManagerAppealManagementPage> {
     );
   }
 
-  Widget _buildAppealCard(AppealRecordModel appeal, ThemeData themeData) {
-    return DashboardPanel(
-      margin: const EdgeInsets.symmetric(vertical: 8.0),
-      padding: EdgeInsets.zero,
-      child: ListTile(
-        contentPadding:
-            const EdgeInsets.symmetric(horizontal: 16.0, vertical: 12.0),
-        title: Text(
-          '申诉人: ${appeal.appellantName ?? "未知"} (ID: ${appeal.appealId ?? "无"})',
-          style: themeData.textTheme.titleMedium?.copyWith(
-            color: themeData.colorScheme.onSurface,
-            fontWeight: FontWeight.w800,
-          ),
-        ),
-        subtitle: Padding(
-          padding: const EdgeInsets.only(top: 4.0),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                '原因: ${appeal.appealReason ?? "无"}',
-                style: themeData.textTheme.bodyMedium?.copyWith(
-                  color: themeData.colorScheme.onSurfaceVariant,
-                ),
-              ),
-              Text(
-                '状态: ${getDisplayStatus(appeal.processStatus)}',
-                // Use Chinese status
-                style: themeData.textTheme.bodyMedium?.copyWith(
-                  color: getAppealProcessStatusColor(
-                      appeal.processStatus, themeData),
-                ),
-              ),
-              Text(
-                '时间: ${formatDateTime(appeal.appealTime)}',
-                style: themeData.textTheme.bodyMedium?.copyWith(
-                  color: themeData.colorScheme.onSurfaceVariant,
-                ),
-              ),
-            ],
-          ),
-        ),
-        trailing: Icon(
-          CupertinoIcons.forward,
-          color: themeData.colorScheme.primary,
-          size: 18,
-        ),
-        onTap: () => _goToDetailPage(appeal),
-      ),
-    );
-  }
-
   @override
   Widget build(BuildContext context) {
     return Obx(() {
@@ -555,17 +504,36 @@ class _AppealManagementAdminState extends State<ManagerAppealManagementPage> {
           emptyIcon: CupertinoIcons.doc,
           onRetry: () => _refreshAppeals(),
           onLogin: () => NavigationHelper.offAllNamed(Routes.login),
-          child: CupertinoScrollbar(
-            thumbVisibility: true,
-            thickness: 6.0,
-            thicknessWhileDragging: 10.0,
-            child: ListView.builder(
-              itemCount: _filteredAppeals.length,
-              itemBuilder: (context, index) {
-                final appeal = _filteredAppeals[index];
-                return _buildAppealCard(appeal, themeData);
-              },
-            ),
+          child: ManagerRecordTable(
+            rows: [
+              for (final appeal in _filteredAppeals)
+                ManagerTableRow(
+                  cells: [
+                    ManagerTableCell(
+                      label: '申诉人',
+                      value: appeal.appellantName ?? '未知',
+                    ),
+                    ManagerTableCell(
+                      label: '原因',
+                      value: appeal.appealReason ?? '无',
+                    ),
+                    ManagerTableCell(
+                      label: '状态',
+                      value: getDisplayStatus(appeal.processStatus),
+                    ),
+                    ManagerTableCell(
+                      label: '时间',
+                      value: formatDateTime(appeal.appealTime),
+                    ),
+                  ],
+                  actions: [
+                    ManagerRecordAction(
+                      label: '处理',
+                      onPressed: () => _goToDetailPage(appeal),
+                    ),
+                  ],
+                ),
+            ],
           ),
         ),
       );
@@ -626,7 +594,7 @@ class _AppealDetailPageState extends State<AppealDetailPage> {
       developer.log('JWT token validated successfully for appeal request');
       return true;
     } catch (e) {
-      setState(() => _errorMessage = '无效的登录信息：$e，请重新登录');
+      setState(() => _errorMessage = '登录信息无效，请重新登录');
       developer.log('JWT validation failed: $e',
           stackTrace: StackTrace.current);
       return false;
@@ -643,7 +611,7 @@ class _AppealDetailPageState extends State<AppealDetailPage> {
       await appealApi.initializeWithJwt();
       await _checkUserRole();
     } catch (e) {
-      setState(() => _errorMessage = '初始化失败: $e');
+      setState(() => _errorMessage = '页面没有准备好，请稍后重试。');
       developer.log('Initialization failed: $e',
           stackTrace: StackTrace.current);
     } finally {

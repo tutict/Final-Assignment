@@ -29,7 +29,7 @@ export const entityConfigs: EntityConfigs = {
     label: '驾驶员信息',
     basePath: API_PATHS.DRIVERS,
     idField: 'driverId',
-    displayFields: ['driverId', 'name', 'idCardNumber', 'contactNumber', 'driverLicenseNumber', 'licenseType', 'currentPoints', 'status'],
+    displayFields: ['name', 'idCardNumber', 'contactNumber', 'driverLicenseNumber', 'licenseType', 'currentPoints', 'status', 'driverId'],
     editableFields: ['name', 'idCardNumber', 'gender', 'birthdate', 'contactNumber', 'email', 'address', 'driverLicenseNumber', 'licenseType', 'allowedVehicleType', 'firstLicenseDate', 'issueDate', 'expiryDate', 'issuingAuthority', 'status', 'remarks'],
     fields: [
       { name: 'driverId', type: 'int', readOnly: true },
@@ -99,7 +99,7 @@ export const entityConfigs: EntityConfigs = {
     label: '车辆信息',
     basePath: API_PATHS.VEHICLES,
     idField: 'vehicleId',
-    displayFields: ['vehicleId', 'licensePlate', 'vehicleType', 'brand', 'model', 'ownerName', 'ownerContact', 'status'],
+    displayFields: ['licensePlate', 'vehicleType', 'brand', 'model', 'ownerName', 'ownerContact', 'status', 'vehicleId'],
     editableFields: ['licensePlate', 'plateColor', 'vehicleType', 'brand', 'model', 'vehicleColor', 'engineNumber', 'frameNumber', 'ownerName', 'ownerIdCard', 'ownerContact', 'ownerAddress', 'firstRegistrationDate', 'registrationDate', 'issuingAuthority', 'status', 'inspectionExpiryDate', 'insuranceExpiryDate', 'remarks'],
     fields: [
       { name: 'vehicleId', type: 'int', readOnly: true },
@@ -173,7 +173,7 @@ export const entityConfigs: EntityConfigs = {
     label: '违法记录',
     basePath: API_PATHS.OFFENSES,
     idField: 'offenseId',
-    displayFields: ['offenseId', 'offenseNumber', 'offenseTime', 'offenseLocation', 'driverName', 'licensePlate', 'offenseType', 'fineAmount', 'deductedPoints', 'processStatus'],
+    displayFields: ['offenseNumber', 'driverName', 'licensePlate', 'offenseType', 'offenseTime', 'offenseLocation', 'fineAmount', 'deductedPoints', 'processStatus', 'offenseId'],
     editableFields: ['offenseCode', 'offenseNumber', 'offenseTime', 'offenseLocation', 'offenseProvince', 'offenseCity', 'driverId', 'vehicleId', 'offenseDescription', 'evidenceType', 'evidenceUrls', 'enforcementAgency', 'fineAmount', 'deductedPoints', 'detentionDays', 'remarks'],
     fields: [
       { name: 'offenseId', type: 'int', readOnly: true },
@@ -302,7 +302,7 @@ export const entityConfigs: EntityConfigs = {
     label: '扣分记录',
     basePath: API_PATHS.DEDUCTIONS,
     idField: 'deductionId',
-    displayFields: ['deductionId', 'offenseId', 'driverId', 'deductedPoints', 'deductionTime', 'scoringCycle', 'status', 'handler'],
+    displayFields: ['handler', 'deductedPoints', 'deductionTime', 'scoringCycle', 'status', 'deductionId'],
     editableFields: ['offenseId', 'driverId', 'deductedPoints', 'deductionTime', 'scoringCycle', 'status', 'restoreReason', 'remarks'],
     fields: [
       { name: 'deductionId', type: 'int', readOnly: true },
@@ -356,7 +356,7 @@ export const entityConfigs: EntityConfigs = {
     label: '罚款记录',
     basePath: API_PATHS.FINES,
     idField: 'fineId',
-    displayFields: ['fineId', 'offenseId', 'fineNumber', 'fineAmount', 'lateFee', 'totalAmount', 'paymentDeadline', 'paymentStatus', 'status'],
+    displayFields: ['fineNumber', 'fineAmount', 'lateFee', 'totalAmount', 'paymentDeadline', 'paymentStatus', 'status', 'fineId'],
     editableFields: ['offenseId', 'fineNumber', 'fineAmount', 'lateFee', 'totalAmount', 'fineDate', 'paymentDeadline', 'issuingAuthority', 'paymentStatus', 'status', 'remarks'],
     fields: [
       { name: 'fineId', type: 'int', readOnly: true },
@@ -465,7 +465,7 @@ export const entityConfigs: EntityConfigs = {
     // 缴费记录由罚款办理流程产生，前端仅作只读流水查询（对齐 Flutter：无独立缴费 CRUD 页，
     // PaymentRecordControllerApi 仅在违法/罚款工作流中调用）。清空 editableFields 以进入只读表格视图。
     editableFields: [],
-    displayFields: ['paymentId', 'fineId', 'paymentNumber', 'paymentAmount', 'paymentMethod', 'paymentTime', 'payerName', 'paymentStatus', 'receiptNumber'],
+    displayFields: ['payerName', 'paymentNumber', 'paymentAmount', 'paymentMethod', 'paymentTime', 'paymentStatus', 'receiptNumber', 'paymentId'],
     fields: [
       { name: 'paymentId', type: 'int', readOnly: true },
       // 后端字段：paymentId | 来源：PaymentRecord.paymentId
@@ -538,7 +538,7 @@ export const entityConfigs: EntityConfigs = {
     label: '违法类型字典',
     basePath: API_PATHS.OFFENSE_TYPES,
     idField: 'typeId',
-    displayFields: ['typeId', 'offenseCode', 'offenseName', 'category', 'standardFineAmount', 'deductedPoints', 'severityLevel', 'status'],
+    displayFields: ['offenseName', 'offenseCode', 'category', 'standardFineAmount', 'deductedPoints', 'severityLevel', 'status', 'typeId'],
     editableFields: ['offenseCode', 'offenseName', 'category', 'description', 'standardFineAmount', 'minFineAmount', 'maxFineAmount', 'deductedPoints', 'detentionDays', 'licenseSuspensionDays', 'severityLevel', 'legalBasis', 'status', 'remarks'],
     fields: [
       { name: 'typeId', type: 'int', readOnly: true },
@@ -596,7 +596,7 @@ export const entityConfigs: EntityConfigs = {
     label: '申诉记录',
     basePath: API_PATHS.APPEAL_LIST,
     idField: 'appealId',
-    displayFields: ['appealId', 'appealNumber', 'appellantName', 'appealType', 'appealTime', 'acceptanceStatus', 'processStatus', 'processResult'],
+    displayFields: ['appellantName', 'appealNumber', 'appealType', 'appealTime', 'acceptanceStatus', 'processStatus', 'processResult', 'appealId'],
     editableFields: ['offenseId', 'appealNumber', 'appellantName', 'appellantIdCard', 'appellantContact', 'appellantEmail', 'appellantAddress', 'appealType', 'appealReason', 'appealTime', 'evidenceDescription', 'evidenceUrls'],
     fields: [
       { name: 'appealId', type: 'int', readOnly: true },
@@ -683,7 +683,7 @@ export const entityConfigs: EntityConfigs = {
     basePath: API_PATHS.PROGRESS,
     idField: 'id',
     useCustomPage: true,
-    displayFields: ['id', 'businessType', 'businessId', 'businessStatus', 'userId', 'createdTime', 'modifiedTime'],
+    displayFields: ['businessType', 'businessStatus', 'createdTime', 'modifiedTime', 'id'],
     editableFields: [],
     fields: [
       { name: 'id', type: 'int', readOnly: true },
@@ -735,7 +735,7 @@ export const entityConfigs: EntityConfigs = {
     basePath: API_PATHS.USERS,
     idField: 'userId',
     useCustomPage: true,
-    displayFields: ['userId', 'username', 'realName', 'contactNumber', 'email', 'department', 'position', 'status', 'lastLoginTime'],
+    displayFields: ['realName', 'username', 'contactNumber', 'email', 'department', 'position', 'status', 'lastLoginTime', 'userId'],
     editableFields: ['username', 'realName', 'gender', 'contactNumber', 'email', 'department', 'position', 'employeeNumber', 'status', 'accountExpiryDate', 'remarks'],
     fields: [
       { name: 'userId', type: 'int', readOnly: true },
@@ -826,7 +826,7 @@ export const entityConfigs: EntityConfigs = {
     label: '角色管理',
     basePath: API_PATHS.ROLES,
     idField: 'roleId',
-    displayFields: ['roleId', 'roleCode', 'roleName', 'roleType', 'dataScope', 'status', 'sortOrder'],
+    displayFields: ['roleName', 'roleCode', 'roleType', 'dataScope', 'status', 'sortOrder', 'roleId'],
     editableFields: ['roleCode', 'roleName', 'roleType', 'roleDescription', 'dataScope', 'status', 'sortOrder', 'remarks'],
     fields: [
       { name: 'roleId', type: 'int', readOnly: true },
@@ -877,7 +877,7 @@ export const entityConfigs: EntityConfigs = {
     label: '权限管理',
     basePath: API_PATHS.PERMISSIONS,
     idField: 'permissionId',
-    displayFields: ['permissionId', 'permissionCode', 'permissionName', 'permissionType', 'menuPath', 'isVisible', 'status', 'sortOrder'],
+    displayFields: ['permissionName', 'permissionCode', 'permissionType', 'menuPath', 'isVisible', 'status', 'sortOrder', 'permissionId'],
     editableFields: ['parentId', 'permissionCode', 'permissionName', 'permissionType', 'permissionDescription', 'menuPath', 'menuIcon', 'component', 'isVisible', 'isExternal', 'sortOrder', 'status', 'remarks'],
     fields: [
       { name: 'permissionId', type: 'int', readOnly: true },
@@ -944,7 +944,7 @@ export const entityConfigs: EntityConfigs = {
     label: '系统设置',
     basePath: API_PATHS.SYSTEM_SETTINGS,
     idField: 'settingId',
-    displayFields: ['settingId', 'systemName', 'systemVersion', 'systemDescription', 'dateFormat', 'pageSize', 'loginTimeout', 'sessionTimeout', 'modifiedTime'],
+    displayFields: ['systemName', 'systemVersion', 'systemDescription', 'dateFormat', 'pageSize', 'loginTimeout', 'sessionTimeout', 'modifiedTime', 'settingId'],
     editableFields: ['systemName', 'systemDescription', 'copyrightInfo', 'loginTimeout', 'sessionTimeout', 'dateFormat', 'pageSize', 'remarks'],
     fields: [
       { name: 'settingId', type: 'int', readOnly: true },
@@ -1030,7 +1030,7 @@ export const entityConfigs: EntityConfigs = {
     label: '备份记录',
     basePath: API_PATHS.SYSTEM_BACKUP,
     idField: 'backupId',
-    displayFields: ['backupId', 'backupType', 'backupFileName', 'backupFileSize', 'backupTime', 'backupDuration', 'backupHandler', 'restoreStatus', 'status'],
+    displayFields: ['backupFileName', 'backupType', 'backupHandler', 'backupTime', 'restoreStatus', 'status', 'backupId'],
     editableFields: [],
     fields: [
       { name: 'backupId', type: 'int', readOnly: true },
@@ -1088,7 +1088,7 @@ export const entityConfigs: EntityConfigs = {
     label: '登录日志',
     basePath: API_PATHS.LOGIN_LOGS,
     idField: 'logId',
-    displayFields: ['logId', 'username', 'loginTime', 'logoutTime', 'loginResult', 'failureReason', 'loginIp', 'loginLocation', 'browserType', 'osType', 'deviceType'],
+    displayFields: ['username', 'loginTime', 'logoutTime', 'loginResult', 'failureReason', 'loginIp', 'loginLocation', 'browserType', 'osType', 'deviceType', 'logId'],
     editableFields: [],
     fields: [
       { name: 'logId', type: 'int', readOnly: true },
@@ -1164,7 +1164,7 @@ export const entityConfigs: EntityConfigs = {
     label: '操作日志',
     basePath: API_PATHS.OPERATION_LOGS,
     idField: 'logId',
-    displayFields: ['logId', 'operationType', 'operationModule', 'operationFunction', 'operationContent', 'operationTime', 'username', 'requestMethod', 'requestUrl', 'requestIp', 'operationResult', 'errorMessage', 'executionTime'],
+    displayFields: ['username', 'operationContent', 'operationType', 'operationModule', 'operationTime', 'operationResult', 'requestMethod', 'requestUrl', 'logId'],
     editableFields: [],
     fields: [
       { name: 'logId', type: 'int', readOnly: true },
@@ -1253,7 +1253,7 @@ export const entityConfigs: EntityConfigs = {
     basePath: API_PATHS.SYSTEM_LOGS,
     idField: 'id',
     useCustomPage: true,
-    displayFields: ['logId', 'logType', 'logContent', 'operationTime', 'operationUser', 'operationIpAddress', 'remarks'],
+    displayFields: ['logContent', 'logType', 'operationUser', 'operationTime', 'operationIpAddress', 'remarks', 'logId'],
     editableFields: [],
     fields: [
       { name: 'logId', type: 'int', readOnly: true },

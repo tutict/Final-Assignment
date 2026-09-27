@@ -1,4 +1,4 @@
-import { useDeferredValue, useMemo, useState } from 'react';
+import { useDeferredValue, useEffect, useMemo, useState } from 'react';
 import { useMutation, useQuery, type UseQueryResult } from '@tanstack/react-query';
 import PageLayout from '../../components/PageLayout';
 import DataTable from '../../components/DataTable';
@@ -41,6 +41,7 @@ interface CrudPageProps {
 
 export default function CrudPage({ config }: CrudPageProps) {
   const [search, setSearch] = useState('');
+  const [viewing, setViewing] = useState<Record<string, unknown> | null>(null);
   const [formData, setFormData] = useState<Record<string, unknown>>({});
   const [formError, setFormError] = useState('');
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
@@ -65,6 +66,8 @@ export default function CrudPage({ config }: CrudPageProps) {
   }, [allFields, config]);
   const useCustomPage = Boolean(config.useCustomPage);
   const canMutate = !useCustomPage && editableFields.length > 0;
+  const cards = config.layout === 'cards';
+  const showCreate = canMutate && !config.hideCreate;
 
   const fetchList = config.list
     ? config.list
@@ -110,6 +113,20 @@ export default function CrudPage({ config }: CrudPageProps) {
   }, [rows, displayFields, deferredSearch, config]);
 
   const columns = useMemo(() => buildColumns(displayFields), [displayFields]);
+  const pageSize = 20;
+  const [page, setPage] = useState(1);
+  const pageCount = Math.max(1, Math.ceil(filteredRows.length / pageSize));
+  const currentPage = Math.min(page, pageCount);
+
+  useEffect(() => {
+    setPage(1);
+  }, [deferredSearch]);
+
+  useEffect(() => {
+    if (page > pageCount) setPage(pageCount);
+  }, [page, pageCount]);
+
+  const pagedRows = filteredRows.slice((currentPage - 1) * pageSize, currentPage * pageSize);
 
   const handleOpenCreate = () => {
     if (!canMutate) return;
@@ -210,30 +227,106 @@ export default function CrudPage({ config }: CrudPageProps) {
       title={config.label}
       subtitle={config.subtitle || '数据管理与业务操作'}
       headerActions={
-        canMutate ? (
+        showCreate ? (
           <button type="button" className="primary" onClick={handleOpenCreate}>
             新增
           </button>
         ) : null
       }
     >
-      {!canMutate ? <div className="placeholder">此实体为只读视图</div> : null}
+      {!canMutate && !cards ? <div className="placeholder">此实体为只读视图</div> : null}
       <SearchBar
         value={search}
         onChange={setSearch}
         placeholder={`搜索${config.label}...`}
         actions={search !== deferredSearch ? <span className="search-hint">筛选中...</span> : null}
       />
-      {isLoading ? <div className="placeholder">加载中...</div> : null}
-      {error ? <div className="form-error">{getErrorMessage(error)}</div> : null}
+      {deferredSearch.trim() ? (
+        <div className="page-actions">
+          <span className="filter-chip">
+            筛选：{deferredSearch.trim()}
+            <button type="button" className="link-button" onClick={() => setSearch('')}>
+              清除
+            </button>
+          </span>
+        </div>
+      ) : null}
+      {isLoading ? <div className="placeholder">正在加载，请稍候。</div> : null}
+      {error ? (
+        <div className="error-state">
+          <p>列表没有加载成功。已填写的搜索会保留，可以重试。</p>
+          <button type="button" className="ghost" onClick={() => refetch()}>重试</button>
+        </div>
+      ) : null}
+      {!isLoading && !error && cards ? (
+        pagedRows.length === 0 ? null : (
+          <div className="record-list">
+            {pagedRows.map((row) => {
+              const titleField = displayFields[0];
+              const title = titleField ? String(row[titleField.name] ?? '未命名记录') : '未命名记录';
+              const key = String(row[config.idField] ?? title);
+              return (
+                <button
+                  key={key}
+                  type="button"
+                  className="task-card"
+                  onClick={() => {
+                    config.onView?.(row);
+                    setViewing(row);
+                  }}
+                >
+                  <strong>{title}</strong>
+                  {displayFields.slice(1, 4).map((field) => (
+                    <span key={field.name}>
+                      {field.label}：{String(row[field.name] ?? '—')}
+                    </span>
+                  ))}
+                </button>
+              );
+            })}
+          </div>
+        )
+      ) : null}
+      {!isLoading && !error && !cards ? (
       <DataTable
         columns={columns}
-        rows={filteredRows}
+        rows={pagedRows}
         onEdit={canMutate ? handleEdit : undefined}
         onDelete={canMutate ? handleConfirmDelete : undefined}
         onView={config.onView}
+        onRowClick={setViewing}
+        emptyMessage={deferredSearch.trim() ? '没有符合筛选的记录。清除筛选后再看，或新增一条。' : (showCreate ? '暂无记录。可以使用页面上的主操作新增。' : '暂无记录。')}
         getRowErrorMessage={config.errorRowMessage}
       />
+      ) : null}
+      {cards && !isLoading && !error && pagedRows.length === 0 ? (
+        <div className="placeholder">
+          {deferredSearch.trim() ? '没有符合筛选的记录。清除筛选后再看。' : (showCreate ? '暂无记录。可以使用页面上的主操作新增。' : '暂无记录。')}
+        </div>
+      ) : null}
+      {filteredRows.length > 0 ? (
+        <div className="table-pager">
+          <span>第 {currentPage} / {pageCount} 页</span>
+          <button type="button" className="ghost" disabled={currentPage <= 1} onClick={() => setPage(currentPage - 1)}>
+            上一页
+          </button>
+          <button type="button" className="ghost" disabled={currentPage >= pageCount} onClick={() => setPage(currentPage + 1)}>
+            下一页
+          </button>
+        </div>
+      ) : null}
+      {viewing ? (
+        <aside className="detail-drawer" aria-label="记录详情">
+          <h2>记录详情</h2>
+          {displayFields.map((field) => (
+            <p key={field.name}>
+              <strong>{field.label}：</strong>
+              {String(viewing[field.name] ?? '—')}
+            </p>
+          ))}
+          <button type="button" className="ghost" onClick={() => setViewing(null)}>关闭</button>
+        </aside>
+      ) : null}
       <Modal
         isOpen={isModalOpen}
         title={editing ? `编辑${config.label}` : `新增${config.label}`}

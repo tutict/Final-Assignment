@@ -193,7 +193,7 @@ export default function ManagerPersonalPage() {
   };
 
   return (
-    <PageLayout
+    <PageLayout reading
       title="管理员信息"
       subtitle="账户与权限概览"
       headerActions={

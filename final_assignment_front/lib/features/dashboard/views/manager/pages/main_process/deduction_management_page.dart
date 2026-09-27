@@ -1,3 +1,4 @@
+import 'package:final_assignment_front/features/dashboard/views/manager/pages/main_process/manager_record_table.dart';
 import 'package:final_assignment_front/core/utils/app_logger.dart';
 import 'package:final_assignment_front/config/routes/app_routes.dart';
 import 'package:final_assignment_front/features/api/deduction_information_controller_api.dart';
@@ -32,7 +33,6 @@ class _DeductionManagementState extends State<DeductionManagementPage>
   List<DeductionRecordModel> _filteredDeductions = [];
   String _searchType = 'handler';
   int _currentPage = 1;
-  final int _pageSize = 20;
   bool _hasMore = true;
   bool _isLoading = false;
   String _errorMessage = '';
@@ -41,7 +41,6 @@ class _DeductionManagementState extends State<DeductionManagementPage>
   DateTime? _endTime;
   final ManagerDashboardController controller =
       Get.find<ManagerDashboardController>();
-  final ScrollController _scrollController = ScrollController();
 
   @override
   void initState() {
@@ -50,20 +49,11 @@ class _DeductionManagementState extends State<DeductionManagementPage>
     _searchController.addListener(() {
       _applyFilters(_searchController.text);
     });
-    _scrollController.addListener(() {
-      if (_scrollController.position.pixels >=
-              _scrollController.position.maxScrollExtent - 200 &&
-          !_isLoading &&
-          _hasMore) {
-        _loadDeductions();
-      }
-    });
   }
 
   @override
   void dispose() {
     _searchController.dispose();
-    _scrollController.dispose();
     super.dispose();
   }
 
@@ -80,7 +70,7 @@ class _DeductionManagementState extends State<DeductionManagementPage>
       await deductionApi.initializeWithJwt();
       await _loadDeductions(reset: true);
     } catch (e) {
-      setState(() => _errorMessage = '初始化失败: $e');
+      setState(() => _errorMessage = '页面没有准备好，请稍后重试。');
     } finally {
       setState(() => _isLoading = false);
     }
@@ -127,8 +117,11 @@ class _DeductionManagementState extends State<DeductionManagementPage>
       }
 
       setState(() {
-        _deductions.addAll(deductions);
-        _hasMore = deductions.length == _pageSize;
+        _deductions
+          ..clear()
+          ..addAll(deductions);
+        _hasMore = false;
+        _currentPage = 1;
         _applyFilters(query ?? _searchController.text);
         if (_filteredDeductions.isEmpty) {
           _errorMessage =
@@ -136,8 +129,6 @@ class _DeductionManagementState extends State<DeductionManagementPage>
                   ? '未找到符合条件的扣分记录'
                   : '暂无扣分记录';
         }
-        if (reset) _currentPage = 1;
-        _currentPage++;
       });
 
       // Clear cache to ensure fresh data
@@ -153,7 +144,7 @@ class _DeductionManagementState extends State<DeductionManagementPage>
         } else if (e.toString().contains('403')) {
           _errorMessage = '您没有权限查看扣分记录';
         } else {
-          _errorMessage = '获取扣分记录失败: ${_formatErrorMessage(e)}';
+          _errorMessage = '扣分记录没有加载成功，请重试。';
         }
       });
     } finally {
@@ -209,24 +200,6 @@ class _DeductionManagementState extends State<DeductionManagementPage>
   void _showSnackBar(String message, {bool isError = false}) {
     if (!mounted) return;
     showManagerBusinessToast(context, message: message, isError: isError);
-  }
-
-  String _formatErrorMessage(dynamic error) {
-    if (error is AppException) {
-      switch (error.code) {
-        case 400:
-          return '请求错误: ${error.message}';
-        case 403:
-          return '无权限: ${error.message}';
-        case 404:
-          return '未找到: ${error.message}';
-        case 409:
-          return '重复请求: ${error.message}';
-        default:
-          return '服务器错误: ${error.message}';
-      }
-    }
-    return '操作失败: $error';
   }
 
   String formatDateTime(DateTime? dateTime) {
@@ -408,127 +381,78 @@ class _DeductionManagementState extends State<DeductionManagementPage>
           emptyIcon: Icons.fact_check_outlined,
           onRetry: () => _loadDeductions(reset: true),
           onLogin: () => NavigationHelper.offAllNamed(Routes.login),
-          child: NotificationListener<ScrollNotification>(
-            onNotification: (notification) {
-              if (notification is ScrollEndNotification &&
-                  _scrollController.position.extentAfter < 200 &&
-                  !_isLoading &&
-                  _hasMore) {
-                _loadDeductions();
-              }
-              return false;
-            },
-            child: ListView.builder(
-              controller: _scrollController,
-              itemCount: _filteredDeductions.length + (_hasMore ? 1 : 0),
-              itemBuilder: (context, index) {
-                if (index == _filteredDeductions.length && _hasMore) {
-                  return Center(
-                      child: CircularProgressIndicator(
-                          color: themeData.colorScheme.primary));
-                }
-                final deduction = _filteredDeductions[index];
-                return DashboardPanel(
-                  margin: const EdgeInsets.symmetric(vertical: 8.0),
-                  padding: EdgeInsets.zero,
-                  child: ListTile(
-                    contentPadding: const EdgeInsets.symmetric(
-                        horizontal: 16.0, vertical: 8.0),
-                    title: Text(
-                      '扣分: ${deduction.deductedPoints ?? 0}',
-                      style: themeData.textTheme.titleMedium?.copyWith(
-                        color: themeData.colorScheme.primary,
-                        fontWeight: FontWeight.w800,
-                      ),
+          child: ManagerRecordTable(
+            rows: [
+              for (final deduction in _filteredDeductions)
+                ManagerTableRow(
+                  cells: [
+                    ManagerTableCell(label: '处理人', value: deduction.handler ?? '未知'),
+                    ManagerTableCell(
+                      label: '扣分',
+                      value: '${deduction.deductedPoints ?? 0}',
                     ),
-                    subtitle: Text(
-                      '处理人: ${deduction.handler ?? '未知'} | 时间: ${formatDateTime(deduction.deductionTime)} | 违法ID: ${deduction.offenseId ?? '无'}',
-                      style: themeData.textTheme.bodyMedium?.copyWith(
-                        color: themeData.colorScheme.onSurfaceVariant,
-                      ),
+                    ManagerTableCell(
+                      label: '时间',
+                      value: formatDateTime(deduction.deductionTime),
                     ),
-                    trailing: _isAdmin
-                        ? Row(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              IconButton(
-                                icon: Icon(Icons.edit,
-                                    size: 18,
-                                    color: themeData.colorScheme.primary),
-                                onPressed: () {
-                                  Navigator.push(
-                                    context,
-                                    MaterialPageRoute(
-                                      builder: (context) => EditDeductionPage(
-                                          deduction: deduction),
+                    ManagerTableCell(
+                      label: '关联违法',
+                      value: deduction.offenseId?.toString() ?? '无',
+                    ),
+                  ],
+                  actions: _isAdmin
+                      ? [
+                          ManagerRecordAction(
+                            label: '编辑',
+                            onPressed: () {
+                              Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                  builder: (context) =>
+                                      EditDeductionPage(deduction: deduction),
+                                ),
+                              ).then((value) {
+                                if (value == true) _loadDeductions(reset: true);
+                              });
+                            },
+                          ),
+                          ManagerRecordAction(
+                            label: '删除',
+                            danger: true,
+                            onPressed: () async {
+                              final confirm = await showDialog<bool>(
+                                context: context,
+                                builder: (context) => AlertDialog(
+                                  title: const Text('确认删除'),
+                                  content: const Text('确定要删除此扣分记录吗？'),
+                                  actions: [
+                                    TextButton(
+                                      onPressed: () => Navigator.pop(context, false),
+                                      child: const Text('取消'),
                                     ),
-                                  ).then((value) {
-                                    if (value == true) {
-                                      _loadDeductions(reset: true);
-                                    }
-                                  });
-                                },
-                                tooltip: '编辑',
-                              ),
-                              IconButton(
-                                icon: Icon(Icons.delete,
-                                    size: 18,
-                                    color: themeData.colorScheme.error),
-                                onPressed: () async {
-                                  final confirm = await showDialog<bool>(
-                                    context: context,
-                                    builder: (context) => AlertDialog(
-                                      title: const Text('确认删除'),
-                                      content: const Text('确定要删除此扣分记录吗？'),
-                                      actions: [
-                                        TextButton(
-                                          onPressed: () =>
-                                              Navigator.pop(context, false),
-                                          child: const Text('取消'),
-                                        ),
-                                        TextButton(
-                                          onPressed: () =>
-                                              Navigator.pop(context, true),
-                                          child: const Text('删除'),
-                                        ),
-                                      ],
+                                    TextButton(
+                                      onPressed: () => Navigator.pop(context, true),
+                                      child: const Text('删除'),
                                     ),
-                                  );
-                                  if (confirm == true) {
-                                    try {
-                                      await deductionApi.deleteDeduction(
-                                          deductionId: deduction.deductionId!);
-                                      _showSnackBar('删除扣分记录成功');
-                                      _loadDeductions(reset: true);
-                                    } catch (e) {
-                                      _showSnackBar(
-                                          '删除失败: ${_formatErrorMessage(e)}',
-                                          isError: true);
-                                    }
-                                  }
-                                },
-                                tooltip: '删除',
-                              ),
-                            ],
-                          )
-                        : null,
-                    onTap: () {
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (context) =>
-                              EditDeductionPage(deduction: deduction),
-                        ),
-                      ).then((value) {
-                        if (value == true) {
-                          _loadDeductions(reset: true);
-                        }
-                      });
-                    },
-                  ),
-                );
-              },
-            ),
+                                  ],
+                                ),
+                              );
+                              if (confirm != true) return;
+                              try {
+                                await deductionApi.deleteDeduction(
+                                  deductionId: deduction.deductionId!,
+                                );
+                                _showSnackBar('删除扣分记录成功');
+                                _loadDeductions(reset: true);
+                              } catch (e) {
+                                _showSnackBar('没有删除成功，请重试。', isError: true);
+                              }
+                            },
+                          ),
+                        ]
+                      : const <ManagerRecordAction>[],
+                ),
+            ],
           ),
         ),
       );
@@ -578,7 +502,7 @@ class _AddDeductionPageState extends State<AddDeductionPage>
       await offenseApi.initializeWithJwt();
       await _fetchOffenseSuggestions();
     } catch (e) {
-      _showSnackBar('初始化失败: $e', isError: true);
+      _showSnackBar('页面没有准备好，请稍后重试。', isError: true);
     } finally {
       setState(() => _isLoading = false);
     }
@@ -793,25 +717,25 @@ class _AddDeductionPageState extends State<AddDeductionPage>
         controller: controller,
         helperText: label == '处理人' || label == '审批人'
             ? '请输入$label 姓名（选填）'
-            : label == '扣分分数 *'
+            : label == '扣分分数 必填'
                 ? '请输入扣分点数'
-                : label == '扣分时间 *'
+                : label == '扣分时间 必填'
                     ? '请选择扣分日期'
                     : null,
-        suffix: label == '扣分时间 *'
+        suffix: label == '扣分时间 必填'
             ? Icon(Icons.calendar_today,
                 size: 18, color: themeData.colorScheme.primary)
             : null,
-        showClear: label != '扣分时间 *',
+        showClear: label != '扣分时间 必填',
         keyboardType: keyboardType,
-        readOnly: label == '扣分时间 *' ? true : readOnly,
-        onTap: label == '扣分时间 *' ? _pickDate : onTap,
+        readOnly: label == '扣分时间 必填' ? true : readOnly,
+        onTap: label == '扣分时间 必填' ? _pickDate : onTap,
         maxLength: maxLength,
         validator: validator ??
             (value) {
               final trimmedValue = value?.trim() ?? '';
               if (required && trimmedValue.isEmpty) return '$label不能为空';
-              if (label == '扣分分数 *') {
+              if (label == '扣分分数 必填') {
                 final points = int.tryParse(trimmedValue);
                 if (points == null) return '扣分必须是数字';
                 if (points < 0) return '扣分不能为负数';
@@ -823,7 +747,7 @@ class _AddDeductionPageState extends State<AddDeductionPage>
               if (label == '备注' && trimmedValue.length > 255) {
                 return '备注不能超过255个字符';
               }
-              if (label == '扣分时间 *') {
+              if (label == '扣分时间 必填') {
                 final date = DateTime.tryParse('$trimmedValue 00:00:00.000');
                 if (date == null) return '无效的日期格式';
                 if (date.isAfter(DateTime.now())) return '扣分日期不能晚于当前日期';
@@ -841,6 +765,7 @@ class _AddDeductionPageState extends State<AddDeductionPage>
       return DashboardPageTemplate(
         theme: themeData,
         title: '添加扣分信息',
+        reading: true,
         pageType: DashboardPageType.manager,
         bodyIsScrollable: true,
         padding: EdgeInsets.zero,
@@ -852,7 +777,10 @@ class _AddDeductionPageState extends State<AddDeductionPage>
                 padding: const EdgeInsets.all(16.0),
                 child: Form(
                   key: _formKey,
-                  child: SingleChildScrollView(
+                  child: Column(
+                    children: [
+                      Expanded(
+                        child: SingleChildScrollView(
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
@@ -861,7 +789,7 @@ class _AddDeductionPageState extends State<AddDeductionPage>
                           child: Column(
                             children: [
                               _buildTextField(
-                                '违法记录 *',
+                                '违法记录 必填',
                                 TextEditingController(),
                                 themeData,
                                 required: true,
@@ -870,7 +798,7 @@ class _AddDeductionPageState extends State<AddDeductionPage>
                                 onSelected: _onOffenseSelected,
                               ),
                               _buildTextField(
-                                '扣分分数 *',
+                                '扣分分数 必填',
                                 _deductedPointsController,
                                 themeData,
                                 keyboardType: TextInputType.number,
@@ -895,7 +823,7 @@ class _AddDeductionPageState extends State<AddDeductionPage>
                                 maxLength: 255,
                               ),
                               _buildTextField(
-                                '扣分时间 *',
+                                '扣分时间 必填',
                                 _dateController,
                                 themeData,
                                 required: true,
@@ -903,8 +831,14 @@ class _AddDeductionPageState extends State<AddDeductionPage>
                             ],
                           ),
                         ),
-                        const SizedBox(height: 20),
-                        ElevatedButton(
+                        
+                      ],
+                    ),
+                  ),
+                      ),
+                      Align(
+                        alignment: Alignment.centerRight,
+                        child: ElevatedButton(
                           onPressed: _submitDeduction,
                           style: ElevatedButton.styleFrom(
                             backgroundColor: themeData.colorScheme.primary,
@@ -920,8 +854,8 @@ class _AddDeductionPageState extends State<AddDeductionPage>
                           ),
                           child: const Text('提交'),
                         ),
-                      ],
-                    ),
+                      ),
+                    ],
                   ),
                 ),
               ),
@@ -975,7 +909,7 @@ class _EditDeductionPageState extends State<EditDeductionPage>
       await offenseApi.initializeWithJwt();
       await _fetchOffenseSuggestions();
     } catch (e) {
-      _showSnackBar('初始化失败: $e', isError: true);
+      _showSnackBar('页面没有准备好，请稍后重试。', isError: true);
     } finally {
       setState(() => _isLoading = false);
     }
@@ -1194,25 +1128,25 @@ class _EditDeductionPageState extends State<EditDeductionPage>
         controller: controller,
         helperText: label == '处理人' || label == '审批人'
             ? '请输入$label 姓名（选填）'
-            : label == '扣分分数 *'
+            : label == '扣分分数 必填'
                 ? '请输入扣分点数'
-                : label == '扣分时间 *'
+                : label == '扣分时间 必填'
                     ? '请选择扣分日期'
                     : null,
-        suffix: label == '扣分时间 *'
+        suffix: label == '扣分时间 必填'
             ? Icon(Icons.calendar_today,
                 size: 18, color: themeData.colorScheme.primary)
             : null,
-        showClear: label != '扣分时间 *',
+        showClear: label != '扣分时间 必填',
         keyboardType: keyboardType,
-        readOnly: label == '扣分时间 *' ? true : readOnly,
-        onTap: label == '扣分时间 *' ? _pickDate : onTap,
+        readOnly: label == '扣分时间 必填' ? true : readOnly,
+        onTap: label == '扣分时间 必填' ? _pickDate : onTap,
         maxLength: maxLength,
         validator: validator ??
             (value) {
               final trimmedValue = value?.trim() ?? '';
               if (required && trimmedValue.isEmpty) return '$label不能为空';
-              if (label == '扣分分数 *') {
+              if (label == '扣分分数 必填') {
                 final points = int.tryParse(trimmedValue);
                 if (points == null) return '扣分必须是数字';
                 if (points < 0) return '扣分不能为负数';
@@ -1224,7 +1158,7 @@ class _EditDeductionPageState extends State<EditDeductionPage>
               if (label == '备注' && trimmedValue.length > 255) {
                 return '备注不能超过255个字符';
               }
-              if (label == '扣分时间 *') {
+              if (label == '扣分时间 必填') {
                 final date = DateTime.tryParse('$trimmedValue 00:00:00.000');
                 if (date == null) return '无效的日期格式';
                 if (date.isAfter(DateTime.now())) return '扣分日期不能晚于当前日期';
@@ -1242,6 +1176,7 @@ class _EditDeductionPageState extends State<EditDeductionPage>
       return DashboardPageTemplate(
         theme: themeData,
         title: '编辑扣分信息',
+        reading: true,
         pageType: DashboardPageType.manager,
         bodyIsScrollable: true,
         padding: EdgeInsets.zero,
@@ -1253,7 +1188,10 @@ class _EditDeductionPageState extends State<EditDeductionPage>
                 padding: const EdgeInsets.all(16.0),
                 child: Form(
                   key: _formKey,
-                  child: SingleChildScrollView(
+                  child: Column(
+                    children: [
+                      Expanded(
+                        child: SingleChildScrollView(
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
@@ -1262,7 +1200,7 @@ class _EditDeductionPageState extends State<EditDeductionPage>
                           child: Column(
                               children: [
                                 _buildTextField(
-                                  '违法记录 *',
+                                  '违法记录 必填',
                                   TextEditingController(
                                       text: _selectedOffenseId != null
                                           ? _offenseSuggestions.firstWhere(
@@ -1282,7 +1220,7 @@ class _EditDeductionPageState extends State<EditDeductionPage>
                                   onSelected: _onOffenseSelected,
                                 ),
                                 _buildTextField(
-                                  '扣分分数 *',
+                                  '扣分分数 必填',
                                   _deductedPointsController,
                                   themeData,
                                   keyboardType: TextInputType.number,
@@ -1307,7 +1245,7 @@ class _EditDeductionPageState extends State<EditDeductionPage>
                                   maxLength: 255,
                                 ),
                                 _buildTextField(
-                                  '扣分时间 *',
+                                  '扣分时间 必填',
                                   _dateController,
                                   themeData,
                                   required: true,
@@ -1315,8 +1253,14 @@ class _EditDeductionPageState extends State<EditDeductionPage>
                               ],
                             ),
                         ),
-                        const SizedBox(height: 20),
-                        ElevatedButton(
+                        
+                      ],
+                    ),
+                  ),
+                      ),
+                      Align(
+                        alignment: Alignment.centerRight,
+                        child: ElevatedButton(
                           onPressed: _submitDeduction,
                           style: ElevatedButton.styleFrom(
                             backgroundColor: themeData.colorScheme.primary,
@@ -1330,8 +1274,8 @@ class _EditDeductionPageState extends State<EditDeductionPage>
                           ),
                           child: const Text('保存'),
                         ),
-                      ],
-                    ),
+                      ),
+                    ],
                   ),
                 ),
               ),

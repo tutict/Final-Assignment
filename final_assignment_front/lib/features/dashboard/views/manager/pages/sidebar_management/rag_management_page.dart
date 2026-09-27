@@ -308,8 +308,9 @@ class _RagManagementPageState extends State<RagManagementPage> {
               route: route,
               metadataJson: document.metadataJson,
             );
-            if (!mounted) return;
+            if (!context.mounted) return;
             Navigator.pop(context);
+            if (!mounted) return;
             _showSnack(
               '已重索引：${result.chunkCount} 个切片，${result.embeddingTaskCount} 个向量任务',
             );

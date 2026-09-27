@@ -5,6 +5,7 @@ import 'package:final_assignment_front/features/api/system_logs_controller_api.d
 import 'package:final_assignment_front/core/network/app_exception.dart';
 import 'package:final_assignment_front/features/dashboard/controllers/manager_dashboard_controller.dart';
 import 'package:final_assignment_front/features/dashboard/views/shared/widgets/dashboard_chrome.dart';
+import 'package:final_assignment_front/features/dashboard/views/manager/pages/main_process/manager_record_table.dart';
 import 'package:final_assignment_front/features/dashboard/views/shared/widgets/dashboard_page_template.dart';
 import 'package:final_assignment_front/features/dashboard/views/shared/widgets/page_auth_mixin.dart';
 import 'package:final_assignment_front/features/model/login_log.dart';
@@ -70,7 +71,7 @@ class _SystemLogPageState extends State<SystemLogPage> with PageAuthMixin {
       await logApi.initializeWithJwt();
       await _fetchSystemLogData(showLoader: false);
     } catch (e) {
-      setState(() => _errorMessage = '初始化失败: $e');
+      setState(() => _errorMessage = '页面没有准备好，请稍后重试。');
     } finally {
       setState(() => _isLoading = false);
     }
@@ -103,7 +104,7 @@ class _SystemLogPageState extends State<SystemLogPage> with PageAuthMixin {
         if (e is AppException && e.code == 403) {
           _errorMessage = '您没有权限查看系统日志';
         } else {
-          _errorMessage = '加载系统日志失败: ${_formatErrorMessage(e)}';
+          _errorMessage = '系统日志没有加载成功，请稍后重试。';
         }
       });
     } finally {
@@ -123,38 +124,6 @@ class _SystemLogPageState extends State<SystemLogPage> with PageAuthMixin {
       RegExp('(?<=[a-z])([A-Z])'),
       (match) => ' ${match.group(1)}',
     );
-  }
-
-  String _buildDeviceInfo(LoginLog log) {
-    final parts = <String>[];
-    if (log.browserType != null && log.browserType!.isNotEmpty) {
-      parts.add(log.browserType!);
-    }
-    if (log.osType != null && log.osType!.isNotEmpty) {
-      parts.add(log.osType!);
-    }
-    if (log.deviceType != null && log.deviceType!.isNotEmpty) {
-      parts.add(log.deviceType!);
-    }
-    return parts.isEmpty ? '未知' : parts.join(' / ');
-  }
-
-  String _formatErrorMessage(dynamic error) {
-    if (error is AppException) {
-      switch (error.code) {
-        case 400:
-          return '请求错误: ${error.message}';
-        case 403:
-          return '无权限: ${error.message}';
-        case 404:
-          return '未找到数据: ${error.message}';
-        case 409:
-          return '重复请求: ${error.message}';
-        default:
-          return '服务器错误: ${error.message}';
-      }
-    }
-    return '操作失败: $error';
   }
 
   Widget _buildWarningCard(ThemeData themeData) {
@@ -279,62 +248,32 @@ class _SystemLogPageState extends State<SystemLogPage> with PageAuthMixin {
           Text(
             '近期登录日志',
             style: themeData.textTheme.titleMedium?.copyWith(
+              fontSize: 18,
               color: themeData.colorScheme.onSurface,
-              fontWeight: FontWeight.w800,
+              fontWeight: FontWeight.w700,
             ),
           ),
           const SizedBox(height: 12),
           if (_recentLoginLogs.isEmpty)
-            _buildEmptySection(themeData, '暂无登录日志')
+            _buildEmptySection(themeData, '暂无登录日志。刷新后会显示在这里。')
           else
-            ..._recentLoginLogs.asMap().entries.map((entry) {
-              return Column(
-                children: [
-                  _buildLoginLogTile(entry.value, themeData),
-                  if (entry.key != _recentLoginLogs.length - 1)
-                    Divider(
-                      height: 16,
-                      color: themeData.colorScheme.outlineVariant,
+            SizedBox(
+              height: 420,
+              child: ManagerRecordTable(
+                rows: [
+                  for (final log in _recentLoginLogs)
+                    ManagerTableRow(
+                      cells: [
+                        ManagerTableCell(label: '用户', value: log.username ?? '未知用户'),
+                        ManagerTableCell(label: '结果', value: log.loginResult ?? '未知'),
+                        ManagerTableCell(label: '时间', value: formatDateTime(log.loginTime)),
+                        ManagerTableCell(label: 'IP', value: log.loginIp ?? '未知'),
+                      ],
                     ),
                 ],
-              );
-            }),
+              ),
+            ),
         ],
-      ),
-    );
-  }
-
-  Widget _buildLoginLogTile(LoginLog log, ThemeData themeData) {
-    final subtitleStyle = themeData.textTheme.bodyMedium?.copyWith(
-      color: themeData.colorScheme.onSurfaceVariant,
-    );
-    return ListTile(
-      contentPadding: EdgeInsets.zero,
-      title: Text(
-        log.username ?? '未知用户',
-        style: themeData.textTheme.titleMedium?.copyWith(
-          color: themeData.colorScheme.onSurface,
-          fontWeight: FontWeight.w600,
-        ),
-      ),
-      subtitle: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text('结果: ${log.loginResult ?? "未知"}', style: subtitleStyle),
-          Text('IP: ${log.loginIp ?? "未知"}', style: subtitleStyle),
-          if (log.loginLocation != null && log.loginLocation!.isNotEmpty)
-            Text('位置: ${log.loginLocation}', style: subtitleStyle),
-          Text('终端: ${_buildDeviceInfo(log)}', style: subtitleStyle),
-          if (log.remarks != null && log.remarks!.isNotEmpty)
-            Text('备注: ${log.remarks}', style: subtitleStyle),
-        ],
-      ),
-      trailing: Text(
-        formatDateTime(log.loginTime),
-        style: themeData.textTheme.bodySmall?.copyWith(
-          color: themeData.colorScheme.onSurfaceVariant,
-        ),
-        textAlign: TextAlign.right,
       ),
     );
   }
@@ -348,70 +287,38 @@ class _SystemLogPageState extends State<SystemLogPage> with PageAuthMixin {
           Text(
             '近期操作日志',
             style: themeData.textTheme.titleMedium?.copyWith(
+              fontSize: 18,
               color: themeData.colorScheme.onSurface,
-              fontWeight: FontWeight.w800,
+              fontWeight: FontWeight.w700,
             ),
           ),
           const SizedBox(height: 12),
           if (_recentOperationLogs.isEmpty)
-            _buildEmptySection(themeData, '暂无操作日志')
+            _buildEmptySection(themeData, '暂无操作日志。刷新后会显示在这里。')
           else
-            ..._recentOperationLogs.asMap().entries.map((entry) {
-              return Column(
-                children: [
-                  _buildOperationLogTile(entry.value, themeData),
-                  if (entry.key != _recentOperationLogs.length - 1)
-                    Divider(
-                      height: 16,
-                      color: themeData.colorScheme.outlineVariant,
+            SizedBox(
+              height: 420,
+              child: ManagerRecordTable(
+                rows: [
+                  for (final log in _recentOperationLogs)
+                    ManagerTableRow(
+                      cells: [
+                        ManagerTableCell(
+                          label: '用户',
+                          value: log.username ?? log.realName ?? '未知用户',
+                        ),
+                        ManagerTableCell(
+                          label: '模块',
+                          value: log.operationModule ?? log.operationFunction ?? '未知模块',
+                        ),
+                        ManagerTableCell(label: '结果', value: log.operationResult ?? '未知'),
+                        ManagerTableCell(label: '时间', value: formatDateTime(log.operationTime)),
+                      ],
                     ),
                 ],
-              );
-            }),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildOperationLogTile(OperationLog log, ThemeData themeData) {
-    final subtitleStyle = themeData.textTheme.bodyMedium?.copyWith(
-      color: themeData.colorScheme.onSurfaceVariant,
-    );
-    final userLabel =
-        log.username ?? log.realName ?? log.userId?.toString() ?? '未知用户';
-    return ListTile(
-      contentPadding: EdgeInsets.zero,
-      title: Text(
-        log.operationModule ?? log.operationFunction ?? '未知模块',
-        style: themeData.textTheme.titleMedium?.copyWith(
-          color: themeData.colorScheme.onSurface,
-          fontWeight: FontWeight.w600,
-        ),
-      ),
-      subtitle: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text('类型: ${log.operationType ?? "未知"}', style: subtitleStyle),
-          Text('用户: $userLabel', style: subtitleStyle),
-          Text('结果: ${log.operationResult ?? "未知"}', style: subtitleStyle),
-          if (log.operationContent != null && log.operationContent!.isNotEmpty)
-            Text(
-              '内容: ${log.operationContent}',
-              style: subtitleStyle,
-              maxLines: 2,
-              overflow: TextOverflow.ellipsis,
+              ),
             ),
-          Text('IP: ${log.requestIp ?? "未知"}', style: subtitleStyle),
-          if (log.remarks != null && log.remarks!.isNotEmpty)
-            Text('备注: ${log.remarks}', style: subtitleStyle),
         ],
-      ),
-      trailing: Text(
-        formatDateTime(log.operationTime),
-        style: themeData.textTheme.bodySmall?.copyWith(
-          color: themeData.colorScheme.onSurfaceVariant,
-        ),
-        textAlign: TextAlign.right,
       ),
     );
   }
@@ -438,17 +345,16 @@ class _SystemLogPageState extends State<SystemLogPage> with PageAuthMixin {
               textAlign: TextAlign.center,
             ),
             const SizedBox(height: 16),
-            ElevatedButton(
-              onPressed: () => NavigationHelper.offAllNamed(Routes.login),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: themeData.colorScheme.primary,
-                foregroundColor: themeData.colorScheme.onPrimary,
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(8),
-                ),
+            if (_errorMessage.contains('权限') || _errorMessage.contains('登录'))
+              ElevatedButton(
+                onPressed: () => NavigationHelper.offAllNamed(Routes.login),
+                child: const Text('重新登录'),
+              )
+            else
+              ElevatedButton(
+                onPressed: _initialize,
+                child: const Text('重试'),
               ),
-              child: const Text('重新登录'),
-            ),
           ],
         ),
       ),

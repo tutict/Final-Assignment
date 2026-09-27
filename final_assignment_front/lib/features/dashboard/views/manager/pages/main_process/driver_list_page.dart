@@ -1,4 +1,5 @@
 // ignore_for_file: use_build_context_synchronously
+import 'package:final_assignment_front/features/dashboard/views/manager/pages/main_process/manager_record_table.dart';
 import 'dart:developer' as developer;
 import 'package:final_assignment_front/core/network/app_exception.dart';
 import 'package:flutter/cupertino.dart';
@@ -187,53 +188,29 @@ class _DriverListPageState extends State<DriverListPage> {
               : '',
           emptyIcon: Icons.badge_outlined,
           onRetry: _loadDrivers,
-          child: ListView.builder(
-            physics: const AlwaysScrollableScrollPhysics(),
-            itemCount: _filteredDrivers.length,
-            itemBuilder: (context, index) {
-              final driver = _filteredDrivers[index];
-              final name = driver.name ?? '未知';
-              final id = driver.driverId?.toString() ?? '无';
-              final gender = _mapGenderToDisplay(driver.gender);
-              final contact = driver.contactNumber ?? '无';
-
-              return DashboardPanel(
-                padding: const EdgeInsets.all(16.0),
-                margin: const EdgeInsets.symmetric(vertical: 8.0),
-                child: ListTile(
-                  dense: true,
-                  contentPadding: EdgeInsets.zero,
-                  leading: CircleAvatar(
-                    backgroundColor: themeData.colorScheme.primaryContainer,
-                    child: Text(
-                      name.isNotEmpty ? name[0] : '?',
-                      style: TextStyle(
-                        color: themeData.colorScheme.onPrimaryContainer,
-                        fontWeight: FontWeight.w800,
-                      ),
+          child: ManagerRecordTable(
+            rows: [
+              for (final driver in _filteredDrivers)
+                ManagerTableRow(
+                  cells: [
+                    ManagerTableCell(label: '姓名', value: driver.name ?? '未知'),
+                    ManagerTableCell(
+                      label: '性别',
+                      value: _mapGenderToDisplay(driver.gender),
                     ),
-                  ),
-                  title: Text(
-                    name,
-                    style: themeData.textTheme.titleMedium?.copyWith(
-                      fontWeight: FontWeight.w800,
-                      color: themeData.colorScheme.onSurface,
+                    ManagerTableCell(
+                      label: '电话',
+                      value: driver.contactNumber ?? '无',
                     ),
-                  ),
-                  subtitle: Text(
-                    'ID: $id | 性别: $gender | 电话: $contact',
-                    style: themeData.textTheme.bodyMedium?.copyWith(
-                      color: themeData.colorScheme.onSurfaceVariant,
+                  ],
+                  actions: [
+                    ManagerRecordAction(
+                      label: '完整资料',
+                      onPressed: () => _navigateToDriverDetail(driver),
                     ),
-                  ),
-                  trailing: Icon(
-                    CupertinoIcons.right_chevron,
-                    color: themeData.colorScheme.onSurfaceVariant,
-                  ),
-                  onTap: () => _navigateToDriverDetail(driver),
+                  ],
                 ),
-              );
-            },
+            ],
           ),
         ),
       );
@@ -420,6 +397,7 @@ class _AddDriverPageState extends State<AddDriverPage> {
       return DashboardPageTemplate(
         theme: themeData,
         title: '添加司机',
+        reading: true,
         pageType: DashboardPageType.manager,
         bodyIsScrollable: true,
         padding: EdgeInsets.zero,
@@ -434,7 +412,10 @@ class _AddDriverPageState extends State<AddDriverPage> {
                 )
               : Form(
                   key: _formKey,
-                  child: SingleChildScrollView(
+                  child: Column(
+                    children: [
+                      Expanded(
+                        child: SingleChildScrollView(
                     child: DashboardPanel(
                       padding: const EdgeInsets.all(20.0),
                       child: Column(
@@ -442,7 +423,7 @@ class _AddDriverPageState extends State<AddDriverPage> {
                         children: [
                             AppUtils.buildTextField(
                               themeData,
-                              '姓名 *',
+                              '姓名 必填',
                               Icons.person,
                               _nameController,
                               required: true,
@@ -459,7 +440,7 @@ class _AddDriverPageState extends State<AddDriverPage> {
                             const SizedBox(height: 16),
                             AppUtils.buildTextField(
                               themeData,
-                              '身份证号码 *',
+                              '身份证号码 必填',
                               Icons.card_membership,
                               _idCardNumberController,
                               keyboardType: TextInputType.number,
@@ -478,7 +459,7 @@ class _AddDriverPageState extends State<AddDriverPage> {
                             const SizedBox(height: 16),
                             AppUtils.buildTextField(
                               themeData,
-                              '联系电话 *',
+                              '联系电话 必填',
                               Icons.phone,
                               _contactNumberController,
                               keyboardType: TextInputType.phone,
@@ -496,7 +477,7 @@ class _AddDriverPageState extends State<AddDriverPage> {
                             const SizedBox(height: 16),
                             AppUtils.buildTextField(
                               themeData,
-                              '驾驶证号 *',
+                              '驾驶证号 必填',
                               Icons.drive_eta,
                               _driverLicenseNumberController,
                               required: true,
@@ -570,8 +551,15 @@ class _AddDriverPageState extends State<AddDriverPage> {
                               readOnly: true,
                               onTap: () => _selectDate(_expiryDateController),
                             ),
-                            const SizedBox(height: 24),
-                            ElevatedButton(
+                            
+                          ],
+                        ),
+                      ),
+                  ),
+                      ),
+                      Align(
+                        alignment: Alignment.centerRight,
+                        child: ElevatedButton(
                               onPressed: _isLoading ? null : _submitDriver,
                               // Disable button when loading
                               style: ElevatedButton.styleFrom(
@@ -598,9 +586,8 @@ class _AddDriverPageState extends State<AddDriverPage> {
                                       ),
                                     ),
                             ),
-                          ],
-                        ),
                       ),
+                    ],
                   ),
                 ),
         ),
@@ -816,6 +803,7 @@ class _EditDriverPageState extends State<EditDriverPage> {
       return DashboardPageTemplate(
         theme: themeData,
         title: '编辑司机信息',
+        reading: true,
         pageType: DashboardPageType.manager,
         bodyIsScrollable: true,
         padding: EdgeInsets.zero,
@@ -830,7 +818,10 @@ class _EditDriverPageState extends State<EditDriverPage> {
                 )
               : Form(
                   key: _formKey,
-                  child: SingleChildScrollView(
+                  child: Column(
+                    children: [
+                      Expanded(
+                        child: SingleChildScrollView(
                     child: DashboardPanel(
                       padding: const EdgeInsets.all(20.0),
                       child: Column(
@@ -838,7 +829,7 @@ class _EditDriverPageState extends State<EditDriverPage> {
                           children: [
                             AppUtils.buildTextField(
                               themeData,
-                              '姓名 *',
+                              '姓名 必填',
                               Icons.person,
                               _nameController,
                               required: true,
@@ -855,7 +846,7 @@ class _EditDriverPageState extends State<EditDriverPage> {
                             const SizedBox(height: 16),
                             AppUtils.buildTextField(
                               themeData,
-                              '身份证号码 *',
+                              '身份证号码 必填',
                               Icons.card_membership,
                               _idCardNumberController,
                               keyboardType: TextInputType.number,
@@ -874,7 +865,7 @@ class _EditDriverPageState extends State<EditDriverPage> {
                             const SizedBox(height: 16),
                             AppUtils.buildTextField(
                               themeData,
-                              '联系电话 *',
+                              '联系电话 必填',
                               Icons.phone,
                               _contactNumberController,
                               keyboardType: TextInputType.phone,
@@ -892,7 +883,7 @@ class _EditDriverPageState extends State<EditDriverPage> {
                             const SizedBox(height: 16),
                             AppUtils.buildTextField(
                               themeData,
-                              '驾驶证号 *',
+                              '驾驶证号 必填',
                               Icons.drive_eta,
                               _driverLicenseNumberController,
                               required: true,
@@ -966,8 +957,15 @@ class _EditDriverPageState extends State<EditDriverPage> {
                               readOnly: true,
                               onTap: () => _selectDate(_expiryDateController),
                             ),
-                            const SizedBox(height: 24),
-                            ElevatedButton(
+                            
+                          ],
+                        ),
+                      ),
+                  ),
+                      ),
+                      Align(
+                        alignment: Alignment.centerRight,
+                        child: ElevatedButton(
                               onPressed: _submitDriver,
                               style: ElevatedButton.styleFrom(
                                 backgroundColor: themeData.colorScheme.primary,
@@ -987,9 +985,8 @@ class _EditDriverPageState extends State<EditDriverPage> {
                                 ),
                               ),
                             ),
-                          ],
-                        ),
                       ),
+                    ],
                   ),
                 ),
         ),
