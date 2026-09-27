@@ -1,14 +1,47 @@
 import 'package:final_assignment_front/core/theme/app_colors.dart';
 import 'package:flutter/material.dart';
 
+
+class OffsetFocusBorder extends RoundedRectangleBorder {
+  const OffsetFocusBorder({super.side, super.borderRadius});
+
+  @override
+  void paint(Canvas canvas, Rect rect, {TextDirection? textDirection}) {
+    super.paint(canvas, rect.inflate(2), textDirection: textDirection);
+  }
+}
+
+ButtonStyle _withFocusRing(ButtonStyle style, ColorScheme scheme) {
+  return style.copyWith(
+    side: WidgetStateProperty.resolveWith((states) {
+      if (states.contains(WidgetState.focused)) {
+        return BorderSide(color: scheme.primary, width: 2);
+      }
+      return style.side?.resolve(states);
+    }),
+    shape: WidgetStateProperty.resolveWith((states) {
+      final base = style.shape?.resolve(states);
+      final radius = base is RoundedRectangleBorder
+          ? base.borderRadius.resolve(TextDirection.ltr)
+          : BorderRadius.circular(10);
+      if (states.contains(WidgetState.focused)) {
+        return OffsetFocusBorder(
+          borderRadius: radius,
+        );
+      }
+      return base;
+    }),
+  );
+}
+
 class ThemeStyles {
-  static const double buttonBorderRadius = 14.0;
-  static const double cardBorderRadius = 8.0;
-  static const double inputBorderRadius = 14.0;
-  static const double chipBorderRadius = 14.0;
+  static const double buttonBorderRadius = 10.0;
+  static const double cardBorderRadius = 12.0;
+  static const double inputBorderRadius = 10.0;
+  static const double chipBorderRadius = 10.0;
   static const double buttonElevation = 0.0;
   static const double inputBorderWidth = 1.2;
-  static const double inputFocusedBorderWidth = 1.8;
+  static const double inputFocusedBorderWidth = 2;
   static const double defaultFontSize = 16.0;
   static const EdgeInsets pagePadding =
       EdgeInsets.symmetric(horizontal: 20, vertical: 16);
@@ -23,6 +56,12 @@ class ThemePalette {
     required this.surfaceTint,
     required this.outline,
     required this.shadow,
+    required this.button,
+    required this.onButton,
+    required this.link,
+    required this.selected,
+    required this.onSelected,
+    required this.inputBorder,
   });
 
   final Color seed;
@@ -32,6 +71,12 @@ class ThemePalette {
   final Color surfaceTint;
   final Color outline;
   final Color shadow;
+  final Color button;
+  final Color onButton;
+  final Color link;
+  final Color selected;
+  final Color onSelected;
+  final Color inputBorder;
 }
 
 class TrafficThemeColors {
@@ -43,16 +88,28 @@ class TrafficThemeColors {
     surfaceTint: Color(0xFFDBEAFE),
     outline: Color(0xFFE2E8F0),
     shadow: Color(0x140B1A33),
+    button: Color(0xFF1E3A8A),
+    onButton: Color(0xFFFFFFFF),
+    link: Color(0xFF1E3A8A),
+    selected: Color(0xFFDBEAFE),
+    onSelected: Color(0xFF1E3A8A),
+    inputBorder: Color(0xFF64748B),
   );
 
   static const dark = ThemePalette(
-    seed: Color(0xFF3B82F6),
+    seed: Color(0xFF1D4ED8),
     scaffold: Color(0xFF0B1220),
     surface: Color(0xFF111A2C),
     surfaceAlt: Color(0xFF1B2740),
     surfaceTint: Color(0xFF1E3A5F),
     outline: Color(0xFF334155),
     shadow: Color(0x70000000),
+    button: Color(0xFF1D4ED8),
+    onButton: Color(0xFFFFFFFF),
+    link: Color(0xFF93C5FD),
+    selected: Color(0xFF1E3A5F),
+    onSelected: Color(0xFF93C5FD),
+    inputBorder: Color(0xFF94A3B8),
   );
 }
 
@@ -65,6 +122,12 @@ class BasicThemeColors {
     surfaceTint: Color(0xFFDCE9F9),
     outline: Color(0xFFE2E8F0),
     shadow: Color(0x120F172A),
+    button: Color(0xFF0F172A),
+    onButton: Color(0xFFFFFFFF),
+    link: Color(0xFF0F172A),
+    selected: Color(0xFFE8ECF1),
+    onSelected: Color(0xFF0F172A),
+    inputBorder: Color(0xFF64748B),
   );
 
   static const dark = ThemePalette(
@@ -75,18 +138,30 @@ class BasicThemeColors {
     surfaceTint: Color(0xFF1F3556),
     outline: Color(0xFF334155),
     shadow: Color(0x70000000),
+    button: Color(0xFF6CB6FF),
+    onButton: Color(0xFF041018),
+    link: Color(0xFF9DCEFF),
+    selected: Color(0xFF1F3556),
+    onSelected: Color(0xFF9DCEFF),
+    inputBorder: Color(0xFF94A3B8),
   );
 }
 
 class IonicThemeColors {
   static const light = ThemePalette(
-    seed: Color(0xFF00838F),
+    seed: Color(0xFF006064),
     scaffold: Color(0xFFF2FAFA),
     surface: Color(0xFFFFFFFF),
     surfaceAlt: Color(0xFFDFF4F5),
-    surfaceTint: Color(0xFF8FE7EB),
+    surfaceTint: Color(0xFFDFF4F5),
     outline: Color(0xFF9CC8CC),
     shadow: Color(0x160B3A3D),
+    button: Color(0xFF006064),
+    onButton: Color(0xFFFFFFFF),
+    link: Color(0xFF005A63),
+    selected: Color(0xFFDFF4F5),
+    onSelected: Color(0xFF064249),
+    inputBorder: Color(0xFF3D6D73),
   );
 
   static const dark = ThemePalette(
@@ -97,6 +172,12 @@ class IonicThemeColors {
     surfaceTint: Color(0xFF18444C),
     outline: Color(0xFF3A646A),
     shadow: Color(0x70000000),
+    button: Color(0xFF4DD0E1),
+    onButton: Color(0xFF041418),
+    link: Color(0xFFB6F4FA),
+    selected: Color(0xFF18444C),
+    onSelected: Color(0xFFB6F4FA),
+    inputBorder: Color(0xFF7FCDD6),
   );
 }
 
@@ -106,9 +187,15 @@ class MaterialThemeColors {
     scaffold: Color(0xFFFCF5F7),
     surface: Color(0xFFFFFFFF),
     surfaceAlt: Color(0xFFF7E3EB),
-    surfaceTint: Color(0xFFF3B7CD),
+    surfaceTint: Color(0xFFF7E3EB),
     outline: Color(0xFFD5B5C3),
     shadow: Color(0x190E1020),
+    button: Color(0xFFAD1457),
+    onButton: Color(0xFFFFFFFF),
+    link: Color(0xFF7A0E3D),
+    selected: Color(0xFFF7E3EB),
+    onSelected: Color(0xFF7A0E3D),
+    inputBorder: Color(0xFF8C5A70),
   );
 
   static const dark = ThemePalette(
@@ -119,6 +206,12 @@ class MaterialThemeColors {
     surfaceTint: Color(0xFF492739),
     outline: Color(0xFF705160),
     shadow: Color(0x78000000),
+    button: Color(0xFFFF7EB6),
+    onButton: Color(0xFF2A0A18),
+    link: Color(0xFFFFD0E6),
+    selected: Color(0xFF492739),
+    onSelected: Color(0xFFFFD0E6),
+    inputBorder: Color(0xFFD4A3B8),
   );
 }
 
@@ -137,114 +230,34 @@ class AppTheme {
 
   static TextTheme _textTheme(Color textColor, Color mutedTextColor) {
     return TextTheme(
-      displayLarge: TextStyle(
-        fontSize: 38,
-        fontWeight: FontWeight.w800,
-        height: 1.08,
-        letterSpacing: 0,
-        color: textColor,
-      ),
-      displayMedium: TextStyle(
-        fontSize: 32,
-        fontWeight: FontWeight.w800,
-        height: 1.1,
-        letterSpacing: 0,
-        color: textColor,
-      ),
-      displaySmall: TextStyle(
-        fontSize: 28,
-        fontWeight: FontWeight.w700,
-        height: 1.14,
-        letterSpacing: 0,
-        color: textColor,
-      ),
-      headlineLarge: TextStyle(
-        fontSize: 24,
-        fontWeight: FontWeight.w700,
-        height: 1.2,
-        color: textColor,
-      ),
-      headlineMedium: TextStyle(
-        fontSize: 22,
-        fontWeight: FontWeight.w700,
-        height: 1.22,
-        color: textColor,
-      ),
-      headlineSmall: TextStyle(
-        fontSize: 20,
-        fontWeight: FontWeight.w700,
-        height: 1.24,
-        color: textColor,
-      ),
-      titleLarge: TextStyle(
-        fontSize: 20,
-        fontWeight: FontWeight.w700,
-        height: 1.26,
-        letterSpacing: 0,
-        color: textColor,
-      ),
-      titleMedium: TextStyle(
-        fontSize: 17,
-        fontWeight: FontWeight.w600,
-        height: 1.28,
-        color: textColor,
-      ),
-      titleSmall: TextStyle(
-        fontSize: 15,
-        fontWeight: FontWeight.w600,
-        height: 1.3,
-        color: textColor,
-      ),
-      bodyLarge: TextStyle(
-        fontSize: 16,
-        fontWeight: FontWeight.w500,
-        height: 1.55,
-        color: textColor,
-      ),
-      bodyMedium: TextStyle(
-        fontSize: 14,
-        fontWeight: FontWeight.w400,
-        height: 1.55,
-        color: mutedTextColor,
-      ),
-      bodySmall: TextStyle(
-        fontSize: 12,
-        fontWeight: FontWeight.w500,
-        height: 1.45,
-        color: mutedTextColor,
-      ),
-      labelLarge: TextStyle(
-        fontSize: 15,
-        fontWeight: FontWeight.w700,
-        height: 1.2,
-        letterSpacing: 0.1,
-        color: textColor,
-      ),
-      labelMedium: TextStyle(
-        fontSize: 13,
-        fontWeight: FontWeight.w600,
-        height: 1.2,
-        color: mutedTextColor,
-      ),
-      labelSmall: TextStyle(
-        fontSize: 11,
-        fontWeight: FontWeight.w600,
-        height: 1.2,
-        color: mutedTextColor,
-      ),
+      displayLarge: TextStyle(fontSize: 24, fontWeight: FontWeight.w700, height: 1.2, color: textColor),
+      displayMedium: TextStyle(fontSize: 24, fontWeight: FontWeight.w700, height: 1.2, color: textColor),
+      displaySmall: TextStyle(fontSize: 24, fontWeight: FontWeight.w700, height: 1.2, color: textColor),
+      headlineLarge: TextStyle(fontSize: 24, fontWeight: FontWeight.w700, height: 1.2, color: textColor),
+      headlineMedium: TextStyle(fontSize: 18, fontWeight: FontWeight.w700, height: 1.3, color: textColor),
+      headlineSmall: TextStyle(fontSize: 18, fontWeight: FontWeight.w700, height: 1.3, color: textColor),
+      titleLarge: TextStyle(fontSize: 18, fontWeight: FontWeight.w700, height: 1.3, color: textColor),
+      titleMedium: TextStyle(fontSize: 16, fontWeight: FontWeight.w400, height: 1.5, color: textColor),
+      titleSmall: TextStyle(fontSize: 14, fontWeight: FontWeight.w400, height: 1.4, color: textColor),
+      bodyLarge: TextStyle(fontSize: 16, fontWeight: FontWeight.w400, height: 1.5, color: textColor),
+      bodyMedium: TextStyle(fontSize: 14, fontWeight: FontWeight.w400, height: 1.5, color: mutedTextColor),
+      bodySmall: TextStyle(fontSize: 13, fontWeight: FontWeight.w400, height: 1.45, color: mutedTextColor),
+      labelLarge: TextStyle(fontSize: 14, fontWeight: FontWeight.w600, height: 1.2, color: textColor),
+      labelMedium: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, height: 1.2, color: mutedTextColor),
+      labelSmall: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, height: 1.2, color: mutedTextColor),
     );
   }
 
   static ElevatedButtonThemeData _elevatedButtonTheme(ColorScheme colorScheme) {
     return ElevatedButtonThemeData(
-      style: ElevatedButton.styleFrom(
+      style: _withFocusRing(ElevatedButton.styleFrom(
         backgroundColor: colorScheme.primary,
         foregroundColor: colorScheme.onPrimary,
         disabledBackgroundColor: colorScheme.surfaceContainerHighest,
-        disabledForegroundColor: colorScheme.onSurfaceVariant,
+        disabledForegroundColor: colorScheme.onSurface,
         elevation: ThemeStyles.buttonElevation,
-        minimumSize: const Size(0, 52),
-        padding: const EdgeInsets.symmetric(horizontal: 22, vertical: 14),
+        minimumSize: const Size(0, 44),
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
         textStyle: const TextStyle(
           fontSize: ThemeStyles.defaultFontSize,
           fontWeight: FontWeight.w700,
@@ -253,17 +266,19 @@ class AppTheme {
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(ThemeStyles.buttonBorderRadius),
         ),
-      ),
+      ), colorScheme),
     );
   }
 
   static FilledButtonThemeData _filledButtonTheme(ColorScheme colorScheme) {
     return FilledButtonThemeData(
-      style: FilledButton.styleFrom(
+      style: _withFocusRing(FilledButton.styleFrom(
         backgroundColor: colorScheme.primaryContainer,
         foregroundColor: colorScheme.onPrimaryContainer,
-        minimumSize: const Size(0, 52),
-        padding: const EdgeInsets.symmetric(horizontal: 22, vertical: 14),
+        disabledBackgroundColor: colorScheme.surfaceContainerHighest,
+        disabledForegroundColor: colorScheme.onSurface,
+        minimumSize: const Size(0, 44),
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(ThemeStyles.buttonBorderRadius),
         ),
@@ -271,7 +286,7 @@ class AppTheme {
           fontSize: ThemeStyles.defaultFontSize,
           fontWeight: FontWeight.w700,
         ),
-      ),
+      ), colorScheme),
     );
   }
 
@@ -279,11 +294,12 @@ class AppTheme {
     ColorScheme colorScheme,
   ) {
     return OutlinedButtonThemeData(
-      style: OutlinedButton.styleFrom(
+      style: _withFocusRing(OutlinedButton.styleFrom(
         foregroundColor: colorScheme.primary,
+        disabledForegroundColor: colorScheme.onSurface,
         side: BorderSide(color: colorScheme.outlineVariant),
-        minimumSize: const Size(0, 52),
-        padding: const EdgeInsets.symmetric(horizontal: 22, vertical: 14),
+        minimumSize: const Size(0, 44),
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(ThemeStyles.buttonBorderRadius),
         ),
@@ -291,14 +307,15 @@ class AppTheme {
           fontSize: ThemeStyles.defaultFontSize,
           fontWeight: FontWeight.w700,
         ),
-      ),
+      ), colorScheme),
     );
   }
 
   static TextButtonThemeData _textButtonTheme(ColorScheme colorScheme) {
     return TextButtonThemeData(
-      style: TextButton.styleFrom(
+      style: _withFocusRing(TextButton.styleFrom(
         foregroundColor: colorScheme.primary,
+        disabledForegroundColor: colorScheme.onSurface,
         minimumSize: const Size(0, 46),
         padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
         textStyle: const TextStyle(
@@ -308,13 +325,14 @@ class AppTheme {
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(14),
         ),
-      ),
+      ), colorScheme),
     );
   }
 
   static InputDecorationTheme _inputDecorationTheme({
     required ColorScheme colorScheme,
     required Color fillColor,
+    required Color inputBorder,
   }) {
     OutlineInputBorder buildBorder(Color color, double width) {
       return OutlineInputBorder(
@@ -329,11 +347,11 @@ class AppTheme {
       fillColor: fillColor,
       contentPadding: const EdgeInsets.symmetric(horizontal: 18, vertical: 16),
       border: buildBorder(
-        colorScheme.outlineVariant,
+        inputBorder,
         ThemeStyles.inputBorderWidth,
       ),
       enabledBorder: buildBorder(
-        colorScheme.outlineVariant,
+        inputBorder,
         ThemeStyles.inputBorderWidth,
       ),
       focusedBorder: buildBorder(
@@ -372,16 +390,23 @@ class AppTheme {
     required Brightness brightness,
     required ThemePalette palette,
   }) {
+    final status = brightness == Brightness.light ? AppColors.light : AppColors.dark;
     final colorScheme = ColorScheme.fromSeed(
       seedColor: palette.seed,
       brightness: brightness,
       surface: palette.surface,
     ).copyWith(
+      error: status.danger,
+      onError: status.onDanger,
+      primary: palette.button,
+      onPrimary: palette.onButton,
+      primaryContainer: palette.selected,
+      onPrimaryContainer: palette.onSelected,
       surface: palette.surface,
       surfaceContainer: palette.surfaceAlt.withValues(alpha: 0.72),
       surfaceContainerHigh: palette.surfaceAlt.withValues(alpha: 0.86),
       surfaceContainerHighest: palette.surfaceAlt,
-      outline: palette.outline,
+      outline: palette.inputBorder,
       outlineVariant: palette.outline.withValues(alpha: 0.72),
       shadow: palette.shadow,
       scrim: Colors.black
@@ -418,8 +443,12 @@ class AppTheme {
       filledButtonTheme: _filledButtonTheme(colorScheme),
       outlinedButtonTheme: _outlinedButtonTheme(colorScheme),
       textButtonTheme: _textButtonTheme(colorScheme),
+      iconButtonTheme: IconButtonThemeData(
+        style: _withFocusRing(IconButton.styleFrom(), colorScheme),
+      ),
       inputDecorationTheme: _inputDecorationTheme(
         colorScheme: colorScheme,
+        inputBorder: palette.inputBorder,
         fillColor: isLight
             ? palette.surface
             : palette.surfaceAlt.withValues(alpha: 0.88),
@@ -433,7 +462,7 @@ class AppTheme {
         centerTitle: true,
         surfaceTintColor: Colors.transparent,
         shadowColor: Colors.transparent,
-        titleTextStyle: textTheme.titleLarge,
+        titleTextStyle: textTheme.headlineLarge,
       ),
       bottomNavigationBarTheme: BottomNavigationBarThemeData(
         backgroundColor: palette.surface,

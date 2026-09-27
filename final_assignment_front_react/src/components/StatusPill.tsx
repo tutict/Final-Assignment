@@ -12,14 +12,11 @@ interface StatusPillProps {
 
 export default function StatusPill({ value }: StatusPillProps) {
   const status = String(value || '');
+  const tone = SUCCESS_STATUSES.has(status) ? 'success' : WARNING_STATUSES.has(status) ? 'warning' : DANGER_STATUSES.has(status) ? 'danger' : 'info';
+  const mark = tone === 'success' ? '✓' : tone === 'warning' ? '!' : tone === 'danger' ? '×' : 'i';
   return (
-    <span
-      className={clsx('status-pill', {
-        success: SUCCESS_STATUSES.has(status),
-        warning: WARNING_STATUSES.has(status),
-        danger: DANGER_STATUSES.has(status),
-      })}
-    >
+    <span className={clsx('status-pill', tone)}>
+      <span aria-hidden="true">{mark}</span>
       {getStatusLabel(value)}
     </span>
   );

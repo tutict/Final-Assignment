@@ -11,17 +11,17 @@ interface PieSlice {
 interface PieChartProps {
   data: PieSlice[];
   centerLabel?: string;
+  statusSeries?: boolean;
 }
 
-const DEFAULT_COLORS = [
-  '#0c7c79',
-  '#e67e22',
-  '#2e8b57',
-  '#c0392b',
-  '#2f80ed',
-  '#8e44ad',
-  '#f6b93b',
-];
+const CATEGORY_COLORS = ['#1E3A8A', '#0F766E', '#B45309', '#6D28D9', '#0369A1', '#3F6212'];
+
+function statusColor(label: string): string | undefined {
+  if (/未缴|失败|拒绝|驳回|逾期/.test(label)) return 'var(--danger-fg)';
+  if (/待|处理中|审核/.test(label)) return 'var(--warning-fg)';
+  if (/已缴|成功|完成|通过|办结/.test(label)) return 'var(--success-fg)';
+  return undefined;
+}
 
 function polarToCartesian(cx: number, cy: number, r: number, angleDeg: number) {
   const rad = ((angleDeg - 90) * Math.PI) / 180;
@@ -43,7 +43,7 @@ function arcPath(cx: number, cy: number, rOuter: number, rInner: number, start: 
   ].join(' ');
 }
 
-export default function PieChart({ data, centerLabel = '总数' }: PieChartProps) {
+export default function PieChart({ data, centerLabel = '总数', statusSeries = false }: PieChartProps) {
   const total = data.reduce((sum, item) => sum + item.value, 0);
   if (total === 0) {
     return <div className="placeholder">暂无数据</div>;
@@ -57,7 +57,7 @@ export default function PieChart({ data, centerLabel = '总数' }: PieChartProps
     const start = angle;
     const span = (item.value / total) * 360;
     angle += span;
-    const color = item.color || DEFAULT_COLORS[index % DEFAULT_COLORS.length];
+    const color = item.color || (statusSeries ? statusColor(item.label) : undefined) || CATEGORY_COLORS[index % CATEGORY_COLORS.length];
     return { ...item, path: arcPath(cx, cy, rOuter, rInner, start, start + span), color, percent: Math.round((item.value / total) * 100) };
   });
 

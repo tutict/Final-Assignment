@@ -1,46 +1,11 @@
-﻿@import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&family=Noto+Serif+SC:wght@400;600;700&display=swap');
-
-:root {
-  color-scheme: light;
-  --bg: #f7f4ef;
-  --panel: #ffffff;
-  --panel-muted: #f1ede6;
-  --text: #1b1a18;
-  --text-muted: #5c5a55;
-  --accent: #0c7c79;
-  --accent-strong: #0a6461;
-  --danger: #c0392b;
-  --warning: #e67e22;
-  --success: #2e8b57;
-  --border: #e1d9cf;
-  --shadow: rgba(24, 22, 18, 0.08);
-}
-
-[data-theme='dark'] {
-  color-scheme: dark;
-  --bg: #141312;
-  --panel: #1f1d1b;
-  --panel-muted: #2a2724;
-  --text: #f2ede6;
-  --text-muted: #b6afa5;
-  --accent: #3fb6a8;
-  --accent-strong: #2b9e91;
-  --danger: #e17055;
-  --warning: #f6b93b;
-  --success: #58d68d;
-  --border: #3a352f;
-  --shadow: rgba(0, 0, 0, 0.4);
-}
-
 * {
   box-sizing: border-box;
 }
 
 body {
   margin: 0;
-  font-family: 'IBM Plex Sans', 'Noto Serif SC', sans-serif;
-  background: radial-gradient(circle at top left, rgba(12, 124, 121, 0.08), transparent 45%),
-    var(--bg);
+  font-family: 'PingFang SC', 'Hiragino Sans GB', 'Microsoft YaHei UI', 'Microsoft YaHei', 'Noto Sans CJK SC', 'Source Han Sans SC', 'WenQuanYi Micro Hei', 'SimHei', 'SimSun', sans-serif;
+  background: var(--bg);
   color: var(--text);
 }
 
@@ -384,8 +349,15 @@ a {
   padding: 20px;
   width: 520px;
   max-height: 80vh;
-  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
   box-shadow: 0 20px 40px var(--shadow);
+}
+
+.modal-body {
+  min-height: 0;
+  overflow-y: auto;
 }
 
 .modal-wide {

@@ -42,6 +42,7 @@ class StatusBadge extends StatelessWidget {
     return StatusBadge(
       label: status.label,
       tone: _toneForAppealAcceptance(status),
+      icon: _iconForAppealAcceptance(status),
       dense: dense,
     );
   }
@@ -52,6 +53,7 @@ class StatusBadge extends StatelessWidget {
     return StatusBadge(
       label: status.label,
       tone: _toneForAppealProcess(status),
+      icon: _iconForAppealProcess(status),
       dense: dense,
     );
   }
@@ -60,17 +62,16 @@ class StatusBadge extends StatelessWidget {
   Widget build(BuildContext context) {
     final colors =
         Theme.of(context).extension<AppColors>() ?? AppColors.light;
-    final scheme = Theme.of(context).colorScheme;
-    final (fg, bg) = _resolve(colors, scheme);
+    final (fg, bg) = _resolve(colors);
 
     return Container(
       padding: EdgeInsets.symmetric(
-        horizontal: dense ? 8 : 10,
-        vertical: dense ? 3 : 5,
+        horizontal: dense ? 8 : 12,
+        vertical: 4,
       ),
       decoration: BoxDecoration(
         color: bg,
-        borderRadius: BorderRadius.circular(6),
+        borderRadius: BorderRadius.circular(10),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
@@ -82,33 +83,29 @@ class StatusBadge extends StatelessWidget {
             ),
           Text(
             label,
-            style: TextStyle(
-              fontSize: dense ? 11 : 12,
+            style: const TextStyle(
+              fontSize: 12,
               fontWeight: FontWeight.w600,
-              color: fg,
               height: 1.2,
-            ),
+            ).copyWith(color: fg),
           ),
         ],
       ),
     );
   }
 
-  (Color, Color) _resolve(AppColors colors, ColorScheme scheme) {
+  (Color, Color) _resolve(AppColors colors) {
     switch (tone) {
       case StatusTone.info:
-        return (colors.info, colors.info.withValues(alpha: 0.12));
+        return (colors.info, colors.infoBackground);
       case StatusTone.success:
-        return (colors.success, colors.success.withValues(alpha: 0.14));
+        return (colors.success, colors.successBackground);
       case StatusTone.warning:
-        return (colors.warning, colors.warning.withValues(alpha: 0.14));
+        return (colors.warning, colors.warningBackground);
       case StatusTone.danger:
-        return (colors.danger, colors.danger.withValues(alpha: 0.12));
+        return (colors.danger, colors.dangerBackground);
       case StatusTone.neutral:
-        return (
-          scheme.onSurfaceVariant,
-          scheme.surfaceContainerHighest.withValues(alpha: 0.55),
-        );
+        return (colors.info, colors.infoBackground);
     }
   }
 
@@ -149,6 +146,36 @@ class StatusBadge extends StatelessWidget {
         return Icons.cancel_outlined;
       case OffenseProcessStatus.unknown:
         return null;
+    }
+  }
+
+  static IconData _iconForAppealAcceptance(AppealAcceptanceStatus status) {
+    switch (status) {
+      case AppealAcceptanceStatus.pending:
+        return Icons.schedule;
+      case AppealAcceptanceStatus.accepted:
+        return Icons.check_circle;
+      case AppealAcceptanceStatus.rejected:
+        return Icons.block;
+      case AppealAcceptanceStatus.needSupplement:
+        return Icons.info_outline;
+    }
+  }
+
+  static IconData _iconForAppealProcess(AppealProcessStatus status) {
+    switch (status) {
+      case AppealProcessStatus.unprocessed:
+        return Icons.schedule;
+      case AppealProcessStatus.underReview:
+        return Icons.autorenew;
+      case AppealProcessStatus.approved:
+        return Icons.task_alt;
+      case AppealProcessStatus.rejected:
+        return Icons.block;
+      case AppealProcessStatus.withdrawn:
+        return Icons.undo;
+      case AppealProcessStatus.unknown:
+        return Icons.help_outline;
     }
   }
 
