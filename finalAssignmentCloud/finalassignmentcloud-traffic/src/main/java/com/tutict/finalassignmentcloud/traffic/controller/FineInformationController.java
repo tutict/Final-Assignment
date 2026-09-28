@@ -72,6 +72,12 @@ public class FineInformationController {
                 fineRecordService.markHistorySuccess(idempotencyKey, saved.getFineId());
             }
             return ResponseEntity.status(HttpStatus.CREATED).body(enrich(saved));
+        } catch (com.tutict.finalassignmentcloud.traffic.reliability.IdempotencyReplayException ex) {
+            return ResponseEntity.status(HttpStatus.ALREADY_REPORTED).build();
+        } catch (com.tutict.finalassignmentcloud.traffic.reliability.IdempotencyConflictException ex) {
+            return ResponseEntity.status(HttpStatus.CONFLICT).build();
+        } catch (com.tutict.finalassignmentcloud.traffic.reliability.IdempotencyInProgressException ex) {
+            return ResponseEntity.status(HttpStatus.CONFLICT).build();
         } catch (Exception ex) {
             if (useKey) {
                 fineRecordService.markHistoryFailure(idempotencyKey, ex.getMessage());
@@ -98,6 +104,12 @@ public class FineInformationController {
                 fineRecordService.markHistorySuccess(idempotencyKey, updated.getFineId());
             }
             return ResponseEntity.ok(enrich(updated));
+        } catch (com.tutict.finalassignmentcloud.traffic.reliability.IdempotencyReplayException ex) {
+            return ResponseEntity.status(HttpStatus.ALREADY_REPORTED).build();
+        } catch (com.tutict.finalassignmentcloud.traffic.reliability.IdempotencyConflictException ex) {
+            return ResponseEntity.status(HttpStatus.CONFLICT).build();
+        } catch (com.tutict.finalassignmentcloud.traffic.reliability.IdempotencyInProgressException ex) {
+            return ResponseEntity.status(HttpStatus.CONFLICT).build();
         } catch (Exception ex) {
             if (useKey) {
                 fineRecordService.markHistoryFailure(idempotencyKey, ex.getMessage());
@@ -113,6 +125,12 @@ public class FineInformationController {
         try {
             fineRecordService.deleteFineRecord(fineId);
             return ResponseEntity.noContent().build();
+        } catch (com.tutict.finalassignmentcloud.traffic.reliability.IdempotencyReplayException ex) {
+            return ResponseEntity.status(HttpStatus.ALREADY_REPORTED).build();
+        } catch (com.tutict.finalassignmentcloud.traffic.reliability.IdempotencyConflictException ex) {
+            return ResponseEntity.status(HttpStatus.CONFLICT).build();
+        } catch (com.tutict.finalassignmentcloud.traffic.reliability.IdempotencyInProgressException ex) {
+            return ResponseEntity.status(HttpStatus.CONFLICT).build();
         } catch (Exception ex) {
             LOG.log(Level.WARNING, "Delete fine failed", ex);
             return ResponseEntity.status(resolveStatus(ex)).build();
@@ -125,6 +143,12 @@ public class FineInformationController {
         try {
             FineRecord record = fineRecordService.findById(fineId);
             return record == null ? ResponseEntity.notFound().build() : ResponseEntity.ok(enrich(record));
+        } catch (com.tutict.finalassignmentcloud.traffic.reliability.IdempotencyReplayException ex) {
+            return ResponseEntity.status(HttpStatus.ALREADY_REPORTED).build();
+        } catch (com.tutict.finalassignmentcloud.traffic.reliability.IdempotencyConflictException ex) {
+            return ResponseEntity.status(HttpStatus.CONFLICT).build();
+        } catch (com.tutict.finalassignmentcloud.traffic.reliability.IdempotencyInProgressException ex) {
+            return ResponseEntity.status(HttpStatus.CONFLICT).build();
         } catch (Exception ex) {
             LOG.log(Level.WARNING, "Get fine failed", ex);
             return ResponseEntity.status(resolveStatus(ex)).build();
@@ -141,6 +165,12 @@ public class FineInformationController {
                         id -> fineRecordService.findByDriverId(id, 1, 1000))));
             }
             return ResponseEntity.ok(enrich(fineRecordService.findAll()));
+        } catch (com.tutict.finalassignmentcloud.traffic.reliability.IdempotencyReplayException ex) {
+            return ResponseEntity.status(HttpStatus.ALREADY_REPORTED).build();
+        } catch (com.tutict.finalassignmentcloud.traffic.reliability.IdempotencyConflictException ex) {
+            return ResponseEntity.status(HttpStatus.CONFLICT).build();
+        } catch (com.tutict.finalassignmentcloud.traffic.reliability.IdempotencyInProgressException ex) {
+            return ResponseEntity.status(HttpStatus.CONFLICT).build();
         } catch (Exception ex) {
             LOG.log(Level.WARNING, "List fines failed", ex);
             return ResponseEntity.status(resolveStatus(ex)).build();
@@ -154,6 +184,12 @@ public class FineInformationController {
                                                       @RequestParam(defaultValue = "20") int size) {
         try {
             return ResponseEntity.ok(enrich(fineRecordService.findByOffenseId(offenseId, page, size)));
+        } catch (com.tutict.finalassignmentcloud.traffic.reliability.IdempotencyReplayException ex) {
+            return ResponseEntity.status(HttpStatus.ALREADY_REPORTED).build();
+        } catch (com.tutict.finalassignmentcloud.traffic.reliability.IdempotencyConflictException ex) {
+            return ResponseEntity.status(HttpStatus.CONFLICT).build();
+        } catch (com.tutict.finalassignmentcloud.traffic.reliability.IdempotencyInProgressException ex) {
+            return ResponseEntity.status(HttpStatus.CONFLICT).build();
         } catch (Exception ex) {
             LOG.log(Level.WARNING, "List fines by offense failed", ex);
             return ResponseEntity.status(resolveStatus(ex)).build();
@@ -172,6 +208,12 @@ public class FineInformationController {
                 return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
             }
             return ResponseEntity.ok(enrich(fineRecordService.findByDriverId(driverId, page, size)));
+        } catch (com.tutict.finalassignmentcloud.traffic.reliability.IdempotencyReplayException ex) {
+            return ResponseEntity.status(HttpStatus.ALREADY_REPORTED).build();
+        } catch (com.tutict.finalassignmentcloud.traffic.reliability.IdempotencyConflictException ex) {
+            return ResponseEntity.status(HttpStatus.CONFLICT).build();
+        } catch (com.tutict.finalassignmentcloud.traffic.reliability.IdempotencyInProgressException ex) {
+            return ResponseEntity.status(HttpStatus.CONFLICT).build();
         } catch (Exception ex) {
             LOG.log(Level.WARNING, "List fines by driver failed", ex);
             return ResponseEntity.status(resolveStatus(ex)).build();
@@ -189,6 +231,12 @@ public class FineInformationController {
                     ? fineRecordService.searchByHandlerFuzzy(handler, page, size)
                     : fineRecordService.searchByHandlerPrefix(handler, page, size);
             return ResponseEntity.ok(enrich(result));
+        } catch (com.tutict.finalassignmentcloud.traffic.reliability.IdempotencyReplayException ex) {
+            return ResponseEntity.status(HttpStatus.ALREADY_REPORTED).build();
+        } catch (com.tutict.finalassignmentcloud.traffic.reliability.IdempotencyConflictException ex) {
+            return ResponseEntity.status(HttpStatus.CONFLICT).build();
+        } catch (com.tutict.finalassignmentcloud.traffic.reliability.IdempotencyInProgressException ex) {
+            return ResponseEntity.status(HttpStatus.CONFLICT).build();
         } catch (Exception ex) {
             LOG.log(Level.WARNING, "Search fine by handler failed", ex);
             return ResponseEntity.status(resolveStatus(ex)).build();
@@ -202,6 +250,12 @@ public class FineInformationController {
                                                                   @RequestParam(defaultValue = "20") int size) {
         try {
             return ResponseEntity.ok(enrich(fineRecordService.searchByPaymentStatus(status, page, size)));
+        } catch (com.tutict.finalassignmentcloud.traffic.reliability.IdempotencyReplayException ex) {
+            return ResponseEntity.status(HttpStatus.ALREADY_REPORTED).build();
+        } catch (com.tutict.finalassignmentcloud.traffic.reliability.IdempotencyConflictException ex) {
+            return ResponseEntity.status(HttpStatus.CONFLICT).build();
+        } catch (com.tutict.finalassignmentcloud.traffic.reliability.IdempotencyInProgressException ex) {
+            return ResponseEntity.status(HttpStatus.CONFLICT).build();
         } catch (Exception ex) {
             LOG.log(Level.WARNING, "Search fine by status failed", ex);
             return ResponseEntity.status(resolveStatus(ex)).build();
@@ -216,6 +270,12 @@ public class FineInformationController {
                                                               @RequestParam(defaultValue = "20") int size) {
         try {
             return ResponseEntity.ok(enrich(fineRecordService.searchByFineDateRange(startDate, endDate, page, size)));
+        } catch (com.tutict.finalassignmentcloud.traffic.reliability.IdempotencyReplayException ex) {
+            return ResponseEntity.status(HttpStatus.ALREADY_REPORTED).build();
+        } catch (com.tutict.finalassignmentcloud.traffic.reliability.IdempotencyConflictException ex) {
+            return ResponseEntity.status(HttpStatus.CONFLICT).build();
+        } catch (com.tutict.finalassignmentcloud.traffic.reliability.IdempotencyInProgressException ex) {
+            return ResponseEntity.status(HttpStatus.CONFLICT).build();
         } catch (Exception ex) {
             LOG.log(Level.WARNING, "Search fine by date range failed", ex);
             return ResponseEntity.status(resolveStatus(ex)).build();

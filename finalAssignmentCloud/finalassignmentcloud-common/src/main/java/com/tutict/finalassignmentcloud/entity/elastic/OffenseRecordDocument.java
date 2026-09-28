@@ -16,7 +16,7 @@ import org.springframework.data.elasticsearch.annotations.MultiField;
 import org.springframework.data.elasticsearch.annotations.Setting;
 
 @Data
-@Document(indexName = "offense_record")
+@Document(createIndex = false, indexName = "offense_record")
 @Setting(settingPath = "elasticsearch/offense_record-settings.json")
 public class OffenseRecordDocument implements Serializable {
 

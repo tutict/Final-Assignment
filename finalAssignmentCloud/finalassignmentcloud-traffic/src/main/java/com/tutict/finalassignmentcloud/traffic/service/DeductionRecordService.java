@@ -8,6 +8,7 @@ import com.tutict.finalassignmentcloud.entity.SysRequestHistory;
 import com.tutict.finalassignmentcloud.entity.elastic.DeductionRecordDocument;
 import com.tutict.finalassignmentcloud.traffic.mapper.DeductionRecordMapper;
 import com.tutict.finalassignmentcloud.traffic.mapper.SysRequestHistoryMapper;
+import com.tutict.finalassignmentcloud.traffic.reliability.HistoryReserve;
 import com.tutict.finalassignmentcloud.traffic.repository.DeductionRecordSearchRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.cache.annotation.CacheEvict;
@@ -54,24 +55,9 @@ public class DeductionRecordService {
     @WsAction(service = "DeductionRecordService", action = "checkAndInsertIdempotency")
     public void checkAndInsertIdempotency(String idempotencyKey, DeductionRecord deductionRecord, String action) {
         Objects.requireNonNull(deductionRecord, "DeductionRecord must not be null");
-        if (sysRequestHistoryMapper.selectByIdempotencyKey(idempotencyKey) != null) {
-            throw new RuntimeException("Duplicate deduction record request detected");
-        }
-
-        SysRequestHistory history = new SysRequestHistory();
-        history.setIdempotencyKey(idempotencyKey);
-        history.setBusinessStatus("PROCESSING");
-        history.setCreatedAt(LocalDateTime.now());
-        history.setUpdatedAt(LocalDateTime.now());
-        sysRequestHistoryMapper.insert(history);
-
-        sendKafkaMessage("deduction_record_" + action, idempotencyKey, deductionRecord);
-
-        history.setBusinessStatus("SUCCESS");
-        history.setBusinessId(deductionRecord.getDeductionId());
-        history.setRequestParams("PENDING");
-        history.setUpdatedAt(LocalDateTime.now());
-        sysRequestHistoryMapper.updateById(history);
+        HistoryReserve.reserve(sysRequestHistoryMapper, idempotencyKey, "DEDUCTION_" + action.toUpperCase(),
+                HistoryReserve.sha256(deductionRecord.getOffenseId() + "|" + deductionRecord.getDriverId() + "|"
+                        + deductionRecord.getDeductedPoints() + "|" + deductionRecord.getStatus()));
     }
 
     @Transactional
@@ -80,6 +66,7 @@ public class DeductionRecordService {
         validateDeductionRecord(deductionRecord);
         deductionRecordMapper.insert(deductionRecord);
         syncToIndexAfterCommit(deductionRecord);
+        publishQuietly("deduction_record_create", deductionRecord);
         return deductionRecord;
     }
 
@@ -248,7 +235,6 @@ public class DeductionRecordService {
         }
         history.setBusinessStatus("SUCCESS");
         history.setBusinessId(deductionId);
-        history.setRequestParams("DONE");
         history.setUpdatedAt(LocalDateTime.now());
         sysRequestHistoryMapper.updateById(history);
     }
@@ -299,6 +285,14 @@ public class DeductionRecordService {
         });
     }
 
+    private void publishQuietly(String topic, DeductionRecord deductionRecord) {
+        try {
+            sendKafkaMessage(topic, null, deductionRecord);
+        } catch (RuntimeException ex) {
+            log.log(Level.SEVERE, "Deduction kafka publish failed after the ledger commit", ex);
+        }
+    }
+
     private void sendKafkaMessage(String topic, String idempotencyKey, DeductionRecord deductionRecord) {
         try {
             kafkaTemplate.send(topic, idempotencyKey, deductionRecord);
@@ -338,7 +332,14 @@ public class DeductionRecordService {
             deductionRecord.setDeductionTime(LocalDateTime.now());
         }
         if (deductionRecord.getStatus() == null || deductionRecord.getStatus().isBlank()) {
-            deductionRecord.setStatus("Pending");
+            deductionRecord.setStatus("Effective");
+        }
+        if (deductionRecord.getScoringCycle() == null || deductionRecord.getScoringCycle().isBlank()) {
+            int year = deductionRecord.getDeductionTime().getYear();
+            deductionRecord.setScoringCycle(year + "-" + (year + 1));
+        }
+        if (deductionRecord.getHandler() == null || deductionRecord.getHandler().isBlank()) {
+            deductionRecord.setHandler("system");
         }
     }
 

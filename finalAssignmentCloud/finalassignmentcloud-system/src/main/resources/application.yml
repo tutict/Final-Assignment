@@ -24,9 +24,16 @@ spring:
         username: ${NACOS_USERNAME:}
         password: ${NACOS_PASSWORD:}
 server:
-  port: 8085
+  port: 18085
 management:
+  endpoint:
+    health:
+      show-details: never
   endpoints:
     web:
       exposure:
-        include: health,info
+        include: health,prometheus
+
+logging:
+  pattern:
+    level: "%5p [traceId=%X{traceId:-}]"

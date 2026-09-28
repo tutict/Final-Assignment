@@ -3,6 +3,7 @@ package com.tutict.finalassignmentcloud.auth.service;
 import com.tutict.finalassignmentcloud.auth.client.AuditLogClient;
 import com.tutict.finalassignmentcloud.auth.client.DriverClient;
 import com.tutict.finalassignmentcloud.auth.client.RoleClient;
+import com.tutict.finalassignmentcloud.exception.DependencyUnavailableException;
 import com.tutict.finalassignmentcloud.auth.client.UserClient;
 import com.tutict.finalassignmentcloud.auth.config.login.jwt.TokenProvider;
 import com.tutict.finalassignmentcloud.config.websocket.WsAction;
@@ -547,6 +548,7 @@ public class AuthWsService {
         } catch (FeignException.NotFound ex) {
             return null;
         } catch (FeignException ex) {
+            rethrowIfUnavailable(ex);
             logger.log(Level.WARNING, "Failed to fetch user by username=" + username, ex);
             return null;
         }
@@ -561,6 +563,7 @@ public class AuthWsService {
         } catch (FeignException.NotFound ex) {
             return null;
         } catch (FeignException ex) {
+            rethrowIfUnavailable(ex);
             logger.log(Level.WARNING, "Failed to fetch user by id=" + userId, ex);
             return null;
         }
@@ -599,6 +602,7 @@ public class AuthWsService {
         } catch (FeignException.NotFound ex) {
             return null;
         } catch (FeignException ex) {
+            rethrowIfUnavailable(ex);
             logger.log(Level.WARNING, "Failed to fetch role by id=" + roleId, ex);
             return null;
         }
@@ -613,6 +617,7 @@ public class AuthWsService {
         } catch (FeignException.NotFound ex) {
             return null;
         } catch (FeignException ex) {
+            rethrowIfUnavailable(ex);
             logger.log(Level.WARNING, "Failed to fetch role by code=" + roleCode, ex);
             return null;
         }
@@ -627,6 +632,7 @@ public class AuthWsService {
         } catch (FeignException.NotFound ex) {
             return List.of();
         } catch (FeignException ex) {
+            rethrowIfUnavailable(ex);
             logger.log(Level.WARNING, "Failed to fetch user roles for userId=" + userId, ex);
             return List.of();
         }
@@ -643,6 +649,12 @@ public class AuthWsService {
         }
     }
 
+
+    private static void rethrowIfUnavailable(FeignException ex) {
+        if (DependencyUnavailableException.unavailable(ex.status())) {
+            throw new DependencyUnavailableException("Downstream dependency is unavailable", ex);
+        }
+    }
     private static class RoleAggregation {
         private final List<String> roleNames;
         private final List<String> roleCodes;

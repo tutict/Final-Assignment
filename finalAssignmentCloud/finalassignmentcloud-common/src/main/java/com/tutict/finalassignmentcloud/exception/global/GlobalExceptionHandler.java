@@ -2,12 +2,15 @@ package com.tutict.finalassignmentcloud.exception.global;
 
 import com.github.dockerjava.api.exception.UnauthorizedException;
 import com.tutict.finalassignmentcloud.dto.response.ApiResponse;
+import com.tutict.finalassignmentcloud.exception.DependencyUnavailableException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.ConstraintViolation;
 import jakarta.validation.ConstraintViolationException;
 import jakarta.ws.rs.ForbiddenException;
 import org.apache.kafka.common.errors.ResourceNotFoundException;
 import org.springframework.dao.DataIntegrityViolationException;
+import com.tutict.finalassignmentcloud.observability.LedgerConnectionSignals;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.AccessDeniedException;
@@ -16,6 +19,8 @@ import org.springframework.validation.BindException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.MissingServletRequestParameterException;
 import org.springframework.web.bind.annotation.ControllerAdvice;
+import org.springframework.http.converter.HttpMessageNotReadableException;
+import org.springframework.web.HttpMediaTypeNotSupportedException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 
 import java.time.OffsetDateTime;
@@ -132,9 +137,49 @@ public class GlobalExceptionHandler {
                 "缺少请求参数: " + ex.getParameterName(), request, null);
     }
 
+    @ExceptionHandler(HttpMessageNotReadableException.class)
+    public ResponseEntity<Map<String, Object>> handleUnreadable(HttpMessageNotReadableException ex,
+                                                                 HttpServletRequest request) {
+        logger.log(Level.WARNING, "Request body is not readable");
+        return buildResponse(HttpStatus.BAD_REQUEST, "Invalid request body", request,
+                Map.of("errorCode", "BAD_REQUEST"));
+    }
+    @ExceptionHandler(HttpMediaTypeNotSupportedException.class)
+    public ResponseEntity<Map<String, Object>> handleUnsupportedMediaType(HttpMediaTypeNotSupportedException ex,
+                                                                           HttpServletRequest request) {
+        logger.log(Level.WARNING, "Unsupported media type: {0}", ex.getContentType());
+        return buildResponse(HttpStatus.UNSUPPORTED_MEDIA_TYPE, "Unsupported content type", request,
+                Map.of("errorCode", "UNSUPPORTED_MEDIA_TYPE"));
+    }
+    @ExceptionHandler(DependencyUnavailableException.class)
+    public ResponseEntity<Map<String, Object>> handleDependencyUnavailable(DependencyUnavailableException ex,
+                                                                           HttpServletRequest request) {
+        logger.log(Level.WARNING, "Downstream dependency is unavailable: {0}", ex.getMessage());
+        ResponseEntity<Map<String, Object>> response = buildResponse(
+                HttpStatus.SERVICE_UNAVAILABLE,
+                "Downstream dependency is unavailable",
+                request,
+                Map.of("errorCode", "DEPENDENCY_TIMEOUT"));
+        return ResponseEntity.status(response.getStatusCode())
+                .header(HttpHeaders.RETRY_AFTER, "1")
+                .body(response.getBody());
+    }
+
     @ExceptionHandler(Exception.class)
     public ResponseEntity<Map<String, Object>> handleGenericException(Exception ex,
                                                                       HttpServletRequest request) {
+        if (request != null
+                && LedgerConnectionSignals.connectionWait(ex)
+                && LedgerConnectionSignals.ledgerWrite(request.getMethod(), request.getRequestURI())) {
+            ResponseEntity<Map<String, Object>> response = buildResponse(
+                    HttpStatus.SERVICE_UNAVAILABLE,
+                    "Database connection wait exceeded 200ms",
+                    request,
+                    Map.of("errorCode", "DEPENDENCY_TIMEOUT"));
+            return ResponseEntity.status(response.getStatusCode())
+                    .header(HttpHeaders.RETRY_AFTER, "1")
+                    .body(response.getBody());
+        }
         logger.log(Level.SEVERE, "未捕获异常 {0}", ex.getMessage());
         return buildResponse(HttpStatus.INTERNAL_SERVER_ERROR,
                 "服务器内部错误 " + ex.getMessage(), request, null);

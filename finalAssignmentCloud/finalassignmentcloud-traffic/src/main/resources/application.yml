@@ -28,10 +28,17 @@ spring:
 server:
   port: 8083
 management:
+  endpoint:
+    health:
+      show-details: never
   endpoints:
     web:
       exposure:
-        include: health,info
+        include: health,prometheus,ledgerReconcile
+logging:
+  pattern:
+    level: "%5p [traceId=%X{traceId:-}]"
+
 ---
 spring:
   config:
@@ -46,12 +53,18 @@ spring:
         jdbc-url: jdbc:mysql://localhost:3307/traffic_0?useSSL=false&serverTimezone=Asia/Shanghai
         username: ${TRAFFIC_DS0_USERNAME:${MYSQL_APP_USERNAME:${DB_USERNAME}}}
         password: ${TRAFFIC_DS0_PASSWORD:${MYSQL_APP_PASSWORD:${DB_PASSWORD}}}
+        connection-timeout: 250
+        data-source-properties:
+          sessionVariables: max_execution_time=3000
       ds1:
         type: com.zaxxer.hikari.HikariDataSource
         driver-class-name: com.mysql.cj.jdbc.Driver
         jdbc-url: jdbc:mysql://localhost:3308/traffic_1?useSSL=false&serverTimezone=Asia/Shanghai
         username: ${TRAFFIC_DS1_USERNAME:${MYSQL_APP_USERNAME:${DB_USERNAME}}}
         password: ${TRAFFIC_DS1_PASSWORD:${MYSQL_APP_PASSWORD:${DB_PASSWORD}}}
+        connection-timeout: 250
+        data-source-properties:
+          sessionVariables: max_execution_time=3000
     rules:
       sharding:
         tables:
@@ -76,3 +89,4 @@ spring:
               algorithm-expression: ds$->{id % 2}
     props:
       sql-show: true
+

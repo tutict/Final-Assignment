@@ -53,7 +53,7 @@ public record ChatStreamEvent(
                 sessionKey,
                 messageId,
                 null,
-                Map.of("message", errorMessage),
+                Map.of("message", errorMessage, "isFallback", true, "reason", "model_unavailable"),
                 Instant.now()
         );
     }

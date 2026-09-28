@@ -15,7 +15,7 @@ import org.springframework.data.elasticsearch.annotations.MultiField;
 import org.springframework.data.elasticsearch.annotations.Setting;
 
 @Data
-@Document(indexName = "sys_backup_restore")
+@Document(createIndex = false, indexName = "sys_backup_restore")
 @Setting(settingPath = "elasticsearch/sys_backup_restore-settings.json")
 public class SysBackupRestoreDocument implements Serializable {
 

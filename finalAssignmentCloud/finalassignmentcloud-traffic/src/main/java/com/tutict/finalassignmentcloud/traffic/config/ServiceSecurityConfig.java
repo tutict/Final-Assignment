@@ -1,9 +1,11 @@
 package com.tutict.finalassignmentcloud.traffic.config;
 
+import com.tutict.finalassignmentcloud.config.security.InternalServiceTokenFilter;
 import com.tutict.finalassignmentcloud.config.security.SecurityResponseWriter;
 import com.tutict.finalassignmentcloud.config.security.ServiceJwtAuthenticationFilter;
 import com.tutict.finalassignmentcloud.config.security.ServiceTokenProvider;
 import com.tutict.finalassignmentcloud.config.security.pqc.MlDsaKeyRingProperties;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.annotation.Bean;
@@ -33,24 +35,37 @@ public class ServiceSecurityConfig {
     }
 
     @Bean
-    public ServiceJwtAuthenticationFilter serviceJwtAuthenticationFilter(ServiceTokenProvider tokenProvider) {
-        return new ServiceJwtAuthenticationFilter(tokenProvider);
+    public ServiceJwtAuthenticationFilter serviceJwtAuthenticationFilter(ServiceTokenProvider tokenProvider,
+                                                                        @Qualifier("blacklistRedisConnectionFactory") org.springframework.data.redis.connection.RedisConnectionFactory redisConnectionFactory,
+                                                                        com.tutict.finalassignmentcloud.traffic.reliability.TrafficReliabilityMetrics metrics) {
+        return new ServiceJwtAuthenticationFilter(tokenProvider, redisConnectionFactory, metrics::dependencyTimeout);
+    }
+
+
+    @Bean
+    public InternalServiceTokenFilter internalServiceTokenFilter(
+            @Value("${internal.service-token:${INTERNAL_SERVICE_TOKEN:}}") String token) {
+        return new InternalServiceTokenFilter(token);
     }
 
     @Bean
     public SecurityFilterChain serviceSecurityFilterChain(HttpSecurity http,
-                                                          ServiceJwtAuthenticationFilter jwtAuthenticationFilter)
+                                                          ServiceJwtAuthenticationFilter jwtAuthenticationFilter,
+                                                          InternalServiceTokenFilter internalServiceTokenFilter)
             throws Exception {
         http
                 .csrf(AbstractHttpConfigurer::disable)
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers("/actuator/health", "/actuator/health/**").permitAll()
+                        .requestMatchers("/actuator/prometheus").hasRole("ADMIN")
+                        .requestMatchers("/actuator/ledgerReconcile").hasAnyRole("ADMIN", "SUPER_ADMIN")
                         .anyRequest().authenticated())
                 .exceptionHandling(ex -> ex
                         .authenticationEntryPoint(SecurityResponseWriter::writeUnauthorized)
                         .accessDeniedHandler(SecurityResponseWriter::writeForbidden))
-                .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class);
+                .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class)
+                .addFilterBefore(internalServiceTokenFilter, UsernamePasswordAuthenticationFilter.class);
         return http.build();
     }
 }

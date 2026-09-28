@@ -15,7 +15,7 @@ import org.springframework.data.elasticsearch.annotations.MultiField;
 import org.springframework.data.elasticsearch.annotations.Setting;
 
 @Data
-@Document(indexName = "sys_request_history")
+@Document(createIndex = false, indexName = "sys_request_history")
 @Setting(settingPath = "elasticsearch/sys_request_history-settings.json")
 public class SysRequestHistoryDocument implements Serializable {
 

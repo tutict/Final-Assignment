@@ -17,7 +17,7 @@ import org.springframework.data.elasticsearch.annotations.MultiField;
 import org.springframework.data.elasticsearch.annotations.Setting;
 
 @Data
-@Document(indexName = "driver_information")
+@Document(createIndex = false, indexName = "driver_information")
 @Setting(settingPath = "elasticsearch/driver_information-settings.json")
 public class DriverInformationDocument implements Serializable {
 

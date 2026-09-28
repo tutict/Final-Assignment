@@ -11,6 +11,11 @@ internal:
   service-token: ${INTERNAL_SERVICE_TOKEN:dev-internal-service-token-32bytes-ok}
 
 spring:
+  datasource:
+    hikari:
+      connection-timeout: 250
+      data-source-properties:
+        sessionVariables: max_execution_time=3000
   main:
     allow-bean-definition-overriding: true
     allow-circular-references: true
@@ -36,13 +41,13 @@ spring:
             finalassignmentcloud-audit:
               - uri: http://127.0.0.1:${CLOUD_AUDIT_PORT:8084}
             finalassignmentcloud-system:
-              - uri: http://127.0.0.1:${CLOUD_SYSTEM_PORT:8085}
+              - uri: http://127.0.0.1:${CLOUD_SYSTEM_PORT:18085}
             finalassignmentcloud-ai:
-              - uri: http://127.0.0.1:${CLOUD_AI_PORT:8086}
+              - uri: http://127.0.0.1:${CLOUD_AI_PORT:18086}
             finalassignmentcloud-search:
-              - uri: http://127.0.0.1:${CLOUD_SEARCH_PORT:8087}
+              - uri: http://127.0.0.1:${CLOUD_SEARCH_PORT:18087}
             finalassignmentcloud-rag:
-              - uri: http://127.0.0.1:${CLOUD_RAG_PORT:8088}
+              - uri: http://127.0.0.1:${CLOUD_RAG_PORT:18088}
             finalassignmentcloud-gateway:
               - uri: http://127.0.0.1:${CLOUD_GATEWAY_PORT:8080}
     service-registry:
@@ -52,21 +57,44 @@ spring:
     bootstrap-servers: ${SPRING_KAFKA_BOOTSTRAP_SERVERS:localhost:9092}
     listener:
       auto-startup: false
+    producer:
+      acks: all
+      retries: 3
+      properties:
+        enable.idempotence: true
+        delivery.timeout.ms: 10000
+        request.timeout.ms: 3000
+        max.block.ms: 500
+        max.in.flight.requests.per.connection: 5
   data:
     redis:
       host: ${SPRING_DATA_REDIS_HOST:localhost}
       port: ${SPRING_DATA_REDIS_PORT:6379}
+      timeout: ${SPRING_DATA_REDIS_TIMEOUT:300ms}  # cache client; blacklist factory is 200ms
   elasticsearch:
     uris: ${ELASTICSEARCH_URIS:http://localhost:9200}
+    connection-timeout: ${ELASTICSEARCH_CONNECT_TIMEOUT:800ms}
+    socket-timeout: ${ELASTICSEARCH_SOCKET_TIMEOUT:800ms}
 
 management:
+  endpoint:
+    health:
+      show-details: never
   health:
     elasticsearch:
       enabled: false
     redis:
-      enabled: ${MANAGEMENT_HEALTH_REDIS_ENABLED:true}
+      enabled: ${MANAGEMENT_HEALTH_REDIS_ENABLED:false}
 
 rag:
   enabled: true
   retrieval:
     enabled: true
+
+logging:
+  pattern:
+    level: "%5p [traceId=%X{traceId:-}]"
+
+app:
+  reliability:
+    load-shed: ${RELIABILITY_LOAD_SHED:true}

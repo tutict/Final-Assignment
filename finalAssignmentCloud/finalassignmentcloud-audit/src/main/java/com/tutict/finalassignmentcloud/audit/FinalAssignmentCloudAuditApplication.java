@@ -9,7 +9,10 @@ import org.springframework.cloud.openfeign.EnableFeignClients;
 @EnableFeignClients
 @EnableDiscoveryClient
 @MapperScan("com.tutict.finalassignmentcloud.audit.mapper")
-@SpringBootApplication
+@SpringBootApplication(scanBasePackages = {
+        "com.tutict.finalassignmentcloud.audit",
+        "com.tutict.finalassignmentcloud.observability"
+})
 public class FinalAssignmentCloudAuditApplication {
 
     static void main(String[] args) {

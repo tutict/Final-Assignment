@@ -3,14 +3,17 @@ package com.tutict.finalassignmentcloud.auth.service;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.data.redis.core.RedisCallback;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
 
+import com.tutict.finalassignmentcloud.auth.reliability.BlacklistAccessPolicy;
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.util.HexFormat;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.TimeUnit;
 
 @Service
@@ -21,6 +24,7 @@ public class TokenBlacklistService {
 
     private final RedisTemplate<String, Object> redisTemplate;
     private final boolean failOpenWhenUnavailable;
+    private final ConcurrentHashMap<String, Long> localRevocations = new ConcurrentHashMap<>();
 
     public TokenBlacklistService(
             RedisTemplate<String, Object> redisTemplate,
@@ -33,6 +37,7 @@ public class TokenBlacklistService {
         if (!StringUtils.hasText(token) || ttlMillis <= 0) {
             return;
         }
+        remember(token, ttlMillis);
         try {
             redisTemplate.opsForValue().set(key(token), "revoked", ttlMillis, TimeUnit.MILLISECONDS);
         } catch (RuntimeException ex) {
@@ -44,15 +49,54 @@ public class TokenBlacklistService {
         }
     }
 
-    public boolean isBlacklisted(String token) {
+    public BlacklistAccessPolicy.Verdict inspect(String token) {
         if (!StringUtils.hasText(token)) {
-            return false;
+            return BlacklistAccessPolicy.Verdict.CLEAR;
+        }
+        if (locallyRevoked(token)) {
+            return BlacklistAccessPolicy.Verdict.REVOKED;
         }
         try {
-            return Boolean.TRUE.equals(redisTemplate.hasKey(key(token)));
+            if (Boolean.TRUE.equals(redisTemplate.hasKey(key(token)))) {
+                remember(token, TimeUnit.MINUTES.toMillis(30));
+                return BlacklistAccessPolicy.Verdict.REVOKED;
+            }
+            return BlacklistAccessPolicy.Verdict.CLEAR;
         } catch (RuntimeException ex) {
             LOG.error("Failed to check access token blacklist", ex);
-            return !failOpenWhenUnavailable;
+            return locallyRevoked(token)
+                    ? BlacklistAccessPolicy.Verdict.REVOKED
+                    : BlacklistAccessPolicy.Verdict.UNAVAILABLE;
+        }
+    }
+
+    public boolean isBlacklisted(String token) {
+        return inspect(token) == BlacklistAccessPolicy.Verdict.REVOKED;
+    }
+
+    private void remember(String token, long ttlMillis) {
+        localRevocations.put(sha256(token), System.currentTimeMillis() + Math.max(ttlMillis, 1));
+    }
+
+    private boolean locallyRevoked(String token) {
+        Long until = localRevocations.get(sha256(token));
+        if (until == null) {
+            return false;
+        }
+        if (until < System.currentTimeMillis()) {
+            localRevocations.remove(sha256(token));
+            return false;
+        }
+        return true;
+    }
+
+    public boolean reachable() {
+        try {
+            String pong = redisTemplate.execute((RedisCallback<String>) connection -> connection.ping());
+            return pong != null && pong.equalsIgnoreCase("PONG");
+        } catch (RuntimeException ex) {
+            LOG.warn("Redis ping failed: {}", ex.toString());
+            return false;
         }
     }
 

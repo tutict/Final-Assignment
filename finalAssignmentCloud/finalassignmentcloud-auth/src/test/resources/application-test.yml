@@ -6,6 +6,10 @@ spring:
     username: ${AUTH_TEST_DB_USERNAME:root}
     password: ${AUTH_TEST_DB_PASSWORD:root}
     driver-class-name: com.mysql.cj.jdbc.Driver
+    hikari:
+      connection-timeout: ${DB_CONNECTION_TIMEOUT_MS:250}
+      data-source-properties:
+        sessionVariables: max_execution_time=3000
   cloud:
     nacos:
       config:

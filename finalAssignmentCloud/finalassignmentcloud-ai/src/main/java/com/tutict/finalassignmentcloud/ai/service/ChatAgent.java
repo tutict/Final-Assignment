@@ -5,7 +5,13 @@ import com.tutict.finalassignmentcloud.ai.client.rag.RagRetrievalResult;
 import com.tutict.finalassignmentcloud.ai.prompt.AgentConstraintService;
 import com.tutict.finalassignmentcloud.ai.prompt.AiAgentRole;
 import com.tutict.finalassignmentcloud.ai.prompt.AiAgentRoleResolver;
+import com.tutict.finalassignmentcloud.ai.reliability.AiFallbackMetrics;
+import com.tutict.finalassignmentcloud.ai.reliability.ModelCallBulkhead;
 import com.tutict.finalassignmentcloud.model.ai.ChatActionResponse;
+import jakarta.annotation.PreDestroy;
+import org.springframework.ai.chat.messages.AssistantMessage;
+import org.springframework.ai.chat.model.Generation;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.ai.chat.messages.UserMessage;
@@ -18,6 +24,11 @@ import reactor.core.publisher.Flux;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 
 @Service
 public class ChatAgent {
@@ -28,19 +39,38 @@ public class ChatAgent {
     private final OllamaChatModel chatModel;
     private final AIChatSearchService aiChatSearchService;
     private final RagRetrievalService ragRetrievalService;
+    private static final long CHAT_TIMEOUT_MILLIS = 700;
+
     private final AiAgentRoleResolver roleResolver;
     private final AgentConstraintService constraintService;
+    private final ModelCallBulkhead modelCalls;
+    private final AiFallbackMetrics aiFallbackMetrics;
+    private final ExecutorService aiExecutor = Executors.newFixedThreadPool(ModelCallBulkhead.MAX_IN_FLIGHT);
 
     public ChatAgent(OllamaChatModel chatModel,
                      AIChatSearchService aiChatSearchService,
                      RagRetrievalService ragRetrievalService,
                      AiAgentRoleResolver roleResolver,
                      AgentConstraintService constraintService) {
+        this(chatModel, aiChatSearchService, ragRetrievalService, roleResolver, constraintService,
+                new ModelCallBulkhead(), null);
+    }
+
+    @Autowired
+    public ChatAgent(OllamaChatModel chatModel,
+                     AIChatSearchService aiChatSearchService,
+                     RagRetrievalService ragRetrievalService,
+                     AiAgentRoleResolver roleResolver,
+                     AgentConstraintService constraintService,
+                     ModelCallBulkhead modelCalls,
+                     AiFallbackMetrics aiFallbackMetrics) {
         this.chatModel = chatModel;
         this.aiChatSearchService = aiChatSearchService;
         this.ragRetrievalService = ragRetrievalService;
         this.roleResolver = roleResolver;
         this.constraintService = constraintService;
+        this.modelCalls = modelCalls == null ? new ModelCallBulkhead() : modelCalls;
+        this.aiFallbackMetrics = aiFallbackMetrics;
     }
 
     public Flux<ChatResponse> streamChat(String message, String massage, boolean webSearch) {
@@ -59,7 +89,13 @@ public class ChatAgent {
         logger.info("AI chat request received. message={}, webSearch={}", userMessage, webSearch);
 
         Prompt prompt = buildPrompt(userMessage, webSearch, safeMetadata(metadata));
-        return chatModel.stream(prompt);
+        return Flux.defer(() -> {
+            if (!modelCalls.tryAcquire()) {
+                markFallback();
+                return Flux.just(fallbackChatResponse());
+            }
+            return chatModel.stream(prompt).doFinally(signal -> modelCalls.release());
+        });
     }
 
     public ChatActionResponse chatWithActions(String message, String massage, boolean webSearch) {
@@ -78,9 +114,73 @@ public class ChatAgent {
         logger.info("AI chat actions request received. message={}, webSearch={}", userMessage, webSearch);
 
         Prompt prompt = buildActionPrompt(userMessage, webSearch, safeMetadata(metadata));
-        ChatResponse response = chatModel.call(prompt);
+        ChatResponse response = completeWithTimeout(prompt);
+        if (response == null) {
+            return fallbackActions("empty_provider_response");
+        }
         String content = extractResponseText(response);
         return parseActionResponse(content);
+    }
+
+    private ChatResponse completeWithTimeout(Prompt prompt) {
+        if (!modelCalls.tryAcquire()) {
+            return null;
+        }
+        final CompletableFuture<ChatResponse> future;
+        try {
+            future = CompletableFuture.supplyAsync(() -> {
+                try {
+                    return chatModel.call(prompt);
+                } finally {
+                    modelCalls.release();
+                }
+            }, aiExecutor);
+        } catch (RuntimeException ex) {
+            modelCalls.release();
+            logger.warn("AI action generation was rejected. reason={}", ex.toString());
+            return null;
+        }
+        try {
+            return future.get(CHAT_TIMEOUT_MILLIS, TimeUnit.MILLISECONDS);
+        } catch (TimeoutException ex) {
+            future.cancel(true);
+            logger.warn("AI action generation timed out after {} ms", CHAT_TIMEOUT_MILLIS);
+            return null;
+        } catch (InterruptedException ex) {
+            Thread.currentThread().interrupt();
+            future.cancel(true);
+            return null;
+        } catch (Exception ex) {
+            logger.warn("AI action generation failed. reason={}", ex.toString());
+            return null;
+        }
+    }
+
+    private ChatActionResponse fallbackActions(String reason) {
+        markFallback();
+        ChatActionResponse response = new ChatActionResponse(
+                "AI 动作生成暂时不可用，请先手动操作。",
+                List.of(),
+                false
+        );
+        response.setFallback(true);
+        logger.info("AI chat actions degraded. reason={}", reason);
+        return response;
+    }
+
+    private void markFallback() {
+        if (aiFallbackMetrics != null) {
+            aiFallbackMetrics.increment();
+        }
+    }
+
+    private ChatResponse fallbackChatResponse() {
+        return new ChatResponse(List.of(new Generation(new AssistantMessage("AI 暂时不可用，请稍后再试。"))));
+    }
+
+    @PreDestroy
+    public void shutdownAiExecutor() {
+        aiExecutor.shutdownNow();
     }
 
     private Prompt buildPrompt(String userMessage, boolean webSearch, Map<String, Object> metadata) {

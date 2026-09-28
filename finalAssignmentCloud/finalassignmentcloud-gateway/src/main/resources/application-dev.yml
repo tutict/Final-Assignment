@@ -25,6 +25,9 @@ spring:
           discovery:
             locator:
               enabled: false
+          httpclient:
+            connect-timeout: 1000
+            response-timeout: 3s
           routes:
             - id: auth-service
               uri: http://127.0.0.1:${CLOUD_AUTH_PORT:8081}
@@ -43,22 +46,60 @@ spring:
               predicates:
                 - Path=/api/audit/**,/api/system/logs/**,/api/logs/**
             - id: system-service
-              uri: http://127.0.0.1:${CLOUD_SYSTEM_PORT:8085}
+              uri: http://127.0.0.1:${CLOUD_SYSTEM_PORT:18085}
               predicates:
                 - Path=/api/system/**
             - id: rag-service
-              uri: http://127.0.0.1:${CLOUD_RAG_PORT:8088}
+              uri: http://127.0.0.1:${CLOUD_RAG_PORT:18088}
               predicates:
                 - Path=/api/rag/**
+              metadata:
+                response-timeout: 8000
             - id: search-service
-              uri: http://127.0.0.1:${CLOUD_SEARCH_PORT:8087}
+              uri: http://127.0.0.1:${CLOUD_SEARCH_PORT:18087}
               predicates:
                 - Path=/api/search/**
             - id: ai-service
-              uri: http://127.0.0.1:${CLOUD_AI_PORT:8086}
+              uri: http://127.0.0.1:${CLOUD_AI_PORT:18086}
               predicates:
                 - Path=/api/ai/**
+              metadata:
+                response-timeout: 8000
 
+
+      globalcors:
+        add-to-simple-url-handler-mapping: true
+        cors-configurations:
+          '[/**]':
+            allowedOrigins:
+              - http://localhost:3000
+              - http://127.0.0.1:3000
+              - http://localhost:8080
+              - http://127.0.0.1:8080
+              - http://localhost:5173
+              - http://127.0.0.1:5173
+              - http://localhost:15173
+              - http://127.0.0.1:15173
+              - http://localhost:13000
+              - http://127.0.0.1:13000
+            allowedMethods:
+              - GET
+              - POST
+              - PUT
+              - DELETE
+              - PATCH
+              - OPTIONS
+            allowedHeaders:
+              - Authorization
+              - Content-Type
+              - Idempotency-Key
+              - X-Trace-Id
+              - Cache-Control
+              - Accept
+              - X-Requested-With
+            exposedHeaders:
+              - X-Trace-Id
+            allowCredentials: true
 server:
   port: ${CLOUD_GATEWAY_PORT:8080}
 

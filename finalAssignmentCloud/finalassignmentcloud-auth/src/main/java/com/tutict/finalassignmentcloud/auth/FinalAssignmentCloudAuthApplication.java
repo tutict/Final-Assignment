@@ -11,7 +11,11 @@ import org.springframework.scheduling.annotation.EnableScheduling;
 @EnableDiscoveryClient
 @EnableScheduling
 @MapperScan("com.tutict.finalassignmentcloud.auth.mapper")
-@SpringBootApplication
+@SpringBootApplication(scanBasePackages = {
+        "com.tutict.finalassignmentcloud.auth",
+        "com.tutict.finalassignmentcloud.observability",
+        "com.tutict.finalassignmentcloud.exception"
+})
 public class FinalAssignmentCloudAuthApplication {
 
     public static void main(String[] args) {

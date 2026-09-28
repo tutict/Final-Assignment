@@ -15,7 +15,7 @@ import org.springframework.data.elasticsearch.annotations.MultiField;
 import org.springframework.data.elasticsearch.annotations.Setting;
 
 @Data
-@Document(indexName = "sys_permission")
+@Document(createIndex = false, indexName = "sys_permission")
 @Setting(settingPath = "elasticsearch/sys_permission-settings.json")
 public class SysPermissionDocument implements Serializable {
 

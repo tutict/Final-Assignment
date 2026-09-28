@@ -15,7 +15,7 @@ import org.springframework.data.elasticsearch.annotations.MultiField;
 import org.springframework.data.elasticsearch.annotations.Setting;
 
 @Data
-@Document(indexName = "audit_login_log")
+@Document(createIndex = false, indexName = "audit_login_log")
 @Setting(settingPath = "elasticsearch/audit_login_log-settings.json")
 public class AuditLoginLogDocument implements Serializable {
 

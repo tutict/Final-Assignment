@@ -2,8 +2,11 @@ package com.tutict.finalassignmentcloud.ai.chat;
 
 import com.tutict.finalassignmentcloud.ai.provider.AiProviderRegistry;
 import com.tutict.finalassignmentcloud.ai.provider.AiToken;
+import com.tutict.finalassignmentcloud.ai.reliability.AiFallbackMetrics;
+import com.tutict.finalassignmentcloud.ai.reliability.ModelCallBulkhead;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import reactor.core.publisher.Flux;
@@ -12,6 +15,7 @@ import reactor.core.publisher.BufferOverflowStrategy;
 
 import java.time.Duration;
 import java.time.Instant;
+import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -23,13 +27,27 @@ public class ChatStreamService {
 
     private final AiProviderRegistry aiProviderRegistry;
     private final Duration keepAliveInterval;
+    private final ModelCallBulkhead modelCalls;
+    private final AiFallbackMetrics aiFallbackMetrics;
 
     public ChatStreamService(
             AiProviderRegistry aiProviderRegistry,
-            @Value("${ai.chat.stream.keepalive:PT15S}") Duration keepAliveInterval
+            Duration keepAliveInterval
+    ) {
+        this(aiProviderRegistry, keepAliveInterval, new ModelCallBulkhead(), null);
+    }
+
+    @Autowired
+    public ChatStreamService(
+            AiProviderRegistry aiProviderRegistry,
+            @Value("${ai.chat.stream.keepalive:PT15S}") Duration keepAliveInterval,
+            ModelCallBulkhead modelCalls,
+            AiFallbackMetrics aiFallbackMetrics
     ) {
         this.aiProviderRegistry = aiProviderRegistry;
         this.keepAliveInterval = keepAliveInterval;
+        this.modelCalls = modelCalls == null ? new ModelCallBulkhead() : modelCalls;
+        this.aiFallbackMetrics = aiFallbackMetrics;
     }
 
     public Flux<ChatStreamEvent> stream(AiChatStreamRequest request) {
@@ -38,7 +56,31 @@ public class ChatStreamService {
                 .orElseGet(() -> UUID.randomUUID().toString());
         String messageId = UUID.randomUUID().toString();
 
-        Flux<ChatStreamEvent> providerEvents = aiProviderRegistry.stream(
+        return Flux.defer(() -> {
+            if (!modelCalls.tryAcquire()) {
+                if (aiFallbackMetrics != null) {
+                    aiFallbackMetrics.increment();
+                }
+                return Flux.just(
+                        new ChatStreamEvent(
+                                ChatStreamEventType.TOKEN.wireName(),
+                                sessionKey,
+                                messageId,
+                                "AI 暂时不可用，请稍后再试。",
+                                Map.of("isFallback", true, "reason", "bulkhead_full"),
+                                Instant.now()
+                        ),
+                        new ChatStreamEvent(
+                                ChatStreamEventType.DONE.wireName(),
+                                sessionKey,
+                                messageId,
+                                null,
+                                Map.of("isFallback", true, "reason", "bulkhead_full"),
+                                Instant.now()
+                        )
+                );
+            }
+            Flux<ChatStreamEvent> providerEvents = aiProviderRegistry.stream(
                         request.normalizedMessage(),
                         request.metadata()
                 )
@@ -63,7 +105,9 @@ public class ChatStreamService {
                         ),
                         BufferOverflowStrategy.DROP_OLDEST
                 )
+                .doFinally(signal -> modelCalls.release())
                 .limitRate(32);
+        });
     }
 
     private Flux<ChatStreamEvent> toStreamEvents(AiToken token, String sessionKey, String messageId) {
@@ -120,6 +164,9 @@ public class ChatStreamService {
                 messageId,
                 error.toString()
         );
+        if (aiFallbackMetrics != null) {
+            aiFallbackMetrics.increment();
+        }
         return ChatStreamEvent.error(sessionKey, messageId, message);
     }
 }

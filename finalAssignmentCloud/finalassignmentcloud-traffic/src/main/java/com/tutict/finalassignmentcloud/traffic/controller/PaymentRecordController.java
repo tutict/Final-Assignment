@@ -3,6 +3,11 @@ package com.tutict.finalassignmentcloud.traffic.controller;
 import com.tutict.finalassignmentcloud.traffic.config.statemachine.states.PaymentState;
 import com.tutict.finalassignmentcloud.entity.PaymentRecord;
 import com.tutict.finalassignmentcloud.traffic.service.DriverAccessService;
+import com.tutict.finalassignmentcloud.traffic.reliability.IdempotencyConflictException;
+import com.tutict.finalassignmentcloud.traffic.reliability.PaymentOptimisticLockException;
+import com.tutict.finalassignmentcloud.traffic.reliability.IdempotencyInProgressException;
+import com.tutict.finalassignmentcloud.traffic.reliability.DuplicateKeySignals;
+import com.tutict.finalassignmentcloud.traffic.reliability.IdempotencyReplayException;
 import com.tutict.finalassignmentcloud.traffic.service.PaymentRecordService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
@@ -39,11 +44,14 @@ public class PaymentRecordController {
 
     private final PaymentRecordService paymentRecordService;
     private final DriverAccessService driverAccessService;
+    private final com.tutict.finalassignmentcloud.traffic.reliability.TrafficReliabilityMetrics metrics;
 
     public PaymentRecordController(PaymentRecordService paymentRecordService,
-                                   DriverAccessService driverAccessService) {
+                                   DriverAccessService driverAccessService,
+                                   com.tutict.finalassignmentcloud.traffic.reliability.TrafficReliabilityMetrics metrics) {
         this.paymentRecordService = paymentRecordService;
         this.driverAccessService = driverAccessService;
+        this.metrics = metrics;
     }
 
     @PostMapping
@@ -51,23 +59,28 @@ public class PaymentRecordController {
     public ResponseEntity<PaymentRecord> createPayment(@RequestBody PaymentRecord request,
                                                        @RequestHeader(value = "Idempotency-Key", required = false)
                                                        String idempotencyKey) {
-        boolean useKey = hasKey(idempotencyKey);
+        if (!hasKey(idempotencyKey)) {
+            return ResponseEntity.badRequest().build();
+        }
         try {
-            if (useKey) {
-                if (paymentRecordService.shouldSkipProcessing(idempotencyKey)) {
-                    return ResponseEntity.status(HttpStatus.ALREADY_REPORTED).build();
-                }
-                paymentRecordService.checkAndInsertIdempotency(idempotencyKey, request, "create");
-            }
+            paymentRecordService.checkAndInsertIdempotency(idempotencyKey, request, "create");
             PaymentRecord saved = paymentRecordService.createPaymentRecord(request);
-            if (useKey && saved.getPaymentId() != null) {
+            if (saved.getPaymentId() != null) {
                 paymentRecordService.markHistorySuccess(idempotencyKey, saved.getPaymentId());
             }
             return ResponseEntity.status(HttpStatus.CREATED).body(saved);
+        } catch (IdempotencyReplayException ex) {
+            return ResponseEntity.status(HttpStatus.ALREADY_REPORTED).build();
+        } catch (IdempotencyConflictException ex) {
+            metrics.idempotencyConflict();
+            return ResponseEntity.status(HttpStatus.CONFLICT).build();
+        } catch (IdempotencyInProgressException ex) {
+            return ResponseEntity.status(HttpStatus.CONFLICT).build();
         } catch (Exception ex) {
-            if (useKey) {
-                paymentRecordService.markHistoryFailure(idempotencyKey, ex.getMessage());
+            if (DuplicateKeySignals.duplicateKey(ex)) {
+                return ResponseEntity.status(HttpStatus.CONFLICT).build();
             }
+            paymentRecordService.markHistoryFailure(idempotencyKey, ex.getMessage());
             LOG.log(Level.SEVERE, "Create payment record failed", ex);
             return ResponseEntity.status(resolveStatus(ex)).build();
         }
@@ -90,7 +103,15 @@ public class PaymentRecordController {
                 paymentRecordService.markHistorySuccess(idempotencyKey, updated.getPaymentId());
             }
             return ResponseEntity.ok(updated);
+        } catch (PaymentOptimisticLockException ex) {
+            if (useKey) {
+                paymentRecordService.markHistoryFailure(idempotencyKey, ex.getMessage());
+            }
+            return ResponseEntity.status(HttpStatus.CONFLICT).build();
         } catch (Exception ex) {
+            if (DuplicateKeySignals.duplicateKey(ex)) {
+                return ResponseEntity.status(HttpStatus.CONFLICT).build();
+            }
             if (useKey) {
                 paymentRecordService.markHistoryFailure(idempotencyKey, ex.getMessage());
             }
@@ -237,6 +258,8 @@ public class PaymentRecordController {
         try {
             PaymentRecord updated = paymentRecordService.updatePaymentStatus(paymentId, state);
             return ResponseEntity.ok(updated);
+        } catch (PaymentOptimisticLockException ex) {
+            return ResponseEntity.status(HttpStatus.CONFLICT).build();
         } catch (Exception ex) {
             LOG.log(Level.WARNING, "Update payment status failed", ex);
             return ResponseEntity.status(resolveStatus(ex)).build();

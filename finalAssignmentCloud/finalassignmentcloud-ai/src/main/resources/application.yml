@@ -33,12 +33,15 @@ spring:
         username: ${NACOS_USERNAME:}
         password: ${NACOS_PASSWORD:}
 server:
-  port: 8086
+  port: 18086
 management:
+  endpoint:
+    health:
+      show-details: never
   endpoints:
     web:
       exposure:
-        include: health,info
+        include: health,prometheus
 ai:
   search:
     timeout-seconds: ${AI_SEARCH_TIMEOUT:30}
@@ -53,3 +56,7 @@ ai:
     max-rounds: ${AI_AGENT_MAX_ROUNDS:4}
     draft:
       store: ${AI_AGENT_DRAFT_STORE:memory}
+
+logging:
+  pattern:
+    level: "%5p [traceId=%X{traceId:-}]"

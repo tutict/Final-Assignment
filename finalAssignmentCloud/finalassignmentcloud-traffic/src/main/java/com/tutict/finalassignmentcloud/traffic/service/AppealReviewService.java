@@ -9,6 +9,7 @@ import com.tutict.finalassignmentcloud.entity.SysRequestHistory;
 import com.tutict.finalassignmentcloud.entity.elastic.AppealReviewDocument;
 import com.tutict.finalassignmentcloud.traffic.mapper.AppealReviewMapper;
 import com.tutict.finalassignmentcloud.traffic.mapper.SysRequestHistoryMapper;
+import com.tutict.finalassignmentcloud.traffic.reliability.HistoryReserve;
 import com.tutict.finalassignmentcloud.traffic.repository.AppealReviewSearchRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.cache.annotation.CacheEvict;
@@ -58,23 +59,9 @@ public class AppealReviewService {
     @WsAction(service = "AppealReviewService", action = "checkAndInsertIdempotency")
     public void checkAndInsertIdempotency(String idempotencyKey, AppealReview appealReview, String action) {
         Objects.requireNonNull(appealReview, "AppealReview must not be null");
-        if (sysRequestHistoryMapper.selectByIdempotencyKey(idempotencyKey) != null) {
-            throw new RuntimeException("Duplicate appeal review request detected");
-        }
-        SysRequestHistory history = new SysRequestHistory();
-        history.setIdempotencyKey(idempotencyKey);
-        history.setBusinessStatus("PROCESSING");
-        history.setCreatedAt(LocalDateTime.now());
-        history.setUpdatedAt(LocalDateTime.now());
-        sysRequestHistoryMapper.insert(history);
-
-        sendKafkaMessage("appeal_review_" + action, idempotencyKey, appealReview);
-
-        history.setBusinessStatus("SUCCESS");
-        history.setBusinessId(appealReview.getReviewId());
-        history.setRequestParams("PENDING");
-        history.setUpdatedAt(LocalDateTime.now());
-        sysRequestHistoryMapper.updateById(history);
+        HistoryReserve.reserve(sysRequestHistoryMapper, idempotencyKey, "APPEAL_REVIEW_" + action.toUpperCase(),
+                HistoryReserve.sha256(appealReview.getAppealId() + "|" + appealReview.getReviewLevel() + "|"
+                        + appealReview.getReviewResult() + "|" + appealReview.getReviewOpinion()));
     }
 
     @Transactional
@@ -83,6 +70,7 @@ public class AppealReviewService {
         validateAppealReview(appealReview);
         appealReviewMapper.insert(appealReview);
         syncToIndexAfterCommit(appealReview);
+        publishQuietly("appeal_review_create", appealReview);
         return appealReview;
     }
 
@@ -212,7 +200,6 @@ public class AppealReviewService {
         }
         history.setBusinessStatus("SUCCESS");
         history.setBusinessId(reviewId);
-        history.setRequestParams("DONE");
         history.setUpdatedAt(LocalDateTime.now());
         sysRequestHistoryMapper.updateById(history);
     }
@@ -227,6 +214,14 @@ public class AppealReviewService {
         history.setRequestParams(truncate(reason));
         history.setUpdatedAt(LocalDateTime.now());
         sysRequestHistoryMapper.updateById(history);
+    }
+
+    private void publishQuietly(String topic, AppealReview appealReview) {
+        try {
+            sendKafkaMessage(topic, null, appealReview);
+        } catch (RuntimeException ex) {
+            log.log(Level.SEVERE, "Appeal review kafka publish failed after the ledger commit", ex);
+        }
     }
 
     private void sendKafkaMessage(String topic, String idempotencyKey, AppealReview appealReview) {

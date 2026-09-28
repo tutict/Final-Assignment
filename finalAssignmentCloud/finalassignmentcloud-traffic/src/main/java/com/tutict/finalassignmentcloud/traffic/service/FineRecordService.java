@@ -9,6 +9,7 @@ import com.tutict.finalassignmentcloud.entity.SysRequestHistory;
 import com.tutict.finalassignmentcloud.entity.elastic.FineRecordDocument;
 import com.tutict.finalassignmentcloud.traffic.mapper.FineRecordMapper;
 import com.tutict.finalassignmentcloud.traffic.mapper.SysRequestHistoryMapper;
+import com.tutict.finalassignmentcloud.traffic.reliability.HistoryReserve;
 import com.tutict.finalassignmentcloud.traffic.repository.FineRecordSearchRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.cache.annotation.CacheEvict;
@@ -59,24 +60,9 @@ public class FineRecordService {
     @WsAction(service = "FineRecordService", action = "checkAndInsertIdempotency")
     public void checkAndInsertIdempotency(String idempotencyKey, FineRecord fineRecord, String action) {
         Objects.requireNonNull(fineRecord, "FineRecord must not be null");
-        if (sysRequestHistoryMapper.selectByIdempotencyKey(idempotencyKey) != null) {
-            throw new RuntimeException("Duplicate fine record request detected");
-        }
-
-        SysRequestHistory history = new SysRequestHistory();
-        history.setIdempotencyKey(idempotencyKey);
-        history.setBusinessStatus("PROCESSING");
-        history.setCreatedAt(LocalDateTime.now());
-        history.setUpdatedAt(LocalDateTime.now());
-        sysRequestHistoryMapper.insert(history);
-
-        sendKafkaMessage("fine_record_" + action, idempotencyKey, fineRecord);
-
-        history.setBusinessStatus("SUCCESS");
-        history.setBusinessId(fineRecord.getFineId());
-        history.setRequestParams("PENDING");
-        history.setUpdatedAt(LocalDateTime.now());
-        sysRequestHistoryMapper.updateById(history);
+        HistoryReserve.reserve(sysRequestHistoryMapper, idempotencyKey, "FINE_" + action.toUpperCase(),
+                HistoryReserve.sha256(fineRecord.getOffenseId() + "|" + fineRecord.getFineAmount() + "|"
+                        + fineRecord.getDriverId() + "|" + fineRecord.getPaymentStatus()));
     }
 
     @Transactional
@@ -85,6 +71,7 @@ public class FineRecordService {
         validateFineRecord(fineRecord);
         fineRecordMapper.insert(fineRecord);
         syncToIndexAfterCommit(fineRecord);
+        publishQuietly("fine_record_create", fineRecord);
         return fineRecord;
     }
 
@@ -255,7 +242,6 @@ public class FineRecordService {
         }
         history.setBusinessStatus("SUCCESS");
         history.setBusinessId(fineId);
-        history.setRequestParams("DONE");
         history.setUpdatedAt(LocalDateTime.now());
         sysRequestHistoryMapper.updateById(history);
     }
@@ -270,6 +256,14 @@ public class FineRecordService {
         history.setRequestParams(truncate(reason));
         history.setUpdatedAt(LocalDateTime.now());
         sysRequestHistoryMapper.updateById(history);
+    }
+
+    private void publishQuietly(String topic, FineRecord fineRecord) {
+        try {
+            sendKafkaMessage(topic, null, fineRecord);
+        } catch (RuntimeException ex) {
+            log.log(Level.SEVERE, "Fine kafka publish failed after the ledger commit", ex);
+        }
     }
 
     private void sendKafkaMessage(String topic, String idempotencyKey, FineRecord fineRecord) {

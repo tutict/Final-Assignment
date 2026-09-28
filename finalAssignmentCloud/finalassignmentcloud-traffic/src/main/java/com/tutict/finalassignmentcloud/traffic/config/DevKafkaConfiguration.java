@@ -1,5 +1,6 @@
 package com.tutict.finalassignmentcloud.traffic.config;
 
+import com.tutict.finalassignmentcloud.config.kafka.LedgerKafkaSettings;
 import org.apache.kafka.clients.consumer.ConsumerConfig;
 import org.apache.kafka.clients.producer.ProducerConfig;
 import org.apache.kafka.common.serialization.StringDeserializer;
@@ -26,18 +27,15 @@ public class DevKafkaConfiguration {
         this.bootstrapServers = bootstrapServers;
     }
 
+    Map<String, Object> producerConfig() {
+        return LedgerKafkaSettings.producer(bootstrapServers);
+    }
+
     @Bean
     @ConditionalOnMissingBean(KafkaTemplate.class)
     @SuppressWarnings({"rawtypes", "unchecked"})
     public KafkaTemplate kafkaTemplate() {
-        Map<String, Object> props = new HashMap<>();
-        props.put(ProducerConfig.BOOTSTRAP_SERVERS_CONFIG, bootstrapServers);
-        props.put(ProducerConfig.KEY_SERIALIZER_CLASS_CONFIG, StringSerializer.class);
-        props.put(ProducerConfig.VALUE_SERIALIZER_CLASS_CONFIG, StringSerializer.class);
-        props.put(ProducerConfig.ACKS_CONFIG, "0");
-        props.put(ProducerConfig.MAX_BLOCK_MS_CONFIG, 1000);
-        props.put(ProducerConfig.REQUEST_TIMEOUT_MS_CONFIG, 1000);
-        return new KafkaTemplate(new DefaultKafkaProducerFactory<>(props));
+        return new KafkaTemplate(new DefaultKafkaProducerFactory<>(producerConfig()));
     }
 
     @Bean
@@ -52,6 +50,8 @@ public class DevKafkaConfiguration {
         props.put(ConsumerConfig.ENABLE_AUTO_COMMIT_CONFIG, false);
         ConcurrentKafkaListenerContainerFactory<String, String> factory = new ConcurrentKafkaListenerContainerFactory<>();
         factory.setConsumerFactory(new DefaultKafkaConsumerFactory<>(props));
+        LedgerKafkaSettings.rememberTrace(factory);
+        factory.setCommonErrorHandler(LedgerKafkaSettings.consumerErrorHandler(kafkaTemplate()));
         factory.setAutoStartup(false);
         return factory;
     }

@@ -7,7 +7,10 @@ import org.springframework.cloud.openfeign.EnableFeignClients;
 
 @EnableFeignClients
 @EnableDiscoveryClient
-@SpringBootApplication
+@SpringBootApplication(scanBasePackages = {
+        "com.tutict.finalassignmentcloud.ai",
+        "com.tutict.finalassignmentcloud.observability"
+})
 public class FinalAssignmentCloudAiApplication {
 
     static void main(String[] args) {

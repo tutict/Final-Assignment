@@ -1,5 +1,6 @@
 package com.tutict.finalassignmentcloud.auth.config.login.jwt;
 
+import com.tutict.finalassignmentcloud.auth.reliability.BlacklistAccessPolicy;
 import com.tutict.finalassignmentcloud.auth.service.TokenBlacklistService;
 import org.jetbrains.annotations.NotNull;
 import org.slf4j.Logger;
@@ -29,9 +30,18 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
         this(tokenProvider, null);
     }
 
+    private final Runnable dependencyTimeout;
+
     public JwtAuthenticationFilter(TokenProvider tokenProvider, TokenBlacklistService tokenBlacklistService) {
+        this(tokenProvider, tokenBlacklistService, null);
+    }
+
+    public JwtAuthenticationFilter(TokenProvider tokenProvider,
+                                   TokenBlacklistService tokenBlacklistService,
+                                   Runnable dependencyTimeout) {
         this.tokenProvider = tokenProvider;
         this.tokenBlacklistService = tokenBlacklistService;
+        this.dependencyTimeout = dependencyTimeout;
     }
 
     @Override
@@ -40,7 +50,28 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
         String jwt = getJwtFromRequest(request);
         logger.debug("Bearer token present: {}", jwt != null);
 
-        if (jwt != null && isNotRevoked(jwt) && tokenProvider.validateToken(jwt)) {
+        if (jwt != null && tokenBlacklistService != null) {
+            BlacklistAccessPolicy.Effect effect = BlacklistAccessPolicy.decide(
+                    request.getMethod(), request.getRequestURI(), tokenBlacklistService.inspect(jwt));
+            if (effect == BlacklistAccessPolicy.Effect.DENY) {
+                response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
+                response.setContentType("application/json");
+                response.getWriter().write("{\"errorCode\":\"UNAUTHORIZED\",\"message\":\"Token has expired, please login again\"}");
+                return;
+            }
+            if (effect == BlacklistAccessPolicy.Effect.SHED) {
+                if (dependencyTimeout != null) {
+                    dependencyTimeout.run();
+                }
+                response.setStatus(HttpServletResponse.SC_SERVICE_UNAVAILABLE);
+                response.setHeader("Retry-After", "1");
+                response.setContentType("application/json");
+                response.getWriter().write("{\"errorCode\":\"DEPENDENCY_TIMEOUT\"}");
+                return;
+            }
+        }
+
+        if (jwt != null && tokenProvider.validateToken(jwt)) {
             String username = tokenProvider.getUsernameFromToken(jwt);
             List<String> roles = tokenProvider.extractRoles(jwt);
             logger.debug("JWT validated. Username: {}, Roles: {}", username, roles);
@@ -59,13 +90,6 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
         }
 
         filterChain.doFilter(request, response);
-    }
-
-    private boolean isNotRevoked(String jwt) {
-        if (tokenBlacklistService == null) {
-            return true;
-        }
-        return !tokenBlacklistService.isBlacklisted(jwt);
     }
 
     private String getJwtFromRequest(HttpServletRequest request) {

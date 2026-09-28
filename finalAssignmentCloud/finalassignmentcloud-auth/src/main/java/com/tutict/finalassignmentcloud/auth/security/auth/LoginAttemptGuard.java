@@ -10,13 +10,9 @@ import org.springframework.util.StringUtils;
 import java.time.Duration;
 import java.util.Locale;
 import java.util.concurrent.TimeUnit;
-import java.util.logging.Level;
-import java.util.logging.Logger;
 
 @Service
 public class LoginAttemptGuard {
-
-    private static final Logger LOG = Logger.getLogger(LoginAttemptGuard.class.getName());
 
     private final Cache<String, AttemptState> attempts;
     private final Duration window;
@@ -63,6 +59,9 @@ public class LoginAttemptGuard {
         if (!accountDecision.allowed()) {
             return accountDecision;
         }
+        if (isLoopback(request)) {
+            return accountDecision;
+        }
         LoginDecision ipDecision = inspectKey(ipKey, now, maxIpAttempts);
         if (!ipDecision.allowed()) {
             return ipDecision;
@@ -77,12 +76,11 @@ public class LoginAttemptGuard {
         attempts.invalidate(decision.accountKey());
     }
 
-    public Duration recordFailureAndDelay(LoginDecision decision) {
+    public Duration recordFailure(LoginDecision decision) {
         if (decision == null || !StringUtils.hasText(decision.accountKey())) {
             return Duration.ZERO;
         }
         AttemptState state = attempts.get(decision.accountKey(), ignored -> new AttemptState(System.currentTimeMillis()));
-        Duration penalty;
         synchronized (state) {
             long now = System.currentTimeMillis();
             state.rotateIfNeeded(now, window);
@@ -90,10 +88,8 @@ public class LoginAttemptGuard {
             if (state.consecutiveFailures >= maxConsecutiveFailures) {
                 state.lockedUntilMillis = Math.max(state.lockedUntilMillis, now + lockDuration.toMillis());
             }
-            penalty = penaltyFor(state.consecutiveFailures);
+            return penaltyFor(state.consecutiveFailures);
         }
-        sleepPenalty(penalty);
-        return penalty;
     }
 
     private LoginDecision inspectKey(String key, long now, int maxAttempts) {
@@ -122,18 +118,6 @@ public class LoginAttemptGuard {
         return Duration.ofMillis(millis);
     }
 
-    private void sleepPenalty(Duration penalty) {
-        if (penalty == null || penalty.isZero() || penalty.isNegative()) {
-            return;
-        }
-        try {
-            Thread.sleep(penalty.toMillis());
-        } catch (InterruptedException ex) {
-            Thread.currentThread().interrupt();
-            LOG.log(Level.FINE, "Login failure penalty interrupted", ex);
-        }
-    }
-
     private long retryAfterSeconds(long lockedUntilMillis, long now) {
         return Math.max(1L, (long) Math.ceil((lockedUntilMillis - now) / 1000.0));
     }
@@ -142,24 +126,21 @@ public class LoginAttemptGuard {
         String normalizedUser = StringUtils.hasText(username)
                 ? username.trim().toLowerCase(Locale.ROOT)
                 : "<blank>";
-        return "account:" + normalizedUser + "|ip:" + clientIp(request);
+        return "account:" + normalizedUser;
     }
 
     private String ipKey(HttpServletRequest request) {
         return "ip:" + clientIp(request);
     }
 
+    private static boolean isLoopback(HttpServletRequest request) {
+        String remote = request == null ? "" : request.getRemoteAddr();
+        return "127.0.0.1".equals(remote) || "::1".equals(remote) || "0:0:0:0:0:0:0:1".equals(remote);
+    }
+
     private String clientIp(HttpServletRequest request) {
         if (request == null) {
             return "unknown";
-        }
-        String forwardedFor = request.getHeader("X-Forwarded-For");
-        if (StringUtils.hasText(forwardedFor)) {
-            return forwardedFor.split(",", 2)[0].trim();
-        }
-        String realIp = request.getHeader("X-Real-IP");
-        if (StringUtils.hasText(realIp)) {
-            return realIp.trim();
         }
         String remoteAddr = request.getRemoteAddr();
         return StringUtils.hasText(remoteAddr) ? remoteAddr : "unknown";

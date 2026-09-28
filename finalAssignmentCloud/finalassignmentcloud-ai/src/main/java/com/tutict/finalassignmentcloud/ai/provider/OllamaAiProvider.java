@@ -87,7 +87,12 @@ public class OllamaAiProvider implements AiProvider {
     }
 
     private WebClient client() {
-        return webClientBuilder.baseUrl(properties.getOllama().getBaseUrl()).build();
+        reactor.netty.http.client.HttpClient httpClient = reactor.netty.http.client.HttpClient.create()
+                .option(io.netty.channel.ChannelOption.CONNECT_TIMEOUT_MILLIS, 1000);
+        return webClientBuilder.clone()
+                .baseUrl(properties.getOllama().getBaseUrl())
+                .clientConnector(new org.springframework.http.client.reactive.ReactorClientHttpConnector(httpClient))
+                .build();
     }
 
     private Map<String, Object> requestBody(AiChatPrompt prompt, boolean stream) {

@@ -2,6 +2,7 @@ package com.tutict.finalassignmentcloud.auth.controller;
 
 import com.tutict.finalassignmentcloud.auth.config.websocket.WsTicketService;
 import com.tutict.finalassignmentcloud.auth.service.AuthWsService;
+import com.tutict.finalassignmentcloud.auth.service.TokenBlacklistService;
 import com.tutict.finalassignmentcloud.dto.request.RefreshRequest;
 import com.tutict.finalassignmentcloud.dto.response.SysUserResponse;
 import com.tutict.finalassignmentcloud.dto.response.TokenResponse;
@@ -15,6 +16,8 @@ import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import com.tutict.finalassignmentcloud.auth.security.auth.LoginAttemptGuard;
+import jakarta.servlet.http.HttpServletRequest;
 import jakarta.annotation.security.PermitAll;
 import jakarta.annotation.security.RolesAllowed;
 import jakarta.validation.Valid;
@@ -49,10 +52,27 @@ public class AuthController {
 
     private final AuthWsService authWsService;
     private final WsTicketService wsTicketService;
+    private final TokenBlacklistService tokenBlacklistService;
+    private final com.tutict.finalassignmentcloud.auth.reliability.AuthReliabilityMetrics metrics;
+    private final LoginAttemptGuard loginAttemptGuard;
 
-    public AuthController(AuthWsService authWsService, WsTicketService wsTicketService) {
+    public AuthController(AuthWsService authWsService,
+                          WsTicketService wsTicketService,
+                          TokenBlacklistService tokenBlacklistService,
+                          com.tutict.finalassignmentcloud.auth.reliability.AuthReliabilityMetrics metrics,
+                          LoginAttemptGuard loginAttemptGuard) {
         this.authWsService = authWsService;
         this.wsTicketService = wsTicketService;
+        this.tokenBlacklistService = tokenBlacklistService;
+        this.metrics = metrics;
+        this.loginAttemptGuard = loginAttemptGuard;
+    }
+
+    private ResponseEntity<Map<String, Object>> redisDown() {
+        metrics.dependencyTimeout();
+        return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE)
+                .header("Retry-After", "1")
+                .body(Map.of("errorCode", "DEPENDENCY_TIMEOUT"));
     }
 
     @PostMapping("/login")
@@ -85,15 +105,25 @@ public class AuthController {
     public CompletableFuture<ResponseEntity<Map<String, Object>>> login(
             @RequestBody
             @Parameter(description = "登录请求体，包含用户名和密码", required = true)
-            AuthWsService.LoginRequest loginRequest) {
+            AuthWsService.LoginRequest loginRequest,
+            HttpServletRequest httpRequest) {
         if (loginRequest == null || loginRequest.getUsername() == null || loginRequest.getPassword() == null) {
             LOG.log(Level.WARNING, "Login request missing username or password");
             return CompletableFuture.completedFuture(
                     ResponseEntity.status(HttpStatus.BAD_REQUEST)
                             .body(Map.of("error", "Username and password are required")));
         }
+        LoginAttemptGuard.LoginDecision decision = loginAttemptGuard.inspect(loginRequest.getUsername(), httpRequest);
+        if (!decision.allowed()) {
+            return CompletableFuture.completedFuture(ResponseEntity.status(HttpStatus.TOO_MANY_REQUESTS)
+                    .header("Retry-After", Long.toString(decision.retryAfterSeconds()))
+                    .body(Map.of("errorCode", "LOGIN_RATE_LIMITED", "retryAfterSeconds", decision.retryAfterSeconds())));
+        }
 
         return CompletableFuture.supplyAsync(() -> {
+            if (!tokenBlacklistService.reachable()) {
+                return redisDown();
+            }
             try {
                 Map<String, Object> result = authWsService.login(loginRequest);
                 LOG.log(Level.INFO, "Login succeeded for username: {0}", loginRequest.getUsername());
@@ -181,6 +211,12 @@ public class AuthController {
     })
     public ResponseEntity<com.tutict.finalassignmentcloud.dto.response.ApiResponse<TokenResponse>> refresh(
             @Valid @RequestBody RefreshRequest request) {
+        if (!tokenBlacklistService.reachable()) {
+            metrics.dependencyTimeout();
+            return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE)
+                    .header("Retry-After", "1")
+                    .body(com.tutict.finalassignmentcloud.dto.response.ApiResponse.error("DEPENDENCY_TIMEOUT", "Redis is unavailable"));
+        }
         TokenResponse response = authWsService.refresh(request);
         return ResponseEntity.ok(com.tutict.finalassignmentcloud.dto.response.ApiResponse.ok(response));
     }

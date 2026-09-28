@@ -30,13 +30,20 @@ spring:
     username: ${AUTH_DB_USERNAME:root}
     password: ${AUTH_DB_PASSWORD:root}
     driver-class-name: com.mysql.cj.jdbc.Driver
+    hikari:
+      connection-timeout: ${DB_CONNECTION_TIMEOUT_MS:250}
+      data-source-properties:
+        sessionVariables: max_execution_time=3000
 server:
   port: 8081
 management:
+  endpoint:
+    health:
+      show-details: never
   endpoints:
     web:
       exposure:
-        include: health,info
+        include: health,prometheus
 
 jwt:
   access-token-expiration: ${JWT_ACCESS_TOKEN_EXPIRATION:3600}
@@ -56,3 +63,7 @@ jwt:
       #     public-key: |
       #       -----BEGIN PUBLIC KEY-----
       #       ...
+
+logging:
+  pattern:
+    level: "%5p [traceId=%X{traceId:-}]"

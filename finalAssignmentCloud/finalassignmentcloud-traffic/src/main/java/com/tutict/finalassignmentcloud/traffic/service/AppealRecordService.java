@@ -10,6 +10,7 @@ import com.tutict.finalassignmentcloud.entity.SysRequestHistory;
 import com.tutict.finalassignmentcloud.entity.elastic.AppealRecordDocument;
 import com.tutict.finalassignmentcloud.traffic.mapper.AppealRecordMapper;
 import com.tutict.finalassignmentcloud.traffic.mapper.SysRequestHistoryMapper;
+import com.tutict.finalassignmentcloud.traffic.reliability.HistoryReserve;
 import com.tutict.finalassignmentcloud.traffic.repository.AppealRecordSearchRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.cache.annotation.CacheEvict;
@@ -62,19 +63,9 @@ public class AppealRecordService {
     @WsAction(service = "AppealRecordService", action = "checkAndInsertIdempotency")
     public void checkAndInsertIdempotency(String idempotencyKey, AppealRecord appealRecord, String action) {
         Objects.requireNonNull(appealRecord, "Appeal record cannot be null");
-        SysRequestHistory history = sysRequestHistoryMapper.selectByIdempotencyKey(idempotencyKey);
-        if (history != null) {
-            throw new RuntimeException("Duplicate appeal request detected");
-        }
-
-        SysRequestHistory newHistory = buildHistory(idempotencyKey);
-        sysRequestHistoryMapper.insert(newHistory);
-        sendKafkaMessage("appeal_" + action, idempotencyKey, appealRecord);
-        newHistory.setBusinessStatus("SUCCESS");
-        newHistory.setBusinessId(appealRecord.getAppealId());
-        newHistory.setRequestParams("PENDING");
-        newHistory.setUpdatedAt(LocalDateTime.now());
-        sysRequestHistoryMapper.updateById(newHistory);
+        HistoryReserve.reserve(sysRequestHistoryMapper, idempotencyKey, "APPEAL_" + action.toUpperCase(),
+                HistoryReserve.sha256(appealRecord.getOffenseId() + "|" + appealRecord.getDriverId() + "|"
+                        + appealRecord.getAppealReason() + "|" + appealRecord.getAcceptanceStatus()));
     }
 
     @Transactional
@@ -83,6 +74,7 @@ public class AppealRecordService {
         validateAppeal(appealRecord);
         appealRecordMapper.insert(appealRecord);
         syncIndexAfterCommit(appealRecord);
+        publishQuietly("appeal_create", appealRecord);
         return appealRecord;
     }
 
@@ -341,7 +333,6 @@ public class AppealRecordService {
         }
         history.setBusinessStatus("SUCCESS");
         history.setBusinessId(appealId);
-        history.setRequestParams("DONE");
         history.setUpdatedAt(LocalDateTime.now());
         sysRequestHistoryMapper.updateById(history);
     }
@@ -356,6 +347,14 @@ public class AppealRecordService {
         history.setRequestParams(truncate(reason));
         history.setUpdatedAt(LocalDateTime.now());
         sysRequestHistoryMapper.updateById(history);
+    }
+
+    private void publishQuietly(String topic, AppealRecord appealRecord) {
+        try {
+            sendKafkaMessage(topic, null, appealRecord);
+        } catch (RuntimeException ex) {
+            log.log(Level.SEVERE, "Appeal kafka publish failed after the ledger commit", ex);
+        }
     }
 
     private void sendKafkaMessage(String topic, String idempotencyKey, AppealRecord appealRecord) {
@@ -433,6 +432,24 @@ public class AppealRecordService {
         }
         if (appealRecord.getOffenseId() == null) {
             throw new IllegalArgumentException("Offense ID is required");
+        }
+        if (appealRecord.getAppealNumber() == null || appealRecord.getAppealNumber().isBlank()) {
+            appealRecord.setAppealNumber("AP" + java.util.UUID.randomUUID().toString().replace("-", ""));
+        }
+        if (appealRecord.getAppealType() == null || appealRecord.getAppealType().isBlank()) {
+            appealRecord.setAppealType("Other");
+        }
+        if (appealRecord.getAcceptanceStatus() == null || appealRecord.getAcceptanceStatus().isBlank()) {
+            appealRecord.setAcceptanceStatus("Pending");
+        }
+        if (appealRecord.getProcessStatus() == null || appealRecord.getProcessStatus().isBlank()) {
+            appealRecord.setProcessStatus("Unprocessed");
+        }
+        if (appealRecord.getAppealTime() == null) {
+            appealRecord.setAppealTime(java.time.LocalDateTime.now());
+        }
+        if (appealRecord.getEvidenceUrls() != null && appealRecord.getEvidenceUrls().isBlank()) {
+            appealRecord.setEvidenceUrls(null);
         }
     }
 

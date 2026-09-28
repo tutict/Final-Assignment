@@ -11,18 +11,60 @@ spring:
       discovery:
         enabled: ${CLOUD_NACOS_DISCOVERY:false}
         server-addr: ${NACOS_SERVER:localhost:8848}
+    discovery:
+      client:
+        simple:
+          instances:
+            finalassignmentcloud-auth:
+              - uri: http://127.0.0.1:${CLOUD_AUTH_PORT:8081}
+            finalassignmentcloud-user:
+              - uri: http://127.0.0.1:${CLOUD_USER_PORT:18082}
+            finalassignmentcloud-traffic:
+              - uri: http://127.0.0.1:${CLOUD_TRAFFIC_PORT:18083}
+            finalassignmentcloud-audit:
+              - uri: http://127.0.0.1:${CLOUD_AUDIT_PORT:8084}
+            finalassignmentcloud-system:
+              - uri: http://127.0.0.1:${CLOUD_SYSTEM_PORT:18085}
+            finalassignmentcloud-ai:
+              - uri: http://127.0.0.1:${CLOUD_AI_PORT:18086}
+            finalassignmentcloud-search:
+              - uri: http://127.0.0.1:${CLOUD_SEARCH_PORT:18087}
+            finalassignmentcloud-rag:
+              - uri: http://127.0.0.1:${CLOUD_RAG_PORT:18088}
+            finalassignmentcloud-gateway:
+              - uri: http://127.0.0.1:${CLOUD_GATEWAY_PORT:8080}
+    service-registry:
+      auto-registration:
+        enabled: ${CLOUD_NACOS_DISCOVERY:false}
   datasource:
     url: ${SPRING_DATASOURCE_URL:jdbc:mysql://localhost:3306/traffic?useSSL=false&serverTimezone=Asia/Shanghai&allowPublicKeyRetrieval=true}
     username: ${SPRING_DATASOURCE_USERNAME:${DB_USERNAME:root}}
     password: ${SPRING_DATASOURCE_PASSWORD:${DB_PASSWORD:root}}
     driver-class-name: com.mysql.cj.jdbc.Driver
+    hikari:
+      connection-timeout: ${DB_CONNECTION_TIMEOUT_MS:250}
+      data-source-properties:
+        sessionVariables: max_execution_time=3000
   kafka:
     listener:
       auto-startup: false
+    producer:
+      acks: all
+      retries: 3
+      properties:
+        enable.idempotence: true
+        delivery.timeout.ms: 10000
+        request.timeout.ms: 3000
+        max.block.ms: 500
+        max.in.flight.requests.per.connection: 5
   data:
     redis:
       host: ${SPRING_DATA_REDIS_HOST:localhost}
       port: ${SPRING_DATA_REDIS_PORT:6379}
+  elasticsearch:
+    uris: ${ELASTICSEARCH_URIS:http://localhost:9200}
+    connection-timeout: ${ELASTICSEARCH_CONNECT_TIMEOUT:800ms}
+    socket-timeout: ${ELASTICSEARCH_SOCKET_TIMEOUT:800ms}
 
 server:
   port: ${CLOUD_TRAFFIC_PORT:18083}
@@ -33,3 +75,11 @@ jwt:
 
 internal:
   service-token: ${INTERNAL_SERVICE_TOKEN:dev-internal-service-token-32bytes-ok}
+
+management:
+  health:
+    elasticsearch:
+      enabled: false
+    redis:
+      enabled: ${MANAGEMENT_HEALTH_REDIS_ENABLED:false}
+

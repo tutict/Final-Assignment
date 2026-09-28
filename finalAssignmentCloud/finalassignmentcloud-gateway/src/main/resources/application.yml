@@ -27,6 +27,9 @@ spring:
           discovery:
             locator:
               enabled: true
+          httpclient:
+            connect-timeout: 1000
+            response-timeout: 3s
           routes:
             - id: auth-service
               uri: lb://finalassignmentcloud-auth
@@ -52,6 +55,8 @@ spring:
               uri: lb://finalassignmentcloud-rag
               predicates:
                 - Path=/api/rag/**
+              metadata:
+                response-timeout: 8000
             - id: search-service
               uri: lb://finalassignmentcloud-search
               predicates:
@@ -60,11 +65,23 @@ spring:
               uri: lb://finalassignmentcloud-ai
               predicates:
                 - Path=/api/ai/**
+              metadata:
+                response-timeout: 8000
       globalcors:
         add-to-simple-url-handler-mapping: true
         cors-configurations:
           '[/**]':
-            allowedOriginPatterns: "*"
+            allowedOrigins:
+              - http://localhost:3000
+              - http://127.0.0.1:3000
+              - http://localhost:8080
+              - http://127.0.0.1:8080
+              - http://localhost:5173
+              - http://127.0.0.1:5173
+              - http://localhost:15173
+              - http://127.0.0.1:15173
+              - http://localhost:13000
+              - http://127.0.0.1:13000
             allowedMethods:
               - GET
               - POST
@@ -119,8 +136,22 @@ spring:
 server:
   port: 8080
 management:
+  endpoint:
+    health:
+      show-details: never
+  health:
+    discovery:
+      enabled: false
+    reactive-discovery:
+      enabled: false
+    redis:
+      enabled: ${MANAGEMENT_HEALTH_REDIS_ENABLED:false}
   endpoints:
     web:
       exposure:
-        include: health,info
+        include: health
 
+
+logging:
+  pattern:
+    level: "%5p [traceId=%X{traceId:-}]"

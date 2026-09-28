@@ -29,6 +29,10 @@ spring:
       max-request-size: ${SPRING_MULTIPART_MAX_REQUEST_SIZE:12MB}
   datasource:
     driver-class-name: com.mysql.cj.jdbc.Driver
+    hikari:
+      connection-timeout: ${DB_CONNECTION_TIMEOUT_MS:250}
+      data-source-properties:
+        sessionVariables: max_execution_time=3000
     url: ${RAG_DB_URL:jdbc:mysql://localhost:3309/rag?useSSL=false&serverTimezone=Asia/Shanghai&allowPublicKeyRetrieval=true}
     username: ${RAG_DB_USERNAME:root}
     password: ${RAG_DB_PASSWORD:root}
@@ -39,12 +43,15 @@ spring:
   elasticsearch:
     uris: ${ELASTICSEARCH_URIS:http://localhost:9200}
 server:
-  port: 8088
+  port: 18088
 management:
+  endpoint:
+    health:
+      show-details: never
   endpoints:
     web:
       exposure:
-        include: health,info
+        include: health,prometheus
 ai:
   provider:
     timeout: ${AI_PROVIDER_TIMEOUT:PT60S}
@@ -87,3 +94,7 @@ rag:
     rrf-rank-constant: ${RAG_RETRIEVAL_RRF_RANK_CONSTANT:60}
     rerank-enabled: ${RAG_RERANK_ENABLED:true}
     rerank-lexical-weight: ${RAG_RERANK_LEXICAL_WEIGHT:0.15}
+
+logging:
+  pattern:
+    level: "%5p [traceId=%X{traceId:-}]"

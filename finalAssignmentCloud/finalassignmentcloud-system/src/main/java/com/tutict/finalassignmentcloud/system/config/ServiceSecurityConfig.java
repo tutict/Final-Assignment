@@ -33,8 +33,9 @@ public class ServiceSecurityConfig {
     }
 
     @Bean
-    public ServiceJwtAuthenticationFilter serviceJwtAuthenticationFilter(ServiceTokenProvider tokenProvider) {
-        return new ServiceJwtAuthenticationFilter(tokenProvider);
+    public ServiceJwtAuthenticationFilter serviceJwtAuthenticationFilter(ServiceTokenProvider tokenProvider,
+                                                                        @org.springframework.beans.factory.annotation.Qualifier("blacklistRedisConnectionFactory") org.springframework.data.redis.connection.RedisConnectionFactory redisConnectionFactory) {
+        return new ServiceJwtAuthenticationFilter(tokenProvider, redisConnectionFactory);
     }
 
     @Bean
@@ -46,6 +47,7 @@ public class ServiceSecurityConfig {
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers("/actuator/health", "/actuator/health/**").permitAll()
+                        .requestMatchers("/actuator/prometheus").hasRole("ADMIN")
                         .anyRequest().authenticated())
                 .exceptionHandling(ex -> ex
                         .authenticationEntryPoint(SecurityResponseWriter::writeUnauthorized)

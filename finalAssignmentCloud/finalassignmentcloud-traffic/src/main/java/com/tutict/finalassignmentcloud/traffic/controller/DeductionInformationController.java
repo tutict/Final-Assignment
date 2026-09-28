@@ -67,6 +67,12 @@ public class DeductionInformationController {
                 deductionRecordService.markHistorySuccess(idempotencyKey, saved.getDeductionId());
             }
             return ResponseEntity.status(HttpStatus.CREATED).body(enrich(saved));
+        } catch (com.tutict.finalassignmentcloud.traffic.reliability.IdempotencyReplayException ex) {
+            return ResponseEntity.status(HttpStatus.ALREADY_REPORTED).build();
+        } catch (com.tutict.finalassignmentcloud.traffic.reliability.IdempotencyConflictException ex) {
+            return ResponseEntity.status(HttpStatus.CONFLICT).build();
+        } catch (com.tutict.finalassignmentcloud.traffic.reliability.IdempotencyInProgressException ex) {
+            return ResponseEntity.status(HttpStatus.CONFLICT).build();
         } catch (Exception ex) {
             if (useKey) {
                 deductionRecordService.markHistoryFailure(idempotencyKey, ex.getMessage());
@@ -93,6 +99,12 @@ public class DeductionInformationController {
                 deductionRecordService.markHistorySuccess(idempotencyKey, updated.getDeductionId());
             }
             return ResponseEntity.ok(enrich(updated));
+        } catch (com.tutict.finalassignmentcloud.traffic.reliability.IdempotencyReplayException ex) {
+            return ResponseEntity.status(HttpStatus.ALREADY_REPORTED).build();
+        } catch (com.tutict.finalassignmentcloud.traffic.reliability.IdempotencyConflictException ex) {
+            return ResponseEntity.status(HttpStatus.CONFLICT).build();
+        } catch (com.tutict.finalassignmentcloud.traffic.reliability.IdempotencyInProgressException ex) {
+            return ResponseEntity.status(HttpStatus.CONFLICT).build();
         } catch (Exception ex) {
             if (useKey) {
                 deductionRecordService.markHistoryFailure(idempotencyKey, ex.getMessage());
@@ -108,6 +120,12 @@ public class DeductionInformationController {
         try {
             deductionRecordService.deleteDeductionRecord(deductionId);
             return ResponseEntity.noContent().build();
+        } catch (com.tutict.finalassignmentcloud.traffic.reliability.IdempotencyReplayException ex) {
+            return ResponseEntity.status(HttpStatus.ALREADY_REPORTED).build();
+        } catch (com.tutict.finalassignmentcloud.traffic.reliability.IdempotencyConflictException ex) {
+            return ResponseEntity.status(HttpStatus.CONFLICT).build();
+        } catch (com.tutict.finalassignmentcloud.traffic.reliability.IdempotencyInProgressException ex) {
+            return ResponseEntity.status(HttpStatus.CONFLICT).build();
         } catch (Exception ex) {
             LOG.log(Level.WARNING, "Delete deduction failed", ex);
             return ResponseEntity.status(resolveStatus(ex)).build();
@@ -120,6 +138,12 @@ public class DeductionInformationController {
         try {
             DeductionRecord record = deductionRecordService.findById(deductionId);
             return record == null ? ResponseEntity.notFound().build() : ResponseEntity.ok(enrich(record));
+        } catch (com.tutict.finalassignmentcloud.traffic.reliability.IdempotencyReplayException ex) {
+            return ResponseEntity.status(HttpStatus.ALREADY_REPORTED).build();
+        } catch (com.tutict.finalassignmentcloud.traffic.reliability.IdempotencyConflictException ex) {
+            return ResponseEntity.status(HttpStatus.CONFLICT).build();
+        } catch (com.tutict.finalassignmentcloud.traffic.reliability.IdempotencyInProgressException ex) {
+            return ResponseEntity.status(HttpStatus.CONFLICT).build();
         } catch (Exception ex) {
             LOG.log(Level.WARNING, "Get deduction failed", ex);
             return ResponseEntity.status(resolveStatus(ex)).build();
@@ -136,6 +160,12 @@ public class DeductionInformationController {
                         id -> deductionRecordService.findByDriverId(id, 1, 1000))));
             }
             return ResponseEntity.ok(enrich(deductionRecordService.findAll()));
+        } catch (com.tutict.finalassignmentcloud.traffic.reliability.IdempotencyReplayException ex) {
+            return ResponseEntity.status(HttpStatus.ALREADY_REPORTED).build();
+        } catch (com.tutict.finalassignmentcloud.traffic.reliability.IdempotencyConflictException ex) {
+            return ResponseEntity.status(HttpStatus.CONFLICT).build();
+        } catch (com.tutict.finalassignmentcloud.traffic.reliability.IdempotencyInProgressException ex) {
+            return ResponseEntity.status(HttpStatus.CONFLICT).build();
         } catch (Exception ex) {
             LOG.log(Level.WARNING, "List deductions failed", ex);
             return ResponseEntity.status(resolveStatus(ex)).build();
@@ -154,6 +184,12 @@ public class DeductionInformationController {
                 return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
             }
             return ResponseEntity.ok(enrich(deductionRecordService.findByDriverId(driverId, page, size)));
+        } catch (com.tutict.finalassignmentcloud.traffic.reliability.IdempotencyReplayException ex) {
+            return ResponseEntity.status(HttpStatus.ALREADY_REPORTED).build();
+        } catch (com.tutict.finalassignmentcloud.traffic.reliability.IdempotencyConflictException ex) {
+            return ResponseEntity.status(HttpStatus.CONFLICT).build();
+        } catch (com.tutict.finalassignmentcloud.traffic.reliability.IdempotencyInProgressException ex) {
+            return ResponseEntity.status(HttpStatus.CONFLICT).build();
         } catch (Exception ex) {
             LOG.log(Level.WARNING, "List deductions by driver failed", ex);
             return ResponseEntity.status(resolveStatus(ex)).build();
@@ -167,6 +203,12 @@ public class DeductionInformationController {
                                                            @RequestParam(defaultValue = "20") int size) {
         try {
             return ResponseEntity.ok(enrich(deductionRecordService.findByOffenseId(offenseId, page, size)));
+        } catch (com.tutict.finalassignmentcloud.traffic.reliability.IdempotencyReplayException ex) {
+            return ResponseEntity.status(HttpStatus.ALREADY_REPORTED).build();
+        } catch (com.tutict.finalassignmentcloud.traffic.reliability.IdempotencyConflictException ex) {
+            return ResponseEntity.status(HttpStatus.CONFLICT).build();
+        } catch (com.tutict.finalassignmentcloud.traffic.reliability.IdempotencyInProgressException ex) {
+            return ResponseEntity.status(HttpStatus.CONFLICT).build();
         } catch (Exception ex) {
             LOG.log(Level.WARNING, "List deductions by offense failed", ex);
             return ResponseEntity.status(resolveStatus(ex)).build();
@@ -184,6 +226,12 @@ public class DeductionInformationController {
                     ? deductionRecordService.searchByHandlerFuzzy(handler, page, size)
                     : deductionRecordService.searchByHandlerPrefix(handler, page, size);
             return ResponseEntity.ok(enrich(result));
+        } catch (com.tutict.finalassignmentcloud.traffic.reliability.IdempotencyReplayException ex) {
+            return ResponseEntity.status(HttpStatus.ALREADY_REPORTED).build();
+        } catch (com.tutict.finalassignmentcloud.traffic.reliability.IdempotencyConflictException ex) {
+            return ResponseEntity.status(HttpStatus.CONFLICT).build();
+        } catch (com.tutict.finalassignmentcloud.traffic.reliability.IdempotencyInProgressException ex) {
+            return ResponseEntity.status(HttpStatus.CONFLICT).build();
         } catch (Exception ex) {
             LOG.log(Level.WARNING, "Search deduction by handler failed", ex);
             return ResponseEntity.status(resolveStatus(ex)).build();
@@ -197,6 +245,12 @@ public class DeductionInformationController {
                                                                 @RequestParam(defaultValue = "20") int size) {
         try {
             return ResponseEntity.ok(enrich(deductionRecordService.searchByStatus(status, page, size)));
+        } catch (com.tutict.finalassignmentcloud.traffic.reliability.IdempotencyReplayException ex) {
+            return ResponseEntity.status(HttpStatus.ALREADY_REPORTED).build();
+        } catch (com.tutict.finalassignmentcloud.traffic.reliability.IdempotencyConflictException ex) {
+            return ResponseEntity.status(HttpStatus.CONFLICT).build();
+        } catch (com.tutict.finalassignmentcloud.traffic.reliability.IdempotencyInProgressException ex) {
+            return ResponseEntity.status(HttpStatus.CONFLICT).build();
         } catch (Exception ex) {
             LOG.log(Level.WARNING, "Search deduction by status failed", ex);
             return ResponseEntity.status(resolveStatus(ex)).build();
@@ -211,6 +265,12 @@ public class DeductionInformationController {
                                                                    @RequestParam(defaultValue = "20") int size) {
         try {
             return ResponseEntity.ok(enrich(deductionRecordService.searchByDeductionTimeRange(startTime, endTime, page, size)));
+        } catch (com.tutict.finalassignmentcloud.traffic.reliability.IdempotencyReplayException ex) {
+            return ResponseEntity.status(HttpStatus.ALREADY_REPORTED).build();
+        } catch (com.tutict.finalassignmentcloud.traffic.reliability.IdempotencyConflictException ex) {
+            return ResponseEntity.status(HttpStatus.CONFLICT).build();
+        } catch (com.tutict.finalassignmentcloud.traffic.reliability.IdempotencyInProgressException ex) {
+            return ResponseEntity.status(HttpStatus.CONFLICT).build();
         } catch (Exception ex) {
             LOG.log(Level.WARNING, "Search deduction by time range failed", ex);
             return ResponseEntity.status(resolveStatus(ex)).build();

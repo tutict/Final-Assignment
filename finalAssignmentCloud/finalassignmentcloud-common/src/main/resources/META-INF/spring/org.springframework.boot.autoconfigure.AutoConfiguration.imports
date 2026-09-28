@@ -1,0 +1,2 @@
+com.tutict.finalassignmentcloud.config.redis.SplitRedisConnectionConfiguration
+com.tutict.finalassignmentcloud.reliability.ElasticsearchUnavailableConfiguration
