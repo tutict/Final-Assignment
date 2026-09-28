@@ -29,6 +29,7 @@ import (
 	gozerorag "final_assignment_backend_go/project/internal/gozero/rag"
 	"final_assignment_backend_go/project/internal/handler"
 	"final_assignment_backend_go/project/internal/provider"
+	"final_assignment_backend_go/project/internal/reliability"
 	"final_assignment_backend_go/project/internal/repo"
 	"final_assignment_backend_go/project/internal/service/admin"
 	aisvc "final_assignment_backend_go/project/internal/service/ai"
@@ -135,11 +136,10 @@ func main() {
 	}
 	refreshTokenRepo := repo.NewRefreshTokenRepo(db)
 	refreshTokenService := authsvc.NewRefreshTokenService(refreshTokenRepo, pqcCrypto, envInt64OrDefault("JWT_REFRESH_EXPIRATION", 604800))
-	// 黑名单 fail-open 默认值对齐 Spring 的 application-dev.yml
-	// (app.security.token-blacklist.fail-open: true): Redis 被禁用 (REDIS_ENABLED=false,
-	// no-op client) 或不可用时放行, 否则本地开发 (无 Redis) 里每个带 access token
-	// 的请求都会被误判为已撤销 → 登录后全部 401。生产可显式设 TOKEN_BLACKLIST_FAIL_OPEN=false 保持 fail-closed。
-	blacklistService := authsvc.NewTokenBlacklistService(redisCfg.Client, envOrDefault("TOKEN_BLACKLIST_FAIL_OPEN", "true") == "true")
+	// Redis down defaults to fail-closed. Login, refresh, and writes without a
+	// local revocation cache return 503. Ordinary GETs stay with DecideAccess.
+	// Set TOKEN_BLACKLIST_FAIL_OPEN=true only for the old no-Redis dev bypass.
+	blacklistService := authsvc.NewTokenBlacklistService(redisCfg.Blacklist, envOrDefault("TOKEN_BLACKLIST_FAIL_OPEN", "false") == "true")
 
 	// 初始化用户和认证服务
 	userService := admin.NewUserManagementService(repo.NewUserManagementRepo(db))
@@ -156,12 +156,21 @@ func main() {
 	router.Use(optionalPrincipal(tokenProvider, blacklistService))
 
 	// 公开路由
-	router.GET("/api/actuator/health", func(c *gin.Context) {
-		c.JSON(http.StatusOK, gin.H{"status": "UP"})
-	})
-	router.POST("/api/auth/login", authHandler.Login)
+	router.Use(reliability.Trace())
+	router.Use(reliability.ObserveResponses())
+	loadShed := true
+	switch strings.ToLower(envOrDefault("RELIABILITY_LOAD_SHED", "true")) {
+	case "false", "0", "no":
+		loadShed = false
+	}
+	router.Use(reliability.LoadShed(db, loadShed))
+	health := reliability.Health(db)
+	router.GET("/actuator/health", health)
+	router.GET("/actuator/health/liveness", reliability.Liveness)
+	router.GET("/api/actuator/health", health)
+	router.POST("/api/auth/login", reliability.LoginRateLimit(), reliability.RequireProbe(blacklistService.Reachable), authHandler.Login)
 	router.POST("/api/auth/register", authHandler.RegisterUser)
-	router.POST("/api/auth/refresh", authHandler.Refresh)
+	router.POST("/api/auth/refresh", reliability.RequireProbe(blacklistService.Reachable), authHandler.Refresh)
 
 	// AI Chat 路由（如果已初始化）
 	if chatPipeline != nil {
@@ -180,6 +189,10 @@ func main() {
 
 	// 需要认证的路由
 	router.Use(requiredPrincipal(tokenProvider, blacklistService), accessPolicy())
+	router.GET("/actuator/prometheus", reliability.Prometheus(db))
+	router.POST("/actuator/ledgerReconcile", reliability.LedgerReconcile(func() (int, error) {
+		return reliability.ReconcileStale(db, time.Now())
+	}))
 	router.POST("/api/auth/logout", authHandler.Logout)
 	router.GET("/api/auth/users", authHandler.GetAllUsers)
 	router.GET("/api/auth/me", authHandler.GetCurrentUser)
@@ -239,8 +252,12 @@ func devCorsMiddleware() gin.HandlerFunc {
 			c.Header("Access-Control-Allow-Origin", origin)
 			c.Header("Vary", "Origin")
 		}
-		c.Header("Access-Control-Allow-Headers", "Authorization, X-Requested-With, Sec-WebSocket-Key, Sec-WebSocket-Version, Sec-WebSocket-Protocol, Content-Type, Accept")
+		c.Header("Access-Control-Allow-Headers", "Authorization, X-Requested-With, Sec-WebSocket-Key, Sec-WebSocket-Version, Sec-WebSocket-Protocol, Content-Type, Accept, Cache-Control, Idempotency-Key, X-Trace-Id")
 		c.Header("Access-Control-Allow-Methods", "GET, POST, PUT, PATCH, DELETE, OPTIONS")
+		c.Header("Access-Control-Expose-Headers", "X-Trace-Id")
+		if isAllowedBrowserOrigin(origin) && origin != "" {
+			c.Header("Access-Control-Allow-Credentials", "true")
+		}
 		c.Header("Access-Control-Max-Age", "3600")
 		if c.Request.Method == http.MethodOptions {
 			c.AbortWithStatus(http.StatusNoContent)
@@ -314,6 +331,8 @@ func allowedBrowserOrigins() []string {
 		"http://localhost:3000",
 		"http://127.0.0.1:13000",
 		"http://localhost:13000",
+		"http://127.0.0.1:8080",
+		"http://localhost:8080",
 	}
 	for _, name := range []string{"FRONTEND_URL", "REACT_DEV_URL", "FLUTTER_WEB_URL", "FLUTTER_URL", "BROWSER_URL", "CORS_ALLOWED_ORIGINS"} {
 		for _, value := range splitComma(envOrDefault(name, "")) {
@@ -432,6 +451,12 @@ func requiredPrincipal(provider *authcfg.TokenProvider, blacklist *authsvc.Token
 		if ok, err := attachPrincipal(c, provider, blacklist); !ok {
 			status := http.StatusUnauthorized
 			message := "unauthorized"
+			if errors.Is(err, authsvc.ErrRedisUnavailable) {
+				reliability.NoteDependencyTimeout()
+				c.Header("Retry-After", "1")
+				c.AbortWithStatusJSON(http.StatusServiceUnavailable, gin.H{"errorCode": "DEPENDENCY_TIMEOUT"})
+				return
+			}
 			if err != nil {
 				message = err.Error()
 			}
@@ -452,8 +477,13 @@ func attachPrincipal(c *gin.Context, provider *authcfg.TokenProvider, blacklist 
 		return false, nil
 	}
 	// 登出即将 access token 加入黑名单，校验前先拒绝已撤销的 token，对齐 Spring/Quarkus 的 JwtAuthenticationFilter。
-	if blacklist != nil && blacklist.IsBlacklisted(token) {
-		return false, nil
+	if blacklist != nil {
+		switch reliability.DecideAccess(c.Request.Method, c.Request.URL.Path, blacklist.Inspect(token)) {
+		case reliability.Deny:
+			return false, nil
+		case reliability.Shed:
+			return false, authsvc.ErrRedisUnavailable
+		}
 	}
 	if !provider.ValidateToken(token) {
 		return false, nil

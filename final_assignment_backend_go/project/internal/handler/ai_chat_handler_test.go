@@ -14,6 +14,7 @@ import (
 	"github.com/gin-gonic/gin"
 
 	"final_assignment_backend_go/project/internal/ai"
+	"final_assignment_backend_go/project/internal/reliability"
 	aisvc "final_assignment_backend_go/project/internal/service/ai"
 )
 
@@ -244,4 +245,43 @@ func parseSSEEvents(body string) []string {
 	}
 
 	return events
+}
+
+func TestAiChatHandler_StreamChatBulkheadFull(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	called := false
+	mockProvider := &ai.MockAiProvider{
+		StreamFunc: func(ctx context.Context, prompt string, metadata map[string]any, config aisvc.AiChatConfig) (<-chan aisvc.AiToken, <-chan error) {
+			called = true
+			tokenChan := make(chan aisvc.AiToken)
+			errChan := make(chan error)
+			close(tokenChan)
+			close(errChan)
+			return tokenChan, errChan
+		},
+	}
+	pipeline, err := ai.NewChatPipeline(&ai.MockRagQueryService{}, mockProvider, aisvc.DefaultAiChatConfig())
+	if err != nil {
+		t.Fatalf("NewChatPipeline() error = %v", err)
+	}
+	h := NewAiChatHandler(pipeline)
+	h.bulkhead = reliability.NewModelBulkhead(0)
+
+	body, _ := json.Marshal(aisvc.AiChatStreamRequest{Message: "Hello", SessionKey: "bulkhead"})
+	req := httptest.NewRequest(http.MethodPost, "/api/ai/chat/stream", bytes.NewReader(body))
+	req.Header.Set("Content-Type", "application/json")
+	w := httptest.NewRecorder()
+	router := gin.New()
+	router.POST("/api/ai/chat/stream", h.StreamChat)
+	router.ServeHTTP(w, req)
+
+	if w.Code != http.StatusOK {
+		t.Fatalf("status = %d, body = %s", w.Code, w.Body.String())
+	}
+	if called {
+		t.Fatal("model provider was called while the bulkhead was full")
+	}
+	if !strings.Contains(w.Body.String(), `"isFallback":true`) {
+		t.Fatalf("expected immediate fallback, body = %s", w.Body.String())
+	}
 }

@@ -24,6 +24,7 @@ func (c *OffenseInformationController) RegisterRoutes(r *gin.RouterGroup) {
 	api.GET("/by-offense-type", c.searchByOffenseType)
 	api.GET("/by-driver-name", c.searchByDriverName)
 	api.GET("/by-license-plate", c.searchByLicensePlate)
+	api.GET("/driver/:driverId", c.getOffensesByDriver)
 	api.GET("/:offenseId", c.getOffenseByID)
 	api.PUT("/:offenseId", c.updateOffense)
 	api.DELETE("/:offenseId", c.deleteOffense)
@@ -191,4 +192,25 @@ func (c *OffenseInformationController) searchByLicensePlate(ctx *gin.Context) {
 	}
 
 	ctx.JSON(http.StatusOK, c.Service.FilterForRequester(ctx.GetString("username"), Unscoped(ctx, ResourceOffenses), results))
+}
+
+
+func (c *OffenseInformationController) getOffensesByDriver(ctx *gin.Context) {
+	driverID, err := strconv.Atoi(ctx.Param("driverId"))
+	if err != nil || driverID <= 0 {
+		ctx.JSON(http.StatusBadRequest, gin.H{"error": "invalid driver id"})
+		return
+	}
+	offenses, err := c.Service.ListForRequester(ctx.GetString("username"), Unscoped(ctx, ResourceOffenses))
+	if err != nil {
+		ctx.JSON(http.StatusInternalServerError, gin.H{"error": "failed to fetch offenses"})
+		return
+	}
+	filtered := make([]domain.OffenseInformation, 0)
+	for _, item := range offenses {
+		if item.DriverID != nil && *item.DriverID == driverID {
+			filtered = append(filtered, item)
+		}
+	}
+	ctx.JSON(http.StatusOK, filtered)
 }

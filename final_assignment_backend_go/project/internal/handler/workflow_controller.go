@@ -2,6 +2,7 @@ package handler
 
 import (
 	"errors"
+	"final_assignment_backend_go/project/internal/reliability"
 	"final_assignment_backend_go/project/internal/service/payment"
 	"net/http"
 	"strconv"
@@ -17,7 +18,7 @@ import (
 type WorkflowServiceContract interface {
 	TriggerOffenseEvent(offenseID int64, event string) (*domain.OffenseInformation, error)
 	TriggerPaymentEvent(paymentID int64, event string, idempotencyKey string) (*domain.PaymentRecord, error)
-	TriggerAppealEvent(appealID int64, event string) (*domain.AppealManagement, error)
+	TriggerAppealEvent(appealID int64, event string, idempotencyKey string) (*domain.AppealManagement, error)
 }
 
 // WorkflowController 对齐 Spring 的 WorkflowController（/api/workflow）。
@@ -65,9 +66,8 @@ func (c *WorkflowController) triggerPaymentEvent(ctx *gin.Context) {
 		ctx.JSON(http.StatusBadRequest, gin.H{"error": "invalid payment ID"})
 		return
 	}
-	idempotencyKey := idempotencyKeyHeader(ctx)
-	if idempotencyKey == "" {
-		ctx.JSON(http.StatusBadRequest, gin.H{"error": "Idempotency-Key header is required"})
+	idempotencyKey, ok := requireIdempotencyKey(ctx)
+	if !ok {
 		return
 	}
 	event := strings.ToUpper(strings.TrimSpace(ctx.Param("event")))
@@ -90,12 +90,16 @@ func (c *WorkflowController) triggerAppealEvent(ctx *gin.Context) {
 		ctx.JSON(http.StatusBadRequest, gin.H{"error": "invalid appeal ID"})
 		return
 	}
+	idempotencyKey, ok := requireIdempotencyKey(ctx)
+	if !ok {
+		return
+	}
 	event := strings.ToUpper(strings.TrimSpace(ctx.Param("event")))
 	if !statemachine.IsKnownAppealEvent(event) {
 		ctx.JSON(http.StatusBadRequest, gin.H{"error": "unknown appeal event: " + event})
 		return
 	}
-	updated, err := c.Service.TriggerAppealEvent(appealID, event)
+	updated, err := c.Service.TriggerAppealEvent(appealID, event, idempotencyKey)
 	if err != nil {
 		workflowError(ctx, err)
 		return
@@ -109,12 +113,23 @@ func workflowError(ctx *gin.Context, err error) {
 	case errors.Is(err, statemachine.ErrWorkflowRecordNotFound),
 		errors.Is(err, payment.ErrPaymentNotFound):
 		ctx.JSON(http.StatusNotFound, gin.H{"error": "record not found"})
-	case errors.Is(err, payment.ErrPaymentDuplicate):
+	case errors.Is(err, payment.ErrPaymentDuplicate), errors.Is(err, reliability.ErrReplay):
 		ctx.JSON(http.StatusAlreadyReported, apiOK(nil))
+	case errors.Is(err, reliability.ErrKeyRequired):
+		ctx.JSON(http.StatusBadRequest, gin.H{"errorCode": "MISSING_HEADER", "message": "Missing required header: Idempotency-Key"})
+	case errors.Is(err, reliability.ErrConflict):
+		reliability.NoteIdempotencyConflict()
+		ctx.JSON(http.StatusConflict, gin.H{"errorCode": "IDEMPOTENCY_CONFLICT", "message": err.Error()})
+	case errors.Is(err, reliability.ErrInProgress):
+		ctx.Header("Retry-After", "1")
+		ctx.JSON(http.StatusConflict, gin.H{"errorCode": "IDEMPOTENCY_IN_PROGRESS", "message": err.Error()})
 	case errors.Is(err, statemachine.ErrWorkflowTransitionRejected),
 		errors.Is(err, payment.ErrPaymentOptimisticLock):
 		ctx.JSON(http.StatusConflict, apiError("WORKFLOW_CONFLICT", "该记录已被处理，请刷新页面查看最新状态"))
 	default:
+		if writeConnectionWait(ctx, err) {
+			return
+		}
 		ctx.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 	}
 }

@@ -9,6 +9,7 @@ import (
 
 type AppealService interface {
 	CheckAndInsertIdempotency(string, *domain.AppealManagement, string) (*domain.AppealManagement, error)
+	CreateAppealReview(int, string, *domain.AppealReview) (*domain.AppealReview, error)
 	CountAppealsByStatus(string) (int64, error)
 	DeleteAppeal(uint) error
 	GetAllAppeals() ([]domain.AppealManagement, error)

@@ -1,7 +1,9 @@
 package offense
 
 import (
+	"final_assignment_backend_go/project/internal/reliability"
 	"final_assignment_backend_go/project/internal/service/shared"
+	"fmt"
 	"strconv"
 	"strings"
 	"time"
@@ -27,7 +29,17 @@ func (s *FineInformationService) CreateFine(fine *domain.FineInformation) error 
 func (s *FineInformationService) DB() *gorm.DB { return s.repo.DB() }
 
 func (s *FineInformationService) CheckAndInsertIdempotency(key string, fine *domain.FineInformation, operation string) error {
-	if err := shared.CheckIdempotency(key, "fine:"+operation); err != nil {
+	driverID := 0
+	if fine.DriverID != nil {
+		driverID = *fine.DriverID
+	}
+	fingerprint := reliability.Fingerprint(fmt.Sprintf("%d|%d|%v|%s", fine.OffenseID, driverID, fine.FineAmount, fine.PaymentStatus))
+	method, url := "POST", "/api/fines"
+	if !strings.EqualFold(operation, "create") {
+		method = "PUT"
+		url = "/api/fines/" + strconv.Itoa(fine.FineID)
+	}
+	if err := reliability.Reserve(s.DB(), key, "FINE_"+strings.ToUpper(operation), method, url, fingerprint, nil); err != nil {
 		return err
 	}
 	if strings.EqualFold(operation, "create") {
@@ -56,9 +68,12 @@ func (s *FineInformationService) CheckAndInsertIdempotency(key string, fine *dom
 		if fine.UnpaidAmount == 0 && fine.PaymentStatus != "Paid" {
 			fine.UnpaidAmount = fine.TotalAmount
 		}
-		return s.DB().Create(fine).Error
+		db := reliability.Ledger(s.DB())
+		err := db.Create(fine).Error
+		return reliability.Finish(db, key, int64(fine.FineID), err)
 	}
-	return s.DB().Save(fine).Error
+	db := reliability.Ledger(s.DB())
+	return reliability.Finish(db, key, int64(fine.FineID), db.Save(fine).Error)
 }
 
 func (s *FineInformationService) GetFineByID(id string) (*domain.FineInformation, error) {

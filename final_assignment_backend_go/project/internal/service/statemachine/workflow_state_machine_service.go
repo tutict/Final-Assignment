@@ -2,9 +2,10 @@ package statemachine
 
 import (
 	"errors"
+	"final_assignment_backend_go/project/internal/reliability"
 	"final_assignment_backend_go/project/internal/service/offense"
 	paymentsvc "final_assignment_backend_go/project/internal/service/payment"
-	"final_assignment_backend_go/project/internal/service/shared"
+	"fmt"
 	"strings"
 
 	"final_assignment_backend_go/project/internal/domain"
@@ -206,41 +207,64 @@ func (s *WorkflowService) TriggerOffenseEvent(offenseID int64, event string) (*d
 
 // TriggerPaymentEvent 触发支付状态事件并按乐观锁持久化新状态。
 func (s *WorkflowService) TriggerPaymentEvent(paymentID int64, event string, idempotencyKey string) (*domain.PaymentRecord, error) {
-	payment, err := s.payments.FindByID(paymentID)
-	if err != nil {
-		return nil, ErrWorkflowRecordNotFound
+	db := reliability.Ledger(s.db)
+	var payment domain.PaymentRecord
+	if err := db.Where("payment_id = ?", paymentID).First(&payment).Error; err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, ErrWorkflowRecordNotFound
+		}
+		return nil, err
 	}
-	if err := shared.CheckIdempotency(idempotencyKey, "payment:workflow"); err != nil {
-		return nil, paymentsvc.ErrPaymentDuplicate
+	fingerprint := reliability.Fingerprint(fmt.Sprintf("%d|%s", paymentID, event))
+	if err := reliability.Reserve(db, idempotencyKey, "PAYMENT_STATUS", "POST", fmt.Sprintf("/api/workflow/payments/%d/events/%s", paymentID, event), fingerprint, &paymentID); err != nil {
+		return nil, err
 	}
 	current := ResolvePaymentState(payment.PaymentStatus)
 	next, ok := transitionState(paymentTransitions, current, event)
 	if !ok {
+		_ = reliability.MarkFailed(db, idempotencyKey, ErrWorkflowTransitionRejected.Error())
 		return nil, ErrWorkflowTransitionRejected
 	}
 	if err := s.payments.UpdatePaymentStatusFields(paymentID, next); err != nil {
+		_ = reliability.MarkFailed(db, idempotencyKey, err.Error())
+		return nil, err
+	}
+	if err := reliability.MarkSuccess(db, idempotencyKey, paymentID); err != nil {
 		return nil, err
 	}
 	payment.PaymentStatus = next
-	return payment, nil
+	return &payment, nil
 }
 
 // TriggerAppealEvent 触发申诉状态事件并持久化新状态。
-func (s *WorkflowService) TriggerAppealEvent(appealID int64, event string) (*domain.AppealManagement, error) {
+func (s *WorkflowService) TriggerAppealEvent(appealID int64, event string, idempotencyKey string) (*domain.AppealManagement, error) {
+	db := reliability.Ledger(s.db)
 	var appeal domain.AppealManagement
-	if err := s.db.Where("appeal_id = ?", appealID).First(&appeal).Error; err != nil {
-		return nil, ErrWorkflowRecordNotFound
+	if err := db.Where("appeal_id = ?", appealID).First(&appeal).Error; err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, ErrWorkflowRecordNotFound
+		}
+		return nil, err
+	}
+	fingerprint := reliability.Fingerprint(fmt.Sprintf("%d|%s", appealID, event))
+	if err := reliability.Reserve(db, idempotencyKey, "APPEAL_STATUS", "POST", fmt.Sprintf("/api/workflow/appeals/%d/events/%s", appealID, event), fingerprint, &appealID); err != nil {
+		return nil, err
 	}
 	current := ResolveAppealState(appeal.ProcessStatus)
 	next, ok := transitionState(appealTransitions, current, event)
 	if !ok {
+		_ = reliability.MarkFailed(db, idempotencyKey, ErrWorkflowTransitionRejected.Error())
 		return nil, ErrWorkflowTransitionRejected
 	}
-	result := s.db.Model(&domain.AppealManagement{}).
+	result := db.Model(&domain.AppealManagement{}).
 		Where("appeal_id = ?", appealID).
 		Update("process_status", next)
 	if result.Error != nil {
+		_ = reliability.MarkFailed(db, idempotencyKey, result.Error.Error())
 		return nil, result.Error
+	}
+	if err := reliability.MarkSuccess(db, idempotencyKey, appealID); err != nil {
+		return nil, err
 	}
 	appeal.ProcessStatus = next
 	return &appeal, nil

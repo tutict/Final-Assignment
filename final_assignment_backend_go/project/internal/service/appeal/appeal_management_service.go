@@ -2,7 +2,10 @@ package appeal
 
 import (
 	"errors"
+	"final_assignment_backend_go/project/internal/reliability"
 	"final_assignment_backend_go/project/internal/service/shared"
+	"fmt"
+	"strconv"
 	"strings"
 	"time"
 
@@ -29,7 +32,17 @@ func (s *AppealManagementService) DB() *gorm.DB {
 }
 
 func (s *AppealManagementService) CheckAndInsertIdempotency(key string, appeal *domain.AppealManagement, operation string) (*domain.AppealManagement, error) {
-	if err := shared.CheckIdempotency(key, "appeal:"+operation); err != nil {
+	driverID := 0
+	if appeal.DriverID != nil {
+		driverID = *appeal.DriverID
+	}
+	fingerprint := reliability.Fingerprint(fmt.Sprintf("%d|%d|%s|%s|%s", appeal.OffenseID, driverID, appeal.AppellantName, appeal.AppealReason, appeal.ProcessStatus))
+	method, url := "POST", "/api/appeals"
+	if !strings.EqualFold(operation, "create") {
+		method = "PUT"
+		url = "/api/appeals/" + strconv.Itoa(appeal.AppealID)
+	}
+	if err := reliability.Reserve(s.DB(), key, "APPEAL_"+strings.ToUpper(operation), method, url, fingerprint, nil); err != nil {
 		return nil, err
 	}
 	switch strings.ToLower(operation) {
@@ -52,10 +65,17 @@ func (s *AppealManagementService) CheckAndInsertIdempotency(key string, appeal *
 		if err := validateAppealStatus("", appeal.ProcessStatus); err != nil {
 			return nil, err
 		}
-		return appeal, s.DB().Create(appeal).Error
+		db := reliability.Ledger(s.DB())
+		insert := db
+		if strings.TrimSpace(appeal.EvidenceURLs) == "" {
+			insert = insert.Omit("EvidenceURLs")
+		}
+		err := insert.Create(appeal).Error
+		return appeal, reliability.Finish(db, key, int64(appeal.AppealID), err)
 	case "update":
 		var existing domain.AppealManagement
-		if err := s.DB().Where("appeal_id = ?", appeal.AppealID).First(&existing).Error; err != nil {
+		db := reliability.Ledger(s.DB())
+		if err := db.Where("appeal_id = ?", appeal.AppealID).First(&existing).Error; err != nil {
 			return nil, err
 		}
 		if strings.TrimSpace(appeal.ProcessStatus) == "" {
@@ -64,7 +84,7 @@ func (s *AppealManagementService) CheckAndInsertIdempotency(key string, appeal *
 		if err := validateAppealStatus(existing.ProcessStatus, appeal.ProcessStatus); err != nil {
 			return nil, err
 		}
-		return appeal, s.DB().Save(appeal).Error
+		return appeal, reliability.Finish(db, key, int64(appeal.AppealID), db.Save(appeal).Error)
 	default:
 		return nil, errors.New("unsupported appeal operation")
 	}
@@ -208,3 +228,33 @@ func validateAppealStatus(from string, to string) error {
 }
 
 type AppealService = AppealManagementService
+
+func (s *AppealManagementService) CreateAppealReview(appealID int, key string, review *domain.AppealReview) (*domain.AppealReview, error) {
+	if review == nil {
+		return nil, errors.New("appeal review must not be null")
+	}
+	if appealID <= 0 {
+		return nil, errors.New("appealId must be greater than zero")
+	}
+	if strings.TrimSpace(review.ReviewLevel) == "" || strings.TrimSpace(review.Reviewer) == "" || strings.TrimSpace(review.ReviewResult) == "" {
+		return nil, errors.New("reviewLevel, reviewer, and reviewResult are required")
+	}
+	review.AppealID = appealID
+	if review.ReviewTime.IsZero() {
+		review.ReviewTime = time.Now()
+	}
+	fingerprint := reliability.Fingerprint(fmt.Sprintf("%d|%s|%s|%s|%s", appealID, review.ReviewLevel, review.Reviewer, review.ReviewResult, review.ReviewOpinion))
+	if err := reliability.Reserve(s.DB(), key, "APPEAL_REVIEW_CREATE", "POST", "/api/appeals/"+strconv.Itoa(appealID)+"/reviews", fingerprint, nil); err != nil {
+		return nil, err
+	}
+	db := reliability.Ledger(s.DB())
+	insert := db
+	if strings.TrimSpace(review.SuggestedAction) == "" {
+		insert = insert.Omit("SuggestedAction")
+	}
+	writeErr := insert.Create(review).Error
+	if err := reliability.Finish(db, key, int64(review.ReviewID), writeErr); err != nil {
+		return nil, err
+	}
+	return review, nil
+}

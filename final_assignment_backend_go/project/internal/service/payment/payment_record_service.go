@@ -2,7 +2,9 @@ package payment
 
 import (
 	"errors"
+	"final_assignment_backend_go/project/internal/reliability"
 	"final_assignment_backend_go/project/internal/service/shared"
+	"fmt"
 	"strings"
 	"time"
 
@@ -35,13 +37,33 @@ func (s *PaymentRecordService) DB() *gorm.DB { return s.repo.DB() }
 
 // CheckAndInsertIdempotency 幂等检查 + 落库，沿用 Go 后端统一的幂等账本。
 func (s *PaymentRecordService) CheckAndInsertIdempotency(key string, payment *domain.PaymentRecord, operation string) error {
-	if err := shared.CheckIdempotency(key, "payment:"+operation); err != nil {
-		return ErrPaymentDuplicate
+	fingerprint := reliability.Fingerprint(fmt.Sprintf("%d|%v|%s|%s|%s", payment.FineID, payment.PaymentAmount, payment.PaymentMethod, payment.PayerName, payment.PaymentStatus))
+	if err := reliability.Reserve(s.DB(), key, "PAYMENT_"+strings.ToUpper(operation), "POST", "/api/payments", fingerprint, nil); err != nil {
+		if errors.Is(err, reliability.ErrReplay) {
+			return ErrPaymentDuplicate
+		}
+		return err
 	}
+	var writeErr error
 	if strings.EqualFold(operation, "create") {
-		return s.CreatePayment(payment)
+		writeErr = s.CreatePayment(payment)
+	} else {
+		writeErr = s.UpdatePayment(payment)
 	}
-	return s.UpdatePayment(payment)
+	if writeErr != nil {
+		_ = reliability.MarkFailed(s.DB(), strings.TrimSpace(key), writeErr.Error())
+		return writeErr
+	}
+	if payment.PaymentID > 0 {
+		if err := reliability.MarkSuccess(s.DB(), strings.TrimSpace(key), payment.PaymentID); err != nil {
+			return err
+		}
+		if strings.EqualFold(operation, "create") {
+			publishAfterCommit(strings.TrimSpace(key), payment)
+		}
+		return nil
+	}
+	return nil
 }
 
 // CreatePayment 创建支付记录，缺省补齐支付状态与时间戳。
@@ -65,7 +87,18 @@ func (s *PaymentRecordService) CreatePayment(payment *domain.PaymentRecord) erro
 	if strings.TrimSpace(payment.PaymentStatus) == "" {
 		payment.PaymentStatus = "Pending"
 	}
-	return s.DB().Create(payment).Error
+	query := reliability.Ledger(s.DB())
+	var omitted []string
+	if strings.TrimSpace(payment.TransactionID) == "" {
+		omitted = append(omitted, "TransactionID")
+	}
+	if payment.Version == nil {
+		omitted = append(omitted, "Version")
+	}
+	if len(omitted) > 0 {
+		query = query.Omit(omitted...)
+	}
+	return query.Create(payment).Error
 }
 
 // UpdatePayment 按主键乐观锁更新（对齐 MyBatis-Plus @Version 行为）。
@@ -73,12 +106,12 @@ func (s *PaymentRecordService) UpdatePayment(payment *domain.PaymentRecord) erro
 	if payment == nil || payment.PaymentID <= 0 {
 		return errors.New("payment ID must be greater than zero")
 	}
-	query := s.DB().Model(&domain.PaymentRecord{}).
+	query := reliability.Ledger(s.DB()).Model(&domain.PaymentRecord{}).
 		Where("payment_id = ?", payment.PaymentID)
-	if payment.Version > 0 {
-		query = query.Where("version = ?", payment.Version)
+	if payment.Version != nil {
+		query = query.Where("version = ?", *payment.Version)
 	}
-	result := query.Updates(map[string]any{
+	updates := map[string]any{
 		"fine_id":         payment.FineID,
 		"driver_id":       payment.DriverID,
 		"payment_number":  payment.PaymentNumber,
@@ -91,7 +124,6 @@ func (s *PaymentRecordService) UpdatePayment(payment *domain.PaymentRecord) erro
 		"payer_contact":   payment.PayerContact,
 		"bank_name":       payment.BankName,
 		"bank_account":    payment.BankAccount,
-		"transaction_id":  payment.TransactionID,
 		"receipt_number":  payment.ReceiptNumber,
 		"receipt_url":     payment.ReceiptURL,
 		"payment_status":  payment.PaymentStatus,
@@ -99,14 +131,23 @@ func (s *PaymentRecordService) UpdatePayment(payment *domain.PaymentRecord) erro
 		"refund_time":     payment.RefundTime,
 		"updated_at":      time.Now(),
 		"remarks":         payment.Remarks,
-		"version":         gorm.Expr("version + 1"),
-	})
+	}
+	if payment.Version != nil {
+		updates["version"] = gorm.Expr("version + 1")
+	}
+	if strings.TrimSpace(payment.TransactionID) != "" {
+		updates["transaction_id"] = payment.TransactionID
+	}
+	result := query.Updates(updates)
 	if result.Error != nil {
 		return result.Error
 	}
 	if result.RowsAffected == 0 {
 		if _, err := s.FindByID(payment.PaymentID); err != nil {
 			return ErrPaymentNotFound
+		}
+		if payment.Version == nil {
+			return nil
 		}
 		return ErrPaymentOptimisticLock
 	}
@@ -115,8 +156,11 @@ func (s *PaymentRecordService) UpdatePayment(payment *domain.PaymentRecord) erro
 
 // UpdatePaymentStatus 按状态机目标状态更新支付状态，带乐观锁守卫。
 func (s *PaymentRecordService) UpdatePaymentStatus(paymentID int64, status string, idempotencyKey string) (*domain.PaymentRecord, error) {
-	if err := shared.CheckIdempotency(idempotencyKey, "payment:status"); err != nil {
-		return nil, ErrPaymentDuplicate
+	if err := reliability.Reserve(s.DB(), idempotencyKey, "PAYMENT_STATUS", "PUT", "/api/payments/status", reliability.Fingerprint(fmt.Sprintf("status|%d|%s", paymentID, status)), &paymentID); err != nil {
+		if errors.Is(err, reliability.ErrReplay) {
+			return nil, ErrPaymentDuplicate
+		}
+		return nil, err
 	}
 	if err := s.UpdatePaymentStatusFields(paymentID, status); err != nil {
 		return nil, err
@@ -126,20 +170,22 @@ func (s *PaymentRecordService) UpdatePaymentStatus(paymentID int64, status strin
 
 // UpdatePaymentStatusFields 仅执行状态字段的乐观锁更新（工作流复用）。
 func (s *PaymentRecordService) UpdatePaymentStatusFields(paymentID int64, status string) error {
-	existing, err := s.FindByID(paymentID)
+	db := reliability.Ledger(s.DB())
+	existing, err := findPayment(db, paymentID)
 	if err != nil {
-		return ErrPaymentNotFound
+		return err
 	}
 	if status != "" && existing.PaymentStatus == status {
 		return ErrPaymentOptimisticLock
 	}
 	now := time.Now()
-	result := s.DB().Model(&domain.PaymentRecord{}).
-		Where("payment_id = ? AND version = ?", paymentID, existing.Version).
+	current := recordedVersion(existing.Version)
+	result := db.Model(&domain.PaymentRecord{}).
+		Where("payment_id = ? AND version = ?", paymentID, current).
 		Updates(map[string]any{
 			"payment_status": status,
 			"updated_at":     now,
-			"version":        existing.Version + 1,
+			"version":        current + 1,
 		})
 	if result.Error != nil {
 		return result.Error
@@ -148,6 +194,13 @@ func (s *PaymentRecordService) UpdatePaymentStatusFields(paymentID int64, status
 		return ErrPaymentOptimisticLock
 	}
 	return nil
+}
+
+func recordedVersion(version *int) int {
+	if version == nil {
+		return 0
+	}
+	return *version
 }
 
 // DeletePayment 删除支付记录（软删除）。
@@ -160,6 +213,18 @@ func (s *PaymentRecordService) DeletePayment(paymentID int64) error {
 		return ErrPaymentNotFound
 	}
 	return nil
+}
+
+func findPayment(db *gorm.DB, paymentID int64) (*domain.PaymentRecord, error) {
+	var payment domain.PaymentRecord
+	err := db.Where("payment_id = ?", paymentID).First(&payment).Error
+	if errors.Is(err, gorm.ErrRecordNotFound) {
+		return nil, ErrPaymentNotFound
+	}
+	if err != nil {
+		return nil, err
+	}
+	return &payment, nil
 }
 
 // FindByID 按主键查询支付记录。

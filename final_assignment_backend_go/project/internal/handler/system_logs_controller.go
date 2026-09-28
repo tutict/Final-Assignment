@@ -35,6 +35,9 @@ func (ctrl *SystemLogsController) mountSystemLogs(group *gin.RouterGroup) {
 	group.GET("/operationUser/:operationUser", ctrl.GetSystemLogsByOperationUser)
 	group.GET("/autocomplete/log-types/me", ctrl.GetLogTypeAutocompleteSuggestionsGlobally)
 	group.GET("/autocomplete/operation-users/me", ctrl.GetOperationUserAutocompleteSuggestionsGlobally)
+	group.GET("/overview", ctrl.GetSystemLogOverview)
+	group.GET("/login/recent", ctrl.GetRecentLoginLogsAlias)
+	group.GET("/operation/recent", ctrl.GetRecentOperationLogsAlias)
 	group.GET("/:logId", ctrl.GetSystemLogByID)
 	group.PUT("/:logId", ctrl.UpdateSystemLog)
 	group.DELETE("/:logId", ctrl.DeleteSystemLog)
@@ -202,4 +205,30 @@ func (ctrl *SystemLogsController) GetOperationUserAutocompleteSuggestionsGloball
 	}
 
 	c.JSON(http.StatusOK, suggestions)
+}
+func (ctrl *SystemLogsController) GetSystemLogOverview(c *gin.Context) {
+	logs, err := ctrl.SystemLogsService.GetAllSystemLogs()
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{
+		"systemLogCount":   len(logs),
+		"recentSystemLogs": firstLogs(logs, 10),
+	})
+}
+
+func (ctrl *SystemLogsController) GetRecentLoginLogsAlias(c *gin.Context) {
+	c.JSON(http.StatusOK, []any{})
+}
+
+func (ctrl *SystemLogsController) GetRecentOperationLogsAlias(c *gin.Context) {
+	c.JSON(http.StatusOK, []any{})
+}
+
+func firstLogs(logs []domain.SystemLogs, limit int) []domain.SystemLogs {
+	if len(logs) > limit {
+		return logs[:limit]
+	}
+	return logs
 }

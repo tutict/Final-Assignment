@@ -28,7 +28,10 @@ func (fc *FineController) CreateFine(c *gin.Context) {
 		return
 	}
 	var fine domain.FineInformation
-	idempotencyKey := c.Query("idempotencyKey")
+	idempotencyKey, ok := requireIdempotencyKey(c)
+	if !ok {
+		return
+	}
 
 	if err := c.ShouldBindJSON(&fine); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid input"})
@@ -36,7 +39,7 @@ func (fc *FineController) CreateFine(c *gin.Context) {
 	}
 
 	if err := fc.FineService.CheckAndInsertIdempotency(idempotencyKey, &fine, "create"); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		writeLedgerError(c, err)
 		return
 	}
 

@@ -113,8 +113,26 @@ func TestCorsPreflightAllowsReactLoginOrigin(t *testing.T) {
 	if got := res.Header().Get("Access-Control-Allow-Origin"); got != reactDevOrigin {
 		t.Fatalf("expected React origin to be allowed, got %q", got)
 	}
-	if got := res.Header().Get("Access-Control-Allow-Headers"); !strings.Contains(got, "Authorization") {
-		t.Fatalf("expected Authorization to be allowed, got %q", got)
+	if got := res.Header().Get("Access-Control-Allow-Headers"); !strings.Contains(got, "Authorization") || !strings.Contains(got, "Idempotency-Key") || !strings.Contains(got, "X-Trace-Id") {
+		t.Fatalf("expected ledger headers to be allowed, got %q", got)
+	}
+	if got := res.Header().Get("Access-Control-Allow-Credentials"); got != "true" {
+		t.Fatalf("credentials = %q", got)
+	}
+
+	denied := httptest.NewRequest(http.MethodOptions, "/api/auth/login", nil)
+	denied.Header.Set("Origin", "http://evil.example")
+	deniedRes := httptest.NewRecorder()
+	router.ServeHTTP(deniedRes, denied)
+	if got := deniedRes.Header().Get("Access-Control-Allow-Origin"); got != "" {
+		t.Fatalf("unexpected origin %q", got)
+	}
+	flutter := httptest.NewRequest(http.MethodOptions, "/api/auth/login", nil)
+	flutter.Header.Set("Origin", "http://localhost:8080")
+	flutterRes := httptest.NewRecorder()
+	router.ServeHTTP(flutterRes, flutter)
+	if got := flutterRes.Header().Get("Access-Control-Allow-Origin"); got != "http://localhost:8080" {
+		t.Fatalf("flutter origin %q", got)
 	}
 }
 

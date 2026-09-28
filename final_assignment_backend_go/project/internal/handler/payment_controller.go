@@ -2,6 +2,7 @@ package handler
 
 import (
 	"errors"
+	"final_assignment_backend_go/project/internal/reliability"
 	"final_assignment_backend_go/project/internal/service/statemachine"
 	"net/http"
 	"strconv"
@@ -78,12 +79,12 @@ func (c *PaymentRecordController) createPayment(ctx *gin.Context) {
 		ctx.JSON(http.StatusBadRequest, apiError("INVALID_REQUEST", err.Error()))
 		return
 	}
-	if err := c.Service.CheckAndInsertIdempotency(idempotencyKeyHeader(ctx), &payment, "create"); err != nil {
-		if errors.Is(err, service.ErrPaymentDuplicate) {
-			ctx.JSON(http.StatusAlreadyReported, apiOK(nil))
-			return
-		}
-		ctx.JSON(http.StatusInternalServerError, apiError("INTERNAL_ERROR", err.Error()))
+	idempotencyKey, ok := requireIdempotencyKey(ctx)
+	if !ok {
+		return
+	}
+	if err := c.Service.CheckAndInsertIdempotency(idempotencyKey, &payment, "create"); err != nil {
+		writePaymentError(ctx, err)
 		return
 	}
 	ctx.JSON(http.StatusCreated, apiOK(paymentResponse(&payment)))
@@ -214,12 +215,12 @@ func (c *PaymentRecordController) createDriverPayment(ctx *gin.Context) {
 		return
 	}
 	payment.DriverID = &driverID
-	if err := c.Service.CheckAndInsertIdempotency(idempotencyKeyHeader(ctx), &payment, "create"); err != nil {
-		if errors.Is(err, service.ErrPaymentDuplicate) {
-			ctx.JSON(http.StatusAlreadyReported, apiOK(nil))
-			return
-		}
-		ctx.JSON(http.StatusInternalServerError, apiError("INTERNAL_ERROR", err.Error()))
+	idempotencyKey, ok := requireIdempotencyKey(ctx)
+	if !ok {
+		return
+	}
+	if err := c.Service.CheckAndInsertIdempotency(idempotencyKey, &payment, "create"); err != nil {
+		writePaymentError(ctx, err)
 		return
 	}
 	ctx.JSON(http.StatusCreated, apiOK(paymentResponse(&payment)))
@@ -423,4 +424,28 @@ func searchResult(ctx *gin.Context, payments []domain.PaymentRecord, err error) 
 		return
 	}
 	ctx.JSON(http.StatusOK, apiOK(paymentResponses(payments)))
+}
+
+func writePaymentError(ctx *gin.Context, err error) {
+	switch {
+	case errors.Is(err, service.ErrPaymentDuplicate), errors.Is(err, reliability.ErrReplay):
+		ctx.JSON(http.StatusAlreadyReported, apiOK(nil))
+	case errors.Is(err, reliability.ErrKeyRequired):
+		ctx.JSON(http.StatusBadRequest, apiError("MISSING_HEADER", "Missing required header: Idempotency-Key"))
+	case errors.Is(err, reliability.ErrConflict), errors.Is(err, service.ErrPaymentOptimisticLock):
+		if errors.Is(err, reliability.ErrConflict) {
+			reliability.NoteIdempotencyConflict()
+		}
+		ctx.JSON(http.StatusConflict, apiError("IDEMPOTENCY_CONFLICT", err.Error()))
+	case errors.Is(err, reliability.ErrInProgress):
+		ctx.Header("Retry-After", "1")
+		ctx.JSON(http.StatusConflict, apiError("IDEMPOTENCY_IN_PROGRESS", err.Error()))
+	case errors.Is(err, service.ErrPaymentNotFound):
+		ctx.JSON(http.StatusNotFound, apiError("PAYMENT_NOT_FOUND", "Payment record not found"))
+	default:
+		if writeConnectionWait(ctx, err) {
+			return
+		}
+		ctx.JSON(http.StatusInternalServerError, apiError("INTERNAL_ERROR", err.Error()))
+	}
 }

@@ -33,6 +33,7 @@ func (c *DeductionInformationController) RegisterRoutes(r *gin.Engine) {
 	group.GET("/timeRange", c.GetDeductionsByTimeRange)
 	group.GET("/by-handler", c.SearchByHandler)
 	group.GET("/by-time-range", c.SearchByDeductionTimeRange)
+	group.GET("/driver/:driverId", c.GetDeductionsByDriver)
 	group.GET("/:deductionId", c.GetDeductionById)
 	group.PUT("/:deductionId", c.UpdateDeduction)
 	group.DELETE("/:deductionId", c.DeleteDeduction)
@@ -44,7 +45,10 @@ func (c *DeductionInformationController) CreateDeduction(ctx *gin.Context) {
 		return
 	}
 	var deduction domain.DeductionInformation
-	idempotencyKey := ctx.Query("idempotencyKey")
+	idempotencyKey, ok := requireIdempotencyKey(ctx)
+	if !ok {
+		return
+	}
 
 	if err := ctx.ShouldBindJSON(&deduction); err != nil {
 		ctx.JSON(http.StatusBadRequest, gin.H{"error": "invalid input"})
@@ -53,7 +57,7 @@ func (c *DeductionInformationController) CreateDeduction(ctx *gin.Context) {
 
 	log.Printf("Attempting to create deduction with idempotency key: %s", idempotencyKey)
 	if err := c.deductionService.CheckAndInsertIdempotency(idempotencyKey, &deduction, "create"); err != nil {
-		ctx.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		writeLedgerError(ctx, err)
 		return
 	}
 	log.Println("Deduction created successfully.")
@@ -206,4 +210,25 @@ func (c *DeductionInformationController) SearchByDeductionTimeRange(ctx *gin.Con
 		return
 	}
 	ctx.JSON(http.StatusOK, c.deductionService.FilterForRequester(ctx.GetString("username"), Unscoped(ctx, ResourceDeductions), results))
+}
+
+
+func (c *DeductionInformationController) GetDeductionsByDriver(ctx *gin.Context) {
+	driverID, err := strconv.Atoi(ctx.Param("driverId"))
+	if err != nil || driverID <= 0 {
+		ctx.JSON(http.StatusBadRequest, gin.H{"error": "invalid driver id"})
+		return
+	}
+	deductions, err := c.deductionService.ListForRequester(ctx.GetString("username"), Unscoped(ctx, ResourceDeductions))
+	if err != nil {
+		ctx.JSON(http.StatusInternalServerError, gin.H{"error": "failed to fetch deductions"})
+		return
+	}
+	filtered := make([]domain.DeductionInformation, 0)
+	for _, item := range deductions {
+		if item.DriverID == driverID {
+			filtered = append(filtered, item)
+		}
+	}
+	ctx.JSON(http.StatusOK, filtered)
 }

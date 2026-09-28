@@ -1,7 +1,9 @@
 package offense
 
 import (
+	"final_assignment_backend_go/project/internal/reliability"
 	"final_assignment_backend_go/project/internal/service/shared"
+	"fmt"
 	"strconv"
 	"strings"
 	"time"
@@ -27,7 +29,13 @@ func (s *DeductionInformationService) CreateDeduction(deduction *domain.Deductio
 func (s *DeductionInformationService) DB() *gorm.DB { return s.repo.DB() }
 
 func (s *DeductionInformationService) CheckAndInsertIdempotency(key string, deduction *domain.DeductionInformation, operation string) error {
-	if err := shared.CheckIdempotency(key, "deduction:"+operation); err != nil {
+	fingerprint := reliability.Fingerprint(fmt.Sprintf("%d|%d|%d|%s", deduction.OffenseID, deduction.DriverID, deduction.DeductedPoints, deduction.Status))
+	method, url := "POST", "/api/deductions"
+	if !strings.EqualFold(operation, "create") {
+		method = "PUT"
+		url = "/api/deductions/" + strconv.Itoa(deduction.DeductionID)
+	}
+	if err := reliability.Reserve(s.DB(), key, "DEDUCTION_"+strings.ToUpper(operation), method, url, fingerprint, nil); err != nil {
 		return err
 	}
 	if strings.EqualFold(operation, "create") {
@@ -35,9 +43,7 @@ func (s *DeductionInformationService) CheckAndInsertIdempotency(key string, dedu
 			deduction.DeductionTime = time.Now()
 		}
 		if strings.TrimSpace(deduction.ScoringCycle) == "" {
-			year := deduction.DeductionTime.Format("2006")
-			nextYear, _ := strconv.Atoi(year)
-			deduction.ScoringCycle = year + "-01-01至" + strconv.Itoa(nextYear+1) + "-01-01"
+			deduction.ScoringCycle = defaultScoringCycle(deduction.DeductionTime)
 		}
 		if strings.TrimSpace(deduction.Status) == "" {
 			deduction.Status = "Effective"
@@ -45,9 +51,12 @@ func (s *DeductionInformationService) CheckAndInsertIdempotency(key string, dedu
 		if strings.TrimSpace(deduction.Handler) == "" {
 			deduction.Handler = "system"
 		}
-		return s.DB().Create(deduction).Error
+		db := reliability.Ledger(s.DB())
+		err := db.Create(deduction).Error
+		return reliability.Finish(db, key, int64(deduction.DeductionID), err)
 	}
-	return s.DB().Save(deduction).Error
+	db := reliability.Ledger(s.DB())
+	return reliability.Finish(db, key, int64(deduction.DeductionID), db.Save(deduction).Error)
 }
 
 func (s *DeductionInformationService) GetDeductionById(id string) (*domain.DeductionInformation, error) {
@@ -135,4 +144,10 @@ func (s *DeductionInformationService) ListForRequester(username string, elevated
 	var deductions []domain.DeductionInformation
 	err := s.DB().Where("driver_id = ?", driverID).Find(&deductions).Error
 	return deductions, err
+}
+
+func defaultScoringCycle(when time.Time) string {
+	year := when.Format("2006")
+	nextYear, _ := strconv.Atoi(year)
+	return year + "-" + strconv.Itoa(nextYear+1)
 }

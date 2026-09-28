@@ -13,6 +13,11 @@ import (
 )
 
 // RedisConfig 配置结构体
+const (
+	cacheCommandTimeout     = 300 * time.Millisecond
+	blacklistCommandTimeout = 200 * time.Millisecond
+)
+
 type RedisConfig struct {
 	Host        string
 	Port        string
@@ -20,6 +25,7 @@ type RedisConfig struct {
 	Timeout     time.Duration
 	CachePrefix string
 	Client      *redis.Client
+	Blacklist   *redis.Client
 	Ctx         context.Context
 }
 
@@ -58,19 +64,15 @@ func NewRedisConfig() *RedisConfig {
 // InitRedis 初始化 Redis 客户端（类似于 redisConnectionFactory）
 func (r *RedisConfig) InitRedis() error {
 	if r.Host == "" {
-		r.Client = redis.NewClient(&redis.Options{Addr: "disabled"})
+		disabled := redis.NewClient(&redis.Options{Addr: "disabled"})
+		r.Client = disabled
+		r.Blacklist = disabled
 		log.Println("[INFO] Redis disabled (REDIS_ENABLED=false), using no-op client")
 		return nil
 	}
 
-	opt := &redis.Options{
-		Addr:         r.Host + ":" + r.Port,
-		DB:           r.DB,
-		ReadTimeout:  r.Timeout,
-		WriteTimeout: r.Timeout,
-	}
-
-	client := redis.NewClient(opt)
+	client := redis.NewClient(redisOptions(r, cacheCommandTimeout))
+	blacklist := redis.NewClient(redisOptions(r, blacklistCommandTimeout))
 
 	// 测试连接
 	if err := client.Ping(r.Ctx).Err(); err != nil {
@@ -78,8 +80,21 @@ func (r *RedisConfig) InitRedis() error {
 	}
 
 	r.Client = client
+	r.Blacklist = blacklist
 	log.Printf("[INFO] Connected to Redis at %s:%s\n", r.Host, r.Port)
 	return nil
+}
+
+func redisOptions(r *RedisConfig, commandTimeout time.Duration) *redis.Options {
+	return &redis.Options{
+		Addr:                  r.Host + ":" + r.Port,
+		DB:                    r.DB,
+		DialTimeout:           200 * time.Millisecond,
+		ReadTimeout:           commandTimeout,
+		WriteTimeout:          commandTimeout,
+		MaxRetries:            1,
+		ContextTimeoutEnabled: true,
+	}
 }
 
 // RedisSetJSON 设置缓存，带序列化与过期时间

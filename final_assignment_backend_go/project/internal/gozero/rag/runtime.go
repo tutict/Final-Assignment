@@ -6,13 +6,13 @@ import (
 	"strings"
 	"time"
 
+	appconfig "final_assignment_backend_go/project/configs"
 	"final_assignment_backend_go/project/internal/domain"
 	"final_assignment_backend_go/project/internal/gozero/config"
 	"final_assignment_backend_go/project/internal/repo"
 	service "final_assignment_backend_go/project/internal/service/rag"
 
 	elasticsearch "github.com/elastic/go-elasticsearch/v8"
-	"gorm.io/driver/mysql"
 	"gorm.io/gorm"
 )
 
@@ -58,7 +58,7 @@ func NewRuntime(conf config.RagConf) (*Runtime, error) {
 	}
 	serviceConfig := toServiceConfig(conf, provider)
 
-	db, err := gorm.Open(mysql.Open(conf.MySQLDSN), &gorm.Config{})
+	db, err := appconfig.OpenGormWithStatementTimeout(conf.MySQLDSN)
 	if err != nil {
 		return nil, fmt.Errorf("open RAG MySQL connection: %w", err)
 	}

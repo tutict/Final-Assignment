@@ -11,18 +11,21 @@ import (
 	"github.com/gin-gonic/gin"
 
 	"final_assignment_backend_go/project/internal/ai"
+	"final_assignment_backend_go/project/internal/reliability"
 	service "final_assignment_backend_go/project/internal/service/ai"
 )
 
 // AiChatHandler handles AI chat streaming requests
 type AiChatHandler struct {
 	chatPipeline *ai.ChatPipeline
+	bulkhead     *reliability.ModelBulkhead
 }
 
 // NewAiChatHandler creates a new AiChatHandler
 func NewAiChatHandler(chatPipeline *ai.ChatPipeline) *AiChatHandler {
 	return &AiChatHandler{
 		chatPipeline: chatPipeline,
+		bulkhead:     reliability.NewModelBulkhead(2),
 	}
 }
 
@@ -78,6 +81,24 @@ func (h *AiChatHandler) StreamChat(c *gin.Context) {
 		}
 	}
 
+	if h.bulkhead != nil && !h.bulkhead.TryAcquire() {
+		reliability.NoteAIFallback()
+		c.Header("Content-Type", "text/event-stream")
+		c.Header("Cache-Control", "no-cache")
+		c.Header("Connection", "keep-alive")
+		c.Status(http.StatusOK)
+		h.writeSSE(c.Writer, "done", map[string]any{
+			"type":       "done",
+			"isFallback": true,
+			"reason":     "bulkhead_full",
+			"payload":    map[string]any{"message": "AI 暂时不可用，请稍后再试。"},
+		})
+		return
+	}
+	if h.bulkhead != nil {
+		defer h.bulkhead.Release()
+	}
+
 	// Create context with timeout
 	ctx, cancel := context.WithTimeout(c.Request.Context(), 2*time.Minute)
 	defer cancel()
@@ -85,9 +106,12 @@ func (h *AiChatHandler) StreamChat(c *gin.Context) {
 	// Get event stream from chat pipeline
 	eventChan, err := h.chatPipeline.Stream(ctx, req)
 	if err != nil {
-		// Send error event
-		h.writeSSE(c.Writer, "error", map[string]any{
-			"error": err.Error(),
+		reliability.NoteAIFallback()
+		c.Status(http.StatusOK)
+		h.writeSSE(c.Writer, "done", map[string]any{
+			"isFallback": true,
+			"reason":     "model_unavailable",
+			"error":      err.Error(),
 		})
 		return
 	}
@@ -115,6 +139,9 @@ func (h *AiChatHandler) StreamChat(c *gin.Context) {
 		flusher.Flush()
 
 		// Stop on done or error
+		if event.Type == service.ChatStreamEventTypeError {
+			reliability.NoteAIFallback()
+		}
 		if event.Type == service.ChatStreamEventTypeDone || event.Type == service.ChatStreamEventTypeError {
 			break
 		}
@@ -137,6 +164,10 @@ func (h *AiChatHandler) writeSSE(w io.Writer, eventType string, data any) {
 func (h *AiChatHandler) eventToMap(event service.AiChatStreamEvent) map[string]any {
 	result := map[string]any{
 		"type": event.Type,
+	}
+	if event.Type == service.ChatStreamEventTypeError {
+		result["isFallback"] = true
+		result["reason"] = "model_unavailable"
 	}
 
 	if event.SessionKey != "" {

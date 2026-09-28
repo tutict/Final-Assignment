@@ -19,6 +19,9 @@ type stubAppealService struct {
 func (s stubAppealService) CheckAndInsertIdempotency(string, *domain.AppealManagement, string) (*domain.AppealManagement, error) {
 	return nil, nil
 }
+func (s stubAppealService) CreateAppealReview(int, string, *domain.AppealReview) (*domain.AppealReview, error) {
+	return &domain.AppealReview{ReviewID: 1}, nil
+}
 func (s stubAppealService) CountAppealsByStatus(string) (int64, error) { return 0, nil }
 func (s stubAppealService) DeleteAppeal(uint) error                    { return nil }
 func (s stubAppealService) GetAllAppeals() ([]domain.AppealManagement, error) {

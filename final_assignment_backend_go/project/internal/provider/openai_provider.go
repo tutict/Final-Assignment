@@ -7,6 +7,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"net"
 	"net/http"
 	"strings"
 	"time"
@@ -37,6 +38,10 @@ func NewOpenAIProvider(apiKey, baseURL, model string) *OpenAIProvider {
 		model:   model,
 		client: &http.Client{
 			Timeout: 120 * time.Second,
+			Transport: &http.Transport{
+				DialContext:           (&net.Dialer{Timeout: 700 * time.Millisecond}).DialContext,
+				ResponseHeaderTimeout: 700 * time.Millisecond,
+			},
 		},
 	}
 }

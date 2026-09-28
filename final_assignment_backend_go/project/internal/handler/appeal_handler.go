@@ -24,7 +24,10 @@ func NewAppealHandler(appealService AppealService) *AppealHandler {
 // CreateAppeal 创建新申诉（POST /api/appeals）
 func (h *AppealHandler) CreateAppeal(c *gin.Context) {
 	var appeal domain.AppealManagement
-	idempotencyKey := c.Query("idempotencyKey")
+	idempotencyKey, ok := requireIdempotencyKey(c)
+	if !ok {
+		return
+	}
 
 	if err := c.ShouldBindJSON(&appeal); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request body"})
@@ -34,7 +37,7 @@ func (h *AppealHandler) CreateAppeal(c *gin.Context) {
 	created, err := h.appealService.CheckAndInsertIdempotency(idempotencyKey, &appeal, "create")
 	if err != nil {
 		log.Printf("Error creating appeal: %v", err)
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		writeLedgerError(c, err)
 		return
 	}
 	c.JSON(http.StatusCreated, created)
@@ -92,7 +95,10 @@ func (h *AppealHandler) UpdateAppeal(c *gin.Context) {
 	}
 
 	var updated domain.AppealManagement
-	idempotencyKey := c.Query("idempotencyKey")
+	idempotencyKey, ok := requireIdempotencyKey(c)
+	if !ok {
+		return
+	}
 
 	if err := c.ShouldBindJSON(&updated); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request body"})
@@ -102,7 +108,7 @@ func (h *AppealHandler) UpdateAppeal(c *gin.Context) {
 	updated.AppealID = int(uint(id))
 	appeal, err := h.appealService.CheckAndInsertIdempotency(idempotencyKey, &updated, "update")
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		writeLedgerError(c, err)
 		return
 	}
 	c.JSON(http.StatusOK, appeal)
@@ -237,3 +243,29 @@ func (h *AppealHandler) CountAppealsByStatus(c *gin.Context) {
 	}
 	c.JSON(http.StatusOK, gin.H{"count": count})
 }
+func (h *AppealHandler) CreateReview(c *gin.Context) {
+	if !RequireWrite(c, ResourceAppeals) {
+		return
+	}
+	appealID, err := strconv.Atoi(c.Param("id"))
+	if err != nil || appealID <= 0 {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid appeal ID"})
+		return
+	}
+	key, ok := requireIdempotencyKey(c)
+	if !ok {
+		return
+	}
+	var review domain.AppealReview
+	if err := c.ShouldBindJSON(&review); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request body"})
+		return
+	}
+	saved, err := h.appealService.CreateAppealReview(appealID, key, &review)
+	if err != nil {
+		writeLedgerError(c, err)
+		return
+	}
+	c.JSON(http.StatusCreated, saved)
+}
+

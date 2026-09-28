@@ -6,7 +6,10 @@ import (
 	"encoding/hex"
 	"errors"
 	"log"
+	"sync"
 	"time"
+
+	"final_assignment_backend_go/project/internal/reliability"
 
 	"github.com/redis/go-redis/v9"
 )
@@ -23,6 +26,7 @@ type TokenBlacklistService struct {
 	// callTimeout 限制单次 Redis 调用的应用级超时，避免慢/拥塞 Redis 拖垮每个鉴权请求。
 	// 0 表示无应用级超时（退化为 socket ReadTimeout）。
 	callTimeout time.Duration
+	localRevoked sync.Map
 }
 
 // NewTokenBlacklistService 构造黑名单服务。failOpenWhenUnavailable=false 时 Redis 不可用即报错。
@@ -32,7 +36,7 @@ func NewTokenBlacklistService(client *redis.Client, failOpenWhenUnavailable bool
 		failOpenWhenUnavailable: failOpenWhenUnavailable,
 		ctx:                     context.Background(),
 		// 每次鉴权都查黑名单，给一个短于 socket 超时的应用级上限，防慢 Redis 拖垮热路径。
-		callTimeout: 2 * time.Second,
+		callTimeout: 200 * time.Millisecond,
 	}
 }
 
@@ -42,6 +46,7 @@ func (b *TokenBlacklistService) Blacklist(token string, ttlMillis int64) error {
 	if token == "" || ttlMillis <= 0 {
 		return nil
 	}
+	b.remember(token, time.Duration(ttlMillis)*time.Millisecond)
 	ttl := time.Duration(ttlMillis) * time.Millisecond
 	ctx, cancel := b.callCtx()
 	defer cancel()
@@ -58,18 +63,62 @@ func (b *TokenBlacklistService) Blacklist(token string, ttlMillis int64) error {
 
 // IsBlacklisted 检查 access token 是否已被撤销。
 // Redis 不可用时：fail-open=true 返回 false（放行），fail-open=false 返回 true（拒绝，更安全）。
-func (b *TokenBlacklistService) IsBlacklisted(token string) bool {
+
+func (b *TokenBlacklistService) Inspect(token string) reliability.Verdict {
 	if token == "" {
-		return false
+		return reliability.VerdictClear
+	}
+	if b.locallyRevoked(token) {
+		return reliability.VerdictRevoked
 	}
 	ctx, cancel := b.callCtx()
 	defer cancel()
 	n, err := b.client.Exists(ctx, b.key(token)).Result()
 	if err != nil {
 		log.Printf("[ERROR] Failed to check access token blacklist: %v", err)
-		return !b.failOpenWhenUnavailable
+		if b.locallyRevoked(token) {
+			return reliability.VerdictRevoked
+		}
+		return reliability.VerdictUnavailable
 	}
-	return n > 0
+	if n > 0 {
+		b.remember(token, 30*time.Minute)
+		return reliability.VerdictRevoked
+	}
+	return reliability.VerdictClear
+}
+
+func (b *TokenBlacklistService) Reachable() bool {
+	if b == nil || b.client == nil {
+		return true
+	}
+	ctx, cancel := b.callCtx()
+	defer cancel()
+	return b.client.Ping(ctx).Err() == nil
+}
+
+func (b *TokenBlacklistService) remember(token string, ttl time.Duration) {
+	b.localRevoked.Store(b.key(token), time.Now().Add(ttl))
+}
+
+func (b *TokenBlacklistService) locallyRevoked(token string) bool {
+	value, ok := b.localRevoked.Load(b.key(token))
+	if !ok {
+		return false
+	}
+	until, ok := value.(time.Time)
+	if !ok || time.Now().After(until) {
+		b.localRevoked.Delete(b.key(token))
+		return false
+	}
+	return true
+}
+
+func (b *TokenBlacklistService) IsBlacklisted(token string) bool {
+	if token == "" {
+		return false
+	}
+	return b.Inspect(token) == reliability.VerdictRevoked
 }
 
 func (b *TokenBlacklistService) key(token string) string {

@@ -121,8 +121,14 @@ func (n *NetWorkHandler) Stop(ctx context.Context) error {
 
 func (n *NetWorkHandler) corsMiddleware() gin.HandlerFunc {
 	return func(c *gin.Context) {
-		c.Header("Access-Control-Allow-Origin", "*")
+		origin := strings.TrimSpace(c.GetHeader("Origin"))
+		if allowedProxyOrigin(origin) && origin != "" {
+			c.Header("Access-Control-Allow-Origin", origin)
+			c.Header("Vary", "Origin")
+			c.Header("Access-Control-Allow-Credentials", "true")
+		}
 		c.Header("Access-Control-Allow-Headers", "Authorization, X-Requested-With, Sec-WebSocket-Key, Sec-WebSocket-Version, Sec-WebSocket-Protocol, Content-Type, Accept, Cache-Control, Idempotency-Key, X-Trace-Id")
+		c.Header("Access-Control-Expose-Headers", "X-Trace-Id")
 		c.Header("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS")
 		if c.Request.Method == http.MethodOptions {
 			c.AbortWithStatus(http.StatusNoContent)
@@ -444,4 +450,17 @@ func convertJSONToReflectValue(raw json.RawMessage, targetType reflect.Type) (re
 	}
 
 	return reflect.Value{}, fmt.Errorf("unsupported target type: %s (raw: %s)", targetType.String(), string(raw))
+}
+
+func allowedProxyOrigin(origin string) bool {
+	switch strings.TrimSpace(origin) {
+	case "", "http://127.0.0.1:5173", "http://localhost:5173",
+		"http://127.0.0.1:15173", "http://localhost:15173",
+		"http://127.0.0.1:3000", "http://localhost:3000",
+		"http://127.0.0.1:13000", "http://localhost:13000",
+		"http://127.0.0.1:8080", "http://localhost:8080":
+		return true
+	default:
+		return false
+	}
 }
