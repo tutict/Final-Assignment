@@ -1,6 +1,13 @@
 package finalassignmentbackend.exception.global;
 
 import com.baomidou.mybatisplus.core.exceptions.MybatisPlusException;
+import finalassignmentbackend.reliability.LedgerConnectionPolicy;
+import finalassignmentbackend.reliability.ReliabilityMetrics;
+import jakarta.inject.Inject;
+import jakarta.ws.rs.core.Context;
+import jakarta.ws.rs.core.Request;
+import jakarta.ws.rs.core.UriInfo;
+import java.util.Map;
 import jakarta.ws.rs.ForbiddenException;
 import jakarta.ws.rs.WebApplicationException;
 import jakarta.ws.rs.NotAuthorizedException;
@@ -57,25 +64,63 @@ public class GlobalExceptionHandler {
         }
     }
 
+    static Response connectionWaitResponse(Exception ex, Request request, UriInfo uriInfo, ReliabilityMetrics metrics) {
+        if (!LedgerConnectionPolicy.connectionWait(ex)) {
+            return null;
+        }
+        if (metrics != null) {
+            metrics.dependencyTimeout();
+        }
+        return Response.status(Response.Status.SERVICE_UNAVAILABLE)
+                .header("Retry-After", "1")
+                .entity(Map.of("errorCode", "DEPENDENCY_TIMEOUT", "message", "Database connection wait exceeded 200ms"))
+                .build();
+    }
+
     @Provider
     public static class MyBatisExceptionHandle implements ExceptionMapper<MybatisPlusException> {
+        @Context
+        UriInfo uriInfo;
+
+        @Context
+        Request request;
+
+        @Inject
+        ReliabilityMetrics metrics;
+
         @Override
         public Response toResponse(MybatisPlusException ex) {
+            Response shed = connectionWaitResponse(ex, request, uriInfo, metrics);
+            if (shed != null) {
+                return shed;
+            }
             logger.log(Level.WARNING, "MyBatis Plus Error", ex);
-            return Response.status(Response.Status.INTERNAL_SERVER_ERROR).entity("MyBatis Plus 异常: " + ex.getMessage()).build();
+            return Response.status(Response.Status.INTERNAL_SERVER_ERROR).entity(ex.getMessage()).build();
         }
     }
 
-    // 其他错误
     @Provider
     public static class GenericExceptionHandler implements ExceptionMapper<Exception> {
+        @Context
+        UriInfo uriInfo;
+
+        @Context
+        Request request;
+
+        @Inject
+        ReliabilityMetrics metrics;
+
         @Override
         public Response toResponse(Exception ex) {
             if (ex instanceof WebApplicationException wae && wae.getResponse() != null) {
                 return wae.getResponse();
             }
+            Response shed = connectionWaitResponse(ex, request, uriInfo, metrics);
+            if (shed != null) {
+                return shed;
+            }
             logger.log(Level.SEVERE, "An error occurred", ex);
-            return Response.status(Response.Status.INTERNAL_SERVER_ERROR).entity("服务器内部错误: " + ex.getMessage()).build();
+            return Response.status(Response.Status.INTERNAL_SERVER_ERROR).entity(ex.getMessage()).build();
         }
     }
 }

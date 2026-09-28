@@ -87,12 +87,10 @@ public class SysPermissionService {
         return sysPermissionMapper.selectById(permissionId);
     }
 
-    @CacheResult(cacheName = "sysPermissionCache")
     public List<SysPermission> findAll() {
         return sysPermissionMapper.selectList(null);
     }
 
-    @CacheResult(cacheName = "sysPermissionCache")
     public List<SysPermission> findByParentId(Integer parentId, int page, int size) {
         if (parentId == null || parentId < 0) {
             return List.of();
@@ -104,7 +102,6 @@ public class SysPermissionService {
         return fetchFromDatabase(wrapper, page, size);
     }
 
-    @CacheResult(cacheName = "sysPermissionCache")
     public List<SysPermission> searchByPermissionCodePrefix(String permissionCode, int page, int size) {
         if (isBlank(permissionCode)) {
             return List.of();
@@ -116,7 +113,6 @@ public class SysPermissionService {
         return fetchFromDatabase(wrapper, page, size);
     }
 
-    @CacheResult(cacheName = "sysPermissionCache")
     public List<SysPermission> searchByPermissionCodeFuzzy(String permissionCode, int page, int size) {
         if (isBlank(permissionCode)) {
             return List.of();
@@ -128,7 +124,6 @@ public class SysPermissionService {
         return fetchFromDatabase(wrapper, page, size);
     }
 
-    @CacheResult(cacheName = "sysPermissionCache")
     public List<SysPermission> searchByPermissionNamePrefix(String permissionName, int page, int size) {
         if (isBlank(permissionName)) {
             return List.of();
@@ -140,7 +135,6 @@ public class SysPermissionService {
         return fetchFromDatabase(wrapper, page, size);
     }
 
-    @CacheResult(cacheName = "sysPermissionCache")
     public List<SysPermission> searchByPermissionNameFuzzy(String permissionName, int page, int size) {
         if (isBlank(permissionName)) {
             return List.of();
@@ -152,7 +146,6 @@ public class SysPermissionService {
         return fetchFromDatabase(wrapper, page, size);
     }
 
-    @CacheResult(cacheName = "sysPermissionCache")
     public List<SysPermission> searchByPermissionType(String permissionType, int page, int size) {
         if (isBlank(permissionType)) {
             return List.of();
@@ -164,7 +157,6 @@ public class SysPermissionService {
         return fetchFromDatabase(wrapper, page, size);
     }
 
-    @CacheResult(cacheName = "sysPermissionCache")
     public List<SysPermission> searchByApiPathPrefix(String apiPath, int page, int size) {
         if (isBlank(apiPath)) {
             return List.of();
@@ -176,7 +168,6 @@ public class SysPermissionService {
         return fetchFromDatabase(wrapper, page, size);
     }
 
-    @CacheResult(cacheName = "sysPermissionCache")
     public List<SysPermission> searchByMenuPathPrefix(String menuPath, int page, int size) {
         if (isBlank(menuPath)) {
             return List.of();
@@ -188,7 +179,6 @@ public class SysPermissionService {
         return fetchFromDatabase(wrapper, page, size);
     }
 
-    @CacheResult(cacheName = "sysPermissionCache")
     public List<SysPermission> searchByIsVisible(boolean isVisible, int page, int size) {
         validatePagination(page, size);
         QueryWrapper<SysPermission> wrapper = new QueryWrapper<>();
@@ -197,7 +187,6 @@ public class SysPermissionService {
         return fetchFromDatabase(wrapper, page, size);
     }
 
-    @CacheResult(cacheName = "sysPermissionCache")
     public List<SysPermission> searchByIsExternal(boolean isExternal, int page, int size) {
         validatePagination(page, size);
         QueryWrapper<SysPermission> wrapper = new QueryWrapper<>();
@@ -206,7 +195,6 @@ public class SysPermissionService {
         return fetchFromDatabase(wrapper, page, size);
     }
 
-    @CacheResult(cacheName = "sysPermissionCache")
     public List<SysPermission> searchByStatus(String status, int page, int size) {
         if (isBlank(status)) {
             return List.of();

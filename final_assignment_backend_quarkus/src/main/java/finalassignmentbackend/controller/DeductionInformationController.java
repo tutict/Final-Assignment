@@ -60,6 +60,12 @@ public class DeductionInformationController {
                 deductionRecordService.markHistorySuccess(idempotencyKey, saved.getDeductionId());
             }
             return Response.status(Response.Status.CREATED).entity(saved).build();
+        } catch (finalassignmentbackend.reliability.IdempotencyReplayException ex) {
+            return Response.status(208).build();
+        } catch (finalassignmentbackend.reliability.IdempotencyConflictException ex) {
+            return Response.status(409).build();
+        } catch (finalassignmentbackend.reliability.IdempotencyInProgressException ex) {
+            return Response.status(409).build();
         } catch (Exception ex) {
             if (useKey) {
                 deductionRecordService.markHistoryFailure(idempotencyKey, ex.getMessage());
@@ -86,6 +92,12 @@ public class DeductionInformationController {
                 deductionRecordService.markHistorySuccess(idempotencyKey, updated.getDeductionId());
             }
             return Response.ok(updated).build();
+        } catch (finalassignmentbackend.reliability.IdempotencyReplayException ex) {
+            return Response.status(208).build();
+        } catch (finalassignmentbackend.reliability.IdempotencyConflictException ex) {
+            return Response.status(409).build();
+        } catch (finalassignmentbackend.reliability.IdempotencyInProgressException ex) {
+            return Response.status(409).build();
         } catch (Exception ex) {
             if (useKey) {
                 deductionRecordService.markHistoryFailure(idempotencyKey, ex.getMessage());
@@ -102,6 +114,12 @@ public class DeductionInformationController {
         try {
             deductionRecordService.deleteDeductionRecord(deductionId);
             return Response.noContent().build();
+        } catch (finalassignmentbackend.reliability.IdempotencyReplayException ex) {
+            return Response.status(208).build();
+        } catch (finalassignmentbackend.reliability.IdempotencyConflictException ex) {
+            return Response.status(409).build();
+        } catch (finalassignmentbackend.reliability.IdempotencyInProgressException ex) {
+            return Response.status(409).build();
         } catch (Exception ex) {
             LOG.log(Level.WARNING, "Delete deduction failed", ex);
             return Response.status(resolveStatus(ex)).build();
@@ -122,6 +140,12 @@ public class DeductionInformationController {
                 return driverAccessGuard.forbidden();
             }
             return Response.ok(record).build();
+        } catch (finalassignmentbackend.reliability.IdempotencyReplayException ex) {
+            return Response.status(208).build();
+        } catch (finalassignmentbackend.reliability.IdempotencyConflictException ex) {
+            return Response.status(409).build();
+        } catch (finalassignmentbackend.reliability.IdempotencyInProgressException ex) {
+            return Response.status(409).build();
         } catch (Exception ex) {
             LOG.log(Level.WARNING, "Get deduction failed", ex);
             return Response.status(resolveStatus(ex)).build();
@@ -138,6 +162,12 @@ public class DeductionInformationController {
                         id -> deductionRecordService.findByDriverId(id, 1, 1000))).build();
             }
             return Response.ok(deductionRecordService.findAll()).build();
+        } catch (finalassignmentbackend.reliability.IdempotencyReplayException ex) {
+            return Response.status(208).build();
+        } catch (finalassignmentbackend.reliability.IdempotencyConflictException ex) {
+            return Response.status(409).build();
+        } catch (finalassignmentbackend.reliability.IdempotencyInProgressException ex) {
+            return Response.status(409).build();
         } catch (Exception ex) {
             LOG.log(Level.WARNING, "List deductions failed", ex);
             return Response.status(resolveStatus(ex)).build();
@@ -158,6 +188,12 @@ public class DeductionInformationController {
                 return driverAccessGuard.forbidden();
             }
             return Response.ok(deductionRecordService.findByDriverId(driverId, resolvedPage, resolvedSize)).build();
+        } catch (finalassignmentbackend.reliability.IdempotencyReplayException ex) {
+            return Response.status(208).build();
+        } catch (finalassignmentbackend.reliability.IdempotencyConflictException ex) {
+            return Response.status(409).build();
+        } catch (finalassignmentbackend.reliability.IdempotencyInProgressException ex) {
+            return Response.status(409).build();
         } catch (Exception ex) {
             LOG.log(Level.WARNING, "List deductions by driver failed", ex);
             return Response.status(resolveStatus(ex)).build();
@@ -174,6 +210,12 @@ public class DeductionInformationController {
             int resolvedPage = page == null ? 1 : page;
             int resolvedSize = size == null ? 20 : size;
             return Response.ok(deductionRecordService.findByOffenseId(offenseId, resolvedPage, resolvedSize)).build();
+        } catch (finalassignmentbackend.reliability.IdempotencyReplayException ex) {
+            return Response.status(208).build();
+        } catch (finalassignmentbackend.reliability.IdempotencyConflictException ex) {
+            return Response.status(409).build();
+        } catch (finalassignmentbackend.reliability.IdempotencyInProgressException ex) {
+            return Response.status(409).build();
         } catch (Exception ex) {
             LOG.log(Level.WARNING, "List deductions by offense failed", ex);
             return Response.status(resolveStatus(ex)).build();
@@ -194,6 +236,12 @@ public class DeductionInformationController {
                     ? deductionRecordService.searchByHandlerFuzzy(handler, resolvedPage, resolvedSize)
                     : deductionRecordService.searchByHandlerPrefix(handler, resolvedPage, resolvedSize);
             return Response.ok(result).build();
+        } catch (finalassignmentbackend.reliability.IdempotencyReplayException ex) {
+            return Response.status(208).build();
+        } catch (finalassignmentbackend.reliability.IdempotencyConflictException ex) {
+            return Response.status(409).build();
+        } catch (finalassignmentbackend.reliability.IdempotencyInProgressException ex) {
+            return Response.status(409).build();
         } catch (Exception ex) {
             LOG.log(Level.WARNING, "Search deduction by handler failed", ex);
             return Response.status(resolveStatus(ex)).build();
@@ -210,6 +258,12 @@ public class DeductionInformationController {
             int resolvedPage = page == null ? 1 : page;
             int resolvedSize = size == null ? 20 : size;
             return Response.ok(deductionRecordService.searchByStatus(status, resolvedPage, resolvedSize)).build();
+        } catch (finalassignmentbackend.reliability.IdempotencyReplayException ex) {
+            return Response.status(208).build();
+        } catch (finalassignmentbackend.reliability.IdempotencyConflictException ex) {
+            return Response.status(409).build();
+        } catch (finalassignmentbackend.reliability.IdempotencyInProgressException ex) {
+            return Response.status(409).build();
         } catch (Exception ex) {
             LOG.log(Level.WARNING, "Search deduction by status failed", ex);
             return Response.status(resolveStatus(ex)).build();
@@ -227,6 +281,12 @@ public class DeductionInformationController {
             int resolvedPage = page == null ? 1 : page;
             int resolvedSize = size == null ? 20 : size;
             return Response.ok(deductionRecordService.searchByDeductionTimeRange(startTime, endTime, resolvedPage, resolvedSize)).build();
+        } catch (finalassignmentbackend.reliability.IdempotencyReplayException ex) {
+            return Response.status(208).build();
+        } catch (finalassignmentbackend.reliability.IdempotencyConflictException ex) {
+            return Response.status(409).build();
+        } catch (finalassignmentbackend.reliability.IdempotencyInProgressException ex) {
+            return Response.status(409).build();
         } catch (Exception ex) {
             LOG.log(Level.WARNING, "Search deduction by time range failed", ex);
             return Response.status(resolveStatus(ex)).build();

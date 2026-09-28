@@ -87,12 +87,10 @@ public class SysDictService {
         return sysDictMapper.selectById(dictId);
     }
 
-    @CacheResult(cacheName = "sysDictCache")
     public List<SysDict> findAll() {
         return sysDictMapper.selectList(null);
     }
 
-    @CacheResult(cacheName = "sysDictCache")
     public List<SysDict> searchByDictType(String dictType, int page, int size) {
         if (isBlank(dictType)) {
             return List.of();
@@ -103,7 +101,6 @@ public class SysDictService {
         return fetchFromDatabase(wrapper, page, size);
     }
 
-    @CacheResult(cacheName = "sysDictCache")
     public List<SysDict> searchByDictCodePrefix(String dictCode, int page, int size) {
         if (isBlank(dictCode)) {
             return List.of();
@@ -114,7 +111,6 @@ public class SysDictService {
         return fetchFromDatabase(wrapper, page, size);
     }
 
-    @CacheResult(cacheName = "sysDictCache")
     public List<SysDict> searchByDictLabelPrefix(String dictLabel, int page, int size) {
         if (isBlank(dictLabel)) {
             return List.of();
@@ -125,7 +121,6 @@ public class SysDictService {
         return fetchFromDatabase(wrapper, page, size);
     }
 
-    @CacheResult(cacheName = "sysDictCache")
     public List<SysDict> searchByDictLabelFuzzy(String dictLabel, int page, int size) {
         if (isBlank(dictLabel)) {
             return List.of();
@@ -136,7 +131,6 @@ public class SysDictService {
         return fetchFromDatabase(wrapper, page, size);
     }
 
-    @CacheResult(cacheName = "sysDictCache")
     public List<SysDict> findByParentId(Integer parentId, int page, int size) {
         if (parentId == null) {
             return List.of();
@@ -147,7 +141,6 @@ public class SysDictService {
         return fetchFromDatabase(wrapper, page, size);
     }
 
-    @CacheResult(cacheName = "sysDictCache")
     public List<SysDict> searchByIsDefault(boolean isDefault, int page, int size) {
         validatePagination(page, size);
         QueryWrapper<SysDict> wrapper = new QueryWrapper<>();
@@ -155,7 +148,6 @@ public class SysDictService {
         return fetchFromDatabase(wrapper, page, size);
     }
 
-    @CacheResult(cacheName = "sysDictCache")
     public List<SysDict> searchByStatus(String status, int page, int size) {
         if (isBlank(status)) {
             return List.of();

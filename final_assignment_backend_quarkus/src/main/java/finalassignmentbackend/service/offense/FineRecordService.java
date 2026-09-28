@@ -6,6 +6,7 @@ import finalassignmentbackend.entity.FineRecord;
 import finalassignmentbackend.entity.SysRequestHistory;
 import finalassignmentbackend.mapper.FineRecordMapper;
 import finalassignmentbackend.mapper.SysRequestHistoryMapper;
+import finalassignmentbackend.reliability.HistoryReserve;
 import io.quarkus.cache.CacheInvalidate;
 import io.quarkus.cache.CacheResult;
 import io.quarkus.runtime.annotations.RegisterForReflection;
@@ -41,17 +42,9 @@ public class FineRecordService {
         if (isBlank(idempotencyKey)) {
             throw new IllegalArgumentException("Idempotency key must not be blank");
         }
-        SysRequestHistory history = sysRequestHistoryMapper.selectByIdempotencyKey(idempotencyKey);
-        if (history != null) {
-            throw new RuntimeException("Duplicate fine record request detected");
-        }
-        SysRequestHistory newHistory = buildHistory(idempotencyKey);
-        sysRequestHistoryMapper.insert(newHistory);
-        newHistory.setBusinessStatus("SUCCESS");
-        newHistory.setBusinessId(record.getFineId());
-        newHistory.setRequestParams("PENDING");
-        newHistory.setUpdatedAt(LocalDateTime.now());
-        sysRequestHistoryMapper.updateById(newHistory);
+        HistoryReserve.reserve(sysRequestHistoryMapper, idempotencyKey, "FINE_" + action.toUpperCase(),
+                HistoryReserve.sha256(record.getOffenseId() + "|" + record.getFineAmount() + "|"
+                        + record.getDriverId() + "|" + record.getPaymentStatus()));
     }
 
     @Transactional
@@ -89,12 +82,10 @@ public class FineRecordService {
         return fineRecordMapper.selectById(fineId);
     }
 
-    @CacheResult(cacheName = "fineRecordCache")
     public List<FineRecord> findAll() {
         return fineRecordMapper.selectList(null);
     }
 
-    @CacheResult(cacheName = "fineRecordCache")
     public List<FineRecord> findByOffenseId(Long offenseId, int page, int size) {
         if (offenseId == null || offenseId <= 0) {
             return List.of();
@@ -106,7 +97,6 @@ public class FineRecordService {
         return fetchFromDatabase(wrapper, page, size);
     }
 
-    @CacheResult(cacheName = "fineRecordCache")
     public List<FineRecord> findByDriverId(Long driverId, int page, int size) {
         if (driverId == null || driverId <= 0) {
             return List.of();
@@ -118,7 +108,6 @@ public class FineRecordService {
         return fetchFromDatabase(wrapper, page, size);
     }
 
-    @CacheResult(cacheName = "fineRecordCache")
     public List<FineRecord> searchByHandlerPrefix(String handler, int page, int size) {
         if (isBlank(handler)) {
             return List.of();
@@ -130,7 +119,6 @@ public class FineRecordService {
         return fetchFromDatabase(wrapper, page, size);
     }
 
-    @CacheResult(cacheName = "fineRecordCache")
     public List<FineRecord> searchByHandlerFuzzy(String handler, int page, int size) {
         if (isBlank(handler)) {
             return List.of();
@@ -142,7 +130,6 @@ public class FineRecordService {
         return fetchFromDatabase(wrapper, page, size);
     }
 
-    @CacheResult(cacheName = "fineRecordCache")
     public List<FineRecord> searchByPaymentStatus(String status, int page, int size) {
         if (isBlank(status)) {
             return List.of();
@@ -154,7 +141,6 @@ public class FineRecordService {
         return fetchFromDatabase(wrapper, page, size);
     }
 
-    @CacheResult(cacheName = "fineRecordCache")
     public List<FineRecord> searchByFineDateRange(String startDate, String endDate, int page, int size) {
         validatePagination(page, size);
         LocalDate start = parseDate(startDate, "startDate");
@@ -183,7 +169,6 @@ public class FineRecordService {
         }
         history.setBusinessStatus("SUCCESS");
         history.setBusinessId(fineId);
-        history.setRequestParams("DONE");
         history.setUpdatedAt(LocalDateTime.now());
         sysRequestHistoryMapper.updateById(history);
     }

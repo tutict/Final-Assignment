@@ -2,11 +2,11 @@ package finalassignmentbackend.kafkaListener;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import finalassignmentbackend.entity.OffenseRecord;
+import finalassignmentbackend.reliability.ConsumerAttempts;
 import finalassignmentbackend.service.offense.OffenseRecordService;
 import io.smallrye.common.annotation.RunOnVirtualThread;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
-import jakarta.transaction.Transactional;
 import org.eclipse.microprofile.reactive.messaging.Incoming;
 
 import java.util.logging.Level;
@@ -25,34 +25,22 @@ public class OffenseInformationKafkaListener {
     ObjectMapper objectMapper;
 
     @Incoming("offense_create")
-    @Transactional
     @RunOnVirtualThread
     public void onOffenseCreateReceived(String message) {
         log.log(Level.INFO, "Received Kafka create message: {0}", message);
-        processMessage(message, "create", offenseRecordService::createOffenseRecord);
+        OffenseRecord record = deserializeMessage(message);
+        record.setOffenseId(null);
+        ConsumerAttempts.run(() -> offenseRecordService.createOffenseRecord(record));
+        log.info(String.format("Offense create processed: %s", record));
     }
 
     @Incoming("offense_update")
-    @Transactional
     @RunOnVirtualThread
     public void onOffenseUpdateReceived(String message) {
         log.log(Level.INFO, "Received Kafka update message: {0}", message);
-        // 走治理合并入口：陈旧检测 + 护栏合并 + 乐观锁（对齐 Spring updateKafkaFullUpdate）
-        processMessage(message, "update", offenseRecordService::updateKafkaFullUpdate);
-    }
-
-    private void processMessage(String message, String action, MessageProcessor<OffenseRecord> processor) {
-        try {
-            OffenseRecord record = deserializeMessage(message);
-            if ("create".equals(action)) {
-                record.setOffenseId(null);
-            }
-            processor.process(record);
-            log.info(String.format("Offense %s processed: %s", action, record));
-        } catch (Exception e) {
-            log.log(Level.SEVERE, String.format("Failed to process offense %s message: %s", action, message), e);
-            throw new RuntimeException(String.format("Failed to process offense %s message", action), e);
-        }
+        OffenseRecord record = deserializeMessage(message);
+        ConsumerAttempts.run(() -> offenseRecordService.updateKafkaFullUpdate(record));
+        log.info(String.format("Offense update processed: %s", record));
     }
 
     private OffenseRecord deserializeMessage(String message) {
@@ -64,8 +52,5 @@ public class OffenseInformationKafkaListener {
         }
     }
 
-    @FunctionalInterface
-    private interface MessageProcessor<T> {
-        void process(T t) throws Exception;
-    }
+
 }

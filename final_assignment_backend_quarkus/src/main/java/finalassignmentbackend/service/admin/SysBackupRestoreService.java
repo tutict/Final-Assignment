@@ -88,12 +88,10 @@ public class SysBackupRestoreService {
         return sysBackupRestoreMapper.selectById(backupId);
     }
 
-    @CacheResult(cacheName = "sysBackupRestoreCache")
     public List<SysBackupRestore> findAll() {
         return sysBackupRestoreMapper.selectList(null);
     }
 
-    @CacheResult(cacheName = "sysBackupRestoreCache")
     public List<SysBackupRestore> searchByBackupType(String backupType, int page, int size) {
         if (isBlank(backupType)) {
             return List.of();
@@ -104,7 +102,6 @@ public class SysBackupRestoreService {
         return fetchFromDatabase(wrapper, page, size);
     }
 
-    @CacheResult(cacheName = "sysBackupRestoreCache")
     public List<SysBackupRestore> searchByBackupFileNamePrefix(String backupFileName, int page, int size) {
         if (isBlank(backupFileName)) {
             return List.of();
@@ -115,7 +112,6 @@ public class SysBackupRestoreService {
         return fetchFromDatabase(wrapper, page, size);
     }
 
-    @CacheResult(cacheName = "sysBackupRestoreCache")
     public List<SysBackupRestore> searchByBackupHandler(String backupHandler, int page, int size) {
         if (isBlank(backupHandler)) {
             return List.of();
@@ -126,7 +122,6 @@ public class SysBackupRestoreService {
         return fetchFromDatabase(wrapper, page, size);
     }
 
-    @CacheResult(cacheName = "sysBackupRestoreCache")
     public List<SysBackupRestore> searchByRestoreStatus(String restoreStatus, int page, int size) {
         if (isBlank(restoreStatus)) {
             return List.of();
@@ -137,7 +132,6 @@ public class SysBackupRestoreService {
         return fetchFromDatabase(wrapper, page, size);
     }
 
-    @CacheResult(cacheName = "sysBackupRestoreCache")
     public List<SysBackupRestore> searchByStatus(String status, int page, int size) {
         if (isBlank(status)) {
             return List.of();
@@ -148,7 +142,6 @@ public class SysBackupRestoreService {
         return fetchFromDatabase(wrapper, page, size);
     }
 
-    @CacheResult(cacheName = "sysBackupRestoreCache")
     public List<SysBackupRestore> searchByBackupTimeRange(String startTime, String endTime, int page, int size) {
         validatePagination(page, size);
         LocalDateTime start = parseDateTime(startTime, "startTime");
@@ -161,7 +154,6 @@ public class SysBackupRestoreService {
         return fetchFromDatabase(wrapper, page, size);
     }
 
-    @CacheResult(cacheName = "sysBackupRestoreCache")
     public List<SysBackupRestore> searchByRestoreTimeRange(String startTime, String endTime, int page, int size) {
         validatePagination(page, size);
         LocalDateTime start = parseDateTime(startTime, "startTime");

@@ -6,6 +6,7 @@ import finalassignmentbackend.entity.AppealReview;
 import finalassignmentbackend.entity.SysRequestHistory;
 import finalassignmentbackend.mapper.AppealReviewMapper;
 import finalassignmentbackend.mapper.SysRequestHistoryMapper;
+import finalassignmentbackend.reliability.HistoryReserve;
 import io.quarkus.cache.CacheInvalidate;
 import io.quarkus.cache.CacheResult;
 import io.quarkus.runtime.annotations.RegisterForReflection;
@@ -40,17 +41,9 @@ public class AppealReviewService {
         if (isBlank(idempotencyKey)) {
             throw new IllegalArgumentException("Idempotency key must not be blank");
         }
-        SysRequestHistory history = sysRequestHistoryMapper.selectByIdempotencyKey(idempotencyKey);
-        if (history != null) {
-            throw new RuntimeException("Duplicate appeal review request detected");
-        }
-        SysRequestHistory newHistory = buildHistory(idempotencyKey);
-        sysRequestHistoryMapper.insert(newHistory);
-        newHistory.setBusinessStatus("SUCCESS");
-        newHistory.setBusinessId(review.getReviewId());
-        newHistory.setRequestParams("PENDING");
-        newHistory.setUpdatedAt(LocalDateTime.now());
-        sysRequestHistoryMapper.updateById(newHistory);
+        HistoryReserve.reserve(sysRequestHistoryMapper, idempotencyKey, "APPEAL_REVIEW_" + action.toUpperCase(),
+                HistoryReserve.sha256(review.getAppealId() + "|" + review.getReviewLevel() + "|"
+                        + review.getReviewResult() + "|" + review.getReviewOpinion()));
     }
 
     @Transactional
@@ -88,12 +81,10 @@ public class AppealReviewService {
         return appealReviewMapper.selectById(reviewId);
     }
 
-    @CacheResult(cacheName = "appealReviewCache")
     public List<AppealReview> findAll() {
         return appealReviewMapper.selectList(null);
     }
 
-    @CacheResult(cacheName = "appealReviewCache")
     public List<AppealReview> searchByReviewer(String reviewer, int page, int size) {
         if (isBlank(reviewer)) {
             return List.of();
@@ -105,7 +96,6 @@ public class AppealReviewService {
         return fetchFromDatabase(wrapper, page, size);
     }
 
-    @CacheResult(cacheName = "appealReviewCache")
     public List<AppealReview> searchByReviewerDept(String reviewerDept, int page, int size) {
         if (isBlank(reviewerDept)) {
             return List.of();
@@ -117,7 +107,6 @@ public class AppealReviewService {
         return fetchFromDatabase(wrapper, page, size);
     }
 
-    @CacheResult(cacheName = "appealReviewCache")
     public List<AppealReview> searchByReviewTimeRange(String startTime, String endTime, int page, int size) {
         validatePagination(page, size);
         LocalDateTime start = parseDateTime(startTime, "startTime");
@@ -155,7 +144,6 @@ public class AppealReviewService {
         }
         history.setBusinessStatus("SUCCESS");
         history.setBusinessId(reviewId);
-        history.setRequestParams("DONE");
         history.setUpdatedAt(LocalDateTime.now());
         sysRequestHistoryMapper.updateById(history);
     }

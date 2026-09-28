@@ -6,6 +6,7 @@ import finalassignmentbackend.entity.DeductionRecord;
 import finalassignmentbackend.entity.SysRequestHistory;
 import finalassignmentbackend.mapper.DeductionRecordMapper;
 import finalassignmentbackend.mapper.SysRequestHistoryMapper;
+import finalassignmentbackend.reliability.HistoryReserve;
 import io.quarkus.cache.CacheInvalidate;
 import io.quarkus.cache.CacheResult;
 import io.quarkus.runtime.annotations.RegisterForReflection;
@@ -40,17 +41,9 @@ public class DeductionRecordService {
         if (isBlank(idempotencyKey)) {
             throw new IllegalArgumentException("Idempotency key must not be blank");
         }
-        SysRequestHistory history = sysRequestHistoryMapper.selectByIdempotencyKey(idempotencyKey);
-        if (history != null) {
-            throw new RuntimeException("Duplicate deduction record request detected");
-        }
-        SysRequestHistory newHistory = buildHistory(idempotencyKey);
-        sysRequestHistoryMapper.insert(newHistory);
-        newHistory.setBusinessStatus("SUCCESS");
-        newHistory.setBusinessId(record.getDeductionId());
-        newHistory.setRequestParams("PENDING");
-        newHistory.setUpdatedAt(LocalDateTime.now());
-        sysRequestHistoryMapper.updateById(newHistory);
+        HistoryReserve.reserve(sysRequestHistoryMapper, idempotencyKey, "DEDUCTION_" + action.toUpperCase(),
+                HistoryReserve.sha256(record.getOffenseId() + "|" + record.getDriverId() + "|"
+                        + record.getDeductedPoints() + "|" + record.getStatus()));
     }
 
     @Transactional
@@ -88,12 +81,10 @@ public class DeductionRecordService {
         return deductionRecordMapper.selectById(deductionId);
     }
 
-    @CacheResult(cacheName = "deductionRecordCache")
     public List<DeductionRecord> findAll() {
         return deductionRecordMapper.selectList(null);
     }
 
-    @CacheResult(cacheName = "deductionRecordCache")
     public List<DeductionRecord> findByDriverId(Long driverId, int page, int size) {
         if (driverId == null || driverId <= 0) {
             return List.of();
@@ -105,7 +96,6 @@ public class DeductionRecordService {
         return fetchFromDatabase(wrapper, page, size);
     }
 
-    @CacheResult(cacheName = "deductionRecordCache")
     public List<DeductionRecord> findByOffenseId(Long offenseId, int page, int size) {
         if (offenseId == null || offenseId <= 0) {
             return List.of();
@@ -117,7 +107,6 @@ public class DeductionRecordService {
         return fetchFromDatabase(wrapper, page, size);
     }
 
-    @CacheResult(cacheName = "deductionRecordCache")
     public List<DeductionRecord> searchByHandlerPrefix(String handler, int page, int size) {
         if (isBlank(handler)) {
             return List.of();
@@ -129,7 +118,6 @@ public class DeductionRecordService {
         return fetchFromDatabase(wrapper, page, size);
     }
 
-    @CacheResult(cacheName = "deductionRecordCache")
     public List<DeductionRecord> searchByHandlerFuzzy(String handler, int page, int size) {
         if (isBlank(handler)) {
             return List.of();
@@ -141,7 +129,6 @@ public class DeductionRecordService {
         return fetchFromDatabase(wrapper, page, size);
     }
 
-    @CacheResult(cacheName = "deductionRecordCache")
     public List<DeductionRecord> searchByStatus(String status, int page, int size) {
         if (isBlank(status)) {
             return List.of();
@@ -153,7 +140,6 @@ public class DeductionRecordService {
         return fetchFromDatabase(wrapper, page, size);
     }
 
-    @CacheResult(cacheName = "deductionRecordCache")
     public List<DeductionRecord> searchByDeductionTimeRange(String startTime, String endTime, int page, int size) {
         validatePagination(page, size);
         LocalDateTime start = parseDateTime(startTime, "startTime");
@@ -182,7 +168,6 @@ public class DeductionRecordService {
         }
         history.setBusinessStatus("SUCCESS");
         history.setBusinessId(deductionId);
-        history.setRequestParams("DONE");
         history.setUpdatedAt(LocalDateTime.now());
         sysRequestHistoryMapper.updateById(history);
     }
@@ -240,7 +225,14 @@ public class DeductionRecordService {
             record.setDeductionTime(LocalDateTime.now());
         }
         if (record.getStatus() == null || record.getStatus().isBlank()) {
-            record.setStatus("Pending");
+            record.setStatus("Effective");
+        }
+        if (record.getScoringCycle() == null || record.getScoringCycle().isBlank()) {
+            int year = record.getDeductionTime().getYear();
+            record.setScoringCycle(year + "-" + (year + 1));
+        }
+        if (record.getHandler() == null || record.getHandler().isBlank()) {
+            record.setHandler("system");
         }
     }
 

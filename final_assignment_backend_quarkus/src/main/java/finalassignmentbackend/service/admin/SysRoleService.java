@@ -87,7 +87,6 @@ public class SysRoleService {
         return sysRoleMapper.selectById(roleId);
     }
 
-    @CacheResult(cacheName = "sysRoleCache")
     public List<SysRole> findAll() {
         return sysRoleMapper.selectList(null);
     }
@@ -102,7 +101,6 @@ public class SysRoleService {
         return sysRoleMapper.selectOne(wrapper);
     }
 
-    @CacheResult(cacheName = "sysRoleCache")
     public List<SysRole> searchByRoleCodePrefix(String roleCode, int page, int size) {
         if (isBlank(roleCode)) {
             return List.of();
@@ -113,7 +111,6 @@ public class SysRoleService {
         return fetchFromDatabase(wrapper, page, size);
     }
 
-    @CacheResult(cacheName = "sysRoleCache")
     public List<SysRole> searchByRoleCodeFuzzy(String roleCode, int page, int size) {
         if (isBlank(roleCode)) {
             return List.of();
@@ -124,7 +121,6 @@ public class SysRoleService {
         return fetchFromDatabase(wrapper, page, size);
     }
 
-    @CacheResult(cacheName = "sysRoleCache")
     public List<SysRole> searchByRoleNamePrefix(String roleName, int page, int size) {
         if (isBlank(roleName)) {
             return List.of();
@@ -135,7 +131,6 @@ public class SysRoleService {
         return fetchFromDatabase(wrapper, page, size);
     }
 
-    @CacheResult(cacheName = "sysRoleCache")
     public List<SysRole> searchByRoleNameFuzzy(String roleName, int page, int size) {
         if (isBlank(roleName)) {
             return List.of();
@@ -146,7 +141,6 @@ public class SysRoleService {
         return fetchFromDatabase(wrapper, page, size);
     }
 
-    @CacheResult(cacheName = "sysRoleCache")
     public List<SysRole> searchByRoleType(String roleType, int page, int size) {
         if (isBlank(roleType)) {
             return List.of();
@@ -157,7 +151,6 @@ public class SysRoleService {
         return fetchFromDatabase(wrapper, page, size);
     }
 
-    @CacheResult(cacheName = "sysRoleCache")
     public List<SysRole> searchByDataScope(String dataScope, int page, int size) {
         if (isBlank(dataScope)) {
             return List.of();
@@ -168,7 +161,6 @@ public class SysRoleService {
         return fetchFromDatabase(wrapper, page, size);
     }
 
-    @CacheResult(cacheName = "sysRoleCache")
     public List<SysRole> searchByStatus(String status, int page, int size) {
         if (isBlank(status)) {
             return List.of();

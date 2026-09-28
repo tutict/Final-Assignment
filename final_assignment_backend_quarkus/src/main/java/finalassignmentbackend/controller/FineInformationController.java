@@ -60,6 +60,12 @@ public class FineInformationController {
                 fineRecordService.markHistorySuccess(idempotencyKey, saved.getFineId());
             }
             return Response.status(Response.Status.CREATED).entity(saved).build();
+        } catch (finalassignmentbackend.reliability.IdempotencyReplayException ex) {
+            return Response.status(208).build();
+        } catch (finalassignmentbackend.reliability.IdempotencyConflictException ex) {
+            return Response.status(409).build();
+        } catch (finalassignmentbackend.reliability.IdempotencyInProgressException ex) {
+            return Response.status(409).build();
         } catch (Exception ex) {
             if (useKey) {
                 fineRecordService.markHistoryFailure(idempotencyKey, ex.getMessage());
@@ -86,6 +92,12 @@ public class FineInformationController {
                 fineRecordService.markHistorySuccess(idempotencyKey, updated.getFineId());
             }
             return Response.ok(updated).build();
+        } catch (finalassignmentbackend.reliability.IdempotencyReplayException ex) {
+            return Response.status(208).build();
+        } catch (finalassignmentbackend.reliability.IdempotencyConflictException ex) {
+            return Response.status(409).build();
+        } catch (finalassignmentbackend.reliability.IdempotencyInProgressException ex) {
+            return Response.status(409).build();
         } catch (Exception ex) {
             if (useKey) {
                 fineRecordService.markHistoryFailure(idempotencyKey, ex.getMessage());
@@ -102,6 +114,12 @@ public class FineInformationController {
         try {
             fineRecordService.deleteFineRecord(fineId);
             return Response.noContent().build();
+        } catch (finalassignmentbackend.reliability.IdempotencyReplayException ex) {
+            return Response.status(208).build();
+        } catch (finalassignmentbackend.reliability.IdempotencyConflictException ex) {
+            return Response.status(409).build();
+        } catch (finalassignmentbackend.reliability.IdempotencyInProgressException ex) {
+            return Response.status(409).build();
         } catch (Exception ex) {
             LOG.log(Level.WARNING, "Delete fine failed", ex);
             return Response.status(resolveStatus(ex)).build();
@@ -122,6 +140,12 @@ public class FineInformationController {
                 return driverAccessGuard.forbidden();
             }
             return Response.ok(record).build();
+        } catch (finalassignmentbackend.reliability.IdempotencyReplayException ex) {
+            return Response.status(208).build();
+        } catch (finalassignmentbackend.reliability.IdempotencyConflictException ex) {
+            return Response.status(409).build();
+        } catch (finalassignmentbackend.reliability.IdempotencyInProgressException ex) {
+            return Response.status(409).build();
         } catch (Exception ex) {
             LOG.log(Level.WARNING, "Get fine failed", ex);
             return Response.status(resolveStatus(ex)).build();
@@ -138,6 +162,12 @@ public class FineInformationController {
                         id -> fineRecordService.findByDriverId(id, 1, 1000))).build();
             }
             return Response.ok(fineRecordService.findAll()).build();
+        } catch (finalassignmentbackend.reliability.IdempotencyReplayException ex) {
+            return Response.status(208).build();
+        } catch (finalassignmentbackend.reliability.IdempotencyConflictException ex) {
+            return Response.status(409).build();
+        } catch (finalassignmentbackend.reliability.IdempotencyInProgressException ex) {
+            return Response.status(409).build();
         } catch (Exception ex) {
             LOG.log(Level.WARNING, "List fines failed", ex);
             return Response.status(resolveStatus(ex)).build();
@@ -154,6 +184,12 @@ public class FineInformationController {
             int resolvedPage = page == null ? 1 : page;
             int resolvedSize = size == null ? 20 : size;
             return Response.ok(fineRecordService.findByOffenseId(offenseId, resolvedPage, resolvedSize)).build();
+        } catch (finalassignmentbackend.reliability.IdempotencyReplayException ex) {
+            return Response.status(208).build();
+        } catch (finalassignmentbackend.reliability.IdempotencyConflictException ex) {
+            return Response.status(409).build();
+        } catch (finalassignmentbackend.reliability.IdempotencyInProgressException ex) {
+            return Response.status(409).build();
         } catch (Exception ex) {
             LOG.log(Level.WARNING, "List fines by offense failed", ex);
             return Response.status(resolveStatus(ex)).build();
@@ -174,6 +210,12 @@ public class FineInformationController {
                 return driverAccessGuard.forbidden();
             }
             return Response.ok(fineRecordService.findByDriverId(driverId, resolvedPage, resolvedSize)).build();
+        } catch (finalassignmentbackend.reliability.IdempotencyReplayException ex) {
+            return Response.status(208).build();
+        } catch (finalassignmentbackend.reliability.IdempotencyConflictException ex) {
+            return Response.status(409).build();
+        } catch (finalassignmentbackend.reliability.IdempotencyInProgressException ex) {
+            return Response.status(409).build();
         } catch (Exception ex) {
             LOG.log(Level.WARNING, "List fines by driver failed", ex);
             return Response.status(resolveStatus(ex)).build();
@@ -194,6 +236,12 @@ public class FineInformationController {
                     ? fineRecordService.searchByHandlerFuzzy(handler, resolvedPage, resolvedSize)
                     : fineRecordService.searchByHandlerPrefix(handler, resolvedPage, resolvedSize);
             return Response.ok(result).build();
+        } catch (finalassignmentbackend.reliability.IdempotencyReplayException ex) {
+            return Response.status(208).build();
+        } catch (finalassignmentbackend.reliability.IdempotencyConflictException ex) {
+            return Response.status(409).build();
+        } catch (finalassignmentbackend.reliability.IdempotencyInProgressException ex) {
+            return Response.status(409).build();
         } catch (Exception ex) {
             LOG.log(Level.WARNING, "Search fine by handler failed", ex);
             return Response.status(resolveStatus(ex)).build();
@@ -210,6 +258,12 @@ public class FineInformationController {
             int resolvedPage = page == null ? 1 : page;
             int resolvedSize = size == null ? 20 : size;
             return Response.ok(fineRecordService.searchByPaymentStatus(status, resolvedPage, resolvedSize)).build();
+        } catch (finalassignmentbackend.reliability.IdempotencyReplayException ex) {
+            return Response.status(208).build();
+        } catch (finalassignmentbackend.reliability.IdempotencyConflictException ex) {
+            return Response.status(409).build();
+        } catch (finalassignmentbackend.reliability.IdempotencyInProgressException ex) {
+            return Response.status(409).build();
         } catch (Exception ex) {
             LOG.log(Level.WARNING, "Search fine by status failed", ex);
             return Response.status(resolveStatus(ex)).build();
@@ -227,6 +281,12 @@ public class FineInformationController {
             int resolvedPage = page == null ? 1 : page;
             int resolvedSize = size == null ? 20 : size;
             return Response.ok(fineRecordService.searchByFineDateRange(startDate, endDate, resolvedPage, resolvedSize)).build();
+        } catch (finalassignmentbackend.reliability.IdempotencyReplayException ex) {
+            return Response.status(208).build();
+        } catch (finalassignmentbackend.reliability.IdempotencyConflictException ex) {
+            return Response.status(409).build();
+        } catch (finalassignmentbackend.reliability.IdempotencyInProgressException ex) {
+            return Response.status(409).build();
         } catch (Exception ex) {
             LOG.log(Level.WARNING, "Search fine by date range failed", ex);
             return Response.status(resolveStatus(ex)).build();

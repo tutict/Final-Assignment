@@ -32,6 +32,9 @@ public class JwtAuthenticationFilter implements ContainerRequestFilter {
     @Inject
     TokenBlacklistService tokenBlacklistService;
 
+    @Inject
+    finalassignmentbackend.reliability.ReliabilityMetrics metrics;
+
     @Override
     public void filter(ContainerRequestContext requestContext) throws IOException {
         if (shouldSkip(requestContext)) {
@@ -46,10 +49,24 @@ public class JwtAuthenticationFilter implements ContainerRequestFilter {
             return;
         }
 
-        if (tokenBlacklistService.isBlacklisted(jwt)) {
+        var effect = finalassignmentbackend.reliability.BlacklistAccessPolicy.decide(
+                requestContext.getMethod(),
+                requestContext.getUriInfo().getPath(),
+                tokenBlacklistService.inspect(jwt));
+        if (effect == finalassignmentbackend.reliability.BlacklistAccessPolicy.Effect.DENY) {
             logger.log(Level.WARNING, "Rejected blacklisted JWT for request {0}", requestContext.getUriInfo().getRequestUri());
             requestContext.abortWith(Response.status(Response.Status.UNAUTHORIZED)
                     .entity("{\"error\":\"Token has expired, please login again\"}")
+                    .build());
+            return;
+        }
+        if (effect == finalassignmentbackend.reliability.BlacklistAccessPolicy.Effect.SHED) {
+            if (metrics != null) {
+                metrics.dependencyTimeout();
+            }
+            requestContext.abortWith(Response.status(Response.Status.SERVICE_UNAVAILABLE)
+                    .header("Retry-After", "1")
+                    .entity("{\"errorCode\":\"DEPENDENCY_TIMEOUT\"}")
                     .build());
             return;
         }

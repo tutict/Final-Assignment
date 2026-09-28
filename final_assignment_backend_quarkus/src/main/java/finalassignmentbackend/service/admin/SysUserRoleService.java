@@ -87,7 +87,6 @@ public class SysUserRoleService {
         return sysUserRoleMapper.selectById(relationId);
     }
 
-    @CacheResult(cacheName = "sysUserRoleCache")
     public List<SysUserRole> findAll(int page, int size) {
         validatePagination(page, size);
         Page<SysUserRole> mpPage = new Page<>(Math.max(page, 1), Math.max(size, 1));
@@ -95,12 +94,10 @@ public class SysUserRoleService {
         return mpPage.getRecords();
     }
 
-    @CacheResult(cacheName = "sysUserRoleCache")
     public List<SysUserRole> findAll() {
         return sysUserRoleMapper.selectList(null);
     }
 
-    @CacheResult(cacheName = "sysUserRoleCache")
     public List<SysUserRole> findByUserId(Long userId, int page, int size) {
         if (userId == null || userId <= 0) {
             return List.of();
@@ -111,7 +108,6 @@ public class SysUserRoleService {
         return fetchFromDatabase(wrapper, page, size);
     }
 
-    @CacheResult(cacheName = "sysUserRoleCache")
     public List<SysUserRole> findByRoleId(Integer roleId, int page, int size) {
         if (roleId == null || roleId <= 0) {
             return List.of();
@@ -122,7 +118,6 @@ public class SysUserRoleService {
         return fetchFromDatabase(wrapper, page, size);
     }
 
-    @CacheResult(cacheName = "sysUserRoleCache")
     public List<SysUserRole> findByUserIdAndRoleId(Long userId, Integer roleId, int page, int size) {
         if (userId == null || userId <= 0 || roleId == null || roleId <= 0) {
             return List.of();

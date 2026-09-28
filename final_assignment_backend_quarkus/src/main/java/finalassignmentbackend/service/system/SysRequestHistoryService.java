@@ -89,12 +89,10 @@ public class SysRequestHistoryService {
         return sysRequestHistoryMapper.selectById(id);
     }
 
-    @CacheResult(cacheName = "sysRequestHistoryCache")
     public List<SysRequestHistory> findAll() {
         return sysRequestHistoryMapper.selectList(null);
     }
 
-    @CacheResult(cacheName = "sysRequestHistoryCache")
     public List<SysRequestHistory> findByBusinessStatus(String status, int page, int size) {
         if (isBlank(status)) {
             return List.of();
@@ -106,7 +104,6 @@ public class SysRequestHistoryService {
         return fetchFromDatabase(wrapper, page, size);
     }
 
-    @CacheResult(cacheName = "sysRequestHistoryCache")
     public List<SysRequestHistory> searchByIdempotencyKey(String key, int page, int size) {
         if (isBlank(key)) {
             return List.of();
@@ -118,7 +115,6 @@ public class SysRequestHistoryService {
         return fetchFromDatabase(wrapper, page, size);
     }
 
-    @CacheResult(cacheName = "sysRequestHistoryCache")
     public List<SysRequestHistory> searchByRequestMethod(String requestMethod, int page, int size) {
         if (isBlank(requestMethod)) {
             return List.of();
@@ -130,7 +126,6 @@ public class SysRequestHistoryService {
         return fetchFromDatabase(wrapper, page, size);
     }
 
-    @CacheResult(cacheName = "sysRequestHistoryCache")
     public List<SysRequestHistory> searchByRequestUrlPrefix(String requestUrl, int page, int size) {
         if (isBlank(requestUrl)) {
             return List.of();
@@ -142,7 +137,6 @@ public class SysRequestHistoryService {
         return fetchFromDatabase(wrapper, page, size);
     }
 
-    @CacheResult(cacheName = "sysRequestHistoryCache")
     public List<SysRequestHistory> searchByBusinessType(String businessType, int page, int size) {
         if (isBlank(businessType)) {
             return List.of();
@@ -154,7 +148,6 @@ public class SysRequestHistoryService {
         return fetchFromDatabase(wrapper, page, size);
     }
 
-    @CacheResult(cacheName = "sysRequestHistoryCache")
     public List<SysRequestHistory> findByBusinessId(Long businessId, int page, int size) {
         if (businessId == null || businessId <= 0) {
             return List.of();
@@ -166,7 +159,6 @@ public class SysRequestHistoryService {
         return fetchFromDatabase(wrapper, page, size);
     }
 
-    @CacheResult(cacheName = "sysRequestHistoryCache")
     public List<SysRequestHistory> findByUserId(Long userId, int page, int size) {
         if (userId == null || userId <= 0) {
             return List.of();
@@ -178,7 +170,6 @@ public class SysRequestHistoryService {
         return fetchFromDatabase(wrapper, page, size);
     }
 
-    @CacheResult(cacheName = "sysRequestHistoryCache")
     public List<SysRequestHistory> searchByRequestIp(String requestIp, int page, int size) {
         if (isBlank(requestIp)) {
             return List.of();
@@ -190,7 +181,6 @@ public class SysRequestHistoryService {
         return fetchFromDatabase(wrapper, page, size);
     }
 
-    @CacheResult(cacheName = "sysRequestHistoryCache")
     public List<SysRequestHistory> searchByCreatedAtRange(String startTime, String endTime, int page, int size) {
         validatePagination(page, size);
         LocalDateTime start = parseDateTime(startTime, "startTime");

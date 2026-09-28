@@ -8,6 +8,7 @@ import dev.langchain4j.model.chat.response.StreamingChatResponseHandler;
 import finalassignmentbackend.ai.agent.AgentModels;
 import finalassignmentbackend.ai.agent.AgentRuntime;
 import finalassignmentbackend.controller.DriverAccessGuard;
+import finalassignmentbackend.reliability.ModelCallBulkhead;
 import finalassignmentbackend.service.ai.AIChatSearchService;
 import io.smallrye.common.annotation.RunOnVirtualThread;
 import jakarta.annotation.security.RolesAllowed;
@@ -50,6 +51,8 @@ public class ChatController {
     AIChatSearchService aiChatSearchService;
     @Inject AgentRuntime agentRuntime;
     @Inject DriverAccessGuard driverAccessGuard;
+    @Inject ModelCallBulkhead modelCalls;
+    @Inject finalassignmentbackend.reliability.ReliabilityMetrics metrics;
     private final Jsonb jsonb = JsonbBuilder.create();
 
     @GET
@@ -72,7 +75,13 @@ public class ChatController {
                 .messages(UserMessage.from(promptText))
                 .build();
 
-        return Multi.createFrom().emitter(emitter -> chatModel.chat(request, new StreamingChatResponseHandler() {
+        if (modelCalls != null && !modelCalls.tryAcquire()) {
+            if (metrics != null) {
+                metrics.aiFallback();
+            }
+            return Multi.createFrom().item("{\"isFallback\":true,\"reason\":\"bulkhead_full\"}");
+        }
+        Multi<String> stream = Multi.createFrom().emitter(emitter -> chatModel.chat(request, new StreamingChatResponseHandler() {
             @Override
             public void onPartialResponse(String partialResponse) {
                 emitter.emit(partialResponse);
@@ -90,6 +99,16 @@ public class ChatController {
                 LOG.log(Level.SEVERE, "AI chat stream failed", error);
             }
         }));
+        Multi<String> bounded = finalassignmentbackend.reliability.AiStreamGuard.bound(
+                stream, Duration.ofMillis(700), () -> {
+                    if (metrics != null) {
+                        metrics.aiFallback();
+                    }
+                });
+        if (modelCalls == null) {
+            return bounded;
+        }
+        return bounded.onTermination().invoke(modelCalls::release);
     }
 
     @POST
@@ -129,7 +148,7 @@ public class ChatController {
         boolean skipModel = prefix.stream().anyMatch(json -> json.contains("\"type\":\"draft\"") || json.contains("\"type\":\"result\"") || json.contains("\"type\":\"error\""));
         if (!skipModel) {
             try {
-                List<String> tokens = chat(userMessage, null, webSearch).collect().asList().await().atMost(Duration.ofSeconds(45));
+                List<String> tokens = chat(userMessage, null, webSearch).collect().asList().await().atMost(Duration.ofSeconds(2));
                 for (String token : tokens) {
                     sse.append("data: ").append(jsonb.toJson(tokenEvent(sessionKey, token))).append("\n\n");
                 }

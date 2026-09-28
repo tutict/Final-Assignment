@@ -240,7 +240,6 @@ public class OffenseRecordService {
         return offenseRecordMapper.selectById(offenseId);
     }
 
-    @CacheResult(cacheName = "offenseRecordCache")
     public List<OffenseRecord> findAll() {
         return offenseRecordMapper.selectList(null);
     }
@@ -254,7 +253,6 @@ public class OffenseRecordService {
         return mpPage;
     }
 
-    @CacheResult(cacheName = "offenseRecordCache")
     public List<OffenseRecord> findByDriverId(Long driverId, int page, int size) {
         if (driverId == null || driverId <= 0) {
             return List.of();
@@ -266,7 +264,6 @@ public class OffenseRecordService {
         return fetchFromDatabase(wrapper, page, size);
     }
 
-    @CacheResult(cacheName = "offenseRecordCache")
     public List<OffenseRecord> findByVehicleId(Long vehicleId, int page, int size) {
         if (vehicleId == null || vehicleId <= 0) {
             return List.of();
@@ -278,7 +275,6 @@ public class OffenseRecordService {
         return fetchFromDatabase(wrapper, page, size);
     }
 
-    @CacheResult(cacheName = "offenseRecordCache")
     public List<OffenseRecord> searchByOffenseCode(String offenseCode, int page, int size) {
         if (isBlank(offenseCode)) {
             return List.of();
@@ -290,7 +286,6 @@ public class OffenseRecordService {
         return fetchFromDatabase(wrapper, page, size);
     }
 
-    @CacheResult(cacheName = "offenseRecordCache")
     public List<OffenseRecord> searchByProcessStatus(String status, int page, int size) {
         if (isBlank(status)) {
             return List.of();
@@ -302,7 +297,6 @@ public class OffenseRecordService {
         return fetchFromDatabase(wrapper, page, size);
     }
 
-    @CacheResult(cacheName = "offenseRecordCache")
     public List<OffenseRecord> searchByOffenseTimeRange(String startTime, String endTime, int page, int size) {
         validatePagination(page, size);
         LocalDateTime start = parseDateTime(startTime, "startTime");
@@ -316,7 +310,6 @@ public class OffenseRecordService {
         return fetchFromDatabase(wrapper, page, size);
     }
 
-    @CacheResult(cacheName = "offenseRecordCache")
     public List<OffenseRecord> searchByOffenseNumber(String offenseNumber, int page, int size) {
         if (isBlank(offenseNumber)) {
             return List.of();
@@ -328,7 +321,6 @@ public class OffenseRecordService {
         return fetchFromDatabase(wrapper, page, size);
     }
 
-    @CacheResult(cacheName = "offenseRecordCache")
     public List<OffenseRecord> searchByOffenseLocation(String offenseLocation, int page, int size) {
         if (isBlank(offenseLocation)) {
             return List.of();
@@ -340,7 +332,6 @@ public class OffenseRecordService {
         return fetchFromDatabase(wrapper, page, size);
     }
 
-    @CacheResult(cacheName = "offenseRecordCache")
     public List<OffenseRecord> searchByOffenseProvince(String offenseProvince, int page, int size) {
         if (isBlank(offenseProvince)) {
             return List.of();
@@ -352,7 +343,6 @@ public class OffenseRecordService {
         return fetchFromDatabase(wrapper, page, size);
     }
 
-    @CacheResult(cacheName = "offenseRecordCache")
     public List<OffenseRecord> searchByOffenseCity(String offenseCity, int page, int size) {
         if (isBlank(offenseCity)) {
             return List.of();
@@ -364,7 +354,6 @@ public class OffenseRecordService {
         return fetchFromDatabase(wrapper, page, size);
     }
 
-    @CacheResult(cacheName = "offenseRecordCache")
     public List<OffenseRecord> searchByNotificationStatus(String notificationStatus, int page, int size) {
         if (isBlank(notificationStatus)) {
             return List.of();
@@ -376,7 +365,6 @@ public class OffenseRecordService {
         return fetchFromDatabase(wrapper, page, size);
     }
 
-    @CacheResult(cacheName = "offenseRecordCache")
     public List<OffenseRecord> searchByEnforcementAgency(String enforcementAgency, int page, int size) {
         if (isBlank(enforcementAgency)) {
             return List.of();
@@ -388,7 +376,6 @@ public class OffenseRecordService {
         return fetchFromDatabase(wrapper, page, size);
     }
 
-    @CacheResult(cacheName = "offenseRecordCache")
     public List<OffenseRecord> searchByFineAmountRange(double minAmount, double maxAmount, int page, int size) {
         validatePagination(page, size);
         if (minAmount > maxAmount) {

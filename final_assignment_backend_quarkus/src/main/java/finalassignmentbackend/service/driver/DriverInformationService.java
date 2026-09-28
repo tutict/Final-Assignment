@@ -89,7 +89,6 @@ public class DriverInformationService {
         return driverInformationMapper.selectById(driverId);
     }
 
-    @CacheResult(cacheName = "driverCache")
     @WsAction(service = "DriverInformationService", action = "getAllDrivers", roles = {"SUPER_ADMIN", "ADMIN", "TRAFFIC_POLICE"})
     public List<DriverInformation> getAllDrivers() {
         return driverInformationMapper.selectList(null);
@@ -104,7 +103,6 @@ public class DriverInformationService {
         return driverInformationMapper.selectOne(wrapper);
     }
 
-    @CacheResult(cacheName = "driverCache")
     public List<DriverInformation> searchByIdCardNumber(String keywords, int page, int size) {
         if (isBlank(keywords)) {
             return List.of();
@@ -116,7 +114,6 @@ public class DriverInformationService {
         return fetchFromDatabase(wrapper, page, size);
     }
 
-    @CacheResult(cacheName = "driverCache")
     public List<DriverInformation> searchByDriverLicenseNumber(String keywords, int page, int size) {
         if (isBlank(keywords)) {
             return List.of();
@@ -128,7 +125,6 @@ public class DriverInformationService {
         return fetchFromDatabase(wrapper, page, size);
     }
 
-    @CacheResult(cacheName = "driverCache")
     public List<DriverInformation> searchByName(String keywords, int page, int size) {
         if (isBlank(keywords)) {
             return List.of();
@@ -172,7 +168,6 @@ public class DriverInformationService {
         sysRequestHistoryMapper.updateById(history);
     }
 
-    @CacheResult(cacheName = "driverCache")
     public List<DriverInformation> searchDrivers(String keywords, int page, int size) {
         if (isBlank(keywords)) {
             return List.of();

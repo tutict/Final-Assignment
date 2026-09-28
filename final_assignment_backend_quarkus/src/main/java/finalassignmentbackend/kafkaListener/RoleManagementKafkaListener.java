@@ -1,12 +1,12 @@
 package finalassignmentbackend.kafkaListener;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import finalassignmentbackend.reliability.ConsumerAttempts;
 import finalassignmentbackend.entity.SysRole;
 import finalassignmentbackend.service.admin.SysRoleService;
 import io.smallrye.common.annotation.RunOnVirtualThread;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
-import jakarta.transaction.Transactional;
 import org.eclipse.microprofile.reactive.messaging.Incoming;
 
 import java.util.logging.Level;
@@ -25,7 +25,6 @@ public class RoleManagementKafkaListener {
     ObjectMapper objectMapper;
 
     @Incoming("role_create")
-    @Transactional
     @RunOnVirtualThread
     public void onRoleCreateReceived(String message) {
         log.log(Level.INFO, "Received Kafka create message: {0}", message);
@@ -33,7 +32,6 @@ public class RoleManagementKafkaListener {
     }
 
     @Incoming("role_update")
-    @Transactional
     @RunOnVirtualThread
     public void onRoleUpdateReceived(String message) {
         log.log(Level.INFO, "Received Kafka update message: {0}", message);
@@ -46,7 +44,7 @@ public class RoleManagementKafkaListener {
             if ("create".equals(action)) {
                 role.setRoleId(null);
             }
-            processor.process(role);
+            ConsumerAttempts.runChecked(() -> processor.process(role));
             log.info(String.format("Role %s processed: %s", action, role));
         } catch (Exception e) {
             log.log(Level.SEVERE, String.format("Failed to process role %s message: %s", action, message), e);

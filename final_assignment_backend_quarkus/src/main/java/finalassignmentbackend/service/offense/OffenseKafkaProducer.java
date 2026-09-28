@@ -40,6 +40,9 @@ public class OffenseKafkaProducer {
     @Inject
     ObjectMapper objectMapper;
 
+    @Inject
+    finalassignmentbackend.reliability.ReliabilityMetrics metrics;
+
     public void sendCreate(String key, OffenseRecord record) {
         send(createEmitter, "offense_create", key, record);
     }
@@ -60,6 +63,9 @@ public class OffenseKafkaProducer {
             emitter.send(message);
             log.log(Level.FINE, "Published OffenseRecord event to {0}", topic);
         } catch (Exception ex) {
+            if (metrics != null) {
+                metrics.kafkaPublishFailed();
+            }
             log.log(Level.SEVERE, "Failed to publish OffenseRecord Kafka message to " + topic, ex);
             throw new RuntimeException("Failed to send OffenseRecord event", ex);
         }

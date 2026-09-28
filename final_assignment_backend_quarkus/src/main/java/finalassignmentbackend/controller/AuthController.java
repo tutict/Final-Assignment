@@ -5,11 +5,14 @@ import finalassignmentbackend.dto.TokenResponse;
 import finalassignmentbackend.dto.UserProfileResponse;
 import finalassignmentbackend.dto.UserResponse;
 import finalassignmentbackend.service.auth.AuthWsService;
+import finalassignmentbackend.service.auth.TokenBlacklistService;
 import finalassignmentbackend.service.auth.AuthWsService.LoginRequest;
 import finalassignmentbackend.service.auth.AuthWsService.RegisterRequest;
 import io.smallrye.common.annotation.RunOnVirtualThread;
 import jakarta.annotation.security.PermitAll;
 import jakarta.annotation.security.RolesAllowed;
+import finalassignmentbackend.service.auth.LoginAttemptLimiter;
+import io.vertx.core.http.HttpServerRequest;
 import jakarta.inject.Inject;
 import jakarta.transaction.Transactional;
 import jakarta.ws.rs.Consumes;
@@ -40,14 +43,43 @@ public class AuthController {
     @Inject
     AuthWsService authWsService;
 
+    @Inject
+    TokenBlacklistService tokenBlacklistService;
+
+    @Inject
+    LoginAttemptLimiter loginAttemptLimiter;
+
+    @Inject
+    finalassignmentbackend.reliability.ReliabilityMetrics metrics;
+
+    @Inject
+    HttpServerRequest httpServerRequest;
+
     @POST
     @Path("/login")
     @PermitAll
     @RunOnVirtualThread
     public Response login(LoginRequest loginRequest) {
+        if (!tokenBlacklistService.redisReachable()) {
+            if (metrics != null) {
+                metrics.dependencyTimeout();
+            }
+            return Response.status(Response.Status.SERVICE_UNAVAILABLE).header("Retry-After", "1")
+                    .entity(Map.of("errorCode", "DEPENDENCY_TIMEOUT")).build();
+        }
         if (loginRequest == null || loginRequest.getUsername() == null || loginRequest.getPassword() == null) {
             return Response.status(Response.Status.BAD_REQUEST)
                     .entity(Map.of("error", "Username and password are required"))
+                    .build();
+        }
+        String remoteIp = httpServerRequest == null || httpServerRequest.remoteAddress() == null
+                ? "unknown"
+                : httpServerRequest.remoteAddress().host();
+        long retryAfter = loginAttemptLimiter.reserve(loginRequest.getUsername(), remoteIp);
+        if (retryAfter > 0) {
+            return Response.status(429)
+                    .header("Retry-After", Long.toString(retryAfter))
+                    .entity(Map.of("success", false, "errorCode", "LOGIN_RATE_LIMITED", "retryAfterSeconds", retryAfter))
                     .build();
         }
         try {
@@ -105,6 +137,13 @@ public class AuthController {
     @PermitAll
     @RunOnVirtualThread
     public Response refresh(RefreshRequest request) {
+        if (!tokenBlacklistService.redisReachable()) {
+            if (metrics != null) {
+                metrics.dependencyTimeout();
+            }
+            return Response.status(Response.Status.SERVICE_UNAVAILABLE).header("Retry-After", "1")
+                    .entity(Map.of("errorCode", "DEPENDENCY_TIMEOUT")).build();
+        }
         try {
             TokenResponse token = authWsService.refresh(request);
             return Response.ok(token).build();

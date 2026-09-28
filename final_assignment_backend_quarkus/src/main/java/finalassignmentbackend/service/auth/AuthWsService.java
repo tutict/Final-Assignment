@@ -163,7 +163,6 @@ public class AuthWsService {
     }
 
     @WsAction(service = "AuthWsService", action = "getAllUsers", roles = {"SUPER_ADMIN", "ADMIN"})
-    @CacheResult(cacheName = "userCache")
     public List<UserResponse> getAllUsers() {
         logger.info("[WS] Fetching all users");
         List<SysUser> users = sysUserService.findAll();

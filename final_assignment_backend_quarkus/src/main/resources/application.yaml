@@ -63,15 +63,39 @@ quarkus:
   http:
     cors:
       enabled: true
-      origins: 'https?://(localhost|127\.0\.0\.1):\d+'
+      origins: http://localhost:3000,http://127.0.0.1:3000,http://localhost:8080,http://127.0.0.1:8080,http://localhost:5173,http://127.0.0.1:5173,http://localhost:15173,http://127.0.0.1:15173,http://localhost:13000,http://127.0.0.1:13000
       methods: GET,POST,PUT,DELETE,PATCH,OPTIONS
       headers: Authorization,Content-Type,Idempotency-Key,X-Trace-Id,Cache-Control,Accept,X-Requested-With
       exposed-headers: X-Trace-Id
+      access-control-allow-credentials: true
     auth:
+      policy:
+        metrics-admin:
+          roles-allowed: ADMIN,SUPER_ADMIN
       permission:
         health-public:
-          paths: /q/*,/actuator/health,/actuator/health/liveness,/actuator/health/readiness,/api/health,/api/actuator/health,/readyz
+          paths: /q/health,/q/health/live,/q/health/ready,/actuator/health,/actuator/health/liveness,/actuator/health/readiness,/api/health,/api/actuator/health,/readyz
           policy: permit
+        public:
+          paths: /api/auth/login,/api/auth/register,/api/auth/refresh
+          policy: permit
+        api:
+          paths: "/api/*"
+          policy: authenticated
+        metrics:
+          paths: /actuator/prometheus,/actuator/ledgerReconcile,/q/metrics
+          policy: metrics-admin
+
+  datasource:
+    jdbc:
+      max-size: 20
+      acquisition-timeout: 200ms
+      new-connection-sql: SET SESSION max_execution_time=3000
+  redis:
+    timeout: 300ms
+    blacklist:
+      timeout: 200ms
+      hosts: ${quarkus.redis.hosts:redis://localhost:6379}
 
 rag:
   enabled: true
@@ -102,6 +126,145 @@ smallrye:
       # DevModeProcessor only skips RSA key generation when smallrye.jwt.sign.key is set.
       key: ${jwt.secret.key}
 mp:
+  messaging:
+    outgoing:
+      offense-create-out:
+        connector: smallrye-kafka
+        topic: offense_create
+        value:
+          serializer: org.apache.kafka.common.serialization.StringSerializer
+        acks: all
+        retries: 3
+        kafka-configuration: ledger-producer
+      offense-update-out:
+        connector: smallrye-kafka
+        topic: offense_update
+        value:
+          serializer: org.apache.kafka.common.serialization.StringSerializer
+        acks: all
+        retries: 3
+        kafka-configuration: ledger-producer
+      payment-create-out:
+        connector: smallrye-kafka
+        topic: payment_record_create
+        value:
+          serializer: org.apache.kafka.common.serialization.StringSerializer
+        acks: all
+        retries: 3
+        kafka-configuration: ledger-producer
+    incoming:
+      offense_create:
+        failure-strategy: dead-letter-queue
+        dead-letter-queue:
+          topic: offense_create.DLT
+      offense_update:
+        failure-strategy: dead-letter-queue
+        dead-letter-queue:
+          topic: offense_update.DLT
+      appeal_create:
+        failure-strategy: dead-letter-queue
+        dead-letter-queue:
+          topic: appeal_create.DLT
+      appeal_update:
+        failure-strategy: dead-letter-queue
+        dead-letter-queue:
+          topic: appeal_update.DLT
+      backup_restore_create:
+        failure-strategy: dead-letter-queue
+        dead-letter-queue:
+          topic: backup_restore_create.DLT
+      backup_restore_update:
+        failure-strategy: dead-letter-queue
+        dead-letter-queue:
+          topic: backup_restore_update.DLT
+      deduction_create:
+        failure-strategy: dead-letter-queue
+        dead-letter-queue:
+          topic: deduction_create.DLT
+      deduction_update:
+        failure-strategy: dead-letter-queue
+        dead-letter-queue:
+          topic: deduction_update.DLT
+      driver_create:
+        failure-strategy: dead-letter-queue
+        dead-letter-queue:
+          topic: driver_create.DLT
+      driver_update:
+        failure-strategy: dead-letter-queue
+        dead-letter-queue:
+          topic: driver_update.DLT
+      fine_create:
+        failure-strategy: dead-letter-queue
+        dead-letter-queue:
+          topic: fine_create.DLT
+      fine_update:
+        failure-strategy: dead-letter-queue
+        dead-letter-queue:
+          topic: fine_update.DLT
+      login_create:
+        failure-strategy: dead-letter-queue
+        dead-letter-queue:
+          topic: login_create.DLT
+      login_update:
+        failure-strategy: dead-letter-queue
+        dead-letter-queue:
+          topic: login_update.DLT
+      operation_create:
+        failure-strategy: dead-letter-queue
+        dead-letter-queue:
+          topic: operation_create.DLT
+      operation_update:
+        failure-strategy: dead-letter-queue
+        dead-letter-queue:
+          topic: operation_update.DLT
+      permission_create:
+        failure-strategy: dead-letter-queue
+        dead-letter-queue:
+          topic: permission_create.DLT
+      permission_update:
+        failure-strategy: dead-letter-queue
+        dead-letter-queue:
+          topic: permission_update.DLT
+      role_create:
+        failure-strategy: dead-letter-queue
+        dead-letter-queue:
+          topic: role_create.DLT
+      role_update:
+        failure-strategy: dead-letter-queue
+        dead-letter-queue:
+          topic: role_update.DLT
+      system_create:
+        failure-strategy: dead-letter-queue
+        dead-letter-queue:
+          topic: system_create.DLT
+      system_settings_create:
+        failure-strategy: dead-letter-queue
+        dead-letter-queue:
+          topic: system_settings_create.DLT
+      system_settings_update:
+        failure-strategy: dead-letter-queue
+        dead-letter-queue:
+          topic: system_settings_update.DLT
+      system_update:
+        failure-strategy: dead-letter-queue
+        dead-letter-queue:
+          topic: system_update.DLT
+      user_create:
+        failure-strategy: dead-letter-queue
+        dead-letter-queue:
+          topic: user_create.DLT
+      user_update:
+        failure-strategy: dead-letter-queue
+        dead-letter-queue:
+          topic: user_update.DLT
+      vehicle_create:
+        failure-strategy: dead-letter-queue
+        dead-letter-queue:
+          topic: vehicle_create.DLT
+      vehicle_update:
+        failure-strategy: dead-letter-queue
+        dead-letter-queue:
+          topic: vehicle_update.DLT
   jwt:
     verify:
       publickey:
@@ -114,4 +277,11 @@ kafka:
   app:
     security:
       token-blacklist:
-        fail-open: true
+        fail-open: ${TOKEN_BLACKLIST_FAIL_OPEN:false}
+
+app:
+  security:
+    token-blacklist:
+      fail-open: ${TOKEN_BLACKLIST_FAIL_OPEN:false}
+reliability:
+  load-shed: ${RELIABILITY_LOAD_SHED:true}

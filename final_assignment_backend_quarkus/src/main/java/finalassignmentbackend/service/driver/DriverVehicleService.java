@@ -87,12 +87,10 @@ public class DriverVehicleService {
         return driverVehicleMapper.selectById(bindingId);
     }
 
-    @CacheResult(cacheName = "driverVehicleCache")
     public List<DriverVehicle> findAll() {
         return driverVehicleMapper.selectList(null);
     }
 
-    @CacheResult(cacheName = "driverVehicleCache")
     public List<DriverVehicle> findByVehicleId(Long vehicleId, int page, int size) {
         if (vehicleId == null || vehicleId <= 0) {
             return List.of();
@@ -104,7 +102,6 @@ public class DriverVehicleService {
         return fetchFromDatabase(wrapper, page, size);
     }
 
-    @CacheResult(cacheName = "driverVehicleCache")
     public List<DriverVehicle> findByDriverId(Long driverId, int page, int size) {
         if (driverId == null || driverId <= 0) {
             return List.of();
@@ -116,7 +113,6 @@ public class DriverVehicleService {
         return fetchFromDatabase(wrapper, page, size);
     }
 
-    @CacheResult(cacheName = "driverVehicleCache")
     public List<DriverVehicle> findPrimaryBinding(Long driverId) {
         if (driverId == null || driverId <= 0) {
             return List.of();
@@ -127,7 +123,6 @@ public class DriverVehicleService {
         return driverVehicleMapper.selectList(wrapper);
     }
 
-    @CacheResult(cacheName = "driverVehicleCache")
     public List<DriverVehicle> searchByRelationship(String relationship, int page, int size) {
         if (isBlank(relationship)) {
             return List.of();

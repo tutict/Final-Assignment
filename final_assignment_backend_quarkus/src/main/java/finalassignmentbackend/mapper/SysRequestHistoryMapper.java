@@ -8,7 +8,7 @@ import org.apache.ibatis.annotations.Select;
 
 @Mapper
 public interface SysRequestHistoryMapper extends BaseMapper<SysRequestHistory> {
-    @Select("SELECT * FROM sys_request_history WHERE idempotency_key = #{idempotencyKey} LIMIT 1")
+    @Select("SELECT id, idempotency_key AS idempotencyKey, request_method AS requestMethod, request_url AS requestUrl, request_params AS requestParams, business_type AS businessType, business_id AS businessId, business_status AS businessStatus, user_id AS userId, request_ip AS requestIp, created_at AS createdAt, updated_at AS updatedAt, deleted_at AS deletedAt FROM sys_request_history WHERE idempotency_key = #{idempotencyKey} AND deleted_at IS NULL LIMIT 1")
     SysRequestHistory selectByIdempotencyKey(@Param("idempotencyKey") String idempotencyKey);
 }
 

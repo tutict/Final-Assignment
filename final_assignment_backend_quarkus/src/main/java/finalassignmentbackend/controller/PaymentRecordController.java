@@ -1,6 +1,7 @@
 package finalassignmentbackend.controller;
 
 import finalassignmentbackend.entity.PaymentRecord;
+import finalassignmentbackend.service.payment.PaymentEventPublisher;
 import finalassignmentbackend.service.payment.PaymentRecordService;
 import io.smallrye.common.annotation.RunOnVirtualThread;
 import jakarta.annotation.security.RolesAllowed;
@@ -37,7 +38,13 @@ public class PaymentRecordController {
     PaymentRecordService paymentRecordService;
 
     @Inject
+    PaymentEventPublisher paymentEventPublisher;
+
+    @Inject
     DriverAccessGuard driverAccessGuard;
+
+    @Inject
+    finalassignmentbackend.reliability.ReliabilityMetrics metrics;
 
     @Context
     SecurityContext securityContext;
@@ -46,7 +53,12 @@ public class PaymentRecordController {
     @RunOnVirtualThread
     public Response createPayment(PaymentRecord request,
                                   @HeaderParam("Idempotency-Key") String idempotencyKey) {
-        boolean useKey = hasKey(idempotencyKey);
+        if (!hasKey(idempotencyKey)) {
+            return Response.status(Response.Status.BAD_REQUEST)
+                    .entity(java.util.Map.of("errorCode", "MISSING_HEADER", "message", "Missing required header: Idempotency-Key"))
+                    .build();
+        }
+        boolean useKey = true;
         try {
             if (useKey) {
                 if (paymentRecordService.shouldSkipProcessing(idempotencyKey)) {
@@ -58,8 +70,23 @@ public class PaymentRecordController {
             if (useKey && saved.getPaymentId() != null) {
                 paymentRecordService.markHistorySuccess(idempotencyKey, saved.getPaymentId());
             }
+            if (paymentEventPublisher != null) {
+                paymentEventPublisher.sendCreate(idempotencyKey, saved);
+            }
             return Response.status(Response.Status.CREATED).entity(saved).build();
+        } catch (finalassignmentbackend.reliability.IdempotencyReplayException ex) {
+            return Response.status(208).build();
+        } catch (finalassignmentbackend.reliability.IdempotencyConflictException ex) {
+            if (metrics != null) {
+                metrics.idempotencyConflict();
+            }
+            return Response.status(Response.Status.CONFLICT).build();
+        } catch (finalassignmentbackend.reliability.IdempotencyInProgressException ex) {
+            return Response.status(Response.Status.CONFLICT).header("Retry-After", "1").build();
         } catch (Exception ex) {
+            if (finalassignmentbackend.reliability.DuplicateKeySignals.duplicateKey(ex)) {
+                return Response.status(Response.Status.CONFLICT).header("Retry-After", "1").build();
+            }
             if (useKey) {
                 paymentRecordService.markHistoryFailure(idempotencyKey, ex.getMessage());
             }
@@ -85,7 +112,15 @@ public class PaymentRecordController {
                 paymentRecordService.markHistorySuccess(idempotencyKey, updated.getPaymentId());
             }
             return Response.ok(updated).build();
+        } catch (finalassignmentbackend.reliability.PaymentOptimisticLockException ex) {
+            if (useKey) {
+                paymentRecordService.markHistoryFailure(idempotencyKey, ex.getMessage());
+            }
+            return Response.status(Response.Status.CONFLICT).build();
         } catch (Exception ex) {
+            if (finalassignmentbackend.reliability.DuplicateKeySignals.duplicateKey(ex)) {
+                return Response.status(Response.Status.CONFLICT).header("Retry-After", "1").build();
+            }
             if (useKey) {
                 paymentRecordService.markHistoryFailure(idempotencyKey, ex.getMessage());
             }
@@ -241,6 +276,8 @@ public class PaymentRecordController {
         try {
             PaymentRecord updated = paymentRecordService.updatePaymentStatus(paymentId, state);
             return Response.ok(updated).build();
+        } catch (finalassignmentbackend.reliability.PaymentOptimisticLockException ex) {
+            return Response.status(Response.Status.CONFLICT).build();
         } catch (Exception ex) {
             LOG.log(Level.WARNING, "Update payment status failed", ex);
             return Response.status(resolveStatus(ex)).build();

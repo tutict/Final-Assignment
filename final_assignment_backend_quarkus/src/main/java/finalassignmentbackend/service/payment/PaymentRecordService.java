@@ -1,4 +1,7 @@
 package finalassignmentbackend.service.payment;
+
+import finalassignmentbackend.reliability.LedgerIdempotencyDecider;
+import finalassignmentbackend.reliability.PaymentOptimisticLockException;
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import finalassignmentbackend.config.websocket.WsAction;
@@ -43,19 +46,48 @@ public class PaymentRecordService {
     public void checkAndInsertIdempotency(String idempotencyKey, PaymentRecord record, String action) {
         Objects.requireNonNull(record, "Payment record must not be null");
         if (isBlank(idempotencyKey)) {
-            throw new IllegalArgumentException("Idempotency key must not be blank");
+            throw new IllegalArgumentException("Idempotency-Key must not be blank");
         }
         SysRequestHistory history = sysRequestHistoryMapper.selectByIdempotencyKey(idempotencyKey);
         if (history != null) {
-            throw new RuntimeException("Duplicate payment record request detected");
+            resumeHistory(history, fingerprint(record));
+            return;
         }
         SysRequestHistory newHistory = buildHistory(idempotencyKey);
+        newHistory.setRequestParams(fingerprint(record));
+        newHistory.setBusinessType("PAYMENT_" + action);
         sysRequestHistoryMapper.insert(newHistory);
-        newHistory.setBusinessStatus("SUCCESS");
-        newHistory.setBusinessId(record.getPaymentId());
-        newHistory.setRequestParams("PENDING");
-        newHistory.setUpdatedAt(LocalDateTime.now());
-        sysRequestHistoryMapper.updateById(newHistory);
+    }
+
+    private void resumeHistory(SysRequestHistory history, String fingerprint) {
+        java.time.LocalDateTime stamp = history.getUpdatedAt() != null ? history.getUpdatedAt() : history.getCreatedAt();
+        java.time.Duration age = stamp == null ? java.time.Duration.ZERO : java.time.Duration.between(stamp, java.time.LocalDateTime.now());
+        LedgerIdempotencyDecider.Outcome outcome = LedgerIdempotencyDecider.decide(
+                true, history.getBusinessStatus(), history.getRequestParams(), fingerprint, age);
+        switch (outcome) {
+            case REPLAY -> throw new finalassignmentbackend.reliability.IdempotencyReplayException();
+            case CONFLICT -> throw new finalassignmentbackend.reliability.IdempotencyConflictException();
+            case IN_PROGRESS -> throw new finalassignmentbackend.reliability.IdempotencyInProgressException();
+            case RETRY -> {
+                history.setBusinessStatus("PROCESSING");
+                history.setRequestParams(fingerprint);
+                history.setUpdatedAt(java.time.LocalDateTime.now());
+                sysRequestHistoryMapper.updateById(history);
+            }
+            default -> throw new IllegalStateException("Unexpected idempotency outcome");
+        }
+    }
+
+    private static String fingerprint(PaymentRecord record) {
+        String canonical = record.getFineId() + "|" + record.getPaymentAmount() + "|" + record.getPaymentMethod()
+                + "|" + record.getPayerName() + "|" + record.getPaymentStatus();
+        try {
+            java.security.MessageDigest digest = java.security.MessageDigest.getInstance("SHA-256");
+            byte[] hash = digest.digest(canonical.getBytes(java.nio.charset.StandardCharsets.UTF_8));
+            return "sha256:" + java.util.HexFormat.of().formatHex(hash);
+        } catch (java.security.NoSuchAlgorithmException ex) {
+            throw new IllegalStateException(ex);
+        }
     }
 
     @Transactional
@@ -70,10 +102,7 @@ public class PaymentRecordService {
     @CacheInvalidate(cacheName = "paymentRecordCache")
     public PaymentRecord updatePaymentRecord(PaymentRecord record) {
         validateRecordId(record);
-        int rows = paymentRecordMapper.updateById(record);
-        if (rows == 0) {
-            throw new IllegalStateException("Payment record not found: " + record.getPaymentId());
-        }
+        updateOrConflict(record);
         return record;
     }
 
@@ -93,12 +122,10 @@ public class PaymentRecordService {
         return paymentRecordMapper.selectById(paymentId);
     }
 
-    @CacheResult(cacheName = "paymentRecordCache")
     public List<PaymentRecord> findAll() {
         return paymentRecordMapper.selectList(null);
     }
 
-    @CacheResult(cacheName = "paymentRecordCache")
     public List<PaymentRecord> findByFineId(Long fineId, int page, int size) {
         if (fineId == null || fineId <= 0) {
             return List.of();
@@ -110,7 +137,6 @@ public class PaymentRecordService {
         return fetchFromDatabase(wrapper, page, size);
     }
 
-    @CacheResult(cacheName = "paymentRecordCache")
     public List<PaymentRecord> findByDriverId(Long driverId, int page, int size) {
         if (driverId == null || driverId <= 0) {
             return List.of();
@@ -122,7 +148,6 @@ public class PaymentRecordService {
         return fetchFromDatabase(wrapper, page, size);
     }
 
-    @CacheResult(cacheName = "paymentRecordCache")
     public List<PaymentRecord> searchByPayerIdCard(String idCard, int page, int size) {
         if (isBlank(idCard)) {
             return List.of();
@@ -134,7 +159,6 @@ public class PaymentRecordService {
         return fetchFromDatabase(wrapper, page, size);
     }
 
-    @CacheResult(cacheName = "paymentRecordCache")
     public List<PaymentRecord> searchByPaymentStatus(String status, int page, int size) {
         if (isBlank(status)) {
             return List.of();
@@ -146,7 +170,6 @@ public class PaymentRecordService {
         return fetchFromDatabase(wrapper, page, size);
     }
 
-    @CacheResult(cacheName = "paymentRecordCache")
     public List<PaymentRecord> searchByTransactionId(String transactionId, int page, int size) {
         if (isBlank(transactionId)) {
             return List.of();
@@ -158,7 +181,6 @@ public class PaymentRecordService {
         return fetchFromDatabase(wrapper, page, size);
     }
 
-    @CacheResult(cacheName = "paymentRecordCache")
     public List<PaymentRecord> searchByPaymentNumber(String paymentNumber, int page, int size) {
         if (isBlank(paymentNumber)) {
             return List.of();
@@ -170,7 +192,6 @@ public class PaymentRecordService {
         return fetchFromDatabase(wrapper, page, size);
     }
 
-    @CacheResult(cacheName = "paymentRecordCache")
     public List<PaymentRecord> searchByPayerName(String payerName, int page, int size) {
         if (isBlank(payerName)) {
             return List.of();
@@ -182,7 +203,6 @@ public class PaymentRecordService {
         return fetchFromDatabase(wrapper, page, size);
     }
 
-    @CacheResult(cacheName = "paymentRecordCache")
     public List<PaymentRecord> searchByPaymentMethod(String paymentMethod, int page, int size) {
         if (isBlank(paymentMethod)) {
             return List.of();
@@ -194,7 +214,6 @@ public class PaymentRecordService {
         return fetchFromDatabase(wrapper, page, size);
     }
 
-    @CacheResult(cacheName = "paymentRecordCache")
     public List<PaymentRecord> searchByPaymentChannel(String paymentChannel, int page, int size) {
         if (isBlank(paymentChannel)) {
             return List.of();
@@ -206,7 +225,6 @@ public class PaymentRecordService {
         return fetchFromDatabase(wrapper, page, size);
     }
 
-    @CacheResult(cacheName = "paymentRecordCache")
     public List<PaymentRecord> searchByPaymentTimeRange(String startTime, String endTime, int page, int size) {
         validatePagination(page, size);
         LocalDateTime start = parseDateTime(startTime, "startTime");
@@ -230,15 +248,34 @@ public class PaymentRecordService {
         }
         record.setPaymentStatus(status);
         record.setUpdatedAt(LocalDateTime.now());
-        paymentRecordMapper.updateById(record);
+        updateOrConflict(record);
         return record;
     }
 
+
+    private void updateOrConflict(PaymentRecord record) {
+        Integer expected = record.getVersion();
+        if (expected != null) {
+            record.setVersion(expected + 1);
+        }
+        com.baomidou.mybatisplus.core.conditions.update.UpdateWrapper<PaymentRecord> wrapper =
+                new com.baomidou.mybatisplus.core.conditions.update.UpdateWrapper<>();
+        wrapper.eq("payment_id", record.getPaymentId());
+        if (expected != null) {
+            wrapper.eq("version", expected);
+        }
+        int rows = paymentRecordMapper.update(record, wrapper);
+        if (rows > 0) {
+            return;
+        }
+        if (paymentRecordMapper.selectById(record.getPaymentId()) == null) {
+            throw new IllegalStateException("Payment record not found: " + record.getPaymentId());
+        }
+        throw new PaymentOptimisticLockException("Payment record was updated concurrently; refresh and retry");
+    }
+
     public boolean shouldSkipProcessing(String idempotencyKey) {
-        SysRequestHistory history = sysRequestHistoryMapper.selectByIdempotencyKey(idempotencyKey);
-        return history != null
-                && "SUCCESS".equalsIgnoreCase(history.getBusinessStatus())
-                && "DONE".equalsIgnoreCase(history.getRequestParams());
+        return false;
     }
 
     public void markHistorySuccess(String idempotencyKey, Long paymentId) {
@@ -249,7 +286,9 @@ public class PaymentRecordService {
         }
         history.setBusinessStatus("SUCCESS");
         history.setBusinessId(paymentId);
-        history.setRequestParams("DONE");
+        if (history.getRequestParams() == null || !history.getRequestParams().startsWith("sha256:")) {
+            history.setRequestParams("DONE");
+        }
         history.setUpdatedAt(LocalDateTime.now());
         sysRequestHistoryMapper.updateById(history);
     }

@@ -1,12 +1,12 @@
 package finalassignmentbackend.kafkaListener;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import finalassignmentbackend.reliability.ConsumerAttempts;
 import finalassignmentbackend.entity.SysPermission;
 import finalassignmentbackend.service.admin.SysPermissionService;
 import io.smallrye.common.annotation.RunOnVirtualThread;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
-import jakarta.transaction.Transactional;
 import org.eclipse.microprofile.reactive.messaging.Incoming;
 
 import java.util.logging.Level;
@@ -25,7 +25,6 @@ public class PermissionManagementKafkaListener {
     ObjectMapper objectMapper;
 
     @Incoming("permission_create")
-    @Transactional
     @RunOnVirtualThread
     public void onPermissionCreateReceived(String message) {
         log.log(Level.INFO, "Received Kafka create message: {0}", message);
@@ -33,7 +32,6 @@ public class PermissionManagementKafkaListener {
     }
 
     @Incoming("permission_update")
-    @Transactional
     @RunOnVirtualThread
     public void onPermissionUpdateReceived(String message) {
         log.log(Level.INFO, "Received Kafka update message: {0}", message);
@@ -46,7 +44,7 @@ public class PermissionManagementKafkaListener {
             if ("create".equals(action)) {
                 permission.setPermissionId(null);
             }
-            processor.process(permission);
+            ConsumerAttempts.runChecked(() -> processor.process(permission));
             log.info(String.format("Permission %s processed: %s", action, permission));
         } catch (Exception e) {
             log.log(Level.SEVERE, String.format("Failed to process permission %s message: %s", action, message), e);

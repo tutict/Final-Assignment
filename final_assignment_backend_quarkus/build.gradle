@@ -66,12 +66,11 @@ java {
 
 compileJava {
     options.encoding = 'UTF-8'
-    options.compilerArgs.addAll(['-parameters', '--release', '23'])
+    options.compilerArgs.addAll(['-parameters'])
 }
 
 compileTestJava {
     options.encoding = 'UTF-8'
-    options.compilerArgs.addAll(['--release', '23'])
 }
 
 configurations.configureEach {

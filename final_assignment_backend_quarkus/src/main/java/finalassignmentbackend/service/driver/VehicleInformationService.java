@@ -106,7 +106,6 @@ public class VehicleInformationService {
         return vehicleInformationMapper.selectById(vehicleId);
     }
 
-    @CacheResult(cacheName = "vehicleCache")
     @WsAction(service = "VehicleInformationService", action = "getAllVehicleInformation", roles = {"SUPER_ADMIN", "ADMIN", "TRAFFIC_POLICE"})
     public List<VehicleInformation> getAllVehicleInformation() {
         return vehicleInformationMapper.selectList(null);
@@ -121,7 +120,6 @@ public class VehicleInformationService {
         return vehicleInformationMapper.selectOne(queryWrapper);
     }
 
-    @CacheResult(cacheName = "vehicleCache")
     @WsAction(service = "VehicleInformationService", action = "getVehicleInformationByIdCardNumber", roles = {"SUPER_ADMIN", "ADMIN", "TRAFFIC_POLICE"})
     public List<VehicleInformation> getVehicleInformationByIdCardNumber(String idCardNumber) {
         validateInput(idCardNumber, "Invalid id card number");
@@ -130,7 +128,6 @@ public class VehicleInformationService {
         return vehicleInformationMapper.selectList(queryWrapper);
     }
 
-    @CacheResult(cacheName = "vehicleCache")
     @WsAction(service = "VehicleInformationService", action = "getVehicleInformationByType", roles = {"SUPER_ADMIN", "ADMIN", "TRAFFIC_POLICE"})
     public List<VehicleInformation> getVehicleInformationByType(String vehicleType) {
         validateInput(vehicleType, "Invalid vehicle type");
@@ -139,7 +136,6 @@ public class VehicleInformationService {
         return vehicleInformationMapper.selectList(queryWrapper);
     }
 
-    @CacheResult(cacheName = "vehicleCache")
     @WsAction(service = "VehicleInformationService", action = "getVehicleInformationByOwnerName", roles = {"SUPER_ADMIN", "ADMIN", "TRAFFIC_POLICE"})
     public List<VehicleInformation> getVehicleInformationByOwnerName(String ownerName) {
         validateInput(ownerName, "Invalid owner name");
@@ -148,7 +144,6 @@ public class VehicleInformationService {
         return vehicleInformationMapper.selectList(queryWrapper);
     }
 
-    @CacheResult(cacheName = "vehicleCache")
     @WsAction(service = "VehicleInformationService", action = "getVehicleInformationByStatus", roles = {"SUPER_ADMIN", "ADMIN", "TRAFFIC_POLICE"})
     public List<VehicleInformation> getVehicleInformationByStatus(String status) {
         validateInput(status, "Invalid status");
@@ -157,7 +152,6 @@ public class VehicleInformationService {
         return vehicleInformationMapper.selectList(queryWrapper);
     }
 
-    @CacheResult(cacheName = "vehicleCache")
     @WsAction(service = "VehicleInformationService", action = "searchVehicles", roles = {"SUPER_ADMIN", "ADMIN", "TRAFFIC_POLICE"})
     public List<VehicleInformation> searchVehicles(String keywords, int page, int size) {
         if (isBlank(keywords)) {
@@ -172,7 +166,6 @@ public class VehicleInformationService {
         return fetchFromDatabase(queryWrapper, page, size);
     }
 
-    @CacheResult(cacheName = "vehicleCache")
     @WsAction(service = "VehicleInformationService", action = "getVehicleInformationByLicensePlateGlobally", roles = {"SUPER_ADMIN", "ADMIN", "TRAFFIC_POLICE"})
     public List<String> getVehicleInformationByLicensePlateGlobally(String prefix, int size) {
         if (isBlank(prefix)) {
@@ -188,7 +181,6 @@ public class VehicleInformationService {
                 .collect(Collectors.toList());
     }
 
-    @CacheResult(cacheName = "vehicleCache")
     @WsAction(service = "VehicleInformationService", action = "getLicensePlateAutocompleteSuggestions", roles = {"SUPER_ADMIN", "ADMIN", "TRAFFIC_POLICE"})
     public List<String> getLicensePlateAutocompleteSuggestions(String prefix, int size, String idCard) {
         if (isBlank(prefix) || isBlank(idCard)) {
@@ -205,7 +197,6 @@ public class VehicleInformationService {
                 .collect(Collectors.toList());
     }
 
-    @CacheResult(cacheName = "vehicleCache")
     @WsAction(service = "VehicleInformationService", action = "getVehicleTypeAutocompleteSuggestions", roles = {"SUPER_ADMIN", "ADMIN", "TRAFFIC_POLICE"})
     public List<String> getVehicleTypeAutocompleteSuggestions(String idCard, String prefix, int size) {
         if (isBlank(idCard) || isBlank(prefix)) {
@@ -222,7 +213,6 @@ public class VehicleInformationService {
                 .collect(Collectors.toList());
     }
 
-    @CacheResult(cacheName = "vehicleCache")
     @WsAction(service = "VehicleInformationService", action = "getVehicleTypesByPrefixGlobally", roles = {"SUPER_ADMIN", "ADMIN", "TRAFFIC_POLICE"})
     public List<String> getVehicleTypesByPrefixGlobally(String prefix, int size) {
         if (isBlank(prefix)) {
@@ -279,7 +269,6 @@ public class VehicleInformationService {
         sysRequestHistoryMapper.updateById(history);
     }
 
-    @CacheResult(cacheName = "vehicleCache")
     public List<VehicleInformation> getVehicleInformationByDriverId(Long driverId, int page, int size) {
         if (driverId == null || driverId <= 0) {
             return List.of();
@@ -300,7 +289,6 @@ public class VehicleInformationService {
         return fetchFromDatabase(wrapper, page, size);
     }
 
-    @CacheResult(cacheName = "vehicleCache")
     public List<String> suggestPlates(String prefix, int limit) {
         if (isBlank(prefix)) {
             return List.of();

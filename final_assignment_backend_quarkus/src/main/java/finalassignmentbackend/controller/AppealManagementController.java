@@ -69,6 +69,12 @@ public class AppealManagementController {
                 appealManagementService.markHistorySuccess(idempotencyKey, saved.getAppealId());
             }
             return Response.status(Response.Status.CREATED).entity(saved).build();
+        } catch (finalassignmentbackend.reliability.IdempotencyReplayException ex) {
+            return Response.status(208).build();
+        } catch (finalassignmentbackend.reliability.IdempotencyConflictException ex) {
+            return Response.status(409).build();
+        } catch (finalassignmentbackend.reliability.IdempotencyInProgressException ex) {
+            return Response.status(409).build();
         } catch (Exception ex) {
             if (useKey) {
                 appealManagementService.markHistoryFailure(idempotencyKey, ex.getMessage());
@@ -95,6 +101,12 @@ public class AppealManagementController {
                 appealManagementService.markHistorySuccess(idempotencyKey, updated.getAppealId());
             }
             return Response.ok(updated).build();
+        } catch (finalassignmentbackend.reliability.IdempotencyReplayException ex) {
+            return Response.status(208).build();
+        } catch (finalassignmentbackend.reliability.IdempotencyConflictException ex) {
+            return Response.status(409).build();
+        } catch (finalassignmentbackend.reliability.IdempotencyInProgressException ex) {
+            return Response.status(409).build();
         } catch (Exception ex) {
             if (useKey) {
                 appealManagementService.markHistoryFailure(idempotencyKey, ex.getMessage());
@@ -111,6 +123,12 @@ public class AppealManagementController {
         try {
             appealManagementService.deleteAppeal(appealId);
             return Response.noContent().build();
+        } catch (finalassignmentbackend.reliability.IdempotencyReplayException ex) {
+            return Response.status(208).build();
+        } catch (finalassignmentbackend.reliability.IdempotencyConflictException ex) {
+            return Response.status(409).build();
+        } catch (finalassignmentbackend.reliability.IdempotencyInProgressException ex) {
+            return Response.status(409).build();
         } catch (Exception ex) {
             LOG.log(Level.WARNING, "Delete appeal failed", ex);
             return Response.status(resolveStatus(ex)).build();
@@ -134,6 +152,12 @@ public class AppealManagementController {
                 }
             }
             return Response.ok(record).build();
+        } catch (finalassignmentbackend.reliability.IdempotencyReplayException ex) {
+            return Response.status(208).build();
+        } catch (finalassignmentbackend.reliability.IdempotencyConflictException ex) {
+            return Response.status(409).build();
+        } catch (finalassignmentbackend.reliability.IdempotencyInProgressException ex) {
+            return Response.status(409).build();
         } catch (Exception ex) {
             LOG.log(Level.WARNING, "Get appeal failed", ex);
             return Response.status(resolveStatus(ex)).build();
@@ -154,6 +178,12 @@ public class AppealManagementController {
                 return Response.ok(appealManagementService.findByCreatedBy(username, resolvedPage, resolvedSize)).build();
             }
             return Response.ok(appealManagementService.findByOffenseId(offenseId, resolvedPage, resolvedSize)).build();
+        } catch (finalassignmentbackend.reliability.IdempotencyReplayException ex) {
+            return Response.status(208).build();
+        } catch (finalassignmentbackend.reliability.IdempotencyConflictException ex) {
+            return Response.status(409).build();
+        } catch (finalassignmentbackend.reliability.IdempotencyInProgressException ex) {
+            return Response.status(409).build();
         } catch (Exception ex) {
             LOG.log(Level.WARNING, "List appeals failed", ex);
             return Response.status(resolveStatus(ex)).build();
@@ -280,6 +310,12 @@ public class AppealManagementController {
                 appealReviewService.markHistorySuccess(idempotencyKey, saved.getReviewId());
             }
             return Response.status(Response.Status.CREATED).entity(saved).build();
+        } catch (finalassignmentbackend.reliability.IdempotencyReplayException ex) {
+            return Response.status(208).build();
+        } catch (finalassignmentbackend.reliability.IdempotencyConflictException ex) {
+            return Response.status(409).build();
+        } catch (finalassignmentbackend.reliability.IdempotencyInProgressException ex) {
+            return Response.status(409).build();
         } catch (Exception ex) {
             if (useKey) {
                 appealReviewService.markHistoryFailure(idempotencyKey, ex.getMessage());
@@ -306,6 +342,12 @@ public class AppealManagementController {
                 appealReviewService.markHistorySuccess(idempotencyKey, updated.getReviewId());
             }
             return Response.ok(updated).build();
+        } catch (finalassignmentbackend.reliability.IdempotencyReplayException ex) {
+            return Response.status(208).build();
+        } catch (finalassignmentbackend.reliability.IdempotencyConflictException ex) {
+            return Response.status(409).build();
+        } catch (finalassignmentbackend.reliability.IdempotencyInProgressException ex) {
+            return Response.status(409).build();
         } catch (Exception ex) {
             if (useKey) {
                 appealReviewService.markHistoryFailure(idempotencyKey, ex.getMessage());
@@ -322,6 +364,12 @@ public class AppealManagementController {
         try {
             appealReviewService.deleteReview(reviewId);
             return Response.noContent().build();
+        } catch (finalassignmentbackend.reliability.IdempotencyReplayException ex) {
+            return Response.status(208).build();
+        } catch (finalassignmentbackend.reliability.IdempotencyConflictException ex) {
+            return Response.status(409).build();
+        } catch (finalassignmentbackend.reliability.IdempotencyInProgressException ex) {
+            return Response.status(409).build();
         } catch (Exception ex) {
             LOG.log(Level.WARNING, "Delete appeal review failed", ex);
             return Response.status(resolveStatus(ex)).build();
@@ -335,6 +383,12 @@ public class AppealManagementController {
         try {
             AppealReview review = appealReviewService.findById(reviewId);
             return review == null ? Response.status(Response.Status.NOT_FOUND).build() : Response.ok(review).build();
+        } catch (finalassignmentbackend.reliability.IdempotencyReplayException ex) {
+            return Response.status(208).build();
+        } catch (finalassignmentbackend.reliability.IdempotencyConflictException ex) {
+            return Response.status(409).build();
+        } catch (finalassignmentbackend.reliability.IdempotencyInProgressException ex) {
+            return Response.status(409).build();
         } catch (Exception ex) {
             LOG.log(Level.WARNING, "Get appeal review failed", ex);
             return Response.status(resolveStatus(ex)).build();
@@ -347,6 +401,12 @@ public class AppealManagementController {
     public Response listReviews() {
         try {
             return Response.ok(appealReviewService.findAll()).build();
+        } catch (finalassignmentbackend.reliability.IdempotencyReplayException ex) {
+            return Response.status(208).build();
+        } catch (finalassignmentbackend.reliability.IdempotencyConflictException ex) {
+            return Response.status(409).build();
+        } catch (finalassignmentbackend.reliability.IdempotencyInProgressException ex) {
+            return Response.status(409).build();
         } catch (Exception ex) {
             LOG.log(Level.WARNING, "List appeal reviews failed", ex);
             return Response.status(resolveStatus(ex)).build();
@@ -394,6 +454,12 @@ public class AppealManagementController {
         try {
             long total = appealReviewService.countByReviewLevel(reviewLevel);
             return Response.ok(Map.of("reviewLevel", reviewLevel, "count", total)).build();
+        } catch (finalassignmentbackend.reliability.IdempotencyReplayException ex) {
+            return Response.status(208).build();
+        } catch (finalassignmentbackend.reliability.IdempotencyConflictException ex) {
+            return Response.status(409).build();
+        } catch (finalassignmentbackend.reliability.IdempotencyInProgressException ex) {
+            return Response.status(409).build();
         } catch (Exception ex) {
             LOG.log(Level.WARNING, "Count appeal reviews failed", ex);
             return Response.status(resolveStatus(ex)).build();
@@ -414,6 +480,12 @@ public class AppealManagementController {
             int resolvedPage = page == null ? 1 : page;
             int resolvedSize = size == null ? 20 : size;
             return Response.ok(appealManagementService.findByCreatedBy(username, resolvedPage, resolvedSize)).build();
+        } catch (finalassignmentbackend.reliability.IdempotencyReplayException ex) {
+            return Response.status(208).build();
+        } catch (finalassignmentbackend.reliability.IdempotencyConflictException ex) {
+            return Response.status(409).build();
+        } catch (finalassignmentbackend.reliability.IdempotencyInProgressException ex) {
+            return Response.status(409).build();
         } catch (Exception ex) {
             LOG.log(Level.WARNING, "List current user's appeals failed", ex);
             return Response.status(resolveStatus(ex)).build();

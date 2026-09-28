@@ -1,4 +1,5 @@
 package finalassignmentbackend.service.auth;
+import io.quarkus.redis.client.RedisClientName;
 import io.quarkus.redis.datasource.RedisDataSource;
 import jakarta.annotation.PostConstruct;
 import jakarta.enterprise.context.ApplicationScoped;
@@ -9,7 +10,9 @@ import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.time.Duration;
+import finalassignmentbackend.reliability.BlacklistAccessPolicy;
 import java.util.HexFormat;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
@@ -25,10 +28,12 @@ public class TokenBlacklistService {
     private static final String REVOKED_MARKER = "revoked";
 
     @Inject
+    @RedisClientName("blacklist")
     RedisDataSource redisDataSource;
 
     @ConfigProperty(name = "app.security.token-blacklist.fail-open", defaultValue = "false")
     boolean failOpenWhenUnavailable;
+    private final ConcurrentHashMap<String, Long> localRevocations = new ConcurrentHashMap<>();
 
     private io.quarkus.redis.datasource.value.ValueCommands<String, String> valueCommands;
     private io.quarkus.redis.datasource.keys.KeyCommands<String> keyCommands;
@@ -44,6 +49,7 @@ public class TokenBlacklistService {
             return;
         }
         long ttlSeconds = Math.max(1, ttlMillis / 1000);
+        localRevocations.put(sha256(token), System.currentTimeMillis() + ttlMillis);
         try {
             valueCommands.setex(key(token), ttlSeconds, REVOKED_MARKER);
         } catch (RuntimeException ex) {
@@ -56,14 +62,35 @@ public class TokenBlacklistService {
     }
 
     public boolean isBlacklisted(String token) {
+        return inspect(token) == BlacklistAccessPolicy.Verdict.REVOKED;
+    }
+
+    public BlacklistAccessPolicy.Verdict inspect(String token) {
         if (isBlank(token)) {
-            return false;
+            return BlacklistAccessPolicy.Verdict.CLEAR;
+        }
+        Long until = localRevocations.get(sha256(token));
+        if (until != null && until >= System.currentTimeMillis()) {
+            return BlacklistAccessPolicy.Verdict.REVOKED;
         }
         try {
-            return keyCommands.exists(key(token));
+            if (keyCommands.exists(key(token))) {
+                localRevocations.put(sha256(token), System.currentTimeMillis() + 30 * 60 * 1000L);
+                return BlacklistAccessPolicy.Verdict.REVOKED;
+            }
+            return BlacklistAccessPolicy.Verdict.CLEAR;
         } catch (RuntimeException ex) {
             LOG.log(Level.SEVERE, "Failed to check access token blacklist", ex);
-            return !failOpenWhenUnavailable;
+            return BlacklistAccessPolicy.Verdict.UNAVAILABLE;
+        }
+    }
+
+    public boolean redisReachable() {
+        try {
+            keyCommands.exists("reliability:redis-ping");
+            return true;
+        } catch (RuntimeException ex) {
+            return false;
         }
     }
 

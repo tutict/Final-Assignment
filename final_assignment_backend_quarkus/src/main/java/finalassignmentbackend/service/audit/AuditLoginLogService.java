@@ -88,12 +88,10 @@ public class AuditLoginLogService {
         return auditLoginLogMapper.selectById(logId);
     }
 
-    @CacheResult(cacheName = "auditLoginLogCache")
     public List<AuditLoginLog> findAll() {
         return auditLoginLogMapper.selectList(null);
     }
 
-    @CacheResult(cacheName = "auditLoginLogCache")
     public List<AuditLoginLog> searchByUsername(String username, int page, int size) {
         if (isBlank(username)) {
             return List.of();
@@ -105,7 +103,6 @@ public class AuditLoginLogService {
         return fetchFromDatabase(wrapper, page, size);
     }
 
-    @CacheResult(cacheName = "auditLoginLogCache")
     public List<AuditLoginLog> searchByLoginResult(String result, int page, int size) {
         if (isBlank(result)) {
             return List.of();
@@ -117,7 +114,6 @@ public class AuditLoginLogService {
         return fetchFromDatabase(wrapper, page, size);
     }
 
-    @CacheResult(cacheName = "auditLoginLogCache")
     public List<AuditLoginLog> searchByLoginTimeRange(String startTime, String endTime, int page, int size) {
         validatePagination(page, size);
         LocalDateTime start = parseDateTime(startTime, "startTime");
@@ -131,7 +127,6 @@ public class AuditLoginLogService {
         return fetchFromDatabase(wrapper, page, size);
     }
 
-    @CacheResult(cacheName = "auditLoginLogCache")
     public List<AuditLoginLog> searchByLoginIp(String ip, int page, int size) {
         if (isBlank(ip)) {
             return List.of();
@@ -143,7 +138,6 @@ public class AuditLoginLogService {
         return fetchFromDatabase(wrapper, page, size);
     }
 
-    @CacheResult(cacheName = "auditLoginLogCache")
     public List<AuditLoginLog> searchByLoginLocation(String loginLocation, int page, int size) {
         if (isBlank(loginLocation)) {
             return List.of();
@@ -155,7 +149,6 @@ public class AuditLoginLogService {
         return fetchFromDatabase(wrapper, page, size);
     }
 
-    @CacheResult(cacheName = "auditLoginLogCache")
     public List<AuditLoginLog> searchByDeviceType(String deviceType, int page, int size) {
         if (isBlank(deviceType)) {
             return List.of();
@@ -167,7 +160,6 @@ public class AuditLoginLogService {
         return fetchFromDatabase(wrapper, page, size);
     }
 
-    @CacheResult(cacheName = "auditLoginLogCache")
     public List<AuditLoginLog> searchByBrowserType(String browserType, int page, int size) {
         if (isBlank(browserType)) {
             return List.of();
@@ -179,7 +171,6 @@ public class AuditLoginLogService {
         return fetchFromDatabase(wrapper, page, size);
     }
 
-    @CacheResult(cacheName = "auditLoginLogCache")
     public List<AuditLoginLog> searchByLogoutTimeRange(String startTime, String endTime, int page, int size) {
         validatePagination(page, size);
         LocalDateTime start = parseDateTime(startTime, "startTime");

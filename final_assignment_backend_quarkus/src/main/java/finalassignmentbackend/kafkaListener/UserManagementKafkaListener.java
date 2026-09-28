@@ -1,12 +1,12 @@
 package finalassignmentbackend.kafkaListener;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import finalassignmentbackend.reliability.ConsumerAttempts;
 import finalassignmentbackend.entity.SysUser;
 import finalassignmentbackend.service.admin.SysUserService;
 import io.smallrye.common.annotation.RunOnVirtualThread;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
-import jakarta.transaction.Transactional;
 import org.eclipse.microprofile.reactive.messaging.Incoming;
 
 import java.util.logging.Level;
@@ -25,7 +25,6 @@ public class UserManagementKafkaListener {
     ObjectMapper objectMapper;
 
     @Incoming("user_create")
-    @Transactional
     @RunOnVirtualThread
     public void onUserCreateReceived(String message) {
         log.log(Level.INFO, "Received Kafka create message: {0}", message);
@@ -33,7 +32,6 @@ public class UserManagementKafkaListener {
     }
 
     @Incoming("user_update")
-    @Transactional
     @RunOnVirtualThread
     public void onUserUpdateReceived(String message) {
         log.log(Level.INFO, "Received Kafka update message: {0}", message);
@@ -46,7 +44,7 @@ public class UserManagementKafkaListener {
             if ("create".equals(action)) {
                 user.setUserId(null);
             }
-            processor.process(user);
+            ConsumerAttempts.runChecked(() -> processor.process(user));
             log.info(String.format("User %s processed: %s", action, user));
         } catch (Exception e) {
             log.log(Level.SEVERE, String.format("Failed to process user %s message: %s", action, message), e);

@@ -1,12 +1,12 @@
 package finalassignmentbackend.kafkaListener;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import finalassignmentbackend.reliability.ConsumerAttempts;
 import finalassignmentbackend.entity.FineRecord;
 import finalassignmentbackend.service.offense.FineRecordService;
 import io.smallrye.common.annotation.RunOnVirtualThread;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
-import jakarta.transaction.Transactional;
 import org.eclipse.microprofile.reactive.messaging.Incoming;
 
 import java.util.logging.Level;
@@ -25,7 +25,6 @@ public class FineInformationKafkaListener {
     ObjectMapper objectMapper;
 
     @Incoming("fine_create")
-    @Transactional
     @RunOnVirtualThread
     public void onFineCreateReceived(String message) {
         log.log(Level.INFO, "Received Kafka create message: {0}", message);
@@ -33,7 +32,6 @@ public class FineInformationKafkaListener {
     }
 
     @Incoming("fine_update")
-    @Transactional
     @RunOnVirtualThread
     public void onFineUpdateReceived(String message) {
         log.log(Level.INFO, "Received Kafka update message: {0}", message);
@@ -46,7 +44,7 @@ public class FineInformationKafkaListener {
             if ("create".equals(action)) {
                 record.setFineId(null);
             }
-            processor.process(record);
+            ConsumerAttempts.runChecked(() -> processor.process(record));
             log.info(String.format("Fine %s processed: %s", action, record));
         } catch (Exception e) {
             log.log(Level.SEVERE, String.format("Failed to process fine %s message: %s", action, message), e);

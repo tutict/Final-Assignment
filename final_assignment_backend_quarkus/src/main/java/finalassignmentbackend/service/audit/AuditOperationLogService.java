@@ -88,12 +88,10 @@ public class AuditOperationLogService {
         return auditOperationLogMapper.selectById(logId);
     }
 
-    @CacheResult(cacheName = "auditOperationLogCache")
     public List<AuditOperationLog> findAll() {
         return auditOperationLogMapper.selectList(null);
     }
 
-    @CacheResult(cacheName = "auditOperationLogCache")
     public List<AuditOperationLog> searchByModule(String module, int page, int size) {
         if (isBlank(module)) {
             return List.of();
@@ -105,7 +103,6 @@ public class AuditOperationLogService {
         return fetchFromDatabase(wrapper, page, size);
     }
 
-    @CacheResult(cacheName = "auditOperationLogCache")
     public List<AuditOperationLog> searchByOperationType(String type, int page, int size) {
         if (isBlank(type)) {
             return List.of();
@@ -117,7 +114,6 @@ public class AuditOperationLogService {
         return fetchFromDatabase(wrapper, page, size);
     }
 
-    @CacheResult(cacheName = "auditOperationLogCache")
     public List<AuditOperationLog> findByUserId(Long userId, int page, int size) {
         if (userId == null || userId <= 0) {
             return List.of();
@@ -129,7 +125,6 @@ public class AuditOperationLogService {
         return fetchFromDatabase(wrapper, page, size);
     }
 
-    @CacheResult(cacheName = "auditOperationLogCache")
     public List<AuditOperationLog> searchByOperationTimeRange(String startTime, String endTime, int page, int size) {
         validatePagination(page, size);
         LocalDateTime start = parseDateTime(startTime, "startTime");
@@ -143,7 +138,6 @@ public class AuditOperationLogService {
         return fetchFromDatabase(wrapper, page, size);
     }
 
-    @CacheResult(cacheName = "auditOperationLogCache")
     public List<AuditOperationLog> searchByUsername(String username, int page, int size) {
         if (isBlank(username)) {
             return List.of();
@@ -155,7 +149,6 @@ public class AuditOperationLogService {
         return fetchFromDatabase(wrapper, page, size);
     }
 
-    @CacheResult(cacheName = "auditOperationLogCache")
     public List<AuditOperationLog> searchByRequestUrl(String requestUrl, int page, int size) {
         if (isBlank(requestUrl)) {
             return List.of();
@@ -167,7 +160,6 @@ public class AuditOperationLogService {
         return fetchFromDatabase(wrapper, page, size);
     }
 
-    @CacheResult(cacheName = "auditOperationLogCache")
     public List<AuditOperationLog> searchByRequestMethod(String requestMethod, int page, int size) {
         if (isBlank(requestMethod)) {
             return List.of();
@@ -179,7 +171,6 @@ public class AuditOperationLogService {
         return fetchFromDatabase(wrapper, page, size);
     }
 
-    @CacheResult(cacheName = "auditOperationLogCache")
     public List<AuditOperationLog> searchByOperationResult(String operationResult, int page, int size) {
         if (isBlank(operationResult)) {
             return List.of();

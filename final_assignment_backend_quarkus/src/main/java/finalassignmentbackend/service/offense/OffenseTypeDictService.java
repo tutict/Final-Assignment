@@ -88,12 +88,10 @@ public class OffenseTypeDictService {
         return offenseTypeDictMapper.selectById(typeId);
     }
 
-    @CacheResult(cacheName = "offenseTypeDictCache")
     public List<OffenseTypeDict> findAll() {
         return offenseTypeDictMapper.selectList(null);
     }
 
-    @CacheResult(cacheName = "offenseTypeDictCache")
     public List<OffenseTypeDict> searchByOffenseCodePrefix(String offenseCode, int page, int size) {
         if (isBlank(offenseCode)) {
             return List.of();
@@ -104,7 +102,6 @@ public class OffenseTypeDictService {
         return fetchFromDatabase(wrapper, page, size);
     }
 
-    @CacheResult(cacheName = "offenseTypeDictCache")
     public List<OffenseTypeDict> searchByOffenseCodeFuzzy(String offenseCode, int page, int size) {
         if (isBlank(offenseCode)) {
             return List.of();
@@ -115,7 +112,6 @@ public class OffenseTypeDictService {
         return fetchFromDatabase(wrapper, page, size);
     }
 
-    @CacheResult(cacheName = "offenseTypeDictCache")
     public List<OffenseTypeDict> searchByOffenseNamePrefix(String offenseName, int page, int size) {
         if (isBlank(offenseName)) {
             return List.of();
@@ -126,7 +122,6 @@ public class OffenseTypeDictService {
         return fetchFromDatabase(wrapper, page, size);
     }
 
-    @CacheResult(cacheName = "offenseTypeDictCache")
     public List<OffenseTypeDict> searchByOffenseNameFuzzy(String offenseName, int page, int size) {
         if (isBlank(offenseName)) {
             return List.of();
@@ -137,7 +132,6 @@ public class OffenseTypeDictService {
         return fetchFromDatabase(wrapper, page, size);
     }
 
-    @CacheResult(cacheName = "offenseTypeDictCache")
     public List<OffenseTypeDict> searchByCategory(String category, int page, int size) {
         if (isBlank(category)) {
             return List.of();
@@ -148,7 +142,6 @@ public class OffenseTypeDictService {
         return fetchFromDatabase(wrapper, page, size);
     }
 
-    @CacheResult(cacheName = "offenseTypeDictCache")
     public List<OffenseTypeDict> searchBySeverityLevel(String severityLevel, int page, int size) {
         if (isBlank(severityLevel)) {
             return List.of();
@@ -159,7 +152,6 @@ public class OffenseTypeDictService {
         return fetchFromDatabase(wrapper, page, size);
     }
 
-    @CacheResult(cacheName = "offenseTypeDictCache")
     public List<OffenseTypeDict> searchByStatus(String status, int page, int size) {
         if (isBlank(status)) {
             return List.of();
@@ -170,7 +162,6 @@ public class OffenseTypeDictService {
         return fetchFromDatabase(wrapper, page, size);
     }
 
-    @CacheResult(cacheName = "offenseTypeDictCache")
     public List<OffenseTypeDict> searchByStandardFineAmountRange(double minAmount, double maxAmount, int page, int size) {
         validatePagination(page, size);
         if (minAmount > maxAmount) {
@@ -181,7 +172,6 @@ public class OffenseTypeDictService {
         return fetchFromDatabase(wrapper, page, size);
     }
 
-    @CacheResult(cacheName = "offenseTypeDictCache")
     public List<OffenseTypeDict> searchByDeductedPointsRange(int minPoints, int maxPoints, int page, int size) {
         validatePagination(page, size);
         if (minPoints > maxPoints) {

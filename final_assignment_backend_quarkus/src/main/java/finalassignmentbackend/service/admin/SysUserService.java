@@ -88,7 +88,6 @@ public class SysUserService {
         return sysUserMapper.selectById(userId);
     }
 
-    @CacheResult(cacheName = "sysUserCache")
     public List<SysUser> findAll() {
         return sysUserMapper.selectList(null);
     }
@@ -103,7 +102,6 @@ public class SysUserService {
         return sysUserMapper.selectOne(wrapper);
     }
 
-    @CacheResult(cacheName = "sysUserCache")
     public List<SysUser> searchByUsernamePrefix(String username, int page, int size) {
         if (isBlank(username)) {
             return List.of();
@@ -114,7 +112,6 @@ public class SysUserService {
         return fetchFromDatabase(wrapper, page, size);
     }
 
-    @CacheResult(cacheName = "sysUserCache")
     public List<SysUser> searchByUsernameFuzzy(String username, int page, int size) {
         if (isBlank(username)) {
             return List.of();
@@ -125,7 +122,6 @@ public class SysUserService {
         return fetchFromDatabase(wrapper, page, size);
     }
 
-    @CacheResult(cacheName = "sysUserCache")
     public List<SysUser> searchByRealNamePrefix(String realName, int page, int size) {
         if (isBlank(realName)) {
             return List.of();
@@ -136,7 +132,6 @@ public class SysUserService {
         return fetchFromDatabase(wrapper, page, size);
     }
 
-    @CacheResult(cacheName = "sysUserCache")
     public List<SysUser> searchByRealNameFuzzy(String realName, int page, int size) {
         if (isBlank(realName)) {
             return List.of();
@@ -147,7 +142,6 @@ public class SysUserService {
         return fetchFromDatabase(wrapper, page, size);
     }
 
-    @CacheResult(cacheName = "sysUserCache")
     public List<SysUser> searchByIdCardNumber(String idCardNumber, int page, int size) {
         if (isBlank(idCardNumber)) {
             return List.of();
@@ -158,7 +152,6 @@ public class SysUserService {
         return fetchFromDatabase(wrapper, page, size);
     }
 
-    @CacheResult(cacheName = "sysUserCache")
     public List<SysUser> searchByContactNumber(String contactNumber, int page, int size) {
         if (isBlank(contactNumber)) {
             return List.of();
@@ -169,7 +162,6 @@ public class SysUserService {
         return fetchFromDatabase(wrapper, page, size);
     }
 
-    @CacheResult(cacheName = "sysUserCache")
     public List<SysUser> findByStatus(String status, int page, int size) {
         if (isBlank(status)) {
             return List.of();
@@ -180,7 +172,6 @@ public class SysUserService {
         return fetchFromDatabase(wrapper, page, size);
     }
 
-    @CacheResult(cacheName = "sysUserCache")
     public List<SysUser> findByDepartment(String department, int page, int size) {
         if (isBlank(department)) {
             return List.of();
@@ -191,7 +182,6 @@ public class SysUserService {
         return fetchFromDatabase(wrapper, page, size);
     }
 
-    @CacheResult(cacheName = "sysUserCache")
     public List<SysUser> searchByDepartmentPrefix(String department, int page, int size) {
         if (isBlank(department)) {
             return List.of();
@@ -202,7 +192,6 @@ public class SysUserService {
         return fetchFromDatabase(wrapper, page, size);
     }
 
-    @CacheResult(cacheName = "sysUserCache")
     public List<SysUser> searchByEmployeeNumber(String employeeNumber, int page, int size) {
         if (isBlank(employeeNumber)) {
             return List.of();
@@ -213,7 +202,6 @@ public class SysUserService {
         return fetchFromDatabase(wrapper, page, size);
     }
 
-    @CacheResult(cacheName = "sysUserCache")
     public List<SysUser> searchByLastLoginTimeRange(String startTime, String endTime, int page, int size) {
         validatePagination(page, size);
         LocalDateTime start = parseDateTime(startTime, "startTime");

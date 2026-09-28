@@ -87,7 +87,6 @@ public class SysSettingsService {
         return sysSettingsMapper.selectById(settingId);
     }
 
-    @CacheResult(cacheName = "sysSettingsCache")
     public List<SysSettings> findAll() {
         return sysSettingsMapper.selectList(null);
     }
@@ -102,7 +101,6 @@ public class SysSettingsService {
         return sysSettingsMapper.selectOne(wrapper);
     }
 
-    @CacheResult(cacheName = "sysSettingsCache")
     public List<SysSettings> findByCategory(String category, int page, int size) {
         if (isBlank(category)) {
             return List.of();
@@ -114,7 +112,6 @@ public class SysSettingsService {
         return fetchFromDatabase(wrapper, page, size);
     }
 
-    @CacheResult(cacheName = "sysSettingsCache")
     public List<SysSettings> searchBySettingKeyPrefix(String settingKey, int page, int size) {
         if (isBlank(settingKey)) {
             return List.of();
@@ -126,7 +123,6 @@ public class SysSettingsService {
         return fetchFromDatabase(wrapper, page, size);
     }
 
-    @CacheResult(cacheName = "sysSettingsCache")
     public List<SysSettings> searchBySettingKeyFuzzy(String settingKey, int page, int size) {
         if (isBlank(settingKey)) {
             return List.of();
@@ -138,7 +134,6 @@ public class SysSettingsService {
         return fetchFromDatabase(wrapper, page, size);
     }
 
-    @CacheResult(cacheName = "sysSettingsCache")
     public List<SysSettings> searchBySettingType(String settingType, int page, int size) {
         if (isBlank(settingType)) {
             return List.of();
@@ -150,7 +145,6 @@ public class SysSettingsService {
         return fetchFromDatabase(wrapper, page, size);
     }
 
-    @CacheResult(cacheName = "sysSettingsCache")
     public List<SysSettings> searchByIsEditable(boolean isEditable, int page, int size) {
         validatePagination(page, size);
         QueryWrapper<SysSettings> wrapper = new QueryWrapper<>();
@@ -159,7 +153,6 @@ public class SysSettingsService {
         return fetchFromDatabase(wrapper, page, size);
     }
 
-    @CacheResult(cacheName = "sysSettingsCache")
     public List<SysSettings> searchByIsEncrypted(boolean isEncrypted, int page, int size) {
         validatePagination(page, size);
         QueryWrapper<SysSettings> wrapper = new QueryWrapper<>();

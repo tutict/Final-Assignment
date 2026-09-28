@@ -1,12 +1,12 @@
 package finalassignmentbackend.kafkaListener;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import finalassignmentbackend.reliability.ConsumerAttempts;
 import finalassignmentbackend.entity.DriverInformation;
 import finalassignmentbackend.service.driver.DriverInformationService;
 import io.smallrye.common.annotation.RunOnVirtualThread;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
-import jakarta.transaction.Transactional;
 import org.eclipse.microprofile.reactive.messaging.Incoming;
 
 import java.util.logging.Level;
@@ -29,7 +29,6 @@ public class DriverInformationKafkaListener {
 
     // 监听"driver_create"主题的消息，处理驾驶员信息创建
     @Incoming("driver_create")
-    @Transactional
     @RunOnVirtualThread
     public void onDriverCreateReceived(String message) {
         log.log(Level.INFO, "收到Kafka创建消息: {0}", message);
@@ -38,7 +37,6 @@ public class DriverInformationKafkaListener {
 
     // 监听"driver_update"主题的消息，处理驾驶员信息更新
     @Incoming("driver_update")
-    @Transactional
     @RunOnVirtualThread
     public void onDriverUpdateReceived(String message) {
         log.log(Level.INFO, "收到Kafka更新消息: {0}", message);
@@ -56,7 +54,7 @@ public class DriverInformationKafkaListener {
                 driverInformation.setDriverId(null);
             }
             // 执行消息处理逻辑
-            processor.process(driverInformation);
+            ConsumerAttempts.runChecked(() -> processor.process(driverInformation));
             log.info(String.format("驾驶员%s操作处理成功: %s", action, driverInformation));
         } catch (Exception e) {
             // 记录处理错误日志

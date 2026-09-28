@@ -1,12 +1,12 @@
 package finalassignmentbackend.kafkaListener;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import finalassignmentbackend.reliability.ConsumerAttempts;
 import finalassignmentbackend.entity.SysSettings;
 import finalassignmentbackend.service.admin.SysSettingsService;
 import io.smallrye.common.annotation.RunOnVirtualThread;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
-import jakarta.transaction.Transactional;
 import org.eclipse.microprofile.reactive.messaging.Incoming;
 
 import java.util.logging.Level;
@@ -25,7 +25,6 @@ public class SystemSettingsKafkaListener {
     ObjectMapper objectMapper;
 
     @Incoming("system_settings_create")
-    @Transactional
     @RunOnVirtualThread
     public void onSettingsCreateReceived(String message) {
         log.log(Level.INFO, "Received Kafka create message: {0}", message);
@@ -33,7 +32,6 @@ public class SystemSettingsKafkaListener {
     }
 
     @Incoming("system_settings_update")
-    @Transactional
     @RunOnVirtualThread
     public void onSettingsUpdateReceived(String message) {
         log.log(Level.INFO, "Received Kafka update message: {0}", message);
@@ -46,7 +44,7 @@ public class SystemSettingsKafkaListener {
             if ("create".equals(action)) {
                 record.setSettingId(null);
             }
-            processor.process(record);
+            ConsumerAttempts.runChecked(() -> processor.process(record));
             log.info(String.format("System settings %s processed: %s", action, record));
         } catch (Exception e) {
             log.log(Level.SEVERE, String.format("Failed to process system settings %s message: %s", action, message), e);

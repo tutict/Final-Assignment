@@ -6,6 +6,7 @@ import finalassignmentbackend.entity.AppealRecord;
 import finalassignmentbackend.entity.SysRequestHistory;
 import finalassignmentbackend.mapper.AppealRecordMapper;
 import finalassignmentbackend.mapper.SysRequestHistoryMapper;
+import finalassignmentbackend.reliability.HistoryReserve;
 import io.quarkus.cache.CacheInvalidate;
 import io.quarkus.cache.CacheResult;
 import io.quarkus.runtime.annotations.RegisterForReflection;
@@ -40,17 +41,9 @@ public class AppealManagementService {
         if (isBlank(idempotencyKey)) {
             throw new IllegalArgumentException("Idempotency key must not be blank");
         }
-        SysRequestHistory history = sysRequestHistoryMapper.selectByIdempotencyKey(idempotencyKey);
-        if (history != null) {
-            throw new RuntimeException("Duplicate appeal request detected");
-        }
-        SysRequestHistory newHistory = buildHistory(idempotencyKey);
-        sysRequestHistoryMapper.insert(newHistory);
-        newHistory.setBusinessStatus("SUCCESS");
-        newHistory.setBusinessId(appealRecord.getAppealId());
-        newHistory.setRequestParams("PENDING");
-        newHistory.setUpdatedAt(LocalDateTime.now());
-        sysRequestHistoryMapper.updateById(newHistory);
+        HistoryReserve.reserve(sysRequestHistoryMapper, idempotencyKey, "APPEAL_" + action.toUpperCase(),
+                HistoryReserve.sha256(appealRecord.getOffenseId() + "|" + appealRecord.getAppealNumber() + "|"
+                        + appealRecord.getAppealReason() + "|" + appealRecord.getAcceptanceStatus()));
     }
 
     @Transactional
@@ -107,7 +100,6 @@ public class AppealManagementService {
         return appealRecordMapper.selectById(appealId);
     }
 
-    @CacheResult(cacheName = "appealCache")
     @WsAction(service = "AppealManagementService", action = "findByOffenseId", roles = {"SUPER_ADMIN", "ADMIN", "APPEAL_REVIEWER"})
     public List<AppealRecord> findByOffenseId(Long offenseId, int page, int size) {
         validatePagination(page, size);
@@ -117,7 +109,6 @@ public class AppealManagementService {
         return fetchFromDatabase(wrapper, page, size);
     }
 
-    @CacheResult(cacheName = "appealCache")
     public List<AppealRecord> searchByAppealNumberPrefix(String appealNumber, int page, int size) {
         if (isBlank(appealNumber)) {
             return List.of();
@@ -129,7 +120,6 @@ public class AppealManagementService {
         return fetchFromDatabase(wrapper, page, size);
     }
 
-    @CacheResult(cacheName = "appealCache")
     public List<AppealRecord> searchByAppealNumberFuzzy(String appealNumber, int page, int size) {
         if (isBlank(appealNumber)) {
             return List.of();
@@ -141,7 +131,6 @@ public class AppealManagementService {
         return fetchFromDatabase(wrapper, page, size);
     }
 
-    @CacheResult(cacheName = "appealCache")
     public List<AppealRecord> searchByAppellantNamePrefix(String appellantName, int page, int size) {
         if (isBlank(appellantName)) {
             return List.of();
@@ -153,7 +142,6 @@ public class AppealManagementService {
         return fetchFromDatabase(wrapper, page, size);
     }
 
-    @CacheResult(cacheName = "appealCache")
     public List<AppealRecord> searchByAppellantNameFuzzy(String appellantName, int page, int size) {
         if (isBlank(appellantName)) {
             return List.of();
@@ -165,7 +153,6 @@ public class AppealManagementService {
         return fetchFromDatabase(wrapper, page, size);
     }
 
-    @CacheResult(cacheName = "appealCache")
     public List<AppealRecord> searchByAppellantIdCard(String appellantIdCard, int page, int size) {
         if (isBlank(appellantIdCard)) {
             return List.of();
@@ -177,7 +164,6 @@ public class AppealManagementService {
         return fetchFromDatabase(wrapper, page, size);
     }
 
-    @CacheResult(cacheName = "appealCache")
     public List<AppealRecord> searchByAcceptanceStatus(String acceptanceStatus, int page, int size) {
         if (isBlank(acceptanceStatus)) {
             return List.of();
@@ -189,7 +175,6 @@ public class AppealManagementService {
         return fetchFromDatabase(wrapper, page, size);
     }
 
-    @CacheResult(cacheName = "appealCache")
     public List<AppealRecord> searchByProcessStatus(String processStatus, int page, int size) {
         if (isBlank(processStatus)) {
             return List.of();
@@ -201,7 +186,6 @@ public class AppealManagementService {
         return fetchFromDatabase(wrapper, page, size);
     }
 
-    @CacheResult(cacheName = "appealCache")
     public List<AppealRecord> searchByAppealTimeRange(String startTime, String endTime, int page, int size) {
         validatePagination(page, size);
         LocalDateTime start = parseDateTime(startTime, "startTime");
@@ -215,7 +199,6 @@ public class AppealManagementService {
         return fetchFromDatabase(wrapper, page, size);
     }
 
-    @CacheResult(cacheName = "appealCache")
     public List<AppealRecord> searchByAcceptanceHandler(String acceptanceHandler, int page, int size) {
         if (isBlank(acceptanceHandler)) {
             return List.of();
@@ -242,7 +225,6 @@ public class AppealManagementService {
         }
         history.setBusinessStatus("SUCCESS");
         history.setBusinessId(appealId);
-        history.setRequestParams("DONE");
         history.setUpdatedAt(LocalDateTime.now());
         sysRequestHistoryMapper.updateById(history);
     }
@@ -259,7 +241,6 @@ public class AppealManagementService {
         sysRequestHistoryMapper.updateById(history);
     }
 
-    @CacheResult(cacheName = "appealCache")
     public List<AppealRecord> findByDriverId(Long driverId, int page, int size) {
         if (driverId == null || driverId <= 0) {
             return List.of();
@@ -271,7 +252,6 @@ public class AppealManagementService {
         return fetchFromDatabase(wrapper, page, size);
     }
 
-    @CacheResult(cacheName = "appealCache")
     public List<AppealRecord> findByCreatedBy(String createdBy, int page, int size) {
         if (isBlank(createdBy)) {
             return List.of();
@@ -326,6 +306,24 @@ public class AppealManagementService {
         }
         if (appealRecord.getOffenseId() == null) {
             throw new IllegalArgumentException("Offense ID is required");
+        }
+        if (appealRecord.getAppealNumber() == null || appealRecord.getAppealNumber().isBlank()) {
+            appealRecord.setAppealNumber("AP" + java.util.UUID.randomUUID().toString().replace("-", ""));
+        }
+        if (appealRecord.getAppealType() == null || appealRecord.getAppealType().isBlank()) {
+            appealRecord.setAppealType("Other");
+        }
+        if (appealRecord.getAcceptanceStatus() == null || appealRecord.getAcceptanceStatus().isBlank()) {
+            appealRecord.setAcceptanceStatus("Pending");
+        }
+        if (appealRecord.getProcessStatus() == null || appealRecord.getProcessStatus().isBlank()) {
+            appealRecord.setProcessStatus("Unprocessed");
+        }
+        if (appealRecord.getAppealTime() == null) {
+            appealRecord.setAppealTime(java.time.LocalDateTime.now());
+        }
+        if (appealRecord.getEvidenceUrls() != null && appealRecord.getEvidenceUrls().isBlank()) {
+            appealRecord.setEvidenceUrls(null);
         }
     }
 

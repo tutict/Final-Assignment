@@ -87,7 +87,6 @@ public class SysRolePermissionService {
         return sysRolePermissionMapper.selectById(relationId);
     }
 
-    @CacheResult(cacheName = "sysRolePermissionCache")
     public List<SysRolePermission> findAll(int page, int size) {
         validatePagination(page, size);
         Page<SysRolePermission> mpPage = new Page<>(Math.max(page, 1), Math.max(size, 1));
@@ -95,7 +94,6 @@ public class SysRolePermissionService {
         return mpPage.getRecords();
     }
 
-    @CacheResult(cacheName = "sysRolePermissionCache")
     public List<SysRolePermission> findByRoleId(Integer roleId, int page, int size) {
         if (roleId == null || roleId <= 0) {
             return List.of();
@@ -106,7 +104,6 @@ public class SysRolePermissionService {
         return fetchFromDatabase(wrapper, page, size);
     }
 
-    @CacheResult(cacheName = "sysRolePermissionCache")
     public List<SysRolePermission> findByPermissionId(Integer permissionId, int page, int size) {
         if (permissionId == null || permissionId <= 0) {
             return List.of();
@@ -117,7 +114,6 @@ public class SysRolePermissionService {
         return fetchFromDatabase(wrapper, page, size);
     }
 
-    @CacheResult(cacheName = "sysRolePermissionCache")
     public List<SysRolePermission> findByRoleIdAndPermissionId(Integer roleId, Integer permissionId, int page, int size) {
         if (roleId == null || roleId <= 0 || permissionId == null || permissionId <= 0) {
             return List.of();

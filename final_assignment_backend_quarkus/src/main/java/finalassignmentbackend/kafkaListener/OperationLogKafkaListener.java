@@ -1,12 +1,12 @@
 package finalassignmentbackend.kafkaListener;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import finalassignmentbackend.reliability.ConsumerAttempts;
 import finalassignmentbackend.entity.AuditOperationLog;
 import finalassignmentbackend.service.audit.AuditOperationLogService;
 import io.smallrye.common.annotation.RunOnVirtualThread;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
-import jakarta.transaction.Transactional;
 import org.eclipse.microprofile.reactive.messaging.Incoming;
 
 import java.util.logging.Level;
@@ -25,7 +25,6 @@ public class OperationLogKafkaListener {
     ObjectMapper objectMapper;
 
     @Incoming("operation_create")
-    @Transactional
     @RunOnVirtualThread
     public void onOperationLogCreateReceived(String message) {
         log.log(Level.INFO, "Received Kafka create message: {0}", message);
@@ -33,7 +32,6 @@ public class OperationLogKafkaListener {
     }
 
     @Incoming("operation_update")
-    @Transactional
     @RunOnVirtualThread
     public void onOperationLogUpdateReceived(String message) {
         log.log(Level.INFO, "Received Kafka update message: {0}", message);
@@ -46,7 +44,7 @@ public class OperationLogKafkaListener {
             if ("create".equals(action)) {
                 logRecord.setLogId(null);
             }
-            processor.process(logRecord);
+            ConsumerAttempts.runChecked(() -> processor.process(logRecord));
             log.info(String.format("Operation audit %s processed: %s", action, logRecord));
         } catch (Exception e) {
             log.log(Level.SEVERE, String.format("Failed to process operation audit %s message: %s", action, message), e);
