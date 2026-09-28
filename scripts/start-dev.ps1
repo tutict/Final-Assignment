@@ -7,7 +7,7 @@ $ErrorActionPreference = "Stop"
 #
 # Backends:
 #   spring  - finalAssignmentBackend      (main; external REST+WS 8080, internal REST 9080)
-#   go      - final_assignment_backend_go (Gin main app; REST 8080, DB cesi)
+#   go      - final_assignment_backend_go (Gin main app; REST 8080, DB traffic)
 #   quarkus - final_assignment_backend_quarkus (Gradle/Quarkus; external REST+WS 8080, internal REST 9080)
 #   cloud   - finalAssignmentCloud        (Spring Cloud microservices; gateway 8080)
 #   none    - skip the backend
@@ -538,7 +538,7 @@ function Select-Option {
 
 $BackendChoices = @(
     @{ Label = "Spring Boot (main, finalAssignmentBackend) - REST+WS 8080 / internal 9080"; Value = "spring" }
-    @{ Label = "Go / Gin (final_assignment_backend_go) - REST 8080 / DB cesi"; Value = "go" }
+    @{ Label = "Go / Gin (final_assignment_backend_go) - REST 8080 / DB traffic"; Value = "go" }
     @{ Label = "Quarkus (final_assignment_backend_quarkus) - REST+WS 8080 / internal 9080"; Value = "quarkus" }
     @{ Label = "Spring Cloud microservices (finalAssignmentCloud) - gateway 8080"; Value = "cloud" }
     @{ Label = "None (backend only if frontend selected)"; Value = "none" }
@@ -1101,7 +1101,7 @@ function Get-BackendListenPorts {
                 $raw = Get-EnvValue $name
                 if ($raw -match '^\d+$') { $cloudPorts += [int]$raw }
             }
-            foreach ($fallback in @(8081, 18082, 18083, 8084, 8085, 8086, 8087, 8088)) {
+            foreach ($fallback in @(8081, 18082, 18083, 8084, 18085, 18086, 18087, 18088, 8085, 8086, 8087, 8088)) {
                 if ($cloudPorts -notcontains $fallback) { $cloudPorts += $fallback }
             }
             return @($cloudPorts | Select-Object -Unique)
@@ -1290,7 +1290,7 @@ function New-QuarkusRunner {
     Write-Log "Using Gradle: $GradleCmd"
     # Reuse the JWT and datasource credentials the script already resolved for the
     # Spring backend. Quarkus reads these as QUARKUS_* env vars (SmallRye Config).
-    # The JDBC URL below hard-codes the "cesi" database (the Quarkus schema), but the
+    # The JDBC URL below points at the shared traffic database, but the
     # username/password come from SPRING_DATASOURCE_USERNAME / _PASSWORD (default root).
     $JwtSecret = Get-EnvValue "JWT_SECRET" "dev-jwt-secret-key-for-local-startup-please-change-1234567890"
     if (-not [string]::IsNullOrWhiteSpace($JwtSecret) -and [string]::IsNullOrWhiteSpace((Get-EnvValue "JWT_SECRET_KEY"))) {
@@ -1313,7 +1313,7 @@ function New-QuarkusRunner {
     #   - BACKEND_URL/BACKEND_PORT: the /api proxy target (the app's own REST server).
     #   - Datasource/Redis/Kafka/ES/JWT: with dev services and the RunDocker
     #     container auto-start disabled, these must come from the environment
-    #     (SmallRye Config). DB is "cesi" on the local MySQL; Redis/Kafka/ES are
+    #     (SmallRye Config). DB is "traffic" on the local MySQL; Redis/Kafka/ES are
     #     the dev-compose services, used only when they are actually up.
     Set-Content -LiteralPath $RunnerPath -Encoding ASCII -Value @(
         "@echo off",

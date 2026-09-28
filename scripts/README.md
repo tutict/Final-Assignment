@@ -25,8 +25,8 @@ The full startup flow:
 Backend choices:
 
 - `spring`  — Spring Boot (`finalAssignmentBackend`; external REST+WS 8080 / internal REST 9080 / DB `traffic`)
-- `go`      — Go / Gin (`final_assignment_backend_go`; REST 8080 / DB `cesi`)
-- `quarkus` — Quarkus (`final_assignment_backend_quarkus`; external REST+WS 8080 / internal REST 9080 / DB `cesi`)
+- `go`      — Go / Gin (`final_assignment_backend_go`; REST 8080 / DB `traffic`)
+- `quarkus` — Quarkus (`final_assignment_backend_quarkus`; external REST+WS 8080 / internal REST 9080 / DB `traffic`)
 - `cloud`   — Spring Cloud microservices (`finalAssignmentCloud`; gateway 8080)
 
 `cloud` starts the full Spring Cloud chain, not just the gateway:
@@ -48,7 +48,7 @@ Then run k6 against the gateway:
 powershell -ExecutionPolicy Bypass -File scripts\performance\run-load-tests.ps1 -Backend cloud -Duration 20s
 ```
 
-Set `CLOUD_INCLUDE_AI=true` (or `scripts\start-cloud-backend.ps1 -IncludeAi`) to also start `finalassignmentcloud-ai` on 8086. The module is in the Maven reactor; the jar is large because of GraalPy. Chat defaults to local Ollama **llama3.2** (`OLLAMA_CHAT_MODEL`). Set `CLOUD_USE_NACOS=true` to register services with the Nacos container from `finalAssignmentCloud/compose.yaml`.
+Set `CLOUD_INCLUDE_AI=true` (or `scripts\start-cloud-backend.ps1 -IncludeAi`) to also start `finalassignmentcloud-ai` on 18086. The module is in the Maven reactor; the jar is large because of GraalPy. Chat defaults to local Ollama **llama3.2** (`OLLAMA_CHAT_MODEL`). Set `CLOUD_USE_NACOS=true` to register services with the Nacos container from `finalAssignmentCloud/compose.yaml`.
 
 - `none`    — no backend
 

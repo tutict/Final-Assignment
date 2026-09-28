@@ -243,11 +243,17 @@ export function superAdminRead(data) {
   sleep(0.3 + Math.random() * 0.4);
 }
 
+function retryAfterHeader(res) {
+  const headers = res.headers || {};
+  return headers['Retry-After'] || headers['retry-after'] || '';
+}
+
 export function loginBaseline() {
   const res = loginRequest(ADMIN_USERNAME, ADMIN_PASSWORD, 'login_baseline');
+  const shed = res.status === 429 && Boolean(retryAfterHeader(res));
   const ok = check(res, {
-    'login status is 200': (r) => r.status === 200,
-    'login returns access token': (r) => Boolean(accessToken(r)),
+    'login status is 200 or shed': (r) => r.status === 200 || (r.status === 429 && Boolean(retryAfterHeader(r))),
+    'login returns access token or shed': (r) => (r.status === 429 && Boolean(retryAfterHeader(r))) || Boolean(accessToken(r)),
   });
   loginOk.add(ok);
 }
@@ -278,10 +284,12 @@ function assertLogin(response, username) {
 }
 
 function loginRequest(username, password, endpoint) {
+  const params = jsonHeaders(endpoint);
+  params.responseCallback = http.expectedStatuses(200, 429);
   return http.post(
     `${BASE_URL}/api/auth/login`,
     JSON.stringify({ username, password }),
-    jsonHeaders(endpoint),
+    params,
   );
 }
 

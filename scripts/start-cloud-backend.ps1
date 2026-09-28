@@ -131,10 +131,10 @@ Set-EnvDefault "CLOUD_AUTH_PORT" "8081" | Out-Null
 Set-EnvDefault "CLOUD_USER_PORT" "18082" | Out-Null
 Set-EnvDefault "CLOUD_TRAFFIC_PORT" "18083" | Out-Null
 Set-EnvDefault "CLOUD_AUDIT_PORT" "8084" | Out-Null
-Set-EnvDefault "CLOUD_SYSTEM_PORT" "8085" | Out-Null
-Set-EnvDefault "CLOUD_AI_PORT" "8086" | Out-Null
-Set-EnvDefault "CLOUD_SEARCH_PORT" "8087" | Out-Null
-Set-EnvDefault "CLOUD_RAG_PORT" "8088" | Out-Null
+Set-EnvDefault "CLOUD_SYSTEM_PORT" "18085" | Out-Null
+Set-EnvDefault "CLOUD_AI_PORT" "18086" | Out-Null
+Set-EnvDefault "CLOUD_SEARCH_PORT" "18087" | Out-Null
+Set-EnvDefault "CLOUD_RAG_PORT" "18088" | Out-Null
 if ($GatewayPort -gt 0) {
     [Environment]::SetEnvironmentVariable("CLOUD_GATEWAY_PORT", [string]$GatewayPort, "Process")
 } else {

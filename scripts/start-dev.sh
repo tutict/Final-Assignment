@@ -504,10 +504,10 @@ backend_listen_ports() {
       printf '%s\n' "${CLOUD_USER_PORT:-18082}"
       printf '%s\n' "${CLOUD_TRAFFIC_PORT:-18083}"
       printf '%s\n' "${CLOUD_AUDIT_PORT:-8084}"
-      printf '%s\n' "${CLOUD_SYSTEM_PORT:-8085}"
-      printf '%s\n' "${CLOUD_AI_PORT:-8086}"
-      printf '%s\n' "${CLOUD_SEARCH_PORT:-8087}"
-      printf '%s\n' "${CLOUD_RAG_PORT:-8088}"
+      printf '%s\n' "${CLOUD_SYSTEM_PORT:-18085}"
+      printf '%s\n' "${CLOUD_AI_PORT:-18086}"
+      printf '%s\n' "${CLOUD_SEARCH_PORT:-18087}"
+      printf '%s\n' "${CLOUD_RAG_PORT:-18088}"
       ;;
   esac
 }
