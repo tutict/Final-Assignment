@@ -6,6 +6,7 @@ import com.tutict.finalassignmentbackend.ai.prompt.AiAgentRoleResolver;
 import com.tutict.finalassignmentbackend.ai.provider.AiMessage;
 import com.tutict.finalassignmentbackend.ai.provider.AiProviderRegistry;
 import com.tutict.finalassignmentbackend.model.ai.ChatActionResponse;
+import com.tutict.finalassignmentbackend.reliability.ModelCallBulkhead;
 import org.junit.jupiter.api.Test;
 import reactor.core.publisher.Mono;
 
@@ -80,12 +81,41 @@ class ChatAgentTest {
         assertThat(response.isNeedConfirm()).isFalse();
     }
 
+
+    @Test
+    void chatWithActionsDegradesImmediatelyWhenModelBulkheadIsFull() {
+        AiProviderRegistry registry = mock(AiProviderRegistry.class);
+        ChatAgent full = new ChatAgent(
+                null,
+                registry,
+                mock(AIChatSearchService.class),
+                roleResolver(),
+                constraintService(),
+                new ChatActionRuleEngine(),
+                ModelCallBulkhead.exhausted());
+
+        ChatActionResponse response = full.chatWithActions("open appeal page", null, false);
+
+        assertThat(response.isFallback()).isTrue();
+        assertThat(response.getAnswer()).contains("暂时不可用");
+        assertThat(response.getActions()).isEmpty();
+        verifyNoInteractions(registry);
+    }
+
     private static ChatAgent agent(AiProviderRegistry registry) {
-        AiAgentRoleResolver roleResolver = mock(AiAgentRoleResolver.class);
-        AgentConstraintService constraintService = mock(AgentConstraintService.class);
         AIChatSearchService searchService = mock(AIChatSearchService.class);
+        return new ChatAgent(null, registry, searchService, roleResolver(), constraintService(), new ChatActionRuleEngine());
+    }
+
+    private static AiAgentRoleResolver roleResolver() {
+        AiAgentRoleResolver roleResolver = mock(AiAgentRoleResolver.class);
         when(roleResolver.resolve(anyMap())).thenReturn(AiAgentRole.DRIVER);
+        return roleResolver;
+    }
+
+    private static AgentConstraintService constraintService() {
+        AgentConstraintService constraintService = mock(AgentConstraintService.class);
         when(constraintService.constraintsFor(AiAgentRole.DRIVER)).thenReturn("# test policy");
-        return new ChatAgent(null, registry, searchService, roleResolver, constraintService, new ChatActionRuleEngine());
+        return constraintService;
     }
 }

@@ -396,8 +396,8 @@ class AppealRecordApplicationServiceTest {
         AppealRecord returned = service.updateAppeal(incoming);
 
         assertThat(returned).isSameAs(existing);
-        verify(idempotencyService).checkAndInsert("key-noop");
-        verify(idempotencyService).markPendingSuccess("key-noop", 10L);
+        verify(idempotencyService).checkAndInsert(org.mockito.ArgumentMatchers.eq("key-noop"), org.mockito.ArgumentMatchers.anyString());
+        verify(idempotencyService, never()).markPendingSuccess(org.mockito.ArgumentMatchers.anyString(), org.mockito.ArgumentMatchers.any());
         verify(eventPublisher, never()).publishAppealRecordAfterCommit(
                 org.mockito.ArgumentMatchers.anyString(),
                 org.mockito.ArgumentMatchers.anyString(),

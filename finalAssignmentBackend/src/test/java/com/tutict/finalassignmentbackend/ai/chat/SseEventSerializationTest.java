@@ -37,6 +37,7 @@ class SseEventSerializationTest {
         assertThat(sse.event()).isEqualTo("error");
         assertThat(data.get("type").asText()).isEqualTo("error");
         assertThat(data.get("payload").get("message").asText()).isEqualTo("boom");
+        assertThat(data.get("payload").get("isFallback").asBoolean()).isTrue();
     }
 
     @Test

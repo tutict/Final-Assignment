@@ -1,5 +1,8 @@
 package com.tutict.finalassignmentbackend.controller.business;
 
+import com.tutict.finalassignmentbackend.reliability.IdempotencyConflictException;
+import com.tutict.finalassignmentbackend.reliability.IdempotencyInProgressException;
+import com.tutict.finalassignmentbackend.reliability.IdempotencyReplayException;
 import com.tutict.finalassignmentbackend.config.security.SecurityRoleUtils;
 import com.tutict.finalassignmentbackend.dto.response.ApiResponse;
 import com.tutict.finalassignmentbackend.dto.response.UserProfileResponse;
@@ -77,6 +80,8 @@ public class DeductionInformationController {
                 deductionRecordService.markHistorySuccess(idempotencyKey, saved.getDeductionId());
             }
             return ResponseEntity.status(HttpStatus.CREATED).body(saved);
+        } catch (IdempotencyReplayException | IdempotencyConflictException | IdempotencyInProgressException ex) {
+            throw ex;
         } catch (Exception ex) {
             if (useKey) {
                 deductionRecordService.markHistoryFailure(idempotencyKey, ex.getMessage());
@@ -106,6 +111,8 @@ public class DeductionInformationController {
                 deductionRecordService.markHistorySuccess(idempotencyKey, updated.getDeductionId());
             }
             return ResponseEntity.ok(updated);
+        } catch (IdempotencyReplayException | IdempotencyConflictException | IdempotencyInProgressException ex) {
+            throw ex;
         } catch (Exception ex) {
             if (useKey) {
                 deductionRecordService.markHistoryFailure(idempotencyKey, ex.getMessage());
@@ -124,6 +131,8 @@ public class DeductionInformationController {
         try {
             deductionRecordService.deleteDeductionRecord(deductionId);
             return ResponseEntity.noContent().build();
+        } catch (IdempotencyReplayException | IdempotencyConflictException | IdempotencyInProgressException ex) {
+            throw ex;
         } catch (Exception ex) {
             LOG.log(Level.WARNING, "Delete deduction failed", ex);
             if (ex instanceof RuntimeException) {
@@ -142,6 +151,8 @@ public class DeductionInformationController {
                 throw new com.tutict.finalassignmentbackend.exception.EntityNotFoundException("Deduction not found: " + deductionId);
             }
             return ResponseEntity.ok(enrich(record));
+        } catch (IdempotencyReplayException | IdempotencyConflictException | IdempotencyInProgressException ex) {
+            throw ex;
         } catch (Exception ex) {
             LOG.log(Level.WARNING, "Get deduction failed", ex);
             if (ex instanceof RuntimeException) {
@@ -156,6 +167,8 @@ public class DeductionInformationController {
     public ResponseEntity<List<DeductionRecord>> list() {
         try {
             return ResponseEntity.ok(enrich(deductionRecordService.findAll()));
+        } catch (IdempotencyReplayException | IdempotencyConflictException | IdempotencyInProgressException ex) {
+            throw ex;
         } catch (Exception ex) {
             LOG.log(Level.WARNING, "List deductions failed", ex);
             if (ex instanceof RuntimeException) {
@@ -177,6 +190,8 @@ public class DeductionInformationController {
                 throw new org.springframework.security.access.AccessDeniedException("Forbidden");
             }
             return ResponseEntity.ok(enrich(deductionRecordService.findByDriverId(driverId, page, size)));
+        } catch (IdempotencyReplayException | IdempotencyConflictException | IdempotencyInProgressException ex) {
+            throw ex;
         } catch (Exception ex) {
             LOG.log(Level.WARNING, "List deductions by driver failed", ex);
             if (ex instanceof RuntimeException) {
@@ -193,6 +208,8 @@ public class DeductionInformationController {
                                                            @RequestParam(defaultValue = "20") int size) {
         try {
             return ResponseEntity.ok(enrich(deductionRecordService.findByOffenseId(offenseId, page, size)));
+        } catch (IdempotencyReplayException | IdempotencyConflictException | IdempotencyInProgressException ex) {
+            throw ex;
         } catch (Exception ex) {
             LOG.log(Level.WARNING, "List deductions by offense failed", ex);
             if (ex instanceof RuntimeException) {
@@ -213,6 +230,8 @@ public class DeductionInformationController {
                     ? deductionRecordService.searchByHandlerFuzzy(handler, page, size)
                     : deductionRecordService.searchByHandlerPrefix(handler, page, size);
             return ResponseEntity.ok(enrich(result));
+        } catch (IdempotencyReplayException | IdempotencyConflictException | IdempotencyInProgressException ex) {
+            throw ex;
         } catch (Exception ex) {
             LOG.log(Level.WARNING, "Search deduction by handler failed", ex);
             if (ex instanceof RuntimeException) {
@@ -229,6 +248,8 @@ public class DeductionInformationController {
                                                                 @RequestParam(defaultValue = "20") int size) {
         try {
             return ResponseEntity.ok(enrich(deductionRecordService.searchByStatus(status, page, size)));
+        } catch (IdempotencyReplayException | IdempotencyConflictException | IdempotencyInProgressException ex) {
+            throw ex;
         } catch (Exception ex) {
             LOG.log(Level.WARNING, "Search deduction by status failed", ex);
             if (ex instanceof RuntimeException) {
@@ -246,6 +267,8 @@ public class DeductionInformationController {
                                                                    @RequestParam(defaultValue = "20") int size) {
         try {
             return ResponseEntity.ok(enrich(deductionRecordService.searchByDeductionTimeRange(startTime, endTime, page, size)));
+        } catch (IdempotencyReplayException | IdempotencyConflictException | IdempotencyInProgressException ex) {
+            throw ex;
         } catch (Exception ex) {
             LOG.log(Level.WARNING, "Search deduction by time range failed", ex);
             if (ex instanceof RuntimeException) {

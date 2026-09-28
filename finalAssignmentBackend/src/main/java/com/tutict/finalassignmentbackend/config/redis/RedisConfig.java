@@ -4,6 +4,7 @@ import com.fasterxml.jackson.annotation.JsonTypeInfo;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.SerializationFeature;
 import com.fasterxml.jackson.databind.jsontype.impl.LaissezFaireSubTypeValidator;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.context.annotation.Bean;
@@ -41,8 +42,11 @@ public class RedisConfig {
     @Value("${spring.data.redis.database:0}")
     private int redisDatabase;
 
-    @Value("${spring.data.redis.timeout:10s}")
-    private Duration redisCommandTimeout;
+    @Value("${app.redis.cache-command-timeout:300ms}")
+    private Duration cacheCommandTimeout;
+
+    @Value("${app.redis.blacklist-command-timeout:200ms}")
+    private Duration blacklistCommandTimeout;
 
     @Bean
     public RedisTemplate<String, Object> redisTemplate(RedisConnectionFactory factory) {
@@ -87,6 +91,7 @@ public class RedisConfig {
     }
 
     @Bean
+    @Primary
     public RedisConnectionFactory redisConnectionFactory() {
         RedisStandaloneConfiguration redisConfig = new RedisStandaloneConfiguration();
         redisConfig.setHostName(redisHost);
@@ -94,13 +99,42 @@ public class RedisConfig {
         redisConfig.setDatabase(redisDatabase);
 
         LettuceClientConfiguration clientConfig = LettuceClientConfiguration.builder()
-                .commandTimeout(redisCommandTimeout)
+                .commandTimeout(cacheCommandTimeout == null ? RedisCommandTimeouts.CACHE : cacheCommandTimeout)
                 .build();
 
         LettuceConnectionFactory factory = new LettuceConnectionFactory(redisConfig, clientConfig);
-        factory.setShareNativeConnection(false);
+        factory.setShareNativeConnection(true);
         factory.afterPropertiesSet();
         return factory;
+    }
+
+    @Bean(name = "blacklistRedisConnectionFactory")
+    public RedisConnectionFactory blacklistRedisConnectionFactory() {
+        RedisStandaloneConfiguration redisConfig = new RedisStandaloneConfiguration();
+        redisConfig.setHostName(redisHost);
+        redisConfig.setPort(redisPort);
+        redisConfig.setDatabase(redisDatabase);
+        LettuceClientConfiguration clientConfig = LettuceClientConfiguration.builder()
+                .commandTimeout(blacklistCommandTimeout == null ? RedisCommandTimeouts.BLACKLIST : blacklistCommandTimeout)
+                .build();
+        LettuceConnectionFactory factory = new LettuceConnectionFactory(redisConfig, clientConfig);
+        factory.setShareNativeConnection(true);
+        factory.afterPropertiesSet();
+        return factory;
+    }
+
+    @Bean(name = "blacklistRedisTemplate")
+    public RedisTemplate<String, Object> blacklistRedisTemplate(
+            @Qualifier("blacklistRedisConnectionFactory") RedisConnectionFactory factory) {
+        RedisSerializer<Object> valueSerializer = cacheValueSerializer();
+        RedisTemplate<String, Object> template = new RedisTemplate<>();
+        template.setConnectionFactory(factory);
+        template.setKeySerializer(new StringRedisSerializer());
+        template.setHashKeySerializer(new StringRedisSerializer());
+        template.setValueSerializer(valueSerializer);
+        template.setHashValueSerializer(valueSerializer);
+        template.afterPropertiesSet();
+        return template;
     }
 
     private RedisSerializer<Object> cacheValueSerializer() {

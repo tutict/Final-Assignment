@@ -27,7 +27,7 @@ ai:
     chat-model: ${OLLAMA_MODEL:${OLLAMA_CHAT_MODEL:llama3.2}}
     slots: ${OLLAMA_SLOTS:2}
     max-queue: ${OLLAMA_MAX_QUEUE:32}
-    queue-timeout: ${OLLAMA_QUEUE_TIMEOUT:PT90S}
+    queue-timeout: ${OLLAMA_QUEUE_TIMEOUT:PT1S}
   openai-compatible:
     enabled: ${OPENAI_COMPAT_ENABLED:false}
     base-url: ${OPENAI_COMPAT_BASE_URL:}
@@ -35,7 +35,7 @@ ai:
     chat-model: ${OPENAI_COMPAT_CHAT_MODEL:}
     slots: ${OPENAI_COMPAT_SLOTS:16}
     max-queue: ${OPENAI_COMPAT_MAX_QUEUE:64}
-    queue-timeout: ${OPENAI_COMPAT_QUEUE_TIMEOUT:PT90S}
+    queue-timeout: ${OPENAI_COMPAT_QUEUE_TIMEOUT:PT1S}
     max-rate-limit-retries: ${OPENAI_COMPAT_MAX_RATE_LIMIT_RETRIES:3}
 
 rag:
@@ -122,13 +122,25 @@ spring:
     hikari:
       pool-name: final-assignment-hikari
       register-mbeans: true
+      connection-timeout: ${DB_CONNECTION_TIMEOUT_MS:250}
+      data-source-properties:
+        sessionVariables: max_execution_time=3000
+  data:
+    redis:
+      timeout: ${REDIS_CACHE_TIMEOUT:300ms}
+  elasticsearch:
+    connection-timeout: ${ELASTICSEARCH_CONNECT_TIMEOUT:800ms}
+    socket-timeout: ${ELASTICSEARCH_SOCKET_TIMEOUT:800ms}
   kafka:
     producer:
       acks: all
       enable-idempotence: true
-      retries: 2147483647
+      retries: ${KAFKA_PRODUCER_RETRIES:3}
       properties:
         max.in.flight.requests.per.connection: 5
+        delivery.timeout.ms: ${KAFKA_DELIVERY_TIMEOUT_MS:10000}
+        request.timeout.ms: ${KAFKA_REQUEST_TIMEOUT_MS:3000}
+        max.block.ms: ${KAFKA_MAX_BLOCK_MS:500}
 
 backend:
   url: ${BACKEND_URL}
@@ -138,7 +150,15 @@ app:
     max-size: ${APP_PAGINATION_MAX_SIZE:100}
   mybatis:
     slow-query-threshold-ms: ${APP_SLOW_QUERY_THRESHOLD_MS:300}
+  redis:
+    cache-command-timeout: ${REDIS_CACHE_TIMEOUT:300ms}
+    blacklist-command-timeout: ${REDIS_BLACKLIST_TIMEOUT:200ms}
+  reliability:
+    load-shed: ${RELIABILITY_LOAD_SHED:true}
+    backup-scheduler: ${RELIABILITY_BACKUP_SCHEDULER:false}
   security:
+    token-blacklist:
+      fail-open: ${TOKEN_BLACKLIST_FAIL_OPEN:false}
     login:
       window: ${LOGIN_RATE_LIMIT_WINDOW:PT1M}
       lock-duration: ${LOGIN_LOCK_DURATION:PT2M}
@@ -262,10 +282,10 @@ management:
   endpoints:
     web:
       exposure:
-        include: health,metrics,prometheus
+        include: health,metrics,prometheus,ledgerReconcile
   endpoint:
     health:
-      show-details: when-authorized
+      show-details: never
   metrics:
     enable:
       hikaricp: true
@@ -273,3 +293,4 @@ management:
 logging:
   pattern:
     console: "%d{yyyy-MM-dd HH:mm:ss} [%thread] [%X{traceId}] %-5level %logger{36} - %msg%n"
+

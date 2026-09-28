@@ -17,7 +17,7 @@ import org.springframework.data.elasticsearch.annotations.MultiField;
 import org.springframework.data.elasticsearch.annotations.Setting;
 
 @Data
-@Document(indexName = "payment_record")
+@Document(createIndex = false, indexName = "payment_record")
 @Setting(settingPath = "elasticsearch/payment_record-settings.json")
 public class PaymentRecordDocument implements Serializable {
 

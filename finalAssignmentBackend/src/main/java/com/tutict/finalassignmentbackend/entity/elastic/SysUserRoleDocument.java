@@ -15,7 +15,7 @@ import org.springframework.data.elasticsearch.annotations.MultiField;
 import org.springframework.data.elasticsearch.annotations.Setting;
 
 @Data
-@Document(indexName = "sys_user_role")
+@Document(createIndex = false, indexName = "sys_user_role")
 @Setting(settingPath = "elasticsearch/sys_user_role-settings.json")
 public class SysUserRoleDocument implements Serializable {
 

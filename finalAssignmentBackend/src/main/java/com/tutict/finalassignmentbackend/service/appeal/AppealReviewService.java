@@ -9,6 +9,8 @@ import com.tutict.finalassignmentbackend.entity.system.SysRequestHistory;
 import com.tutict.finalassignmentbackend.entity.elastic.AppealReviewDocument;
 import com.tutict.finalassignmentbackend.mapper.appeal.AppealReviewMapper;
 import com.tutict.finalassignmentbackend.mapper.system.SysRequestHistoryMapper;
+import com.tutict.finalassignmentbackend.reliability.LedgerBodyFingerprint;
+import com.tutict.finalassignmentbackend.reliability.LedgerHistoryReserve;
 import com.tutict.finalassignmentbackend.repository.AppealReviewSearchRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.cache.annotation.CacheEvict;
@@ -39,18 +41,21 @@ public class AppealReviewService {
     private final AppealReviewSearchRepository appealReviewSearchRepository;
     private final KafkaTemplate<String, String> kafkaTemplate;
     private final ObjectMapper objectMapper;
+    private final LedgerHistoryReserve ledgerHistoryReserve;
 
     @Autowired
     public AppealReviewService(AppealReviewMapper appealReviewMapper,
                                SysRequestHistoryMapper sysRequestHistoryMapper,
                                AppealReviewSearchRepository appealReviewSearchRepository,
                                KafkaTemplate<String, String> kafkaTemplate,
-                               ObjectMapper objectMapper) {
+                               ObjectMapper objectMapper,
+                               LedgerHistoryReserve ledgerHistoryReserve) {
         this.appealReviewMapper = appealReviewMapper;
         this.sysRequestHistoryMapper = sysRequestHistoryMapper;
         this.appealReviewSearchRepository = appealReviewSearchRepository;
         this.kafkaTemplate = kafkaTemplate;
         this.objectMapper = objectMapper;
+        this.ledgerHistoryReserve = ledgerHistoryReserve;
     }
 
     @Transactional
@@ -58,23 +63,16 @@ public class AppealReviewService {
     @WsAction(service = "AppealReviewService", action = "checkAndInsertIdempotency", roles = {"SUPER_ADMIN", "ADMIN", "APPEAL_REVIEWER"})
     public void checkAndInsertIdempotency(String idempotencyKey, AppealReview appealReview, String action) {
         Objects.requireNonNull(appealReview, "AppealReview must not be null");
-        if (sysRequestHistoryMapper.selectByIdempotencyKey(idempotencyKey) != null) {
-            throw new RuntimeException("Duplicate appeal review request detected");
+        String fingerprint = LedgerBodyFingerprint.sha256(String.join("|",
+                String.valueOf(appealReview.getAppealId()),
+                String.valueOf(appealReview.getReviewResult()),
+                String.valueOf(appealReview.getReviewOpinion())));
+        ledgerHistoryReserve.reserve(idempotencyKey, "APPEAL_REVIEW_" + action, "POST", "/api/appeals/reviews", fingerprint);
+        try {
+            sendKafkaMessage("appeal_review_" + action, idempotencyKey, appealReview);
+        } catch (RuntimeException ex) {
+            log.log(Level.WARNING, "Appeal review Kafka publish failed after idempotency reserve", ex);
         }
-        SysRequestHistory history = new SysRequestHistory();
-        history.setIdempotencyKey(idempotencyKey);
-        history.setBusinessStatus("PROCESSING");
-        history.setCreatedAt(LocalDateTime.now());
-        history.setUpdatedAt(LocalDateTime.now());
-        sysRequestHistoryMapper.insert(history);
-
-        sendKafkaMessage("appeal_review_" + action, idempotencyKey, appealReview);
-
-        history.setBusinessStatus("SUCCESS");
-        history.setBusinessId(appealReview.getReviewId());
-        history.setRequestParams("PENDING");
-        history.setUpdatedAt(LocalDateTime.now());
-        sysRequestHistoryMapper.updateById(history);
     }
 
     @Transactional
@@ -212,7 +210,9 @@ public class AppealReviewService {
         }
         history.setBusinessStatus("SUCCESS");
         history.setBusinessId(reviewId);
-        history.setRequestParams("DONE");
+        if (history.getRequestParams() == null || !history.getRequestParams().startsWith("sha256:")) {
+            history.setRequestParams("DONE");
+        }
         history.setUpdatedAt(LocalDateTime.now());
         sysRequestHistoryMapper.updateById(history);
     }
@@ -221,6 +221,9 @@ public class AppealReviewService {
         SysRequestHistory history = sysRequestHistoryMapper.selectByIdempotencyKey(idempotencyKey);
         if (history == null) {
             log.log(Level.WARNING, "Cannot mark failure for missing idempotency key {0}", idempotencyKey);
+            return;
+        }
+        if ("SUCCESS".equalsIgnoreCase(history.getBusinessStatus())) {
             return;
         }
         history.setBusinessStatus("FAILED");

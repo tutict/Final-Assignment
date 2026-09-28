@@ -50,7 +50,7 @@ public class OpenAiCompatibleEmbeddingProvider implements EmbeddingProvider {
         this.aiProviderProperties = aiProviderProperties;
         this.objectMapper = objectMapper;
         this.httpClient = HttpClient.newBuilder()
-                .connectTimeout(aiProviderProperties.getProvider().getTimeout())
+                .connectTimeout(Duration.ofSeconds(1))
                 .build();
         this.slotLimiter = slotLimiter == null ? null : slotLimiter.getIfAvailable();
     }

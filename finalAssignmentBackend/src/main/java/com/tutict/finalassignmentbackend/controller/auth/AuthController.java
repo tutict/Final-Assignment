@@ -111,7 +111,7 @@ public class AuthController {
                 LOG.log(Level.INFO, "Login succeeded for username: {0}", loginRequest.getUsername());
                 return ResponseEntity.ok(result);
             } catch (Exception ex) {
-                loginAttemptGuard.recordFailureAndDelay(decision);
+                loginAttemptGuard.recordFailure(decision);
                 String usernameForLog = loginRequest == null ? "<null>" : loginRequest.getUsername();
                 LOG.log(Level.SEVERE, "Login failed for username: {0}, error: {1}",
                         new Object[]{usernameForLog, ex.getClass().getSimpleName()});

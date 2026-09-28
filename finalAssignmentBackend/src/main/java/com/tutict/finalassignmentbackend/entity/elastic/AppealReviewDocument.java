@@ -16,7 +16,7 @@ import org.springframework.data.elasticsearch.annotations.MultiField;
 import org.springframework.data.elasticsearch.annotations.Setting;
 
 @Data
-@Document(indexName = "appeal_review")
+@Document(createIndex = false, indexName = "appeal_review")
 @Setting(settingPath = "elasticsearch/appeal_review-settings.json")
 public class AppealReviewDocument implements Serializable {
 

@@ -12,6 +12,7 @@ import com.tutict.finalassignmentbackend.ai.provider.AiToken;
 import com.tutict.finalassignmentbackend.ai.provider.NoopAiProvider;
 import com.tutict.finalassignmentbackend.ai.provider.ProviderHealth;
 import com.tutict.finalassignmentbackend.dto.response.ApiResponse;
+import com.tutict.finalassignmentbackend.reliability.ModelCallBulkhead;
 import com.tutict.finalassignmentbackend.service.ai.ChatAgent;
 import org.junit.jupiter.api.Test;
 import org.springframework.http.ResponseEntity;
@@ -184,6 +185,66 @@ class AiChatControllerStreamingTest {
         AiChatService chatService = new AiChatService(streamService);
         StreamEventWriter writer = new StreamEventWriter(objectMapper);
         return new AiChatController(chatService, writer, mock(ChatAgent.class), enabled);
+    }
+
+    @Test
+    void streamDegradesImmediatelyWhenModelBulkheadIsFull() {
+        AtomicBoolean called = new AtomicBoolean(false);
+        AiProvider provider = new AiProvider() {
+            @Override
+            public String providerName() {
+                return "primary";
+            }
+
+            @Override
+            public boolean supportsStreaming() {
+                return true;
+            }
+
+            @Override
+            public Flux<AiToken> stream(AiChatPrompt prompt, AiGenerationOptions options) {
+                called.set(true);
+                return Flux.just(new AiToken("should-not-run", true, Map.of()));
+            }
+
+            @Override
+            public Mono<AiMessage> complete(AiChatPrompt prompt, AiGenerationOptions options) {
+                called.set(true);
+                return Mono.just(new AiMessage("should-not-run", Map.of()));
+            }
+
+            @Override
+            public Mono<ProviderHealth> health() {
+                return Mono.just(ProviderHealth.up("primary"));
+            }
+        };
+        ChatStreamService gated = new ChatStreamService(
+                registry(List.of(provider), "primary", "noop"),
+                Duration.ofSeconds(30),
+                ModelCallBulkhead.exhausted(),
+                (com.tutict.finalassignmentbackend.reliability.ReliabilityMetrics) null
+        );
+
+        List<ChatStreamEvent> events = gated.stream(new AiChatStreamRequest("hello", "session-full", Map.of()))
+                .collectList()
+                .block(Duration.ofSeconds(2));
+
+        assertThat(called).isFalse();
+        assertThat(events).isNotEmpty();
+        assertThat(events).anyMatch(event -> event.payload() instanceof Map<?, ?> payload
+                && Boolean.TRUE.equals(payload.get("isFallback")));
+    }
+
+    private AiProviderRegistry registry(List<AiProvider> providers, String primary, String fallback) {
+        AiProviderProperties properties = new AiProviderProperties();
+        properties.getProvider().setPrimary(primary);
+        properties.getProvider().setFallback(fallback);
+        properties.getProvider().setStreamingTimeout(Duration.ofSeconds(2));
+        properties.getProvider().setRetryAttempts(0);
+        return new AiProviderRegistry(
+                Flux.concat(Flux.fromIterable(providers), Flux.just(new NoopAiProvider())).collectList().block(),
+                properties
+        );
     }
 
     private ChatStreamService service(AiProvider provider, Duration streamingTimeout, Duration keepAlive) {

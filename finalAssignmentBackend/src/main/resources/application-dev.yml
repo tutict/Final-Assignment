@@ -13,7 +13,7 @@ spring:
     hikari:
       maximum-pool-size: 32
       minimum-idle: 8
-      connection-timeout: 5000
+      connection-timeout: ${DB_CONNECTION_TIMEOUT_MS:250}
   data:
     redis:
       host: localhost
@@ -53,14 +53,17 @@ app:
       enabled: false
   security:
     token-blacklist:
-      fail-open: true
+      fail-open: ${TOKEN_BLACKLIST_FAIL_OPEN:false}
 
 management:
   health:
     elasticsearch:
+      enabled: false
+    redis:
       enabled: false
 
 rag:
   retrieval:
     enabled: true
     candidate-multiplier: 2
+

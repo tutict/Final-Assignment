@@ -2,6 +2,7 @@ package com.tutict.finalassignmentbackend.config.login.jwt;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.tutict.finalassignmentbackend.dto.response.ApiResponse;
+import com.tutict.finalassignmentbackend.reliability.BlacklistAccessPolicy;
 import com.tutict.finalassignmentbackend.service.auth.TokenBlacklistService;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
@@ -51,14 +52,27 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
         String jwt = getJwtFromRequest(request);
         logger.debug("JWT present for request {}: {}", request.getRequestURI(), jwt != null);
 
-        if (jwt != null && tokenBlacklistService.isBlacklisted(jwt)) {
-            logger.warn("Rejected blacklisted JWT for request {}", request.getRequestURI());
-            response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
-            response.setContentType("application/json");
-            response.setCharacterEncoding("UTF-8");
-            response.getWriter().write(objectMapper.writeValueAsString(
-                    ApiResponse.error("UNAUTHORIZED", "Token has expired, please login again")));
-            return;
+        if (jwt != null) {
+            BlacklistAccessPolicy.Effect effect = BlacklistAccessPolicy.decide(
+                    request.getMethod(), request.getRequestURI(), tokenBlacklistService.inspect(jwt));
+            if (effect == BlacklistAccessPolicy.Effect.DENY) {
+                logger.warn("Rejected blacklisted JWT for request {}", request.getRequestURI());
+                response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
+                response.setContentType("application/json");
+                response.setCharacterEncoding("UTF-8");
+                response.getWriter().write(objectMapper.writeValueAsString(
+                        ApiResponse.error("UNAUTHORIZED", "Token has expired, please login again")));
+                return;
+            }
+            if (effect == BlacklistAccessPolicy.Effect.SHED) {
+                response.setStatus(HttpServletResponse.SC_SERVICE_UNAVAILABLE);
+                response.setHeader("Retry-After", "1");
+                response.setContentType("application/json");
+                response.setCharacterEncoding("UTF-8");
+                response.getWriter().write(objectMapper.writeValueAsString(
+                        ApiResponse.error("DEPENDENCY_TIMEOUT", "Revocation store is unavailable")));
+                return;
+            }
         }
 
         if (jwt != null && tokenProvider.validateToken(jwt)) {

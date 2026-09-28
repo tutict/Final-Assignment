@@ -5,7 +5,10 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.tutict.finalassignmentbackend.ai.chat.OllamaSlotLimiter;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.stereotype.Component;
+import io.netty.channel.ChannelOption;
+import org.springframework.http.client.reactive.ReactorClientHttpConnector;
 import org.springframework.web.reactive.function.client.WebClient;
+import reactor.netty.http.client.HttpClient;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
@@ -111,7 +114,13 @@ public class OllamaAiProvider implements AiProvider {
     }
 
     private WebClient client() {
-        return webClientBuilder.baseUrl(properties.getOllama().getBaseUrl()).build();
+        HttpClient httpClient = HttpClient.create()
+                .option(ChannelOption.CONNECT_TIMEOUT_MILLIS, 500)
+                .responseTimeout(properties.getProvider().getTimeout());
+        return webClientBuilder.clone()
+                .baseUrl(properties.getOllama().getBaseUrl())
+                .clientConnector(new ReactorClientHttpConnector(httpClient))
+                .build();
     }
 
     private Map<String, Object> requestBody(AiChatPrompt prompt, boolean stream) {

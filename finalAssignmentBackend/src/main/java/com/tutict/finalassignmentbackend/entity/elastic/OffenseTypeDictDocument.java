@@ -16,7 +16,7 @@ import org.springframework.data.elasticsearch.annotations.MultiField;
 import org.springframework.data.elasticsearch.annotations.Setting;
 
 @Data
-@Document(indexName = "offense_type_dict")
+@Document(createIndex = false, indexName = "offense_type_dict")
 @Setting(settingPath = "elasticsearch/offense_type_dict-settings.json")
 public class OffenseTypeDictDocument implements Serializable {
 

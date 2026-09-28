@@ -1,5 +1,8 @@
 package com.tutict.finalassignmentbackend.controller.business;
 
+import com.tutict.finalassignmentbackend.reliability.IdempotencyConflictException;
+import com.tutict.finalassignmentbackend.reliability.IdempotencyInProgressException;
+import com.tutict.finalassignmentbackend.reliability.IdempotencyReplayException;
 import com.tutict.finalassignmentbackend.config.security.SecurityRoleUtils;
 import com.tutict.finalassignmentbackend.dto.mapper.AppealRecordRequestMapper;
 import com.tutict.finalassignmentbackend.dto.request.AppealCreateRequest;
@@ -100,6 +103,8 @@ public class AppealManagementController {
                 appealRecordService.markHistorySuccess(idempotencyKey, saved.getAppealId());
             }
             return ResponseEntity.status(HttpStatus.CREATED).body(ApiResponse.ok(AppealResponse.from(saved)));
+        } catch (IdempotencyReplayException | IdempotencyConflictException | IdempotencyInProgressException ex) {
+            throw ex;
         } catch (RuntimeException ex) {
             if (useIdempotency) {
                 appealRecordService.markHistoryFailure(idempotencyKey, ex.getMessage());
@@ -114,7 +119,7 @@ public class AppealManagementController {
     @Operation(summary = "List current user's appeals")
     public ResponseEntity<ApiResponse<PageResponse<AppealResponse>>> getMyAppeals(
             Authentication authentication,
-            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "1") int page,
             @RequestParam(defaultValue = "20") int size) {
         UserProfileResponse profile = authWsService.getCurrentUserProfile(authentication.getName());
         List<AppealRecord> records = profile.getDriverId() != null
@@ -169,6 +174,8 @@ public class AppealManagementController {
                 appealRecordService.markHistorySuccess(idempotencyKey, updated.getAppealId());
             }
             return ResponseEntity.ok(ApiResponse.ok(AppealResponse.from(updated)));
+        } catch (IdempotencyReplayException | IdempotencyConflictException | IdempotencyInProgressException ex) {
+            throw ex;
         } catch (RuntimeException ex) {
             if (useIdempotency) {
                 appealRecordService.markHistoryFailure(idempotencyKey, ex.getMessage());
@@ -308,6 +315,8 @@ public class AppealManagementController {
                 appealReviewService.markHistorySuccess(idempotencyKey, saved.getReviewId());
             }
             return ResponseEntity.status(HttpStatus.CREATED).body(ApiResponse.ok(saved));
+        } catch (IdempotencyReplayException | IdempotencyConflictException | IdempotencyInProgressException ex) {
+            throw ex;
         } catch (RuntimeException ex) {
             if (useIdempotency) {
                 appealReviewService.markHistoryFailure(idempotencyKey, ex.getMessage());
@@ -335,6 +344,8 @@ public class AppealManagementController {
                 appealReviewService.markHistorySuccess(idempotencyKey, updated.getReviewId());
             }
             return ResponseEntity.ok(ApiResponse.ok(updated));
+        } catch (IdempotencyReplayException | IdempotencyConflictException | IdempotencyInProgressException ex) {
+            throw ex;
         } catch (RuntimeException ex) {
             if (useIdempotency) {
                 appealReviewService.markHistoryFailure(idempotencyKey, ex.getMessage());

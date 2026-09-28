@@ -59,7 +59,7 @@ public class TestSearchRepositoryMockConfig {
         return new ConcurrentMapCacheManager();
     }
 
-    @Bean
+    @Bean(name = {"redisTemplate", "blacklistRedisTemplate"})
     @Primary
     @SuppressWarnings("unchecked")
     RedisTemplate<String, Object> redisTemplate() {

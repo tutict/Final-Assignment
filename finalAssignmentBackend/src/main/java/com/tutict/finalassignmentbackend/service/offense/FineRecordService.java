@@ -11,6 +11,11 @@ import com.tutict.finalassignmentbackend.entity.elastic.FineRecordDocument;
 import com.tutict.finalassignmentbackend.mapper.offense.FineRecordMapper;
 import com.tutict.finalassignmentbackend.mapper.offense.OffenseRecordMapper;
 import com.tutict.finalassignmentbackend.mapper.system.SysRequestHistoryMapper;
+import com.tutict.finalassignmentbackend.reliability.IdempotencyConflictException;
+import com.tutict.finalassignmentbackend.reliability.IdempotencyInProgressException;
+import com.tutict.finalassignmentbackend.reliability.IdempotencyReplayException;
+import com.tutict.finalassignmentbackend.reliability.LedgerBodyFingerprint;
+import com.tutict.finalassignmentbackend.reliability.LedgerHistoryReserve;
 import com.tutict.finalassignmentbackend.repository.FineRecordSearchRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.cache.annotation.CacheEvict;
@@ -43,6 +48,7 @@ public class FineRecordService {
     private final FineRecordSearchRepository fineRecordSearchRepository;
     private final KafkaTemplate<String, String> kafkaTemplate;
     private final ObjectMapper objectMapper;
+    private final LedgerHistoryReserve ledgerHistoryReserve;
 
     @Autowired
     public FineRecordService(FineRecordMapper fineRecordMapper,
@@ -50,13 +56,15 @@ public class FineRecordService {
                              SysRequestHistoryMapper sysRequestHistoryMapper,
                              FineRecordSearchRepository fineRecordSearchRepository,
                              KafkaTemplate<String, String> kafkaTemplate,
-                             ObjectMapper objectMapper) {
+                             ObjectMapper objectMapper,
+                             LedgerHistoryReserve ledgerHistoryReserve) {
         this.fineRecordMapper = fineRecordMapper;
         this.offenseRecordMapper = offenseRecordMapper;
         this.sysRequestHistoryMapper = sysRequestHistoryMapper;
         this.fineRecordSearchRepository = fineRecordSearchRepository;
         this.kafkaTemplate = kafkaTemplate;
         this.objectMapper = objectMapper;
+        this.ledgerHistoryReserve = ledgerHistoryReserve;
     }
 
     @Transactional
@@ -64,24 +72,16 @@ public class FineRecordService {
     @WsAction(service = "FineRecordService", action = "checkAndInsertIdempotency", roles = {"SUPER_ADMIN", "ADMIN", "TRAFFIC_POLICE", "FINANCE"})
     public void checkAndInsertIdempotency(String idempotencyKey, FineRecord fineRecord, String action) {
         Objects.requireNonNull(fineRecord, "FineRecord must not be null");
-        if (sysRequestHistoryMapper.selectByIdempotencyKey(idempotencyKey) != null) {
-            throw new RuntimeException("Duplicate fine record request detected");
+        String fingerprint = LedgerBodyFingerprint.sha256(String.join("|",
+                String.valueOf(fineRecord.getOffenseId()),
+                String.valueOf(fineRecord.getFineAmount()),
+                String.valueOf(fineRecord.getFineNumber())));
+        ledgerHistoryReserve.reserve(idempotencyKey, "FINE_" + action, "POST", "/api/fines", fingerprint);
+        try {
+            sendKafkaMessage("fine_record_" + action, idempotencyKey, fineRecord);
+        } catch (RuntimeException ex) {
+            log.log(Level.WARNING, "Fine Kafka publish failed after idempotency reserve", ex);
         }
-
-        SysRequestHistory history = new SysRequestHistory();
-        history.setIdempotencyKey(idempotencyKey);
-        history.setBusinessStatus("PROCESSING");
-        history.setCreatedAt(LocalDateTime.now());
-        history.setUpdatedAt(LocalDateTime.now());
-        sysRequestHistoryMapper.insert(history);
-
-        sendKafkaMessage("fine_record_" + action, idempotencyKey, fineRecord);
-
-        history.setBusinessStatus("SUCCESS");
-        history.setBusinessId(fineRecord.getFineId());
-        history.setRequestParams("PENDING");
-        history.setUpdatedAt(LocalDateTime.now());
-        sysRequestHistoryMapper.updateById(history);
     }
 
     @Transactional
@@ -260,7 +260,9 @@ public class FineRecordService {
         }
         history.setBusinessStatus("SUCCESS");
         history.setBusinessId(fineId);
-        history.setRequestParams("DONE");
+        if (history.getRequestParams() == null || !history.getRequestParams().startsWith("sha256:")) {
+            history.setRequestParams("DONE");
+        }
         history.setUpdatedAt(LocalDateTime.now());
         sysRequestHistoryMapper.updateById(history);
     }
@@ -269,6 +271,9 @@ public class FineRecordService {
         SysRequestHistory history = sysRequestHistoryMapper.selectByIdempotencyKey(idempotencyKey);
         if (history == null) {
             log.log(Level.WARNING, "Cannot mark failure for missing idempotency key {0}", idempotencyKey);
+            return;
+        }
+        if ("SUCCESS".equalsIgnoreCase(history.getBusinessStatus())) {
             return;
         }
         history.setBusinessStatus("FAILED");

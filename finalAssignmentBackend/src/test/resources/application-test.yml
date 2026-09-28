@@ -10,6 +10,10 @@ spring:
     driver-class-name: ${TEST_DB_DRIVER_CLASS_NAME:com.mysql.cj.jdbc.Driver}
     username: ${TEST_DB_USERNAME:${SPRING_DATASOURCE_USERNAME:${DB_USERNAME:root}}}
     password: ${TEST_DB_PASSWORD:${SPRING_DATASOURCE_PASSWORD:${DB_PASSWORD:root}}}
+    hikari:
+      connection-timeout: 5000
+      data-source-properties:
+        sessionVariables: max_execution_time=60000
   kafka:
     bootstrap-servers: ${TEST_KAFKA_SERVERS:localhost:9092}
     listener:
@@ -76,3 +80,11 @@ logging:
   level:
     com.tutict.finalassignmentbackend: DEBUG
     org.springframework.security: DEBUG
+
+app:
+  reliability:
+    load-shed: false
+  security:
+    token-blacklist:
+      fail-open: true
+

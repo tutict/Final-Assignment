@@ -7,12 +7,18 @@ import com.tutict.finalassignmentbackend.ai.prompt.AgentConstraintService;
 import com.tutict.finalassignmentbackend.ai.prompt.AiAgentRole;
 import com.tutict.finalassignmentbackend.ai.prompt.AiAgentRoleResolver;
 import com.tutict.finalassignmentbackend.model.ai.ChatActionResponse;
+import com.tutict.finalassignmentbackend.reliability.ModelCallBulkhead;
+import com.tutict.finalassignmentbackend.reliability.ReliabilityMetrics;
 import jakarta.annotation.PreDestroy;
+import org.springframework.beans.factory.ObjectProvider;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.slf4j.MDC;
+import org.springframework.ai.chat.messages.AssistantMessage;
 import org.springframework.ai.chat.messages.UserMessage;
 import org.springframework.ai.chat.model.ChatResponse;
+import org.springframework.ai.chat.model.Generation;
 import org.springframework.ai.chat.prompt.Prompt;
 import org.springframework.ai.ollama.OllamaChatModel;
 import org.springframework.stereotype.Service;
@@ -33,7 +39,7 @@ public class ChatAgent {
 
     private static final Logger logger = LoggerFactory.getLogger(ChatAgent.class);
     private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper();
-    private static final long CHAT_TIMEOUT_SECONDS = 30;
+    private static final long CHAT_TIMEOUT_MILLIS = 700;
 
     private final OllamaChatModel chatModel;
     private final AiProviderRegistry aiProviderRegistry;
@@ -41,9 +47,9 @@ public class ChatAgent {
     private final AiAgentRoleResolver aiAgentRoleResolver;
     private final AgentConstraintService agentConstraintService;
     private final ChatActionRuleEngine chatActionRuleEngine;
-    private final ExecutorService aiExecutor = Executors.newFixedThreadPool(
-            Math.max(2, Runtime.getRuntime().availableProcessors() / 2)
-    );
+    private final ModelCallBulkhead modelCalls;
+    private final ReliabilityMetrics metrics;
+    private final ExecutorService aiExecutor = Executors.newFixedThreadPool(ModelCallBulkhead.MAX_IN_FLIGHT);
 
     public ChatAgent(
             OllamaChatModel chatModel,
@@ -53,12 +59,57 @@ public class ChatAgent {
             AgentConstraintService agentConstraintService,
             ChatActionRuleEngine chatActionRuleEngine
     ) {
+        this(chatModel, aiProviderRegistry, aiChatSearchService, aiAgentRoleResolver,
+                agentConstraintService, chatActionRuleEngine, new ModelCallBulkhead(), (ReliabilityMetrics) null);
+    }
+
+    public ChatAgent(
+            OllamaChatModel chatModel,
+            AiProviderRegistry aiProviderRegistry,
+            AIChatSearchService aiChatSearchService,
+            AiAgentRoleResolver aiAgentRoleResolver,
+            AgentConstraintService agentConstraintService,
+            ChatActionRuleEngine chatActionRuleEngine,
+            ModelCallBulkhead modelCalls
+    ) {
+        this(chatModel, aiProviderRegistry, aiChatSearchService, aiAgentRoleResolver,
+                agentConstraintService, chatActionRuleEngine, modelCalls, (ReliabilityMetrics) null);
+    }
+
+    @Autowired
+    public ChatAgent(
+            OllamaChatModel chatModel,
+            AiProviderRegistry aiProviderRegistry,
+            AIChatSearchService aiChatSearchService,
+            AiAgentRoleResolver aiAgentRoleResolver,
+            AgentConstraintService agentConstraintService,
+            ChatActionRuleEngine chatActionRuleEngine,
+            ModelCallBulkhead modelCalls,
+            ObjectProvider<ReliabilityMetrics> metrics
+    ) {
+        this(chatModel, aiProviderRegistry, aiChatSearchService, aiAgentRoleResolver,
+                agentConstraintService, chatActionRuleEngine, modelCalls,
+                metrics == null ? (ReliabilityMetrics) null : metrics.getIfAvailable());
+    }
+
+    private ChatAgent(
+            OllamaChatModel chatModel,
+            AiProviderRegistry aiProviderRegistry,
+            AIChatSearchService aiChatSearchService,
+            AiAgentRoleResolver aiAgentRoleResolver,
+            AgentConstraintService agentConstraintService,
+            ChatActionRuleEngine chatActionRuleEngine,
+            ModelCallBulkhead modelCalls,
+            ReliabilityMetrics metrics
+    ) {
         this.chatModel = chatModel;
         this.aiProviderRegistry = aiProviderRegistry;
         this.aiChatSearchService = aiChatSearchService;
         this.aiAgentRoleResolver = aiAgentRoleResolver;
         this.agentConstraintService = agentConstraintService;
         this.chatActionRuleEngine = chatActionRuleEngine;
+        this.modelCalls = modelCalls == null ? new ModelCallBulkhead() : modelCalls;
+        this.metrics = metrics;
     }
 
     public Flux<ChatResponse> streamChat(String message, String massage, boolean webSearch) {
@@ -71,7 +122,13 @@ public class ChatAgent {
                 userMessage.length(), webSearch, MDC.get("traceId"));
 
         Prompt prompt = buildPrompt(userMessage, webSearch);
-        return chatModel.stream(prompt);
+        return Flux.defer(() -> {
+            if (!modelCalls.tryAcquire()) {
+                markAiFallback();
+                return Flux.just(fallbackChatResponse());
+            }
+            return chatModel.stream(prompt).doFinally(signal -> modelCalls.release());
+        });
     }
 
     public ChatActionResponse chatWithActions(String message, String massage, boolean webSearch) {
@@ -98,32 +155,63 @@ public class ChatAgent {
                 "webSearch", webSearch,
                 "role", role.policyFileName()
         ));
-        String content = response == null || isFallbackProvider(response) ? fallbackActionAnswer() : response.text();
-        return parseActionResponse(content);
+        boolean fallback = response == null || isFallbackProvider(response);
+        String content = fallback ? fallbackActionAnswer() : response.text();
+        ChatActionResponse parsed = parseActionResponse(content);
+        parsed.setFallback(fallback);
+        if (fallback) {
+            markAiFallback();
+        }
+        return parsed;
     }
 
     private AiMessage completeWithTimeout(String prompt, Map<String, Object> metadata) {
-        CompletableFuture<AiMessage> future = CompletableFuture.supplyAsync(
-                () -> aiProviderRegistry.complete(prompt, metadata).block(),
-                aiExecutor);
+        if (!modelCalls.tryAcquire()) {
+            return fallbackActionMessage("bulkhead_full");
+        }
+        final CompletableFuture<AiMessage> future;
         try {
-            AiMessage response = future.get(CHAT_TIMEOUT_SECONDS, TimeUnit.SECONDS);
+            future = CompletableFuture.supplyAsync(() -> {
+                try {
+                    return aiProviderRegistry.complete(prompt, metadata).block();
+                } finally {
+                    modelCalls.release();
+                }
+            }, aiExecutor);
+        } catch (RuntimeException ex) {
+            modelCalls.release();
+            logger.warn("AI action generation was rejected. reason={}", ex.toString());
+            return fallbackActionMessage("provider_error");
+        }
+        try {
+            AiMessage response = future.get(CHAT_TIMEOUT_MILLIS, TimeUnit.MILLISECONDS);
             if (response == null) {
                 return fallbackActionMessage("empty_provider_response");
             }
             return response;
         } catch (TimeoutException ex) {
             future.cancel(true);
-            logger.warn("AI action generation timed out after {} seconds. reason={}", CHAT_TIMEOUT_SECONDS, ex.toString());
+            logger.warn("AI action generation timed out after {} ms. reason={}", CHAT_TIMEOUT_MILLIS, ex.toString());
             return fallbackActionMessage("timeout");
         } catch (InterruptedException ex) {
             Thread.currentThread().interrupt();
+            future.cancel(true);
             logger.warn("AI action generation was interrupted. reason={}", ex.toString());
             return fallbackActionMessage("interrupted");
         } catch (Exception ex) {
             logger.warn("AI action generation failed; returning empty actions. reason={}", ex.toString());
             return fallbackActionMessage("provider_error");
         }
+    }
+
+    private void markAiFallback() {
+        if (metrics != null) {
+            metrics.aiFallback();
+        }
+    }
+
+    private ChatResponse fallbackChatResponse() {
+        return new ChatResponse(List.of(new Generation(new AssistantMessage(fallbackActionAnswer()))));
     }
 
     private AiMessage fallbackActionMessage(String reason) {

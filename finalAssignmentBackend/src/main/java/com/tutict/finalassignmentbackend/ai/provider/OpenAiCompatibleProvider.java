@@ -154,7 +154,12 @@ public class OpenAiCompatibleProvider implements AiProvider {
     }
 
     private WebClient client() {
-        return webClientBuilder.baseUrl(properties.getOpenaiCompatible().getBaseUrl()).build();
+        reactor.netty.http.client.HttpClient httpClient = reactor.netty.http.client.HttpClient.create()
+                .option(io.netty.channel.ChannelOption.CONNECT_TIMEOUT_MILLIS, 1000);
+        return webClientBuilder.clone()
+                .baseUrl(properties.getOpenaiCompatible().getBaseUrl())
+                .clientConnector(new org.springframework.http.client.reactive.ReactorClientHttpConnector(httpClient))
+                .build();
     }
 
     private void applyAuth(HttpHeaders headers) {

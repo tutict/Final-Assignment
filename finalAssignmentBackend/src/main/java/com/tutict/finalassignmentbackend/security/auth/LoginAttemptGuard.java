@@ -11,13 +11,9 @@ import java.time.Duration;
 import java.util.List;
 import java.util.Locale;
 import java.util.concurrent.TimeUnit;
-import java.util.logging.Level;
-import java.util.logging.Logger;
 
 @Service
 public class LoginAttemptGuard {
-
-    private static final Logger LOG = Logger.getLogger(LoginAttemptGuard.class.getName());
 
     private final Cache<String, AttemptState> attempts;
     private final Duration window;
@@ -59,7 +55,7 @@ public class LoginAttemptGuard {
     }
 
     public LoginDecision inspect(String username, HttpServletRequest request) {
-        String accountKey = accountKey(username, request);
+        String accountKey = accountKey(username);
         String ipKey = ipKey(request);
         long now = System.currentTimeMillis();
 
@@ -81,12 +77,11 @@ public class LoginAttemptGuard {
         attempts.invalidate(decision.accountKey());
     }
 
-    public Duration recordFailureAndDelay(LoginDecision decision) {
+    public Duration recordFailure(LoginDecision decision) {
         if (decision == null || !StringUtils.hasText(decision.accountKey())) {
             return Duration.ZERO;
         }
         AttemptState state = attempts.get(decision.accountKey(), ignored -> new AttemptState(System.currentTimeMillis()));
-        Duration penalty;
         synchronized (state) {
             long now = System.currentTimeMillis();
             state.rotateIfNeeded(now, window);
@@ -94,10 +89,8 @@ public class LoginAttemptGuard {
             if (state.consecutiveFailures >= maxConsecutiveFailures) {
                 state.lockedUntilMillis = Math.max(state.lockedUntilMillis, now + lockDuration.toMillis());
             }
-            penalty = penaltyFor(state.consecutiveFailures);
+            return penaltyFor(state.consecutiveFailures);
         }
-        sleepPenalty(penalty);
-        return penalty;
     }
 
     private LoginDecision inspectKey(String key, long now, int maxAttempts) {
@@ -126,27 +119,15 @@ public class LoginAttemptGuard {
         return Duration.ofMillis(millis);
     }
 
-    private void sleepPenalty(Duration penalty) {
-        if (penalty == null || penalty.isZero() || penalty.isNegative()) {
-            return;
-        }
-        try {
-            Thread.sleep(penalty.toMillis());
-        } catch (InterruptedException ex) {
-            Thread.currentThread().interrupt();
-            LOG.log(Level.FINE, "Login failure penalty interrupted", ex);
-        }
-    }
-
     private long retryAfterSeconds(long lockedUntilMillis, long now) {
         return Math.max(1L, (long) Math.ceil((lockedUntilMillis - now) / 1000.0));
     }
 
-    private String accountKey(String username, HttpServletRequest request) {
+    private String accountKey(String username) {
         String normalizedUser = StringUtils.hasText(username)
                 ? username.trim().toLowerCase(Locale.ROOT)
                 : "<blank>";
-        return "account:" + normalizedUser + "|ip:" + clientIp(request);
+        return "account:" + normalizedUser;
     }
 
     private String ipKey(HttpServletRequest request) {

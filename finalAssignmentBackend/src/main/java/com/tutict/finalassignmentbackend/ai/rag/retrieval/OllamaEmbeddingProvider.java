@@ -11,6 +11,7 @@ import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.stereotype.Component;
 
 import java.io.IOException;
+import java.time.Duration;
 import java.net.URI;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
@@ -47,7 +48,7 @@ public class OllamaEmbeddingProvider implements EmbeddingProvider {
         this.aiProviderProperties = aiProviderProperties;
         this.objectMapper = objectMapper;
         this.httpClient = HttpClient.newBuilder()
-                .connectTimeout(aiProviderProperties.getProvider().getTimeout())
+                .connectTimeout(Duration.ofSeconds(1))
                 .build();
         this.slotLimiter = slotLimiter == null ? null : slotLimiter.getIfAvailable();
     }

@@ -15,6 +15,12 @@ import com.tutict.finalassignmentbackend.mapper.system.SysRequestHistoryMapper;
 import com.tutict.finalassignmentbackend.payment.governance.PaymentGovernanceClassifier;
 import com.tutict.finalassignmentbackend.payment.governance.PaymentGovernanceLogFactory;
 import com.tutict.finalassignmentbackend.payment.exception.PaymentDuplicateRequestException;
+import com.tutict.finalassignmentbackend.reliability.IdempotencyConflictException;
+import com.tutict.finalassignmentbackend.reliability.IdempotencyInProgressException;
+import com.tutict.finalassignmentbackend.reliability.LedgerBodyFingerprint;
+import com.tutict.finalassignmentbackend.reliability.LedgerIdempotencyDecider;
+import com.tutict.finalassignmentbackend.reliability.ReliabilityMetrics;
+import java.time.Duration;
 import com.tutict.finalassignmentbackend.payment.exception.PaymentOptimisticLockException;
 import com.tutict.finalassignmentbackend.payment.messaging.PaymentRecordKafkaEvent;
 import com.tutict.finalassignmentbackend.service.events.PaymentStatusChangedEvent;
@@ -52,6 +58,7 @@ public class PaymentRecordService {
     private final ApplicationEventPublisher applicationEventPublisher;
     private final PaymentGovernanceClassifier paymentGovernanceClassifier;
     private final SensitiveDataPersistenceService sensitiveDataPersistenceService;
+    private final ReliabilityMetrics reliabilityMetrics;
 
     @Autowired
     public PaymentRecordService(PaymentRecordMapper paymentRecordMapper,
@@ -59,7 +66,8 @@ public class PaymentRecordService {
                                 SysRequestHistoryMapper sysRequestHistoryMapper,
                                 PaymentRecordSearchRepository paymentRecordSearchRepository,
                                 ApplicationEventPublisher applicationEventPublisher,
-                                SensitiveDataPersistenceService sensitiveDataPersistenceService) {
+                                SensitiveDataPersistenceService sensitiveDataPersistenceService,
+                                ReliabilityMetrics reliabilityMetrics) {
         this.paymentRecordMapper = paymentRecordMapper;
         this.fineRecordMapper = fineRecordMapper;
         this.sysRequestHistoryMapper = sysRequestHistoryMapper;
@@ -67,6 +75,7 @@ public class PaymentRecordService {
         this.applicationEventPublisher = applicationEventPublisher;
         this.paymentGovernanceClassifier = new PaymentGovernanceClassifier();
         this.sensitiveDataPersistenceService = sensitiveDataPersistenceService;
+        this.reliabilityMetrics = reliabilityMetrics;
     }
 
     @Transactional(rollbackFor = Exception.class)
@@ -80,7 +89,7 @@ public class PaymentRecordService {
                 "POST",
                 "/api/payments",
                 paymentRecord.getPaymentId(),
-                "PROCESSING"
+                paymentFingerprint(paymentRecord)
         );
     }
 
@@ -104,7 +113,7 @@ public class PaymentRecordService {
                 "POST",
                 "/api/payments",
                 paymentRecord.getPaymentId(),
-                "PROCESSING"
+                paymentFingerprint(paymentRecord)
         );
         sensitiveDataPersistenceService.prepare(paymentRecord);
         paymentRecordMapper.insert(paymentRecord);
@@ -142,7 +151,7 @@ public class PaymentRecordService {
                 "PUT",
                 "/api/payments/" + paymentRecord.getPaymentId(),
                 paymentRecord.getPaymentId(),
-                "PROCESSING"
+                paymentFingerprint(paymentRecord)
         );
         sensitiveDataPersistenceService.prepare(paymentRecord);
         int rows = paymentRecordMapper.updateById(paymentRecord);
@@ -173,7 +182,7 @@ public class PaymentRecordService {
                 "PUT",
                 "/api/payments/" + paymentId + "/status/" + (newState == null ? "" : newState.getCode()),
                 paymentId,
-                "PROCESSING"
+                statusFingerprint(paymentId, newState)
         );
         PaymentRecord updated = updatePaymentStatusInCurrentTransaction(paymentId, newState);
         markHistorySuccess(history, paymentId);
@@ -429,9 +438,7 @@ public class PaymentRecordService {
 
     public boolean shouldSkipProcessing(String idempotencyKey) {
         SysRequestHistory history = sysRequestHistoryMapper.selectByIdempotencyKey(idempotencyKey);
-        return history != null
-                && "SUCCESS".equalsIgnoreCase(history.getBusinessStatus())
-                && "DONE".equalsIgnoreCase(history.getRequestParams());
+        return history != null && "SUCCESS".equalsIgnoreCase(history.getBusinessStatus());
     }
 
     public boolean isDuplicateIdempotencyKey(String idempotencyKey) {
@@ -446,7 +453,9 @@ public class PaymentRecordService {
         }
         history.setBusinessStatus("SUCCESS");
         history.setBusinessId(paymentId);
-        history.setRequestParams("DONE");
+        if (history.getRequestParams() == null || !history.getRequestParams().startsWith("sha256:")) {
+            history.setRequestParams("DONE");
+        }
         history.setUpdatedAt(LocalDateTime.now());
         sysRequestHistoryMapper.updateById(history);
     }
@@ -455,6 +464,9 @@ public class PaymentRecordService {
         SysRequestHistory history = sysRequestHistoryMapper.selectByIdempotencyKey(idempotencyKey);
         if (history == null) {
             log.log(Level.WARNING, "Cannot mark failure for missing idempotency key {0}", idempotencyKey);
+            return;
+        }
+        if ("SUCCESS".equalsIgnoreCase(history.getBusinessStatus())) {
             return;
         }
         history.setBusinessStatus("FAILED");
@@ -468,9 +480,14 @@ public class PaymentRecordService {
             return;
         }
         runAfterCommitOrNow(() -> {
-            PaymentRecordDocument doc = PaymentRecordDocument.fromEntity(paymentRecord);
-            if (doc != null) {
-                paymentRecordSearchRepository.save(doc);
+            try {
+                PaymentRecordDocument doc = PaymentRecordDocument.fromEntity(paymentRecord);
+                if (doc != null) {
+                    paymentRecordSearchRepository.save(doc);
+                }
+            } catch (RuntimeException ex) {
+                reliabilityMetrics.dependencyTimeout();
+                log.log(Level.WARNING, "Payment search index update failed after commit", ex);
             }
         });
     }
@@ -493,31 +510,98 @@ public class PaymentRecordService {
         if (isBlank(idempotencyKey)) {
             throw new IllegalArgumentException("Idempotency-Key must not be blank");
         }
-        if (sysRequestHistoryMapper.selectByIdempotencyKey(idempotencyKey) != null) {
-            throw new PaymentDuplicateRequestException("Duplicate payment request detected");
+        String fingerprint = requestParams != null && requestParams.startsWith("sha256:")
+                ? requestParams
+                : LedgerBodyFingerprint.sha256(requestParams == null ? "" : requestParams);
+        SysRequestHistory existing = sysRequestHistoryMapper.selectByIdempotencyKey(idempotencyKey);
+        if (existing != null) {
+            return applyExistingHistory(existing, fingerprint, requestMethod, requestUrl, businessType, businessId);
         }
+        SysRequestHistory history = newHistory(idempotencyKey, businessType, requestMethod, requestUrl, businessId, fingerprint);
+        try {
+            sysRequestHistoryMapper.insert(history);
+            return history;
+        } catch (DataIntegrityViolationException ex) {
+            SysRequestHistory winner = sysRequestHistoryMapper.selectByIdempotencyKey(idempotencyKey);
+            if (winner == null) {
+                throw new PaymentDuplicateRequestException("Duplicate payment request detected", ex);
+            }
+            return applyExistingHistory(winner, fingerprint, requestMethod, requestUrl, businessType, businessId);
+        }
+    }
+
+    private SysRequestHistory applyExistingHistory(SysRequestHistory existing,
+                                                   String fingerprint,
+                                                   String requestMethod,
+                                                   String requestUrl,
+                                                   String businessType,
+                                                   Long businessId) {
+        LocalDateTime stamp = existing.getUpdatedAt() != null ? existing.getUpdatedAt() : existing.getCreatedAt();
+        Duration age = stamp == null ? Duration.ZERO : Duration.between(stamp, LocalDateTime.now());
+        LedgerIdempotencyDecider.Outcome outcome = LedgerIdempotencyDecider.decide(
+                true, existing.getBusinessStatus(), existing.getRequestParams(), fingerprint, age);
+        return switch (outcome) {
+            case REPLAY -> throw new PaymentDuplicateRequestException("Duplicate payment request detected");
+            case CONFLICT -> {
+                reliabilityMetrics.idempotencyConflict();
+                throw new IdempotencyConflictException("Idempotency-Key was reused with a different payload");
+            }
+            case IN_PROGRESS -> throw new IdempotencyInProgressException("Idempotency-Key is already in progress");
+            case INSERT, RETRY -> {
+                existing.setRequestMethod(requestMethod);
+                existing.setRequestUrl(requestUrl);
+                existing.setRequestParams(fingerprint);
+                existing.setBusinessType(businessType);
+                existing.setBusinessId(businessId);
+                existing.setBusinessStatus("PROCESSING");
+                existing.setUpdatedAt(LocalDateTime.now());
+                sysRequestHistoryMapper.updateById(existing);
+                yield existing;
+            }
+        };
+    }
+
+    private static SysRequestHistory newHistory(String idempotencyKey,
+                                                String businessType,
+                                                String requestMethod,
+                                                String requestUrl,
+                                                Long businessId,
+                                                String fingerprint) {
         SysRequestHistory history = new SysRequestHistory();
         history.setIdempotencyKey(idempotencyKey);
         history.setRequestMethod(requestMethod);
         history.setRequestUrl(requestUrl);
-        history.setRequestParams(requestParams);
+        history.setRequestParams(fingerprint);
         history.setBusinessType(businessType);
         history.setBusinessId(businessId);
         history.setBusinessStatus("PROCESSING");
         history.setCreatedAt(LocalDateTime.now());
         history.setUpdatedAt(LocalDateTime.now());
-        try {
-            sysRequestHistoryMapper.insert(history);
-        } catch (DataIntegrityViolationException ex) {
-            throw new PaymentDuplicateRequestException("Duplicate payment request detected", ex);
-        }
         return history;
+    }
+
+    private static String paymentFingerprint(PaymentRecord paymentRecord) {
+        if (paymentRecord == null) {
+            return LedgerBodyFingerprint.sha256("");
+        }
+        return LedgerBodyFingerprint.sha256(String.join("|",
+                String.valueOf(paymentRecord.getFineId()),
+                String.valueOf(paymentRecord.getPaymentAmount()),
+                String.valueOf(paymentRecord.getPaymentMethod()),
+                String.valueOf(paymentRecord.getPayerName()),
+                String.valueOf(paymentRecord.getPaymentStatus())));
+    }
+
+    private static String statusFingerprint(Long paymentId, PaymentState newState) {
+        return LedgerBodyFingerprint.sha256("status|" + paymentId + "|" + (newState == null ? "" : newState.getCode()));
     }
 
     private void markHistorySuccess(SysRequestHistory history, Long paymentId) {
         history.setBusinessStatus("SUCCESS");
         history.setBusinessId(paymentId);
-        history.setRequestParams("DONE");
+        if (history.getRequestParams() == null || !history.getRequestParams().startsWith("sha256:")) {
+            history.setRequestParams("DONE");
+        }
         history.setUpdatedAt(LocalDateTime.now());
         sysRequestHistoryMapper.updateById(history);
     }

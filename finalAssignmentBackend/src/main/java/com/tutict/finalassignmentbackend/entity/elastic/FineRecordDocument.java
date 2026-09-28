@@ -17,7 +17,7 @@ import org.springframework.data.elasticsearch.annotations.MultiField;
 import org.springframework.data.elasticsearch.annotations.Setting;
 
 @Data
-@Document(indexName = "fine_record")
+@Document(createIndex = false, indexName = "fine_record")
 @Setting(settingPath = "elasticsearch/fine_record-settings.json")
 public class FineRecordDocument implements Serializable {
 

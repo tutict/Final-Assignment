@@ -15,7 +15,7 @@ import org.springframework.data.elasticsearch.annotations.MultiField;
 import org.springframework.data.elasticsearch.annotations.Setting;
 
 @Data
-@Document(indexName = "sys_dict")
+@Document(createIndex = false, indexName = "sys_dict")
 @Setting(settingPath = "elasticsearch/sys_dict-settings.json")
 public class SysDictDocument implements Serializable {
 

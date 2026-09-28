@@ -6,10 +6,20 @@ import com.tutict.finalassignmentbackend.dto.response.FieldErrorDetail;
 import com.tutict.finalassignmentbackend.exception.BusinessException;
 import com.tutict.finalassignmentbackend.exception.EntityNotFoundException;
 import com.tutict.finalassignmentbackend.exception.OptimisticLockException;
+import com.tutict.finalassignmentbackend.reliability.IdempotencyConflictException;
+import com.tutict.finalassignmentbackend.reliability.LedgerConnectionPolicy;
+import com.tutict.finalassignmentbackend.reliability.ReliabilityMetrics;
+import com.tutict.finalassignmentbackend.reliability.IdempotencyReplayException;
+import com.tutict.finalassignmentbackend.reliability.IdempotencyInProgressException;
+import org.springframework.http.HttpHeaders;
 import jakarta.validation.ConstraintViolation;
 import jakarta.validation.ConstraintViolationException;
 import jakarta.ws.rs.ForbiddenException;
 import org.apache.kafka.common.errors.ResourceNotFoundException;
+import jakarta.servlet.http.HttpServletRequest;
+import java.sql.SQLTransientConnectionException;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.jdbc.CannotGetJdbcConnectionException;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.dao.EmptyResultDataAccessException;
 import org.springframework.http.HttpStatus;
@@ -22,6 +32,7 @@ import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.MissingRequestHeaderException;
 import org.springframework.web.bind.MissingServletRequestParameterException;
 import org.springframework.web.bind.annotation.ControllerAdvice;
+import org.springframework.web.HttpMediaTypeNotSupportedException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
 
@@ -33,6 +44,9 @@ import java.util.logging.Logger;
 public class GlobalExceptionHandler {
 
     private static final Logger logger = Logger.getLogger(GlobalExceptionHandler.class.getName());
+
+    @Autowired(required = false)
+    private ReliabilityMetrics reliabilityMetrics;
 
     @ExceptionHandler(ResourceNotFoundException.class)
     public ResponseEntity<ApiResponse<Void>> handleResourceNotFoundException(ResourceNotFoundException ex) {
@@ -159,17 +173,66 @@ public class GlobalExceptionHandler {
                 .body(ApiResponse.error("CONFLICT", ex.getMessage()));
     }
 
+    @ExceptionHandler(IdempotencyReplayException.class)
+    public ResponseEntity<ApiResponse<Void>> handleIdempotencyReplay(IdempotencyReplayException ex) {
+        return ResponseEntity.status(208)
+                .body(ApiResponse.ok(null));
+    }
+
+    @ExceptionHandler(IdempotencyConflictException.class)
+    public ResponseEntity<ApiResponse<Void>> handleIdempotencyConflict(IdempotencyConflictException ex) {
+        return ResponseEntity.status(HttpStatus.CONFLICT)
+                .body(ApiResponse.error("IDEMPOTENCY_CONFLICT", ex.getMessage()));
+    }
+
+    @ExceptionHandler(IdempotencyInProgressException.class)
+    public ResponseEntity<ApiResponse<Void>> handleIdempotencyInProgress(IdempotencyInProgressException ex) {
+        return ResponseEntity.status(HttpStatus.CONFLICT)
+                .header(HttpHeaders.RETRY_AFTER, "1")
+                .body(ApiResponse.error("IDEMPOTENCY_IN_PROGRESS", ex.getMessage()));
+    }
+
     @ExceptionHandler({EntityNotFoundException.class, EmptyResultDataAccessException.class})
     public ResponseEntity<ApiResponse<Void>> handleNotFound(RuntimeException ex) {
         return ResponseEntity.status(HttpStatus.NOT_FOUND)
                 .body(ApiResponse.error("NOT_FOUND", "Resource not found"));
     }
 
+    @ExceptionHandler({CannotGetJdbcConnectionException.class, SQLTransientConnectionException.class})
+    public ResponseEntity<ApiResponse<Void>> handleConnectionWait(HttpServletRequest request, Exception ex) {
+        if (LedgerConnectionPolicy.connectionWaitOnLedgerWrite(request.getMethod(), request.getRequestURI())) {
+            return connectionWaitResponse();
+        }
+        logger.log(Level.SEVERE, "Database connection failed", ex);
+        return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                .body(ApiResponse.error("DATA_ACCESS", "Database connection failed"));
+    }
+
+    @ExceptionHandler(HttpMediaTypeNotSupportedException.class)
+    public ResponseEntity<ApiResponse<Void>> handleUnsupportedMediaType(HttpMediaTypeNotSupportedException ex) {
+        logger.log(Level.WARNING, "Unsupported media type: {0}", ex.getContentType());
+        return ResponseEntity.status(HttpStatus.UNSUPPORTED_MEDIA_TYPE)
+                .body(ApiResponse.error("UNSUPPORTED_MEDIA_TYPE", "Unsupported content type"));
+    }
     @ExceptionHandler(Exception.class)
-    public ResponseEntity<ApiResponse<Void>> handleGenericException(Exception ex) {
+    public ResponseEntity<ApiResponse<Void>> handleGenericException(HttpServletRequest request, Exception ex) {
+        if (request != null
+                && LedgerConnectionPolicy.connectionWait(ex)
+                && LedgerConnectionPolicy.connectionWaitOnLedgerWrite(request.getMethod(), request.getRequestURI())) {
+            return connectionWaitResponse();
+        }
         logger.log(Level.SEVERE, "Unhandled exception", ex);
         return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
                 .body(ApiResponse.error("INTERNAL_ERROR", "Internal server error"));
+    }
+
+    private ResponseEntity<ApiResponse<Void>> connectionWaitResponse() {
+        if (reliabilityMetrics != null) {
+            reliabilityMetrics.dependencyTimeout();
+        }
+        return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE)
+                .header(HttpHeaders.RETRY_AFTER, "1")
+                .body(ApiResponse.error("DEPENDENCY_TIMEOUT", "Database connection wait exceeded 200ms"));
     }
 
     private ResponseEntity<ApiResponse<List<FieldErrorDetail>>> validationError(List<FieldErrorDetail> errors) {

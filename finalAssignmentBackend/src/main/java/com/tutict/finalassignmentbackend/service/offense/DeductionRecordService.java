@@ -8,6 +8,8 @@ import com.tutict.finalassignmentbackend.entity.system.SysRequestHistory;
 import com.tutict.finalassignmentbackend.entity.elastic.DeductionRecordDocument;
 import com.tutict.finalassignmentbackend.mapper.offense.DeductionRecordMapper;
 import com.tutict.finalassignmentbackend.mapper.system.SysRequestHistoryMapper;
+import com.tutict.finalassignmentbackend.reliability.LedgerBodyFingerprint;
+import com.tutict.finalassignmentbackend.reliability.LedgerHistoryReserve;
 import com.tutict.finalassignmentbackend.repository.DeductionRecordSearchRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.cache.annotation.CacheEvict;
@@ -37,16 +39,19 @@ public class DeductionRecordService {
     private final SysRequestHistoryMapper sysRequestHistoryMapper;
     private final DeductionRecordSearchRepository deductionRecordSearchRepository;
     private final KafkaTemplate<String, DeductionRecord> kafkaTemplate;
+    private final LedgerHistoryReserve ledgerHistoryReserve;
 
     @Autowired
     public DeductionRecordService(DeductionRecordMapper deductionRecordMapper,
                                   SysRequestHistoryMapper sysRequestHistoryMapper,
                                   DeductionRecordSearchRepository deductionRecordSearchRepository,
-                                  KafkaTemplate<String, DeductionRecord> kafkaTemplate) {
+                                  KafkaTemplate<String, DeductionRecord> kafkaTemplate,
+                                  LedgerHistoryReserve ledgerHistoryReserve) {
         this.deductionRecordMapper = deductionRecordMapper;
         this.sysRequestHistoryMapper = sysRequestHistoryMapper;
         this.deductionRecordSearchRepository = deductionRecordSearchRepository;
         this.kafkaTemplate = kafkaTemplate;
+        this.ledgerHistoryReserve = ledgerHistoryReserve;
     }
 
     @Transactional
@@ -54,24 +59,16 @@ public class DeductionRecordService {
     @WsAction(service = "DeductionRecordService", action = "checkAndInsertIdempotency", roles = {"SUPER_ADMIN", "ADMIN", "TRAFFIC_POLICE"})
     public void checkAndInsertIdempotency(String idempotencyKey, DeductionRecord deductionRecord, String action) {
         Objects.requireNonNull(deductionRecord, "DeductionRecord must not be null");
-        if (sysRequestHistoryMapper.selectByIdempotencyKey(idempotencyKey) != null) {
-            throw new RuntimeException("Duplicate deduction record request detected");
+        String fingerprint = LedgerBodyFingerprint.sha256(String.join("|",
+                String.valueOf(deductionRecord.getOffenseId()),
+                String.valueOf(deductionRecord.getDriverId()),
+                String.valueOf(deductionRecord.getDeductedPoints())));
+        ledgerHistoryReserve.reserve(idempotencyKey, "DEDUCTION_" + action, "POST", "/api/deductions", fingerprint);
+        try {
+            sendKafkaMessage("deduction_record_" + action, idempotencyKey, deductionRecord);
+        } catch (RuntimeException ex) {
+            log.log(Level.WARNING, "Deduction Kafka publish failed after idempotency reserve", ex);
         }
-
-        SysRequestHistory history = new SysRequestHistory();
-        history.setIdempotencyKey(idempotencyKey);
-        history.setBusinessStatus("PROCESSING");
-        history.setCreatedAt(LocalDateTime.now());
-        history.setUpdatedAt(LocalDateTime.now());
-        sysRequestHistoryMapper.insert(history);
-
-        sendKafkaMessage("deduction_record_" + action, idempotencyKey, deductionRecord);
-
-        history.setBusinessStatus("SUCCESS");
-        history.setBusinessId(deductionRecord.getDeductionId());
-        history.setRequestParams("PENDING");
-        history.setUpdatedAt(LocalDateTime.now());
-        sysRequestHistoryMapper.updateById(history);
     }
 
     @Transactional
@@ -248,7 +245,9 @@ public class DeductionRecordService {
         }
         history.setBusinessStatus("SUCCESS");
         history.setBusinessId(deductionId);
-        history.setRequestParams("DONE");
+        if (history.getRequestParams() == null || !history.getRequestParams().startsWith("sha256:")) {
+            history.setRequestParams("DONE");
+        }
         history.setUpdatedAt(LocalDateTime.now());
         sysRequestHistoryMapper.updateById(history);
     }
@@ -257,6 +256,9 @@ public class DeductionRecordService {
         SysRequestHistory history = sysRequestHistoryMapper.selectByIdempotencyKey(idempotencyKey);
         if (history == null) {
             log.log(Level.WARNING, "Cannot mark failure for missing idempotency key {0}", idempotencyKey);
+            return;
+        }
+        if ("SUCCESS".equalsIgnoreCase(history.getBusinessStatus())) {
             return;
         }
         history.setBusinessStatus("FAILED");
@@ -338,7 +340,14 @@ public class DeductionRecordService {
             deductionRecord.setDeductionTime(LocalDateTime.now());
         }
         if (deductionRecord.getStatus() == null || deductionRecord.getStatus().isBlank()) {
-            deductionRecord.setStatus("Pending");
+            deductionRecord.setStatus("Effective");
+        }
+        if (deductionRecord.getScoringCycle() == null || deductionRecord.getScoringCycle().isBlank()) {
+            int year = deductionRecord.getDeductionTime().getYear();
+            deductionRecord.setScoringCycle(year + "-" + (year + 1));
+        }
+        if (deductionRecord.getHandler() == null || deductionRecord.getHandler().isBlank()) {
+            deductionRecord.setHandler("system");
         }
     }
 

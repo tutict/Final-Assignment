@@ -134,14 +134,14 @@ public class AppealRecordApplicationService {
     public void checkAndInsertIdempotency(String idempotencyKey, AppealRecord appealRecord, String action) {
         Objects.requireNonNull(appealRecord, "Appeal record cannot be null");
         prepareSensitiveData(appealRecord);
-        idempotencyService.checkAndInsert(idempotencyKey);
+        idempotencyService.checkAndInsert(idempotencyKey, com.tutict.finalassignmentbackend.reliability.LedgerBodyFingerprint.sha256(
+                String.join("|",
+                        String.valueOf(appealRecord.getOffenseId()),
+                        String.valueOf(appealRecord.getAppealType()),
+                        String.valueOf(appealRecord.getAppealReason()))));
         AppealEventMetadata eventMetadata = classifyOutboundEvent(appealRecord, action);
         if (eventMetadata.republishesKafka()) {
             eventPublisher.publishAppealRecordAfterCommit("appeal_" + action, idempotencyKey, appealRecord);
-        }
-        idempotencyService.markPendingSuccess(idempotencyKey, appealRecord.getAppealId());
-        if (eventMetadata.evictsCache()) {
-            cachePolicy.onWrite();
         }
     }
 

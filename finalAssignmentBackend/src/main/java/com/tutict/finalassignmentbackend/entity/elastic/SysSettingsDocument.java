@@ -15,7 +15,7 @@ import org.springframework.data.elasticsearch.annotations.MultiField;
 import org.springframework.data.elasticsearch.annotations.Setting;
 
 @Data
-@Document(indexName = "sys_settings")
+@Document(createIndex = false, indexName = "sys_settings")
 @Setting(settingPath = "elasticsearch/sys_settings-settings.json")
 public class SysSettingsDocument implements Serializable {
 

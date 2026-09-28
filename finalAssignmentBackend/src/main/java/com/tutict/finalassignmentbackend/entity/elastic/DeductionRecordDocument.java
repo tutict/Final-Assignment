@@ -15,7 +15,7 @@ import org.springframework.data.elasticsearch.annotations.MultiField;
 import org.springframework.data.elasticsearch.annotations.Setting;
 
 @Data
-@Document(indexName = "deduction_record")
+@Document(createIndex = false, indexName = "deduction_record")
 @Setting(settingPath = "elasticsearch/deduction_record-settings.json")
 public class DeductionRecordDocument implements Serializable {
 

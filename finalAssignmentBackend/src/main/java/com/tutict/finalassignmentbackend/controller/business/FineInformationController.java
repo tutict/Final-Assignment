@@ -1,5 +1,8 @@
 package com.tutict.finalassignmentbackend.controller.business;
 
+import com.tutict.finalassignmentbackend.reliability.IdempotencyConflictException;
+import com.tutict.finalassignmentbackend.reliability.IdempotencyInProgressException;
+import com.tutict.finalassignmentbackend.reliability.IdempotencyReplayException;
 import com.tutict.finalassignmentbackend.config.security.SecurityRoleUtils;
 import com.tutict.finalassignmentbackend.dto.response.ApiResponse;
 
@@ -78,6 +81,8 @@ public class FineInformationController {
                 fineRecordService.markHistorySuccess(idempotencyKey, saved.getFineId());
             }
             return ResponseEntity.status(HttpStatus.CREATED).body(ApiResponse.ok(saved));
+        } catch (IdempotencyReplayException | IdempotencyConflictException | IdempotencyInProgressException ex) {
+            throw ex;
         } catch (Exception ex) {
             if (useKey) {
                 fineRecordService.markHistoryFailure(idempotencyKey, ex.getMessage());
@@ -107,6 +112,8 @@ public class FineInformationController {
                 fineRecordService.markHistorySuccess(idempotencyKey, updated.getFineId());
             }
             return ResponseEntity.ok(ApiResponse.ok(updated));
+        } catch (IdempotencyReplayException | IdempotencyConflictException | IdempotencyInProgressException ex) {
+            throw ex;
         } catch (Exception ex) {
             if (useKey) {
                 fineRecordService.markHistoryFailure(idempotencyKey, ex.getMessage());
@@ -125,6 +132,8 @@ public class FineInformationController {
         try {
             fineRecordService.deleteFineRecord(fineId);
             return ResponseEntity.noContent().build();
+        } catch (IdempotencyReplayException | IdempotencyConflictException | IdempotencyInProgressException ex) {
+            throw ex;
         } catch (Exception ex) {
             LOG.log(Level.WARNING, "Delete fine failed", ex);
             if (ex instanceof RuntimeException) {
@@ -143,6 +152,8 @@ public class FineInformationController {
                 throw new com.tutict.finalassignmentbackend.exception.EntityNotFoundException("Fine not found: " + fineId);
             }
             return ResponseEntity.ok(ApiResponse.ok(enrich(record)));
+        } catch (IdempotencyReplayException | IdempotencyConflictException | IdempotencyInProgressException ex) {
+            throw ex;
         } catch (Exception ex) {
             LOG.log(Level.WARNING, "Get fine failed", ex);
             if (ex instanceof RuntimeException) {
@@ -157,6 +168,8 @@ public class FineInformationController {
     public ResponseEntity<ApiResponse<List<FineRecord>>> list() {
         try {
             return ResponseEntity.ok(ApiResponse.ok(enrich(fineRecordService.findAll())));
+        } catch (IdempotencyReplayException | IdempotencyConflictException | IdempotencyInProgressException ex) {
+            throw ex;
         } catch (Exception ex) {
             LOG.log(Level.WARNING, "List fines failed", ex);
             if (ex instanceof RuntimeException) {
@@ -173,6 +186,8 @@ public class FineInformationController {
                                                       @RequestParam(defaultValue = "20") int size) {
         try {
             return ResponseEntity.ok(ApiResponse.ok(enrich(fineRecordService.findByOffenseId(offenseId, page, size))));
+        } catch (IdempotencyReplayException | IdempotencyConflictException | IdempotencyInProgressException ex) {
+            throw ex;
         } catch (Exception ex) {
             LOG.log(Level.WARNING, "List fines by offense failed", ex);
             if (ex instanceof RuntimeException) {
@@ -207,6 +222,8 @@ public class FineInformationController {
                     ? fineRecordService.searchByHandlerFuzzy(handler, page, size)
                     : fineRecordService.searchByHandlerPrefix(handler, page, size);
             return ResponseEntity.ok(ApiResponse.ok(enrich(result)));
+        } catch (IdempotencyReplayException | IdempotencyConflictException | IdempotencyInProgressException ex) {
+            throw ex;
         } catch (Exception ex) {
             LOG.log(Level.WARNING, "Search fine by handler failed", ex);
             if (ex instanceof RuntimeException) {
@@ -223,6 +240,8 @@ public class FineInformationController {
                                                                   @RequestParam(defaultValue = "20") int size) {
         try {
             return ResponseEntity.ok(ApiResponse.ok(enrich(fineRecordService.searchByPaymentStatus(status, page, size))));
+        } catch (IdempotencyReplayException | IdempotencyConflictException | IdempotencyInProgressException ex) {
+            throw ex;
         } catch (Exception ex) {
             LOG.log(Level.WARNING, "Search fine by status failed", ex);
             if (ex instanceof RuntimeException) {
@@ -240,6 +259,8 @@ public class FineInformationController {
                                                               @RequestParam(defaultValue = "20") int size) {
         try {
             return ResponseEntity.ok(ApiResponse.ok(enrich(fineRecordService.searchByFineDateRange(startDate, endDate, page, size))));
+        } catch (IdempotencyReplayException | IdempotencyConflictException | IdempotencyInProgressException ex) {
+            throw ex;
         } catch (Exception ex) {
             LOG.log(Level.WARNING, "Search fine by date range failed", ex);
             if (ex instanceof RuntimeException) {

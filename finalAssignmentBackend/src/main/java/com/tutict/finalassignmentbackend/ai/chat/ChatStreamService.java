@@ -2,8 +2,12 @@ package com.tutict.finalassignmentbackend.ai.chat;
 
 import com.tutict.finalassignmentbackend.ai.provider.AiProviderRegistry;
 import com.tutict.finalassignmentbackend.ai.provider.AiToken;
+import com.tutict.finalassignmentbackend.reliability.ModelCallBulkhead;
+import com.tutict.finalassignmentbackend.reliability.ReliabilityMetrics;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.ObjectProvider;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import reactor.core.publisher.Flux;
@@ -11,6 +15,7 @@ import reactor.core.publisher.BufferOverflowStrategy;
 
 import java.time.Duration;
 import java.time.Instant;
+import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -22,13 +27,36 @@ public class ChatStreamService {
 
     private final AiProviderRegistry aiProviderRegistry;
     private final Duration keepAliveInterval;
+    private final ModelCallBulkhead modelCalls;
+    private final ReliabilityMetrics metrics;
 
     public ChatStreamService(
             AiProviderRegistry aiProviderRegistry,
-            @Value("${ai.chat.stream.keepalive:PT15S}") Duration keepAliveInterval
+            Duration keepAliveInterval
+    ) {
+        this(aiProviderRegistry, keepAliveInterval, new ModelCallBulkhead(), (ReliabilityMetrics) null);
+    }
+
+    @Autowired
+    public ChatStreamService(
+            AiProviderRegistry aiProviderRegistry,
+            @Value("${ai.chat.stream.keepalive:PT15S}") Duration keepAliveInterval,
+            ModelCallBulkhead modelCalls,
+            ObjectProvider<ReliabilityMetrics> metrics
+    ) {
+        this(aiProviderRegistry, keepAliveInterval, modelCalls, metrics == null ? (ReliabilityMetrics) null : metrics.getIfAvailable());
+    }
+
+    ChatStreamService(
+            AiProviderRegistry aiProviderRegistry,
+            Duration keepAliveInterval,
+            ModelCallBulkhead modelCalls,
+            ReliabilityMetrics metrics
     ) {
         this.aiProviderRegistry = aiProviderRegistry;
         this.keepAliveInterval = keepAliveInterval;
+        this.modelCalls = modelCalls == null ? new ModelCallBulkhead() : modelCalls;
+        this.metrics = metrics;
     }
 
     public Flux<ChatStreamEvent> stream(AiChatStreamRequest request) {
@@ -37,7 +65,12 @@ public class ChatStreamService {
                 .orElseGet(() -> UUID.randomUUID().toString());
         String messageId = UUID.randomUUID().toString();
 
-        Flux<ChatStreamEvent> providerEvents = aiProviderRegistry.stream(
+        return Flux.defer(() -> {
+            if (!modelCalls.tryAcquire()) {
+                markAiFallback();
+                return bulkheadFallback(sessionKey, messageId);
+            }
+            Flux<ChatStreamEvent> providerEvents = aiProviderRegistry.stream(
                         request.normalizedMessage(),
                         request.metadata()
                 )
@@ -49,9 +82,10 @@ public class ChatStreamService {
                         "AI chat stream canceled. sessionKey={}, messageId={}",
                         sessionKey,
                         messageId
-                ));
+                ))
+                .doFinally(signal -> modelCalls.release());
 
-        return ChatStreamKeepAlive.attach(providerEvents, sessionKey, messageId, keepAliveInterval)
+            return ChatStreamKeepAlive.attach(providerEvents, sessionKey, messageId, keepAliveInterval)
                 .onBackpressureBuffer(
                         BACKPRESSURE_BUFFER_SIZE,
                         dropped -> logger.warn(
@@ -63,6 +97,34 @@ public class ChatStreamService {
                         BufferOverflowStrategy.DROP_OLDEST
                 )
                 .limitRate(32);
+        });
+    }
+
+    private Flux<ChatStreamEvent> bulkheadFallback(String sessionKey, String messageId) {
+        return Flux.just(
+                new ChatStreamEvent(
+                        ChatStreamEventType.TOKEN.wireName(),
+                        sessionKey,
+                        messageId,
+                        "AI 暂时不可用，请稍后再试。",
+                        Map.of("isFallback", true, "reason", "bulkhead_full"),
+                        java.time.Instant.now()
+                ),
+                new ChatStreamEvent(
+                        ChatStreamEventType.DONE.wireName(),
+                        sessionKey,
+                        messageId,
+                        null,
+                        Map.of("isFallback", true, "reason", "bulkhead_full"),
+                        java.time.Instant.now()
+                )
+        );
+    }
+
+    private void markAiFallback() {
+        if (metrics != null) {
+            metrics.aiFallback();
+        }
     }
 
     private Flux<ChatStreamEvent> toStreamEvents(AiToken token, String sessionKey, String messageId) {
@@ -109,6 +171,7 @@ public class ChatStreamService {
                 messageId,
                 error.toString()
         );
+        markAiFallback();
         return ChatStreamEvent.error(sessionKey, messageId, message);
     }
 }

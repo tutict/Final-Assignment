@@ -10,7 +10,8 @@ import com.tutict.finalassignmentbackend.dto.response.ApiResponse;
 import com.tutict.finalassignmentbackend.entity.appeal.AppealRecord;
 import com.tutict.finalassignmentbackend.entity.offense.OffenseRecord;
 import com.tutict.finalassignmentbackend.entity.payment.PaymentRecord;
-import com.tutict.finalassignmentbackend.payment.exception.PaymentDuplicateRequestException;
+import com.tutict.finalassignmentbackend.reliability.LedgerBodyFingerprint;
+import com.tutict.finalassignmentbackend.reliability.LedgerHistoryReserve;
 import com.tutict.finalassignmentbackend.payment.exception.PaymentOptimisticLockException;
 import com.tutict.finalassignmentbackend.service.appeal.AppealRecordService;
 import com.tutict.finalassignmentbackend.service.offense.OffenseRecordService;
@@ -44,15 +45,18 @@ public class WorkflowController {
     private final OffenseRecordService offenseRecordService;
     private final PaymentRecordService paymentRecordService;
     private final AppealRecordService appealRecordService;
+    private final LedgerHistoryReserve ledgerHistoryReserve;
 
     public WorkflowController(StateMachineService stateMachineService,
                               OffenseRecordService offenseRecordService,
                               PaymentRecordService paymentRecordService,
-                              AppealRecordService appealRecordService) {
+                              AppealRecordService appealRecordService,
+                              LedgerHistoryReserve ledgerHistoryReserve) {
         this.stateMachineService = stateMachineService;
         this.offenseRecordService = offenseRecordService;
         this.paymentRecordService = paymentRecordService;
         this.appealRecordService = appealRecordService;
+        this.ledgerHistoryReserve = ledgerHistoryReserve;
     }
 
     @PostMapping("/offenses/{offenseId}/events/{event}")
@@ -83,41 +87,67 @@ public class WorkflowController {
         if (record == null) {
             return ResponseEntity.notFound().build();
         }
-        if (paymentRecordService.isDuplicateIdempotencyKey(idempotencyKey)) {
-            return ResponseEntity.status(HttpStatus.ALREADY_REPORTED).body(ApiResponse.ok(null));
-        }
+        String eventName = event.name();
+        reserveWorkflow(idempotencyKey, "PAYMENT_STATUS",
+                "/api/workflow/payments/" + paymentId + "/events/" + eventName, paymentId, eventName);
         PaymentState currentState = resolvePaymentState(record.getPaymentStatus());
         PaymentState newState = stateMachineService.processPaymentState(paymentId, currentState, event);
         if (newState == currentState) {
             LOG.log(Level.WARNING, "Payment {0} event {1} rejected at state {2}", new Object[]{paymentId, event, currentState});
+            ledgerHistoryReserve.markFailed(idempotencyKey, "workflow transition rejected");
             return workflowConflict();
         }
         try {
-            PaymentRecord updated = paymentRecordService.updatePaymentStatus(paymentId, newState, idempotencyKey);
+            PaymentRecord updated = paymentRecordService.updatePaymentStatus(paymentId, newState);
+            ledgerHistoryReserve.markSuccess(idempotencyKey, paymentId);
             return ResponseEntity.ok(updated);
-        } catch (PaymentDuplicateRequestException ex) {
-            return ResponseEntity.status(HttpStatus.ALREADY_REPORTED).body(ApiResponse.ok(null));
         } catch (PaymentOptimisticLockException ex) {
+            ledgerHistoryReserve.markFailed(idempotencyKey, ex.getMessage());
             return workflowConflict();
+        } catch (RuntimeException ex) {
+            ledgerHistoryReserve.markFailed(idempotencyKey, ex.getMessage());
+            throw ex;
         }
     }
 
     @PostMapping("/appeals/{appealId}/events/{event}")
     @Operation(summary = "触发申诉状态事件")
     public ResponseEntity<?> triggerAppealEvent(@PathVariable Long appealId,
-                                                @PathVariable AppealProcessEvent event) {
+                                                @PathVariable AppealProcessEvent event,
+                                                @RequestHeader(value = "Idempotency-Key", required = true)
+                                                String idempotencyKey) {
         AppealRecord record = appealRecordService.getAppealById(appealId);
         if (record == null) {
             return ResponseEntity.notFound().build();
         }
+        String eventName = event.name();
+        reserveWorkflow(idempotencyKey, "APPEAL_STATUS",
+                "/api/workflow/appeals/" + appealId + "/events/" + eventName, appealId, eventName);
         AppealProcessState currentState = resolveAppealState(record.getProcessStatus());
         AppealProcessState newState = stateMachineService.processAppealState(appealId, currentState, event);
         if (newState == currentState) {
             LOG.log(Level.WARNING, "Appeal {0} event {1} rejected at state {2}", new Object[]{appealId, event, currentState});
+            ledgerHistoryReserve.markFailed(idempotencyKey, "workflow transition rejected");
             return workflowConflict();
         }
-        AppealRecord updated = appealRecordService.updateProcessStatus(appealId, newState);
-        return ResponseEntity.ok(updated);
+        try {
+            AppealRecord updated = appealRecordService.updateProcessStatus(appealId, newState);
+            ledgerHistoryReserve.markSuccess(idempotencyKey, appealId);
+            return ResponseEntity.ok(updated);
+        } catch (RuntimeException ex) {
+            ledgerHistoryReserve.markFailed(idempotencyKey, ex.getMessage());
+            throw ex;
+        }
+    }
+
+    private void reserveWorkflow(String idempotencyKey, String businessType, String url, Long businessId, String eventName) {
+        ledgerHistoryReserve.reserve(
+                idempotencyKey,
+                businessType,
+                "POST",
+                url,
+                LedgerBodyFingerprint.sha256(businessId + "|" + eventName),
+                businessId);
     }
 
     private OffenseProcessState resolveOffenseState(String code) {

@@ -36,6 +36,8 @@ public class ElasticsearchRepositoryFallbackPostProcessor implements BeanPostPro
 
     private static final Logger LOG = Logger.getLogger(ElasticsearchRepositoryFallbackPostProcessor.class.getName());
     private final Set<String> loggedFallbacks = ConcurrentHashMap.newKeySet();
+    private volatile long openUntilMillis;
+    static final long CIRCUIT_OPEN_MILLIS = 15_000L;
 
     @Override
     public int getOrder() {
@@ -58,11 +60,19 @@ public class ElasticsearchRepositoryFallbackPostProcessor implements BeanPostPro
     }
 
     private Object invokeWithFallback(String beanName, Object target, Method method, Object[] args) throws Throwable {
+        if (method.getDeclaringClass() == Object.class) {
+            return method.invoke(target, args);
+        }
+        long now = System.currentTimeMillis();
+        if (now < openUntilMillis) {
+            return fallbackValue(method, args);
+        }
         try {
             return method.invoke(target, args);
         } catch (InvocationTargetException ex) {
             Throwable targetException = ex.getTargetException();
             if (isElasticsearchFailure(targetException)) {
+                openUntilMillis = now + CIRCUIT_OPEN_MILLIS;
                 logFallback(beanName, method, targetException);
                 return fallbackValue(method, args);
             }
