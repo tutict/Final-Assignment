@@ -7,11 +7,13 @@ import finalassignmentbackend.entity.SysUser;
 import finalassignmentbackend.mapper.SysRequestHistoryMapper;
 import finalassignmentbackend.mapper.SysUserMapper;
 import io.quarkus.cache.CacheInvalidate;
+import io.quarkus.cache.CacheInvalidateAll;
 import io.quarkus.cache.CacheResult;
 import io.quarkus.runtime.annotations.RegisterForReflection;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
 import jakarta.transaction.Transactional;
+import org.mindrot.jbcrypt.BCrypt;
 
 import java.time.LocalDateTime;
 import java.time.format.DateTimeParseException;
@@ -70,6 +72,73 @@ public class SysUserService {
             throw new IllegalStateException("User not found: " + user.getUserId());
         }
         return user;
+    }
+
+
+    @Transactional
+    @CacheInvalidateAll(cacheName = "sysUserCache")
+    public SysUser updateOwnProfile(String username, SysUser patch) {
+        SysUser existing = requireByUsername(username);
+        if (patch != null) {
+            if (!isBlank(patch.getRealName())) {
+                existing.setRealName(patch.getRealName().trim());
+            }
+            if (!isBlank(patch.getEmail())) {
+                existing.setEmail(patch.getEmail().trim());
+            }
+            if (isUsableContactNumber(patch.getContactNumber())) {
+                existing.setContactNumber(patch.getContactNumber().trim());
+            }
+            if (!isBlank(patch.getGender())) {
+                existing.setGender(patch.getGender().trim());
+            }
+            if (patch.getRemarks() != null && !patch.getRemarks().isBlank()) {
+                existing.setRemarks(patch.getRemarks());
+            }
+        }
+        existing.setUpdatedAt(LocalDateTime.now());
+        sysUserMapper.updateById(existing);
+        return existing;
+    }
+
+    @Transactional
+    @CacheInvalidateAll(cacheName = "sysUserCache")
+    public void updateOwnPassword(String username, String rawPassword) {
+        String password = normalizePassword(rawPassword);
+        if (password.length() < 8) {
+            throw new IllegalArgumentException("密码至少 8 位");
+        }
+        SysUser existing = requireByUsername(username);
+        existing.setPassword(BCrypt.hashpw(password, BCrypt.gensalt()));
+        existing.setSalt(null);
+        existing.setPasswordUpdateTime(LocalDateTime.now());
+        existing.setUpdatedAt(LocalDateTime.now());
+        sysUserMapper.updateById(existing);
+    }
+
+    private SysUser requireByUsername(String username) {
+        if (isBlank(username)) {
+            throw new IllegalArgumentException("用户不存在");
+        }
+        QueryWrapper<SysUser> wrapper = new QueryWrapper<>();
+        wrapper.eq("username", username.trim());
+        SysUser existing = sysUserMapper.selectOne(wrapper);
+        if (existing == null) {
+            throw new IllegalArgumentException("用户不存在");
+        }
+        return existing;
+    }
+
+    private boolean isUsableContactNumber(String value) {
+        return !isBlank(value) && !value.contains("*");
+    }
+
+    private String normalizePassword(String rawPassword) {
+        String password = rawPassword == null ? "" : rawPassword.trim();
+        if (password.length() >= 2 && password.charAt(0) == '"' && password.charAt(password.length() - 1) == '"') {
+            password = password.substring(1, password.length() - 1);
+        }
+        return password;
     }
 
     @Transactional

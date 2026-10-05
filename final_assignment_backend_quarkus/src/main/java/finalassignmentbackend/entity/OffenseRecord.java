@@ -201,4 +201,10 @@ public class OffenseRecord implements Serializable {
      */
     @TableField("remarks")
     private String remarks;
+
+    @TableField(exist = false)
+    private String driverName;
+
+    @TableField(exist = false)
+    private String licensePlate;
 }

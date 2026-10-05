@@ -17,8 +17,10 @@ import jakarta.ws.rs.PathParam;
 import jakarta.ws.rs.Produces;
 import jakarta.ws.rs.QueryParam;
 import jakarta.ws.rs.HeaderParam;
+import jakarta.ws.rs.core.Context;
 import jakarta.ws.rs.core.MediaType;
 import jakarta.ws.rs.core.Response;
+import jakarta.ws.rs.core.SecurityContext;
 import org.eclipse.microprofile.openapi.annotations.tags.Tag;
 
 import java.util.List;
@@ -103,6 +105,82 @@ public class UserManagementController {
             LOG.log(Level.WARNING, "Delete user failed", ex);
             return Response.status(resolveStatus(ex)).build();
         }
+    }
+
+
+    @GET
+    @Path("/me")
+    @RolesAllowed({"SUPER_ADMIN", "ADMIN", "USER", "TRAFFIC_POLICE", "FINANCE", "APPEAL_REVIEWER"})
+    @RunOnVirtualThread
+    public Response currentUser(@Context SecurityContext securityContext) {
+        String username = currentUsername(securityContext);
+        if (username == null) {
+            return Response.status(Response.Status.UNAUTHORIZED).build();
+        }
+        SysUser user = sysUserService.findByUsername(username);
+        return user == null ? Response.status(Response.Status.NOT_FOUND).build() : Response.ok(withoutSecrets(user)).build();
+    }
+
+    @PUT
+    @Path("/me")
+    @RolesAllowed({"SUPER_ADMIN", "ADMIN", "USER", "TRAFFIC_POLICE", "FINANCE", "APPEAL_REVIEWER"})
+    @RunOnVirtualThread
+    public Response updateCurrentUser(SysUser patch, @Context SecurityContext securityContext) {
+        String username = currentUsername(securityContext);
+        if (username == null) {
+            return Response.status(Response.Status.UNAUTHORIZED).build();
+        }
+        try {
+            return Response.ok(withoutSecrets(sysUserService.updateOwnProfile(username, patch))).build();
+        } catch (Exception ex) {
+            LOG.log(Level.WARNING, "Update current user failed", ex);
+            return Response.status(resolveStatus(ex)).build();
+        }
+    }
+
+    @PUT
+    @Path("/me/password")
+    @Consumes(MediaType.TEXT_PLAIN)
+    @RolesAllowed({"SUPER_ADMIN", "ADMIN", "USER", "TRAFFIC_POLICE", "FINANCE", "APPEAL_REVIEWER"})
+    @RunOnVirtualThread
+    public Response updateCurrentPassword(String newPassword, @Context SecurityContext securityContext) {
+        String username = currentUsername(securityContext);
+        if (username == null) {
+            return Response.status(Response.Status.UNAUTHORIZED).build();
+        }
+        try {
+            sysUserService.updateOwnPassword(username, newPassword);
+            return Response.noContent().build();
+        } catch (Exception ex) {
+            LOG.log(Level.WARNING, "Update current password failed", ex);
+            return Response.status(resolveStatus(ex)).build();
+        }
+    }
+
+    private static String currentUsername(SecurityContext securityContext) {
+        if (securityContext == null || securityContext.getUserPrincipal() == null) {
+            return null;
+        }
+        String name = securityContext.getUserPrincipal().getName();
+        return name == null || name.isBlank() ? null : name;
+    }
+
+    private static SysUser withoutSecrets(SysUser source) {
+        SysUser copy = new SysUser();
+        copy.setUserId(source.getUserId());
+        copy.setUsername(source.getUsername());
+        copy.setRealName(source.getRealName());
+        copy.setEmail(source.getEmail());
+        copy.setContactNumber(source.getContactNumber());
+        copy.setGender(source.getGender());
+        copy.setDepartment(source.getDepartment());
+        copy.setPosition(source.getPosition());
+        copy.setEmployeeNumber(source.getEmployeeNumber());
+        copy.setStatus(source.getStatus());
+        copy.setRemarks(source.getRemarks());
+        copy.setCreatedAt(source.getCreatedAt());
+        copy.setUpdatedAt(source.getUpdatedAt());
+        return copy;
     }
 
     @GET

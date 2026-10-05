@@ -154,6 +154,44 @@ public class FineRecordService {
         return fetchFromDatabase(wrapper, page, size);
     }
 
+
+    public List<FineRecord> searchByPayee(String payee, int page, int size) {
+        if (isBlank(payee)) {
+            return List.of();
+        }
+        validatePagination(page, size);
+        QueryWrapper<FineRecord> wrapper = new QueryWrapper<>();
+        wrapper.and(nested -> nested.like("handler", payee.trim())
+                        .or()
+                        .apply("driver_id IN (SELECT driver_id FROM driver_information WHERE name LIKE {0})",
+                                "%" + payee.trim() + "%"))
+                .orderByDesc("fine_date");
+        return fetchFromDatabase(wrapper, page, size);
+    }
+
+    public FineRecord findByReceiptNumber(String receiptNumber) {
+        if (isBlank(receiptNumber)) {
+            return null;
+        }
+        QueryWrapper<FineRecord> wrapper = new QueryWrapper<>();
+        wrapper.eq("fine_number", receiptNumber.trim()).last("LIMIT 1");
+        List<FineRecord> rows = fineRecordMapper.selectList(wrapper);
+        return rows.isEmpty() ? null : rows.get(0);
+    }
+
+    public List<FineRecord> searchByTimeRange(String startTime, String endTime, int maxSuggestions) {
+        int size = maxSuggestions <= 0 ? 10 : Math.min(maxSuggestions, 100);
+        return searchByFineDateRange(datePrefix(startTime), datePrefix(endTime), 1, size);
+    }
+
+    private String datePrefix(String value) {
+        if (isBlank(value)) {
+            return null;
+        }
+        String text = value.trim();
+        return text.length() >= 10 ? text.substring(0, 10) : text;
+    }
+
     public boolean shouldSkipProcessing(String idempotencyKey) {
         SysRequestHistory history = sysRequestHistoryMapper.selectByIdempotencyKey(idempotencyKey);
         return history != null
@@ -221,6 +259,18 @@ public class FineRecordService {
     private void validateRecord(FineRecord record) {
         if (record == null) {
             throw new IllegalArgumentException("Fine record must not be null");
+        }
+        if (record.getOffenseId() == null || record.getOffenseId() <= 0) {
+            throw new IllegalArgumentException("请选择关联的违法记录");
+        }
+        if (record.getFineNumber() == null || record.getFineNumber().isBlank()) {
+            record.setFineNumber("FN" + System.currentTimeMillis());
+        }
+        if (record.getIssuingAuthority() == null || record.getIssuingAuthority().isBlank()) {
+            record.setIssuingAuthority("未填写");
+        }
+        if (record.getHandler() == null || record.getHandler().isBlank()) {
+            record.setHandler("系统");
         }
         if (record.getFineDate() == null) {
             record.setFineDate(LocalDate.now());

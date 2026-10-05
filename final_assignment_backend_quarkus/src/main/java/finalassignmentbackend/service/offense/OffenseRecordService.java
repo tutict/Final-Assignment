@@ -4,8 +4,12 @@ import com.baomidou.mybatisplus.core.conditions.update.UpdateWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import finalassignmentbackend.config.statemachine.states.OffenseProcessState;
 import finalassignmentbackend.config.websocket.WsAction;
+import finalassignmentbackend.entity.DriverInformation;
 import finalassignmentbackend.entity.OffenseRecord;
 import finalassignmentbackend.entity.SysRequestHistory;
+import finalassignmentbackend.entity.VehicleInformation;
+import finalassignmentbackend.mapper.DriverInformationMapper;
+import finalassignmentbackend.mapper.VehicleInformationMapper;
 import finalassignmentbackend.exception.BusinessException;
 import finalassignmentbackend.mapper.OffenseRecordMapper;
 import finalassignmentbackend.mapper.SysRequestHistoryMapper;
@@ -55,6 +59,12 @@ public class OffenseRecordService {
     @Inject
     OffenseKafkaProducer offenseKafkaProducer;
 
+    @Inject
+    DriverInformationMapper driverInformationMapper;
+
+    @Inject
+    VehicleInformationMapper vehicleInformationMapper;
+
     // 治理组件（对齐 Spring service/offense/OffenseRecordService）。均为无状态纯逻辑，直接实例化。
     private final SemanticIntentClassifier semanticIntentClassifier = new SemanticIntentClassifier();
     private final OffenseSideEffectCoordinator sideEffectCoordinator =
@@ -96,6 +106,7 @@ public class OffenseRecordService {
     @CacheInvalidate(cacheName = "offenseRecordCache")
     public OffenseRecord createOffenseRecord(OffenseRecord record) {
         MutationSideEffectPolicy policy = semanticIntentClassifier.classifyCreate();
+        resolveParties(record);
         validateRecord(record);
         offenseRecordMapper.insert(record);
         syncToIndexAfterCommit(policy, record);
@@ -622,15 +633,56 @@ public class OffenseRecordService {
         }
     }
 
+
+    private void resolveParties(OffenseRecord record) {
+        if (record == null) {
+            throw new IllegalArgumentException("Offense record must not be null");
+        }
+        if (record.getDriverId() == null || record.getDriverId() <= 0) {
+            String name = record.getDriverName() == null ? "" : record.getDriverName().trim();
+            if (name.isEmpty()) {
+                throw new IllegalArgumentException("请填写驾驶员");
+            }
+            List<DriverInformation> matches = driverInformationMapper.selectList(
+                    new QueryWrapper<DriverInformation>().eq("name", name));
+            if (matches.isEmpty()) {
+                throw new IllegalArgumentException("未找到驾驶员：" + name);
+            }
+            if (matches.size() > 1) {
+                throw new IllegalArgumentException("驾驶员姓名不唯一，请改用驾驶员编号");
+            }
+            record.setDriverId(matches.get(0).getDriverId());
+        }
+        if (record.getVehicleId() == null || record.getVehicleId() <= 0) {
+            String plate = record.getLicensePlate() == null ? "" : record.getLicensePlate().trim();
+            if (plate.isEmpty()) {
+                throw new IllegalArgumentException("请填写车牌号");
+            }
+            List<VehicleInformation> matches = vehicleInformationMapper.selectList(
+                    new QueryWrapper<VehicleInformation>().eq("license_plate", plate));
+            if (matches.isEmpty()) {
+                throw new IllegalArgumentException("未找到车辆：" + plate);
+            }
+            if (matches.size() > 1) {
+                throw new IllegalArgumentException("车牌号不唯一：" + plate);
+            }
+            record.setVehicleId(matches.get(0).getVehicleId());
+        }
+    }
+
     private void validateRecord(OffenseRecord record) {
         if (record == null) {
             throw new IllegalArgumentException("Offense record must not be null");
         }
+        if (record.getOffenseNumber() == null || record.getOffenseNumber().isBlank()) {
+            record.setOffenseNumber("OF" + System.currentTimeMillis());
+        }
         if (record.getOffenseTime() == null) {
             record.setOffenseTime(LocalDateTime.now());
         }
-        if (record.getProcessStatus() == null || record.getProcessStatus().isBlank()) {
-            record.setProcessStatus("Pending");
+        if (record.getProcessStatus() == null || record.getProcessStatus().isBlank()
+                || "Pending".equalsIgnoreCase(record.getProcessStatus())) {
+            record.setProcessStatus("Unprocessed");
         }
     }
 

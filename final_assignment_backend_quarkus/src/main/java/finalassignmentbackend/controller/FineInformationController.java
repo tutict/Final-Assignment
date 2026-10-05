@@ -293,6 +293,40 @@ public class FineInformationController {
         }
     }
 
+
+    @GET
+    @Path("/payee/{payee}")
+    @RunOnVirtualThread
+    public Response byPayee(@PathParam("payee") String payee,
+                            @QueryParam("page") Integer page,
+                            @QueryParam("size") Integer size) {
+        int resolvedPage = page == null ? 1 : page;
+        int resolvedSize = size == null ? 20 : size;
+        return Response.ok(fineRecordService.searchByPayee(payee, resolvedPage, resolvedSize)).build();
+    }
+
+    @GET
+    @Path("/receiptNumber/{receiptNumber}")
+    @RunOnVirtualThread
+    public Response byReceipt(@PathParam("receiptNumber") String receiptNumber) {
+        FineRecord record = fineRecordService.findByReceiptNumber(receiptNumber);
+        if (record == null) {
+            return Response.status(Response.Status.NOT_FOUND).build();
+        }
+        return Response.ok(record).build();
+    }
+
+    @GET
+    @Path("/by-time-range")
+    @RunOnVirtualThread
+    public Response byTimeRange(@QueryParam("startTime") String startTime,
+                                @QueryParam("endTime") String endTime,
+                                @QueryParam("maxSuggestions") Integer maxSuggestions) {
+        int limit = maxSuggestions == null ? 10 : maxSuggestions;
+        return Response.ok(fineRecordService.searchByTimeRange(startTime, endTime, limit)).build();
+    }
+
+
     private boolean hasKey(String value) {
         return value != null && !value.isBlank();
     }

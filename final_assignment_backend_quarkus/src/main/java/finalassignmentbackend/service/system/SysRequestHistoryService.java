@@ -93,6 +93,13 @@ public class SysRequestHistoryService {
         return sysRequestHistoryMapper.selectList(null);
     }
 
+    public List<SysRequestHistory> findByUsername(String username) {
+        if (isBlank(username)) {
+            return List.of();
+        }
+        return sysRequestHistoryMapper.selectByUsername(username.trim());
+    }
+
     public List<SysRequestHistory> findByBusinessStatus(String status, int page, int size) {
         if (isBlank(status)) {
             return List.of();

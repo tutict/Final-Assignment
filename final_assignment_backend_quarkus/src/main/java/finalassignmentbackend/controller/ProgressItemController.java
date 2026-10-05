@@ -15,8 +15,10 @@ import jakarta.ws.rs.Path;
 import jakarta.ws.rs.PathParam;
 import jakarta.ws.rs.Produces;
 import jakarta.ws.rs.QueryParam;
+import jakarta.ws.rs.core.Context;
 import jakarta.ws.rs.core.MediaType;
 import jakarta.ws.rs.core.Response;
+import jakarta.ws.rs.core.SecurityContext;
 import org.eclipse.microprofile.openapi.annotations.tags.Tag;
 
 import java.util.List;
@@ -116,10 +118,13 @@ public class ProgressItemController {
     }
 
     @GET
+    @RolesAllowed({"SUPER_ADMIN", "ADMIN", "USER"})
     @RunOnVirtualThread
-    public Response list() {
+    public Response list(@Context SecurityContext securityContext) {
         try {
-            List<SysRequestHistory> items = sysRequestHistoryService.findAll();
+            List<SysRequestHistory> items = isRegularUser(securityContext)
+                    ? sysRequestHistoryService.findByUsername(securityContext.getUserPrincipal().getName())
+                    : sysRequestHistoryService.findAll();
             return Response.ok(items).build();
         } catch (Exception ex) {
             LOG.log(Level.WARNING, "List request histories failed", ex);
@@ -186,6 +191,14 @@ public class ProgressItemController {
 
     private boolean hasKey(String value) {
         return value != null && !value.isBlank();
+    }
+
+    private boolean isRegularUser(SecurityContext securityContext) {
+        if (securityContext == null || securityContext.getUserPrincipal() == null) {
+            return false;
+        }
+        boolean elevated = securityContext.isUserInRole("SUPER_ADMIN") || securityContext.isUserInRole("ADMIN");
+        return !elevated && securityContext.isUserInRole("USER");
     }
 
     private Response.Status resolveStatus(Exception ex) {

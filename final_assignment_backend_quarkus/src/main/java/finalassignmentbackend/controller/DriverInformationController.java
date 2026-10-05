@@ -69,6 +69,97 @@ public class DriverInformationController {
         }
     }
 
+
+    @PUT
+    @Path("/{driverId}/name")
+    @RolesAllowed({"SUPER_ADMIN", "ADMIN", "TRAFFIC_POLICE", "USER"})
+    @RunOnVirtualThread
+    public Response updateName(@PathParam("driverId") Long driverId,
+                               String body,
+                               @HeaderParam("Idempotency-Key") String idempotencyKey) {
+        return updateDriverField(driverId, "name", body, idempotencyKey);
+    }
+
+    @PUT
+    @Path("/{driverId}/contactNumber")
+    @RolesAllowed({"SUPER_ADMIN", "ADMIN", "TRAFFIC_POLICE", "USER"})
+    @RunOnVirtualThread
+    public Response updateContactNumber(@PathParam("driverId") Long driverId,
+                                        String body,
+                                        @HeaderParam("Idempotency-Key") String idempotencyKey) {
+        return updateDriverField(driverId, "contactNumber", body, idempotencyKey);
+    }
+
+    @PUT
+    @Path("/{driverId}/idCardNumber")
+    @RolesAllowed({"SUPER_ADMIN", "ADMIN", "TRAFFIC_POLICE", "USER"})
+    @RunOnVirtualThread
+    public Response updateIdCardNumber(@PathParam("driverId") Long driverId,
+                                       String body,
+                                       @HeaderParam("Idempotency-Key") String idempotencyKey) {
+        return updateDriverField(driverId, "idCardNumber", body, idempotencyKey);
+    }
+
+    private Response updateDriverField(Long driverId, String field, String body, String idempotencyKey) {
+        if (!driverAccessGuard.canAccessDriver(securityContext, driverId)) {
+            return driverAccessGuard.forbidden();
+        }
+        String value = readDriverField(body, field);
+        if (value.isBlank()) {
+            return Response.status(Response.Status.BAD_REQUEST).build();
+        }
+        DriverInformation existing = driverInformationService.getDriverById(driverId);
+        if (existing == null) {
+            return Response.status(Response.Status.NOT_FOUND).build();
+        }
+        switch (field) {
+            case "name" -> existing.setName(value);
+            case "contactNumber" -> existing.setContactNumber(value);
+            case "idCardNumber" -> existing.setIdCardNumber(value);
+            default -> {
+                return Response.status(Response.Status.BAD_REQUEST).build();
+            }
+        }
+        boolean useKey = hasKey(idempotencyKey);
+        try {
+            if (useKey) {
+                driverInformationService.checkAndInsertIdempotency(idempotencyKey, existing, "update");
+            }
+            DriverInformation updated = driverInformationService.updateDriver(existing);
+            if (useKey && updated.getDriverId() != null) {
+                driverInformationService.markHistorySuccess(idempotencyKey, updated.getDriverId());
+            }
+            return Response.noContent().build();
+        } catch (RuntimeException ex) {
+            if (useKey) {
+                driverInformationService.markHistoryFailure(idempotencyKey, ex.getMessage());
+            }
+            throw ex;
+        }
+    }
+
+    private static String readDriverField(String body, String field) {
+        if (body == null) {
+            return "";
+        }
+        String text = body.trim();
+        if (text.startsWith("\"") && text.endsWith("\"") && text.length() >= 2) {
+            return text.substring(1, text.length() - 1).replace("\\\"", "\"").trim();
+        }
+        String needle = "\"" + field + "\"";
+        int key = text.indexOf(needle);
+        if (key < 0 && "contactNumber".equals(field)) {
+            needle = "\"phoneNumber\"";
+            key = text.indexOf(needle);
+        }
+        if (key < 0) {
+            return "";
+        }
+        int quote = text.indexOf('"', key + needle.length());
+        int end = quote < 0 ? -1 : text.indexOf('"', quote + 1);
+        return quote < 0 || end < 0 ? "" : text.substring(quote + 1, end).trim();
+    }
+
     @PUT
     @Path("/{driverId}")
     @RolesAllowed({"SUPER_ADMIN", "ADMIN", "TRAFFIC_POLICE", "USER"})
