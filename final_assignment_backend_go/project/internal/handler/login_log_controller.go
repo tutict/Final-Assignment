@@ -5,22 +5,21 @@ import (
 	"net/http"
 	"net/url"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/gin-gonic/gin"
-
-	service "final_assignment_backend_go/project/internal/service/audit"
 
 	"final_assignment_backend_go/project/internal/domain"
 )
 
 // LoginLogController 负责路由与请求处理
 type LoginLogController struct {
-	service *service.LoginLogService
+	service LoginLogService
 }
 
 // NewLoginLogController 创建控制器实例
-func NewLoginLogController(s *service.LoginLogService) *LoginLogController {
+func NewLoginLogController(s LoginLogService) *LoginLogController {
 	return &LoginLogController{service: s}
 }
 
@@ -39,6 +38,11 @@ func (c *LoginLogController) mountLoginLogs(group *gin.RouterGroup) {
 	group.GET("/search/username", c.GetLoginLogsByUsername)
 	group.GET("/loginResult/:loginResult", c.GetLoginLogsByLoginResult)
 	group.GET("/search/result", c.GetLoginLogsByLoginResult)
+	group.GET("/search/ip", c.SearchLoginLogsByIP)
+	group.GET("/search/location", c.SearchLoginLogsByLocation)
+	group.GET("/search/device-type", c.SearchLoginLogsByDeviceType)
+	group.GET("/search/browser-type", c.SearchLoginLogsByBrowserType)
+	group.GET("/search/logout-time-range", c.SearchLoginLogsByLogoutTime)
 	group.GET("/autocomplete/usernames/me", c.GetUsernameAutocomplete)
 	group.GET("/autocomplete/login-results/me", c.GetLoginResultAutocomplete)
 	group.GET("/:logId", c.GetLoginLogByID)
@@ -121,12 +125,11 @@ func (c *LoginLogController) DeleteLoginLog(ctx *gin.Context) {
 
 // GetLoginLogsByTimeRange GET /api/loginLogs/timeRange?start=2020-01-01&end=2025-01-01
 func (c *LoginLogController) GetLoginLogsByTimeRange(ctx *gin.Context) {
-	startStr := ctx.DefaultQuery("start", "1970-01-01")
-	endStr := ctx.DefaultQuery("end", "2100-01-01")
-
-	start, _ := time.Parse("2006-01-02", startStr)
-	end, _ := time.Parse("2006-01-02", endStr)
-
+	start, end, err := queryTimeWindow(ctx)
+	if err != nil {
+		ctx.JSON(http.StatusBadRequest, gin.H{"error": "invalid time format"})
+		return
+	}
 	logs, err := c.service.GetLoginLogsByTimeRange(start, end)
 	if err != nil {
 		ctx.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
@@ -181,4 +184,90 @@ func (c *LoginLogController) GetLoginResultAutocomplete(ctx *gin.Context) {
 
 	suggestions := c.service.GetLoginResultsByPrefixGlobally(decoded)
 	ctx.JSON(http.StatusOK, suggestions)
+}
+
+func (c *LoginLogController) SearchLoginLogsByIP(ctx *gin.Context) {
+	query := ctx.Query("ip")
+	c.searchLoginLogs(ctx, func(item domain.LoginLog) bool {
+		return containsFold(item.LoginIP, query)
+	})
+}
+
+func (c *LoginLogController) SearchLoginLogsByLocation(ctx *gin.Context) {
+	query := ctx.Query("loginLocation")
+	c.searchLoginLogs(ctx, func(item domain.LoginLog) bool {
+		return containsFold(item.LoginLocation, query)
+	})
+}
+
+func (c *LoginLogController) SearchLoginLogsByDeviceType(ctx *gin.Context) {
+	query := ctx.Query("deviceType")
+	c.searchLoginLogs(ctx, func(item domain.LoginLog) bool {
+		return containsFold(item.DeviceType, query)
+	})
+}
+
+func (c *LoginLogController) SearchLoginLogsByBrowserType(ctx *gin.Context) {
+	query := ctx.Query("browserType")
+	c.searchLoginLogs(ctx, func(item domain.LoginLog) bool {
+		return containsFold(item.BrowserType, query)
+	})
+}
+
+func (c *LoginLogController) SearchLoginLogsByLogoutTime(ctx *gin.Context) {
+	start, end, err := queryTimeWindow(ctx)
+	if err != nil {
+		ctx.JSON(http.StatusBadRequest, gin.H{"error": "invalid time format"})
+		return
+	}
+	c.searchLoginLogs(ctx, func(item domain.LoginLog) bool {
+		return item.LogoutTime != nil && !item.LogoutTime.Before(start) && !item.LogoutTime.After(end)
+	})
+}
+
+func (c *LoginLogController) searchLoginLogs(ctx *gin.Context, match func(domain.LoginLog) bool) {
+	logs, err := c.service.GetAllLoginLogs()
+	if err != nil {
+		ctx.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+	filtered := make([]domain.LoginLog, 0)
+	for _, item := range logs {
+		if match(item) {
+			filtered = append(filtered, item)
+		}
+	}
+	ctx.JSON(http.StatusOK, filtered)
+}
+
+func queryTimeWindow(ctx *gin.Context) (time.Time, time.Time, error) {
+	startRaw := firstQuery(ctx, "startTime", "start")
+	if startRaw == "" {
+		startRaw = "1970-01-01"
+	}
+	endRaw := firstQuery(ctx, "endTime", "end")
+	if endRaw == "" {
+		endRaw = "2100-01-01"
+	}
+	start, err1 := parseFlexibleTime(startRaw)
+	end, err2 := parseFlexibleTime(endRaw)
+	if err1 != nil {
+		return time.Time{}, time.Time{}, err1
+	}
+	if err2 != nil {
+		return time.Time{}, time.Time{}, err2
+	}
+	if len(strings.TrimSpace(endRaw)) == 10 {
+		end = end.Add(24*time.Hour - time.Second)
+	}
+	return start, end, nil
+}
+
+func firstQuery(ctx *gin.Context, names ...string) string {
+	for _, name := range names {
+		if value := strings.TrimSpace(ctx.Query(name)); value != "" {
+			return value
+		}
+	}
+	return ""
 }

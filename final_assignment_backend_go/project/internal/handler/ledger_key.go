@@ -10,6 +10,15 @@ import (
 	"final_assignment_backend_go/project/internal/reliability"
 )
 
+
+func idempotencyKey(c *gin.Context) string {
+	key := strings.TrimSpace(c.GetHeader("Idempotency-Key"))
+	if key == "" {
+		key = strings.TrimSpace(c.Query("idempotencyKey"))
+	}
+	return key
+}
+
 func requireIdempotencyKey(c *gin.Context) (string, bool) {
 	key := strings.TrimSpace(c.GetHeader("Idempotency-Key"))
 	if key == "" {
@@ -56,4 +65,20 @@ func writeConnectionWait(c *gin.Context, err error) bool {
 		"message":   "Database connection wait exceeded 200ms",
 	})
 	return true
+}
+
+func writeBusinessOrLedgerError(c *gin.Context, err error) {
+	if err == nil {
+		return
+	}
+	msg := err.Error()
+	if strings.Contains(msg, "请") || strings.Contains(msg, "未找到") || strings.Contains(msg, "不唯一") {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"success":   false,
+			"errorCode": "INVALID_ARGUMENT",
+			"message":   msg,
+		})
+		return
+	}
+	writeLedgerError(c, err)
 }

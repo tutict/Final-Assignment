@@ -67,6 +67,7 @@ func (r *RedisConfig) InitRedis() error {
 		disabled := redis.NewClient(&redis.Options{Addr: "disabled"})
 		r.Client = disabled
 		r.Blacklist = disabled
+		current = r
 		log.Println("[INFO] Redis disabled (REDIS_ENABLED=false), using no-op client")
 		return nil
 	}
@@ -81,6 +82,7 @@ func (r *RedisConfig) InitRedis() error {
 
 	r.Client = client
 	r.Blacklist = blacklist
+	current = r
 	log.Printf("[INFO] Connected to Redis at %s:%s\n", r.Host, r.Port)
 	return nil
 }
@@ -153,4 +155,35 @@ func (cm *RedisCacheManager) Get(key string, dest interface{}) error {
 // Delete 删除缓存
 func (cm *RedisCacheManager) Delete(key string) error {
 	return cm.Config.RedisDelete(key)
+}
+
+var current *RedisConfig
+
+// Current returns the process Redis client after InitRedis.
+func Current() *RedisConfig {
+	return current
+}
+
+// ClearCachePrefix deletes application cache keys without touching the token blacklist.
+func (r *RedisConfig) ClearCachePrefix() error {
+	if r == nil || r.Client == nil || r.Host == "" {
+		return nil
+	}
+	var cursor uint64
+	pattern := r.CachePrefix + "*"
+	for {
+		keys, next, err := r.Client.Scan(r.Ctx, cursor, pattern, 200).Result()
+		if err != nil {
+			return err
+		}
+		if len(keys) > 0 {
+			if err := r.Client.Del(r.Ctx, keys...).Err(); err != nil {
+				return err
+			}
+		}
+		cursor = next
+		if cursor == 0 {
+			return nil
+		}
+	}
 }

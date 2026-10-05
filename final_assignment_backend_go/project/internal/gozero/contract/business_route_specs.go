@@ -15,6 +15,8 @@ func BusinessRouteSpecs() []RouteSpec {
 	routes = append(routes, TrafficViolationRouteSpecs()...)
 	routes = append(routes, WorkflowRouteSpecs()...)
 	routes = append(routes, OffenseDetailsViewRouteSpecs()...)
+	routes = append(routes, FeedbackRouteSpecs()...)
+	routes = append(routes, CacheRouteSpecs()...)
 	return routes
 }
 
@@ -27,6 +29,9 @@ func DriverRouteSpecs() []RouteSpec {
 		driverRoute(http.MethodGet, "/api/drivers/search/name", "searchByName", `@GetMapping("/search/name")`),
 		driverRoute(http.MethodGet, "/api/drivers/search", "searchDrivers", `@GetMapping("/search")`),
 		driverRoute(http.MethodPut, "/api/drivers/:driverId", "update", `@PutMapping("/{driverId}")`),
+		driverRoute(http.MethodPut, "/api/drivers/:driverId/name", "updateName", `@PutMapping("/{driverId}/name")`),
+		driverRoute(http.MethodPut, "/api/drivers/:driverId/contactNumber", "updateContactNumber", `@PutMapping("/{driverId}/contactNumber")`),
+		driverRoute(http.MethodPut, "/api/drivers/:driverId/idCardNumber", "updateIdCardNumber", `@PutMapping("/{driverId}/idCardNumber")`),
 		driverRoute(http.MethodDelete, "/api/drivers/:driverId", "delete", `@DeleteMapping("/{driverId}")`),
 		driverRoute(http.MethodGet, "/api/drivers/:driverId", "get", `@GetMapping("/{driverId}")`),
 	}
@@ -83,6 +88,9 @@ func FineRouteSpecs() []RouteSpec {
 		fineRoute(http.MethodGet, "/api/fines/search/handler", "searchByHandler", `@GetMapping("/search/handler")`),
 		fineRoute(http.MethodGet, "/api/fines/search/status", "searchByPaymentStatus", `@GetMapping("/search/status")`),
 		fineRoute(http.MethodGet, "/api/fines/search/date-range", "searchByDateRange", `@GetMapping("/search/date-range")`),
+		fineRoute(http.MethodGet, "/api/fines/payee/:payee", "byPayee", `@GetMapping("/payee/{payee}")`),
+		fineRoute(http.MethodGet, "/api/fines/receiptNumber/:receiptNumber", "byReceipt", `@GetMapping("/receiptNumber/{receiptNumber}")`),
+		fineRoute(http.MethodGet, "/api/fines/by-time-range", "byTimeRange", `@GetMapping("/by-time-range")`),
 		fineRoute(http.MethodPut, "/api/fines/:fineId", "update", `@PutMapping("/{fineId}")`),
 		fineRoute(http.MethodDelete, "/api/fines/:fineId", "delete", `@DeleteMapping("/{fineId}")`),
 		fineRoute(http.MethodGet, "/api/fines/:fineId", "get", `@GetMapping("/{fineId}")`),
@@ -229,6 +237,28 @@ func trafficViolationRoute(method, path, operation, mapping string) RouteSpec {
 
 func workflowRoute(method, path, operation, mapping string) RouteSpec {
 	return routeSpec(method, path, "workflow", operation, "WorkflowController", mapping)
+}
+
+func FeedbackRouteSpecs() []RouteSpec {
+	return []RouteSpec{
+		feedbackRoute(http.MethodGet, "/api/feedback", "list", "@GetMapping"),
+		feedbackRoute(http.MethodPost, "/api/feedback", "create", "@PostMapping"),
+		feedbackRoute(http.MethodPut, "/api/feedback/:feedbackId", "update", `@PutMapping("/{feedbackId}")`),
+	}
+}
+
+func CacheRouteSpecs() []RouteSpec {
+	return []RouteSpec{
+		cacheRoute(http.MethodPost, "/api/cache/clear", "clear", `@PostMapping("/clear")`),
+	}
+}
+
+func feedbackRoute(method, path, operation, mapping string) RouteSpec {
+	return routeSpec(method, path, "feedback", operation, "FeedbackController", mapping)
+}
+
+func cacheRoute(method, path, operation, mapping string) RouteSpec {
+	return routeSpec(method, path, "cache", operation, "CacheController", mapping)
 }
 
 func offenseDetailsViewRoute(method, path, operation, mapping string) RouteSpec {

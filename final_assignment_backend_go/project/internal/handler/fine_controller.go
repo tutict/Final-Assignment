@@ -39,11 +39,11 @@ func (fc *FineController) CreateFine(c *gin.Context) {
 	}
 
 	if err := fc.FineService.CheckAndInsertIdempotency(idempotencyKey, &fine, "create"); err != nil {
-		writeLedgerError(c, err)
+		writeBusinessOrLedgerError(c, err)
 		return
 	}
 
-	c.Status(http.StatusCreated)
+	c.JSON(http.StatusCreated, apiOK(fine))
 }
 
 // GetFineByID GET /api/fines/:fineId

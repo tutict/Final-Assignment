@@ -10,6 +10,9 @@ import (
 type AppealService interface {
 	CheckAndInsertIdempotency(string, *domain.AppealManagement, string) (*domain.AppealManagement, error)
 	CreateAppealReview(int, string, *domain.AppealReview) (*domain.AppealReview, error)
+	ListAppealReviews() ([]domain.AppealReview, error)
+	UpdateAppealReview(*domain.AppealReview) (*domain.AppealReview, error)
+	DeleteAppealReview(int) error
 	CountAppealsByStatus(string) (int64, error)
 	DeleteAppeal(uint) error
 	GetAllAppeals() ([]domain.AppealManagement, error)
@@ -144,6 +147,7 @@ type ProgressService interface {
 	GetProgressByStatus(string) ([]domain.ProgressItem, error)
 	GetProgressByTimeRange(time.Time, time.Time) ([]domain.ProgressItem, error)
 	GetProgressByUsername(string) ([]domain.ProgressItem, error)
+	UpdateProgress(item *domain.ProgressItem) (*domain.ProgressItem, error)
 	UpdateProgressStatus(int, string) (*domain.ProgressItem, error)
 }
 
@@ -184,6 +188,7 @@ type SystemSettingsService interface {
 	GetSystemName() string
 	GetSystemSettings() (*domain.SystemSettings, error)
 	GetSystemVersion() string
+	ListSysSettings() ([]domain.SysSetting, error)
 }
 
 type TrafficViolationService interface {

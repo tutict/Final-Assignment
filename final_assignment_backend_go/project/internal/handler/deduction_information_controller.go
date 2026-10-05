@@ -4,7 +4,6 @@ import (
 	"log"
 	"net/http"
 	"strconv"
-	"time"
 
 	"github.com/gin-gonic/gin"
 
@@ -34,6 +33,10 @@ func (c *DeductionInformationController) RegisterRoutes(r *gin.Engine) {
 	group.GET("/by-handler", c.SearchByHandler)
 	group.GET("/by-time-range", c.SearchByDeductionTimeRange)
 	group.GET("/driver/:driverId", c.GetDeductionsByDriver)
+	group.GET("/offense/:offenseId", c.GetDeductionsByOffense)
+	group.GET("/search/handler", c.SearchByHandler)
+	group.GET("/search/status", c.SearchByStatus)
+	group.GET("/search/time-range", c.SearchByDeductionTimeRange)
 	group.GET("/:deductionId", c.GetDeductionById)
 	group.PUT("/:deductionId", c.UpdateDeduction)
 	group.DELETE("/:deductionId", c.DeleteDeduction)
@@ -61,7 +64,7 @@ func (c *DeductionInformationController) CreateDeduction(ctx *gin.Context) {
 		return
 	}
 	log.Println("Deduction created successfully.")
-	ctx.Status(http.StatusCreated)
+	ctx.JSON(http.StatusCreated, apiOK(deduction))
 }
 
 // GetDeductionById 根据ID获取扣除记录
@@ -118,7 +121,7 @@ func (c *DeductionInformationController) UpdateDeduction(ctx *gin.Context) {
 		return
 	}
 
-	ctx.Status(http.StatusOK)
+	ctx.JSON(http.StatusOK, apiOK(existing))
 }
 
 // DeleteDeduction 删除扣除记录（仅限管理员）
@@ -151,8 +154,8 @@ func (c *DeductionInformationController) GetDeductionsByTimeRange(ctx *gin.Conte
 	startStr := ctx.Query("startTime")
 	endStr := ctx.Query("endTime")
 
-	start, err1 := time.Parse("2006-01-02T15:04:05", startStr)
-	end, err2 := time.Parse("2006-01-02T15:04:05", endStr)
+	start, err1 := parseFlexibleTime(startStr)
+	end, err2 := parseFlexibleTime(endStr)
 	if err1 != nil || err2 != nil {
 		ctx.JSON(http.StatusBadRequest, gin.H{"error": "invalid time format"})
 		return
@@ -169,12 +172,7 @@ func (c *DeductionInformationController) GetDeductionsByTimeRange(ctx *gin.Conte
 // SearchByHandler 按处理人搜索扣除记录
 func (c *DeductionInformationController) SearchByHandler(ctx *gin.Context) {
 	handler := ctx.Query("handler")
-	maxSuggestions := 10
-	if ctx.Query("maxSuggestions") != "" {
-		if n, err := strconv.Atoi(ctx.Query("maxSuggestions")); err == nil {
-			maxSuggestions = n
-		}
-	}
+	maxSuggestions := suggestionLimit(ctx)
 
 	log.Printf("Searching deductions by handler: %s, max=%d", handler, maxSuggestions)
 	results, err := c.deductionService.SearchByHandler(handler, maxSuggestions)
@@ -189,15 +187,10 @@ func (c *DeductionInformationController) SearchByHandler(ctx *gin.Context) {
 func (c *DeductionInformationController) SearchByDeductionTimeRange(ctx *gin.Context) {
 	startStr := ctx.Query("startTime")
 	endStr := ctx.Query("endTime")
-	maxSuggestions := 10
-	if ctx.Query("maxSuggestions") != "" {
-		if n, err := strconv.Atoi(ctx.Query("maxSuggestions")); err == nil {
-			maxSuggestions = n
-		}
-	}
+	maxSuggestions := suggestionLimit(ctx)
 
-	start, err1 := time.Parse("2006-01-02T15:04:05", startStr)
-	end, err2 := time.Parse("2006-01-02T15:04:05", endStr)
+	start, err1 := parseFlexibleTime(startStr)
+	end, err2 := parseFlexibleTime(endStr)
 	if err1 != nil || err2 != nil {
 		ctx.JSON(http.StatusBadRequest, gin.H{"error": "invalid time format"})
 		return
@@ -211,7 +204,6 @@ func (c *DeductionInformationController) SearchByDeductionTimeRange(ctx *gin.Con
 	}
 	ctx.JSON(http.StatusOK, c.deductionService.FilterForRequester(ctx.GetString("username"), Unscoped(ctx, ResourceDeductions), results))
 }
-
 
 func (c *DeductionInformationController) GetDeductionsByDriver(ctx *gin.Context) {
 	driverID, err := strconv.Atoi(ctx.Param("driverId"))
@@ -231,4 +223,51 @@ func (c *DeductionInformationController) GetDeductionsByDriver(ctx *gin.Context)
 		}
 	}
 	ctx.JSON(http.StatusOK, filtered)
+}
+
+func (c *DeductionInformationController) GetDeductionsByOffense(ctx *gin.Context) {
+	offenseID, err := strconv.Atoi(ctx.Param("offenseId"))
+	if err != nil || offenseID <= 0 {
+		ctx.JSON(http.StatusBadRequest, gin.H{"error": "invalid offense id"})
+		return
+	}
+	deductions, err := c.deductionService.ListForRequester(ctx.GetString("username"), Unscoped(ctx, ResourceDeductions))
+	if err != nil {
+		ctx.JSON(http.StatusInternalServerError, gin.H{"error": "failed to fetch deductions"})
+		return
+	}
+	filtered := make([]domain.DeductionInformation, 0)
+	for _, item := range deductions {
+		if item.OffenseID == offenseID {
+			filtered = append(filtered, item)
+		}
+	}
+	ctx.JSON(http.StatusOK, filtered)
+}
+
+func (c *DeductionInformationController) SearchByStatus(ctx *gin.Context) {
+	status := ctx.Query("status")
+	deductions, err := c.deductionService.ListForRequester(ctx.GetString("username"), Unscoped(ctx, ResourceDeductions))
+	if err != nil {
+		ctx.JSON(http.StatusInternalServerError, gin.H{"error": "failed to fetch deductions"})
+		return
+	}
+	filtered := make([]domain.DeductionInformation, 0)
+	for _, item := range deductions {
+		if status == "" || item.Status == status {
+			filtered = append(filtered, item)
+		}
+	}
+	ctx.JSON(http.StatusOK, filtered)
+}
+
+func suggestionLimit(ctx *gin.Context) int {
+	for _, name := range []string{"size", "maxSuggestions"} {
+		if raw := ctx.Query(name); raw != "" {
+			if n, err := strconv.Atoi(raw); err == nil && n > 0 {
+				return n
+			}
+		}
+	}
+	return 10
 }

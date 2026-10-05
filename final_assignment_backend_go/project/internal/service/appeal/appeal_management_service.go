@@ -258,3 +258,63 @@ func (s *AppealManagementService) CreateAppealReview(appealID int, key string, r
 	}
 	return review, nil
 }
+
+func (s *AppealManagementService) ListAppealReviews() ([]domain.AppealReview, error) {
+	var rows []domain.AppealReview
+	err := s.DB().Order("review_id desc").Find(&rows).Error
+	if shared.IsMissingTable(err) {
+		return []domain.AppealReview{}, nil
+	}
+	return rows, err
+}
+
+func (s *AppealManagementService) UpdateAppealReview(review *domain.AppealReview) (*domain.AppealReview, error) {
+	if review == nil || review.ReviewID <= 0 {
+		return nil, errors.New("review id is required")
+	}
+	var existing domain.AppealReview
+	if err := s.DB().First(&existing, review.ReviewID).Error; err != nil {
+		return nil, err
+	}
+	if strings.TrimSpace(review.ReviewLevel) != "" {
+		existing.ReviewLevel = review.ReviewLevel
+	}
+	if strings.TrimSpace(review.Reviewer) != "" {
+		existing.Reviewer = review.Reviewer
+	}
+	if strings.TrimSpace(review.ReviewerDept) != "" {
+		existing.ReviewerDept = review.ReviewerDept
+	}
+	if strings.TrimSpace(review.ReviewResult) != "" {
+		existing.ReviewResult = review.ReviewResult
+	}
+	if review.ReviewOpinion != "" {
+		existing.ReviewOpinion = review.ReviewOpinion
+	}
+	if strings.TrimSpace(review.SuggestedAction) != "" {
+		existing.SuggestedAction = review.SuggestedAction
+	}
+	if !review.ReviewTime.IsZero() {
+		existing.ReviewTime = review.ReviewTime
+	}
+	existing.SuggestedFineAmount = review.SuggestedFineAmount
+	existing.SuggestedPoints = review.SuggestedPoints
+	if review.Remarks != "" {
+		existing.Remarks = review.Remarks
+	}
+	return &existing, s.DB().Save(&existing).Error
+}
+
+func (s *AppealManagementService) DeleteAppealReview(id int) error {
+	if id <= 0 {
+		return errors.New("invalid review id")
+	}
+	result := s.DB().Delete(&domain.AppealReview{}, id)
+	if result.Error != nil {
+		return result.Error
+	}
+	if result.RowsAffected == 0 {
+		return gorm.ErrRecordNotFound
+	}
+	return nil
+}

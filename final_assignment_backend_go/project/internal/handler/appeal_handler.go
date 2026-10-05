@@ -4,6 +4,7 @@ import (
 	"log"
 	"net/http"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/gin-gonic/gin"
@@ -269,3 +270,232 @@ func (h *AppealHandler) CreateReview(c *gin.Context) {
 	c.JSON(http.StatusCreated, saved)
 }
 
+
+func (h *AppealHandler) RegisterSearchRoutes(group *gin.RouterGroup) {
+	group.GET("/search/number/prefix", h.SearchAppealsByNumberPrefix)
+	group.GET("/search/number/fuzzy", h.SearchAppealsByNumberFuzzy)
+	group.GET("/search/appellant/name/prefix", h.SearchAppealsByNamePrefix)
+	group.GET("/search/appellant/name/fuzzy", h.SearchAppealsByNameFuzzy)
+	group.GET("/search/appellant/id-card", h.SearchAppealsByIdCard)
+	group.GET("/search/acceptance-status", h.SearchAppealsByAcceptanceStatus)
+	group.GET("/search/process-status", h.SearchAppealsByProcessStatus)
+	group.GET("/search/time-range", h.SearchAppealsByTimeRange)
+	group.GET("/search/handler", h.SearchAppealsByHandler)
+	group.GET("/reviews/search/reviewer", h.SearchReviewsByReviewer)
+	group.GET("/reviews/search/reviewer-dept", h.SearchReviewsByDept)
+	group.GET("/reviews/search/time-range", h.SearchReviewsByTime)
+	group.GET("/reviews/count", h.CountReviews)
+	group.GET("/reviews", h.ListReviews)
+	group.GET("/reviews/:reviewId", h.GetReview)
+	group.PUT("/reviews/:reviewId", h.UpdateReview)
+	group.DELETE("/reviews/:reviewId", h.DeleteReview)
+}
+
+func (h *AppealHandler) SearchAppealsByNumberPrefix(c *gin.Context) {
+	query := c.Query("appealNumber")
+	h.searchAppeals(c, func(item domain.AppealManagement) bool {
+		return hasPrefixFold(item.AppealNumber, query)
+	})
+}
+
+func (h *AppealHandler) SearchAppealsByNumberFuzzy(c *gin.Context) {
+	query := c.Query("appealNumber")
+	h.searchAppeals(c, func(item domain.AppealManagement) bool {
+		return containsFold(item.AppealNumber, query)
+	})
+}
+
+func (h *AppealHandler) SearchAppealsByNamePrefix(c *gin.Context) {
+	query := c.Query("appellantName")
+	h.searchAppeals(c, func(item domain.AppealManagement) bool {
+		return hasPrefixFold(item.AppellantName, query)
+	})
+}
+
+func (h *AppealHandler) SearchAppealsByNameFuzzy(c *gin.Context) {
+	query := c.Query("appellantName")
+	h.searchAppeals(c, func(item domain.AppealManagement) bool {
+		return containsFold(item.AppellantName, query)
+	})
+}
+
+func (h *AppealHandler) SearchAppealsByIdCard(c *gin.Context) {
+	query := c.Query("appellantIdCard")
+	h.searchAppeals(c, func(item domain.AppealManagement) bool {
+		return containsFold(item.AppellantIDCard, query)
+	})
+}
+
+func (h *AppealHandler) SearchAppealsByAcceptanceStatus(c *gin.Context) {
+	status := c.Query("acceptanceStatus")
+	h.searchAppeals(c, func(item domain.AppealManagement) bool {
+		return strings.EqualFold(item.AcceptanceStatus, status)
+	})
+}
+
+func (h *AppealHandler) SearchAppealsByProcessStatus(c *gin.Context) {
+	status := c.Query("processStatus")
+	h.searchAppeals(c, func(item domain.AppealManagement) bool {
+		return strings.EqualFold(item.ProcessStatus, status)
+	})
+}
+
+func (h *AppealHandler) SearchAppealsByHandler(c *gin.Context) {
+	query := c.Query("acceptanceHandler")
+	h.searchAppeals(c, func(item domain.AppealManagement) bool {
+		return containsFold(item.AcceptanceHandler, query) || containsFold(item.ProcessHandler, query)
+	})
+}
+
+func (h *AppealHandler) SearchAppealsByTimeRange(c *gin.Context) {
+	start, err1 := parseFlexibleTime(c.DefaultQuery("startTime", "1970-01-01"))
+	endRaw := c.DefaultQuery("endTime", "2100-01-01")
+	end, err2 := parseFlexibleTime(endRaw)
+	if err1 != nil || err2 != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid time format"})
+		return
+	}
+	if len(strings.TrimSpace(endRaw)) == 10 {
+		end = end.Add(24*time.Hour - time.Second)
+	}
+	h.searchAppeals(c, func(item domain.AppealManagement) bool {
+		return !item.AppealTime.Before(start) && !item.AppealTime.After(end)
+	})
+}
+
+func (h *AppealHandler) searchAppeals(c *gin.Context, match func(domain.AppealManagement) bool) {
+	appeals, err := h.appealService.ListForRequester(c.GetString("username"), Unscoped(c, ResourceAppeals))
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to fetch appeals"})
+		return
+	}
+	filtered := make([]domain.AppealManagement, 0)
+	for _, item := range appeals {
+		if match(item) {
+			filtered = append(filtered, item)
+		}
+	}
+	c.JSON(http.StatusOK, filtered)
+}
+
+func hasPrefixFold(value, query string) bool {
+	query = strings.TrimSpace(query)
+	if query == "" {
+		return true
+	}
+	return strings.HasPrefix(strings.ToLower(value), strings.ToLower(query))
+}
+
+func (h *AppealHandler) ListReviews(c *gin.Context) {
+	rows, err := h.appealService.ListAppealReviews()
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to fetch reviews"})
+		return
+	}
+	c.JSON(http.StatusOK, rows)
+}
+
+func (h *AppealHandler) GetReview(c *gin.Context) {
+	id, err := strconv.Atoi(c.Param("reviewId"))
+	if err != nil || id <= 0 {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid review id"})
+		return
+	}
+	rows, err := h.appealService.ListAppealReviews()
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to fetch reviews"})
+		return
+	}
+	for _, row := range rows {
+		if row.ReviewID == id {
+			c.JSON(http.StatusOK, row)
+			return
+		}
+	}
+	c.JSON(http.StatusNotFound, gin.H{"error": "review not found"})
+}
+
+func (h *AppealHandler) CountReviews(c *gin.Context) {
+	level := c.Query("level")
+	rows, err := h.appealService.ListAppealReviews()
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to fetch reviews"})
+		return
+	}
+	count := 0
+	for _, row := range rows {
+		if strings.EqualFold(row.ReviewLevel, level) {
+			count++
+		}
+	}
+	c.JSON(http.StatusOK, gin.H{"count": count})
+}
+
+func (h *AppealHandler) SearchReviewsByReviewer(c *gin.Context) {
+	query := c.Query("reviewer")
+	h.searchReviews(c, func(row domain.AppealReview) bool { return containsFold(row.Reviewer, query) })
+}
+
+func (h *AppealHandler) SearchReviewsByDept(c *gin.Context) {
+	query := c.Query("reviewerDept")
+	h.searchReviews(c, func(row domain.AppealReview) bool { return containsFold(row.ReviewerDept, query) })
+}
+
+func (h *AppealHandler) SearchReviewsByTime(c *gin.Context) {
+	start, end, err := queryTimeWindow(c)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid time format"})
+		return
+	}
+	h.searchReviews(c, func(row domain.AppealReview) bool {
+		return !row.ReviewTime.Before(start) && !row.ReviewTime.After(end)
+	})
+}
+
+func (h *AppealHandler) searchReviews(c *gin.Context, match func(domain.AppealReview) bool) {
+	rows, err := h.appealService.ListAppealReviews()
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to fetch reviews"})
+		return
+	}
+	filtered := make([]domain.AppealReview, 0)
+	for _, row := range rows {
+		if match(row) {
+			filtered = append(filtered, row)
+		}
+	}
+	c.JSON(http.StatusOK, filtered)
+}
+
+func (h *AppealHandler) UpdateReview(c *gin.Context) {
+	id, err := strconv.Atoi(c.Param("reviewId"))
+	if err != nil || id <= 0 {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid review id"})
+		return
+	}
+	var review domain.AppealReview
+	if err := c.ShouldBindJSON(&review); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request body"})
+		return
+	}
+	review.ReviewID = id
+	saved, err := h.appealService.UpdateAppealReview(&review)
+	if err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "review not found"})
+		return
+	}
+	c.JSON(http.StatusOK, saved)
+}
+
+func (h *AppealHandler) DeleteReview(c *gin.Context) {
+	id, err := strconv.Atoi(c.Param("reviewId"))
+	if err != nil || id <= 0 {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid review id"})
+		return
+	}
+	if err := h.appealService.DeleteAppealReview(id); err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "review not found"})
+		return
+	}
+	c.Status(http.StatusNoContent)
+}

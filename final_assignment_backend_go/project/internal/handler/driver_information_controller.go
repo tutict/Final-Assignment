@@ -1,9 +1,12 @@
 package handler
 
 import (
+	"encoding/json"
+	"io"
 	"log"
 	"net/http"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/gin-gonic/gin"
@@ -36,6 +39,9 @@ func (c *DriverInformationController) RegisterRoutes(r *gin.Engine) {
 	group.GET("/by-id-card", c.SearchByIdCardNumber)
 	group.GET("/by-license-number", c.SearchByLicenseNumber)
 	group.GET("/by-name", c.SearchByName)
+	group.GET("/search/id-card", c.SearchByIdCardNumber)
+	group.GET("/search/license", c.SearchByLicenseNumber)
+	group.GET("/search/name", c.SearchByName)
 	group.GET("/:driverId", c.GetDriverById)
 	group.PUT("/:driverId", c.UpdateDriver)
 	group.PUT("/:driverId/name", c.UpdateDriverName)
@@ -50,7 +56,7 @@ func (c *DriverInformationController) CreateDriver(ctx *gin.Context) {
 		return
 	}
 	var driver domain.DriverInformation
-	idempotencyKey := ctx.Query("idempotencyKey")
+	idempotencyKey := idempotencyKey(ctx)
 
 	if err := ctx.ShouldBindJSON(&driver); err != nil {
 		ctx.JSON(http.StatusBadRequest, gin.H{"error": "invalid input"})
@@ -65,7 +71,7 @@ func (c *DriverInformationController) CreateDriver(ctx *gin.Context) {
 		ctx.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
-	ctx.Status(http.StatusCreated)
+	ctx.JSON(http.StatusCreated, apiOK(driver))
 }
 
 // GetDriverById 根据ID获取司机信息
@@ -104,7 +110,7 @@ func (c *DriverInformationController) UpdateDriver(ctx *gin.Context) {
 		ctx.JSON(http.StatusBadRequest, gin.H{"error": "invalid driver id"})
 		return
 	}
-	idempotencyKey := ctx.Query("idempotencyKey")
+	idempotencyKey := idempotencyKey(ctx)
 
 	var updated domain.DriverInformation
 	if err := ctx.ShouldBindJSON(&updated); err != nil {
@@ -123,7 +129,40 @@ func (c *DriverInformationController) UpdateDriver(ctx *gin.Context) {
 	}
 
 	c.updateUserModifiedTime(id)
-	ctx.Status(http.StatusNoContent)
+	ctx.JSON(http.StatusOK, apiOK(updated))
+}
+
+
+func readDriverField(ctx *gin.Context, keys ...string) (string, error) {
+	raw, err := io.ReadAll(ctx.Request.Body)
+	if err != nil {
+		return "", err
+	}
+	text := strings.TrimSpace(string(raw))
+	if text == "" {
+		return "", io.EOF
+	}
+	if strings.HasPrefix(text, "\"") {
+		var value string
+		if err := json.Unmarshal(raw, &value); err != nil {
+			return "", err
+		}
+		value = strings.TrimSpace(value)
+		if value == "" {
+			return "", io.EOF
+		}
+		return value, nil
+	}
+	var object map[string]string
+	if err := json.Unmarshal(raw, &object); err != nil {
+		return "", err
+	}
+	for _, key := range keys {
+		if value := strings.TrimSpace(object[key]); value != "" {
+			return value, nil
+		}
+	}
+	return "", io.EOF
 }
 
 // UpdateDriverName 更新司机姓名
@@ -136,12 +175,10 @@ func (c *DriverInformationController) UpdateDriverName(ctx *gin.Context) {
 		ctx.JSON(http.StatusBadRequest, gin.H{"error": "invalid driver id"})
 		return
 	}
-	idempotencyKey := ctx.Query("idempotencyKey")
+	idempotencyKey := idempotencyKey(ctx)
 
-	var payload struct {
-		Name string `json:"name"`
-	}
-	if err := ctx.ShouldBindJSON(&payload); err != nil {
+	name, err := readDriverField(ctx, "name")
+	if err != nil {
 		ctx.JSON(http.StatusBadRequest, gin.H{"error": "invalid input"})
 		return
 	}
@@ -151,7 +188,7 @@ func (c *DriverInformationController) UpdateDriverName(ctx *gin.Context) {
 		ctx.JSON(http.StatusNotFound, gin.H{"error": "driver not found"})
 		return
 	}
-	driver.Name = payload.Name
+	driver.Name = name
 
 	if err := c.driverService.CheckAndInsertIdempotency(idempotencyKey, driver, "update"); err != nil {
 		if err.Error() == "Duplicate request" {
@@ -176,12 +213,10 @@ func (c *DriverInformationController) UpdateDriverContactNumber(ctx *gin.Context
 		ctx.JSON(http.StatusBadRequest, gin.H{"error": "invalid driver id"})
 		return
 	}
-	idempotencyKey := ctx.Query("idempotencyKey")
+	idempotencyKey := idempotencyKey(ctx)
 
-	var payload struct {
-		ContactNumber string `json:"contactNumber"`
-	}
-	if err := ctx.ShouldBindJSON(&payload); err != nil {
+	contactNumber, err := readDriverField(ctx, "contactNumber", "phoneNumber")
+	if err != nil {
 		ctx.JSON(http.StatusBadRequest, gin.H{"error": "invalid input"})
 		return
 	}
@@ -191,7 +226,7 @@ func (c *DriverInformationController) UpdateDriverContactNumber(ctx *gin.Context
 		ctx.JSON(http.StatusNotFound, gin.H{"error": "driver not found"})
 		return
 	}
-	driver.ContactNumber = payload.ContactNumber
+	driver.ContactNumber = contactNumber
 
 	if err := c.driverService.CheckAndInsertIdempotency(idempotencyKey, driver, "update"); err != nil {
 		if err.Error() == "Duplicate request" {
@@ -216,12 +251,10 @@ func (c *DriverInformationController) UpdateDriverIdCardNumber(ctx *gin.Context)
 		ctx.JSON(http.StatusBadRequest, gin.H{"error": "invalid driver id"})
 		return
 	}
-	idempotencyKey := ctx.Query("idempotencyKey")
+	idempotencyKey := idempotencyKey(ctx)
 
-	var payload struct {
-		IdCardNumber string `json:"idCardNumber"`
-	}
-	if err := ctx.ShouldBindJSON(&payload); err != nil {
+	idCardNumber, err := readDriverField(ctx, "idCardNumber")
+	if err != nil {
 		ctx.JSON(http.StatusBadRequest, gin.H{"error": "invalid input"})
 		return
 	}
@@ -231,7 +264,7 @@ func (c *DriverInformationController) UpdateDriverIdCardNumber(ctx *gin.Context)
 		ctx.JSON(http.StatusNotFound, gin.H{"error": "driver not found"})
 		return
 	}
-	driver.IDCardNumber = payload.IdCardNumber
+	driver.IDCardNumber = idCardNumber
 
 	if err := c.driverService.CheckAndInsertIdempotency(idempotencyKey, driver, "update"); err != nil {
 		if err.Error() == "Duplicate request" {
@@ -269,7 +302,7 @@ func (c *DriverInformationController) SearchByIdCardNumber(ctx *gin.Context) {
 	if !RequireUnscoped(ctx, ResourceDrivers) {
 		return
 	}
-	query := ctx.Query("query")
+	query := searchQuery(ctx)
 	page, _ := strconv.Atoi(ctx.DefaultQuery("page", "1"))
 	size, _ := strconv.Atoi(ctx.DefaultQuery("size", "10"))
 
@@ -287,7 +320,7 @@ func (c *DriverInformationController) SearchByIdCardNumber(ctx *gin.Context) {
 
 // SearchByLicenseNumber 按驾驶证号搜索
 func (c *DriverInformationController) SearchByLicenseNumber(ctx *gin.Context) {
-	query := ctx.Query("query")
+	query := searchQuery(ctx)
 	page, _ := strconv.Atoi(ctx.DefaultQuery("page", "1"))
 	size, _ := strconv.Atoi(ctx.DefaultQuery("size", "10"))
 
@@ -301,7 +334,7 @@ func (c *DriverInformationController) SearchByLicenseNumber(ctx *gin.Context) {
 
 // SearchByName 按姓名搜索
 func (c *DriverInformationController) SearchByName(ctx *gin.Context) {
-	query := ctx.Query("query")
+	query := searchQuery(ctx)
 	page, _ := strconv.Atoi(ctx.DefaultQuery("page", "1"))
 	size, _ := strconv.Atoi(ctx.DefaultQuery("size", "10"))
 
@@ -326,4 +359,11 @@ func (c *DriverInformationController) updateUserModifiedTime(driverId int) {
 
 func serviceTimePtr(t time.Time) *time.Time {
 	return &t
+}
+
+func searchQuery(ctx *gin.Context) string {
+	if keywords := strings.TrimSpace(ctx.Query("keywords")); keywords != "" {
+		return keywords
+	}
+	return strings.TrimSpace(ctx.Query("query"))
 }

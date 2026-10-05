@@ -29,6 +29,9 @@ func (s *FineInformationService) CreateFine(fine *domain.FineInformation) error 
 func (s *FineInformationService) DB() *gorm.DB { return s.repo.DB() }
 
 func (s *FineInformationService) CheckAndInsertIdempotency(key string, fine *domain.FineInformation, operation string) error {
+	if strings.EqualFold(operation, "create") && (fine == nil || fine.OffenseID <= 0) {
+		return fmt.Errorf("请选择关联的违法记录")
+	}
 	driverID := 0
 	if fine.DriverID != nil {
 		driverID = *fine.DriverID

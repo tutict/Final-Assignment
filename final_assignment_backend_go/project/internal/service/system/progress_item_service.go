@@ -51,6 +51,29 @@ func (s *ProgressItemService) GetProgressByUsername(username string) ([]domain.P
 	return items, err
 }
 
+func (s *ProgressItemService) UpdateProgress(item *domain.ProgressItem) (*domain.ProgressItem, error) {
+	var existing domain.ProgressItem
+	if err := s.DB().Where("id = ?", item.ID).First(&existing).Error; err != nil {
+		return nil, err
+	}
+	if item.Title != "" {
+		existing.Title = item.Title
+	}
+	if item.Status != "" {
+		existing.Status = item.Status
+	}
+	if item.Details != "" {
+		existing.Details = item.Details
+	}
+	if item.Username != "" {
+		existing.Username = item.Username
+	}
+	if !item.SubmitTime.IsZero() {
+		existing.SubmitTime = item.SubmitTime
+	}
+	return &existing, s.DB().Save(&existing).Error
+}
+
 func (s *ProgressItemService) UpdateProgressStatus(id int, status string) (*domain.ProgressItem, error) {
 	var item domain.ProgressItem
 	if err := s.DB().Where("id = ?", id).First(&item).Error; err != nil {

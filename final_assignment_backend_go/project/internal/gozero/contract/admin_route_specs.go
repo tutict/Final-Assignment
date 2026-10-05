@@ -15,6 +15,9 @@ func AdminRouteSpecs() []RouteSpec {
 func UserManagementRouteSpecs() []RouteSpec {
 	return []RouteSpec{
 		userRoute(http.MethodPost, "/api/users", "createUser", "@PostMapping"),
+		userRoute(http.MethodGet, "/api/users/me", "getCurrentUser", `@GetMapping("/me")`),
+		userRoute(http.MethodPut, "/api/users/me", "updateCurrentUser", `@PutMapping("/me")`),
+		userRoute(http.MethodPut, "/api/users/me/password", "updatePassword", `@PutMapping(value = "/me/password", consumes = MediaType.TEXT_PLAIN_VALUE)`),
 		userRoute(http.MethodGet, "/api/users", "listUsers", "@GetMapping"),
 		userRoute(http.MethodGet, "/api/users/search/username/:username", "getByUsername", `@GetMapping("/search/username/{username}")`),
 		userRoute(http.MethodGet, "/api/users/search/username/prefix", "searchByUsernamePrefix", `@GetMapping("/search/username/prefix")`),

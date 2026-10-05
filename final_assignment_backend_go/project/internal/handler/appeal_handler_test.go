@@ -13,7 +13,10 @@ import (
 )
 
 type stubAppealService struct {
-	mine []domain.AppealManagement
+	mine    []domain.AppealManagement
+	reviews []domain.AppealReview
+	updated *domain.AppealReview
+	deleted *int
 }
 
 func (s stubAppealService) CheckAndInsertIdempotency(string, *domain.AppealManagement, string) (*domain.AppealManagement, error) {
@@ -21,6 +24,22 @@ func (s stubAppealService) CheckAndInsertIdempotency(string, *domain.AppealManag
 }
 func (s stubAppealService) CreateAppealReview(int, string, *domain.AppealReview) (*domain.AppealReview, error) {
 	return &domain.AppealReview{ReviewID: 1}, nil
+}
+func (s stubAppealService) ListAppealReviews() ([]domain.AppealReview, error) {
+	return s.reviews, nil
+}
+func (s stubAppealService) UpdateAppealReview(review *domain.AppealReview) (*domain.AppealReview, error) {
+	if s.updated != nil && review != nil {
+		*s.updated = *review
+	}
+	copy := *review
+	return &copy, nil
+}
+func (s stubAppealService) DeleteAppealReview(id int) error {
+	if s.deleted != nil {
+		*s.deleted = id
+	}
+	return nil
 }
 func (s stubAppealService) CountAppealsByStatus(string) (int64, error) { return 0, nil }
 func (s stubAppealService) DeleteAppeal(uint) error                    { return nil }

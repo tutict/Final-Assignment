@@ -4,7 +4,7 @@ import (
 	"net/http"
 	"net/url"
 	"strconv"
-	"time"
+	"strings"
 
 	"github.com/gin-gonic/gin"
 
@@ -30,6 +30,11 @@ func (c *OperationLogController) mountOperationLogs(api *gin.RouterGroup) {
 	api.GET("/search/user/:userId", c.getOperationLogsByUserId)
 	api.GET("/result/:result", c.getOperationLogsByResult)
 	api.GET("/search/result", c.getOperationLogsByResult)
+	api.GET("/search/module", c.searchOperationLogsByModule)
+	api.GET("/search/type", c.searchOperationLogsByType)
+	api.GET("/search/username", c.searchOperationLogsByUsername)
+	api.GET("/search/request-url", c.searchOperationLogsByRequestURL)
+	api.GET("/search/request-method", c.searchOperationLogsByRequestMethod)
 	api.GET("/autocomplete/user-ids/me", c.getUserIdAutocompleteSuggestions)
 	api.GET("/autocomplete/operation-results/me", c.getOperationResultAutocompleteSuggestions)
 	api.GET("/:logId", c.getOperationLog)
@@ -131,20 +136,11 @@ func (c *OperationLogController) deleteOperationLog(ctx *gin.Context) {
 
 // GET /api/operationLogs/timeRange
 func (c *OperationLogController) getOperationLogsByTimeRange(ctx *gin.Context) {
-	startStr := ctx.DefaultQuery("startTime", "1970-01-01")
-	endStr := ctx.DefaultQuery("endTime", "2100-01-01")
-
-	startTime, err := time.Parse("2006-01-02", startStr)
+	startTime, endTime, err := queryTimeWindow(ctx)
 	if err != nil {
-		ctx.JSON(http.StatusBadRequest, gin.H{"error": "invalid startTime format"})
+		ctx.JSON(http.StatusBadRequest, gin.H{"error": "invalid time format"})
 		return
 	}
-	endTime, err := time.Parse("2006-01-02", endStr)
-	if err != nil {
-		ctx.JSON(http.StatusBadRequest, gin.H{"error": "invalid endTime format"})
-		return
-	}
-
 	logs, err := c.Service.GetOperationLogsByTimeRange(startTime, endTime)
 	if err != nil {
 		ctx.JSON(http.StatusInternalServerError, gin.H{"error": "query failed"})
@@ -168,7 +164,7 @@ func (c *OperationLogController) getOperationLogsByUserId(ctx *gin.Context) {
 func (c *OperationLogController) getOperationLogsByResult(ctx *gin.Context) {
 	result := ctx.Param("result")
 	if result == "" {
-		result = ctx.Query("result")
+		result = firstQuery(ctx, "operationResult", "result")
 	}
 	logs, err := c.Service.GetOperationLogsByResult(result)
 	if err != nil {
@@ -222,4 +218,54 @@ func (c *OperationLogController) getOperationResultAutocompleteSuggestions(ctx *
 	}
 
 	ctx.JSON(http.StatusOK, suggestions)
+}
+
+func (c *OperationLogController) searchOperationLogsByModule(ctx *gin.Context) {
+	query := ctx.Query("module")
+	c.searchOperationLogs(ctx, func(item domain.OperationLog) bool {
+		return containsFold(item.OperationModule, query)
+	})
+}
+
+func (c *OperationLogController) searchOperationLogsByType(ctx *gin.Context) {
+	query := ctx.Query("type")
+	c.searchOperationLogs(ctx, func(item domain.OperationLog) bool {
+		return containsFold(item.OperationType, query)
+	})
+}
+
+func (c *OperationLogController) searchOperationLogsByUsername(ctx *gin.Context) {
+	query := ctx.Query("username")
+	c.searchOperationLogs(ctx, func(item domain.OperationLog) bool {
+		return containsFold(item.Username, query)
+	})
+}
+
+func (c *OperationLogController) searchOperationLogsByRequestURL(ctx *gin.Context) {
+	query := ctx.Query("requestUrl")
+	c.searchOperationLogs(ctx, func(item domain.OperationLog) bool {
+		return containsFold(item.RequestURL, query)
+	})
+}
+
+func (c *OperationLogController) searchOperationLogsByRequestMethod(ctx *gin.Context) {
+	query := ctx.Query("requestMethod")
+	c.searchOperationLogs(ctx, func(item domain.OperationLog) bool {
+		return strings.EqualFold(item.RequestMethod, query)
+	})
+}
+
+func (c *OperationLogController) searchOperationLogs(ctx *gin.Context, match func(domain.OperationLog) bool) {
+	logs, err := c.Service.GetAllOperationLogs()
+	if err != nil {
+		ctx.JSON(http.StatusInternalServerError, gin.H{"error": "failed to fetch operation logs"})
+		return
+	}
+	filtered := make([]domain.OperationLog, 0)
+	for _, item := range logs {
+		if match(item) {
+			filtered = append(filtered, item)
+		}
+	}
+	ctx.JSON(http.StatusOK, filtered)
 }

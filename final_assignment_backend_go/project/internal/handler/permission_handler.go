@@ -3,6 +3,7 @@ package handler
 import (
 	"net/http"
 	"strconv"
+	"strings"
 
 	"github.com/gin-gonic/gin"
 
@@ -26,6 +27,17 @@ func (h *PermissionHandler) RegisterRoutes(r *gin.Engine) {
 		api.GET("", h.RequireRole("ADMIN", "SUPER_ADMIN"), h.GetAllPermissions)
 		api.GET("/name/:permissionName", h.RequireRole("ADMIN", "SUPER_ADMIN"), h.GetPermissionByName)
 		api.GET("/search", h.RequireRole("ADMIN", "SUPER_ADMIN"), h.SearchPermissionsByName)
+		api.GET("/parent/:parentId", h.RequireRole("ADMIN", "SUPER_ADMIN"), h.SearchPermissionsByParent)
+		api.GET("/search/code/prefix", h.RequireRole("ADMIN", "SUPER_ADMIN"), h.SearchPermissionsByCodePrefix)
+		api.GET("/search/code/fuzzy", h.RequireRole("ADMIN", "SUPER_ADMIN"), h.SearchPermissionsByCodeFuzzy)
+		api.GET("/search/name/prefix", h.RequireRole("ADMIN", "SUPER_ADMIN"), h.SearchPermissionsByNamePrefix)
+		api.GET("/search/name/fuzzy", h.RequireRole("ADMIN", "SUPER_ADMIN"), h.SearchPermissionsByNameFuzzy)
+		api.GET("/search/type", h.RequireRole("ADMIN", "SUPER_ADMIN"), h.SearchPermissionsByType)
+		api.GET("/search/api-path", h.RequireRole("ADMIN", "SUPER_ADMIN"), h.SearchPermissionsByAPIPath)
+		api.GET("/search/menu-path", h.RequireRole("ADMIN", "SUPER_ADMIN"), h.SearchPermissionsByMenuPath)
+		api.GET("/search/visible", h.RequireRole("ADMIN", "SUPER_ADMIN"), h.SearchPermissionsByVisible)
+		api.GET("/search/external", h.RequireRole("ADMIN", "SUPER_ADMIN"), h.SearchPermissionsByExternal)
+		api.GET("/search/status", h.RequireRole("ADMIN", "SUPER_ADMIN"), h.SearchPermissionsByStatus)
 		api.GET("/:permissionId", h.RequireRole("ADMIN", "SUPER_ADMIN"), h.GetPermissionById)
 		api.PUT("/:permissionId", h.RequireRole("ADMIN"), h.UpdatePermission)
 		api.DELETE("/name/:permissionName", h.RequireRole("ADMIN"), h.DeletePermissionByName)
@@ -58,7 +70,7 @@ func (h *PermissionHandler) CreatePermission(c *gin.Context) {
 		return
 	}
 
-	key := c.Query("idempotencyKey")
+	key := idempotencyKey(c)
 	if key == "" {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "idempotency key required"})
 		return
@@ -69,7 +81,7 @@ func (h *PermissionHandler) CreatePermission(c *gin.Context) {
 		return
 	}
 
-	c.Status(http.StatusCreated)
+	c.JSON(http.StatusCreated, apiOK(perm))
 }
 
 // GetPermissionById GET /api/permissions/:permissionId
@@ -124,7 +136,7 @@ func (h *PermissionHandler) UpdatePermission(c *gin.Context) {
 		return
 	}
 
-	key := c.Query("idempotencyKey")
+	key := idempotencyKey(c)
 	if key == "" {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "idempotency key required"})
 		return
@@ -156,4 +168,84 @@ func (h *PermissionHandler) DeletePermissionByName(c *gin.Context) {
 		return
 	}
 	c.Status(http.StatusNoContent)
+}
+
+func (h *PermissionHandler) SearchPermissionsByParent(c *gin.Context) {
+	parentID, err := strconv.Atoi(c.Param("parentId"))
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid parent id"})
+		return
+	}
+	h.searchPermissions(c, func(item domain.PermissionManagement) bool {
+		return item.ParentID != nil && *item.ParentID == parentID
+	})
+}
+
+func (h *PermissionHandler) SearchPermissionsByCodePrefix(c *gin.Context) {
+	query := c.Query("permissionCode")
+	h.searchPermissions(c, func(item domain.PermissionManagement) bool { return hasPrefixFold(item.PermissionCode, query) })
+}
+
+func (h *PermissionHandler) SearchPermissionsByCodeFuzzy(c *gin.Context) {
+	query := c.Query("permissionCode")
+	h.searchPermissions(c, func(item domain.PermissionManagement) bool { return containsFold(item.PermissionCode, query) })
+}
+
+func (h *PermissionHandler) SearchPermissionsByNamePrefix(c *gin.Context) {
+	query := c.Query("permissionName")
+	h.searchPermissions(c, func(item domain.PermissionManagement) bool { return hasPrefixFold(item.PermissionName, query) })
+}
+
+func (h *PermissionHandler) SearchPermissionsByNameFuzzy(c *gin.Context) {
+	query := c.Query("permissionName")
+	h.searchPermissions(c, func(item domain.PermissionManagement) bool { return containsFold(item.PermissionName, query) })
+}
+
+func (h *PermissionHandler) SearchPermissionsByType(c *gin.Context) {
+	query := c.Query("permissionType")
+	h.searchPermissions(c, func(item domain.PermissionManagement) bool { return strings.EqualFold(item.PermissionType, query) })
+}
+
+func (h *PermissionHandler) SearchPermissionsByAPIPath(c *gin.Context) {
+	query := c.Query("apiPath")
+	h.searchPermissions(c, func(item domain.PermissionManagement) bool { return containsFold(item.APIPath, query) })
+}
+
+func (h *PermissionHandler) SearchPermissionsByMenuPath(c *gin.Context) {
+	query := c.Query("menuPath")
+	h.searchPermissions(c, func(item domain.PermissionManagement) bool { return containsFold(item.MenuPath, query) })
+}
+
+func (h *PermissionHandler) SearchPermissionsByVisible(c *gin.Context) {
+	want := strings.EqualFold(c.Query("isVisible"), "true")
+	h.searchPermissions(c, func(item domain.PermissionManagement) bool {
+		return item.IsVisible != nil && *item.IsVisible == want
+	})
+}
+
+func (h *PermissionHandler) SearchPermissionsByExternal(c *gin.Context) {
+	want := strings.EqualFold(c.Query("isExternal"), "true")
+	h.searchPermissions(c, func(item domain.PermissionManagement) bool {
+		return item.IsExternal != nil && *item.IsExternal == want
+	})
+}
+
+func (h *PermissionHandler) SearchPermissionsByStatus(c *gin.Context) {
+	query := c.Query("status")
+	h.searchPermissions(c, func(item domain.PermissionManagement) bool { return strings.EqualFold(item.Status, query) })
+}
+
+func (h *PermissionHandler) searchPermissions(c *gin.Context, match func(domain.PermissionManagement) bool) {
+	items, err := h.svc.GetAllPermissions()
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to fetch permissions"})
+		return
+	}
+	filtered := make([]domain.PermissionManagement, 0)
+	for _, item := range items {
+		if match(item) {
+			filtered = append(filtered, item)
+		}
+	}
+	c.JSON(http.StatusOK, filtered)
 }

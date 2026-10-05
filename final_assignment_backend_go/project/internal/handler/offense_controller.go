@@ -3,6 +3,7 @@ package handler
 import (
 	"net/http"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/gin-gonic/gin"
@@ -25,6 +26,17 @@ func (c *OffenseInformationController) RegisterRoutes(r *gin.RouterGroup) {
 	api.GET("/by-driver-name", c.searchByDriverName)
 	api.GET("/by-license-plate", c.searchByLicensePlate)
 	api.GET("/driver/:driverId", c.getOffensesByDriver)
+	api.GET("/vehicle/:vehicleId", c.getOffensesByVehicle)
+	api.GET("/search/time-range", c.searchOffensesByTimeRange)
+	api.GET("/search/code", c.searchOffensesByCode)
+	api.GET("/search/status", c.searchOffensesByStatus)
+	api.GET("/search/number", c.searchOffensesByNumber)
+	api.GET("/search/location", c.searchOffensesByLocation)
+	api.GET("/search/province", c.searchOffensesByProvince)
+	api.GET("/search/city", c.searchOffensesByCity)
+	api.GET("/search/notification", c.searchOffensesByNotification)
+	api.GET("/search/agency", c.searchOffensesByAgency)
+	api.GET("/search/fine-range", c.searchOffensesByFineRange)
 	api.GET("/:offenseId", c.getOffenseByID)
 	api.PUT("/:offenseId", c.updateOffense)
 	api.DELETE("/:offenseId", c.deleteOffense)
@@ -36,7 +48,10 @@ func (c *OffenseInformationController) createOffense(ctx *gin.Context) {
 		return
 	}
 	var offense domain.OffenseInformation
-	idempotencyKey := ctx.Query("idempotencyKey")
+	idempotencyKey, ok := requireIdempotencyKey(ctx)
+	if !ok {
+		return
+	}
 
 	if err := ctx.ShouldBindJSON(&offense); err != nil {
 		ctx.JSON(http.StatusBadRequest, gin.H{"error": "invalid request body"})
@@ -44,11 +59,11 @@ func (c *OffenseInformationController) createOffense(ctx *gin.Context) {
 	}
 
 	if err := c.Service.CheckAndInsertIdempotency(idempotencyKey, &offense, "create"); err != nil {
-		ctx.JSON(http.StatusConflict, gin.H{"error": err.Error()})
+		writeBusinessOrLedgerError(ctx, err)
 		return
 	}
 
-	ctx.Status(http.StatusCreated)
+	ctx.JSON(http.StatusCreated, gin.H{"success": true, "data": offense})
 }
 
 // GET /api/offenses/:offenseId
@@ -95,11 +110,14 @@ func (c *OffenseInformationController) updateOffense(ctx *gin.Context) {
 		return
 	}
 
-	idempotencyKey := ctx.Query("idempotencyKey")
+	idempotencyKey, ok := requireIdempotencyKey(ctx)
+	if !ok {
+		return
+	}
 	updated.OffenseID = id
 
 	if err := c.Service.CheckAndInsertIdempotency(idempotencyKey, &updated, "update"); err != nil {
-		ctx.JSON(http.StatusConflict, gin.H{"error": err.Error()})
+		writeBusinessOrLedgerError(ctx, err)
 		return
 	}
 
@@ -194,7 +212,6 @@ func (c *OffenseInformationController) searchByLicensePlate(ctx *gin.Context) {
 	ctx.JSON(http.StatusOK, c.Service.FilterForRequester(ctx.GetString("username"), Unscoped(ctx, ResourceOffenses), results))
 }
 
-
 func (c *OffenseInformationController) getOffensesByDriver(ctx *gin.Context) {
 	driverID, err := strconv.Atoi(ctx.Param("driverId"))
 	if err != nil || driverID <= 0 {
@@ -213,4 +230,131 @@ func (c *OffenseInformationController) getOffensesByDriver(ctx *gin.Context) {
 		}
 	}
 	ctx.JSON(http.StatusOK, filtered)
+}
+
+func (c *OffenseInformationController) getOffensesByVehicle(ctx *gin.Context) {
+	vehicleID, err := strconv.Atoi(ctx.Param("vehicleId"))
+	if err != nil || vehicleID <= 0 {
+		ctx.JSON(http.StatusBadRequest, gin.H{"error": "invalid vehicle id"})
+		return
+	}
+	c.searchScoped(ctx, func(item domain.OffenseInformation) bool {
+		return item.VehicleID == vehicleID
+	})
+}
+
+func (c *OffenseInformationController) searchOffensesByTimeRange(ctx *gin.Context) {
+	start, err1 := parseFlexibleTime(ctx.DefaultQuery("startTime", "1970-01-01"))
+	endRaw := ctx.DefaultQuery("endTime", "2100-01-01")
+	end, err2 := parseFlexibleTime(endRaw)
+	if err1 != nil || err2 != nil {
+		ctx.JSON(http.StatusBadRequest, gin.H{"error": "invalid time format"})
+		return
+	}
+	if len(strings.TrimSpace(endRaw)) == 10 {
+		end = end.Add(24*time.Hour - time.Second)
+	}
+	c.searchScoped(ctx, func(item domain.OffenseInformation) bool {
+		return !item.OffenseTime.Before(start) && !item.OffenseTime.After(end)
+	})
+}
+
+func (c *OffenseInformationController) searchOffensesByCode(ctx *gin.Context) {
+	query := firstOffenseQuery(ctx, "offenseCode", "query")
+	c.searchScoped(ctx, func(item domain.OffenseInformation) bool {
+		return containsFold(item.OffenseCode, query) || containsFold(item.OffenseType, query)
+	})
+}
+
+func (c *OffenseInformationController) searchOffensesByStatus(ctx *gin.Context) {
+	status := ctx.Query("status")
+	c.searchScoped(ctx, func(item domain.OffenseInformation) bool {
+		return strings.EqualFold(item.ProcessStatus, status)
+	})
+}
+
+func (c *OffenseInformationController) searchOffensesByNumber(ctx *gin.Context) {
+	query := ctx.Query("offenseNumber")
+	c.searchScoped(ctx, func(item domain.OffenseInformation) bool {
+		return containsFold(item.OffenseNumber, query)
+	})
+}
+
+func (c *OffenseInformationController) searchOffensesByLocation(ctx *gin.Context) {
+	query := ctx.Query("offenseLocation")
+	c.searchScoped(ctx, func(item domain.OffenseInformation) bool {
+		return containsFold(item.OffenseLocation, query)
+	})
+}
+
+func (c *OffenseInformationController) searchOffensesByProvince(ctx *gin.Context) {
+	query := ctx.Query("offenseProvince")
+	c.searchScoped(ctx, func(item domain.OffenseInformation) bool {
+		return containsFold(item.OffenseProvince, query)
+	})
+}
+
+func (c *OffenseInformationController) searchOffensesByCity(ctx *gin.Context) {
+	query := ctx.Query("offenseCity")
+	c.searchScoped(ctx, func(item domain.OffenseInformation) bool {
+		return containsFold(item.OffenseCity, query)
+	})
+}
+
+func (c *OffenseInformationController) searchOffensesByNotification(ctx *gin.Context) {
+	status := ctx.Query("notificationStatus")
+	c.searchScoped(ctx, func(item domain.OffenseInformation) bool {
+		return strings.EqualFold(item.NotificationStatus, status)
+	})
+}
+
+func (c *OffenseInformationController) searchOffensesByAgency(ctx *gin.Context) {
+	query := ctx.Query("enforcementAgency")
+	c.searchScoped(ctx, func(item domain.OffenseInformation) bool {
+		return containsFold(item.EnforcementAgency, query)
+	})
+}
+
+func (c *OffenseInformationController) searchOffensesByFineRange(ctx *gin.Context) {
+	minAmount, err1 := strconv.ParseFloat(ctx.DefaultQuery("minAmount", "0"), 64)
+	maxAmount, err2 := strconv.ParseFloat(ctx.DefaultQuery("maxAmount", "100000"), 64)
+	if err1 != nil || err2 != nil {
+		ctx.JSON(http.StatusBadRequest, gin.H{"error": "invalid fine range"})
+		return
+	}
+	c.searchScoped(ctx, func(item domain.OffenseInformation) bool {
+		return item.FineAmount >= minAmount && item.FineAmount <= maxAmount
+	})
+}
+
+func (c *OffenseInformationController) searchScoped(ctx *gin.Context, match func(domain.OffenseInformation) bool) {
+	offenses, err := c.Service.ListForRequester(ctx.GetString("username"), Unscoped(ctx, ResourceOffenses))
+	if err != nil {
+		ctx.JSON(http.StatusInternalServerError, gin.H{"error": "failed to fetch offenses"})
+		return
+	}
+	filtered := make([]domain.OffenseInformation, 0)
+	for _, item := range offenses {
+		if match(item) {
+			filtered = append(filtered, item)
+		}
+	}
+	ctx.JSON(http.StatusOK, filtered)
+}
+
+func firstOffenseQuery(ctx *gin.Context, names ...string) string {
+	for _, name := range names {
+		if value := strings.TrimSpace(ctx.Query(name)); value != "" {
+			return value
+		}
+	}
+	return ""
+}
+
+func containsFold(value, query string) bool {
+	query = strings.TrimSpace(query)
+	if query == "" {
+		return true
+	}
+	return strings.Contains(strings.ToLower(value), strings.ToLower(query))
 }

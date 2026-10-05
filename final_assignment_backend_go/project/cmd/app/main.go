@@ -152,6 +152,7 @@ func main() {
 	// 创建路由
 	router := gin.Default()
 	router.Use(devCorsMiddleware())
+	router.Use(handler.FlexibleLocalTimeBody())
 	router.Use(global_exception.GlobalExceptionHandler())
 	router.Use(optionalPrincipal(tokenProvider, blacklistService))
 

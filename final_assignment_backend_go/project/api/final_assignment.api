@@ -170,6 +170,15 @@ service finalAssignmentGoApi {
 	@handler listUsers
 	get /api/users returns (ApiResponse)
 
+	@handler getCurrentManagedUser
+	get /api/users/me returns (ApiResponse)
+
+	@handler updateCurrentManagedUser
+	put /api/users/me returns (ApiResponse)
+
+	@handler updateManagedUserPassword
+	put /api/users/me/password returns (ApiResponse)
+
 	@handler getUserByUsername
 	get /api/users/search/username/:username returns (ApiResponse)
 
@@ -654,6 +663,15 @@ service finalAssignmentGoApi {
 	@handler updateDriver
 	put /api/drivers/:driverId returns (ApiResponse)
 
+	@handler updateDriverName
+	put /api/drivers/:driverId/name returns (ApiResponse)
+
+	@handler updateDriverContactNumber
+	put /api/drivers/:driverId/contactNumber returns (ApiResponse)
+
+	@handler updateDriverIdCardNumber
+	put /api/drivers/:driverId/idCardNumber returns (ApiResponse)
+
 	@handler deleteDriver
 	delete /api/drivers/:driverId returns (ApiResponse)
 
@@ -791,6 +809,15 @@ service finalAssignmentGoApi {
 
 	@handler searchFinesByDateRange
 	get /api/fines/search/date-range returns (ApiResponse)
+
+	@handler finesByPayee
+	get /api/fines/payee/:payee returns (ApiResponse)
+
+	@handler fineByReceiptNumber
+	get /api/fines/receiptNumber/:receiptNumber returns (ApiResponse)
+
+	@handler finesByTimeRange
+	get /api/fines/by-time-range returns (ApiResponse)
 
 	@handler updateFine
 	put /api/fines/:fineId returns (ApiResponse)
@@ -1103,3 +1130,26 @@ service finalAssignmentGoApi {
 	@handler deleteRagDocument
 	delete /api/rag/admin/documents/:documentId returns (ApiResponse)
 }
+
+@server (
+	group: feedback
+)
+service finalAssignmentGoApi {
+	@handler listFeedback
+	get /api/feedback returns (ApiResponse)
+
+	@handler createFeedback
+	post /api/feedback returns (ApiResponse)
+
+	@handler updateFeedback
+	put /api/feedback/:feedbackId returns (ApiResponse)
+}
+
+@server (
+	group: cache
+)
+service finalAssignmentGoApi {
+	@handler clearCache
+	post /api/cache/clear returns (ApiResponse)
+}
+

@@ -12,7 +12,8 @@ import (
 )
 
 type stubDriverService struct {
-	listed []domain.DriverInformation
+	listed        []domain.DriverInformation
+	lastNameQuery *string
 }
 
 func (s stubDriverService) CheckAndInsertIdempotency(string, *domain.DriverInformation, string) error {
@@ -31,7 +32,10 @@ func (s stubDriverService) SearchByIdCardNumber(string, int, int) ([]domain.Driv
 func (s stubDriverService) SearchByLicenseNumber(string, int, int) ([]domain.DriverInformation, error) {
 	return s.listed, nil
 }
-func (s stubDriverService) SearchByName(string, int, int) ([]domain.DriverInformation, error) {
+func (s stubDriverService) SearchByName(query string, _, _ int) ([]domain.DriverInformation, error) {
+	if s.lastNameQuery != nil {
+		*s.lastNameQuery = query
+	}
 	return s.listed, nil
 }
 func (s stubDriverService) ListForRequester(_ string, elevated bool) ([]domain.DriverInformation, error) {

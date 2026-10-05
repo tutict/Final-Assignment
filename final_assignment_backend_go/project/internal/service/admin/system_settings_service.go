@@ -25,6 +25,15 @@ func (s *SystemSettingsService) CreateSettings(settings *domain.SystemSettings) 
 
 func (s *SystemSettingsService) DB() *gorm.DB { return s.repo.DB() }
 
+func (s *SystemSettingsService) ListSysSettings() ([]domain.SysSetting, error) {
+	var rows []domain.SysSetting
+	err := s.DB().Order("sort_order asc, setting_id asc").Find(&rows).Error
+	if shared.IsMissingTable(err) {
+		return []domain.SysSetting{}, nil
+	}
+	return rows, err
+}
+
 func (s *SystemSettingsService) GetSystemSettings() (*domain.SystemSettings, error) {
 	var rows []domain.SysSetting
 	if err := s.DB().Find(&rows).Error; err != nil {

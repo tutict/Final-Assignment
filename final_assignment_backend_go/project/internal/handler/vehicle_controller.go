@@ -5,6 +5,7 @@ import (
 	"net/http"
 	"net/url"
 	"strconv"
+	"strings"
 
 	"github.com/gin-gonic/gin"
 
@@ -24,6 +25,13 @@ func (vc *VehicleController) RegisterRoutes(r *gin.Engine) {
 	v := r.Group("/api/vehicles")
 	{
 		v.GET("/search", vc.SearchVehicles)
+		v.GET("/search/license", vc.SearchByLicense)
+		v.GET("/search/license/global", vc.SearchLicenseGlobal)
+		v.GET("/search/owner", vc.SearchByOwnerIdCard)
+		v.GET("/search/owner/name", vc.SearchByOwnerNameQuery)
+		v.GET("/search/type", vc.SearchByTypeQuery)
+		v.GET("/search/status", vc.SearchByStatusQuery)
+		v.GET("/search/general", vc.SearchGeneral)
 		v.GET("/autocomplete/license-plate/me", vc.GetLicensePlateAutocomplete)
 		v.GET("/autocomplete/vehicle-type/me", vc.GetVehicleTypeAutocomplete)
 		v.GET("/autocomplete/license-plate-globally/me", vc.GetLicensePlateAutocompleteGlobally)
@@ -45,6 +53,67 @@ func (vc *VehicleController) RegisterRoutes(r *gin.Engine) {
 }
 
 // --- Handler 实现 ---
+
+func (vc *VehicleController) SearchByLicense(c *gin.Context) {
+	lp := strings.TrimSpace(c.Query("licensePlate"))
+	if lp == "" {
+		lp = strings.TrimSpace(c.Query("keywords"))
+	}
+	if lp == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "licensePlate is required"})
+		return
+	}
+	vehicle, err := vc.vehicleService.GetByLicensePlate(lp)
+	if err != nil || vehicle == nil || !vc.vehicleService.CanAccess(c.GetString("username"), Unscoped(c, ResourceVehicles), vehicle) {
+		c.JSON(http.StatusNotFound, gin.H{"error": "vehicle not found"})
+		return
+	}
+	c.JSON(http.StatusOK, vehicle)
+}
+
+func (vc *VehicleController) SearchLicenseGlobal(c *gin.Context) {
+	prefix := c.Query("prefix")
+	c.JSON(http.StatusOK, vc.vehicleService.GetLicensePlateGlobally(prefix))
+}
+
+func (vc *VehicleController) SearchByOwnerIdCard(c *gin.Context) {
+	list := vc.vehicleService.GetByIdCardNumber(c.Query("idCard"))
+	c.JSON(http.StatusOK, vc.scopedVehicles(c, list))
+}
+
+func (vc *VehicleController) SearchByOwnerNameQuery(c *gin.Context) {
+	list := vc.vehicleService.GetByOwnerName(c.Query("ownerName"))
+	c.JSON(http.StatusOK, vc.scopedVehicles(c, list))
+}
+
+func (vc *VehicleController) SearchByTypeQuery(c *gin.Context) {
+	list := vc.vehicleService.GetByType(c.Query("type"))
+	c.JSON(http.StatusOK, vc.scopedVehicles(c, list))
+}
+
+func (vc *VehicleController) SearchByStatusQuery(c *gin.Context) {
+	list := vc.vehicleService.GetByStatus(c.Query("status"))
+	c.JSON(http.StatusOK, vc.scopedVehicles(c, list))
+}
+
+func (vc *VehicleController) SearchGeneral(c *gin.Context) {
+	query := strings.TrimSpace(c.Query("keywords"))
+	if query == "" {
+		query = strings.TrimSpace(c.Query("query"))
+	}
+	page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
+	size, _ := strconv.Atoi(c.DefaultQuery("size", "20"))
+	results, err := vc.vehicleService.SearchVehicles(query, page, size)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+	c.JSON(http.StatusOK, vc.scopedVehicles(c, results))
+}
+
+func (vc *VehicleController) scopedVehicles(c *gin.Context, list []domain.VehicleInformation) []domain.VehicleInformation {
+	return vc.vehicleService.FilterForRequester(c.GetString("username"), Unscoped(c, ResourceVehicles), list)
+}
 
 func (vc *VehicleController) SearchVehicles(c *gin.Context) {
 	query := c.Query("query")
@@ -110,7 +179,7 @@ func (vc *VehicleController) CreateVehicle(c *gin.Context) {
 		return
 	}
 	var vehicle domain.VehicleInformation
-	idempotencyKey := c.Query("idempotencyKey")
+	idempotencyKey := idempotencyKey(c)
 
 	if err := c.ShouldBindJSON(&vehicle); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
@@ -124,7 +193,7 @@ func (vc *VehicleController) CreateVehicle(c *gin.Context) {
 		}
 		return
 	}
-	c.Status(http.StatusCreated)
+	c.JSON(http.StatusCreated, apiOK(vehicle))
 }
 
 func (vc *VehicleController) GetVehicleById(c *gin.Context) {
@@ -196,7 +265,7 @@ func (vc *VehicleController) UpdateVehicle(c *gin.Context) {
 		return
 	}
 	var vehicle domain.VehicleInformation
-	idempotencyKey := c.Query("idempotencyKey")
+	idempotencyKey := idempotencyKey(c)
 	id, _ := strconv.Atoi(c.Param("vehicleId"))
 
 	if err := c.ShouldBindJSON(&vehicle); err != nil {

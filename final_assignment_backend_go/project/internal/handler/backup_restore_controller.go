@@ -3,6 +3,7 @@ package handler
 import (
 	"log"
 	"net/http"
+	"strings"
 	"time"
 
 	"github.com/gin-gonic/gin"
@@ -33,6 +34,13 @@ func (c *BackupRestoreController) mountBackups(group *gin.RouterGroup) {
 	group.GET("", c.GetAllBackups)
 	group.GET("/filename/:backupFileName", c.GetBackupByFileName)
 	group.GET("/time/:backupTime", c.GetBackupsByTime)
+	group.GET("/search/type", c.SearchBackupsByType)
+	group.GET("/search/file-name", c.SearchBackupsByFileName)
+	group.GET("/search/handler", c.SearchBackupsByHandler)
+	group.GET("/search/restore-status", c.SearchBackupsByRestoreStatus)
+	group.GET("/search/status", c.SearchBackupsByStatus)
+	group.GET("/search/backup-time-range", c.SearchBackupsByBackupTime)
+	group.GET("/search/restore-time-range", c.SearchBackupsByRestoreTime)
 	group.GET("/:backupId", c.GetBackupById)
 	group.DELETE("/:backupId", c.DeleteBackup)
 	group.PUT("/:backupId", c.UpdateBackup)
@@ -156,4 +164,76 @@ func (c *BackupRestoreController) GetBackupsByTime(ctx *gin.Context) {
 		return
 	}
 	ctx.JSON(http.StatusOK, backups)
+}
+
+func (c *BackupRestoreController) SearchBackupsByType(ctx *gin.Context) {
+	query := ctx.Query("backupType")
+	c.searchBackups(ctx, func(item domain.BackupRestore) bool {
+		return strings.EqualFold(item.BackupType, query)
+	})
+}
+
+func (c *BackupRestoreController) SearchBackupsByFileName(ctx *gin.Context) {
+	query := ctx.Query("backupFileName")
+	c.searchBackups(ctx, func(item domain.BackupRestore) bool {
+		return containsFold(item.BackupFileName, query)
+	})
+}
+
+func (c *BackupRestoreController) SearchBackupsByHandler(ctx *gin.Context) {
+	query := ctx.Query("backupHandler")
+	c.searchBackups(ctx, func(item domain.BackupRestore) bool {
+		return containsFold(item.BackupHandler, query)
+	})
+}
+
+func (c *BackupRestoreController) SearchBackupsByRestoreStatus(ctx *gin.Context) {
+	query := ctx.Query("restoreStatus")
+	c.searchBackups(ctx, func(item domain.BackupRestore) bool {
+		return strings.EqualFold(item.RestoreStatus, query)
+	})
+}
+
+func (c *BackupRestoreController) SearchBackupsByStatus(ctx *gin.Context) {
+	query := ctx.Query("status")
+	c.searchBackups(ctx, func(item domain.BackupRestore) bool {
+		return strings.EqualFold(item.Status, query)
+	})
+}
+
+func (c *BackupRestoreController) SearchBackupsByBackupTime(ctx *gin.Context) {
+	start, end, err := queryTimeWindow(ctx)
+	if err != nil {
+		ctx.JSON(http.StatusBadRequest, gin.H{"error": "invalid time format"})
+		return
+	}
+	c.searchBackups(ctx, func(item domain.BackupRestore) bool {
+		return !item.BackupTime.Before(start) && !item.BackupTime.After(end)
+	})
+}
+
+func (c *BackupRestoreController) SearchBackupsByRestoreTime(ctx *gin.Context) {
+	start, end, err := queryTimeWindow(ctx)
+	if err != nil {
+		ctx.JSON(http.StatusBadRequest, gin.H{"error": "invalid time format"})
+		return
+	}
+	c.searchBackups(ctx, func(item domain.BackupRestore) bool {
+		return item.RestoreTime != nil && !item.RestoreTime.Before(start) && !item.RestoreTime.After(end)
+	})
+}
+
+func (c *BackupRestoreController) searchBackups(ctx *gin.Context, match func(domain.BackupRestore) bool) {
+	rows, err := c.backupService.GetAllBackups()
+	if err != nil {
+		ctx.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+	filtered := make([]domain.BackupRestore, 0)
+	for _, row := range rows {
+		if match(row) {
+			filtered = append(filtered, row)
+		}
+	}
+	ctx.JSON(http.StatusOK, filtered)
 }

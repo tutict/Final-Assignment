@@ -66,6 +66,9 @@ func (s *VehicleService) CreateVehicle(key string, vehicle *domain.VehicleInform
 	if err := shared.CheckIdempotency(key, "vehicle:create"); err != nil {
 		return err
 	}
+	if strings.TrimSpace(vehicle.PlateColor) == "" {
+		vehicle.PlateColor = "Blue"
+	}
 	return s.DB().Create(vehicle).Error
 }
 
