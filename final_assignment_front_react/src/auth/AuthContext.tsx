@@ -10,6 +10,7 @@ import {
 import { jwtDecode } from 'jwt-decode';
 import { useNavigate } from 'react-router-dom';
 import { login as loginApi, register as registerApi, logoutRefresh } from '../api/auth';
+import { getCurrentProfile } from '../api/profile';
 import {
   clearStoredAuth,
   setAuthCallbacks,
@@ -32,6 +33,7 @@ export interface AuthState {
   userEmail: string;
   driverName: string;
   userId: string;
+  driverId: string;
 }
 
 interface AuthContextValue {
@@ -71,6 +73,12 @@ function extractRoles(token: string): string[] {
   }
 }
 
+function readableName(value: unknown): string {
+  const text = value == null ? "" : String(value).trim();
+  if (!text || /^\?+$/.test(text)) return "";
+  return text;
+}
+
 function loadStoredAuth(): AuthState | null {
   const token = localStorage.getItem('authToken');
   if (!token) return null;
@@ -83,6 +91,7 @@ function loadStoredAuth(): AuthState | null {
     userEmail: localStorage.getItem('userEmail') || '',
     driverName: localStorage.getItem('driverName') || '',
     userId: localStorage.getItem('userId') || '',
+    driverId: localStorage.getItem('driverId') || '',
   };
 }
 
@@ -92,12 +101,17 @@ function persistProfileFields(values: {
   userEmail: string;
   driverName?: string;
   userId?: string;
+  driverId?: string;
 }): void {
   localStorage.setItem('userRole', values.userRole);
   localStorage.setItem('userName', values.userName);
   localStorage.setItem('userEmail', values.userEmail);
   if (values.driverName) localStorage.setItem('driverName', values.driverName);
+  else localStorage.removeItem('driverName');
   if (values.userId) localStorage.setItem('userId', values.userId);
+  else localStorage.removeItem('userId');
+  if (values.driverId) localStorage.setItem('driverId', values.driverId);
+  else localStorage.removeItem('driverId');
 }
 
 export function AuthProvider({ children }: { children: ReactNode }) {
@@ -125,6 +139,41 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   }, [auth?.token]);
 
+  useEffect(() => {
+    if (!auth?.token) return;
+    let cancelled = false;
+    getCurrentProfile()
+      .then((profile) => {
+        if (cancelled) return;
+        setAuth((current) => {
+          if (!current?.token) return current;
+          const userId = profile.authUserId != null ? String(profile.authUserId) : current.userId;
+          const driverId = profile.driverId != null ? String(profile.driverId) : '';
+          const next = {
+            ...current,
+            userId,
+            driverId,
+            userName: readableName(profile.displayName) || profile.username || current.userName,
+            userEmail: profile.email || current.userEmail,
+            driverName: readableName(profile.driverName),
+          };
+          persistProfileFields({
+            userRole: next.userRole,
+            userName: next.userName,
+            userEmail: next.userEmail,
+            driverName: next.driverName,
+            userId: next.userId,
+            driverId: next.driverId,
+          });
+          return next;
+        });
+      })
+      .catch(() => undefined);
+    return () => {
+      cancelled = true;
+    };
+  }, [auth?.token]);
+
   const login = useCallback(async (username: string, password: string) => {
     setLoading(true);
     try {
@@ -137,20 +186,38 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       const normalizedRoles = roles.map((role) => role.replace('ROLE_', ''));
       const userRole = (normalizedRoles[0] as RoleValue) || ROLES.USER;
       const user = result?.user;
-      const resolvedName = user?.name || user?.realName || username.split('@')[0];
-      const resolvedEmail = user?.email || username;
-      const userId = user?.userId ? String(user.userId) : '';
-      const driverName = user?.driverName || resolvedName;
-
-      // 同时保存访问令牌与刷新令牌（对齐 Flutter AuthService）
       const refreshToken = result?.refreshToken;
       setTokens(token, typeof refreshToken === 'string' ? refreshToken : null);
+      setAuthToken(token);
+
+      let profile: Awaited<ReturnType<typeof getCurrentProfile>> | null = null;
+      try {
+        profile = await getCurrentProfile();
+      } catch {
+        profile = null;
+      }
+
+      const accountName = result?.username || profile?.username || username;
+      const resolvedName =
+        readableName(profile?.displayName) ||
+        readableName(result?.displayName) ||
+        readableName(user?.name) ||
+        readableName(user?.realName) ||
+        accountName.split('@')[0];
+      const resolvedEmail = profile?.email || user?.email || (username.includes('@') ? username : '');
+      const userId = String(profile?.authUserId ?? result?.authUserId ?? user?.userId ?? '');
+      const driverIdValue = profile?.driverId ?? result?.driverId ?? user?.driverId;
+      const driverId = driverIdValue != null && driverIdValue !== '' ? String(driverIdValue) : '';
+      const driverName =
+        readableName(profile?.driverName) || readableName(result?.driverName) || readableName(user?.driverName);
+
       persistProfileFields({
         userRole,
         userName: resolvedName,
         userEmail: resolvedEmail,
         driverName,
         userId,
+        driverId,
       });
 
       setAuth({
@@ -161,6 +228,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         userEmail: resolvedEmail,
         driverName,
         userId,
+        driverId,
       });
       return { ok: true };
     } catch (error) {

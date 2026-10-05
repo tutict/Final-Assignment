@@ -15,13 +15,14 @@ import {
   type ProgressItem,
 } from '../api/progress';
 
-export const PROGRESS_STATUS_CATEGORIES = ['Pending', 'Processing', 'Completed', 'Archived'] as const;
+export const PROGRESS_STATUS_CATEGORIES = ['Pending', 'Processing', 'Completed', 'Failed', 'Archived'] as const;
 export type ProgressStatus = (typeof PROGRESS_STATUS_CATEGORIES)[number];
 
 export const PROGRESS_STATUS_LABELS: Record<string, string> = {
   Pending: '待处理',
   Processing: '处理中',
   Completed: '已完成',
+  Failed: '失败',
   Archived: '已归档',
 };
 

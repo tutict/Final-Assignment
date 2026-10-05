@@ -35,13 +35,13 @@ export const entityConfigs: EntityConfigs = {
       { name: 'driverId', type: 'int', readOnly: true },
       // 后端字段：driverId | 来源：DriverInformation.driverId
       // 标识/关联字段，写入时需以后端约束为准
-      { name: 'name', type: 'String' },
+      { name: 'name', type: 'String', label: '姓名', validation: { required: true, message: '请填写姓名' } },
       // 后端字段：name | 来源：DriverInformation.name
       { name: 'idCardNumber', type: 'String' },
       // 后端字段：idCardNumber | 来源：DriverInformation.idCardNumber
       { name: 'gender', type: 'String' },
       // 后端字段：gender | 来源：DriverInformation.gender
-      { name: 'birthdate', type: 'DateTime' },
+      { name: 'birthdate', type: 'DateTime', label: '出生日期', validation: { required: true, message: '请填写出生日期' } },
       // 后端字段：birthdate | 来源：DriverInformation.birthdate
       { name: 'contactNumber', type: 'String' },
       // 后端字段：contactNumber | 来源：DriverInformation.contactNumber
@@ -49,18 +49,18 @@ export const entityConfigs: EntityConfigs = {
       // 后端字段：email | 来源：DriverInformation.email
       { name: 'address', type: 'String' },
       // 后端字段：address | 来源：DriverInformation.address
-      { name: 'driverLicenseNumber', type: 'String' },
+      { name: 'driverLicenseNumber', type: 'String', label: '驾驶证号', validation: { required: true, message: '请填写驾驶证号' } },
       // 后端字段：driverLicenseNumber | 来源：DriverInformation.driverLicenseNumber
       { name: 'licenseType', type: 'String' },
       // 后端字段：licenseType | 来源：DriverInformation.licenseType
       { name: 'allowedVehicleType', type: 'String' },
       // 后端字段：allowedVehicleType | @todo 确认后端字段名和 DTO 来源，暂时按字面推断
       // 可能是准驾车型兼容字段，需确认是否对应 licenseType 或独立字段
-      { name: 'firstLicenseDate', type: 'DateTime' },
+      { name: 'firstLicenseDate', type: 'DateTime', label: '初次领证日期', validation: { required: true, message: '请填写初次领证日期' } },
       // 后端字段：firstLicenseDate | 来源：DriverInformation.firstLicenseDate
-      { name: 'issueDate', type: 'DateTime' },
+      { name: 'issueDate', type: 'DateTime', label: '发证日期', validation: { required: true, message: '请填写发证日期' } },
       // 后端字段：issueDate | 来源：DriverInformation.issueDate
-      { name: 'expiryDate', type: 'DateTime' },
+      { name: 'expiryDate', type: 'DateTime', label: '有效期止', validation: { required: true, message: '请填写有效期止' } },
       // 后端字段：expiryDate | 来源：DriverInformation.expiryDate
       { name: 'issuingAuthority', type: 'String' },
       // 后端字段：issuingAuthority | 来源：DriverInformation.issuingAuthority
@@ -105,11 +105,16 @@ export const entityConfigs: EntityConfigs = {
       { name: 'vehicleId', type: 'int', readOnly: true },
       // 后端字段：vehicleId | 来源：VehicleInformation.vehicleId
       // 标识/关联字段，写入时需以后端约束为准
-      { name: 'licensePlate', type: 'String' },
+      { name: 'licensePlate', type: 'String', label: '车牌号', validation: { required: true, message: '请填写车牌号' } },
       // 后端字段：licensePlate | 来源：VehicleInformation.licensePlate
       { name: 'plateColor', type: 'String' },
       // 后端字段：plateColor | 来源：VehicleInformation.plateColor
-      { name: 'vehicleType', type: 'String' },
+      {
+        name: 'vehicleType',
+        type: 'String',
+        label: '车辆类型',
+        validation: { enum: ['SmallCar', 'LargeCar', 'Motorcycle', 'Trailer'], message: '请选择车辆类型' },
+      },
       // 后端字段：vehicleType | 来源：VehicleInformation.vehicleType
       { name: 'brand', type: 'String' },
       // 后端字段：brand | 来源：VehicleInformation.brand
@@ -121,9 +126,14 @@ export const entityConfigs: EntityConfigs = {
       // 后端字段：engineNumber | 来源：VehicleInformation.engineNumber
       { name: 'frameNumber', type: 'String' },
       // 后端字段：frameNumber | 来源：VehicleInformation.frameNumber
-      { name: 'ownerName', type: 'String' },
+      { name: 'ownerName', type: 'String', label: '车主姓名', validation: { required: true, message: '请填写车主姓名' } },
       // 后端字段：ownerName | 来源：VehicleInformation.ownerName
-      { name: 'ownerIdCard', type: 'String' },
+      {
+        name: 'ownerIdCard',
+        type: 'String',
+        label: '车主身份证号',
+        validation: { required: true, pattern: ID_CARD_PATTERN, message: '请输入有效的 18 位身份证号' },
+      },
       // 后端字段：ownerIdCard | 来源：VehicleInformation.ownerIdCard
       { name: 'ownerContact', type: 'String' },
       // 后端字段：ownerContact | 来源：VehicleInformation.ownerContact
@@ -135,7 +145,12 @@ export const entityConfigs: EntityConfigs = {
       // 后端字段：registrationDate | 来源：VehicleInformation.registrationDate
       { name: 'issuingAuthority', type: 'String' },
       // 后端字段：issuingAuthority | 来源：VehicleInformation.issuingAuthority
-      { name: 'status', type: 'String' },
+      {
+        name: 'status',
+        type: 'String',
+        label: '状态',
+        validation: { enum: ['Active', 'Inactive', 'Scrapped', 'Stolen', 'Mortgaged'], message: '请选择车辆状态' },
+      },
       // 后端字段：status | 枚举：Active / Inactive / Scrapped / Stolen / Mortgaged
       // 车辆当前状态，区别于 plateStatusSnapshot 的历史快照语义
       { name: 'inspectionExpiryDate', type: 'DateTime' },
@@ -179,7 +194,7 @@ export const entityConfigs: EntityConfigs = {
       { name: 'offenseId', type: 'int', readOnly: true },
       // 后端字段：offenseId | 违法记录主键
       // 与 driverId、vehicleId 共同描述哪位驾驶员驾驶哪辆车产生本条违法记录
-      { name: 'offenseCode', type: 'String' },
+      { name: 'offenseCode', type: 'String', label: '违法代码', validation: { required: true, message: '请填写违法代码' } },
       // 后端字段：offenseCode | 来源：OffenseInformation.offenseCode
       { name: 'offenseNumber', type: 'String' },
       // 后端字段：offenseNumber | 来源：OffenseInformation.offenseNumber
@@ -191,16 +206,16 @@ export const entityConfigs: EntityConfigs = {
       },
       // 后端字段：offenseTime | 违法实际发生时间
       // 区别于 createdAt：createdAt 是记录创建时间
-      { name: 'offenseLocation', type: 'String' },
+      { name: 'offenseLocation', type: 'String', label: '违法地点', validation: { required: true, message: '请填写违法地点' } },
       // 后端字段：offenseLocation | 来源：OffenseInformation.offenseLocation
       { name: 'offenseProvince', type: 'String' },
       // 后端字段：offenseProvince | 来源：OffenseInformation.offenseProvince
       { name: 'offenseCity', type: 'String' },
       // 后端字段：offenseCity | 来源：OffenseInformation.offenseCity
-      { name: 'driverId', type: 'int' },
+      { name: 'driverId', type: 'int', label: '驾驶员编号', validation: { required: true, min: 1, message: '请填写有效的驾驶员编号' } },
       // 后端字段：driverId | 关联 DriverInformation.driverId
       // 与 offenseId、vehicleId 共同组成违法记录的驾驶员/车辆关联
-      { name: 'vehicleId', type: 'int' },
+      { name: 'vehicleId', type: 'int', label: '车辆编号', validation: { required: true, min: 1, message: '请填写有效的车辆编号' } },
       // 后端字段：vehicleId | 关联 VehicleInformation.vehicleId
       // 与 offenseId、driverId 共同组成违法记录的驾驶员/车辆关联
       { name: 'offenseDescription', type: 'String' },
@@ -308,13 +323,13 @@ export const entityConfigs: EntityConfigs = {
       { name: 'deductionId', type: 'int', readOnly: true },
       // 后端字段：deductionId | 来源：DeductionRecord.deductionId
       // 标识/关联字段，写入时需以后端约束为准
-      { name: 'offenseId', type: 'int' },
+      { name: 'offenseId', type: 'int', label: '违法编号', validation: { required: true, min: 1, message: '请填写关联的违法编号' } },
       // 后端字段：offenseId | 来源：DeductionRecord.offenseId
       // 标识/关联字段，写入时需以后端约束为准
       { name: 'driverId', type: 'int' },
       // 后端字段：driverId | 来源：DeductionRecord.driverId
       // 标识/关联字段，写入时需以后端约束为准
-      { name: 'deductedPoints', type: 'int' },
+      { name: 'deductedPoints', type: 'int', label: '扣分', validation: { required: true, min: 1, max: 12, message: '扣分须在 1 ~ 12 之间' } },
       // 后端字段：deductedPoints | 来源：DeductionRecord.deductedPoints
       { name: 'deductionTime', type: 'DateTime' },
       // 后端字段：deductionTime | 来源：DeductionRecord.deductionTime
@@ -328,7 +343,12 @@ export const entityConfigs: EntityConfigs = {
       // 后端字段：approver | 来源：DeductionRecord.approver
       { name: 'approvalTime', type: 'DateTime' },
       // 后端字段：approvalTime | 来源：DeductionRecord.approvalTime
-      { name: 'status', type: 'String' },
+      {
+        name: 'status',
+        type: 'String',
+        label: '状态',
+        validation: { enum: ['Effective', 'Cancelled', 'Restored'], message: '请选择有效的扣分状态' },
+      },
       // 后端字段：status | 枚举：Effective / Cancelled / Restored
       // 扣分记录状态，Cancelled/Restored 可能触发积分恢复逻辑
       { name: 'restoreTime', type: 'DateTime' },
@@ -356,13 +376,13 @@ export const entityConfigs: EntityConfigs = {
     label: '罚款记录',
     basePath: API_PATHS.FINES,
     idField: 'fineId',
-    displayFields: ['fineNumber', 'fineAmount', 'lateFee', 'totalAmount', 'paymentDeadline', 'paymentStatus', 'status', 'fineId'],
-    editableFields: ['offenseId', 'fineNumber', 'fineAmount', 'lateFee', 'totalAmount', 'fineDate', 'paymentDeadline', 'issuingAuthority', 'paymentStatus', 'status', 'remarks'],
+    displayFields: ['fineNumber', 'fineAmount', 'lateFee', 'totalAmount', 'paymentDeadline', 'paymentStatus', 'fineId'],
+    editableFields: ['offenseId', 'fineNumber', 'fineAmount', 'lateFee', 'totalAmount', 'fineDate', 'paymentDeadline', 'issuingAuthority', 'paymentStatus', 'remarks'],
     fields: [
       { name: 'fineId', type: 'int', readOnly: true },
       // 后端字段：fineId | 来源：FineInformation.fineId
       // 标识/关联字段，写入时需以后端约束为准
-      { name: 'offenseId', type: 'int' },
+      { name: 'offenseId', type: 'int', label: '违法编号', validation: { required: true, min: 1, message: '请填写关联的违法编号' } },
       // 后端字段：offenseId | 关联 OffenseInformation.offenseId
       // 一条违法记录可生成对应罚款记录，具体唯一性由后端约束确认
       { name: 'fineNumber', type: 'String' },
@@ -602,12 +622,12 @@ export const entityConfigs: EntityConfigs = {
       { name: 'appealId', type: 'int', readOnly: true },
       // 后端字段：appealId | 来源：AppealRecord.appealId
       // 标识/关联字段，写入时需以后端约束为准
-      { name: 'offenseId', type: 'int' },
+      { name: 'offenseId', type: 'int', label: '违法编号', validation: { required: true, min: 1, message: '请填写要申诉的违法编号' } },
       // 后端字段：offenseId | 来源：AppealRecord.offenseId
       // 标识/关联字段，写入时需以后端约束为准
       { name: 'appealNumber', type: 'String' },
       // 后端字段：appealNumber | 来源：AppealRecord.appealNumber
-      { name: 'appellantName', type: 'String' },
+      { name: 'appellantName', type: 'String', label: '申诉人', validation: { required: true, message: '请填写申诉人姓名' } },
       // 后端字段：appellantName | 来源：AppealRecord.appellantName
       {
         name: 'appellantIdCard',
@@ -637,9 +657,9 @@ export const entityConfigs: EntityConfigs = {
       // 后端字段：appellantAddress | 来源：AppealRecord.appellantAddress
       { name: 'appealType', type: 'String' },
       // 后端字段：appealType | 来源：AppealRecord.appealType
-      { name: 'appealReason', type: 'String' },
+      { name: 'appealReason', type: 'String', label: '申诉理由', validation: { required: true, message: '请填写申诉理由' } },
       // 后端字段：appealReason | 来源：AppealRecord.appealReason
-      { name: 'appealTime', type: 'DateTime' },
+      { name: 'appealTime', type: 'DateTime', label: '申诉时间', validation: { required: true, message: '请填写申诉时间' } },
       // 后端字段：appealTime | 来源：AppealRecord.appealTime
       { name: 'evidenceDescription', type: 'String' },
       // 后端字段：evidenceDescription | 来源：AppealRecord.evidenceDescription

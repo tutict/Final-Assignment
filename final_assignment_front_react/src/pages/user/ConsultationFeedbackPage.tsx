@@ -12,6 +12,21 @@ import { useAuth } from '../../auth/AuthContext';
 
 const FEEDBACK_KEY = ['feedback'] as const;
 
+
+function feedbackStatusLabel(status: string): string {
+  switch (status.toLowerCase()) {
+    case "pending":
+      return "待处理";
+    case "processing":
+      return "处理中";
+    case "resolved":
+    case "completed":
+      return "已处理";
+    default:
+      return status;
+  }
+}
+
 export default function ConsultationFeedbackPage() {
   const { auth } = useAuth();
   const queryClient = useQueryClient();
@@ -107,7 +122,7 @@ export default function ConsultationFeedbackPage() {
             <li key={String(record.feedbackId ?? record.content)}>
               <strong>[{record.feedbackType || '反馈'}]</strong>
               <span>{record.content}</span>
-              {record.status ? <em>状态：{record.status}</em> : null}
+              {record.status ? <em>状态：{feedbackStatusLabel(record.status)}</em> : null}
             </li>
           ))}
         </ul>

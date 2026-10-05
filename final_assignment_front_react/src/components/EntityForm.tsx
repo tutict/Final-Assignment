@@ -1,6 +1,8 @@
 import type { EntityField } from '../config/entityTypes';
 import { fromInputDateTime, toInputDateTime } from '../utils/format';
 import { resolveFieldLabel } from '../config/fieldLabels';
+import { getStatusLabel } from '../utils/statusLabels';
+import { getValueLabel } from '../utils/valueLabels';
 
 function getInputType(type: string | undefined, name: string): string {
   if (type === 'select') return 'select';
@@ -135,11 +137,15 @@ export default function EntityForm({
                 aria-describedby={error ? errorId : undefined}
               >
                 <option value="">请选择</option>
-                {options.map((option) => (
-                  <option key={String(option)} value={option}>
-                    {String(option)}
-                  </option>
-                ))}
+                {options.map((option) => {
+                  const statusLabel = getStatusLabel(option, field.name);
+                  const shown = statusLabel === String(option) ? getValueLabel(field.name, option) : statusLabel;
+                  return (
+                    <option key={String(option)} value={option}>
+                      {shown}
+                    </option>
+                  );
+                })}
               </select>
             ) : isMultiline(field.name) ? (
               <textarea

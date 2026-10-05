@@ -10,7 +10,7 @@ import {
   progressStatusLabel,
   useProgress,
 } from '../hooks/useProgress';
-import type { ProgressItem } from '../api/progress';
+import { summarizeProgressDetails, type ProgressItem } from '../api/progress';
 import { getErrorMessage } from '../utils/errorMessages';
 import { formatDateTime } from '../utils/format';
 import ErrorStateView from './ErrorStateView';
@@ -198,7 +198,7 @@ export default function ProgressMessageList({
                     <span className="meta-pill">🔗 {businessContext(item)}</span>
                   </span>
                   {item.details ? (
-                    <span className="progress-card-details">{item.details}</span>
+                    <span className="progress-card-details">{summarizeProgressDetails(item.details)}</span>
                   ) : null}
                 </span>
               </button>
@@ -234,7 +234,7 @@ export default function ProgressMessageList({
             <h2>{selected.title || '未命名进度'}</h2>
             <p>{progressStatusLabel(selected.status)}</p>
             <p>{formatDateTime(selected.submitTime)}</p>
-            <p>{selected.details || '暂无补充说明。'}</p>
+            <p>{summarizeProgressDetails(selected.details) || '暂无补充说明。'}</p>
             <button type="button" className="ghost" onClick={() => setSelected(null)}>
               关闭
             </button>

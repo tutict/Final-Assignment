@@ -71,11 +71,16 @@ export default function VehicleManagementPage() {
             data = [];
           }
         }
-        if (!data.length) {
-          const all = await listEntities<Record<string, unknown>[]>(
-            entityConfigs.vehicles.basePath
+        if (!data.length && !driverId) {
+          const elevated = (auth?.roles || []).some((role) =>
+            ['ADMIN', 'SUPER_ADMIN', 'TRAFFIC_POLICE'].includes(role.replace(/^ROLE_/, ''))
           );
-          data = all.filter((item) => matchesCurrentUser(item, tokens, driverId));
+          if (elevated) {
+            const all = await listEntities<Record<string, unknown>[]>(
+              entityConfigs.vehicles.basePath
+            );
+            data = all.filter((item) => matchesCurrentUser(item, tokens, driverId));
+          }
         }
 
         if (plate) {

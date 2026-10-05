@@ -99,8 +99,8 @@ export default function ManagerDashboardPage() {
       <div className="stat-grid">
         <StatCard title="今日新增" value={metrics.todayAdded} description="今日新增违法记录" />
         <StatCard title="待处理" value={metrics.pending} description="需人工审核/缴费" />
-        <StatCard title="已办结" value={metrics.processed} description="已缴/已结记录" />
-        <StatCard title="罚款合计" value={`¥${metrics.finesTotal}`} description="近 30 天罚款金额" />
+        <StatCard title="已办结" value={metrics.processed} description="处理状态已办结的违法" />
+        <StatCard title="罚款合计" value={`¥${metrics.finesTotal}`} description="当前违法记录的罚款合计" />
       </div>
 
       <div className="panel">

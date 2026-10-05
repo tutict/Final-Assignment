@@ -3,6 +3,8 @@ import { useNavigate, useSearchParams } from 'react-router-dom';
 import CrudPage from '../shared/CrudPage';
 import { entityConfigs } from '../../config/entities';
 import { listEntities } from '../../api/entities';
+import { getCurrentProfile } from '../../api/profile';
+import { API_PATHS } from '../../constants/apiPaths';
 import { useAgentPrefill, hasBusinessPrefill } from '../../hooks/useAgentPrefill';
 import type { EntityConfig } from '../../config/entityTypes';
 
@@ -23,8 +25,11 @@ export default function FineInformationPage() {
       hideCreate: true,
       label: '罚款信息',
       list: async () => {
+        const profile = await getCurrentProfile();
+        if (!profile.driverId) return [];
         const data = await listEntities<Record<string, unknown>[]>(
-          entityConfigs.fines.basePath
+          API_PATHS.FINES_BY_DRIVER(profile.driverId),
+          { page: 1, size: 100 }
         );
         let mine = Array.isArray(data) ? data : [];
         if (businessNumber) {

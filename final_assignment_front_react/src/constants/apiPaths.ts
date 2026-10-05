@@ -15,8 +15,10 @@ export const API_PATHS = {
   DRIVERS_BY_ID: (driverId: string | number) => `/api/drivers/${driverId}`,
   VEHICLES: '/api/vehicles',
   OFFENSES: '/api/offenses',
+  OFFENSES_BY_DRIVER: (driverId: string | number) => `/api/offenses/driver/${driverId}`,
   DEDUCTIONS: '/api/deductions',
   FINES: '/api/fines',
+  FINES_BY_DRIVER: (driverId: string | number) => `/api/fines/driver/${driverId}`,
   PAYMENTS: '/api/payments',
   OFFENSE_TYPES: '/api/offense-types',
   PROGRESS: '/api/progress',
@@ -44,6 +46,7 @@ export const API_PATHS = {
   REQUEST_HISTORY_SEARCH: (field: RequestHistorySearchField) =>
     `/api/system/logs/requests/search/${field}`,
   APPEAL_LIST: '/api/appeals',
+  APPEALS_MY: '/api/appeals/my',
   APPEAL_WORKFLOW_EVENT: (appealId: string | number, event: string) =>
     `/api/workflow/appeals/${appealId}/events/${event}`,
   // AI 聊天：POST + SSE，对齐 Flutter AiChatApi（/api/ai/chat/stream）

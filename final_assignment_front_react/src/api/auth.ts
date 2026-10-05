@@ -12,12 +12,18 @@ export interface LoginResult {
   refreshToken?: string;
   message?: string;
   error?: string;
+  username?: string;
+  authUserId?: number | string;
+  driverId?: number | string | null;
+  displayName?: string;
+  driverName?: string;
   user?: {
     name?: string;
     realName?: string;
     email?: string;
     userId?: number | string;
     driverName?: string;
+    driverId?: number | string | null;
   };
 }
 

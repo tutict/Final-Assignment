@@ -27,13 +27,13 @@ ReactDOM.createRoot(document.getElementById('root')!).render(
     <QueryClientProvider client={queryClient}>
       <BrowserRouter>
         <ThemeProvider>
-          <BusinessEventProvider>
-            <AuthProvider>
+          <AuthProvider>
+            <BusinessEventProvider>
               <AgentWindowProvider>
                 <App />
               </AgentWindowProvider>
-            </AuthProvider>
-          </BusinessEventProvider>
+            </BusinessEventProvider>
+          </AuthProvider>
         </ThemeProvider>
       </BrowserRouter>
     </QueryClientProvider>

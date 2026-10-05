@@ -3,6 +3,7 @@
  * 对齐 Flutter UserProfileService / DriverInformationControllerApi / UserManagementControllerApi。
  */
 import { api, generateIdempotencyKey } from "./client";
+import { unwrapPayload } from "./entities";
 import { API_PATHS } from "../constants/apiPaths";
 
 export interface UserProfile {
@@ -58,8 +59,8 @@ export interface SysUser {
 
 /** GET /api/auth/me —— 当前用户档案（对齐 Flutter getCurrentProfile）。 */
 export async function getCurrentProfile(): Promise<UserProfile> {
-  const response = await api.get<UserProfile>(API_PATHS.AUTH_ME);
-  return response.data || {};
+  const response = await api.get<unknown>(API_PATHS.AUTH_ME);
+  return unwrapPayload<UserProfile>(response.data) || {};
 }
 
 /** GET /api/users/search/username/{username} —— 按用户名查询用户（管理员端用）。 */
@@ -120,7 +121,7 @@ export async function updateUser(
 
 /** PUT /api/users/me/password —— 修改当前用户密码（对齐 Flutter updateCurrentPassword）。 */
 export async function updateCurrentPassword(newPassword: string): Promise<void> {
-  await api.put(API_PATHS.USERS_ME_PASSWORD, JSON.stringify(newPassword), {
+  await api.put(API_PATHS.USERS_ME_PASSWORD, newPassword, {
     headers: {
       "Content-Type": "text/plain; charset=utf-8",
       "Idempotency-Key": generateIdempotencyKey(),

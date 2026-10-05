@@ -1,5 +1,18 @@
 import type { ReactNode } from 'react';
 
+const IDENTITY_FIELDS = ['paymentId', 'appealId', 'deductionId', 'reviewId', 'fineId', 'offenseId', 'driverId', 'vehicleId', 'userId', 'id', 'key'];
+
+function identityForRow(row: Record<string, unknown>, index: number): string {
+  for (const field of IDENTITY_FIELDS) {
+    const value = row[field];
+    if (value !== undefined && value !== null && value !== '') {
+      return field + ':' + String(value);
+    }
+  }
+  return 'row:' + String(index);
+}
+
+
 export interface DataTableColumn {
   key: string;
   label: string;
@@ -53,7 +66,7 @@ export default function DataTable({
           ) : (
             rows.map((row, index) => {
               const rowErrorMessage = getRowErrorMessage?.(row);
-              const rowKey = (row.id || row.key || row.offenseId || index) as string | number;
+              const rowKey = identityForRow(row, index);
 
               if (rowErrorMessage) {
                 return (

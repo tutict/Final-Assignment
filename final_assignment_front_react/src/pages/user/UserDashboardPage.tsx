@@ -6,7 +6,10 @@ import StatCard from '../../components/StatCard';
 import { useAuth } from '../../auth/AuthContext';
 import { useUserDashboardMetrics } from '../../hooks/useUserDashboard';
 import { useUserAppeals } from '../../hooks/useUserAppeals';
+import { getCurrentProfile } from '../../api/profile';
+import { getErrorMessage } from '../../utils/errorMessages';
 import { useProgress } from '../../hooks/useProgress';
+import { isOpenProgress } from '../../api/progress';
 import { getDriver } from '../../api/profile';
 
 const TASKS = [
@@ -20,9 +23,14 @@ export default function UserDashboardPage() {
   const { auth } = useAuth();
   const navigate = useNavigate();
   const [, setParams] = useSearchParams();
-  const driverId = auth?.userId;
-  const { metrics, isLoading, isError, refresh } = useUserDashboardMetrics(driverId);
-  const appealsQuery = useUserAppeals(driverId);
+  const profileQuery = useQuery({
+    queryKey: ['profile', 'me'],
+    queryFn: getCurrentProfile,
+    enabled: Boolean(auth?.token),
+  });
+  const driverId = profileQuery.data?.driverId ?? (auth?.driverId ? Number(auth.driverId) : undefined);
+  const { metrics, isLoading, isError, error, refresh } = useUserDashboardMetrics(driverId);
+  const appealsQuery = useUserAppeals();
   const progress = useProgress({ canManage: false });
   const profileNoticeQuery = useProfileNotice(driverId);
 
@@ -48,18 +56,18 @@ export default function UserDashboardPage() {
       ) : null}
 
       <div className="stat-grid">
-        <StatCard title="待缴费" value={isLoading ? '-' : metrics.unpaidFines} description="可进入缴费页处理" />
+        <StatCard title="待缴费" value={profileQuery.isLoading || isLoading ? '-' : metrics.unpaidFines} description="可进入缴费页处理" />
         <StatCard title="处理中申诉" value={appealsQuery.isLoading ? '-' : activeAppeals} description="尚未办结的申诉" />
         <StatCard
           title="未读消息"
-          value={progress.isLoading ? '-' : progress.items.length}
+          value={progress.isLoading ? '-' : progress.items.filter((item) => isOpenProgress(item.status)).length}
           description="办理进度与通知"
         />
       </div>
 
       {isError ? (
         <div className="error-state">
-          <p>首页数据没有加载成功。已填内容不受影响，可以重试。</p>
+          <p>首页数据没有加载成功。已填内容不受影响，可以重试。{getErrorMessage(error)}</p>
           <button type="button" className="ghost" onClick={refresh}>重试</button>
         </div>
       ) : null}

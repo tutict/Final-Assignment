@@ -17,6 +17,7 @@ import {
   useState,
   type ReactNode,
 } from 'react';
+import { useAuth } from '../auth/AuthContext';
 
 export interface AppealStatusChange {
   appealId: number;
@@ -123,11 +124,15 @@ function closeSocketQuietly(socket: WebSocket) {
 }
 
 export function BusinessEventProvider({ children }: { children: ReactNode }) {
+  const { auth } = useAuth();
+  const token = auth?.token ?? null;
   const [connected, setConnected] = useState(false);
   const listenersRef = useRef<Set<Listener>>(new Set());
   const socketRef = useRef<WebSocket | null>(null);
   const reconnectAttemptRef = useRef(0);
   const reconnectTimerRef = useRef<number | null>(null);
+  const connectRef = useRef<() => void>(() => {});
+  const connectGenerationRef = useRef(0);
 
   const notify = useCallback((event: BusinessEvent) => {
     listenersRef.current.forEach((listener) => {
@@ -139,29 +144,63 @@ export function BusinessEventProvider({ children }: { children: ReactNode }) {
     });
   }, []);
 
+  const clearReconnect = useCallback(() => {
+    if (reconnectTimerRef.current !== null) {
+      window.clearTimeout(reconnectTimerRef.current);
+      reconnectTimerRef.current = null;
+    }
+  }, []);
+
   const scheduleReconnect = useCallback(() => {
-    if (reconnectTimerRef.current !== null) return;
-    const delay =
-      RECONNECT_DELAYS[Math.min(reconnectAttemptRef.current, RECONNECT_DELAYS.length - 1)];
+    if (!token || reconnectAttemptRef.current >= RECONNECT_DELAYS.length || reconnectTimerRef.current !== null) return;
+    const delay = RECONNECT_DELAYS[Math.min(reconnectAttemptRef.current, RECONNECT_DELAYS.length - 1)];
     reconnectTimerRef.current = window.setTimeout(() => {
       reconnectTimerRef.current = null;
       reconnectAttemptRef.current += 1;
-      connect();
+      connectRef.current();
     }, delay);
-  }, []);
+  }, [token]);
 
-  const connect = useCallback(() => {
+  const connect = useCallback(async () => {
+    if (!token) return;
     if (socketRef.current && socketRef.current.readyState <= WebSocket.OPEN) return;
+    const generation = connectGenerationRef.current + 1;
+    connectGenerationRef.current = generation;
 
-    let socket: WebSocket;
+    let ticket = '';
     try {
-      socket = new WebSocket(`${WS_BASE}/eventbus/websocket`);
+      const response = await fetch('/api/ws-ticket', {
+        method: 'POST',
+        headers: { Authorization: 'Bearer ' + token },
+      });
+      if (response.status === 401) return;
+      if (!response.ok) {
+        scheduleReconnect();
+        return;
+      }
+      const body = await response.json();
+      ticket = body?.data?.ticket || body?.ticket || '';
     } catch {
       scheduleReconnect();
       return;
     }
-    socketRef.current = socket;
+    if (!ticket) {
+      scheduleReconnect();
+      return;
+    }
 
+    let socket: WebSocket;
+    try {
+      socket = new WebSocket(WS_BASE + '/eventbus/websocket?ws_ticket=' + encodeURIComponent(ticket));
+    } catch {
+      scheduleReconnect();
+      return;
+    }
+    if (generation !== connectGenerationRef.current) {
+      closeSocketQuietly(socket);
+      return;
+    }
+    socketRef.current = socket;
     socket.onopen = () => {
       reconnectAttemptRef.current = 0;
       setConnected(true);
@@ -178,15 +217,29 @@ export function BusinessEventProvider({ children }: { children: ReactNode }) {
       socketRef.current = null;
       scheduleReconnect();
     };
-  }, [notify, scheduleReconnect]);
+  }, [token, notify, scheduleReconnect]);
 
   useEffect(() => {
-    connect();
-    return () => {
-      if (reconnectTimerRef.current !== null) {
-        window.clearTimeout(reconnectTimerRef.current);
-        reconnectTimerRef.current = null;
+    connectRef.current = () => {
+      void connect();
+    };
+  }, [connect]);
+
+  useEffect(() => {
+    if (!token) {
+      clearReconnect();
+      reconnectAttemptRef.current = 0;
+      const socket = socketRef.current;
+      if (socket) {
+        closeSocketQuietly(socket);
+        socketRef.current = null;
       }
+      setConnected(false);
+      return;
+    }
+    void connect();
+    return () => {
+      clearReconnect();
       const socket = socketRef.current;
       if (socket) {
         closeSocketQuietly(socket);
@@ -194,7 +247,7 @@ export function BusinessEventProvider({ children }: { children: ReactNode }) {
       }
       setConnected(false);
     };
-  }, [connect]);
+  }, [token, connect, clearReconnect]);
 
   const subscribe = useCallback((listener: Listener) => {
     listenersRef.current.add(listener);

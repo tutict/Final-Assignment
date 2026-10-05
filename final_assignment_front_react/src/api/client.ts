@@ -31,6 +31,7 @@ export function clearStoredAuth(): void {
   localStorage.removeItem('userEmail');
   localStorage.removeItem('driverName');
   localStorage.removeItem('userId');
+  localStorage.removeItem('driverId');
   localStorage.removeItem('token');
   localStorage.removeItem('user');
 }

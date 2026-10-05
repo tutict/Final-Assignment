@@ -1,5 +1,6 @@
 import { useQuery, type UseQueryResult } from '@tanstack/react-query';
 import { api } from '../api/client';
+import { unwrapList, unwrapPayload } from '../api/entities';
 import { API_PATHS } from '../constants/apiPaths';
 
 export interface SystemLogsOverview {
@@ -16,24 +17,24 @@ export interface UseSystemLogsResult {
 }
 
 async function fetchOverview(): Promise<SystemLogsOverview> {
-  const response = await api.get<SystemLogsOverview>(API_PATHS.SYSTEM_LOGS_OVERVIEW);
-  return response.data;
+  const response = await api.get<unknown>(API_PATHS.SYSTEM_LOGS_OVERVIEW);
+  return unwrapPayload<SystemLogsOverview>(response.data) || {};
 }
 
 async function fetchRecentLogin(): Promise<unknown[]> {
-  const response = await api.get<unknown[]>(API_PATHS.LOGIN_LOGS_RECENT, {
+  const response = await api.get<unknown>(API_PATHS.LOGIN_LOGS_RECENT, {
     // 对齐 Flutter SystemLogPage：每次拉取 20 条
     params: { limit: 20 },
   });
-  return response.data;
+  return unwrapList(response.data);
 }
 
 async function fetchRecentOperation(): Promise<unknown[]> {
-  const response = await api.get<unknown[]>(API_PATHS.OPERATION_LOGS_RECENT, {
+  const response = await api.get<unknown>(API_PATHS.OPERATION_LOGS_RECENT, {
     // 对齐 Flutter SystemLogPage：每次拉取 20 条
     params: { limit: 20 },
   });
-  return response.data;
+  return unwrapList(response.data);
 }
 
 export function useSystemLogs(): UseSystemLogsResult {

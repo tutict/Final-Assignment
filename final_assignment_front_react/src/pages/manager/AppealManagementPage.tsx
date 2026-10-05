@@ -155,7 +155,7 @@ export default function AppealManagementPage() {
             <div><strong>申诉人：</strong>{activeAppealRow.appellantName}</div>
             <div><strong>联系方式：</strong>{activeAppealRow.appellantContact}</div>
             <div><strong>申诉原因：</strong>{activeAppealRow.appealReason}</div>
-            <div><strong>处理状态：</strong>{getStatusLabel(activeAppealRow.processStatus)}</div>
+            <div><strong>处理状态：</strong>{getStatusLabel(activeAppealRow.processStatus, 'processStatus')}</div>
             <div><strong>处理结果：</strong>{activeAppealRow.processResult}</div>
             <label className="form-field full">
               <span>驳回原因</span>

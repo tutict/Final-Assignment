@@ -8,16 +8,17 @@ const DANGER_STATUSES = new Set<string>([STATUS.FAILED, STATUSES.REJECTED, STATU
 
 interface StatusPillProps {
   value: unknown;
+  field?: string;
 }
 
-export default function StatusPill({ value }: StatusPillProps) {
+export default function StatusPill({ value, field }: StatusPillProps) {
   const status = String(value || '');
   const tone = SUCCESS_STATUSES.has(status) ? 'success' : WARNING_STATUSES.has(status) ? 'warning' : DANGER_STATUSES.has(status) ? 'danger' : 'info';
   const mark = tone === 'success' ? '✓' : tone === 'warning' ? '!' : tone === 'danger' ? '×' : 'i';
   return (
     <span className={clsx('status-pill', tone)}>
       <span aria-hidden="true">{mark}</span>
-      {getStatusLabel(value)}
+      {getStatusLabel(value, field)}
     </span>
   );
 }

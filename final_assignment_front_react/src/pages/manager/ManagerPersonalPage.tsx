@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { useQuery } from '@tanstack/react-query';
 import PageLayout from '../../components/PageLayout';
 import Modal from '../../components/Modal';
 import ErrorStateView from '../../components/ErrorStateView';
@@ -8,7 +8,6 @@ import { ROLES } from '../../constants/roles';
 import {
   getCurrentProfile,
   getDriver,
-  createDriver,
   updateCurrentUser,
   updateCurrentPassword,
   updateUser,
@@ -28,22 +27,17 @@ import { getErrorMessage } from '../../utils/errorMessages';
 export default function ManagerPersonalPage() {
   const { auth } = useAuth();
   const isSuperAdmin = auth?.userRole === ROLES.SUPER_ADMIN;
-  const queryClient = useQueryClient();
-
   const profileQuery = useQuery({
     queryKey: ['profile', 'me'],
     queryFn: getCurrentProfile,
   });
 
-  const driverId = profileQuery.data?.driverId ?? auth?.userId;
+  const driverId = profileQuery.data?.driverId;
   const driverQuery = useQuery({
     queryKey: ['driver', driverId],
     queryFn: () => getDriver(driverId as number),
     enabled: driverId !== undefined,
   });
-
-  // 自动建档：管理员无驾驶员档案时创建占位档案（对齐 Flutter _loadCurrentManager）
-  const autoProvisioning = driverId !== undefined && !driverQuery.isLoading && driverQuery.data === null;
 
   const [editing, setEditing] = useState(false);
   const [editForm, setEditForm] = useState<Partial<SysUser>>({});
@@ -52,9 +46,6 @@ export default function ManagerPersonalPage() {
   const [confirmPassword, setConfirmPassword] = useState('');
   const [saving, setSaving] = useState(false);
   const [toast, setToast] = useState<{ message: string; isError?: boolean } | null>(null);
-  // 仅在确认 null 后触发一次建档
-  const [provisionTried, setProvisionTried] = useState(false);
-
   const profile: UserProfile | undefined = profileQuery.data;
   const driver: DriverInformation | null | undefined = driverQuery.data;
 
@@ -63,32 +54,12 @@ export default function ManagerPersonalPage() {
     window.setTimeout(() => setToast(null), 3000);
   };
 
-  const handleAutoProvision = async () => {
-    if (!driverId) return;
-    const stub: DriverInformation = {
-      driverId: Number(driverId),
-      name: profileQuery.data?.username || auth?.userName || '未知用户',
-      contactNumber: '',
-      idCardNumber: '',
-    };
-    try {
-      await createDriver(stub);
-      await queryClient.invalidateQueries({ queryKey: ['driver', driverId] });
-    } catch (error) {
-      flashToast(`自动建档失败：${getErrorMessage(error)}`, true);
-    }
-  };
-  if (autoProvisioning && !provisionTried) {
-    setProvisionTried(true);
-    void handleAutoProvision();
-  }
-
   const openEdit = () => {
+    const phone = profile?.phoneNumber || '';
     setEditForm({
       realName: profile?.displayName || '',
       email: profile?.email || '',
-      phoneNumber: profile?.phoneNumber || '',
-      remarks: '',
+      phoneNumber: phone.includes('*') ? '' : phone,
     });
     setEditing(true);
   };
@@ -226,10 +197,10 @@ export default function ManagerPersonalPage() {
 
       {profile ? (
         <div className="profile-card">
-          <h3>{profile.displayName || auth?.userName || '管理员'}</h3>
+          <h3>{readableLabel(profile.displayName) || profile.username || auth?.userName || '管理员'}</h3>
           <div className="detail-grid">
             <ProfileTile label="用户名" value={profile.username} />
-            <ProfileTile label="显示名" value={profile.displayName} />
+            <ProfileTile label="显示名" value={readableLabel(profile.displayName) || profile.username} />
             <ProfileTile label="邮箱" value={profile.email} />
             <ProfileTile label="手机号" value={profile.phoneNumber} />
             <ProfileTile label="角色" value={(profile.roles || []).join('、') || auth?.userRole || ROLES.ADMIN} />
@@ -258,10 +229,10 @@ export default function ManagerPersonalPage() {
         </div>
       ) : null}
 
-      {autoProvisioning ? (
+      {profile && driverId == null ? (
         <div className="panel">
           <h3>驾驶员档案</h3>
-          <div className="placeholder">尚未关联驾驶员档案，正在自动建档...</div>
+          <p>当前账号没有关联驾驶员档案，不会借用其他驾驶员的编号。</p>
         </div>
       ) : null}
 
@@ -454,6 +425,13 @@ export default function ManagerPersonalPage() {
 interface ProfileTileProps {
   label: string;
   value?: string | number | null;
+}
+
+
+function readableLabel(value?: string | null): string {
+  const text = (value || "").trim();
+  if (!text || /^\?+$/.test(text)) return "";
+  return text;
 }
 
 function ProfileTile({ label, value }: ProfileTileProps) {

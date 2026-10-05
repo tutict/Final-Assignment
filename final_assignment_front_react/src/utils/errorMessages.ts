@@ -6,9 +6,23 @@ interface ApiError {
   message?: string;
 }
 
+function fieldMessages(data: unknown): string {
+  if (!data || typeof data !== "object") return "";
+  const rows = (data as { data?: unknown }).data;
+  if (!Array.isArray(rows)) return "";
+  return rows
+    .map((item) => {
+      if (!item || typeof item !== "object") return "";
+      return String((item as { message?: unknown }).message || "").trim();
+    })
+    .filter(Boolean)
+    .join("；");
+}
+
 export function getErrorMessage(error: unknown): string {
   const e = (error || {}) as ApiError;
   const status = e.response?.status;
+  const fields = fieldMessages(e.response?.data);
   const isOffline =
     typeof window !== 'undefined' && window.navigator && !window.navigator.onLine;
 
@@ -24,9 +38,13 @@ export function getErrorMessage(error: unknown): string {
     case 404:
       return '请求的数据不存在';
     case 422:
-    case 400: {
+    case 400:
+    case 409: {
       const detail = e.response?.data?.message;
-      return detail ? `提交数据有误：${detail}` : '提交的数据格式不正确';
+      if (status === 409) {
+        return fields || (detail && detail !== '数据约束冲突' ? detail : '数据冲突，请检查是否重复提交');
+      }
+      return fields || (detail ? `提交数据有误：${detail}` : '提交的数据格式不正确');
     }
     case 500:
     case 502:

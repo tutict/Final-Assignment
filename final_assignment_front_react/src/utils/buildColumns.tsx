@@ -1,6 +1,7 @@
 import React from 'react';
 import StatusPill from '../components/StatusPill';
 import { formatDateTime } from './format';
+import { getValueLabel } from './valueLabels';
 import { resolveFieldLabel } from '../config/fieldLabels';
 import type { EntityField } from '../config/entityTypes';
 import type { DataTableColumn } from '../components/DataTable';
@@ -27,9 +28,9 @@ function defaultRenderer(field: EntityField & { key?: string }) {
       return formatDateTime(value);
     }
     if (isStatusField(field)) {
-      return React.createElement(StatusPill, { value });
+      return React.createElement(StatusPill, { value, field: key });
     }
-    return (value ?? '') as React.ReactNode;
+    return getValueLabel(key, value);
   };
 }
 

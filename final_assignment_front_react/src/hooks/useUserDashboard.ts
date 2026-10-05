@@ -1,10 +1,11 @@
 /**
- * 用户仪表盘聚合 hook，对齐 Flutter user_dashboard。
- * 基于当前用户筛选其违法/申诉数据，聚合成仪表盘 KPI。
+ * 用户仪表盘聚合 hook，对齐 Flutter DriverHomeCounts。
+ * 违法和罚款按驾驶员接口取，避免 USER 访问全量列表被拒绝，也避免把用户号当成驾驶员号。
  */
 import { useQuery, keepPreviousData } from '@tanstack/react-query';
 import { useMemo } from 'react';
 import { api } from '../api/client';
+import { unwrapList } from '../api/entities';
 import { API_PATHS } from '../constants/apiPaths';
 
 export interface UserOffenseRecord {
@@ -12,6 +13,15 @@ export interface UserOffenseRecord {
   offenseTime?: string;
   processStatus?: string;
   fineAmount?: number;
+  driverId?: number | string;
+  [key: string]: unknown;
+}
+
+export interface UserFineRecord {
+  fineId?: number;
+  paymentStatus?: string;
+  fineAmount?: number;
+  unpaidAmount?: number;
   [key: string]: unknown;
 }
 
@@ -23,19 +33,60 @@ export interface UserDashboardMetrics {
   vehicleCount: number;
 }
 
-const PAID_RE = /paid|complete|closed|processed/i;
+function isSettledOffense(status?: string): boolean {
+  const raw = (status || "").trim();
+  const upper = raw.toUpperCase();
+  if (!upper) return false;
+  if (upper.includes("UNPROCESSED") || upper.includes("UNPAID") || upper.includes("PENDING")) return false;
+  return (
+    upper.includes("PAID") ||
+    upper.includes("PROCESSED") ||
+    upper.includes("COMPLETE") ||
+    upper.includes("CLOSED") ||
+    raw.includes("已缴") ||
+    raw.includes("已结") ||
+    raw.includes("已处理")
+  );
+}
 
-/** 拉取当前用户的违法记录（按 driverId 关联）。 */
+
+function isUnpaidFine(item: UserFineRecord): boolean {
+  const raw = String(item.paymentStatus || '');
+  const status = raw.toUpperCase();
+  if (!status && Number(item.unpaidAmount ?? item.fineAmount ?? 0) > 0) return true;
+  return !(
+    status.includes('PAID') ||
+    status.includes('WAIVED') ||
+    status.includes('SUCCESS') ||
+    raw.includes('已缴') ||
+    raw.includes('已支付')
+  );
+}
+
 export function useUserOffenses(driverId?: string | number) {
   return useQuery<UserOffenseRecord[]>({
-    queryKey: ['userOffenses', driverId ?? 'me'],
+    queryKey: ['userOffenses', driverId ?? 'none'],
+    enabled: driverId !== undefined && driverId !== null && String(driverId) !== '',
     queryFn: async () => {
-      const response = await api.get<unknown>(API_PATHS.OFFENSES);
-      const data = response.data;
-      if (!Array.isArray(data)) return [];
-      const all = data as UserOffenseRecord[];
-      if (!driverId) return all;
-      return all.filter((item) => String(item.driverId || '') === String(driverId));
+      const response = await api.get<unknown>(API_PATHS.OFFENSES_BY_DRIVER(driverId as string | number), {
+        params: { page: 1, size: 100 },
+      });
+      return unwrapList<UserOffenseRecord>(response.data);
+    },
+    staleTime: 60_000,
+    placeholderData: keepPreviousData,
+  });
+}
+
+export function useUserFines(driverId?: string | number) {
+  return useQuery<UserFineRecord[]>({
+    queryKey: ['userFines', driverId ?? 'none'],
+    enabled: driverId !== undefined && driverId !== null && String(driverId) !== '',
+    queryFn: async () => {
+      const response = await api.get<unknown>(API_PATHS.FINES_BY_DRIVER(driverId as string | number), {
+        params: { page: 1, size: 100 },
+      });
+      return unwrapList<UserFineRecord>(response.data);
     },
     staleTime: 60_000,
     placeholderData: keepPreviousData,
@@ -47,35 +98,33 @@ export function useUserDashboardMetrics(driverId?: string | number): {
   metrics: UserDashboardMetrics;
   isLoading: boolean;
   isError: boolean;
+  error: unknown;
   refresh: () => void;
 } {
   const offensesQuery = useUserOffenses(driverId);
+  const finesQuery = useUserFines(driverId);
 
   const metrics = useMemo<UserDashboardMetrics>(() => {
-    const list = offensesQuery.data || [];
-    let pending = 0;
-    let unpaid = 0;
-    for (const item of list) {
-      if (item.processStatus && PAID_RE.test(item.processStatus)) {
-        // 已结
-      } else {
-        pending += 1;
-        unpaid += Number(item.fineAmount ?? 0) > 0 ? 1 : 0;
-      }
-    }
+    const offenses = offensesQuery.data || [];
+    const fines = finesQuery.data || [];
+    const pending = offenses.filter((item) => !isSettledOffense(item.processStatus)).length;
     return {
-      totalOffenses: list.length,
+      totalOffenses: offenses.length,
       pendingOffenses: pending,
-      unpaidFines: unpaid,
+      unpaidFines: fines.filter(isUnpaidFine).length,
       activeAppeals: 0,
       vehicleCount: 0,
     };
-  }, [offensesQuery.data]);
+  }, [offensesQuery.data, finesQuery.data]);
 
   return {
     metrics,
-    isLoading: offensesQuery.isLoading,
-    isError: Boolean(offensesQuery.isError),
-    refresh: () => offensesQuery.refetch(),
+    isLoading: offensesQuery.isLoading || finesQuery.isLoading,
+    isError: Boolean(offensesQuery.isError || finesQuery.isError),
+    error: offensesQuery.error || finesQuery.error,
+    refresh: () => {
+      void offensesQuery.refetch();
+      void finesQuery.refetch();
+    },
   };
 }

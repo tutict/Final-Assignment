@@ -28,12 +28,28 @@ export interface ProgressItem {
   [key: string]: unknown;
 }
 
-const VALID_STATUSES = new Set(['Pending', 'Processing', 'Completed', 'Archived']);
+const KNOWN_STATUSES = new Set(['Pending', 'Processing', 'Completed', 'Archived', 'Failed']);
+
+/** 后端审计状态不是前端的 Pending。SUCCESS/FAILED 不能再显示成待处理。 */
+export function normalizeProgressStatus(rawStatus: unknown): string {
+  const text = rawStatus == null ? "" : String(rawStatus).trim();
+  const upper = text.toUpperCase();
+  if (!text) return "Pending";
+  if (["SUCCESS", "SUCCEEDED", "COMPLETED", "COMPLETE", "DONE", "PAID", "APPROVED"].includes(upper)) return "Completed";
+  if (["FAILED", "FAILURE", "ERROR", "REJECTED"].includes(upper)) return "Failed";
+  if (["PROCESSING", "RUNNING", "IN_PROGRESS"].includes(upper)) return "Processing";
+  if (upper === "ARCHIVED") return "Archived";
+  if (upper === "PENDING") return "Pending";
+  return KNOWN_STATUSES.has(text) ? text : text;
+}
+
+export function isOpenProgress(status?: string): boolean {
+  return status === "Pending" || status === "Processing";
+}
 
 /** 将后端 SysRequestHistory JSON 归一化为前端 ProgressItem（对齐 Flutter ProgressItem.fromJson）。 */
 export function normalizeProgress(raw: Record<string, unknown>): ProgressItem {
-  const rawStatus = String(raw.businessStatus ?? raw.status ?? 'Pending');
-  const status = VALID_STATUSES.has(rawStatus) ? rawStatus : 'Pending';
+  const status = normalizeProgressStatus(raw.businessStatus ?? raw.status);
   return {
     id: asInt(raw.id),
     title: asString(raw.businessType ?? raw.title) ?? '',
@@ -68,7 +84,7 @@ export function toBackendPayload(item: Partial<ProgressItem>): Record<string, un
     businessType: item.title,
     businessStatus: item.status,
     requestParams: item.details,
-    userId: item.username,
+    username: item.username,
     appealId: item.appealId,
     deductionId: item.deductionId,
     driverId: item.driverId,
@@ -142,4 +158,12 @@ function asString(value: unknown): string | undefined {
   if (value === null || value === undefined) return undefined;
   const str = String(value).trim();
   return str === '' ? undefined : str;
+}
+
+export function summarizeProgressDetails(details?: string): string {
+  if (!details) return "";
+  const cause = details.match(/Cause:\s*([^\n#]+)/);
+  if (cause?.[1]) return cause[1].trim();
+  const compact = details.replace(/\s+/g, " ").trim();
+  return compact.length > 180 ? `${compact.slice(0, 180)}…` : compact;
 }

@@ -2,6 +2,8 @@ import { useMemo, useState } from 'react';
 import CrudPage from '../shared/CrudPage';
 import { entityConfigs } from '../../config/entities';
 import { listEntities } from '../../api/entities';
+import { getCurrentProfile } from '../../api/profile';
+import { API_PATHS } from '../../constants/apiPaths';
 import { useAgentPrefill, hasPlatePrefill } from '../../hooks/useAgentPrefill';
 import OffenseDetailModal from '../../components/OffenseDetailModal';
 import type { EntityConfig } from '../../config/entityTypes';
@@ -19,10 +21,14 @@ export default function UserOffenseListPage() {
     return {
       ...entityConfigs.offenses,
       layout: 'cards',
+      hideCreate: true,
       label: '我的违法记录',
       list: async () => {
+        const profile = await getCurrentProfile();
+        if (!profile.driverId) return [];
         const data = await listEntities<Record<string, unknown>[]>(
-          entityConfigs.offenses.basePath
+          API_PATHS.OFFENSES_BY_DRIVER(profile.driverId),
+          { page: 1, size: 100 }
         );
         let mine = Array.isArray(data) ? data : [];
         if (plate) {

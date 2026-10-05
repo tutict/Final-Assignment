@@ -1,6 +1,6 @@
 import { useQuery } from '@tanstack/react-query';
 import { FiSun, FiMoon, FiUser, FiMessageCircle, FiMenu, FiBell } from 'react-icons/fi';
-import { listProgress } from '../api/progress';
+import { isOpenProgress, listProgress } from '../api/progress';
 import { Link, useLocation } from 'react-router-dom';
 import clsx from 'clsx';
 import { useAuth } from '../auth/AuthContext';
@@ -28,7 +28,7 @@ export default function Header({ onOpenNav, showMenu }: HeaderProps) {
     queryFn: listProgress,
     retry: false,
   });
-  const unreadCount = unread.data?.length ?? 0;
+  const unreadCount = (unread.data || []).filter((item) => isOpenProgress(item.status)).length;
 
   const toggleChat = () => {
     if (open) close();

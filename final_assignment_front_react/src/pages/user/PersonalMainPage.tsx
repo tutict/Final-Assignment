@@ -52,10 +52,11 @@ export default function PersonalMainPage() {
   };
 
   const openEdit = () => {
+    const phone = profile?.phoneNumber || '';
     setEditForm({
       realName: profile?.displayName || '',
       email: profile?.email || '',
-      phoneNumber: profile?.phoneNumber || '',
+      phoneNumber: phone.includes('*') ? '' : phone,
     });
     setEditing(true);
   };
@@ -309,9 +310,9 @@ function DriverProfileView({
         <ProfileTile label="联系电话" value={driver.contactNumber} />
         <ProfileTile label="邮箱" value={driver.email} />
         <ProfileTile label="地址" value={driver.address} />
-        <ProfileTile label="当前扣分" value={driver.currentPoints} />
+        <ProfileTile label="当前记分" value={driver.currentPoints} />
         <ProfileTile label="累计扣分" value={driver.totalDeductedPoints} />
-        <ProfileTile label="状态" value={driver.status} />
+        <ProfileTile label="状态" value={driverStatusLabel(driver.status)} />
       </div>
       {editable ? (
         <div style={{ marginTop: 16 }}>
@@ -381,4 +382,19 @@ function DriverProfileView({
       </Modal>
     </>
   );
+}
+
+function driverStatusLabel(status?: string): string {
+  switch ((status || "").toLowerCase()) {
+    case "active":
+      return "正常";
+    case "suspended":
+      return "暂扣";
+    case "revoked":
+      return "吊销";
+    case "expired":
+      return "过期";
+    default:
+      return status || "-";
+  }
 }
