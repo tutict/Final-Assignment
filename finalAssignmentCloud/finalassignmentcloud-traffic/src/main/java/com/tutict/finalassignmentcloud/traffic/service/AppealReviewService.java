@@ -229,8 +229,7 @@ public class AppealReviewService {
             String payload = objectMapper.writeValueAsString(appealReview);
             kafkaTemplate.send(topic, idempotencyKey, payload);
         } catch (Exception ex) {
-            log.log(Level.SEVERE, "Failed to send AppealReview Kafka message", ex);
-            throw new RuntimeException("Failed to send AppealReview event", ex);
+            log.log(Level.WARNING, "Failed to send AppealReview Kafka message", ex);
         }
     }
 

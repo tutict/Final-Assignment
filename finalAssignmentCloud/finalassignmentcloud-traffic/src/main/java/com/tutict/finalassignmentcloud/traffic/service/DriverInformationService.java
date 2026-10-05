@@ -363,7 +363,6 @@ public class DriverInformationService {
             kafkaTemplate.send(topic, idempotencyKey, payload);
         } catch (Exception e) {
             log.log(Level.WARNING, "Failed to send driver Kafka message", e);
-            throw new RuntimeException("Failed to send driver event", e);
         }
     }
 

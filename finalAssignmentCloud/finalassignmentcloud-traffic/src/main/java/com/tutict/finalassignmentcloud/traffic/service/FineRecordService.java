@@ -96,6 +96,9 @@ public class FineRecordService {
         if (rows == 0) {
             throw new IllegalStateException("No FineRecord deleted for id=" + fineId);
         }
+        if (!TransactionSynchronizationManager.isSynchronizationActive()) {
+            return;
+        }
         TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
             @Override
             public void afterCommit() {
@@ -227,6 +230,44 @@ public class FineRecordService {
         return fetchFromDatabase(wrapper, page, size);
     }
 
+
+    public List<FineRecord> searchByPayee(String payee, int page, int size) {
+        if (isBlank(payee)) {
+            return List.of();
+        }
+        validatePagination(page, size);
+        QueryWrapper<FineRecord> wrapper = new QueryWrapper<>();
+        wrapper.and(nested -> nested.like("handler", payee.trim())
+                        .or()
+                        .apply("driver_id IN (SELECT driver_id FROM driver_information WHERE name LIKE {0})",
+                                "%" + payee.trim() + "%"))
+                .orderByDesc("fine_date");
+        return fetchFromDatabase(wrapper, page, size);
+    }
+
+    public FineRecord findByReceiptNumber(String receiptNumber) {
+        if (isBlank(receiptNumber)) {
+            return null;
+        }
+        QueryWrapper<FineRecord> wrapper = new QueryWrapper<>();
+        wrapper.eq("fine_number", receiptNumber.trim()).last("LIMIT 1");
+        List<FineRecord> rows = fineRecordMapper.selectList(wrapper);
+        return rows.isEmpty() ? null : rows.get(0);
+    }
+
+    public List<FineRecord> searchByTimeRange(String startTime, String endTime, int maxSuggestions) {
+        int size = maxSuggestions <= 0 ? 10 : Math.min(maxSuggestions, 100);
+        return searchByFineDateRange(datePrefix(startTime), datePrefix(endTime), 1, size);
+    }
+
+    private String datePrefix(String value) {
+        if (isBlank(value)) {
+            return null;
+        }
+        String text = value.trim();
+        return text.length() >= 10 ? text.substring(0, 10) : text;
+    }
+
     public boolean shouldSkipProcessing(String idempotencyKey) {
         SysRequestHistory history = sysRequestHistoryMapper.selectByIdempotencyKey(idempotencyKey);
         return history != null
@@ -271,13 +312,15 @@ public class FineRecordService {
             String payload = objectMapper.writeValueAsString(fineRecord);
             kafkaTemplate.send(topic, idempotencyKey, payload);
         } catch (Exception ex) {
-            log.log(Level.SEVERE, "Failed to send FineRecord Kafka message", ex);
-            throw new RuntimeException("Failed to send FineRecord event", ex);
+            log.log(Level.WARNING, "Failed to send FineRecord Kafka message", ex);
         }
     }
 
     private void syncToIndexAfterCommit(FineRecord fineRecord) {
         if (fineRecord == null) {
+            return;
+        }
+        if (!TransactionSynchronizationManager.isSynchronizationActive()) {
             return;
         }
         TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
@@ -293,6 +336,9 @@ public class FineRecordService {
 
     private void syncBatchToIndexAfterCommit(List<FineRecord> records) {
         if (records == null || records.isEmpty()) {
+            return;
+        }
+        if (!TransactionSynchronizationManager.isSynchronizationActive()) {
             return;
         }
         TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
@@ -334,6 +380,18 @@ public class FineRecordService {
 
     private void validateFineRecord(FineRecord fineRecord) {
         Objects.requireNonNull(fineRecord, "FineRecord must not be null");
+        if (fineRecord.getOffenseId() == null || fineRecord.getOffenseId() <= 0) {
+            throw new IllegalArgumentException("请选择关联的违法记录");
+        }
+        if (fineRecord.getFineNumber() == null || fineRecord.getFineNumber().isBlank()) {
+            fineRecord.setFineNumber("FN" + System.currentTimeMillis());
+        }
+        if (fineRecord.getIssuingAuthority() == null || fineRecord.getIssuingAuthority().isBlank()) {
+            fineRecord.setIssuingAuthority("未填写");
+        }
+        if (fineRecord.getHandler() == null || fineRecord.getHandler().isBlank()) {
+            fineRecord.setHandler("系统");
+        }
         if (fineRecord.getFineDate() == null) {
             fineRecord.setFineDate(LocalDate.now());
         }

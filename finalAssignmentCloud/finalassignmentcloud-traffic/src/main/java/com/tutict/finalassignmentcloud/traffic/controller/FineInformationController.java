@@ -282,6 +282,30 @@ public class FineInformationController {
         }
     }
 
+
+    @GetMapping("/payee/{payee}")
+    public ResponseEntity<List<FineRecord>> byPayee(@PathVariable String payee,
+                                                    @RequestParam(defaultValue = "1") int page,
+                                                    @RequestParam(defaultValue = "20") int size) {
+        return ResponseEntity.ok(enrich(fineRecordService.searchByPayee(payee, page, size)));
+    }
+
+    @GetMapping("/receiptNumber/{receiptNumber}")
+    public ResponseEntity<FineRecord> byReceipt(@PathVariable String receiptNumber) {
+        FineRecord record = fineRecordService.findByReceiptNumber(receiptNumber);
+        if (record == null) {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).build();
+        }
+        return ResponseEntity.ok(enrich(record));
+    }
+
+    @GetMapping("/by-time-range")
+    public ResponseEntity<List<FineRecord>> byTimeRange(@RequestParam String startTime,
+                                                        @RequestParam String endTime,
+                                                        @RequestParam(defaultValue = "10") int maxSuggestions) {
+        return ResponseEntity.ok(enrich(fineRecordService.searchByTimeRange(startTime, endTime, maxSuggestions)));
+    }
+
     private boolean hasKey(String value) {
         return value != null && !value.isBlank();
     }

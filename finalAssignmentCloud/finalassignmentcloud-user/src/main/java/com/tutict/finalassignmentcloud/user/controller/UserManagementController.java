@@ -10,6 +10,7 @@ import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.annotation.security.RolesAllowed;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.DeleteMapping;
@@ -111,6 +112,68 @@ public class UserManagementController {
             LOG.log(Level.WARNING, "Delete user failed", ex);
             return ResponseEntity.status(resolveStatus(ex)).build();
         }
+    }
+
+
+    @GetMapping("/me")
+    @RolesAllowed({"SUPER_ADMIN", "ADMIN", "USER", "TRAFFIC_POLICE", "FINANCE", "APPEAL_REVIEWER"})
+    @Operation(summary = "查询当前用户")
+    public ResponseEntity<SysUser> currentUser(Authentication authentication) {
+        if (authentication == null || authentication.getName() == null || authentication.getName().isBlank()) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
+        }
+        SysUser user = sysUserService.findByUsername(authentication.getName());
+        return user == null ? ResponseEntity.notFound().build() : ResponseEntity.ok(withoutSecrets(user));
+    }
+
+    @PutMapping("/me")
+    @RolesAllowed({"SUPER_ADMIN", "ADMIN", "USER", "TRAFFIC_POLICE", "FINANCE", "APPEAL_REVIEWER"})
+    @Operation(summary = "更新当前用户资料")
+    public ResponseEntity<SysUser> updateCurrentUser(@RequestBody SysUser patch, Authentication authentication) {
+        if (authentication == null || authentication.getName() == null || authentication.getName().isBlank()) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
+        }
+        try {
+            SysUser updated = sysUserService.updateOwnProfile(authentication.getName(), patch);
+            return ResponseEntity.ok(withoutSecrets(updated));
+        } catch (Exception ex) {
+            LOG.log(Level.WARNING, "Update current user failed", ex);
+            return ResponseEntity.status(resolveStatus(ex)).build();
+        }
+    }
+
+    @PutMapping(value = "/me/password", consumes = MediaType.TEXT_PLAIN_VALUE)
+    @RolesAllowed({"SUPER_ADMIN", "ADMIN", "USER", "TRAFFIC_POLICE", "FINANCE", "APPEAL_REVIEWER"})
+    @Operation(summary = "修改当前用户密码")
+    public ResponseEntity<Void> updateCurrentPassword(@RequestBody String newPassword, Authentication authentication) {
+        if (authentication == null || authentication.getName() == null || authentication.getName().isBlank()) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
+        }
+        try {
+            sysUserService.updateOwnPassword(authentication.getName(), newPassword);
+            return ResponseEntity.noContent().build();
+        } catch (Exception ex) {
+            LOG.log(Level.WARNING, "Update current password failed", ex);
+            return ResponseEntity.status(resolveStatus(ex)).build();
+        }
+    }
+
+    private SysUser withoutSecrets(SysUser source) {
+        SysUser copy = new SysUser();
+        copy.setUserId(source.getUserId());
+        copy.setUsername(source.getUsername());
+        copy.setRealName(source.getRealName());
+        copy.setEmail(source.getEmail());
+        copy.setContactNumber(source.getContactNumber());
+        copy.setGender(source.getGender());
+        copy.setDepartment(source.getDepartment());
+        copy.setPosition(source.getPosition());
+        copy.setEmployeeNumber(source.getEmployeeNumber());
+        copy.setStatus(source.getStatus());
+        copy.setRemarks(source.getRemarks());
+        copy.setCreatedAt(source.getCreatedAt());
+        copy.setUpdatedAt(source.getUpdatedAt());
+        return copy;
     }
 
     @GetMapping("/{userId}")

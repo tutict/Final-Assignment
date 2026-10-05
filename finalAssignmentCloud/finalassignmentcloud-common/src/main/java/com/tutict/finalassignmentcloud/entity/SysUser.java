@@ -1,6 +1,7 @@
 package com.tutict.finalassignmentcloud.entity;
 
 import com.baomidou.mybatisplus.annotation.*;
+import com.fasterxml.jackson.annotation.JsonAlias;
 import lombok.Data;
 
 import java.io.Serial;
@@ -69,6 +70,7 @@ public class SysUser implements Serializable {
     /**
      * 联系电话
      */
+    @JsonAlias("phoneNumber")
     @TableField("contact_number")
     private String contactNumber;
 

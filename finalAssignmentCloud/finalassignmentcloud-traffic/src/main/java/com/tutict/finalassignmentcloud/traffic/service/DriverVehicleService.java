@@ -251,8 +251,7 @@ public class DriverVehicleService {
             String payload = objectMapper.writeValueAsString(binding);
             kafkaTemplate.send(topic, idempotencyKey, payload);
         } catch (Exception ex) {
-            log.log(Level.SEVERE, "Failed to send DriverVehicle Kafka message", ex);
-            throw new RuntimeException("Failed to send driver-vehicle event", ex);
+            log.log(Level.WARNING, "Failed to send DriverVehicle Kafka message", ex);
         }
     }
 

@@ -163,6 +163,9 @@ public class PaymentRecordService {
         if (rows == 0) {
             throw new IllegalStateException("No PaymentRecord deleted for id=" + paymentId);
         }
+        if (!TransactionSynchronizationManager.isSynchronizationActive()) {
+            return;
+        }
         TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
             @Override
             public void afterCommit() {
@@ -394,6 +397,9 @@ public class PaymentRecordService {
         if (paymentRecord == null) {
             return;
         }
+        if (!TransactionSynchronizationManager.isSynchronizationActive()) {
+            return;
+        }
         TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
             @Override
             public void afterCommit() {
@@ -484,6 +490,9 @@ public class PaymentRecordService {
     // 批量操作时同样复用 afterCommit 钩子，降低对 ES 的写入频率
     private void syncBatchToIndexAfterCommit(List<PaymentRecord> records) {
         if (records == null || records.isEmpty()) {
+            return;
+        }
+        if (!TransactionSynchronizationManager.isSynchronizationActive()) {
             return;
         }
         TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {

@@ -316,8 +316,7 @@ public class OffenseTypeDictService {
             String payload = objectMapper.writeValueAsString(dict);
             kafkaTemplate.send(topic, idempotencyKey, payload);
         } catch (Exception ex) {
-            log.log(Level.SEVERE, "Failed to send OffenseTypeDict Kafka message", ex);
-            throw new RuntimeException("Failed to send OffenseTypeDict event", ex);
+            log.log(Level.WARNING, "Failed to send OffenseTypeDict Kafka message", ex);
         }
     }
 

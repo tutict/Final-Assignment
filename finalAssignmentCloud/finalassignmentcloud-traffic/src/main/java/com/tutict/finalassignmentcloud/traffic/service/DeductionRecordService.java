@@ -300,7 +300,7 @@ public class DeductionRecordService {
             log.log(Level.SEVERE,
                     String.format("Failed to send DeductionRecord Kafka message (topic=%s, key=%s)", topic, idempotencyKey),
                     ex);
-            throw new RuntimeException("Failed to send deduction record event", ex);
+
         }
     }
 

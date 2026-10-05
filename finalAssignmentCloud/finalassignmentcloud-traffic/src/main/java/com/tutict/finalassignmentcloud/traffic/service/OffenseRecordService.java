@@ -5,10 +5,14 @@ import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.tutict.finalassignmentcloud.traffic.config.statemachine.states.OffenseProcessState;
 import com.tutict.finalassignmentcloud.config.websocket.WsAction;
+import com.tutict.finalassignmentcloud.entity.DriverInformation;
 import com.tutict.finalassignmentcloud.entity.OffenseRecord;
+import com.tutict.finalassignmentcloud.entity.VehicleInformation;
 import com.tutict.finalassignmentcloud.entity.SysRequestHistory;
 import com.tutict.finalassignmentcloud.entity.elastic.OffenseRecordDocument;
+import com.tutict.finalassignmentcloud.traffic.mapper.DriverInformationMapper;
 import com.tutict.finalassignmentcloud.traffic.mapper.OffenseRecordMapper;
+import com.tutict.finalassignmentcloud.traffic.mapper.VehicleInformationMapper;
 import com.tutict.finalassignmentcloud.traffic.mapper.SysRequestHistoryMapper;
 import com.tutict.finalassignmentcloud.traffic.repository.OffenseInformationSearchRepository;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -40,6 +44,15 @@ public class OffenseRecordService {
     private final OffenseInformationSearchRepository offenseInformationSearchRepository;
     private final KafkaTemplate<String, String> kafkaTemplate;
     private final ObjectMapper objectMapper;
+    private DriverInformationMapper driverInformationMapper;
+    private VehicleInformationMapper vehicleInformationMapper;
+
+    @Autowired(required = false)
+    public void setPartyLookups(DriverInformationMapper driverInformationMapper,
+                                VehicleInformationMapper vehicleInformationMapper) {
+        this.driverInformationMapper = driverInformationMapper;
+        this.vehicleInformationMapper = vehicleInformationMapper;
+    }
 
     @Autowired
     public OffenseRecordService(OffenseRecordMapper offenseRecordMapper,
@@ -82,6 +95,7 @@ public class OffenseRecordService {
     @Transactional
     @CacheEvict(cacheNames = CACHE_NAME, allEntries = true)
     public OffenseRecord createOffenseRecord(OffenseRecord offenseRecord) {
+        resolveParties(offenseRecord);
         validateOffenseRecord(offenseRecord);
         // 同步写库，成功后再异步刷新 ES
         offenseRecordMapper.insert(offenseRecord);
@@ -123,6 +137,9 @@ public class OffenseRecordService {
         int rows = offenseRecordMapper.deleteById(offenseId);
         if (rows == 0) {
             throw new IllegalStateException("No OffenseRecord deleted for id=" + offenseId);
+        }
+        if (!TransactionSynchronizationManager.isSynchronizationActive()) {
+            return;
         }
         TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
             @Override
@@ -388,13 +405,15 @@ public class OffenseRecordService {
             String payload = objectMapper.writeValueAsString(offenseRecord);
             kafkaTemplate.send(topic, idempotencyKey, payload);
         } catch (Exception ex) {
-            log.log(Level.SEVERE, "Failed to send OffenseRecord Kafka message", ex);
-            throw new RuntimeException("Failed to send OffenseRecord event", ex);
+            log.log(Level.WARNING, "Failed to send OffenseRecord Kafka message", ex);
         }
     }
 
     private void syncToIndexAfterCommit(OffenseRecord offenseRecord) {
         if (offenseRecord == null) {
+            return;
+        }
+        if (!TransactionSynchronizationManager.isSynchronizationActive()) {
             return;
         }
         TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
@@ -410,6 +429,9 @@ public class OffenseRecordService {
 
     private void syncBatchToIndexAfterCommit(List<OffenseRecord> records) {
         if (records == null || records.isEmpty()) {
+            return;
+        }
+        if (!TransactionSynchronizationManager.isSynchronizationActive()) {
             return;
         }
         TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
@@ -452,13 +474,60 @@ public class OffenseRecordService {
         return org.springframework.data.domain.PageRequest.of(Math.max(page - 1, 0), Math.max(size, 1));
     }
 
+
+    private void resolveParties(OffenseRecord record) {
+        if (record == null) {
+            throw new IllegalArgumentException("OffenseRecord must not be null");
+        }
+        if (record.getDriverId() == null || record.getDriverId() <= 0) {
+            String name = record.getDriverName() == null ? "" : record.getDriverName().trim();
+            if (name.isEmpty()) {
+                throw new IllegalArgumentException("请填写驾驶员");
+            }
+            if (driverInformationMapper == null) {
+                throw new IllegalStateException("Driver lookup is unavailable");
+            }
+            List<DriverInformation> matches = driverInformationMapper.selectList(
+                    new QueryWrapper<DriverInformation>().eq("name", name));
+            if (matches.isEmpty()) {
+                throw new IllegalArgumentException("未找到驾驶员：" + name);
+            }
+            if (matches.size() > 1) {
+                throw new IllegalArgumentException("驾驶员姓名不唯一，请改用驾驶员编号");
+            }
+            record.setDriverId(matches.get(0).getDriverId());
+        }
+        if (record.getVehicleId() == null || record.getVehicleId() <= 0) {
+            String plate = record.getLicensePlate() == null ? "" : record.getLicensePlate().trim();
+            if (plate.isEmpty()) {
+                throw new IllegalArgumentException("请填写车牌号");
+            }
+            if (vehicleInformationMapper == null) {
+                throw new IllegalStateException("Vehicle lookup is unavailable");
+            }
+            List<VehicleInformation> matches = vehicleInformationMapper.selectList(
+                    new QueryWrapper<VehicleInformation>().eq("license_plate", plate));
+            if (matches.isEmpty()) {
+                throw new IllegalArgumentException("未找到车辆：" + plate);
+            }
+            if (matches.size() > 1) {
+                throw new IllegalArgumentException("车牌号不唯一：" + plate);
+            }
+            record.setVehicleId(matches.get(0).getVehicleId());
+        }
+    }
+
     private void validateOffenseRecord(OffenseRecord offenseRecord) {
         Objects.requireNonNull(offenseRecord, "OffenseRecord must not be null");
+        if (offenseRecord.getOffenseNumber() == null || offenseRecord.getOffenseNumber().isBlank()) {
+            offenseRecord.setOffenseNumber("OF" + System.currentTimeMillis());
+        }
         if (offenseRecord.getOffenseTime() == null) {
             offenseRecord.setOffenseTime(LocalDateTime.now());
         }
-        if (offenseRecord.getProcessStatus() == null || offenseRecord.getProcessStatus().isBlank()) {
-            offenseRecord.setProcessStatus("Pending");
+        if (offenseRecord.getProcessStatus() == null || offenseRecord.getProcessStatus().isBlank()
+                || "Pending".equalsIgnoreCase(offenseRecord.getProcessStatus())) {
+            offenseRecord.setProcessStatus("Unprocessed");
         }
     }
 

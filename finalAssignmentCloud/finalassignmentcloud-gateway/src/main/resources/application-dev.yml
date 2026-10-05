@@ -40,7 +40,7 @@ spring:
             - id: traffic-service
               uri: http://127.0.0.1:${CLOUD_TRAFFIC_PORT:18083}
               predicates:
-                - Path=/api/offenses/**,/api/offense-types/**,/api/violations/**,/api/deductions/**,/api/fines/**,/api/payments/**,/api/vehicles/**,/api/drivers/**,/api/appeals/**,/api/progress/**,/api/workflow/**,/api/view/offenses/**
+                - Path=/api/offenses/**,/api/offense-types/**,/api/violations/**,/api/deductions/**,/api/fines/**,/api/payments/**,/api/vehicles/**,/api/drivers/**,/api/appeals/**,/api/progress/**,/api/workflow/**,/api/view/offenses/**,/api/feedback/**,/api/cache/**
             - id: audit-service
               uri: http://127.0.0.1:${CLOUD_AUDIT_PORT:8084}
               predicates:

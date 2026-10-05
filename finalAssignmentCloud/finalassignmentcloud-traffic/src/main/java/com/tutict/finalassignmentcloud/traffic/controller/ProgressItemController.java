@@ -7,6 +7,7 @@ import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.annotation.security.RolesAllowed;
+import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.DeleteMapping;
@@ -18,6 +19,8 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.GrantedAuthority;
 import org.springframework.web.bind.annotation.RestController;
 
 import java.util.List;
@@ -33,10 +36,33 @@ public class ProgressItemController {
 
     private static final Logger LOG = Logger.getLogger(ProgressItemController.class.getName());
 
-    private final SystemRequestHistoryClient requestHistoryClient;
+    private static boolean isRegularUser(Authentication authentication) {
+        if (authentication == null) {
+            return false;
+        }
+        boolean user = false;
+        boolean staff = false;
+        for (GrantedAuthority authority : authentication.getAuthorities()) {
+            String role = authority.getAuthority();
+            if (role == null) {
+                continue;
+            }
+            if (role.contains("USER")) {
+                user = true;
+            }
+            if (role.contains("ADMIN") || role.contains("STAFF")) {
+                staff = true;
+            }
+        }
+        return user && !staff;
+    }
 
-    public ProgressItemController(SystemRequestHistoryClient requestHistoryClient) {
+    private final SystemRequestHistoryClient requestHistoryClient;
+    private final JdbcTemplate jdbcTemplate;
+
+    public ProgressItemController(SystemRequestHistoryClient requestHistoryClient, JdbcTemplate jdbcTemplate) {
         this.requestHistoryClient = requestHistoryClient;
+        this.jdbcTemplate = jdbcTemplate;
     }
 
     @PostMapping
@@ -109,9 +135,41 @@ public class ProgressItemController {
     }
 
     @GetMapping
-    @Operation(summary = "查询全部进度记录")
-    public ResponseEntity<List<SysRequestHistory>> list() {
+    @RolesAllowed({"SUPER_ADMIN", "ADMIN", "USER"})
+    @Operation(summary = "查询进度记录")
+    public ResponseEntity<List<SysRequestHistory>> list(Authentication authentication) {
         try {
+            if (isRegularUser(authentication)) {
+                return ResponseEntity.ok(jdbcTemplate.query("""
+                        SELECT h.id, h.idempotency_key, h.request_method, h.request_url, h.request_params,
+                               h.business_type, h.business_id, h.business_status, h.user_id, h.request_ip,
+                               h.created_at, h.updated_at
+                        FROM sys_request_history h
+                        JOIN sys_user u ON u.user_id = h.user_id
+                        WHERE u.username = ? AND h.deleted_at IS NULL
+                        ORDER BY h.updated_at DESC
+                        LIMIT 50
+                        """, (rs, row) -> {
+                    SysRequestHistory history = new SysRequestHistory();
+                    history.setId(rs.getLong("id"));
+                    history.setIdempotencyKey(rs.getString("idempotency_key"));
+                    history.setRequestMethod(rs.getString("request_method"));
+                    history.setRequestUrl(rs.getString("request_url"));
+                    history.setRequestParams(rs.getString("request_params"));
+                    history.setBusinessType(rs.getString("business_type"));
+                    history.setBusinessId(rs.getObject("business_id") == null ? null : rs.getLong("business_id"));
+                    history.setBusinessStatus(rs.getString("business_status"));
+                    history.setUserId(rs.getObject("user_id") == null ? null : rs.getLong("user_id"));
+                    history.setRequestIp(rs.getString("request_ip"));
+                    if (rs.getTimestamp("created_at") != null) {
+                        history.setCreatedAt(rs.getTimestamp("created_at").toLocalDateTime());
+                    }
+                    if (rs.getTimestamp("updated_at") != null) {
+                        history.setUpdatedAt(rs.getTimestamp("updated_at").toLocalDateTime());
+                    }
+                    return history;
+                }, authentication.getName()));
+            }
             return ResponseEntity.ok(requestHistoryClient.list());
         } catch (FeignException ex) {
             return ResponseEntity.status(resolveStatus(ex)).build();

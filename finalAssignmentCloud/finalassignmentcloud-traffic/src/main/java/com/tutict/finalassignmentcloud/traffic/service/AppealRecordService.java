@@ -363,7 +363,6 @@ public class AppealRecordService {
             kafkaTemplate.send(topic, idempotencyKey, payload);
         } catch (Exception e) {
             log.log(Level.WARNING, "Failed to send appeal Kafka message", e);
-            throw new RuntimeException("Failed to send appeal record event", e);
         }
     }
 
