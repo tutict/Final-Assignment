@@ -8,9 +8,13 @@ import com.tutict.finalassignmentbackend.dto.request.OffenseCreateRequest;
 import com.tutict.finalassignmentbackend.dto.response.OffenseDetailResponse;
 import com.tutict.finalassignmentbackend.dto.response.PageResponse;
 import com.tutict.finalassignmentbackend.dto.response.UserProfileResponse;
+import com.tutict.finalassignmentbackend.entity.driver.DriverInformation;
+import com.tutict.finalassignmentbackend.entity.driver.VehicleInformation;
 import com.tutict.finalassignmentbackend.entity.offense.OffenseRecord;
 import com.tutict.finalassignmentbackend.service.auth.AuthWsService;
 import com.tutict.finalassignmentbackend.service.business.BusinessRecordViewService;
+import com.tutict.finalassignmentbackend.service.driver.DriverInformationService;
+import com.tutict.finalassignmentbackend.service.driver.VehicleInformationService;
 import com.tutict.finalassignmentbackend.service.offense.OffenseDetailService;
 import com.tutict.finalassignmentbackend.service.offense.OffenseRecordService;
 import io.swagger.v3.oas.annotations.Operation;
@@ -58,20 +62,26 @@ public class OffenseInformationController {
     private final OffenseRecordService offenseRecordService;
     private final OffenseDetailService offenseDetailService;
     private final BusinessRecordViewService businessRecordViewService;
+    private final DriverInformationService driverInformationService;
+    private final VehicleInformationService vehicleInformationService;
 
     @Autowired
     public OffenseInformationController(AuthWsService authWsService,
                                         OffenseRecordService offenseRecordService,
                                         OffenseDetailService offenseDetailService,
-                                        BusinessRecordViewService businessRecordViewService) {
+                                        BusinessRecordViewService businessRecordViewService,
+                                        DriverInformationService driverInformationService,
+                                        VehicleInformationService vehicleInformationService) {
         this.authWsService = authWsService;
         this.offenseRecordService = offenseRecordService;
         this.offenseDetailService = offenseDetailService;
         this.businessRecordViewService = businessRecordViewService;
+        this.driverInformationService = driverInformationService;
+        this.vehicleInformationService = vehicleInformationService;
     }
 
     public OffenseInformationController(OffenseRecordService offenseRecordService) {
-        this(null, offenseRecordService, null, null);
+        this(null, offenseRecordService, null, null, null, null);
     }
 
     @PostMapping
@@ -80,6 +90,7 @@ public class OffenseInformationController {
                                                 @RequestHeader(value = "Idempotency-Key", required = false)
                                                 String idempotencyKey) {
         boolean useKey = hasKey(idempotencyKey);
+        resolveParties(request);
         OffenseRecord offenseRecord = OffenseRecordRequestMapper.toEntity(request);
         try {
             if (useKey) {
@@ -110,6 +121,7 @@ public class OffenseInformationController {
                                                 @RequestHeader(value = "Idempotency-Key", required = false)
                                                 String idempotencyKey) {
         boolean useKey = hasKey(idempotencyKey);
+        resolveParties(request);
         OffenseRecord offenseRecord = OffenseRecordRequestMapper.toEntity(request);
         try {
             offenseRecord.setOffenseId(offenseId);
@@ -143,12 +155,17 @@ public class OffenseInformationController {
     }
 
     @GetMapping("/{offenseId}")
+    @RolesAllowed({"SUPER_ADMIN", "ADMIN", "TRAFFIC_POLICE", "APPEAL_REVIEWER", "USER"})
     @Operation(summary = "查询违法详情")
-    public ResponseEntity<ApiResponse<OffenseRecord>> get(@PathVariable Long offenseId) {
+    public ResponseEntity<ApiResponse<OffenseRecord>> get(@PathVariable Long offenseId,
+                                                          Authentication authentication) {
         try {
             OffenseRecord record = offenseRecordService.findById(offenseId);
             if (record == null) {
                 throw new com.tutict.finalassignmentbackend.exception.EntityNotFoundException("Offense not found: " + offenseId);
+            }
+            if (!canAccessDriver(authentication, record.getDriverId())) {
+                throw new org.springframework.security.access.AccessDeniedException("Forbidden");
             }
             return ResponseEntity.ok(ApiResponse.ok(enrich(record)));
         } catch (Exception ex) {
@@ -397,6 +414,37 @@ public class OffenseInformationController {
 
     private List<OffenseRecord> enrich(List<OffenseRecord> records) {
         return businessRecordViewService == null ? records : businessRecordViewService.enrichOffenses(records);
+    }
+
+    private void resolveParties(OffenseCreateRequest request) {
+        if (request.getDriverId() == null) {
+            String name = request.getDriverName() == null ? "" : request.getDriverName().trim();
+            if (name.isEmpty()) {
+                throw new IllegalArgumentException("请填写驾驶员");
+            }
+            if (driverInformationService == null) {
+                throw new IllegalStateException("Driver lookup is unavailable");
+            }
+            DriverInformation driver = driverInformationService.findExactByName(name);
+            if (driver == null || driver.getDriverId() == null) {
+                throw new IllegalArgumentException("未找到驾驶员：" + name);
+            }
+            request.setDriverId(driver.getDriverId());
+        }
+        if (request.getVehicleId() == null) {
+            String plate = request.getLicensePlate() == null ? "" : request.getLicensePlate().trim();
+            if (plate.isEmpty()) {
+                throw new IllegalArgumentException("请填写车牌号");
+            }
+            if (vehicleInformationService == null) {
+                throw new IllegalStateException("Vehicle lookup is unavailable");
+            }
+            VehicleInformation vehicle = vehicleInformationService.getVehicleInformationByLicensePlate(plate);
+            if (vehicle == null || vehicle.getVehicleId() == null) {
+                throw new IllegalArgumentException("未找到车辆：" + plate);
+            }
+            request.setVehicleId(vehicle.getVehicleId());
+        }
     }
 
     private boolean canAccessDriver(Authentication authentication, Long driverId) {

@@ -245,6 +245,44 @@ public class FineRecordService {
         return fetchFromDatabase(wrapper, page, size);
     }
 
+
+    public List<FineRecord> searchByPayee(String payee, int page, int size) {
+        if (isBlank(payee)) {
+            return List.of();
+        }
+        validatePagination(page, size);
+        QueryWrapper<FineRecord> wrapper = new QueryWrapper<>();
+        wrapper.and(nested -> nested.like("handler", payee.trim())
+                        .or()
+                        .apply("driver_id IN (SELECT driver_id FROM driver_information WHERE name LIKE {0})",
+                                "%" + payee.trim() + "%"))
+                .orderByDesc("fine_date");
+        return fetchFromDatabase(wrapper, page, size);
+    }
+
+    public FineRecord findByReceiptNumber(String receiptNumber) {
+        if (isBlank(receiptNumber)) {
+            return null;
+        }
+        QueryWrapper<FineRecord> wrapper = new QueryWrapper<>();
+        wrapper.eq("fine_number", receiptNumber.trim()).last("LIMIT 1");
+        List<FineRecord> rows = fineRecordMapper.selectList(wrapper);
+        return rows.isEmpty() ? null : rows.get(0);
+    }
+
+    public List<FineRecord> searchByTimeRange(String startTime, String endTime, int maxSuggestions) {
+        int size = maxSuggestions <= 0 ? 10 : Math.min(maxSuggestions, 100);
+        return searchByFineDateRange(datePrefix(startTime), datePrefix(endTime), 1, size);
+    }
+
+    private String datePrefix(String value) {
+        if (isBlank(value)) {
+            return null;
+        }
+        String text = value.trim();
+        return text.length() >= 10 ? text.substring(0, 10) : text;
+    }
+
     public boolean shouldSkipProcessing(String idempotencyKey) {
         SysRequestHistory history = sysRequestHistoryMapper.selectByIdempotencyKey(idempotencyKey);
         return history != null
@@ -296,13 +334,10 @@ public class FineRecordService {
         if (fineRecord == null) {
             return;
         }
-        TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
-            @Override
-            public void afterCommit() {
-                FineRecordDocument doc = FineRecordDocument.fromEntity(fineRecord);
-                if (doc != null) {
-                    fineRecordSearchRepository.save(doc);
-                }
+        runAfterCommitOrNow(() -> {
+            FineRecordDocument doc = FineRecordDocument.fromEntity(fineRecord);
+            if (doc != null) {
+                fineRecordSearchRepository.save(doc);
             }
         });
     }
@@ -311,17 +346,34 @@ public class FineRecordService {
         if (records == null || records.isEmpty()) {
             return;
         }
+        runAfterCommitOrNow(() -> {
+            List<FineRecordDocument> documents = records.stream()
+                    .filter(Objects::nonNull)
+                    .map(FineRecordDocument::fromEntity)
+                    .filter(Objects::nonNull)
+                    .collect(Collectors.toList());
+            if (!documents.isEmpty()) {
+                fineRecordSearchRepository.saveAll(documents);
+            }
+        });
+    }
+
+    private void runAfterCommitOrNow(Runnable action) {
+        Runnable safe = () -> {
+            try {
+                action.run();
+            } catch (RuntimeException ex) {
+                log.log(Level.WARNING, "Fine index sync failed", ex);
+            }
+        };
+        if (!TransactionSynchronizationManager.isSynchronizationActive()) {
+            safe.run();
+            return;
+        }
         TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
             @Override
             public void afterCommit() {
-                List<FineRecordDocument> documents = records.stream()
-                        .filter(Objects::nonNull)
-                        .map(FineRecordDocument::fromEntity)
-                        .filter(Objects::nonNull)
-                        .collect(Collectors.toList());
-                if (!documents.isEmpty()) {
-                    fineRecordSearchRepository.saveAll(documents);
-                }
+                safe.run();
             }
         });
     }
@@ -351,15 +403,34 @@ public class FineRecordService {
     private void validateFineRecord(FineRecord fineRecord) {
         Objects.requireNonNull(fineRecord, "FineRecord must not be null");
         if (fineRecord.getFineDate() == null) {
-            fineRecord.setFineDate(LocalDate.now());
+            LocalDate parsed = parseFineTime(fineRecord.getFineTime());
+            fineRecord.setFineDate(parsed != null ? parsed : LocalDate.now());
+        }
+        if (fineRecord.getFineNumber() == null || fineRecord.getFineNumber().isBlank()) {
+            fineRecord.setFineNumber("FN" + System.currentTimeMillis());
+        }
+        if (fineRecord.getIssuingAuthority() == null || fineRecord.getIssuingAuthority().isBlank()) {
+            fineRecord.setIssuingAuthority("未填写");
+        }
+        if (fineRecord.getHandler() == null || fineRecord.getHandler().isBlank()) {
+            fineRecord.setHandler("系统");
+        }
+        if (fineRecord.getTotalAmount() == null) {
+            fineRecord.setTotalAmount(fineRecord.getFineAmount());
         }
         if (fineRecord.getPaymentStatus() == null || fineRecord.getPaymentStatus().isBlank()) {
             fineRecord.setPaymentStatus("Unpaid");
         }
-        if (fineRecord.getDriverId() == null && fineRecord.getOffenseId() != null) {
-            OffenseRecord offense = offenseRecordMapper.selectById(fineRecord.getOffenseId());
-            if (offense != null) {
-                fineRecord.setDriverId(offense.getDriverId());
+        if (fineRecord.getOffenseId() == null || fineRecord.getOffenseId() <= 0) {
+            throw new IllegalArgumentException("请选择关联的违法记录");
+        }
+        if (fineRecord.getOffenseId() != null) {
+            OffenseRecord linkedOffense = offenseRecordMapper.selectById(fineRecord.getOffenseId());
+            if (linkedOffense == null) {
+                throw new IllegalArgumentException("违法记录不存在");
+            }
+            if (fineRecord.getDriverId() == null) {
+                fineRecord.setDriverId(linkedOffense.getDriverId());
             }
         }
     }
@@ -373,6 +444,22 @@ public class FineRecordService {
     private void requirePositive(Number number, String fieldName) {
         if (number == null || number.longValue() <= 0) {
             throw new IllegalArgumentException(fieldName + " must be greater than zero");
+        }
+    }
+
+    private LocalDate parseFineTime(String value) {
+        if (isBlank(value)) {
+            return null;
+        }
+        String text = value.trim();
+        if (text.length() >= 10) {
+            text = text.substring(0, 10);
+        }
+        try {
+            return LocalDate.parse(text);
+        } catch (DateTimeParseException ex) {
+            log.log(Level.WARNING, "Failed to parse fineTime: " + value, ex);
+            return null;
         }
     }
 

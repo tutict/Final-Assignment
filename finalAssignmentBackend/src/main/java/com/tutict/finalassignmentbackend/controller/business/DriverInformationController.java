@@ -99,6 +99,70 @@ public class DriverInformationController {
         }
     }
 
+
+    @PutMapping("/{driverId}/name")
+    @RolesAllowed({"SUPER_ADMIN", "ADMIN", "TRAFFIC_POLICE", "USER"})
+    public ResponseEntity<Void> updateName(@PathVariable Long driverId,
+                                           @RequestBody(required = false) String body,
+                                           Authentication authentication) {
+        return updateDriverField(driverId, "name", body, authentication);
+    }
+
+    @PutMapping("/{driverId}/contactNumber")
+    @RolesAllowed({"SUPER_ADMIN", "ADMIN", "TRAFFIC_POLICE", "USER"})
+    public ResponseEntity<Void> updateContactNumber(@PathVariable Long driverId,
+                                                    @RequestBody(required = false) String body,
+                                                    Authentication authentication) {
+        return updateDriverField(driverId, "contactNumber", body, authentication);
+    }
+
+    @PutMapping("/{driverId}/idCardNumber")
+    @RolesAllowed({"SUPER_ADMIN", "ADMIN", "TRAFFIC_POLICE", "USER"})
+    public ResponseEntity<Void> updateIdCardNumber(@PathVariable Long driverId,
+                                                  @RequestBody(required = false) String body,
+                                                  Authentication authentication) {
+        return updateDriverField(driverId, "idCardNumber", body, authentication);
+    }
+
+    private ResponseEntity<Void> updateDriverField(Long driverId, String field, String body,
+                                                   Authentication authentication) {
+        if (!canAccessDriver(authentication, driverId)) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
+        }
+        String value = readDriverField(body, field);
+        if (value.isBlank()) {
+            return ResponseEntity.badRequest().build();
+        }
+        try {
+            DriverInformation updated = driverInformationService.updateDriverField(driverId, field, value);
+            return updated == null ? ResponseEntity.notFound().build() : ResponseEntity.noContent().build();
+        } catch (IllegalStateException ex) {
+            return ResponseEntity.notFound().build();
+        } catch (IllegalArgumentException ex) {
+            return ResponseEntity.badRequest().build();
+        }
+    }
+
+    private static String readDriverField(String body, String field) {
+        if (body == null || body.isBlank()) {
+            return "";
+        }
+        try {
+            com.fasterxml.jackson.databind.JsonNode node =
+                    new com.fasterxml.jackson.databind.ObjectMapper().readTree(body);
+            if (node.isTextual()) {
+                return node.asText("").trim();
+            }
+            com.fasterxml.jackson.databind.JsonNode value = node.get(field);
+            if ((value == null || value.isNull()) && "contactNumber".equals(field)) {
+                value = node.get("phoneNumber");
+            }
+            return value == null || value.isNull() ? "" : value.asText("").trim();
+        } catch (com.fasterxml.jackson.core.JacksonException ex) {
+            return "";
+        }
+    }
+
     @PutMapping("/{driverId}")
     @RolesAllowed({"SUPER_ADMIN", "ADMIN", "TRAFFIC_POLICE", "USER"})
     @Operation(summary = "更新驾驶员档案")

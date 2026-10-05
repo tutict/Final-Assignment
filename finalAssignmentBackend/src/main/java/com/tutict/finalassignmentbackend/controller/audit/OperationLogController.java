@@ -3,6 +3,9 @@ package com.tutict.finalassignmentbackend.controller.audit;
 import com.tutict.finalassignmentbackend.dto.response.ApiResponse;
 
 import com.tutict.finalassignmentbackend.entity.audit.AuditOperationLog;
+import com.tutict.finalassignmentbackend.config.security.SecurityRoleUtils;
+import com.tutict.finalassignmentbackend.entity.admin.SysUser;
+import com.tutict.finalassignmentbackend.service.admin.SysUserService;
 import com.tutict.finalassignmentbackend.service.audit.AuditOperationLogService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
@@ -10,6 +13,7 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.annotation.security.RolesAllowed;
 import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
+import org.springframework.security.core.Authentication;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -36,16 +40,22 @@ public class OperationLogController {
     private static final Logger LOG = Logger.getLogger(OperationLogController.class.getName());
 
     private final AuditOperationLogService auditOperationLogService;
+    private final SysUserService sysUserService;
 
-    public OperationLogController(AuditOperationLogService auditOperationLogService) {
+    public OperationLogController(AuditOperationLogService auditOperationLogService,
+                                 SysUserService sysUserService) {
         this.auditOperationLogService = auditOperationLogService;
+        this.sysUserService = sysUserService;
     }
 
     @PostMapping
+    @RolesAllowed({"SUPER_ADMIN", "ADMIN", "USER", "TRAFFIC_POLICE", "FINANCE"})
     @Operation(summary = "写入操作日志")
     public ResponseEntity<?> create(@Valid @RequestBody AuditOperationLog request,
                                                     @RequestHeader(value = "Idempotency-Key", required = false)
-                                                    String idempotencyKey) {
+                                                    String idempotencyKey,
+                                                    Authentication authentication) {
+        bindCaller(request, authentication);
         boolean useKey = hasKey(idempotencyKey);
         try {
             if (useKey) {
@@ -276,6 +286,17 @@ public class OperationLogController {
 
     private boolean hasKey(String value) {
         return value != null && !value.isBlank();
+    }
+
+    private void bindCaller(AuditOperationLog request, Authentication authentication) {
+        if (request == null || authentication == null || SecurityRoleUtils.hasRole(authentication, "SUPER_ADMIN")) {
+            return;
+        }
+        request.setUsername(authentication.getName());
+        SysUser user = sysUserService.findByUsername(authentication.getName());
+        if (user != null) {
+            request.setUserId(user.getUserId());
+        }
     }
 
     private HttpStatus resolveStatus(Exception ex) {

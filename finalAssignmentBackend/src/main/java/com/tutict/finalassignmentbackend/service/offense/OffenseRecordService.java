@@ -603,8 +603,7 @@ public class OffenseRecordService {
             String payload = objectMapper.writeValueAsString(offenseRecord);
             kafkaTemplate.send(topic, idempotencyKey, payload);
         } catch (Exception ex) {
-            log.log(Level.SEVERE, "Failed to send OffenseRecord Kafka message", ex);
-            throw new RuntimeException("Failed to send OffenseRecord event", ex);
+            log.log(Level.WARNING, "Failed to send OffenseRecord Kafka message", ex);
         }
     }
 
@@ -751,8 +750,12 @@ public class OffenseRecordService {
         if (offenseRecord.getOffenseTime() == null) {
             offenseRecord.setOffenseTime(LocalDateTime.now());
         }
-        if (offenseRecord.getProcessStatus() == null || offenseRecord.getProcessStatus().isBlank()) {
-            offenseRecord.setProcessStatus("Pending");
+        if (offenseRecord.getProcessStatus() == null || offenseRecord.getProcessStatus().isBlank()
+                || "Pending".equalsIgnoreCase(offenseRecord.getProcessStatus())) {
+            offenseRecord.setProcessStatus("Unprocessed");
+        }
+        if (offenseRecord.getOffenseNumber() == null || offenseRecord.getOffenseNumber().isBlank()) {
+            offenseRecord.setOffenseNumber("OF" + System.currentTimeMillis());
         }
     }
 

@@ -33,6 +33,7 @@ import org.springframework.web.bind.MissingRequestHeaderException;
 import org.springframework.web.bind.MissingServletRequestParameterException;
 import org.springframework.web.bind.annotation.ControllerAdvice;
 import org.springframework.web.HttpMediaTypeNotSupportedException;
+import org.springframework.web.servlet.resource.NoResourceFoundException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
 
@@ -93,6 +94,33 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(DataIntegrityViolationException.class)
     public ResponseEntity<ApiResponse<Void>> handleDataIntegrityViolationException(DataIntegrityViolationException ex) {
         logger.log(Level.WARNING, "Data integrity violation: {0}", ex.getMessage());
+        String detail = ex.getMostSpecificCause() == null ? "" : String.valueOf(ex.getMostSpecificCause().getMessage());
+        if (detail.contains("fk_offense_type")) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                    .body(ApiResponse.error("INVALID_ARGUMENT", "违法代码不存在，请先在违法类型字典中登记"));
+        }
+        if (detail.contains("fk_offense_driver")) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                    .body(ApiResponse.error("INVALID_ARGUMENT", "驾驶员不存在"));
+        }
+        if (detail.contains("fk_offense_vehicle")) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                    .body(ApiResponse.error("INVALID_ARGUMENT", "车辆不存在"));
+        }
+        if (detail.contains("fk_fine_offense")
+                || detail.contains("fk_appeal_offense")
+                || detail.contains("fk_deduction_offense")) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                    .body(ApiResponse.error("INVALID_ARGUMENT", "违法记录不存在"));
+        }
+        if (detail.contains("fk_deduction_driver") || detail.contains("fk_fine_driver")) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                    .body(ApiResponse.error("INVALID_ARGUMENT", "驾驶员不存在"));
+        }
+        if (detail.contains("fk_payment_fine")) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                    .body(ApiResponse.error("INVALID_ARGUMENT", "罚款记录不存在"));
+        }
         return ResponseEntity.status(HttpStatus.CONFLICT)
                 .body(ApiResponse.error("CONFLICT", "\u6570\u636e\u7ea6\u675f\u51b2\u7a81"));
     }
@@ -194,6 +222,12 @@ public class GlobalExceptionHandler {
 
     @ExceptionHandler({EntityNotFoundException.class, EmptyResultDataAccessException.class})
     public ResponseEntity<ApiResponse<Void>> handleNotFound(RuntimeException ex) {
+        return ResponseEntity.status(HttpStatus.NOT_FOUND)
+                .body(ApiResponse.error("NOT_FOUND", "Resource not found"));
+    }
+
+    @ExceptionHandler(NoResourceFoundException.class)
+    public ResponseEntity<ApiResponse<Void>> handleMissingRoute(NoResourceFoundException ex) {
         return ResponseEntity.status(HttpStatus.NOT_FOUND)
                 .body(ApiResponse.error("NOT_FOUND", "Resource not found"));
     }

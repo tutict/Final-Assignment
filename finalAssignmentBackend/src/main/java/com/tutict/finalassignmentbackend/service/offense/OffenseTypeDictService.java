@@ -321,39 +321,54 @@ public class OffenseTypeDictService {
         }
     }
 
-    private void syncToIndexAfterCommit(OffenseTypeDict dict) {
-        if (dict == null) {
+    private void syncToIndexAfterCommit(OffenseTypeDict record) {
+        if (record == null) {
             return;
         }
-        TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
-            @Override
-            public void afterCommit() {
-                OffenseTypeDictDocument doc = OffenseTypeDictDocument.fromEntity(dict);
-                if (doc != null) {
-                    offenseTypeDictSearchRepository.save(doc);
-                }
+        runAfterCommitOrNow(() -> {
+            OffenseTypeDictDocument doc = OffenseTypeDictDocument.fromEntity(record);
+            if (doc != null) {
+                offenseTypeDictSearchRepository.save(doc);
             }
         });
     }
 
-    private void syncBatchToIndexAfterCommit(List<OffenseTypeDict> dicts) {
-        if (dicts == null || dicts.isEmpty()) {
+    private void syncBatchToIndexAfterCommit(List<OffenseTypeDict> records) {
+        if (records == null || records.isEmpty()) {
+            return;
+        }
+        runAfterCommitOrNow(() -> {
+            List<OffenseTypeDictDocument> documents = records.stream()
+                    .filter(Objects::nonNull)
+                    .map(OffenseTypeDictDocument::fromEntity)
+                    .filter(Objects::nonNull)
+                    .collect(Collectors.toList());
+            if (!documents.isEmpty()) {
+                offenseTypeDictSearchRepository.saveAll(documents);
+            }
+        });
+    }
+
+    private void runAfterCommitOrNow(Runnable action) {
+        Runnable safe = () -> {
+            try {
+                action.run();
+            } catch (RuntimeException ex) {
+                log.log(Level.WARNING, "OffenseTypeDict index sync failed", ex);
+            }
+        };
+        if (!TransactionSynchronizationManager.isSynchronizationActive()) {
+            safe.run();
             return;
         }
         TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
             @Override
             public void afterCommit() {
-                List<OffenseTypeDictDocument> documents = dicts.stream()
-                        .filter(Objects::nonNull)
-                        .map(OffenseTypeDictDocument::fromEntity)
-                        .filter(Objects::nonNull)
-                        .collect(Collectors.toList());
-                if (!documents.isEmpty()) {
-                    offenseTypeDictSearchRepository.saveAll(documents);
-                }
+                safe.run();
             }
         });
     }
+
 
     private void validateDict(OffenseTypeDict dict) {
         Objects.requireNonNull(dict, "OffenseTypeDict must not be null");

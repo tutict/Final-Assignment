@@ -109,6 +109,32 @@ public class DriverInformationService {
 
     @Transactional
     @CacheEvict(cacheNames = CACHE_NAME, allEntries = true)
+    public DriverInformation updateDriverField(Long driverId, String field, String value) {
+        validateDriverId(driverId);
+        if (driverInformationMapper.selectById(driverId) == null) {
+            throw new IllegalStateException("Driver not found: " + driverId);
+        }
+        DriverInformation patch = new DriverInformation();
+        patch.setDriverId(driverId);
+        patch.setUpdatedAt(LocalDateTime.now());
+        switch (field) {
+            case "name" -> patch.setName(value);
+            case "contactNumber" -> patch.setContactNumber(value);
+            case "idCardNumber" -> patch.setIdCardNumber(value);
+            default -> throw new IllegalArgumentException("Unsupported driver field: " + field);
+        }
+        if (!"name".equals(field)) {
+            sensitiveDataPersistenceService.prepare(patch);
+        }
+        driverInformationMapper.updateById(patch);
+        DriverInformation updated = driverInformationMapper.selectById(driverId);
+        syncLinkedUserProfile(updated);
+        syncToIndexAfterCommit(updated);
+        return updated;
+    }
+
+    @Transactional
+    @CacheEvict(cacheNames = CACHE_NAME, allEntries = true)
     @WsAction(service = "DriverInformationService", action = "updateDriver", roles = {"SUPER_ADMIN", "ADMIN", "TRAFFIC_POLICE"})
     public DriverInformation updateDriver(DriverInformation driverInformation) {
         validateDriverId(driverInformation);
@@ -277,6 +303,22 @@ public class DriverInformationService {
         return driverInformationMapper.selectList(wrapper);
     }
 
+    public DriverInformation findExactByName(String name) {
+        if (name == null || name.isBlank()) {
+            return null;
+        }
+        QueryWrapper<DriverInformation> wrapper = new QueryWrapper<>();
+        wrapper.eq("name", name.trim());
+        List<DriverInformation> rows = driverInformationMapper.selectList(wrapper);
+        if (rows.isEmpty()) {
+            return null;
+        }
+        if (rows.size() > 1) {
+            throw new IllegalArgumentException("驾驶员姓名不唯一，请改用驾驶员编号");
+        }
+        return rows.get(0);
+    }
+
     private List<DriverInformation> aggregatedSearch(String query,
                                                      int page,
                                                      int size,
@@ -380,7 +422,6 @@ public class DriverInformationService {
             kafkaTemplate.send(topic, idempotencyKey, payload);
         } catch (Exception e) {
             log.log(Level.WARNING, "Failed to send driver Kafka message", e);
-            throw new RuntimeException("Failed to send driver event", e);
         }
     }
 

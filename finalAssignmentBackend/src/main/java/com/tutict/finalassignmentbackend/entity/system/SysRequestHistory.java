@@ -1,6 +1,7 @@
 package com.tutict.finalassignmentbackend.entity.system;
 
 import com.baomidou.mybatisplus.annotation.*;
+import com.fasterxml.jackson.annotation.JsonAlias;
 import lombok.Data;
 
 import java.io.Serial;
@@ -47,12 +48,14 @@ public class SysRequestHistory implements Serializable {
     /**
      * 请求参数
      */
+    @JsonAlias("details")
     @TableField("request_params")
     private String requestParams;
 
     /**
      * 业务类型
      */
+    @JsonAlias("title")
     @TableField("business_type")
     private String businessType;
 
@@ -65,6 +68,7 @@ public class SysRequestHistory implements Serializable {
     /**
      * 业务状态
      */
+    @JsonAlias("status")
     @TableField("business_status")
     private String businessStatus;
 
@@ -73,6 +77,12 @@ public class SysRequestHistory implements Serializable {
      */
     @TableField("user_id")
     private Long userId;
+
+    /**
+     * 前端进度消息用用户名提交。不入库，写入前解析成 userId。
+     */
+    @TableField(exist = false)
+    private String username;
 
     /**
      * 请求 IP

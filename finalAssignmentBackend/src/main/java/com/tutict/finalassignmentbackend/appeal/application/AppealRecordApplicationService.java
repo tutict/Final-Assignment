@@ -24,6 +24,9 @@ import com.tutict.finalassignmentbackend.service.events.AppealStatusChangedEvent
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.cache.Cache;
+import org.springframework.cache.CacheManager;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
@@ -51,6 +54,7 @@ public class AppealRecordApplicationService {
     private final AppealUpdateMergeCoordinator updateMergeCoordinator;
     private final ApplicationEventPublisher applicationEventPublisher;
     private final SensitiveDataPersistenceService sensitiveDataPersistenceService;
+    private CacheManager offenseCacheManager;
     private final AppealEventIntentPolicy eventIntentPolicy = new AppealEventIntentPolicy();
 
     @Autowired
@@ -145,6 +149,12 @@ public class AppealRecordApplicationService {
         }
     }
 
+
+    @Autowired(required = false)
+    public void setOffenseCacheManager(CacheManager cacheManager) {
+        this.offenseCacheManager = cacheManager;
+    }
+
     @Transactional
     public AppealRecord createAppeal(AppealRecord appealRecord) {
         fillDriverIdFromOffense(appealRecord);
@@ -152,6 +162,7 @@ public class AppealRecordApplicationService {
         domainService.validateAppeal(appealRecord);
         prepareSensitiveData(appealRecord);
         appealRecordMapper.insert(appealRecord);
+        syncLinkedOffenseStatus(appealRecord.getOffenseId(), appealRecord.getProcessStatus());
         searchIndexer.indexAfterCommit(appealRecord);
         cachePolicy.onWrite();
         return appealRecord;
@@ -282,8 +293,38 @@ public class AppealRecordApplicationService {
         }
         searchIndexer.indexAfterCommit(merged);
         cachePolicy.onWrite();
+        syncLinkedOffenseStatus(existing.getOffenseId(), merged.getProcessStatus());
         publishAppealStatusChangedIfNeeded(existing, merged);
         return merged;
+    }
+
+    private void syncLinkedOffenseStatus(Long offenseId, String appealStatus) {
+        if (offenseId == null || offenseRecordMapper == null) {
+            return;
+        }
+        OffenseRecord offense = offenseRecordMapper.selectById(offenseId);
+        if (offense == null) {
+            return;
+        }
+        String next = switch (appealStatus == null ? "" : appealStatus) {
+            case "Approved" -> "Appeal_Approved";
+            case "Rejected" -> "Appeal_Rejected";
+            case "Withdrawn" -> "Appealing".equals(offense.getProcessStatus()) ? "Unprocessed" : null;
+            case "Under_Review", "Unprocessed" -> "Appealing";
+            default -> null;
+        };
+        if (next == null || next.equals(offense.getProcessStatus())) {
+            return;
+        }
+        offense.setProcessStatus(next);
+        offense.setUpdatedAt(java.time.LocalDateTime.now());
+        offenseRecordMapper.updateById(offense);
+        if (offenseCacheManager != null) {
+            Cache cache = offenseCacheManager.getCache("offenseRecordCache");
+            if (cache != null) {
+                cache.clear();
+            }
+        }
     }
 
     private void applyAppealStatusPrecondition(UpdateWrapper<AppealRecord> updateWrapper,

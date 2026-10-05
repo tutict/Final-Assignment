@@ -342,17 +342,14 @@ public class SysBackupRestoreService {
         }
     }
 
-    private void syncToIndexAfterCommit(SysBackupRestore backupRestore) {
-        if (backupRestore == null) {
+    private void syncToIndexAfterCommit(SysBackupRestore record) {
+        if (record == null) {
             return;
         }
-        TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
-            @Override
-            public void afterCommit() {
-                SysBackupRestoreDocument doc = SysBackupRestoreDocument.fromEntity(backupRestore);
-                if (doc != null) {
-                    sysBackupRestoreSearchRepository.save(doc);
-                }
+        runAfterCommitOrNow(() -> {
+            SysBackupRestoreDocument doc = SysBackupRestoreDocument.fromEntity(record);
+            if (doc != null) {
+                sysBackupRestoreSearchRepository.save(doc);
             }
         });
     }
@@ -361,17 +358,34 @@ public class SysBackupRestoreService {
         if (records == null || records.isEmpty()) {
             return;
         }
+        runAfterCommitOrNow(() -> {
+            List<SysBackupRestoreDocument> documents = records.stream()
+                    .filter(Objects::nonNull)
+                    .map(SysBackupRestoreDocument::fromEntity)
+                    .filter(Objects::nonNull)
+                    .collect(Collectors.toList());
+            if (!documents.isEmpty()) {
+                sysBackupRestoreSearchRepository.saveAll(documents);
+            }
+        });
+    }
+
+    private void runAfterCommitOrNow(Runnable action) {
+        Runnable safe = () -> {
+            try {
+                action.run();
+            } catch (RuntimeException ex) {
+                log.log(Level.WARNING, "SysBackupRestore index sync failed", ex);
+            }
+        };
+        if (!TransactionSynchronizationManager.isSynchronizationActive()) {
+            safe.run();
+            return;
+        }
         TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
             @Override
             public void afterCommit() {
-                List<SysBackupRestoreDocument> documents = records.stream()
-                        .filter(Objects::nonNull)
-                        .map(SysBackupRestoreDocument::fromEntity)
-                        .filter(Objects::nonNull)
-                        .collect(Collectors.toList());
-                if (!documents.isEmpty()) {
-                    sysBackupRestoreSearchRepository.saveAll(documents);
-                }
+                safe.run();
             }
         });
     }

@@ -181,8 +181,9 @@ public class NetWorkHandler extends AbstractVerticle {
 
     private void configureCors(Router router) {
         Set<String> allowedHeaders = Set.of(
-                "Authorization", "X-Requested-With", "Sec-WebSocket-Key",
-                "Sec-WebSocket-Version", "Sec-WebSocket-Protocol", "Content-Type", "Accept"
+                "Authorization", "Content-Type", "Accept", "Idempotency-Key",
+                "X-Trace-Id", "Cache-Control", "X-Requested-With",
+                "Sec-WebSocket-Key", "Sec-WebSocket-Version", "Sec-WebSocket-Protocol"
         );
 
         List<String> allowedOrigins = corsProperties.getAllowedOrigins();

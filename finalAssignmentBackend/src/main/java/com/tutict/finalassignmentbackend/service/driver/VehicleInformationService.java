@@ -204,18 +204,37 @@ public class VehicleInformationService {
         wrapper.eq("license_plate", licensePlate);
         VehicleInformation entity = vehicleInformationMapper.selectOne(wrapper);
         if (entity != null) {
-            vehicleInformationSearchRepository.save(VehicleInformationDocument.fromEntity(entity));
+            try {
+                vehicleInformationSearchRepository.save(VehicleInformationDocument.fromEntity(entity));
+            } catch (RuntimeException ex) {
+                log.log(Level.WARNING, "Vehicle plate lookup index sync failed", ex);
+            }
         }
         return entity;
     }
 
-    @Cacheable(cacheNames = VEHICLE_INFO_LIST_CACHE, key = "'license:global:' + #prefix + ':' + #maxSuggestions")
+    @Cacheable(cacheNames = VEHICLE_INFO_LIST_CACHE, key = "'license:global:' + #prefix + ':' + #maxSuggestions", unless = "#result == null || #result.isEmpty()")
     public List<String> getVehicleInformationByLicensePlateGlobally(String prefix, int maxSuggestions) {
         validateInput(prefix, "Invalid license plate prefix");
-        Pageable pageable = PageRequest.of(0, Math.max(maxSuggestions, 1));
-        SearchHits<VehicleInformationDocument> hits = vehicleInformationSearchRepository
-                .findCompletionSuggestionsGlobally(prefix, pageable);
-        return mapLicensePlateSuggestions(hits);
+        int limit = Math.max(maxSuggestions, 1);
+        try {
+            SearchHits<VehicleInformationDocument> hits = vehicleInformationSearchRepository
+                    .findCompletionSuggestionsGlobally(prefix, PageRequest.of(0, limit));
+            List<String> fromIndex = mapLicensePlateSuggestions(hits);
+            if (!fromIndex.isEmpty()) {
+                return fromIndex;
+            }
+        } catch (RuntimeException ex) {
+            log.log(Level.WARNING, "Global plate index lookup failed, using the database", ex);
+        }
+        QueryWrapper<VehicleInformation> wrapper = new QueryWrapper<>();
+        wrapper.likeRight("license_plate", prefix);
+        Page<VehicleInformation> page = new Page<>(1, limit);
+        return vehicleInformationMapper.selectPage(page, wrapper).getRecords().stream()
+                .map(VehicleInformation::getLicensePlate)
+                .filter(plate -> plate != null && !plate.isBlank())
+                .distinct()
+                .collect(Collectors.toList());
     }
 
     @Cacheable(cacheNames = VEHICLE_INFO_LIST_CACHE, key = "'type:' + #vehicleType")
@@ -490,7 +509,11 @@ public class VehicleInformationService {
                 TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
                     @Override
                     public void afterCommit() {
-                        sendTask.run();
+                        try {
+                            sendTask.run();
+                        } catch (RuntimeException ex) {
+                            log.log(Level.WARNING, "Vehicle Kafka publish failed after commit", ex);
+                        }
                     }
                 });
             } else {
@@ -544,7 +567,19 @@ public class VehicleInformationService {
         if (vehicleInformation == null) {
             throw new IllegalArgumentException("Vehicle information cannot be null");
         }
-        validateInput(vehicleInformation.getLicensePlate(), "License plate cannot be empty");
+        validateInput(vehicleInformation.getLicensePlate(), "请填写车牌号");
+        if (vehicleInformation.getVehicleType() == null || vehicleInformation.getVehicleType().isBlank()) {
+            vehicleInformation.setVehicleType("SmallCar");
+        }
+        if (vehicleInformation.getOwnerName() == null || vehicleInformation.getOwnerName().isBlank()) {
+            throw new IllegalArgumentException("请填写车主姓名");
+        }
+        if (vehicleInformation.getOwnerIdCard() == null || vehicleInformation.getOwnerIdCard().isBlank()) {
+            throw new IllegalArgumentException("请填写车主身份证号");
+        }
+        if (vehicleInformation.getStatus() == null || vehicleInformation.getStatus().isBlank()) {
+            vehicleInformation.setStatus("Active");
+        }
     }
 
     private void validateVehicleId(VehicleInformation vehicleInformation) {

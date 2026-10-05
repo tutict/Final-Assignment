@@ -304,17 +304,14 @@ public class SysSettingsService {
         }
     }
 
-    private void syncToIndexAfterCommit(SysSettings settings) {
-        if (settings == null) {
+    private void syncToIndexAfterCommit(SysSettings record) {
+        if (record == null) {
             return;
         }
-        TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
-            @Override
-            public void afterCommit() {
-                SysSettingsDocument doc = SysSettingsDocument.fromEntity(settings);
-                if (doc != null) {
-                    sysSettingsSearchRepository.save(doc);
-                }
+        runAfterCommitOrNow(() -> {
+            SysSettingsDocument doc = SysSettingsDocument.fromEntity(record);
+            if (doc != null) {
+                sysSettingsSearchRepository.save(doc);
             }
         });
     }
@@ -323,17 +320,34 @@ public class SysSettingsService {
         if (records == null || records.isEmpty()) {
             return;
         }
+        runAfterCommitOrNow(() -> {
+            List<SysSettingsDocument> documents = records.stream()
+                    .filter(Objects::nonNull)
+                    .map(SysSettingsDocument::fromEntity)
+                    .filter(Objects::nonNull)
+                    .collect(Collectors.toList());
+            if (!documents.isEmpty()) {
+                sysSettingsSearchRepository.saveAll(documents);
+            }
+        });
+    }
+
+    private void runAfterCommitOrNow(Runnable action) {
+        Runnable safe = () -> {
+            try {
+                action.run();
+            } catch (RuntimeException ex) {
+                LOG.log(Level.WARNING, "SysSettings index sync failed", ex);
+            }
+        };
+        if (!TransactionSynchronizationManager.isSynchronizationActive()) {
+            safe.run();
+            return;
+        }
         TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
             @Override
             public void afterCommit() {
-                List<SysSettingsDocument> documents = records.stream()
-                        .filter(Objects::nonNull)
-                        .map(SysSettingsDocument::fromEntity)
-                        .filter(Objects::nonNull)
-                        .collect(Collectors.toList());
-                if (!documents.isEmpty()) {
-                    sysSettingsSearchRepository.saveAll(documents);
-                }
+                safe.run();
             }
         });
     }

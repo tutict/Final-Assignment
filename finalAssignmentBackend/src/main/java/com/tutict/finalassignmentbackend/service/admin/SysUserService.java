@@ -123,6 +123,65 @@ public class SysUserService {
 
     @Transactional
     @CacheEvict(cacheNames = CACHE_NAME, allEntries = true)
+    public SysUser updateOwnProfile(String username, SysUser patch) {
+        SysUser existing = requireByUsername(username);
+        if (patch != null) {
+            if (!isBlank(patch.getRealName())) {
+                existing.setRealName(patch.getRealName().trim());
+            }
+            if (!isBlank(patch.getEmail())) {
+                existing.setEmail(patch.getEmail().trim());
+            }
+            if (isUsableContactNumber(patch.getContactNumber())) {
+                existing.setContactNumber(patch.getContactNumber().trim());
+            }
+            if (!isBlank(patch.getGender())) {
+                existing.setGender(patch.getGender().trim());
+            }
+            if (patch.getRemarks() != null && !patch.getRemarks().isBlank()) {
+                existing.setRemarks(patch.getRemarks());
+            }
+        }
+        existing.setUpdatedAt(LocalDateTime.now());
+        sensitiveDataPersistenceService.prepare(existing);
+        sysUserMapper.updateById(existing);
+        syncToIndexAfterCommit(existing);
+        return existing;
+    }
+
+    @Transactional
+    @CacheEvict(cacheNames = CACHE_NAME, allEntries = true)
+    public void updateOwnPassword(String username, String rawPassword) {
+        String password = rawPassword == null ? "" : rawPassword.trim();
+        if (password.length() >= 2 && password.startsWith("\"") && password.endsWith("\"")) {
+            password = password.substring(1, password.length() - 1);
+        }
+        if (password.length() < 8) {
+            throw new IllegalArgumentException("密码至少 8 位");
+        }
+        SysUser existing = requireByUsername(username);
+        existing.setPassword(passwordEncoder.encode(password));
+        existing.setSalt(null);
+        existing.setPasswordUpdateTime(LocalDateTime.now());
+        existing.setUpdatedAt(LocalDateTime.now());
+        sysUserMapper.updateById(existing);
+        syncToIndexAfterCommit(existing);
+    }
+
+    private boolean isUsableContactNumber(String value) {
+        return !isBlank(value) && !value.contains("*");
+    }
+
+    private SysUser requireByUsername(String username) {
+        SysUser existing = findByUsername(username);
+        if (existing == null) {
+            throw new IllegalArgumentException("用户不存在");
+        }
+        return existing;
+    }
+
+    @Transactional
+    @CacheEvict(cacheNames = CACHE_NAME, allEntries = true)
     public void deleteSysUser(Long userId) {
         requirePositive(userId);
         int rows = sysUserMapper.deleteById(userId);
@@ -303,6 +362,20 @@ public class SysUserService {
             syncToIndexAfterCommit(entity);
         }
         return entity;
+    }
+
+    @Transactional(readOnly = true)
+    public SysUser findUniqueByEmail(String email) {
+        if (isBlank(email) || !email.contains("@")) {
+            return null;
+        }
+        QueryWrapper<SysUser> wrapper = new QueryWrapper<>();
+        wrapper.eq("email", email.trim());
+        List<SysUser> matches = sysUserMapper.selectList(wrapper);
+        if (matches == null || matches.size() != 1) {
+            return null;
+        }
+        return matches.get(0);
     }
 
     public boolean isUsernameExists(String username) {

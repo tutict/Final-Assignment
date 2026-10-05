@@ -20,6 +20,7 @@ import com.tutict.finalassignmentbackend.reliability.IdempotencyInProgressExcept
 import com.tutict.finalassignmentbackend.reliability.LedgerBodyFingerprint;
 import com.tutict.finalassignmentbackend.reliability.LedgerIdempotencyDecider;
 import com.tutict.finalassignmentbackend.reliability.ReliabilityMetrics;
+import java.math.BigDecimal;
 import java.time.Duration;
 import com.tutict.finalassignmentbackend.payment.exception.PaymentOptimisticLockException;
 import com.tutict.finalassignmentbackend.payment.messaging.PaymentRecordKafkaEvent;
@@ -99,6 +100,7 @@ public class PaymentRecordService {
         validatePaymentRecord(paymentRecord);
         sensitiveDataPersistenceService.prepare(paymentRecord);
         paymentRecordMapper.insert(paymentRecord);
+        reconcileFinePayment(paymentRecord.getFineId());
         syncToIndexAfterCommit(paymentRecord);
         return paymentRecord;
     }
@@ -117,6 +119,7 @@ public class PaymentRecordService {
         );
         sensitiveDataPersistenceService.prepare(paymentRecord);
         paymentRecordMapper.insert(paymentRecord);
+        reconcileFinePayment(paymentRecord.getFineId());
         applicationEventPublisher.publishEvent(
                 new PaymentRecordKafkaEvent("payment_record_create", idempotencyKey, paymentRecord)
         );
@@ -203,13 +206,14 @@ public class PaymentRecordService {
         if (newState != null && Objects.equals(existing.getPaymentStatus(), newState.getCode())) {
             throw new PaymentOptimisticLockException("Payment status is already " + newState.getCode());
         }
-        existing.setPaymentStatus(newState != null ? newState.getCode() : existing.getPaymentStatus());
+        existing.setPaymentStatus(newState != null ? toPaymentRecordStatus(newState.getCode()) : existing.getPaymentStatus());
         existing.setUpdatedAt(LocalDateTime.now());
         int updated = paymentRecordMapper.updateById(existing);
         if (updated == 0) {
             throw new PaymentOptimisticLockException("Payment status was updated concurrently; refresh and retry");
         }
         syncToIndexAfterCommit(existing);
+        reconcileFinePayment(existing.getFineId());
         publishPaymentStatusChanged(existing);
         return existing;
     }
@@ -620,6 +624,15 @@ public class PaymentRecordService {
         if (paymentRecord.getPaymentStatus() == null || paymentRecord.getPaymentStatus().isBlank()) {
             paymentRecord.setPaymentStatus("Pending");
         }
+        if (isBlank(paymentRecord.getPaymentNumber())) {
+            paymentRecord.setPaymentNumber("PM" + System.currentTimeMillis());
+        }
+        if (isBlank(paymentRecord.getPayerName())) {
+            throw new IllegalArgumentException("请填写缴费人姓名");
+        }
+        if (isBlank(paymentRecord.getPaymentMethod())) {
+            throw new IllegalArgumentException("请选择缴费方式");
+        }
         if (paymentRecord.getFineId() != null) {
             FineRecord fine = fineRecordMapper.selectById(paymentRecord.getFineId());
             if (fine != null) {
@@ -714,6 +727,58 @@ public class PaymentRecordService {
 
     private org.springframework.data.domain.Pageable pageable(int page, int size) {
         return org.springframework.data.domain.PageRequest.of(Math.max(page - 1, 0), Math.max(size, 1));
+    }
+
+
+    private void reconcileFinePayment(Long fineId) {
+        if (fineId == null) {
+            return;
+        }
+        FineRecord fine = fineRecordMapper.selectById(fineId);
+        if (fine == null || "Waived".equalsIgnoreCase(fine.getPaymentStatus())) {
+            return;
+        }
+        QueryWrapper<PaymentRecord> wrapper = new QueryWrapper<>();
+        wrapper.eq("fine_id", fineId).eq("payment_status", "Success");
+        BigDecimal paid = paymentRecordMapper.selectList(wrapper).stream()
+                .map(payment -> payment.getPaymentAmount() == null ? BigDecimal.ZERO : payment.getPaymentAmount())
+                .reduce(BigDecimal.ZERO, BigDecimal::add);
+        BigDecimal total = fine.getTotalAmount() != null ? fine.getTotalAmount() : fine.getFineAmount();
+        if (total == null) {
+            total = BigDecimal.ZERO;
+        }
+        if (fine.getTotalAmount() == null) {
+            fine.setTotalAmount(total);
+        }
+        BigDecimal unpaid = total.subtract(paid);
+        if (unpaid.signum() < 0) {
+            unpaid = BigDecimal.ZERO;
+        }
+        fine.setPaidAmount(paid);
+        fine.setUnpaidAmount(unpaid);
+        if (paid.signum() <= 0) {
+            fine.setPaymentStatus("Unpaid");
+        } else if (unpaid.signum() == 0) {
+            fine.setPaymentStatus("Paid");
+        } else {
+            fine.setPaymentStatus("Partial");
+        }
+        fineRecordMapper.updateById(fine);
+    }
+
+
+    private static String toPaymentRecordStatus(String raw) {
+        if (raw == null || raw.isBlank()) {
+            throw new IllegalArgumentException("支付状态不能为空");
+        }
+        return switch (raw.trim().toLowerCase()) {
+            case "paid", "success", "partial" -> "Success";
+            case "unpaid", "pending", "overdue" -> "Pending";
+            case "failed", "failure", "error" -> "Failed";
+            case "refunded", "refund" -> "Refunded";
+            case "cancelled", "canceled" -> "Cancelled";
+            default -> throw new IllegalArgumentException("不支持的支付状态");
+        };
     }
 
     private void publishPaymentStatusChanged(PaymentRecord record) {

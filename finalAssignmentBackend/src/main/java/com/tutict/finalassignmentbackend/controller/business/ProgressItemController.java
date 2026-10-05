@@ -10,6 +10,7 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.annotation.security.RolesAllowed;
 import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
+import org.springframework.security.core.Authentication;
 import org.springframework.http.ResponseEntity;
 import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.web.bind.annotation.DeleteMapping;
@@ -45,27 +46,22 @@ public class ProgressItemController {
     }
 
     @PostMapping
+    @RolesAllowed({"SUPER_ADMIN", "ADMIN", "USER"})
     @Operation(summary = "创建进度记录")
     public ResponseEntity<?> create(@Valid @RequestBody SysRequestHistory request,
                                                     @RequestHeader(value = "Idempotency-Key", required = false)
                                                     String idempotencyKey) {
-        boolean useKey = hasKey(idempotencyKey);
+        if (!hasKey(request.getIdempotencyKey()) && hasKey(idempotencyKey)) {
+            request.setIdempotencyKey(idempotencyKey);
+        }
+        boolean useKey = hasKey(request.getIdempotencyKey());
         try {
-            if (useKey) {
-                if (sysRequestHistoryService.shouldSkipProcessing(idempotencyKey)) {
-                    return ResponseEntity.status(HttpStatus.ALREADY_REPORTED).body(ApiResponse.ok(null));
-                }
-                sysRequestHistoryService.checkAndInsertIdempotency(idempotencyKey, request, "create");
+            if (useKey && sysRequestHistoryService.shouldSkipProcessing(request.getIdempotencyKey())) {
+                return ResponseEntity.status(HttpStatus.ALREADY_REPORTED).body(ApiResponse.ok(null));
             }
             SysRequestHistory saved = sysRequestHistoryService.createSysRequestHistory(request);
-            if (useKey && saved.getId() != null) {
-                sysRequestHistoryService.markHistorySuccess(idempotencyKey, saved.getId());
-            }
             return ResponseEntity.status(HttpStatus.CREATED).body(saved);
         } catch (Exception ex) {
-            if (useKey) {
-                sysRequestHistoryService.markHistoryFailure(idempotencyKey, ex.getMessage());
-            }
             LOG.log(Level.SEVERE, "Create request history failed", ex);
             if (ex instanceof RuntimeException) {
                 throw (RuntimeException) ex;
@@ -75,6 +71,7 @@ public class ProgressItemController {
     }
 
     @PutMapping("/{historyId}")
+    @RolesAllowed({"SUPER_ADMIN", "ADMIN", "USER"})
     @Operation(summary = "更新进度记录")
     public ResponseEntity<SysRequestHistory> update(@PathVariable Long historyId,
                                                     @Valid @RequestBody SysRequestHistory request,
@@ -119,6 +116,7 @@ public class ProgressItemController {
     }
 
     @GetMapping("/{historyId}")
+    @RolesAllowed({"SUPER_ADMIN", "ADMIN", "USER"})
     @Operation(summary = "查询进度详情")
     public ResponseEntity<SysRequestHistory> get(@PathVariable Long historyId) {
         try {
@@ -134,11 +132,20 @@ public class ProgressItemController {
     }
 
     @GetMapping
-    @Operation(summary = "查询全部进度记录")
+    @RolesAllowed({"SUPER_ADMIN", "ADMIN", "USER"})
+    @Operation(summary = "查询进度记录")
     public ResponseEntity<List<SysRequestHistory>> list(@RequestParam(required = false) String username,
                                                         @RequestParam(defaultValue = "1") int page,
-                                                        @RequestParam(defaultValue = "20") int size) {
+                                                        @RequestParam(defaultValue = "20") int size,
+                                                        Authentication authentication) {
         try {
+            if (isRegularUser(authentication)) {
+                String self = authentication.getName();
+                if (hasKey(username) && !self.equals(username)) {
+                    return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
+                }
+                return ResponseEntity.ok(sysRequestHistoryService.findByUsername(self, page, size));
+            }
             if (hasKey(username)) {
                 return ResponseEntity.ok(sysRequestHistoryService.findByUsername(username, page, size));
             }
@@ -215,6 +222,13 @@ public class ProgressItemController {
 
     private boolean hasKey(String value) {
         return value != null && !value.isBlank();
+    }
+
+    private boolean isRegularUser(Authentication authentication) {
+        return authentication != null
+                && !com.tutict.finalassignmentbackend.config.security.SecurityRoleUtils.hasAnyRole(
+                        authentication, java.util.Set.of("SUPER_ADMIN", "ADMIN"))
+                && com.tutict.finalassignmentbackend.config.security.SecurityRoleUtils.hasRole(authentication, "USER");
     }
 
     private HttpStatus resolveStatus(Exception ex) {

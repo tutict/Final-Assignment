@@ -38,13 +38,15 @@ public class OffenseCreateRequest {
     @Size(max = 64, message = "offenseCity must not exceed 64 characters")
     private String offenseCity;
 
-    @NotNull(message = "driverId must not be null")
     @Positive(message = "driverId must be greater than zero")
     private Long driverId;
 
-    @NotNull(message = "vehicleId must not be null")
+    private String driverName;
+
     @Positive(message = "vehicleId must be greater than zero")
     private Long vehicleId;
+
+    private String licensePlate;
 
     @Size(max = 1000, message = "offenseDescription must not exceed 1000 characters")
     private String offenseDescription;

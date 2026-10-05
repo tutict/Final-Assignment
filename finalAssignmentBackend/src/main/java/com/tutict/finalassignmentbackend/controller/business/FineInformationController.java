@@ -144,12 +144,18 @@ public class FineInformationController {
     }
 
     @GetMapping("/{fineId}")
+    @RolesAllowed({"SUPER_ADMIN", "ADMIN", "TRAFFIC_POLICE", "FINANCE", "USER"})
     @Operation(summary = "查询罚款详情")
-    public ResponseEntity<ApiResponse<FineRecord>> get(@PathVariable Long fineId) {
+    public ResponseEntity<ApiResponse<FineRecord>> get(@PathVariable Long fineId,
+                                                       Authentication authentication) {
         try {
             FineRecord record = fineRecordService.findById(fineId);
             if (record == null) {
                 throw new com.tutict.finalassignmentbackend.exception.EntityNotFoundException("Fine not found: " + fineId);
+            }
+            if (!canAccessDriver(authentication, record.getDriverId())) {
+                return ResponseEntity.status(HttpStatus.FORBIDDEN)
+                        .body(ApiResponse.error("FORBIDDEN", "Forbidden"));
             }
             return ResponseEntity.ok(ApiResponse.ok(enrich(record)));
         } catch (IdempotencyReplayException | IdempotencyConflictException | IdempotencyInProgressException ex) {
@@ -269,6 +275,35 @@ public class FineInformationController {
             throw new RuntimeException(ex);
         }
     }
+
+
+    @GetMapping("/payee/{payee}")
+    @Operation(summary = "按缴费人或处理人搜索罚款")
+    public ResponseEntity<ApiResponse<List<FineRecord>>> byPayee(@PathVariable String payee,
+                                                                 @RequestParam(defaultValue = "1") int page,
+                                                                 @RequestParam(defaultValue = "20") int size) {
+        return ResponseEntity.ok(ApiResponse.ok(enrich(fineRecordService.searchByPayee(payee, page, size))));
+    }
+
+    @GetMapping("/receiptNumber/{receiptNumber}")
+    @Operation(summary = "按罚款单号查询")
+    public ResponseEntity<ApiResponse<FineRecord>> byReceipt(@PathVariable String receiptNumber) {
+        FineRecord record = fineRecordService.findByReceiptNumber(receiptNumber);
+        if (record == null) {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND)
+                    .body(ApiResponse.error("NOT_FOUND", "Fine not found"));
+        }
+        return ResponseEntity.ok(ApiResponse.ok(enrich(record)));
+    }
+
+    @GetMapping("/by-time-range")
+    @Operation(summary = "按开具时间建议罚款记录")
+    public ResponseEntity<ApiResponse<List<FineRecord>>> byTimeRange(@RequestParam String startTime,
+                                                                     @RequestParam String endTime,
+                                                                     @RequestParam(defaultValue = "10") int maxSuggestions) {
+        return ResponseEntity.ok(ApiResponse.ok(enrich(fineRecordService.searchByTimeRange(startTime, endTime, maxSuggestions))));
+    }
+
 
     private boolean hasKey(String value) {
         return value != null && !value.isBlank();

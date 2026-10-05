@@ -253,8 +253,7 @@ public class DriverVehicleService {
             String payload = objectMapper.writeValueAsString(binding);
             kafkaTemplate.send(topic, idempotencyKey, payload);
         } catch (Exception ex) {
-            log.log(Level.SEVERE, "Failed to send DriverVehicle Kafka message", ex);
-            throw new RuntimeException("Failed to send driver-vehicle event", ex);
+            log.log(Level.WARNING, "Failed to send DriverVehicle Kafka message", ex);
         }
     }
 
@@ -262,13 +261,10 @@ public class DriverVehicleService {
         if (binding == null) {
             return;
         }
-        TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
-            @Override
-            public void afterCommit() {
-                DriverVehicleDocument doc = DriverVehicleDocument.fromEntity(binding);
-                if (doc != null) {
-                    driverVehicleSearchRepository.save(doc);
-                }
+        runAfterCommitOrNow(() -> {
+            DriverVehicleDocument doc = DriverVehicleDocument.fromEntity(binding);
+            if (doc != null) {
+                driverVehicleSearchRepository.save(doc);
             }
         });
     }
@@ -277,17 +273,34 @@ public class DriverVehicleService {
         if (records == null || records.isEmpty()) {
             return;
         }
+        runAfterCommitOrNow(() -> {
+            List<DriverVehicleDocument> documents = records.stream()
+                    .filter(Objects::nonNull)
+                    .map(DriverVehicleDocument::fromEntity)
+                    .filter(Objects::nonNull)
+                    .collect(Collectors.toList());
+            if (!documents.isEmpty()) {
+                driverVehicleSearchRepository.saveAll(documents);
+            }
+        });
+    }
+
+    private void runAfterCommitOrNow(Runnable action) {
+        Runnable safe = () -> {
+            try {
+                action.run();
+            } catch (RuntimeException ex) {
+                log.log(Level.WARNING, "DriverVehicle index sync failed", ex);
+            }
+        };
+        if (!TransactionSynchronizationManager.isSynchronizationActive()) {
+            safe.run();
+            return;
+        }
         TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
             @Override
             public void afterCommit() {
-                List<DriverVehicleDocument> documents = records.stream()
-                        .filter(Objects::nonNull)
-                        .map(DriverVehicleDocument::fromEntity)
-                        .filter(Objects::nonNull)
-                        .collect(Collectors.toList());
-                if (!documents.isEmpty()) {
-                    driverVehicleSearchRepository.saveAll(documents);
-                }
+                safe.run();
             }
         });
     }

@@ -19,6 +19,8 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.annotation.security.RolesAllowed;
 import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
+import org.springframework.security.core.Authentication;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -129,6 +131,35 @@ public class UserManagementController {
             LOG.log(Level.WARNING, "Delete user failed", ex);
             throw ex;
         }
+    }
+
+    @GetMapping("/me")
+    @RolesAllowed({"SUPER_ADMIN", "ADMIN", "USER", "TRAFFIC_POLICE", "FINANCE", "APPEAL_REVIEWER"})
+    @Operation(summary = "查询当前用户")
+    public ResponseEntity<ApiResponse<UserResponse>> currentUser(Authentication authentication) {
+        SysUser user = sysUserService.findByUsername(authentication.getName());
+        return user == null
+                ? ResponseEntity.status(HttpStatus.NOT_FOUND)
+                .body(ApiResponse.error("USER_NOT_FOUND", "User not found"))
+                : ResponseEntity.ok(ApiResponse.ok(toUserResponse(user)));
+    }
+
+    @PutMapping("/me")
+    @RolesAllowed({"SUPER_ADMIN", "ADMIN", "USER", "TRAFFIC_POLICE", "FINANCE", "APPEAL_REVIEWER"})
+    @Operation(summary = "更新当前用户资料")
+    public ResponseEntity<ApiResponse<UserResponse>> updateCurrentUser(@RequestBody SysUser patch,
+                                                                       Authentication authentication) {
+        SysUser updated = sysUserService.updateOwnProfile(authentication.getName(), patch);
+        return ResponseEntity.ok(ApiResponse.ok(toUserResponse(updated)));
+    }
+
+    @PutMapping(value = "/me/password", consumes = MediaType.TEXT_PLAIN_VALUE)
+    @RolesAllowed({"SUPER_ADMIN", "ADMIN", "USER", "TRAFFIC_POLICE", "FINANCE", "APPEAL_REVIEWER"})
+    @Operation(summary = "修改当前用户密码")
+    public ResponseEntity<Void> updateCurrentPassword(@RequestBody String newPassword,
+                                                      Authentication authentication) {
+        sysUserService.updateOwnPassword(authentication.getName(), newPassword);
+        return ResponseEntity.noContent().build();
     }
 
     @GetMapping("/{userId}")

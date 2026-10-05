@@ -150,6 +150,12 @@ public class FineRecord implements Serializable {
     @TableField("remarks")
     private String remarks;
 
+    /**
+     * 旧客户端用罚款时间字符串提交。不入库；缺少 fineDate 时由服务折算成日期。
+     */
+    @TableField(exist = false)
+    private String fineTime;
+
     @TableField(exist = false)
     private String driverName;
 

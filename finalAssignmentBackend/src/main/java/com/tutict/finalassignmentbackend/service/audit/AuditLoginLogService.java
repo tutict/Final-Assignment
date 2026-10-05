@@ -349,14 +349,14 @@ public class AuditLoginLogService {
         }
     }
 
-    private void syncToIndexAfterCommit(AuditLoginLog loginLog) {
-        TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
-            @Override
-            public void afterCommit() {
-                AuditLoginLogDocument doc = AuditLoginLogDocument.fromEntity(loginLog);
-                if (doc != null) {
-                    auditLoginLogSearchRepository.save(doc);
-                }
+    private void syncToIndexAfterCommit(AuditLoginLog record) {
+        if (record == null) {
+            return;
+        }
+        runAfterCommitOrNow(() -> {
+            AuditLoginLogDocument doc = AuditLoginLogDocument.fromEntity(record);
+            if (doc != null) {
+                auditLoginLogSearchRepository.save(doc);
             }
         });
     }
@@ -365,17 +365,34 @@ public class AuditLoginLogService {
         if (records == null || records.isEmpty()) {
             return;
         }
+        runAfterCommitOrNow(() -> {
+            List<AuditLoginLogDocument> documents = records.stream()
+                    .filter(Objects::nonNull)
+                    .map(AuditLoginLogDocument::fromEntity)
+                    .filter(Objects::nonNull)
+                    .collect(Collectors.toList());
+            if (!documents.isEmpty()) {
+                auditLoginLogSearchRepository.saveAll(documents);
+            }
+        });
+    }
+
+    private void runAfterCommitOrNow(Runnable action) {
+        Runnable safe = () -> {
+            try {
+                action.run();
+            } catch (RuntimeException ex) {
+                log.log(Level.WARNING, "AuditLoginLog index sync failed", ex);
+            }
+        };
+        if (!TransactionSynchronizationManager.isSynchronizationActive()) {
+            safe.run();
+            return;
+        }
         TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
             @Override
             public void afterCommit() {
-                List<AuditLoginLogDocument> documents = records.stream()
-                        .filter(Objects::nonNull)
-                        .map(AuditLoginLogDocument::fromEntity)
-                        .filter(Objects::nonNull)
-                        .collect(Collectors.toList());
-                if (!documents.isEmpty()) {
-                    auditLoginLogSearchRepository.saveAll(documents);
-                }
+                safe.run();
             }
         });
     }

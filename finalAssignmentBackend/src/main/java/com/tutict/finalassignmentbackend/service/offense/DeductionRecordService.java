@@ -3,9 +3,13 @@ package com.tutict.finalassignmentbackend.service.offense;
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.tutict.finalassignmentbackend.config.websocket.WsAction;
+import com.tutict.finalassignmentbackend.entity.driver.DriverInformation;
 import com.tutict.finalassignmentbackend.entity.offense.DeductionRecord;
+import com.tutict.finalassignmentbackend.entity.offense.OffenseRecord;
+import com.tutict.finalassignmentbackend.mapper.offense.OffenseRecordMapper;
 import com.tutict.finalassignmentbackend.entity.system.SysRequestHistory;
 import com.tutict.finalassignmentbackend.entity.elastic.DeductionRecordDocument;
+import com.tutict.finalassignmentbackend.mapper.driver.DriverInformationMapper;
 import com.tutict.finalassignmentbackend.mapper.offense.DeductionRecordMapper;
 import com.tutict.finalassignmentbackend.mapper.system.SysRequestHistoryMapper;
 import com.tutict.finalassignmentbackend.reliability.LedgerBodyFingerprint;
@@ -36,6 +40,8 @@ public class DeductionRecordService {
     private static final String CACHE_NAME = "deductionRecordCache";
 
     private final DeductionRecordMapper deductionRecordMapper;
+    private final DriverInformationMapper driverInformationMapper;
+    private final OffenseRecordMapper offenseRecordMapper;
     private final SysRequestHistoryMapper sysRequestHistoryMapper;
     private final DeductionRecordSearchRepository deductionRecordSearchRepository;
     private final KafkaTemplate<String, DeductionRecord> kafkaTemplate;
@@ -43,11 +49,15 @@ public class DeductionRecordService {
 
     @Autowired
     public DeductionRecordService(DeductionRecordMapper deductionRecordMapper,
+                                  DriverInformationMapper driverInformationMapper,
+                                  OffenseRecordMapper offenseRecordMapper,
                                   SysRequestHistoryMapper sysRequestHistoryMapper,
                                   DeductionRecordSearchRepository deductionRecordSearchRepository,
                                   KafkaTemplate<String, DeductionRecord> kafkaTemplate,
                                   LedgerHistoryReserve ledgerHistoryReserve) {
         this.deductionRecordMapper = deductionRecordMapper;
+        this.driverInformationMapper = driverInformationMapper;
+        this.offenseRecordMapper = offenseRecordMapper;
         this.sysRequestHistoryMapper = sysRequestHistoryMapper;
         this.deductionRecordSearchRepository = deductionRecordSearchRepository;
         this.kafkaTemplate = kafkaTemplate;
@@ -76,6 +86,7 @@ public class DeductionRecordService {
     public DeductionRecord createDeductionRecord(DeductionRecord deductionRecord) {
         validateDeductionRecord(deductionRecord);
         deductionRecordMapper.insert(deductionRecord);
+        reconcileDriverPoints(deductionRecord.getDriverId());
         syncToIndexAfterCommit(deductionRecord);
         return deductionRecord;
     }
@@ -90,6 +101,7 @@ public class DeductionRecordService {
             throw new IllegalStateException("No DeductionRecord updated for id=" + deductionRecord.getDeductionId());
         }
         syncToIndexAfterCommit(deductionRecord);
+        reconcileDriverPoints(deductionRecord.getDriverId());
         return deductionRecord;
     }
 
@@ -97,9 +109,13 @@ public class DeductionRecordService {
     @CacheEvict(cacheNames = CACHE_NAME, allEntries = true)
     public void deleteDeductionRecord(Long deductionId) {
         requirePositive(deductionId, "Deduction ID");
+        DeductionRecord existing = deductionRecordMapper.selectById(deductionId);
         int rows = deductionRecordMapper.deleteById(deductionId);
         if (rows == 0) {
             throw new IllegalStateException("No DeductionRecord deleted for id=" + deductionId);
+        }
+        if (existing != null) {
+            reconcileDriverPoints(existing.getDriverId());
         }
         TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
             @Override
@@ -267,17 +283,14 @@ public class DeductionRecordService {
         sysRequestHistoryMapper.updateById(history);
     }
 
-    private void syncToIndexAfterCommit(DeductionRecord deductionRecord) {
-        if (deductionRecord == null) {
+    private void syncToIndexAfterCommit(DeductionRecord record) {
+        if (record == null) {
             return;
         }
-        TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
-            @Override
-            public void afterCommit() {
-                DeductionRecordDocument doc = DeductionRecordDocument.fromEntity(deductionRecord);
-                if (doc != null) {
-                    deductionRecordSearchRepository.save(doc);
-                }
+        runAfterCommitOrNow(() -> {
+            DeductionRecordDocument doc = DeductionRecordDocument.fromEntity(record);
+            if (doc != null) {
+                deductionRecordSearchRepository.save(doc);
             }
         });
     }
@@ -286,29 +299,46 @@ public class DeductionRecordService {
         if (records == null || records.isEmpty()) {
             return;
         }
-        TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
-            @Override
-            public void afterCommit() {
-                List<DeductionRecordDocument> documents = records.stream()
-                        .filter(Objects::nonNull)
-                        .map(DeductionRecordDocument::fromEntity)
-                        .filter(Objects::nonNull)
-                        .collect(Collectors.toList());
-                if (!documents.isEmpty()) {
-                    deductionRecordSearchRepository.saveAll(documents);
-                }
+        runAfterCommitOrNow(() -> {
+            List<DeductionRecordDocument> documents = records.stream()
+                    .filter(Objects::nonNull)
+                    .map(DeductionRecordDocument::fromEntity)
+                    .filter(Objects::nonNull)
+                    .collect(Collectors.toList());
+            if (!documents.isEmpty()) {
+                deductionRecordSearchRepository.saveAll(documents);
             }
         });
     }
+
+    private void runAfterCommitOrNow(Runnable action) {
+        Runnable safe = () -> {
+            try {
+                action.run();
+            } catch (RuntimeException ex) {
+                log.log(Level.WARNING, "DeductionRecord index sync failed", ex);
+            }
+        };
+        if (!TransactionSynchronizationManager.isSynchronizationActive()) {
+            safe.run();
+            return;
+        }
+        TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
+            @Override
+            public void afterCommit() {
+                safe.run();
+            }
+        });
+    }
+
 
     private void sendKafkaMessage(String topic, String idempotencyKey, DeductionRecord deductionRecord) {
         try {
             kafkaTemplate.send(topic, idempotencyKey, deductionRecord);
         } catch (Exception ex) {
-            log.log(Level.SEVERE,
+            log.log(Level.WARNING,
                     String.format("Failed to send DeductionRecord Kafka message (topic=%s, key=%s)", topic, idempotencyKey),
                     ex);
-            throw new RuntimeException("Failed to send deduction record event", ex);
         }
     }
 
@@ -334,6 +364,38 @@ public class DeductionRecordService {
         return org.springframework.data.domain.PageRequest.of(Math.max(page - 1, 0), Math.max(size, 1));
     }
 
+
+    private void reconcileDriverPoints(Long driverId) {
+        if (driverId == null) {
+            return;
+        }
+        DriverInformation driver = driverInformationMapper.selectById(driverId);
+        if (driver == null) {
+            return;
+        }
+        List<DeductionRecord> records = deductionRecordMapper.selectList(new QueryWrapper<DeductionRecord>()
+                .eq("driver_id", driverId)
+                .eq("status", "Effective")
+                .isNull("deleted_at"));
+        int total = records.stream()
+                .map(DeductionRecord::getDeductedPoints)
+                .filter(Objects::nonNull)
+                .mapToInt(Integer::intValue)
+                .sum();
+        int year = LocalDateTime.now().getYear();
+        String cycle = year + "-" + (year + 1);
+        int cycleTotal = records.stream()
+                .filter(record -> cycle.equals(record.getScoringCycle()))
+                .map(DeductionRecord::getDeductedPoints)
+                .filter(Objects::nonNull)
+                .mapToInt(Integer::intValue)
+                .sum();
+        driver.setTotalDeductedPoints(total);
+        driver.setCurrentPoints(Math.max(0, 12 - cycleTotal));
+        driver.setUpdatedAt(LocalDateTime.now());
+        driverInformationMapper.updateById(driver);
+    }
+
     private void validateDeductionRecord(DeductionRecord deductionRecord) {
         Objects.requireNonNull(deductionRecord, "DeductionRecord must not be null");
         if (deductionRecord.getDeductionTime() == null) {
@@ -347,8 +409,16 @@ public class DeductionRecordService {
             deductionRecord.setScoringCycle(year + "-" + (year + 1));
         }
         if (deductionRecord.getHandler() == null || deductionRecord.getHandler().isBlank()) {
-            deductionRecord.setHandler("system");
+            deductionRecord.setHandler("系统");
         }
+        if (deductionRecord.getDriverId() == null && deductionRecord.getOffenseId() != null) {
+            OffenseRecord offense = offenseRecordMapper.selectById(deductionRecord.getOffenseId());
+            if (offense != null) {
+                deductionRecord.setDriverId(offense.getDriverId());
+            }
+        }
+        requirePositive(deductionRecord.getOffenseId(), "Offense ID");
+        requirePositive(deductionRecord.getDriverId(), "Driver ID");
     }
 
     private void validatePagination(int page, int size) {

@@ -1,7 +1,6 @@
 package com.tutict.finalassignmentbackend.ai.agent;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-import org.springframework.boot.autoconfigure.condition.ConditionalOnBean;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Component;
@@ -12,7 +11,6 @@ import java.util.Optional;
 
 @Component
 @ConditionalOnProperty(name = "ai.agent.draft.store", havingValue = "redis")
-@ConditionalOnBean(StringRedisTemplate.class)
 public class RedisAgentDraftStore implements AgentDraftStore {
 
     private static final String DRAFT_PREFIX = "ai:agent:draft:";

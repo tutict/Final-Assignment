@@ -109,7 +109,11 @@ public class AuthWsService {
         validateLoginRequest(loginRequest);
 
         logger.info(() -> String.format("[WS] Attempting to authenticate user: %s", loginRequest.getUsername()));
-        SysUser user = sysUserService.findByUsername(loginRequest.getUsername());
+        String loginName = loginRequest.getUsername().trim();
+        SysUser user = sysUserService.findByUsername(loginName);
+        if (user == null) {
+            user = sysUserService.findUniqueByEmail(loginName);
+        }
 
         if (user != null && authenticateUser(user, loginRequest.getPassword())) {
             RoleAggregation aggregation = requireRoles(user, loginRequest.getUsername());

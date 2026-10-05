@@ -1,5 +1,6 @@
 package com.tutict.finalassignmentbackend.dto.request;
 
+import com.fasterxml.jackson.annotation.JsonAlias;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Pattern;
@@ -21,10 +22,12 @@ public class AppealCreateRequest {
 
     @NotBlank(message = "身份证号不能为空")
     @Pattern(regexp = "^\\d{17}[\\dXx]$", message = "身份证号格式不正确")
+    @JsonAlias("appellantIdCard")
     private String idCard;
 
     @NotBlank(message = "联系方式不能为空")
     @Pattern(regexp = "^1[3-9]\\d{9}$", message = "手机号格式不正确")
+    @JsonAlias("appellantContact")
     private String contact;
 
     private String appealType = "Other";

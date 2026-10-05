@@ -17,6 +17,9 @@ public class AppealResponse {
     private String appellantName;
     private String idCard;
     private String contact;
+    /** Same values as idCard/contact. React and Go read these names. */
+    private String appellantIdCard;
+    private String appellantContact;
     private String appealType;
     private String appealReason;
     private LocalDateTime appealTime;
@@ -47,6 +50,8 @@ public class AppealResponse {
                 .appellantName(record.getAppellantName())
                 .idCard(record.getAppellantIdCard())
                 .contact(record.getAppellantContact())
+                .appellantIdCard(record.getAppellantIdCard())
+                .appellantContact(record.getAppellantContact())
                 .appealType(record.getAppealType())
                 .appealReason(record.getAppealReason())
                 .appealTime(record.getAppealTime())

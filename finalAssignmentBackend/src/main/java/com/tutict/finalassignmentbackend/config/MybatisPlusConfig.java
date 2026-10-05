@@ -2,6 +2,7 @@ package com.tutict.finalassignmentbackend.config;
 
 import com.baomidou.mybatisplus.spring.MybatisSqlSessionFactoryBean;
 import com.tutict.finalassignmentbackend.common.PageLimits;
+import com.tutict.finalassignmentbackend.config.mybatis.RequestHistoryUserInterceptor;
 import com.tutict.finalassignmentbackend.config.mybatis.SlowSqlLoggingInterceptor;
 import javax.sql.DataSource;
 import org.apache.ibatis.session.SqlSessionFactory;
@@ -33,10 +34,11 @@ public class MybatisPlusConfig {
     @ConditionalOnMissingBean
     public SqlSessionFactory sqlSessionFactory(DataSource dataSource,
                                                MybatisPlusInterceptor mybatisPlusInterceptor,
-                                               SlowSqlLoggingInterceptor slowSqlLoggingInterceptor) throws Exception {
+                                               SlowSqlLoggingInterceptor slowSqlLoggingInterceptor,
+                                               RequestHistoryUserInterceptor requestHistoryUserInterceptor) throws Exception {
         MybatisSqlSessionFactoryBean factory = new MybatisSqlSessionFactoryBean();
         factory.setDataSource(dataSource);
-        factory.setPlugins(mybatisPlusInterceptor, slowSqlLoggingInterceptor);
+        factory.setPlugins(requestHistoryUserInterceptor, mybatisPlusInterceptor, slowSqlLoggingInterceptor);
         return factory.getObject();
     }
 }

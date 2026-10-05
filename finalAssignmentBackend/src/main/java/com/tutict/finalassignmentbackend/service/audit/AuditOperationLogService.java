@@ -74,7 +74,11 @@ public class AuditOperationLogService {
         history.setUpdatedAt(LocalDateTime.now());
         sysRequestHistoryMapper.insert(history);
 
-        sendKafkaMessage("audit_operation_log_" + action, idempotencyKey, auditOperationLog);
+        try {
+            sendKafkaMessage("audit_operation_log_" + action, idempotencyKey, auditOperationLog);
+        } catch (RuntimeException ex) {
+            log.log(Level.WARNING, "Operation log Kafka publish failed after idempotency reserve", ex);
+        }
 
         history.setBusinessStatus("SUCCESS");
         history.setBusinessId(auditOperationLog.getLogId());
@@ -345,17 +349,14 @@ public class AuditOperationLogService {
         }
     }
 
-    private void syncToIndexAfterCommit(AuditOperationLog auditOperationLog) {
-        if (auditOperationLog == null) {
+    private void syncToIndexAfterCommit(AuditOperationLog record) {
+        if (record == null) {
             return;
         }
-        TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
-            @Override
-            public void afterCommit() {
-                AuditOperationLogDocument doc = AuditOperationLogDocument.fromEntity(auditOperationLog);
-                if (doc != null) {
-                    auditOperationLogSearchRepository.save(doc);
-                }
+        runAfterCommitOrNow(() -> {
+            AuditOperationLogDocument doc = AuditOperationLogDocument.fromEntity(record);
+            if (doc != null) {
+                auditOperationLogSearchRepository.save(doc);
             }
         });
     }
@@ -364,17 +365,34 @@ public class AuditOperationLogService {
         if (records == null || records.isEmpty()) {
             return;
         }
+        runAfterCommitOrNow(() -> {
+            List<AuditOperationLogDocument> documents = records.stream()
+                    .filter(Objects::nonNull)
+                    .map(AuditOperationLogDocument::fromEntity)
+                    .filter(Objects::nonNull)
+                    .collect(Collectors.toList());
+            if (!documents.isEmpty()) {
+                auditOperationLogSearchRepository.saveAll(documents);
+            }
+        });
+    }
+
+    private void runAfterCommitOrNow(Runnable action) {
+        Runnable safe = () -> {
+            try {
+                action.run();
+            } catch (RuntimeException ex) {
+                log.log(Level.WARNING, "AuditOperationLog index sync failed", ex);
+            }
+        };
+        if (!TransactionSynchronizationManager.isSynchronizationActive()) {
+            safe.run();
+            return;
+        }
         TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
             @Override
             public void afterCommit() {
-                List<AuditOperationLogDocument> documents = records.stream()
-                        .filter(Objects::nonNull)
-                        .map(AuditOperationLogDocument::fromEntity)
-                        .filter(Objects::nonNull)
-                        .collect(Collectors.toList());
-                if (!documents.isEmpty()) {
-                    auditOperationLogSearchRepository.saveAll(documents);
-                }
+                safe.run();
             }
         });
     }
@@ -407,6 +425,21 @@ public class AuditOperationLogService {
         }
         if (auditOperationLog.getOperationTime() == null) {
             auditOperationLog.setOperationTime(LocalDateTime.now());
+        }
+        if (auditOperationLog.getOperationType() == null || auditOperationLog.getOperationType().isBlank()) {
+            auditOperationLog.setOperationType("API");
+        }
+        if (auditOperationLog.getOperationModule() == null || auditOperationLog.getOperationModule().isBlank()) {
+            auditOperationLog.setOperationModule("System");
+        }
+        if (auditOperationLog.getOperationFunction() == null || auditOperationLog.getOperationFunction().isBlank()) {
+            auditOperationLog.setOperationFunction("event");
+        }
+        if (auditOperationLog.getRequestIp() == null || auditOperationLog.getRequestIp().isBlank()) {
+            auditOperationLog.setRequestIp("0.0.0.0");
+        }
+        if (auditOperationLog.getUsername() == null || auditOperationLog.getUsername().isBlank()) {
+            auditOperationLog.setUsername("unknown");
         }
     }
 

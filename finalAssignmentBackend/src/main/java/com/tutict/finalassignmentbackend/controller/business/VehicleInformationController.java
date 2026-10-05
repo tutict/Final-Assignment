@@ -763,7 +763,26 @@ public class VehicleInformationController {
     }
 
     private java.time.LocalDate parseDate(Object value) {
-        return value == null ? null : java.time.LocalDate.parse(value.toString());
+        if (value == null) {
+            return null;
+        }
+        String text = value.toString().trim().replace(' ', 'T');
+        if (text.isEmpty()) {
+            return null;
+        }
+        if (text.endsWith("Z") || text.contains("+") || text.lastIndexOf('-') > 7) {
+            try {
+                return java.time.OffsetDateTime.parse(text)
+                        .atZoneSameInstant(java.time.ZoneId.systemDefault())
+                        .toLocalDate();
+            } catch (java.time.format.DateTimeParseException ignored) {
+                // Fall through to the date prefix.
+            }
+        }
+        if (text.length() >= 10 && text.charAt(4) == '-' && text.charAt(7) == '-') {
+            return java.time.LocalDate.parse(text.substring(0, 10));
+        }
+        return java.time.LocalDate.parse(text);
     }
 
     private HttpStatus resolveStatus(Exception ex) {

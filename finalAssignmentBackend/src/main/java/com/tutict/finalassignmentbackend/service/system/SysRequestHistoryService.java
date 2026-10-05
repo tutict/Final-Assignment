@@ -1,13 +1,17 @@
 package com.tutict.finalassignmentbackend.service.system;
 
-import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.tutict.finalassignmentbackend.common.PageLimits;
 import com.tutict.finalassignmentbackend.config.websocket.WsAction;
 import com.tutict.finalassignmentbackend.entity.system.SysRequestHistory;
 import com.tutict.finalassignmentbackend.entity.elastic.SysRequestHistoryDocument;
+import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
+import com.tutict.finalassignmentbackend.entity.admin.SysUser;
+import com.tutict.finalassignmentbackend.mapper.admin.SysUserMapper;
 import com.tutict.finalassignmentbackend.mapper.system.SysRequestHistoryMapper;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContextHolder;
 import com.tutict.finalassignmentbackend.repository.SysRequestHistorySearchRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.cache.annotation.CacheEvict;
@@ -36,16 +40,19 @@ public class SysRequestHistoryService {
 
     private final SysRequestHistoryMapper sysRequestHistoryMapper;
     private final SysRequestHistorySearchRepository sysRequestHistorySearchRepository;
+    private final SysUserMapper sysUserMapper;
     private final KafkaTemplate<String, String> kafkaTemplate;
     private final ObjectMapper objectMapper;
 
     @Autowired
     public SysRequestHistoryService(SysRequestHistoryMapper sysRequestHistoryMapper,
                                     SysRequestHistorySearchRepository sysRequestHistorySearchRepository,
+                                    SysUserMapper sysUserMapper,
                                     KafkaTemplate<String, String> kafkaTemplate,
                                     ObjectMapper objectMapper) {
         this.sysRequestHistoryMapper = sysRequestHistoryMapper;
         this.sysRequestHistorySearchRepository = sysRequestHistorySearchRepository;
+        this.sysUserMapper = sysUserMapper;
         this.kafkaTemplate = kafkaTemplate;
         this.objectMapper = objectMapper;
     }
@@ -64,8 +71,10 @@ public class SysRequestHistoryService {
         SysRequestHistory history = new SysRequestHistory();
         history.setIdempotencyKey(idempotencyKey);
         history.setBusinessStatus("PROCESSING");
+        history.setUsername(historyPayload.getUsername());
         history.setCreatedAt(LocalDateTime.now());
         history.setUpdatedAt(LocalDateTime.now());
+        assignUser(history);
         sysRequestHistoryMapper.insert(history);
 
         sendKafkaMessage("sys_request_history_" + action, idempotencyKey, historyPayload);
@@ -81,6 +90,7 @@ public class SysRequestHistoryService {
     @CacheEvict(cacheNames = CACHE_NAME, allEntries = true)
     public SysRequestHistory createSysRequestHistory(SysRequestHistory history) {
         validateHistory(history);
+        assignUser(history);
         sysRequestHistoryMapper.insert(history);
         syncToIndexAfterCommit(history);
         return history;
@@ -377,8 +387,7 @@ public class SysRequestHistoryService {
             String payload = objectMapper.writeValueAsString(history);
             kafkaTemplate.send(topic, idempotencyKey, payload);
         } catch (Exception ex) {
-            log.log(Level.SEVERE, "Failed to send SysRequestHistory Kafka message", ex);
-            throw new RuntimeException("Failed to send sys request history event", ex);
+            log.log(Level.WARNING, "Failed to send SysRequestHistory Kafka message", ex);
         }
     }
 
@@ -386,13 +395,10 @@ public class SysRequestHistoryService {
         if (history == null) {
             return;
         }
-        TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
-            @Override
-            public void afterCommit() {
-                SysRequestHistoryDocument doc = SysRequestHistoryDocument.fromEntity(history);
-                if (doc != null) {
-                    sysRequestHistorySearchRepository.save(doc);
-                }
+        runAfterCommitOrNow(() -> {
+            SysRequestHistoryDocument doc = SysRequestHistoryDocument.fromEntity(history);
+            if (doc != null) {
+                sysRequestHistorySearchRepository.save(doc);
             }
         });
     }
@@ -401,17 +407,34 @@ public class SysRequestHistoryService {
         if (records == null || records.isEmpty()) {
             return;
         }
+        runAfterCommitOrNow(() -> {
+            List<SysRequestHistoryDocument> documents = records.stream()
+                    .filter(Objects::nonNull)
+                    .map(SysRequestHistoryDocument::fromEntity)
+                    .filter(Objects::nonNull)
+                    .collect(Collectors.toList());
+            if (!documents.isEmpty()) {
+                sysRequestHistorySearchRepository.saveAll(documents);
+            }
+        });
+    }
+
+    private void runAfterCommitOrNow(Runnable action) {
+        Runnable safe = () -> {
+            try {
+                action.run();
+            } catch (RuntimeException ex) {
+                log.log(Level.WARNING, "Request history index sync failed", ex);
+            }
+        };
+        if (!TransactionSynchronizationManager.isSynchronizationActive()) {
+            safe.run();
+            return;
+        }
         TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
             @Override
             public void afterCommit() {
-                List<SysRequestHistoryDocument> documents = records.stream()
-                        .filter(Objects::nonNull)
-                        .map(SysRequestHistoryDocument::fromEntity)
-                        .filter(Objects::nonNull)
-                        .collect(Collectors.toList());
-                if (!documents.isEmpty()) {
-                    sysRequestHistorySearchRepository.saveAll(documents);
-                }
+                safe.run();
             }
         });
     }
@@ -438,12 +461,44 @@ public class SysRequestHistoryService {
         return org.springframework.data.domain.PageRequest.of(PageLimits.normalizeZeroBasedPage(page), PageLimits.normalizeSize(size));
     }
 
+
+    private void assignUser(SysRequestHistory history) {
+        if (history == null || history.getUserId() != null) {
+            return;
+        }
+        String username = history.getUsername();
+        if (isBlank(username)) {
+            Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+            if (authentication != null && authentication.isAuthenticated()) {
+                username = authentication.getName();
+            }
+        }
+        if (isBlank(username) || "anonymousUser".equals(username)) {
+            return;
+        }
+        SysUser user = sysUserMapper.selectOne(new QueryWrapper<SysUser>()
+                .eq("username", username.trim())
+                .last("LIMIT 1"));
+        if (user != null) {
+            history.setUserId(user.getUserId());
+        }
+    }
+
     private void validateHistory(SysRequestHistory history) {
         if (history == null) {
             throw new IllegalArgumentException("SysRequestHistory must not be null");
         }
         if (isBlank(history.getIdempotencyKey())) {
-            throw new IllegalArgumentException("Idempotency key must not be blank");
+            history.setIdempotencyKey(java.util.UUID.randomUUID().toString().replace("-", ""));
+        }
+        if (isBlank(history.getBusinessType())) {
+            history.setBusinessType("GENERAL");
+        }
+        if (isBlank(history.getRequestMethod())) {
+            history.setRequestMethod("POST");
+        }
+        if (history.getRequestUrl() == null) {
+            history.setRequestUrl("/api/progress");
         }
         if (history.getCreatedAt() == null) {
             history.setCreatedAt(LocalDateTime.now());
