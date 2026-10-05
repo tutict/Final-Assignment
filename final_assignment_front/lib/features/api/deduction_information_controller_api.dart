@@ -65,8 +65,12 @@ class DeductionInformationControllerApi with BaseApiClient {
     return requestVoid('DELETE', '/api/deductions/$deductionId');
   }
 
-  Future<void> clearCache() {
-    return requestVoid('POST', '/api/cache/clear');
+  Future<void> clearCache() async {
+    try {
+      await requestVoid('POST', '/api/cache/clear');
+    } catch (_) {
+      // This route is not provided by the backend. Missing it must not wipe a list that already loaded.
+    }
   }
 
   Future<List<DeductionRecordModel>> listDeductionsByDriver({

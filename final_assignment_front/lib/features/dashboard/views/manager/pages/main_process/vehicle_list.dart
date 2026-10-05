@@ -11,7 +11,6 @@ import 'package:final_assignment_front/features/dashboard/views/shared/widgets/d
 import 'package:final_assignment_front/features/dashboard/views/shared/widgets/dashboard_page_template.dart';
 import 'package:final_assignment_front/features/dashboard/views/shared/widgets/page_auth_mixin.dart';
 import 'package:final_assignment_front/features/model/driver_information.dart';
-import 'package:final_assignment_front/features/model/user_management.dart';
 import 'package:final_assignment_front/features/model/vehicle_information.dart';
 import 'package:final_assignment_front/shared/dialogs/app_dialog.dart';
 import 'package:final_assignment_front/utils/widgets/index.dart';
@@ -1202,10 +1201,13 @@ class _VehicleDetailPageState extends State<VehicleDetailPage>
       final username = claims['sub']?.toString() ?? '';
       if (username.isEmpty) throw Exception('JWT 中未找到用户名');
       await vehicleApi.initializeWithJwt();
-      final user = await _fetchUserManagement();
-      final driverInfo = user?.userId != null
-          ? await _fetchDriverInformation(user!.userId!)
-          : null;
+      final profile = await AuthControllerApi().getCurrentProfile();
+      final rawDriverId = profile?['driverId'];
+      final driverId = rawDriverId is int
+          ? rawDriverId
+          : int.tryParse('${rawDriverId ?? ''}');
+      final driverInfo =
+          driverId != null ? await _fetchDriverInformation(driverId) : null;
       _currentDriverName = driverInfo?.name ?? username;
       await _checkUserRole();
     } catch (e) {
@@ -1215,23 +1217,12 @@ class _VehicleDetailPageState extends State<VehicleDetailPage>
     }
   }
 
-  Future<UserManagement?> _fetchUserManagement() async {
-    try {
-      if (await ensureFreshJwt() == null) return null;
-      final userData = await AuthControllerApi().getCurrentProfile();
-      return userData == null ? null : UserManagement.fromJson(userData);
-    } catch (e) {
-      setState(() => _errorMessage = '获取用户信息失败: $e');
-      return null;
-    }
-  }
-
-  Future<DriverInformation?> _fetchDriverInformation(int userId) async {
+  Future<DriverInformation?> _fetchDriverInformation(int driverId) async {
     try {
       if (await ensureFreshJwt() == null) return null;
       final driverApi = DriverInformationControllerApi();
       await driverApi.initializeWithJwt();
-      return await driverApi.getDriver(driverId: userId);
+      return await driverApi.getDriver(driverId: driverId);
     } catch (e) {
       setState(() => _errorMessage = '获取司机信息失败: $e');
       return null;

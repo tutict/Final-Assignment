@@ -1388,6 +1388,10 @@ class DashboardScreen extends GetView<ManagerDashboardController> {
 
   bool _isCompletedStatus(String? status) {
     final value = (status ?? '').trim().toLowerCase();
+    // Unprocessed contains the substring "processed"; it is still open work.
+    if (value.isEmpty || value.contains('unprocessed')) {
+      return false;
+    }
     return value.contains('processed') ||
         value.contains('complete') ||
         value.contains('paid') ||

@@ -1,7 +1,10 @@
+import 'package:final_assignment_front/core/auth/user_profile_service.dart';
 import 'package:final_assignment_front/features/api/appeal_management_controller_api.dart';
 import 'package:final_assignment_front/features/api/fine_information_controller_api.dart';
 import 'package:final_assignment_front/features/api/progress_item_controller_api.dart';
+import 'package:final_assignment_front/features/model/progress_item.dart';
 import 'package:flutter/material.dart';
+import 'package:get/get.dart';
 
 class DriverHomeCounts extends StatefulWidget {
   const DriverHomeCounts({super.key, required this.onOpen});
@@ -34,10 +37,15 @@ class _DriverHomeCountsState extends State<DriverHomeCounts> {
     var unpaid = '-';
     var appeals = '-';
     var messages = '-';
+    final profile = await Get.find<UserProfileService>().getProfile();
     try {
+      final driverId = profile.driverId;
+      if (driverId == null) {
+        throw StateError('missing driver id');
+      }
       final api = FineInformationControllerApi();
       await api.initializeWithJwt();
-      final fines = await api.listFines();
+      final fines = await api.listFinesByDriver(driverId: driverId);
       unpaid = fines.where((fine) {
         final raw = fine.paymentStatus ?? '';
         final status = raw.toUpperCase();
@@ -64,8 +72,8 @@ class _DriverHomeCountsState extends State<DriverHomeCounts> {
     try {
       final api = ProgressControllerApi();
       await api.initializeWithJwt();
-      final rows = await api.listProgressItems();
-      messages = rows.length.toString();
+      final rows = await api.listProgressItemsByUsername(username: profile.username);
+      messages = rows.where((row) => ProgressItem.isOpenStatus(row.status)).length.toString();
     } catch (_) {
       failed = true;
     }

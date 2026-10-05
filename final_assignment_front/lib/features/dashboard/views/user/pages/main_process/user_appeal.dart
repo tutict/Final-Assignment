@@ -817,7 +817,7 @@ class _UserAppealPageState extends State<UserAppealPage> {
                 Expanded(
                   child: UserBusinessStatusPanel(
                     message: _errorMessage,
-                    kind: UserBusinessStatusKind.error,
+                    kind: _appealStatusKind(_errorMessage),
                     actionLabel: userBusinessMessageNeedsLogin(_errorMessage)
                         ? '重新登录'
                         : null,
@@ -871,7 +871,7 @@ class _UserAppealPageState extends State<UserAppealPage> {
                         ? Center(
                             child: UserBusinessStatusPanel(
                               message: _errorMessage,
-                              kind: UserBusinessStatusKind.error,
+                              kind: _appealStatusKind(_errorMessage),
                             ),
                           )
                         : _appeals.isEmpty
@@ -1255,4 +1255,11 @@ class _UserAppealDetailPageState extends State<UserAppealDetailPage> {
       );
     });
   }
+}
+
+UserBusinessStatusKind _appealStatusKind(String message) {
+  if (message.contains('暂无') || message.contains('未找到符合条件')) {
+    return UserBusinessStatusKind.empty;
+  }
+  return UserBusinessStatusKind.error;
 }

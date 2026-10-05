@@ -1,3 +1,4 @@
+import 'package:final_assignment_front/features/api/driver_information_controller_api.dart';
 import 'package:final_assignment_front/features/api/offense_information_controller_api.dart';
 import 'package:final_assignment_front/features/api/vehicle_information_controller_api.dart';
 import 'package:final_assignment_front/features/model/offense_information.dart';
@@ -21,6 +22,8 @@ class OffenseFormController extends BaseListController<OffenseInformation> {
       OffenseInformationControllerApi();
   final VehicleInformationControllerApi vehicleApi =
       VehicleInformationControllerApi();
+  final DriverInformationControllerApi driverApi =
+      DriverInformationControllerApi();
 
   final formKey = GlobalKey<FormState>();
   final driverNameController = TextEditingController();
@@ -129,7 +132,7 @@ class OffenseFormController extends BaseListController<OffenseInformation> {
     await runWithLoading(
       () async {
         final idempotencyKey = _generateIdempotencyKey();
-        final payload = _buildPayload(idempotencyKey: idempotencyKey);
+        final payload = await _buildPayload(idempotencyKey: idempotencyKey);
         if (isEdit) {
           final offenseId = initialOffense?.offenseId;
           if (offenseId == null) {
@@ -151,14 +154,40 @@ class OffenseFormController extends BaseListController<OffenseInformation> {
     return success;
   }
 
-  OffenseInformation _buildPayload({required String idempotencyKey}) {
+  Future<OffenseInformation> _buildPayload({required String idempotencyKey}) async {
     final offenseTime =
         DateTime.parse('${offenseTimeController.text.trim()}T00:00:00.000');
+    final driverName = driverNameController.text.trim();
+    final licensePlate = licensePlateController.text.trim();
+    var driverId = initialOffense?.driverId;
+    var vehicleId = initialOffense?.vehicleId;
+    if (driverName.isNotEmpty) {
+      final matches = await driverApi.listDriversByName(query: driverName, size: 20);
+      final exact = matches.where((driver) => (driver.name ?? '').trim() == driverName).toList();
+      if (exact.length > 1) {
+        throw Exception('驾驶员姓名不唯一，请改用驾驶员编号');
+      }
+      if (exact.length == 1) {
+        driverId = exact.first.driverId;
+      } else if (driverId == null) {
+        throw Exception('未找到驾驶员：$driverName');
+      }
+    }
+    if (licensePlate.isNotEmpty) {
+      final vehicle = await vehicleApi.searchVehiclesByLicense(licensePlate: licensePlate);
+      if (vehicle?.vehicleId != null) {
+        vehicleId = vehicle!.vehicleId;
+      } else if (vehicleId == null) {
+        throw Exception('未找到车辆：$licensePlate');
+      }
+    }
     return OffenseInformation(
       offenseId: initialOffense?.offenseId,
       offenseTime: offenseTime,
-      driverName: driverNameController.text.trim(),
-      licensePlate: licensePlateController.text.trim(),
+      driverId: driverId,
+      vehicleId: vehicleId,
+      driverName: driverName,
+      licensePlate: licensePlate,
       offenseType: offenseTypeController.text.trim(),
       offenseCode: offenseCodeController.text.trim(),
       offenseLocation: offenseLocationController.text.trim(),

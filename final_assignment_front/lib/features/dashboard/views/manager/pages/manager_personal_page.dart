@@ -1,5 +1,6 @@
 import 'package:final_assignment_front/core/utils/app_logger.dart';
 import 'package:final_assignment_front/core/auth/auth_service.dart';
+import 'package:final_assignment_front/core/auth/user_profile_service.dart';
 import 'package:final_assignment_front/features/api/driver_information_controller_api.dart';
 import 'package:final_assignment_front/features/api/user_management_controller_api.dart';
 import 'package:final_assignment_front/features/dashboard/controllers/chat_controller.dart';
@@ -104,23 +105,13 @@ class _ManagerPersonalPageState extends State<ManagerPersonalPage> {
         throw Exception('未找到当前用户信息');
       }
 
-      DriverInformation? driverInfo =
-          await driverApi.getDriver(driverId: manager.userId!);
-      if (driverInfo == null) {
-        final idempotencyKey = generateIdempotencyKey();
-        final newDriver = DriverInformation(
-          driverId: manager.userId,
-          name: manager.username ?? '未知用户',
-          contactNumber: manager.contactNumber ?? '',
-          idCardNumber: '',
-        );
-        AppLogger.debug(
-            'Creating driver profile for user ${manager.userId} (${manager.username})');
-        await driverApi.createDriver(
-          driverInformation: newDriver,
-          idempotencyKey: idempotencyKey,
-        );
-        driverInfo = await driverApi.getDriver(driverId: manager.userId!);
+      DriverInformation? driverInfo;
+      if (Get.isRegistered<UserProfileService>()) {
+        final profile = await Get.find<UserProfileService>().getProfile();
+        final driverId = profile.driverId;
+        if (driverId != null) {
+          driverInfo = await driverApi.getDriver(driverId: driverId);
+        }
       }
 
       _driverInfo = driverInfo;
@@ -169,15 +160,23 @@ class _ManagerPersonalPageState extends State<ManagerPersonalPage> {
 
       switch (field) {
         case 'name':
+          final driverId = _driverInfo?.driverId;
+          if (driverId == null) {
+            throw Exception('当前账号没有关联驾驶员档案，不能修改驾驶员姓名');
+          }
           await driverApi.updateDriverName(
-            driverId: userId,
+            driverId: driverId,
             name: value,
             idempotencyKey: idempotencyKey,
           );
           break;
         case 'contactNumber':
+          final driverId = _driverInfo?.driverId;
+          if (driverId == null) {
+            throw Exception('当前账号没有关联驾驶员档案，不能修改驾驶员电话');
+          }
           await driverApi.updateDriverContactNumber(
-            driverId: userId,
+            driverId: driverId,
             contactNumber: value,
             idempotencyKey: idempotencyKey,
           );

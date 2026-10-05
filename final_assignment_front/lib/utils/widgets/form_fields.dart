@@ -191,11 +191,19 @@ class AppAutocompleteField<T extends Object> extends StatelessWidget {
         onSelected(selection);
       },
       fieldViewBuilder: (context, textController, focusNode, _) {
-        if (controller != null && controller!.text != textController.text) {
-          textController.value = TextEditingValue(
-            text: controller!.text,
-            selection: TextSelection.collapsed(offset: controller!.text.length),
-          );
+        final external = controller;
+        if (external != null && external.text != textController.text) {
+          final next = external.text;
+          // Parent fields update the external controller while another
+          // autocomplete is still building. Assigning here notifies the Form
+          // during build and throws.
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            if (!context.mounted || textController.text == next) return;
+            textController.value = TextEditingValue(
+              text: next,
+              selection: TextSelection.collapsed(offset: next.length),
+            );
+          });
         }
 
         return ValueListenableBuilder<TextEditingValue>(

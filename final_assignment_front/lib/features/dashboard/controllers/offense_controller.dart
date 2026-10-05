@@ -126,10 +126,12 @@ class OffenseController extends BaseListController<OffenseInformation> {
 
     for (final item in data) {
       final status = (item.processStatus ?? '').toLowerCase();
-      if (status.contains('paid') ||
-          status.contains('complete') ||
-          status.contains('closed') ||
-          status.contains('processed')) {
+      final completedStatus = !status.contains('unprocessed') &&
+          (status.contains('paid') ||
+              status.contains('complete') ||
+              status.contains('closed') ||
+              status.contains('processed'));
+      if (completedStatus) {
         completed++;
       } else {
         pending++;

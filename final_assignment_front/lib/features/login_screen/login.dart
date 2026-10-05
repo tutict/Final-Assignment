@@ -756,9 +756,9 @@ class _LoginScreenState extends State<LoginScreen> {
                 autofillHints: const [AutofillHints.email],
                 textInputAction:
                     isRecover ? TextInputAction.done : TextInputAction.next,
-                validator: validateEmail,
-                decoration: const InputDecoration(
-                  labelText: '用户邮箱',
+                validator: _mode == _AuthMode.login ? validateLoginIdentifier : validateEmail,
+                decoration: InputDecoration(
+                  labelText: _mode == _AuthMode.login ? '用户名或邮箱' : '用户邮箱',
                   prefixIcon: Icon(Icons.alternate_email_rounded),
                 ),
               ),

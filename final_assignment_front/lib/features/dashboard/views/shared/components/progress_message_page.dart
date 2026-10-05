@@ -959,6 +959,8 @@ String progressStatusLabel(String? status) {
       return '处理中';
     case 'Completed':
       return '已完成';
+    case 'Failed':
+      return '失败';
     case 'Archived':
       return '已归档';
     default:
@@ -974,6 +976,8 @@ IconData progressStatusIcon(String? status) {
       return Icons.sync_rounded;
     case 'Completed':
       return Icons.check_circle_outline_rounded;
+    case 'Failed':
+      return Icons.error_outline_rounded;
     case 'Archived':
       return Icons.inventory_2_outlined;
     default:
@@ -992,6 +996,8 @@ Color progressStatusColor(String? status, ThemeData themeData) {
       return scheme.primary;
     case 'Completed':
       return dark ? const Color(0xFF75D78C) : const Color(0xFF227447);
+    case 'Failed':
+      return scheme.error;
     case 'Archived':
       return scheme.onSurfaceVariant;
     default:

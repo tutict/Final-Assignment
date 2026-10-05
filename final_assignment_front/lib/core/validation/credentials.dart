@@ -17,6 +17,15 @@ String? validateEmail(String? value) {
   return null;
 }
 
+/// Login accepts the account username or an email address.
+String? validateLoginIdentifier(String? value) {
+  if (value == null || value.trim().isEmpty) return '账号不能为空';
+  final text = value.trim();
+  if (text.contains('@')) return validateEmail(text);
+  if (text.contains(' ') || text.length < 2) return '请输入用户名或邮箱';
+  return null;
+}
+
 /// Validates a password against the shared minimum-length policy.
 /// Returns `null` when valid, otherwise a localized error message.
 String? validatePassword(String? value) {

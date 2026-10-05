@@ -460,6 +460,14 @@ class _DeductionManagementState extends State<DeductionManagementPage>
   }
 }
 
+
+DateTime? _parseDeductionTime(String value) {
+  final text = value.trim();
+  if (text.isEmpty) return null;
+  final normalized = text.contains(' ') ? text.replaceFirst(' ', 'T') : '${text}T00:00:00';
+  return DateTime.tryParse(normalized);
+}
+
 class AddDeductionPage extends StatefulWidget {
   const AddDeductionPage({super.key});
 
@@ -482,6 +490,7 @@ class _AddDeductionPageState extends State<AddDeductionPage>
   final TextEditingController _dateController = TextEditingController();
   bool _isLoading = false;
   int? _selectedOffenseId;
+  int? _selectedDriverId;
   List<Map<String, dynamic>> _offenseSuggestions = [];
   final ManagerDashboardController controller =
       Get.find<ManagerDashboardController>();
@@ -545,6 +554,7 @@ class _AddDeductionPageState extends State<AddDeductionPage>
           offenses.firstWhere((o) => o.offenseId == offenseId);
       setState(() {
         _selectedOffenseId = offenseId;
+        _selectedDriverId = selectedOffense.driverId;
         _deductedPointsController.text =
             (selectedOffense.deductedPoints ?? 0).toString();
         _dateController.text = formatDateTime(selectedOffense.offenseTime);
@@ -569,10 +579,15 @@ class _AddDeductionPageState extends State<AddDeductionPage>
     setState(() => _isLoading = true);
     try {
       final idempotencyKey = generateIdempotencyKey();
+      final deductionTime = _parseDeductionTime(_dateController.text);
+      if (deductionTime == null) {
+        _showSnackBar('扣分时间无效', isError: true);
+        return;
+      }
       final deduction = DeductionRecordModel(
         deductedPoints:
             int.tryParse(_deductedPointsController.text.trim()) ?? 0,
-        deductionTime: DateTime.parse('${_dateController.text}T00:00:00.000'),
+        deductionTime: deductionTime,
         handler: _handlerController.text.trim().isEmpty
             ? null
             : _handlerController.text.trim(),
@@ -583,6 +598,7 @@ class _AddDeductionPageState extends State<AddDeductionPage>
             ? null
             : _remarksController.text.trim(),
         offenseId: _selectedOffenseId,
+        driverId: _selectedDriverId,
       );
       await deductionApi.createDeduction(
           body: deduction, idempotencyKey: idempotencyKey);
@@ -696,6 +712,7 @@ class _AddDeductionPageState extends State<AddDeductionPage>
           onClear: () {
             setState(() {
               _selectedOffenseId = null;
+              _selectedDriverId = null;
               _deductedPointsController.clear();
               _dateController.clear();
             });
@@ -748,7 +765,7 @@ class _AddDeductionPageState extends State<AddDeductionPage>
                 return '备注不能超过255个字符';
               }
               if (label == '扣分时间 必填') {
-                final date = DateTime.tryParse('$trimmedValue 00:00:00.000');
+                final date = _parseDeductionTime(trimmedValue);
                 if (date == null) return '无效的日期格式';
                 if (date.isAfter(DateTime.now())) return '扣分日期不能晚于当前日期';
               }

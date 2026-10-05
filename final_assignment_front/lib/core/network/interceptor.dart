@@ -93,52 +93,15 @@ class LogEventWriter {
     String? remarks,
     String? operationUser,
     String? ipAddress,
-  }) async {
-    try {
-      final token = await _authService.getValidJwtToken();
-      if (token == null || token.isEmpty) return;
-
-      final user = await _authService.currentUser(refreshIfNeeded: false);
-      final idempotencyKey = _uuid.v4();
-      final logEntry = SystemLogs(
-        logType: logType,
-        logContent: content,
-        operationUser: operationUser ?? user?.username ?? 'Unknown',
-        operationIpAddress: ipAddress ?? await _deviceInfoService.getPublicIp(),
-        operationTime: DateTime.now(),
-        remarks: remarks,
-        idempotencyKey: idempotencyKey,
-      );
-      final uri = Uri.parse('${AppConfig.apiBaseUrl}/api/system/logs');
-
-      final response = await _client
-          .post(
-            uri,
-            headers: {
-              'Authorization': 'Bearer $token',
-              'Content-Type': 'application/json; charset=utf-8',
-              'Idempotency-Key': idempotencyKey,
-            },
-            body: jsonEncode(logEntry.toJson()),
-          )
-          .timeout(const Duration(seconds: 10));
-
-      if (response.statusCode == 401) {
-        await _authService.handleUnauthorized(source: uri.path);
-      } else if (response.statusCode >= 400) {
-        developer.log(
-          'Failed to write system log: ${response.statusCode} ${response.body}',
-        );
-      }
-    } catch (error, stackTrace) {
-      developer.log(
-        'Failed to write system event',
-        error: error,
-        stackTrace: stackTrace,
-      );
-    }
+  }) {
+    return writeOperationEvent(
+      type: logType,
+      module: 'System',
+      content: content,
+      remarks: remarks,
+      ipAddress: ipAddress,
+    );
   }
-
   Future<void> writeOperationEvent({
     required String content,
     String result = 'Success',
@@ -159,18 +122,14 @@ class LogEventWriter {
       if (token == null || token.isEmpty) return;
 
       final user = await _authService.currentUser(refreshIfNeeded: false);
-      if (user?.userId == null) {
-        return;
-      }
-
       final operationLog = OperationLog(
         operationType: type,
         operationModule: module,
         operationFunction: function,
         operationContent: content,
         operationTime: DateTime.now(),
-        userId: user!.userId,
-        username: user.username,
+        userId: user?.userId,
+        username: user?.username,
         requestMethod: requestMethod,
         requestUrl: requestUrl,
         requestParams: requestParams,
@@ -225,14 +184,7 @@ class LogEventWriter {
     final errorMessage = error?.toString();
     final ipAddress = await _deviceInfoService.getPublicIp();
 
-    await Future.wait([
-      writeSystemEvent(
-        logType: failed ? 'API_ERROR' : 'API_CALL',
-        content: content,
-        remarks: errorMessage,
-        ipAddress: ipAddress,
-      ),
-      writeOperationEvent(
+    await writeOperationEvent(
         type: 'API',
         module: 'Network',
         function: method,
@@ -244,8 +196,8 @@ class LogEventWriter {
         errorMessage: errorMessage,
         executionTime: elapsedMilliseconds,
         ipAddress: ipAddress,
-      ),
-    ]);
+      )
+;
   }
 
   void close() {

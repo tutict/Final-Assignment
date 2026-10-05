@@ -18,7 +18,7 @@ class ProgressController extends BaseListController<ProgressItem> {
   final RxList<ProgressItem> filteredItems = <ProgressItem>[].obs;
   final RxList<AppealRecordModel> appeals = <AppealRecordModel>[].obs;
   final RxList<String> statusCategories =
-      ['Pending', 'Processing', 'Completed', 'Archived'].obs;
+      ['Pending', 'Processing', 'Completed', 'Failed', 'Archived'].obs;
   final Rxn<String> selectedStatus = Rxn<String>();
   final Rxn<DateTime> selectedStartDate = Rxn<DateTime>();
   final Rxn<DateTime> selectedEndDate = Rxn<DateTime>();
@@ -86,7 +86,15 @@ class ProgressController extends BaseListController<ProgressItem> {
   Future<void> fetchProgress() async {
     await runWithLoading(() async {
       await progressApi.initializeWithJwt();
-      progressItems.value = await progressApi.listProgressItems();
+      if (isAdmin) {
+        progressItems.value = await progressApi.listProgressItems();
+      } else {
+        final prefs = await SharedPreferences.getInstance();
+        final username = prefs.getString('userName') ?? '';
+        progressItems.value = username.isEmpty
+            ? await progressApi.listProgressItems()
+            : await progressApi.listProgressItemsByUsername(username: username);
+      }
       _applyActiveFilters();
     });
   }

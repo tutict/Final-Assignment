@@ -59,14 +59,42 @@ class ProgressItem {
     );
   }
 
-  factory ProgressItem.fromJson(Map<String, dynamic> json) {
-    String status =
-        (json['status'] ?? json['businessStatus'])?.toString() ?? 'Pending';
-    // Validate status
-    const validStatuses = ['Pending', 'Processing', 'Completed', 'Archived'];
-    if (!validStatuses.contains(status)) {
-      status = 'Pending'; // Default to Pending if invalid
+  static String normalizeStatus(Object? raw) {
+    final text = raw?.toString().trim() ?? '';
+    final upper = text.toUpperCase();
+    if (text.isEmpty) return 'Pending';
+    switch (upper) {
+      case 'SUCCESS':
+      case 'SUCCEEDED':
+      case 'COMPLETED':
+      case 'COMPLETE':
+      case 'DONE':
+      case 'PAID':
+      case 'APPROVED':
+        return 'Completed';
+      case 'FAILED':
+      case 'FAILURE':
+      case 'ERROR':
+      case 'REJECTED':
+        return 'Failed';
+      case 'PROCESSING':
+      case 'RUNNING':
+      case 'IN_PROGRESS':
+        return 'Processing';
+      case 'ARCHIVED':
+        return 'Archived';
+      case 'PENDING':
+        return 'Pending';
+      default:
+        return text;
     }
+  }
+
+  static bool isOpenStatus(String? status) =>
+      status == 'Pending' || status == 'Processing';
+
+  factory ProgressItem.fromJson(Map<String, dynamic> json) {
+    final status = normalizeStatus(json['status'] ?? json['businessStatus']);
     return ProgressItem(
       id: JsonParser.asInt(json['id']),
       title: JsonParser.asString(json['title'] ?? json['businessType']) ?? '',
@@ -88,11 +116,15 @@ class ProgressItem {
   Map<String, dynamic> toJson() {
     return {
       'id': id,
+      'businessType': title,
+      'businessStatus': status,
+      'createdAt': submitTime.toIso8601String(),
+      'requestParams': details,
+      'username': username,
       'title': title,
       'status': status,
       'submitTime': submitTime.toIso8601String(),
       'details': details,
-      'username': username,
       'appealId': appealId,
       'deductionId': deductionId,
       'driverId': driverId,

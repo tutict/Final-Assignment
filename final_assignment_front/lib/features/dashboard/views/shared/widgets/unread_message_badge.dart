@@ -1,6 +1,8 @@
 import 'package:final_assignment_front/core/theme/app_colors.dart';
 import 'package:final_assignment_front/features/api/progress_item_controller_api.dart';
+import 'package:final_assignment_front/features/model/progress_item.dart';
 import 'package:flutter/material.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 class UnreadMessageBadge extends StatefulWidget {
   const UnreadMessageBadge({super.key});
@@ -22,9 +24,13 @@ class _UnreadMessageBadgeState extends State<UnreadMessageBadge> {
     try {
       final api = ProgressControllerApi();
       await api.initializeWithJwt();
-      final rows = await api.listProgressItems();
+      final prefs = await SharedPreferences.getInstance();
+      final username = prefs.getString('userName') ?? '';
+      final rows = username.isEmpty
+          ? await api.listProgressItems()
+          : await api.listProgressItemsByUsername(username: username);
       if (!mounted) return;
-      setState(() => _count = rows.length);
+      setState(() => _count = rows.where((row) => ProgressItem.isOpenStatus(row.status)).length);
     } catch (_) {
       if (!mounted) return;
       setState(() => _count = null);

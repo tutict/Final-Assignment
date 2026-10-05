@@ -561,7 +561,7 @@ class _AddVehiclePageState extends State<AddVehiclePage> {
 
     if (driverInfo == null || driverInfo.name == null) {
       throw Exception(
-          '无法获取驾驶员信息或姓名 (Driver ID: ${user?.userId}, Username: $username)');
+          '无法获取驾驶员信息或姓名 (Driver ID: $driverId, Username: $username)');
     }
 
     setState(() {

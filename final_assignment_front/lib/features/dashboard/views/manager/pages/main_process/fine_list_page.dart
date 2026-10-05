@@ -598,8 +598,10 @@ class _AddFinePageState extends State<AddFinePage> with PageAuthMixin {
                 'fineAmount': o.fineAmount ?? 0.0,
                 'licensePlate': o.licensePlate ?? '',
               })
-          .where(
-              (item) => item['payee'].toString().contains(prefix.toLowerCase()))
+          .where((item) => item['payee']
+                  .toString()
+                  .toLowerCase()
+                  .contains(prefix.trim().toLowerCase()))
           .toList();
     } catch (e) {
       if (e is AppException && e.code == 400 && prefix.trim().isEmpty) {
@@ -765,7 +767,7 @@ class _AddFinePageState extends State<AddFinePage> with PageAuthMixin {
         child: AppAutocompleteField<Map<String, dynamic>>(
           label: label,
           controller: controller,
-          helperText: label == '车牌号' ? '请输入车牌号，例如：黑AWS34' : null,
+          helperText: label == '车牌号' ? '请输入车牌号，例如：黑AWS34，也可填写已有车牌' : null,
           keyboardType: keyboardType,
           maxLength: maxLength,
           options: (query) async {
@@ -805,9 +807,11 @@ class _AddFinePageState extends State<AddFinePage> with PageAuthMixin {
                 if (label == '车牌号') {
                   if (trimmedValue.isEmpty) return '车牌号不能为空';
                   if (trimmedValue.length > 20) return '车牌号不能超过20个字符';
-                  if (!RegExp(r'^[\u4e00-\u9fa5][A-Za-z0-9]{5,7}$')
-                      .hasMatch(trimmedValue)) {
-                    return '请输入有效车牌号，例如：黑AWS34';
+                  final chinesePlate = RegExp(r'^[\u4e00-\u9fa5][A-Za-z0-9]{5,7}$');
+                  final storedPlate = RegExp(r'^[A-Za-z0-9]{5,20}$');
+                  if (!chinesePlate.hasMatch(trimmedValue) &&
+                      !storedPlate.hasMatch(trimmedValue)) {
+                    return '请输入有效车牌号，例如：黑AWS34，或系统中已有的车牌';
                   }
                 }
                 if (label == '缴款人' && trimmedValue.length > 100) {
