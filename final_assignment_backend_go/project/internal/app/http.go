@@ -59,7 +59,11 @@ func RegisterHTTP(router *gin.Engine, gormDB *gorm.DB, userService *admin.UserMa
 	handler.NewWorkflowController(workflowService).RegisterRoutes(api)
 	handler.NewOffenseDetailsViewController(offenseDetailsService).RegisterRoutes(api)
 	handler.RegisterRagAdminRoutes(router, ragRuntime)
-	handler.NewFeedbackController(gormDB).RegisterRoutes(router)
+	feedbackService := business.NewConsultationFeedbackService(gormDB)
+	if err := feedbackService.EnsureTable(); err != nil {
+		panic("ensure consultation_feedback: " + err.Error())
+	}
+	handler.NewFeedbackController(feedbackService).RegisterRoutes(router)
 	handler.NewCacheController().RegisterRoutes(router)
 	(&handler.OffenseInformationController{Service: offenseService}).RegisterRoutes(root)
 	(&handler.OperationLogController{Service: operationLogService}).RegisterRoutes(root)
