@@ -176,6 +176,18 @@ UNPROCESSED -> APPEALING -> APPEAL_APPROVED / APPEAL_REJECTED
 
 申诉审核过程表，用于记录多轮审核意见和最终处理结果。
 
+### consultation_feedback
+
+用户咨询与反馈。`idempotency_key` 有值时唯一；为空时允许多行。工作人员只认精确角色 `ADMIN` / `SUPER_ADMIN`，状态只允许 `Pending`、`Processing`、`Resolved`、`Completed`。
+
+| 字段 | 说明 |
+| --- | --- |
+| `username` | 提交用户，列表和回放都按此归属 |
+| `content` | 反馈正文，最长 2000 个码点 |
+| `contact` | 可选联系方式 |
+| `status` | 处理状态，非工作人员不能修改 |
+| `idempotency_key` | 幂等键；命中他人提交时返回冲突且不回传原记录 |
+
 ## 审计与系统表
 
 | 表 | 说明 |

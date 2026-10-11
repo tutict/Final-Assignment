@@ -1067,6 +1067,23 @@ WHERE a.deleted_at IS NULL
 GROUP BY a.appeal_id;
 
 -- ============================================================================
+-- 9.6 咨询反馈
+-- ============================================================================
+
+CREATE TABLE IF NOT EXISTS `consultation_feedback` (
+    `feedback_id` BIGINT NOT NULL AUTO_INCREMENT COMMENT '反馈ID',
+    `username` VARCHAR(128) NOT NULL COMMENT '提交用户',
+    `feedback_type` VARCHAR(32) NOT NULL DEFAULT '咨询' COMMENT '反馈类型',
+    `content` VARCHAR(2000) NOT NULL COMMENT '反馈内容',
+    `contact` VARCHAR(128) NULL COMMENT '联系方式',
+    `status` VARCHAR(32) NOT NULL DEFAULT 'Pending' COMMENT '处理状态：Pending/Processing/Resolved/Completed',
+    `idempotency_key` VARCHAR(128) NULL COMMENT '幂等键',
+    `created_at` DATETIME NOT NULL COMMENT '创建时间',
+    PRIMARY KEY (`feedback_id`),
+    UNIQUE KEY `uk_feedback_idempotency` (`idempotency_key`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='咨询反馈';
+
+-- ============================================================================
 -- 10. 初始化数据
 -- ============================================================================
 
