@@ -1,0 +1,138 @@
+# Full application stack on top of docker-compose.yml infra services.
+# Usage:
+#   docker compose up -d                    # infra only (mysql/redis/es/kafka, same as before)
+#   docker compose -f compose.app.yml up -d --build   # infra + spring + go + monitoring
+#
+# The app images read the same env-var contract the local scripts use:
+# Spring:  DB_USERNAME / DB_PASSWORD / SPRING_DATASOURCE_URL / SPRING_DATA_REDIS_HOST ...
+# Go:      MYSQL_HOST / MYSQL_PORT / MYSQL_DATABASE / MYSQL_USER / MYSQL_PASSWORD / PORT
+
+name: final-assignment
+
+services:
+  # ---------- Infrastructure (reuse the root docker-compose.yml definitions) ----------
+  # Credentials come from .env (see compose.env.example); the root docker-compose.yml
+  # defaults still work for `docker compose up` infra-only usage.
+  mysql:
+    extends:
+      file: docker-compose.yml
+      service: mysql
+    environment:
+      MYSQL_ROOT_PASSWORD: ${MYSQL_PASSWORD:?set MYSQL_PASSWORD in .env, see compose.env.example}
+  redis:
+    extends:
+      file: docker-compose.yml
+      service: redis
+    command: ["redis-server", "--requirepass", "${REDIS_PASSWORD:?set REDIS_PASSWORD in .env}", "--appendonly", "yes"]
+  zookeeper:
+    extends:
+      file: docker-compose.yml
+      service: zookeeper
+  elasticsearch:
+    extends:
+      file: docker-compose.yml
+      service: elasticsearch
+  kafka:
+    extends:
+      file: docker-compose.yml
+      service: kafka
+    depends_on:
+      - zookeeper
+
+  # ---------- Applications ----------
+  spring-backend:
+    build:
+      context: .
+      dockerfile: finalAssignmentBackend/Dockerfile
+    image: final-assignment-spring:latest
+    depends_on:
+      mysql:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:mysql://mysql:3306/${MYSQL_DATABASE:-traffic_management}?useUnicode=true&characterEncoding=utf8&serverTimezone=Asia/Shanghai&allowPublicKeyRetrieval=true&useSSL=false
+      DB_USERNAME: ${MYSQL_USER:-root}
+      DB_PASSWORD: ${MYSQL_PASSWORD:?set MYSQL_PASSWORD in .env, see compose.env.example}
+      SPRING_DATA_REDIS_HOST: redis
+      SPRING_DATA_REDIS_PASSWORD: ${REDIS_PASSWORD:?set REDIS_PASSWORD in .env}
+      SPRING_KAFKA_BOOTSTRAP_SERVERS: kafka:9092
+      SPRING_KAFKA_LISTENER_AUTO_STARTUP: "false"
+      JWT_SECRET: ${JWT_SECRET:?set JWT_SECRET in .env, generate one with finalAssignmentTools/generate_secret_key}
+      SPRING_PROFILES_ACTIVE: dev
+      SERVER_PORT: "8080"
+      JAVA_OPTS: -XX:MaxRAMPercentage=75
+    ports:
+      - "9080:8080"
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:8080/api/actuator/health"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 90s
+
+  go-backend:
+    build:
+      context: .
+      dockerfile: final_assignment_backend_go/Dockerfile
+    image: final-assignment-go:latest
+    depends_on:
+      mysql:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    environment:
+      PORT: "8080"
+      MYSQL_HOST: mysql
+      MYSQL_PORT: "3306"
+      MYSQL_DATABASE: ${MYSQL_DATABASE:-traffic_management}
+      MYSQL_USER: ${MYSQL_USER:-root}
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD:?set MYSQL_PASSWORD in .env}
+      JWT_SECRET: ${JWT_SECRET:?set JWT_SECRET in .env}
+      REDIS_ADDR: redis:6379
+      REDIS_PASSWORD: ${REDIS_PASSWORD:?set REDIS_PASSWORD in .env}
+      RELIABILITY_LOAD_SHED: "true"
+    ports:
+      - "18080:8080"
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:8080/actuator/health"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+
+  # ---------- Monitoring (closes the loop with docs/reliability/slo.md) ----------
+  prometheus:
+    image: prom/prometheus:v2.54.1
+    volumes:
+      - ./observability/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - ./observability/alerts.yml:/etc/prometheus/alerts.yml:ro
+    ports:
+      - "9091:9090"
+    depends_on:
+      - spring-backend
+
+  grafana:
+    image: grafana/grafana:11.4.0
+    environment:
+      GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_PASSWORD:-admin}
+      GF_USERS_ALLOW_SIGN_UP: "false"
+    volumes:
+      - ./observability/grafana/dashboards:/var/lib/grafana/dashboards:ro
+      - ./observability/grafana/provisioning:/etc/grafana/provisioning:ro
+    ports:
+      - "3301:3000"
+    depends_on:
+      - prometheus
+
+# Volumes referenced by the extended services in docker-compose.yml.
+# Compose with `extends` does not inherit top-level volume declarations,
+# so they are re-declared here.
+volumes:
+  mysql-data:
+  redis-data:
+  es-data:
+
+networks:
+  default:
+    name: finalassignment-network

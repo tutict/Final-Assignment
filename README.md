@@ -1,5 +1,8 @@
 ﻿# 交通违法行为处理管理系统
 
+[![CI](https://github.com/tutict/Final-Assignment/actions/workflows/ci.yml/badge.svg)](https://github.com/tutict/Final-Assignment/actions/workflows/ci.yml)
+[![License: Educational](https://img.shields.io/badge/license-educational-informational.svg)]()
+
 面向交通违法处理、驾驶员服务和后台监管的全栈工程项目。项目最初来自毕业设计，当前已经按更工程化的方向持续演进：后端以 Spring Boot 单体为主线，同时保留 Spring Cloud、Go、Quarkus 等实现作为架构实验；前端以 Flutter Web 为主要联调入口。
 
 当前主线关注点不再只是 CRUD 展示，而是围绕真实业务链路补齐权限、幂等、消息、检索、RAG、敏感数据保护和本地一键启动能力。
@@ -84,6 +87,21 @@ Flutter Web
 - 一键压测：`scripts/performance/run-load-tests.ps1 -Backend spring|cloud|go|quarkus`
 - Cloud 一键启动：`scripts/start-cloud-backend.ps1 -IncludeAi`
 - k6 脚本位于 `scripts/k6/`，wrk Lua 脚本位于 `scripts/wrk/`
+
+## 全栈容器化与监控
+
+`compose.app.yml` 在 `docker-compose.yml`（基础设施）之上加入应用与监控层，一条命令从零拉起完整系统：
+
+```sh
+cp compose.env.example .env   # 填入本地凭据（仅本地开发用）
+docker compose -f compose.app.yml up -d --build
+```
+
+- **Spring 主后端**（多阶段 Dockerfile，9080）与 **Go 后端**（18080）随 MySQL/Redis/ES/Kafka 一起启动
+- **Prometheus**（9091）按 `observability/prometheus.yml` 抓取两个后端的 `/actuator/prometheus`
+- **Grafana**（3301）自动装载 `observability/grafana/dashboards/` 中的 SLO 看板与告警规则（`observability/alerts.yml`），指标口径与 [docs/reliability/slo.md](docs/reliability/slo.md) 对齐
+
+CI（`.github/workflows/ci.yml`）覆盖四后端构建与测试、React typecheck+build、Flutter analyze+test，以及两个应用镜像的构建验证。
 
 ## 一键启动
 

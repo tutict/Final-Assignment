@@ -23,6 +23,9 @@ public class TestDataFactory {
             "licensePlate", "京A" + System.currentTimeMillis() % 100000,
             "vehicleType", "小型汽车",
             "ownerName", "张测试",
+            // validateVehicle requires the owner ID card since the sensitive-data
+            // migration (ciphertext + blind index columns) landed.
+            "ownerIdCard", "110101199001010011",
             "driverId", driverId,
             "firstRegistrationDate", "2020-01-01",
             "registrationDate", "2020-01-01",

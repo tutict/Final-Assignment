@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 
 /// Semantic colors that [ColorScheme] does not provide (e.g. success/warning).
 /// Registered as a [ThemeExtension] on every theme in AppTheme so any
-/// screen can read it via Theme.of(context).extension<AppColors>().
+/// screen can read it via `Theme.of(context).extension<AppColors>()`.
 @immutable
 class AppColors extends ThemeExtension<AppColors> {
   const AppColors({

@@ -98,7 +98,8 @@ class BusinessRegressionTest extends BaseIntegrationTest {
             .body(TestDataFactory.validOffense(driverId, vehicleId))
             .post("/api/offenses");
         response.then().statusCode(anyOf(is(200), is(201)))
-            .body("data.processStatus", equalTo("Pending"));
+            // validateOffenseRecord normalizes blank/Pending to Unprocessed.
+            .body("data.processStatus", equalTo("Unprocessed"));
         offenseId = extractLong(response, "data.offenseId");
         assertThat(offenseId).isNotNull();
     }
@@ -135,6 +136,7 @@ class BusinessRegressionTest extends BaseIntegrationTest {
     @DisplayName("【Phase 4-2】管理员执行 START_REVIEW，进入审核中")
     void admin_starts_review() {
         authSpec(adminToken)
+            .header("Idempotency-Key", newIdempotencyKey())
             .post("/api/workflow/appeals/{id}/events/{event}", appealId, "START_REVIEW")
             .then()
             .statusCode(anyOf(is(200), is(201)));
@@ -150,6 +152,7 @@ class BusinessRegressionTest extends BaseIntegrationTest {
     @DisplayName("【Phase 4-3】管理员 APPROVE，申诉通过")
     void admin_approves_appeal() {
         authSpec(adminToken)
+            .header("Idempotency-Key", newIdempotencyKey())
             .post("/api/workflow/appeals/{id}/events/{event}", appealId, "APPROVE")
             .then()
             .statusCode(anyOf(is(200), is(201)));
@@ -193,7 +196,8 @@ class BusinessRegressionTest extends BaseIntegrationTest {
         authSpec(adminToken)
             .get("/api/payments/{id}", paymentId)
             .then()
-            .body("data.paymentStatus", anyOf(equalTo("PAID"), equalTo("Paid")));
+            // toPaymentRecordStatus maps paid/success/partial -> "Success".
+            .body("data.paymentStatus", anyOf(equalTo("Success"), equalTo("PAID"), equalTo("Paid")));
     }
 
     @Test

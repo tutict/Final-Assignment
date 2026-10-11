@@ -87,7 +87,8 @@ class PaymentIntegrationTest extends BaseIntegrationTest {
         authSpec(adminToken)
             .get("/api/payments/{id}", paymentId)
             .then()
-            .body("data.paymentStatus", anyOf(equalTo("PAID"), equalTo("Paid")));
+            // toPaymentRecordStatus maps paid/success/partial -> "Success".
+            .body("data.paymentStatus", anyOf(equalTo("Success"), equalTo("PAID"), equalTo("Paid")));
     }
 
     @Test

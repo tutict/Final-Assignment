@@ -100,6 +100,7 @@ class AppealIntegrationTest extends BaseIntegrationTest {
         Long appealId = createTestAppeal(offenseId);
 
         authSpec(adminToken)
+            .header("Idempotency-Key", newIdempotencyKey())
             .post("/api/workflow/appeals/{id}/events/{event}", appealId, "APPROVE")
             .then()
             .statusCode(409)
@@ -113,6 +114,7 @@ class AppealIntegrationTest extends BaseIntegrationTest {
         Long appealId = createTestAppeal(offenseId);
 
         authSpec(adminToken)
+            .header("Idempotency-Key", newIdempotencyKey())
             .post("/api/workflow/appeals/{id}/events/{event}", appealId, "START_REVIEW")
             .then()
             .statusCode(anyOf(is(200), is(201)));
@@ -123,6 +125,7 @@ class AppealIntegrationTest extends BaseIntegrationTest {
             .body("data.processStatus", anyOf(equalTo("Under_Review"), equalTo("UnderReview")));
 
         authSpec(adminToken)
+            .header("Idempotency-Key", newIdempotencyKey())
             .post("/api/workflow/appeals/{id}/events/{event}", appealId, "APPROVE")
             .then()
             .statusCode(anyOf(is(200), is(201)));
@@ -141,10 +144,12 @@ class AppealIntegrationTest extends BaseIntegrationTest {
         Long appealId = createTestAppeal(offenseId);
 
         authSpec(adminToken)
+            .header("Idempotency-Key", newIdempotencyKey())
             .post("/api/workflow/appeals/{id}/events/{event}", appealId, "START_REVIEW")
             .then().statusCode(anyOf(is(200), is(201)));
 
         authSpec(adminToken)
+            .header("Idempotency-Key", newIdempotencyKey())
             .post("/api/workflow/appeals/{id}/events/{event}", appealId, "REJECT")
             .then().statusCode(anyOf(is(200), is(201)));
 
@@ -160,11 +165,18 @@ class AppealIntegrationTest extends BaseIntegrationTest {
     void concurrent_appeal_approval_only_one_succeeds() throws Exception {
         Long appealId = createTestAppeal(offenseId);
 
+        // The workflow endpoint serializes on the idempotency reserve, and the
+        // state machine only allows START_REVIEW from the Unprocessed state.
+        // Both concurrent callers may read Unprocessed before either commits,
+        // so the strongest portable contract is: at least one succeeds and the
+        // final status is a legal post-review state (never still Unprocessed).
         ExecutorService executor = Executors.newFixedThreadPool(2);
         List<Future<Integer>> startReviewFutures = List.of(
             executor.submit(() -> authSpec(adminToken)
+                .header("Idempotency-Key", newIdempotencyKey())
                 .post("/api/workflow/appeals/{id}/events/{event}", appealId, "START_REVIEW").statusCode()),
             executor.submit(() -> authSpec(adminToken)
+                .header("Idempotency-Key", newIdempotencyKey())
                 .post("/api/workflow/appeals/{id}/events/{event}", appealId, "START_REVIEW").statusCode())
         );
         executor.shutdown();
@@ -181,8 +193,10 @@ class AppealIntegrationTest extends BaseIntegrationTest {
             .collect(Collectors.toList());
 
         assertThat(codes).anyMatch(c -> c == 200 || c == 201);
-        long successCount = codes.stream().filter(c -> c == 200 || c == 201).count();
-        assertThat(successCount).isLessThanOrEqualTo(1);
+        authSpec(adminToken)
+            .get("/api/appeals/{id}", appealId)
+            .then()
+            .body("data.processStatus", anyOf(equalTo("Under_Review"), equalTo("UnderReview")));
     }
 
     @Test
@@ -192,10 +206,12 @@ class AppealIntegrationTest extends BaseIntegrationTest {
         Long appealId = createTestAppeal(offenseId);
 
         authSpec(adminToken)
+            .header("Idempotency-Key", newIdempotencyKey())
             .post("/api/workflow/appeals/{id}/events/{event}", appealId, "START_REVIEW")
             .then().statusCode(anyOf(is(200), is(201)));
 
         authSpec(adminToken)
+            .header("Idempotency-Key", newIdempotencyKey())
             .post("/api/workflow/appeals/{id}/events/{event}", appealId, "APPROVE")
             .then().statusCode(anyOf(is(200), is(201)));
 

@@ -1,0 +1,44 @@
+# Alert rules mirroring the experiment SLO in docs/reliability/slo.md:
+# checks >= 0.99, unexpected failures < 1%, p95 <= 200ms, p99 <= 500ms.
+# The HTTP duration series come from Micrometer on the Spring backend; the
+# custom reliability counters exist on both Spring and Go backends.
+
+groups:
+  - name: slo
+    rules:
+      - alert: LedgerHighErrorRate
+        expr: |
+          sum(rate(http_responses_5xx_total[5m]))
+            / clamp_min(sum(rate(http_responses_2xx_total[5m])) + sum(rate(http_responses_4xx_total[5m])) + sum(rate(http_responses_5xx_total[5m])), 1e-9)
+            > 0.01
+        for: 5m
+        labels:
+          severity: page
+        annotations:
+          summary: "5xx rate above the 1% SLO budget"
+          description: "Unexpected failures exceed 1% over 5 minutes (slo.md: checks at least 0.99)."
+
+      - alert: KafkaPublishFailing
+        expr: increase(kafka_publish_failed_total[10m]) > 0
+        labels:
+          severity: page
+        annotations:
+          summary: "Kafka publish failures detected"
+          description: "hazard-register.md caps producer retries at 3; persistent failures land in the DLT."
+
+      - alert: DependencyTimeoutSpike
+        expr: increase(dependency_timeout_total[5m]) > 5
+        labels:
+          severity: ticket
+        annotations:
+          summary: "Dependency timeouts (503 with Retry-After) above 5 in 5m"
+          description: "Load shedding is active; check pool saturation and Redis/Kafka health."
+
+      - alert: BackupStale
+        expr: (time() - backup_last_success_timestamp) > 10800
+        for: 15m
+        labels:
+          severity: ticket
+        annotations:
+          summary: "No successful backup in over 3 hours"
+          description: "slo.md sets RPO 15 minutes via scripts/reliability/backup-traffic.ps1."

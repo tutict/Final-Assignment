@@ -1,0 +1,133 @@
+# CI for the four-backend + two-frontend matrix.
+# Strategy: build/test only what each stack can verify without live infrastructure.
+# Testcontainers jobs use the built-in Docker; integration tests that need
+# MySQL/Redis set USE_TESTCONTAINERS=true, otherwise they run against the
+# H2/embedded profile or are skipped via their own assumptions.
+#
+# k6 is intentionally NOT run here: the scenarios need a live backend + DB.
+
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  spring-backend:
+    name: Spring Boot (backend)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "25"
+          cache: maven
+      - name: Build (skip tests; unit-test job runs them)
+        working-directory: finalAssignmentBackend
+        run: mvn -B -ntp compile
+
+      - name: Unit tests (Testcontainers available via the runner Docker)
+        working-directory: finalAssignmentBackend
+        run: mvn -B -ntp test
+
+  spring-cloud:
+    name: Spring Cloud (modules)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "25"
+          cache: maven
+      - name: Compile all modules
+        working-directory: finalAssignmentCloud
+        run: mvn -B -ntp -am -pl finalassignmentcloud-traffic compile
+
+  quarkus-backend:
+    name: Quarkus (backend)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "25"
+          cache: gradle
+      - uses: gradle/actions/setup-gradle@v4
+      - name: Compile + tests
+        working-directory: final_assignment_backend_quarkus
+        run: ./gradlew --console=plain test classes
+
+  go-backend:
+    name: Go (backend)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: final_assignment_backend_go/go.mod
+          cache-dependency-path: final_assignment_backend_go/go.sum
+      - name: Vet + build + tests
+        working-directory: final_assignment_backend_go
+        run: |
+          go vet ./...
+          go build ./...
+          go test ./... -count=1
+
+  react-frontend:
+    name: React (frontend)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: final_assignment_front_react/package-lock.json
+      - name: Install + typecheck + build
+        working-directory: final_assignment_front_react
+        run: |
+          npm ci
+          npm run typecheck
+          npm run build
+
+  flutter-frontend:
+    name: Flutter Web (frontend)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+      - name: Pub get + analyze + tests
+        working-directory: final_assignment_front
+        run: |
+          flutter pub get
+          flutter analyze --no-pub --fatal-infos
+          flutter test
+
+  docker-images:
+    name: Docker images build
+    runs-on: ubuntu-latest
+    needs: [spring-backend, go-backend]
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build Spring image
+        run: docker build -f finalAssignmentBackend/Dockerfile -t final-assignment-spring:ci .
+      - name: Build Go image
+        run: docker build -f final_assignment_backend_go/Dockerfile -t final-assignment-go:ci .
+      - name: Validate compose.app.yml
+        env:
+          MYSQL_PASSWORD: ci-only
+          REDIS_PASSWORD: ci-only
+          JWT_SECRET: ci-only-not-a-real-secret
+        run: docker compose -f compose.app.yml config --quiet

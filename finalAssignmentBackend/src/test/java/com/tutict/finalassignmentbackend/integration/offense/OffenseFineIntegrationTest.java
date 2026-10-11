@@ -63,7 +63,8 @@ class OffenseFineIntegrationTest extends BaseIntegrationTest {
             .statusCode(anyOf(is(200), is(201)))
             .body("success", equalTo(true))
             .body("data.offenseId", notNullValue())
-            .body("data.processStatus", equalTo("Pending"))
+            // validateOffenseRecord normalizes blank/Pending to Unprocessed.
+            .body("data.processStatus", equalTo("Unprocessed"))
             .body("data.idempotencyKey", nullValue());
     }
 
@@ -146,6 +147,7 @@ class OffenseFineIntegrationTest extends BaseIntegrationTest {
         Long offenseId = createTestOffense(driverId, vehicleId);
 
         authSpec(adminToken)
+            .header("Idempotency-Key", newIdempotencyKey())
             .post("/api/workflow/offenses/{id}/events/{event}", offenseId, "START_PROCESSING")
             .then()
             .statusCode(anyOf(is(200), is(201)));
@@ -164,6 +166,7 @@ class OffenseFineIntegrationTest extends BaseIntegrationTest {
         Long offenseId = createTestOffense(driverId, vehicleId);
 
         authSpec(adminToken)
+            .header("Idempotency-Key", newIdempotencyKey())
             .post("/api/workflow/offenses/{id}/events/{event}", offenseId, "COMPLETE_PROCESSING")
             .then()
             .statusCode(409)

@@ -87,4 +87,10 @@ app:
   security:
     token-blacklist:
       fail-open: true
+    login:
+      # Integration tests login many times per class against the same accounts;
+      # raise the per-account/per-IP ceilings so suite runs don't trip 429.
+      max-account-attempts: 10000
+      max-ip-attempts: 10000
+      window: PT1M
 
