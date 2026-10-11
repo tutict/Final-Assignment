@@ -1,5 +1,6 @@
 // ignore_for_file: use_build_context_synchronously
 
+import 'package:final_assignment_front/core/auth/role_utils.dart';
 import 'package:final_assignment_front/features/api/feedback_controller_api.dart';
 import 'package:final_assignment_front/features/dashboard/controllers/user_dashboard_screen_controller.dart';
 import 'package:final_assignment_front/features/dashboard/views/shared/widgets/dashboard_chrome.dart';
@@ -162,12 +163,22 @@ class _FeedbackApprovalPageState extends State<FeedbackApprovalPage> {
   final UserDashboardController dashboardController =
       Get.find<UserDashboardController>();
   bool _isLoading = true;
+  bool _isStaff = false;
   String _errorMessage = '';
 
   @override
   void initState() {
     super.initState();
+    _loadRole();
     _fetchFeedbackRequests();
+  }
+
+  Future<void> _loadRole() async {
+    final prefs = await SharedPreferences.getInstance();
+    if (!mounted) return;
+    setState(() {
+      _isStaff = RoleUtils.canAccessAdminDashboard(prefs.getString('userRole'));
+    });
   }
 
   Future<void> _fetchFeedbackRequests() async {
@@ -193,18 +204,21 @@ class _FeedbackApprovalPageState extends State<FeedbackApprovalPage> {
   }
 
   Future<void> _updateFeedbackRequest(int feedbackId, String status) async {
+    if (!_isStaff) {
+      AppSnackbar.showError(context, message: '仅管理员可处理反馈');
+      return;
+    }
     setState(() => _isLoading = true);
     try {
       await _feedbackApi.updateFeedback(
         feedbackId: feedbackId,
         body: {
           'status': status,
-          'timestamp': DateTime.now().toIso8601String(),
         },
       );
       await _fetchFeedbackRequests();
       AppSnackbar.showSuccess(context,
-          message: '反馈已${status == 'Approved' ? '批准' : '拒绝'}');
+          message: status == 'Resolved' ? '反馈已处理' : '反馈已办结');
     } catch (e) {
       AppSnackbar.showError(context, message: '更新失败: $e');
     } finally {
@@ -231,14 +245,16 @@ class _FeedbackApprovalPageState extends State<FeedbackApprovalPage> {
           separatorBuilder: (_, __) => const SizedBox(height: 12),
           itemBuilder: (context, index) {
             final feedback = _feedbackRequests[index];
+            final canAct =
+                _isStaff && feedback.status == 'Pending' && feedback.feedbackId != 0;
             return _FeedbackApprovalCard(
               feedback: feedback,
               statusLabel: _translateStatus(feedback.status),
-              onApprove: feedback.status == 'Pending' && feedback.feedbackId != 0
-                  ? () => _updateFeedbackRequest(feedback.feedbackId, 'Approved')
+              onApprove: canAct
+                  ? () => _updateFeedbackRequest(feedback.feedbackId, 'Resolved')
                   : null,
-              onReject: feedback.status == 'Pending' && feedback.feedbackId != 0
-                  ? () => _updateFeedbackRequest(feedback.feedbackId, 'Rejected')
+              onReject: canAct
+                  ? () => _updateFeedbackRequest(feedback.feedbackId, 'Completed')
                   : null,
             );
           },
@@ -250,13 +266,15 @@ class _FeedbackApprovalPageState extends State<FeedbackApprovalPage> {
   String _translateStatus(String status) {
     switch (status) {
       case 'Pending':
-        return '待审核';
-      case 'Approved':
-        return '已批准';
-      case 'Rejected':
-        return '已拒绝';
+        return '待处理';
+      case 'Processing':
+        return '处理中';
+      case 'Resolved':
+        return '已处理';
+      case 'Completed':
+        return '已办结';
       default:
-        return '未知';
+        return status;
     }
   }
 }
@@ -280,8 +298,9 @@ class _FeedbackApprovalCard extends StatelessWidget {
     final scheme = theme.colorScheme;
     final isPending = feedback.status == 'Pending';
     final statusColor = switch (feedback.status) {
-      'Approved' => const Color(0xFF41B86A),
-      'Rejected' => scheme.error,
+      'Resolved' => const Color(0xFF41B86A),
+      'Completed' => scheme.primary,
+      'Processing' => const Color(0xFF6B9BD1),
       _ => const Color(0xFFEAB45C),
     };
 
@@ -351,10 +370,10 @@ class _FeedbackApprovalCard extends StatelessWidget {
                 if (onReject != null)
                   TextButton.icon(
                     onPressed: onReject,
-                    icon: const Icon(Icons.close_rounded, size: 18),
-                    label: const Text('拒绝'),
+                    icon: const Icon(Icons.task_alt_rounded, size: 18),
+                    label: const Text('办结'),
                     style: TextButton.styleFrom(
-                      foregroundColor: scheme.error,
+                      foregroundColor: scheme.primary,
                     ),
                   ),
                 if (onApprove != null) ...[
@@ -362,7 +381,7 @@ class _FeedbackApprovalCard extends StatelessWidget {
                   FilledButton.icon(
                     onPressed: onApprove,
                     icon: const Icon(Icons.check_rounded, size: 18),
-                    label: const Text('批准'),
+                    label: const Text('标记已处理'),
                   ),
                 ],
               ],
