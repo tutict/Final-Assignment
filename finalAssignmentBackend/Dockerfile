@@ -4,10 +4,10 @@
 
 FROM maven:3.9-eclipse-temurin-25 AS build
 WORKDIR /workspace
-COPY pom.xml .
+COPY finalAssignmentBackend/pom.xml ./pom.xml
 # Dependencies layer first so source edits don't invalidate the dependency cache.
 RUN mvn -q dependency:go-offline -DskipTests
-COPY src ./src
+COPY finalAssignmentBackend/src ./src
 RUN mvn -q package -DskipTests
 
 FROM eclipse-temurin:25-jre
