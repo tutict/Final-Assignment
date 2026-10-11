@@ -83,9 +83,13 @@
 | **TrafficViolationController** | `/api/violations` | 3 | — | ✅ 完全一致 |
 | **ProgressItemController** | `/api/progress` | 7 | `getByStatus`（Quarkus 用 `listByStatus`）、`getByTimeRangeDeprecated` | 若干 deprecated 改名 |
 | **WorkflowController** | `/api/workflow` | 3 | — | ✅ 完全一致 |
+| **FeedbackController** | `/api/feedback` | 3 | — | ✅ `FeedbackResource` 的 list/create/update 一致 |
+| **CacheController** | `/api/cache` | 1 | — | ✅ `CacheResource` 的 `POST /clear` 一致 |
 | **OffenseDetailsController** | (view) | 1 | — | ✅ 完全一致 |
 
 > HTTP 动词计数佐证：以上"缺失端点"与两边 GET/POST 数量差**完全吻合**（例：Auth Spring GET2/POST4 vs Quarkus GET1/POST2；Vehicle Spring GET21 vs Quarkus GET19）。
+
+`/api/feedback` 四端共用 `consultation_feedback`：幂等键命中本人回放 200，命中他人返回 409 且不回传原记录；工作人员只认精确 `ADMIN` / `SUPER_ADMIN`，状态只允许 `Pending` / `Processing` / `Resolved` / `Completed`。`/api/cache/clear` 角色仍是 `SUPER_ADMIN`、`ADMIN`、`TRAFFIC_POLICE`。
 
 ---
 
