@@ -61,11 +61,11 @@ services:
       JWT_SECRET: ${JWT_SECRET:?set JWT_SECRET in .env, generate one with finalAssignmentTools/generate_secret_key}
       SPRING_PROFILES_ACTIVE: dev
       SERVER_PORT: "8080"
-      JAVA_OPTS: -XX:MaxRAMPercentage=75
+      # eclipse-temurin JRE images have no wget/curl; shell probes suffice for compose.
     ports:
       - "9080:8080"
     healthcheck:
-      test: ["CMD", "wget", "-qO-", "http://localhost:8080/api/actuator/health"]
+      test: ["CMD-SHELL", "exec 3<>/dev/tcp/localhost/8080 && printf 'GET /api/actuator/health HTTP/1.0\\r\\nHost: localhost\\r\\n\\r\\n' >&3 && grep -q UP <&3"]
       interval: 15s
       timeout: 5s
       retries: 5
@@ -89,12 +89,13 @@ services:
       MYSQL_USER: ${MYSQL_USER:-root}
       MYSQL_PASSWORD: ${MYSQL_PASSWORD:?set MYSQL_PASSWORD in .env}
       JWT_SECRET: ${JWT_SECRET:?set JWT_SECRET in .env}
-      REDIS_ADDR: redis:6379
-      REDIS_PASSWORD: ${REDIS_PASSWORD:?set REDIS_PASSWORD in .env}
+      REDIS_HOST: redis
+      REDIS_PORT: "6379"
       RELIABILITY_LOAD_SHED: "true"
     ports:
       - "18080:8080"
     healthcheck:
+      # Alpine has no wget/curl; busybox wget is available in the alpine image.
       test: ["CMD", "wget", "-qO-", "http://localhost:8080/actuator/health"]
       interval: 15s
       timeout: 5s
