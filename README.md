@@ -103,6 +103,8 @@ docker compose -f compose.app.yml up -d --build
 
 CI（`.github/workflows/ci.yml`）覆盖四后端构建与测试、React typecheck+build、Flutter analyze+test，以及两个应用镜像的构建验证。
 
+> 仓库中出现的所有密码/密钥（`docker-compose.yml`、k6 配置等）均为**本地开发默认值**，可通过 `.env` / `PERF_*` 环境变量覆盖，请勿在任何真实环境复用。
+
 ## 一键启动
 
 推荐从仓库根目录使用脚本启动。

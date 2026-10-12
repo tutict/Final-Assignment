@@ -1,5 +1,6 @@
-# Docker Compose for Spring Cloud Microservices
-# Complete infrastructure with all dependencies
+# Docker Compose for infrastructure dependencies (MySQL/Redis/ES/Kafka/Nacos).
+# Local-dev credentials only — copy compose.env.example to .env to override.
+# The app-level stack (backends + Prometheus/Grafana) lives in compose.app.yml.
 
 version: '3.8'
 
@@ -13,8 +14,8 @@ services:
     image: mysql:8.0
     container_name: finalassignment-mysql
     environment:
-      MYSQL_ROOT_PASSWORD: root123456
-      MYSQL_DATABASE: traffic_management
+      MYSQL_ROOT_PASSWORD: ${MYSQL_PASSWORD:-root123456}
+      MYSQL_DATABASE: ${MYSQL_DATABASE:-traffic_management}
       TZ: Asia/Shanghai
     ports:
       - "3306:3306"
@@ -23,7 +24,7 @@ services:
       - ./database:/docker-entrypoint-initdb.d
     command: --default-authentication-plugin=mysql_native_password --character-set-server=utf8mb4 --collation-server=utf8mb4_unicode_ci
     healthcheck:
-      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-uroot", "-proot123456"]
+      test: ["CMD-SHELL", "mysqladmin ping -h localhost -uroot -p$${MYSQL_ROOT_PASSWORD}"]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -34,11 +35,11 @@ services:
     container_name: finalassignment-redis
     ports:
       - "6379:6379"
-    command: redis-server --requirepass redis123456 --appendonly yes
+    command: redis-server --requirepass ${REDIS_PASSWORD:-redis123456} --appendonly yes
     volumes:
       - redis-data:/data
     healthcheck:
-      test: ["CMD", "redis-cli", "ping"]
+      test: ["CMD-SHELL", "redis-cli -a $${REDIS_PASSWORD} ping"]
       interval: 10s
       timeout: 3s
       retries: 5
@@ -108,7 +109,7 @@ services:
       MYSQL_SERVICE_PORT: 3306
       MYSQL_SERVICE_DB_NAME: nacos
       MYSQL_SERVICE_USER: root
-      MYSQL_SERVICE_PASSWORD: root123456
+      MYSQL_SERVICE_PASSWORD: ${MYSQL_PASSWORD:-root123456}
       JVM_XMS: 512m
       JVM_XMX: 512m
     ports:

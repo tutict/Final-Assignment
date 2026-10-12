@@ -18,13 +18,15 @@ export const SYSTEM_URL = `${BASE_URL}/api/system`;
 export const RAG_URL = `${BASE_URL}/api/rag`;
 export const SEARCH_URL = `${BASE_URL}/api/search`;
 
-// Test user credentials (create these users before running tests)
+// Test user credentials (create these users before running tests).
+// The defaults below are the local-dev seed accounts documented in k6-tests/README.md —
+// override via PERF_* env vars when running against any other environment.
 export const TEST_USERS = [
-  { username: 'testuser1', password: 'Test123456!' },
-  { username: 'testuser2', password: 'Test123456!' },
-  { username: 'testuser3', password: 'Test123456!' },
-  { username: 'testuser4', password: 'Test123456!' },
-  { username: 'testuser5', password: 'Test123456!' },
+  { username: 'testuser1', password: __ENV.PERF_USER_PASSWORD || 'Test123456!' },
+  { username: 'testuser2', password: __ENV.PERF_USER_PASSWORD || 'Test123456!' },
+  { username: 'testuser3', password: __ENV.PERF_USER_PASSWORD || 'Test123456!' },
+  { username: 'testuser4', password: __ENV.PERF_USER_PASSWORD || 'Test123456!' },
+  { username: 'testuser5', password: __ENV.PERF_USER_PASSWORD || 'Test123456!' },
 ];
 
 export const ROLE_USERS = {

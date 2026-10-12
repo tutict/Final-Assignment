@@ -41,15 +41,15 @@ docker compose ps | grep "healthy"
 ```bash
 # The database will auto-initialize from ./database/*.sql files
 # Check if initialization completed
-docker compose exec mysql mysql -uroot -proot123456 -e "SHOW DATABASES;"
+docker compose exec mysql mysql -uroot -p$MYSQL_PASSWORD -e "SHOW DATABASES;"
 ```
 
 ### 3. Access Services
 
 - **Nacos Console**: http://localhost:8848/nacos (username: nacos, password: nacos)
 - **Elasticsearch**: http://localhost:9200
-- **MySQL**: localhost:3306 (root/root123456)
-- **Redis**: localhost:6379 (password: redis123456)
+- **MySQL**: localhost:3306 (root / `$MYSQL_PASSWORD`, default `root123456` — see compose.env.example)
+- **Redis**: localhost:6379 (password: `$REDIS_PASSWORD`, default `redis123456`)
 
 ### 4. Run Microservices
 
@@ -164,8 +164,8 @@ docker compose logs -f nacos
 docker compose ps
 
 # Check specific service
-docker compose exec mysql mysqladmin ping -h localhost -uroot -proot123456
-docker compose exec redis redis-cli -a redis123456 ping
+docker compose exec mysql mysqladmin ping -h localhost -uroot -p$MYSQL_PASSWORD
+docker compose exec redis redis-cli -a $REDIS_PASSWORD ping
 curl http://localhost:9200/_cluster/health
 curl http://localhost:8848/nacos/v1/console/health/readiness
 ```
@@ -174,10 +174,10 @@ curl http://localhost:8848/nacos/v1/console/health/readiness
 
 ```bash
 # MySQL CLI
-docker compose exec mysql mysql -uroot -proot123456 traffic_management
+docker compose exec mysql mysql -uroot -p$MYSQL_PASSWORD traffic_management
 
 # Redis CLI
-docker compose exec redis redis-cli -a redis123456
+docker compose exec redis redis-cli -a $REDIS_PASSWORD
 
 # Elasticsearch
 curl http://localhost:9200/_cat/indices?v
@@ -212,10 +212,10 @@ netstat -ano | findstr ":3306"
 
 ```bash
 # Verify MySQL is ready
-docker compose exec mysql mysqladmin ping -h localhost -uroot -proot123456
+docker compose exec mysql mysqladmin ping -h localhost -uroot -p$MYSQL_PASSWORD
 
 # Check database exists
-docker compose exec mysql mysql -uroot -proot123456 -e "SHOW DATABASES;"
+docker compose exec mysql mysql -uroot -p$MYSQL_PASSWORD -e "SHOW DATABASES;"
 
 # Re-initialize if needed
 docker compose down -v

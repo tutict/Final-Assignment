@@ -8,7 +8,10 @@ Rag:
   IndexingEnabled: true
   EmbeddingEnabled: true
   RetrievalEnabled: true
-  MySQLDSN: "root:final_assignment@tcp(127.0.0.1:3307)/final_assignment?charset=utf8mb4&parseTime=True&loc=Local"
+  # Local-dev DSN for the RAG live pipeline; override per environment with the
+  # RAG_MYSQL_DSN env var (see project/deploy/rag/README.md) instead of editing
+  # this file.
+  MySQLDSN: "root:local-dev@tcp(127.0.0.1:3307)/final_assignment?charset=utf8mb4&parseTime=True&loc=Local"
   ElasticsearchAddresses:
     - "http://127.0.0.1:9201"
   ElasticsearchUsername: ""

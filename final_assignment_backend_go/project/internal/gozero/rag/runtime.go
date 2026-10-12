@@ -3,6 +3,7 @@ package rag
 import (
 	"database/sql"
 	"fmt"
+	"os"
 	"strings"
 	"time"
 
@@ -45,6 +46,11 @@ type Runtime struct {
 
 func NewRuntime(conf config.RagConf) (*Runtime, error) {
 	conf = normalizeConf(conf)
+	// Env override wins over the YAML value so deployments don't need to
+	// rewrite the checked-in local-dev config file.
+	if envDSN := strings.TrimSpace(os.Getenv("RAG_MYSQL_DSN")); envDSN != "" {
+		conf.MySQLDSN = envDSN
+	}
 	if !conf.Enabled {
 		return DisabledRuntime(), nil
 	}
