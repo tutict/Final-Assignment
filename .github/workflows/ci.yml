@@ -92,11 +92,12 @@ jobs:
           node-version: "22"
           cache: npm
           cache-dependency-path: final_assignment_front_react/package-lock.json
-      - name: Install + typecheck + build
+      - name: Install + typecheck + test + build
         working-directory: final_assignment_front_react
         run: |
           npm ci
           npm run typecheck
+          npm run test
           npm run build
 
   flutter-frontend:
