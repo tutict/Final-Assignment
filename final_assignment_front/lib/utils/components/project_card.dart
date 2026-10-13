@@ -1,8 +1,14 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
-import 'package:get/Get.dart';
 import 'package:percent_indicator/percent_indicator.dart';
+
+/// 首字母大写（get 包的 String.capitalize 在 case-sensitive 文件系统上
+/// 因大小写错误的 import 而不可用，这里内联同等实现）。
+extension _CapitalizeFirst on String {
+  String get capitalizeFirst =>
+      isEmpty ? this : '${this[0].toUpperCase()}${substring(1)}';
+}
 
 /// 定义项目卡片数据模型，包含项目图片、名称、发布时间和完成百分比
 class ProjectCardData {
@@ -142,7 +148,7 @@ class _TitleText extends StatelessWidget {
     final theme = Theme.of(context);
     final scheme = theme.colorScheme;
     return Text(
-      data.capitalize!,
+      data.capitalizeFirst,
       style: TextStyle(
         fontSize: 12,
         fontWeight: FontWeight.w700,

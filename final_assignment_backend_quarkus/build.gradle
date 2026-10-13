@@ -7,7 +7,9 @@ plugins {
 
 java {
     toolchain {
-        languageVersion = JavaLanguageVersion.of(23)
+        // Local development runs on Java 25; CI (setup-java temurin 25) matches.
+        // Toolchain auto-provisioning is disabled, so the versions must agree.
+        languageVersion = JavaLanguageVersion.of(25)
     }
 }
 
@@ -60,8 +62,8 @@ dependencies {
 }
 
 java {
-    sourceCompatibility = JavaVersion.VERSION_23
-    targetCompatibility = JavaVersion.VERSION_23
+    sourceCompatibility = JavaVersion.VERSION_25
+    targetCompatibility = JavaVersion.VERSION_25
 }
 
 compileJava {

@@ -45,6 +45,7 @@ public final class LedgerConnectionPolicy {
                     || message.contains("timeout waiting for connection")
                     || message.contains("Lock wait timeout")
                     || message.contains("Deadlock found")
+                    || message.contains("max wait queue size")
                     || message.contains("connection reset")
                     || message.contains("broken pipe"))) {
                 return true;

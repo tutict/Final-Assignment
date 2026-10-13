@@ -60,10 +60,24 @@ class SpringRouteParityTest {
     private static final Set<String> KNOWN_SPRING_ROUTES_MISSING_FROM_QUARKUS = Set.of();
 
     /**
-     * Baseline snapshot of Quarkus routes that have no Spring counterpart.
+     * Baseline snapshot of Quarkus routes that have no Spring counterpart:
+     * the actuator/health probe aliases (ActuatorAliasResource + HealthProbeResource)
+     * and the ledger reconcile endpoint this port exposes proactively.
      */
     private static final Set<String> KNOWN_QUARKUS_ROUTES_NOT_IN_SPRING = Set.of(
-            "GET /search");
+            "GET /actuator/health",
+            "GET /actuator/health/liveness",
+            "GET /actuator/health/readiness",
+            "GET /actuator/prometheus",
+            "GET /api/actuator/health",
+            "GET /api/health",
+            "GET /q/health",
+            "GET /q/health/live",
+            "GET /q/health/ready",
+            "GET /q/metrics",
+            "GET /readyz",
+            "GET /search",
+            "POST /actuator/ledgerReconcile");
 
     @Test
     void springRoutesMissingFromQuarkusMatchesBaseline() throws IOException {
