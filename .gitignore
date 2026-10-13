@@ -315,7 +315,8 @@ lib/generated_plugin_registrant.dart
 # See https://www.dartlang.org/guides/libraries/private-files
 
 # If you're building an application, you may want to check-in your pubspec.lock
-pubspec.lock
+# CI resolves from the lockfile, so keep it tracked for reproducible builds.
+#pubspec.lock
 
 # Directory created by dartdoc
 # If you don't generate documentation locally you can remove this line.

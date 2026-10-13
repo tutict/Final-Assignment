@@ -4,8 +4,11 @@ import (
 	"context"
 	"database/sql/driver"
 	"errors"
+	"net"
+	"os"
 	"strings"
 	"testing"
+	"time"
 )
 
 type timeoutConn struct {
@@ -77,8 +80,20 @@ func TestDefaultDatabaseIsSharedTraffic(t *testing.T) {
 	}
 }
 
+// Verifies the session connector end-to-end against a real MySQL. Skipped when
+// no local MySQL is reachable (CI runs the suite without infrastructure).
 func TestOpenGormWithStatementTimeoutSetsMaxExecutionTime(t *testing.T) {
-	db, err := OpenGormWithStatementTimeout("root:root@tcp(127.0.0.1:3306)/traffic?parseTime=true&charset=utf8mb4&loc=Local")
+	dsn := os.Getenv("TEST_MYSQL_DSN")
+	if dsn == "" {
+		dsn = "root:root@tcp(127.0.0.1:3306)/traffic?parseTime=true&charset=utf8mb4&loc=Local"
+	}
+	conn, err := net.DialTimeout("tcp", "127.0.0.1:3306", 500*time.Millisecond)
+	if err != nil {
+		t.Skip("no local MySQL on 127.0.0.1:3306; set TEST_MYSQL_DSN and start MySQL to run this test")
+	}
+	_ = conn.Close()
+
+	db, err := OpenGormWithStatementTimeout(dsn)
 	if err != nil {
 		t.Fatal(err)
 	}

@@ -5,7 +5,6 @@ import 'dart:developer' as developer;
 import 'package:final_assignment_front/core/auth/auth_service.dart';
 import 'package:final_assignment_front/core/config/app_config.dart';
 import 'package:final_assignment_front/features/model/operation_log.dart';
-import 'package:final_assignment_front/features/model/system_logs.dart';
 import 'package:get/get.dart';
 import 'package:http/http.dart' as http;
 import 'package:uuid/uuid.dart';
