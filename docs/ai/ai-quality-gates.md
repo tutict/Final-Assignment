@@ -91,5 +91,11 @@ identifiers such as `docs:7`), and the agent path passes the caller's own messag
 through as a user turn. Both are deliberate: sanitizing them would break citation
 matching and intent routing respectively.
 
+The injection filter is recall-oriented by design, so it has a bounded false-positive
+rate on user input (for example a question phrased as "how do I ignore the previous
+error prompt" can have that span neutralized). Only the matched span is replaced, the
+rest of the message is preserved, and the guard is deterministic and unit-tested
+(including a long-input scan bound).
+
 Toggle: `ai.guardrail.citation-enforcement.enabled` (env `AI_GUARDRAIL_CITATION_ENFORCEMENT`,
 default `true`).
