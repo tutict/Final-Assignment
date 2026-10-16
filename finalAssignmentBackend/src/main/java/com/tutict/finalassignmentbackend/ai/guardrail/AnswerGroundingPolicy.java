@@ -85,6 +85,34 @@ public class AnswerGroundingPolicy {
             return false;
         }
         String needle = candidate.trim().toLowerCase(Locale.ROOT);
-        return needle.length() >= 2 && loweredAnswer.contains(needle);
+        // Only treat *distinctive* identifiers as citations. A bare row id such as "12" or "7"
+        // would otherwise match almost any answer that happens to contain those digits, letting
+        // an uncited answer pass. Han titles are meaningful from two characters; Latin
+        // identifiers must be longer and contain at least one letter (e.g. "doc-1").
+        if (!isDistinctive(needle)) {
+            return false;
+        }
+        return loweredAnswer.contains(needle);
+    }
+
+    private static boolean isDistinctive(String needle) {
+        if (needle.length() < 2) {
+            return false;
+        }
+        boolean han = false;
+        boolean letter = false;
+        for (int i = 0; i < needle.length(); i++) {
+            char character = needle.charAt(i);
+            if (Character.UnicodeScript.of(character) == Character.UnicodeScript.HAN) {
+                han = true;
+            }
+            if (Character.isLetter(character)) {
+                letter = true;
+            }
+        }
+        if (han) {
+            return true;
+        }
+        return letter && needle.length() >= 4;
     }
 }

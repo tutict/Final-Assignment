@@ -230,6 +230,10 @@ public class ChatPipeline {
      *
      * <p>为了能真正阻止无引用回答到达用户，这里对“需要引用”的回合做缓冲：先收集完整回答，
      * 判定通过才按原样回放事件，否则只发出兜底回答。非检索回合不缓冲，保持原有流式体验。
+     *
+     * <p>只对<b>纯文本回答</b>做引用强制：基础设施消息（熔断/降级兜底、错误）与结构化
+     * 控制事件（TOOL / DRAFT / RESULT / ACTION / QUEUE 等）原样透传。否则一次拒答会连草稿卡片、导航动作
+     * 一并吞掉，或把“AI 暂时不可用”误改成引用拒答。
      */
     private Flux<ChatStreamEvent> applyGrounding(
             Flux<ChatStreamEvent> events,
@@ -258,15 +262,19 @@ public class ChatPipeline {
         if (buffered.isEmpty()) {
             return Flux.empty();
         }
-        boolean errored = buffered.stream()
-                .anyMatch(event -> ChatStreamEventType.ERROR.wireName().equals(event.type()));
+        // Infrastructure messages and structured control events are not "answers": pass them
+        // through untouched so a refusal never swallows a draft card / action / tool result or
+        // rewrites a bulkhead fallback.
+        if (buffered.stream().anyMatch(ChatPipeline::isNonTextEvent)) {
+            return Flux.fromIterable(buffered);
+        }
         String answer = buffered.stream()
                 .filter(event -> ChatStreamEventType.TOKEN.wireName().equals(event.type()))
                 .map(ChatStreamEvent::token)
                 .filter(Objects::nonNull)
                 .collect(Collectors.joining());
         GroundingDecision decision = answerGroundingPolicy.evaluate(answer, sources);
-        if (errored || decision.grounded()) {
+        if (decision.grounded()) {
             return Flux.fromIterable(buffered);
         }
         String sessionKey = firstNonBlank(buffered.getFirst().sessionKey());
@@ -275,6 +283,20 @@ public class ChatPipeline {
                 ChatStreamEvent.token(sessionKey, messageId, decision.answer()),
                 ChatStreamEvent.done(sessionKey, messageId)
         );
+    }
+
+    /**
+     * 真正受引用强制约束的只有 TOKEN / DONE；其他类型以及任何带
+     * {@code isFallback} 载荷的事件都视为非文本事件。
+     */
+    private static boolean isNonTextEvent(ChatStreamEvent event) {
+        String type = event.type();
+        if (!ChatStreamEventType.TOKEN.wireName().equals(type)
+                && !ChatStreamEventType.DONE.wireName().equals(type)) {
+            return true;
+        }
+        return event.payload() instanceof Map<?, ?> payload
+                && Boolean.TRUE.equals(payload.get("isFallback"));
     }
 
     private String sanitizeUserMessage(String userMessage) {

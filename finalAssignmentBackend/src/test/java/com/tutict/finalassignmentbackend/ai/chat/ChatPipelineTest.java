@@ -40,7 +40,9 @@ class ChatPipelineTest {
 
     @Test
     void runsRagEnabledPipelineAndHandsAssembledPromptToProvider() {
-        CapturingProvider provider = new CapturingProvider("primary", tokenStream("answer"));
+        // RAG-grounded turns require a citation, so the stub answer cites [1]; otherwise the
+        // citation guardrail would replace it with a refusal (covered by ChatPipelineGroundingTest).
+        CapturingProvider provider = new CapturingProvider("primary", tokenStream("Use retrieved policy. [1]"));
         StubRagQueryService rag = new StubRagQueryService(List.of(result("Policy", "Use retrieved policy.")));
         ChatPipeline pipeline = pipeline(provider, rag, ragProperties(true));
         Map<String, Object> metadata = new LinkedHashMap<>();

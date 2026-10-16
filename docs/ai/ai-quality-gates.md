@@ -72,5 +72,24 @@ that actually rely on retrieval:
 answer can be replaced before it reaches the user; non-retrieval turns keep streaming
 unchanged.
 
+Scope and safety of the rewrite:
+
+* Only **plain-text answers** (TOKEN / DONE) are subject to enforcement. Structured
+  control events (`TOOL`, `DRAFT`, `RESULT`, `ACTION`, `QUEUE`) and infrastructure
+  messages (bulkhead/fallback, `ERROR`, any event carrying `isFallback`) pass through
+  untouched, so a refusal can never swallow a draft card, a navigation action or rewrite
+  an "AI unavailable" fallback.
+* Keep-alives are forwarded immediately while the answer is buffered, so the SSE
+  connection stays alive during the check.
+* Citation matching ignores non-distinctive identifiers (bare row ids such as `12` or
+  `7`), which would otherwise match almost any answer and let an uncited answer pass.
+  Han titles count from two characters; Latin identifiers must contain a letter and be
+  at least four characters (e.g. `doc-1`).
+
+Residual gap: retrieved `source` strings are rendered verbatim (they are technical
+identifiers such as `docs:7`), and the agent path passes the caller's own message
+through as a user turn. Both are deliberate: sanitizing them would break citation
+matching and intent routing respectively.
+
 Toggle: `ai.guardrail.citation-enforcement.enabled` (env `AI_GUARDRAIL_CITATION_ENFORCEMENT`,
 default `true`).

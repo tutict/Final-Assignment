@@ -1,5 +1,6 @@
 package com.tutict.finalassignmentbackend.ai.chat;
 
+import com.tutict.finalassignmentbackend.ai.agent.AgentRuntime;
 import com.tutict.finalassignmentbackend.ai.guardrail.AnswerGroundingPolicy;
 import com.tutict.finalassignmentbackend.ai.guardrail.PromptInjectionGuard;
 import com.tutict.finalassignmentbackend.ai.prompt.AgentConstraintService;
@@ -21,6 +22,8 @@ import com.tutict.finalassignmentbackend.ai.rag.config.RagRetrievalProperties;
 import com.tutict.finalassignmentbackend.ai.rag.dto.RetrievalResult;
 import com.tutict.finalassignmentbackend.ai.rag.query.RagQueryService;
 import com.tutict.finalassignmentbackend.ai.rag.query.ServerSideRagQueryRequest;
+import com.tutict.finalassignmentbackend.reliability.ModelCallBulkhead;
+import com.tutict.finalassignmentbackend.reliability.ReliabilityMetrics;
 import org.junit.jupiter.api.Test;
 import org.springframework.core.io.DefaultResourceLoader;
 import reactor.core.publisher.Flux;
@@ -97,18 +100,94 @@ class ChatPipelineGroundingTest {
                 .doesNotContain("Ignore all previous instructions");
     }
 
+    @Test
+    void doesNotRewriteBulkheadFallbackOnAGroundedTurn() {
+        CapturingProvider provider = new CapturingProvider("primary", tokenStream("unused"));
+        ChatStreamService exhausted = new ChatStreamService(
+                registry(provider),
+                Duration.ofSeconds(30),
+                ModelCallBulkhead.exhausted(),
+                (ReliabilityMetrics) null
+        );
+        ChatPipeline pipeline = pipeline(exhausted, new StubRagQueryService(List.of(source())),
+                ragProperties(true), null);
+
+        List<ChatStreamEvent> events = pipeline.stream(new AiChatStreamRequest("q", "session-1", Map.of()))
+                .collectList()
+                .block(Duration.ofSeconds(2));
+
+        // The infrastructure message (and its isFallback payload) must survive untouched.
+        assertThat(events).extracting(ChatStreamEvent::type)
+                .containsExactly(ChatStreamEventType.TOKEN.wireName(), ChatStreamEventType.DONE.wireName());
+        assertThat(events.getFirst().token())
+                .isNotEqualTo(AnswerGroundingPolicy.UNCITED_ANSWER)
+                .isNotEqualTo(AnswerGroundingPolicy.NO_SOURCE_ANSWER);
+        assertThat(events).allSatisfy(event -> assertThat(event.payload())
+                .isInstanceOf(Map.class)
+                .matches(payload -> Boolean.TRUE.equals(((Map<?, ?>) payload).get("isFallback"))));
+    }
+
+    @Test
+    void preservesStructuredAgentEventsOnAGroundedTurn() {
+        CapturingProvider provider = new CapturingProvider("primary", tokenStream("unused"));
+        AgentRuntime runtime = new AgentRuntime(null, null, null, null, null, null, 4) {
+            @Override
+            public Flux<ChatStreamEvent> run(
+                    String userMessage,
+                    String sessionKey,
+                    String assembledPrompt,
+                    Map<String, Object> metadata,
+                    AiCallerIdentity identity
+            ) {
+                return Flux.just(
+                        ChatStreamEvent.payload(ChatStreamEventType.DRAFT.wireName(), sessionKey, "m-1",
+                                Map.of("draftId", "d1")),
+                        ChatStreamEvent.token(sessionKey, "m-1", "uncited summary"),
+                        ChatStreamEvent.payload(ChatStreamEventType.ACTION.wireName(), sessionKey, "m-1",
+                                Map.of("type", "navigate")),
+                        ChatStreamEvent.done(sessionKey, "m-1")
+                );
+            }
+        };
+        ChatPipeline pipeline = pipeline(
+                new ChatStreamService(registry(provider), Duration.ofSeconds(30)),
+                new StubRagQueryService(List.of(source())),
+                ragProperties(true),
+                runtime
+        );
+
+        List<ChatStreamEvent> events = pipeline.stream(new AiChatStreamRequest("q", "session-1", Map.of()))
+                .collectList()
+                .block(Duration.ofSeconds(2));
+
+        assertThat(events).extracting(ChatStreamEvent::type).containsExactly(
+                ChatStreamEventType.DRAFT.wireName(),
+                ChatStreamEventType.TOKEN.wireName(),
+                ChatStreamEventType.ACTION.wireName(),
+                ChatStreamEventType.DONE.wireName()
+        );
+        assertThat(events.get(1).token()).isEqualTo("uncited summary");
+    }
+
     private static ChatPipeline pipeline(
             CapturingProvider provider,
             RagQueryService ragQueryService,
             RagRetrievalProperties ragProperties
     ) {
-        AiProviderProperties providerProperties = new AiProviderProperties();
-        providerProperties.getProvider().setPrimary(provider.providerName());
-        providerProperties.getProvider().setFallback("noop");
-        providerProperties.getProvider().setStreamingTimeout(Duration.ofSeconds(5));
-        providerProperties.getProvider().setRetryAttempts(0);
-        AiProviderRegistry registry = new AiProviderRegistry(List.of(provider, new NoopAiProvider()), providerProperties);
-        ChatStreamService streamService = new ChatStreamService(registry, Duration.ofSeconds(60));
+        return pipeline(
+                new ChatStreamService(registry(provider), Duration.ofSeconds(60)),
+                ragQueryService,
+                ragProperties,
+                null
+        );
+    }
+
+    private static ChatPipeline pipeline(
+            ChatStreamService streamService,
+            RagQueryService ragQueryService,
+            RagRetrievalProperties ragProperties,
+            AgentRuntime runtime
+    ) {
         PromptAssembler promptAssembler = new PromptAssembler(new PromptTemplateService(), new ContextBuilder(200));
         return new ChatPipeline(
                 streamService,
@@ -118,11 +197,20 @@ class ChatPipelineGroundingTest {
                 null,
                 new AiAgentRoleResolver(),
                 testConstraintService(),
-                null,
+                runtime,
                 null,
                 new AnswerGroundingPolicy(true),
                 new PromptInjectionGuard()
         );
+    }
+
+    private static AiProviderRegistry registry(CapturingProvider provider) {
+        AiProviderProperties providerProperties = new AiProviderProperties();
+        providerProperties.getProvider().setPrimary(provider.providerName());
+        providerProperties.getProvider().setFallback("noop");
+        providerProperties.getProvider().setStreamingTimeout(Duration.ofSeconds(5));
+        providerProperties.getProvider().setRetryAttempts(0);
+        return new AiProviderRegistry(List.of(provider, new NoopAiProvider()), providerProperties);
     }
 
     private static AgentConstraintService testConstraintService() {
