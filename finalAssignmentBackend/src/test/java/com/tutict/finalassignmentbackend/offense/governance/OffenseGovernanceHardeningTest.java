@@ -4,6 +4,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.tutict.finalassignmentbackend.config.statemachine.states.OffenseProcessState;
 import com.tutict.finalassignmentbackend.controller.business.OffenseInformationController;
 import com.tutict.finalassignmentbackend.dto.request.OffenseCreateRequest;
+import com.tutict.finalassignmentbackend.dto.response.ApiResponse;
 import com.tutict.finalassignmentbackend.entity.offense.OffenseRecord;
 import com.tutict.finalassignmentbackend.mapper.offense.OffenseRecordMapper;
 import com.tutict.finalassignmentbackend.mapper.system.SysRequestHistoryMapper;
@@ -88,6 +89,8 @@ class OffenseGovernanceHardeningTest {
         OffenseRecordService service = mock(OffenseRecordService.class);
         OffenseInformationController controller = new OffenseInformationController(service);
         OffenseCreateRequest request = new OffenseCreateRequest();
+        request.setDriverId(1L);
+        request.setVehicleId(1L);
         when(service.shouldSkipProcessing("dup-key")).thenReturn(true);
 
         ResponseEntity<?> response = controller.create(request, "dup-key");
@@ -106,15 +109,18 @@ class OffenseGovernanceHardeningTest {
         OffenseRecordService service = mock(OffenseRecordService.class);
         OffenseInformationController controller = new OffenseInformationController(service);
         OffenseCreateRequest request = new OffenseCreateRequest();
+        request.setDriverId(1L);
+        request.setVehicleId(1L);
         OffenseRecord saved = new OffenseRecord();
         saved.setOffenseId(10L);
         when(service.shouldSkipProcessing("create-key")).thenReturn(false);
         when(service.createOffenseRecord(any(OffenseRecord.class))).thenReturn(saved);
 
-        ResponseEntity<?> response = controller.create(request, "create-key");
+        ResponseEntity<ApiResponse<OffenseRecord>> response = controller.create(request, "create-key");
 
         assertThat(response.getStatusCode()).isEqualTo(HttpStatus.CREATED);
-        assertThat(response.getBody()).isSameAs(saved);
+        assertThat(response.getBody()).isNotNull();
+        assertThat(response.getBody().getData()).isSameAs(saved);
         ArgumentCaptor<OffenseRecord> mappedRecord = ArgumentCaptor.forClass(OffenseRecord.class);
         InOrder order = inOrder(service);
         order.verify(service).shouldSkipProcessing("create-key");

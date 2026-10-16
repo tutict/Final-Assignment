@@ -1,6 +1,9 @@
 package com.tutict.finalassignmentbackend.ai.chat;
 
 import com.tutict.finalassignmentbackend.ai.agent.AgentRuntime;
+import com.tutict.finalassignmentbackend.ai.guardrail.AnswerGroundingPolicy;
+import com.tutict.finalassignmentbackend.ai.guardrail.GroundingDecision;
+import com.tutict.finalassignmentbackend.ai.guardrail.PromptInjectionGuard;
 import com.tutict.finalassignmentbackend.ai.prompt.ContextBuilder;
 import com.tutict.finalassignmentbackend.ai.prompt.AgentConstraintService;
 import com.tutict.finalassignmentbackend.ai.prompt.AiAgentRole;
@@ -22,7 +25,9 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.UUID;
+import java.util.stream.Collectors;
 
 @Service
 public class ChatPipeline {
@@ -36,6 +41,8 @@ public class ChatPipeline {
     private final AgentConstraintService agentConstraintService;
     private final AgentRuntime agentRuntime;
     private final ObjectProvider<AgentRuntime> agentRuntimeProvider;
+    private final AnswerGroundingPolicy answerGroundingPolicy;
+    private final PromptInjectionGuard promptInjectionGuard;
 
     @Autowired
     public ChatPipeline(
@@ -46,7 +53,9 @@ public class ChatPipeline {
             ObjectProvider<AIChatSearchService> aiChatSearchService,
             AiAgentRoleResolver aiAgentRoleResolver,
             AgentConstraintService agentConstraintService,
-            ObjectProvider<AgentRuntime> agentRuntime
+            ObjectProvider<AgentRuntime> agentRuntime,
+            AnswerGroundingPolicy answerGroundingPolicy,
+            PromptInjectionGuard promptInjectionGuard
     ) {
         this(
                 chatStreamService,
@@ -57,7 +66,9 @@ public class ChatPipeline {
                 aiAgentRoleResolver,
                 agentConstraintService,
                 null,
-                agentRuntime
+                agentRuntime,
+                answerGroundingPolicy,
+                promptInjectionGuard
         );
     }
 
@@ -99,15 +110,8 @@ public class ChatPipeline {
             AiAgentRoleResolver aiAgentRoleResolver,
             AgentConstraintService agentConstraintService
     ) {
-        this.chatStreamService = chatStreamService;
-        this.promptAssembler = promptAssembler;
-        this.ragQueryService = ragQueryService;
-        this.ragRetrievalProperties = ragRetrievalProperties;
-        this.aiChatSearchService = aiChatSearchService;
-        this.aiAgentRoleResolver = aiAgentRoleResolver;
-        this.agentConstraintService = agentConstraintService;
-        this.agentRuntime = null;
-        this.agentRuntimeProvider = null;
+        this(chatStreamService, promptAssembler, ragQueryService, ragRetrievalProperties,
+                aiChatSearchService, aiAgentRoleResolver, agentConstraintService, null, null);
     }
 
     ChatPipeline(
@@ -135,6 +139,24 @@ public class ChatPipeline {
             AgentRuntime agentRuntime,
             ObjectProvider<AgentRuntime> agentRuntimeProvider
     ) {
+        this(chatStreamService, promptAssembler, ragQueryService, ragRetrievalProperties,
+                aiChatSearchService, aiAgentRoleResolver, agentConstraintService, agentRuntime,
+                agentRuntimeProvider, new AnswerGroundingPolicy(true), new PromptInjectionGuard());
+    }
+
+    ChatPipeline(
+            ChatStreamService chatStreamService,
+            PromptAssembler promptAssembler,
+            RagQueryService ragQueryService,
+            RagRetrievalProperties ragRetrievalProperties,
+            AIChatSearchService aiChatSearchService,
+            AiAgentRoleResolver aiAgentRoleResolver,
+            AgentConstraintService agentConstraintService,
+            AgentRuntime agentRuntime,
+            ObjectProvider<AgentRuntime> agentRuntimeProvider,
+            AnswerGroundingPolicy answerGroundingPolicy,
+            PromptInjectionGuard promptInjectionGuard
+    ) {
         this.chatStreamService = chatStreamService;
         this.promptAssembler = promptAssembler;
         this.ragQueryService = ragQueryService;
@@ -144,6 +166,12 @@ public class ChatPipeline {
         this.agentConstraintService = agentConstraintService;
         this.agentRuntime = agentRuntime;
         this.agentRuntimeProvider = agentRuntimeProvider;
+        this.answerGroundingPolicy = answerGroundingPolicy == null
+                ? new AnswerGroundingPolicy(true)
+                : answerGroundingPolicy;
+        this.promptInjectionGuard = promptInjectionGuard == null
+                ? new PromptInjectionGuard()
+                : promptInjectionGuard;
     }
 
     public Flux<ChatStreamEvent> stream(AiChatStreamRequest request) {
@@ -171,6 +199,7 @@ public class ChatPipeline {
     ) {
         String userMessage = request.normalizedMessage();
         Map<String, Object> metadata = request.metadata();
+        boolean ragEngaged = ragEnabled(metadata) && ragQueryService != null;
         List<RetrievalResult> retrievalResults = new ArrayList<>();
         retrievalResults.addAll(retrieve(userMessage, metadata, identity));
         retrievalResults.addAll(webResults);
@@ -178,20 +207,81 @@ public class ChatPipeline {
                 ? aiAgentRoleResolver.resolve(identity.roles())
                 : aiAgentRoleResolver.resolve(metadata);
         String prompt = promptAssembler.assemble(
-                userMessage,
+                sanitizeUserMessage(userMessage),
                 conversationWindow(metadata),
                 retrievalResults,
                 agentConstraintService.constraintsFor(agentRole)
         );
         AgentRuntime runtime = resolveAgentRuntime();
-        if (runtime != null) {
-            return runtime.run(userMessage, request.sessionKey(), prompt, metadata, identity);
+        Flux<ChatStreamEvent> events = runtime != null
+                ? runtime.run(userMessage, request.sessionKey(), prompt, metadata, identity)
+                : chatStreamService.stream(new AiChatStreamRequest(
+                        prompt,
+                        request.sessionKey(),
+                        metadata
+                ));
+        boolean groundingRequired = ragEngaged || !retrievalResults.isEmpty();
+        return applyGrounding(events, retrievalResults, groundingRequired);
+    }
+
+    /**
+     * 输出护栏：当本轮问答确实依赖知识库/检索时，要求回答带有可核验的引用来源；否则用安全
+     * 兜底文本替换模型输出，避免“无依据回答”。
+     *
+     * <p>为了能真正阻止无引用回答到达用户，这里对“需要引用”的回合做缓冲：先收集完整回答，
+     * 判定通过才按原样回放事件，否则只发出兜底回答。非检索回合不缓冲，保持原有流式体验。
+     */
+    private Flux<ChatStreamEvent> applyGrounding(
+            Flux<ChatStreamEvent> events,
+            List<RetrievalResult> sources,
+            boolean groundingRequired
+    ) {
+        if (!groundingRequired || answerGroundingPolicy == null
+                || !answerGroundingPolicy.isEnforcementEnabled()) {
+            return events;
         }
-        return chatStreamService.stream(new AiChatStreamRequest(
-                prompt,
-                request.sessionKey(),
-                metadata
-        ));
+        return Flux.defer(() -> {
+            List<ChatStreamEvent> buffered = new ArrayList<>();
+            return events.concatMap(event -> {
+                // Keep-alives are forwarded immediately so the client connection stays alive
+                // while the answer is buffered for citation checking.
+                if (ChatStreamEventType.KEEPALIVE.wireName().equals(event.type())) {
+                    return Flux.just(event);
+                }
+                buffered.add(event);
+                return Flux.empty();
+            }).concatWith(Flux.defer(() -> resolveGrounding(buffered, sources)));
+        });
+    }
+
+    private Flux<ChatStreamEvent> resolveGrounding(List<ChatStreamEvent> buffered, List<RetrievalResult> sources) {
+        if (buffered.isEmpty()) {
+            return Flux.empty();
+        }
+        boolean errored = buffered.stream()
+                .anyMatch(event -> ChatStreamEventType.ERROR.wireName().equals(event.type()));
+        String answer = buffered.stream()
+                .filter(event -> ChatStreamEventType.TOKEN.wireName().equals(event.type()))
+                .map(ChatStreamEvent::token)
+                .filter(Objects::nonNull)
+                .collect(Collectors.joining());
+        GroundingDecision decision = answerGroundingPolicy.evaluate(answer, sources);
+        if (errored || decision.grounded()) {
+            return Flux.fromIterable(buffered);
+        }
+        String sessionKey = firstNonBlank(buffered.getFirst().sessionKey());
+        String messageId = firstNonBlank(buffered.getFirst().messageId());
+        return Flux.just(
+                ChatStreamEvent.token(sessionKey, messageId, decision.answer()),
+                ChatStreamEvent.done(sessionKey, messageId)
+        );
+    }
+
+    private String sanitizeUserMessage(String userMessage) {
+        if (promptInjectionGuard == null || userMessage == null) {
+            return userMessage;
+        }
+        return promptInjectionGuard.sanitize(userMessage);
     }
 
     private List<RetrievalResult> webSearch(String userMessage, AiChatStreamRequest request) {

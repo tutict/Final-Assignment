@@ -3,6 +3,7 @@ package com.tutict.finalassignmentbackend.security;
 import com.tutict.finalassignmentbackend.config.CorsProperties;
 import com.tutict.finalassignmentbackend.config.SecurityConfig;
 import com.tutict.finalassignmentbackend.config.login.jwt.TokenProvider;
+import com.tutict.finalassignmentbackend.config.security.pqc.MlDsaKeyRingConfig;
 import com.tutict.finalassignmentbackend.controller.business.OffenseInformationController;
 import com.tutict.finalassignmentbackend.service.offense.OffenseRecordService;
 import com.tutict.finalassignmentbackend.service.auth.TokenBlacklistService;
@@ -89,7 +90,7 @@ class OffenseInformationControllerMethodSecurityTest {
     @Configuration
     @EnableWebMvc
     @EnableWebSecurity
-    @Import({SecurityConfig.class, TokenProvider.class, CorsProperties.class})
+    @Import({SecurityConfig.class, TokenProvider.class, CorsProperties.class, MlDsaKeyRingConfig.class})
     static class TestConfig {
 
         @Bean

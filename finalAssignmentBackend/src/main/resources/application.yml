@@ -21,6 +21,11 @@ ai:
     max-rounds: 4
     draft:
       store: ${AI_AGENT_DRAFT_STORE:redis}
+  guardrail:
+    # When a turn actually relies on retrieval, the answer must cite a source; otherwise
+    # the model output is replaced with a safe fallback. Set to false to disable.
+    citation-enforcement:
+      enabled: ${AI_GUARDRAIL_CITATION_ENFORCEMENT:true}
   ollama:
     enabled: ${OLLAMA_ENABLED:true}
     base-url: ${OLLAMA_URL:http://localhost:11434}

@@ -1,6 +1,8 @@
 package com.tutict.finalassignmentbackend.ai.prompt;
 
+import com.tutict.finalassignmentbackend.ai.guardrail.PromptInjectionGuard;
 import com.tutict.finalassignmentbackend.ai.rag.dto.RetrievalResult;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
@@ -15,9 +17,19 @@ public class ContextBuilder {
     static final String END_TAG = "</retrieved_context>";
 
     private final int contextTokenBudget;
+    private final PromptInjectionGuard injectionGuard;
 
-    public ContextBuilder(@Value("${ai.prompt.context-token-budget:1200}") int contextTokenBudget) {
+    @Autowired
+    public ContextBuilder(
+            @Value("${ai.prompt.context-token-budget:1200}") int contextTokenBudget,
+            PromptInjectionGuard injectionGuard
+    ) {
         this.contextTokenBudget = Math.max(0, contextTokenBudget);
+        this.injectionGuard = injectionGuard == null ? new PromptInjectionGuard() : injectionGuard;
+    }
+
+    public ContextBuilder(int contextTokenBudget) {
+        this(contextTokenBudget, new PromptInjectionGuard());
     }
 
     public String build(List<RetrievalResult> results) {
@@ -32,7 +44,7 @@ public class ContextBuilder {
         return START_TAG + "\n" + body + "\n" + END_TAG;
     }
 
-    private static String contextBody(List<RetrievalResult> results, int tokenBudget) {
+    private String contextBody(List<RetrievalResult> results, int tokenBudget) {
         if (results == null || results.isEmpty() || tokenBudget == 0) {
             return "";
         }
@@ -59,12 +71,14 @@ public class ContextBuilder {
         return body.toString();
     }
 
-    private static String entry(int index, RetrievalResult result) {
+    private String entry(int index, RetrievalResult result) {
+        // Retrieved context is untrusted: neutralize instruction-like spans before they
+        // reach the model, so a poisoned document cannot hijack the prompt.
         return "[" + index + "]\n"
-                + "title: " + clean(result.title()) + "\n"
+                + "title: " + injectionGuard.sanitize(clean(result.title())) + "\n"
                 + "source: " + source(result) + "\n"
                 + "score: " + score(result.finalScore()) + "\n"
-                + "content: " + normalizeWhitespace(result.content());
+                + "content: " + injectionGuard.sanitize(normalizeWhitespace(result.content()));
     }
 
     private static String source(RetrievalResult result) {

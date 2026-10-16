@@ -420,8 +420,7 @@
                 <artifactId>maven-surefire-plugin</artifactId>
                 <configuration>
                     <includes>
-                        <include>**/*IntegrationTest.java</include>
-                        <include>**/*RegressionTest.java</include>
+                        <include>**/*Test.java</include>
                     </includes>
                     <systemPropertyVariables>
                         <spring.profiles.active>test</spring.profiles.active>
