@@ -3,6 +3,7 @@ package com.tutict.finalassignmentcloud.traffic.service;
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import com.baomidou.mybatisplus.core.mapper.BaseMapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
+import com.tutict.finalassignmentcloud.dto.internal.InternalUserProfile;
 import com.tutict.finalassignmentcloud.entity.AppealRecord;
 import com.tutict.finalassignmentcloud.entity.DeductionRecord;
 import com.tutict.finalassignmentcloud.entity.DriverInformation;
@@ -444,7 +445,8 @@ public class BusinessRecordViewService {
 
     private SysUser findUserById(Long userId) {
         try {
-            return userClient.getById(userId);
+            InternalUserProfile profile = userClient.getById(userId);
+            return profile == null ? null : profile.toEntity();
         } catch (RuntimeException ignored) {
             return null;
         }

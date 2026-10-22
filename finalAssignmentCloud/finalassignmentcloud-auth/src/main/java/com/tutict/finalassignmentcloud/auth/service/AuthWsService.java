@@ -6,8 +6,10 @@ import com.tutict.finalassignmentcloud.auth.client.RoleClient;
 import com.tutict.finalassignmentcloud.exception.DependencyUnavailableException;
 import com.tutict.finalassignmentcloud.auth.client.UserClient;
 import com.tutict.finalassignmentcloud.auth.config.login.jwt.TokenProvider;
+import com.tutict.finalassignmentcloud.config.security.SecurityRoleUtils;
 import com.tutict.finalassignmentcloud.config.websocket.WsAction;
 import com.tutict.finalassignmentcloud.dto.internal.InternalUserCreateRequest;
+import com.tutict.finalassignmentcloud.dto.internal.InternalUserProfile;
 import com.tutict.finalassignmentcloud.dto.internal.InternalUserView;
 import com.tutict.finalassignmentcloud.dto.request.RefreshRequest;
 import com.tutict.finalassignmentcloud.dto.response.TokenResponse;
@@ -47,7 +49,6 @@ import java.util.stream.Collectors;
 public class AuthWsService {
 
     private static final Logger logger = Logger.getLogger(AuthWsService.class.getName());
-    private static final int MAX_ROLE_PAGE_SIZE = 100;
     private static final Set<String> DRIVER_PROFILE_ROLES = Set.of("USER");
     private static final Set<String> STAFF_ROLES = Set.of(
             "SUPER_ADMIN",
@@ -184,7 +185,7 @@ public class AuthWsService {
 
     @Transactional
     public UserProfileResponse getCurrentUserProfile(Authentication authentication) {
-        if (authentication == null || !StringUtils.hasText(authentication.getName())) {
+        if (!SecurityRoleUtils.isAuthenticated(authentication)) {
             throw new IllegalStateException("User not found");
         }
 
@@ -229,7 +230,7 @@ public class AuthWsService {
         createRequest.setStatus("Active");
         createRequest.setCreatedAt(LocalDateTime.now());
         createRequest.setUpdatedAt(LocalDateTime.now());
-        InternalUserView created = userClient.createUser(createRequest);
+        InternalUserProfile created = userClient.createUser(createRequest);
         SysUser savedUser = created == null ? null : created.toEntity();
         logger.info(() -> String.format("User created successfully: %s", registerRequest.getUsername()));
 
@@ -415,7 +416,7 @@ public class AuthWsService {
         newRole.setRoleType("Custom");
         newRole.setStatus("Active");
         newRole.setCreatedAt(LocalDateTime.now());
-        return roleClient.create(newRole, null);
+        return roleClient.create(newRole);
     }
 
     private void assignRole(SysUser user, SysRole role) {
@@ -424,7 +425,7 @@ public class AuthWsService {
         relation.setRoleId(role.getRoleId());
         relation.setCreatedAt(LocalDateTime.now());
         relation.setCreatedBy("AuthWsService");
-        userClient.addUserRole(user.getUserId(), relation, null);
+        userClient.addUserRole(user.getUserId(), relation);
     }
 
     private void recordFailedLogin(String username, String reason) {
@@ -551,7 +552,7 @@ public class AuthWsService {
             return null;
         }
         try {
-            InternalUserView user = userClient.getByUsername(username);
+            InternalUserView user = userClient.getAuthenticationView(username);
             return user == null ? null : user.toEntity();
         } catch (FeignException.NotFound ex) {
             return null;
@@ -567,7 +568,8 @@ public class AuthWsService {
             return null;
         }
         try {
-            return userClient.getById(userId);
+            InternalUserProfile user = userClient.getById(userId);
+            return user == null ? null : user.toEntity();
         } catch (FeignException.NotFound ex) {
             return null;
         } catch (FeignException ex) {
@@ -636,7 +638,7 @@ public class AuthWsService {
             return List.of();
         }
         try {
-            return userClient.listUserRoles(userId, 1, AuthWsService.MAX_ROLE_PAGE_SIZE);
+            return userClient.listUserRoles(userId);
         } catch (FeignException.NotFound ex) {
             return List.of();
         } catch (FeignException ex) {
@@ -651,7 +653,7 @@ public class AuthWsService {
             return;
         }
         try {
-            auditLogClient.createLoginLog(loginLog, null);
+            auditLogClient.createLoginLog(loginLog);
         } catch (FeignException ex) {
             logger.log(Level.WARNING, "Failed to create audit login log", ex);
         }

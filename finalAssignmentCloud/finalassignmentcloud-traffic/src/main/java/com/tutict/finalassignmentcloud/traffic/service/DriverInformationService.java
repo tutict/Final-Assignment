@@ -6,6 +6,7 @@ import com.tutict.finalassignmentcloud.config.websocket.WsAction;
 import com.tutict.finalassignmentcloud.entity.DriverInformation;
 import com.tutict.finalassignmentcloud.entity.SysRequestHistory;
 import com.tutict.finalassignmentcloud.entity.SysUser;
+import com.tutict.finalassignmentcloud.dto.internal.InternalUserProfile;
 import com.tutict.finalassignmentcloud.entity.elastic.DriverInformationDocument;
 import com.tutict.finalassignmentcloud.reliability.IdempotencyReplayException;
 import com.tutict.finalassignmentcloud.traffic.client.UserClient;
@@ -352,7 +353,8 @@ public class DriverInformationService {
             return null;
         }
         try {
-            return userClient.getById(userId);
+            InternalUserProfile profile = userClient.getById(userId);
+            return profile == null ? null : profile.toEntity();
         } catch (FeignException.NotFound ex) {
             return null;
         } catch (FeignException ex) {
@@ -366,7 +368,7 @@ public class DriverInformationService {
             return;
         }
         try {
-            userClient.update(user.getUserId(), user, null);
+            userClient.update(user.getUserId(), InternalUserProfile.fromEntity(user));
         } catch (FeignException ex) {
             log.log(Level.WARNING, "Failed to update user id=" + user.getUserId(), ex);
         }

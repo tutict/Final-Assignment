@@ -1,6 +1,7 @@
 package com.tutict.finalassignmentcloud.traffic.service;
 
 import com.tutict.finalassignmentcloud.config.security.SecurityRoleUtils;
+import com.tutict.finalassignmentcloud.dto.internal.InternalUserProfile;
 import com.tutict.finalassignmentcloud.dto.response.UserProfileResponse;
 import com.tutict.finalassignmentcloud.entity.DriverInformation;
 import com.tutict.finalassignmentcloud.entity.SysUser;
@@ -85,7 +86,8 @@ public class TrafficUserProfileService {
 
     private SysUser safeGetByUsername(String username) {
         try {
-            return userClient.getByUsername(username);
+            InternalUserProfile profile = userClient.getByUsername(username);
+            return profile == null ? null : profile.toEntity();
         } catch (FeignException.NotFound ex) {
             return null;
         } catch (FeignException ex) {
