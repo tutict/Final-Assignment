@@ -77,8 +77,8 @@ public class BusinessRecordViewService {
                 .map(OffenseRecord::getVehicleId)
                 .collect(Collectors.toSet()));
         records.forEach(record -> {
-            applyDriver(record, drivers.get(record.getDriverId()));
-            applyVehicle(record, vehicles.get(record.getVehicleId()));
+            applyDriver(record, lookup(drivers, record.getDriverId()));
+            applyVehicle(record, lookup(vehicles, record.getVehicleId()));
             record.setOffenseType(resolveOffenseType(record));
         });
         return records;
@@ -104,13 +104,13 @@ public class BusinessRecordViewService {
         Set<Long> driverIds = new HashSet<>();
         Set<Long> vehicleIds = new HashSet<>();
         for (FineRecord record : records) {
-            collectFineContextIds(record, offenses.get(record.getOffenseId()), driverIds, vehicleIds);
+            collectFineContextIds(record, lookup(offenses, record.getOffenseId()), driverIds, vehicleIds);
         }
         Map<Long, DriverInformation> drivers = driversById(driverIds);
         Map<Long, VehicleInformation> vehicles = vehiclesById(vehicleIds);
         records.forEach(record -> applyFineContext(
                 record,
-                offenses.get(record.getOffenseId()),
+                lookup(offenses, record.getOffenseId()),
                 drivers,
                 vehicles
         ));
@@ -137,14 +137,14 @@ public class BusinessRecordViewService {
         Set<Long> driverIds = new HashSet<>();
         Set<Long> vehicleIds = new HashSet<>();
         for (DeductionRecord record : records) {
-            OffenseRecord offense = offenses.get(record.getOffenseId());
+            OffenseRecord offense = lookup(offenses, record.getOffenseId());
             collectDriverAndVehicleIds(record.getDriverId(), offense, driverIds, vehicleIds);
         }
         Map<Long, DriverInformation> drivers = driversById(driverIds);
         Map<Long, VehicleInformation> vehicles = vehiclesById(vehicleIds);
         records.forEach(record -> applyDeductionContext(
                 record,
-                offenses.get(record.getOffenseId()),
+                lookup(offenses, record.getOffenseId()),
                 drivers,
                 vehicles
         ));
@@ -171,14 +171,14 @@ public class BusinessRecordViewService {
         Set<Long> driverIds = new HashSet<>();
         Set<Long> vehicleIds = new HashSet<>();
         for (AppealRecord record : records) {
-            OffenseRecord offense = offenses.get(record.getOffenseId());
+            OffenseRecord offense = lookup(offenses, record.getOffenseId());
             collectDriverAndVehicleIds(record.getDriverId(), offense, driverIds, vehicleIds);
         }
         Map<Long, DriverInformation> drivers = driversById(driverIds);
         Map<Long, VehicleInformation> vehicles = vehiclesById(vehicleIds);
         records.forEach(record -> applyAppealContext(
                 record,
-                offenses.get(record.getOffenseId()),
+                lookup(offenses, record.getOffenseId()),
                 drivers,
                 vehicles
         ));
@@ -210,7 +210,7 @@ public class BusinessRecordViewService {
                 .map(DriverInformation::getAuthUserId)
                 .collect(Collectors.toSet()));
         records.forEach(driver -> {
-            SysUser user = users.get(driver.getAuthUserId());
+            SysUser user = lookup(users, driver.getAuthUserId());
             if (user != null) {
                 driver.setUsername(user.getUsername());
                 driver.setAccountStatus(user.getStatus());
@@ -241,7 +241,7 @@ public class BusinessRecordViewService {
                 .map(VehicleInformation::getDriverId)
                 .collect(Collectors.toSet()));
         records.forEach(vehicle -> {
-            DriverInformation driver = drivers.get(vehicle.getDriverId());
+            DriverInformation driver = lookup(drivers, vehicle.getDriverId());
             applyDriver(vehicle, driver);
             vehicle.setOffenseCount(countByVehicle(offenseRecordMapper, "vehicle_id", vehicle.getVehicleId()));
             vehicle.setUnpaidFineCount(countUnpaidFinesByVehicle(vehicle.getVehicleId()));
@@ -289,8 +289,8 @@ public class BusinessRecordViewService {
         }
         Long driverId = firstNonNull(fine.getDriverId(), offense == null ? null : offense.getDriverId());
         Long vehicleId = offense == null ? null : offense.getVehicleId();
-        DriverInformation driver = drivers.get(driverId);
-        VehicleInformation vehicle = vehicles.get(vehicleId);
+        DriverInformation driver = lookup(drivers, driverId);
+        VehicleInformation vehicle = lookup(vehicles, vehicleId);
         if (fine.getDriverId() == null) {
             fine.setDriverId(driverId);
         }
@@ -315,8 +315,8 @@ public class BusinessRecordViewService {
         }
         Long driverId = firstNonNull(deduction.getDriverId(), offense == null ? null : offense.getDriverId());
         Long vehicleId = offense == null ? null : offense.getVehicleId();
-        DriverInformation driver = drivers.get(driverId);
-        VehicleInformation vehicle = vehicles.get(vehicleId);
+        DriverInformation driver = lookup(drivers, driverId);
+        VehicleInformation vehicle = lookup(vehicles, vehicleId);
         if (deduction.getDriverId() == null) {
             deduction.setDriverId(driverId);
         }
@@ -341,8 +341,8 @@ public class BusinessRecordViewService {
         }
         Long driverId = firstNonNull(appeal.getDriverId(), offense == null ? null : offense.getDriverId());
         Long vehicleId = offense == null ? null : offense.getVehicleId();
-        DriverInformation driver = drivers.get(driverId);
-        VehicleInformation vehicle = vehicles.get(vehicleId);
+        DriverInformation driver = lookup(drivers, driverId);
+        VehicleInformation vehicle = lookup(vehicles, vehicleId);
         if (appeal.getDriverId() == null) {
             appeal.setDriverId(driverId);
         }
@@ -539,6 +539,13 @@ public class BusinessRecordViewService {
             return first;
         }
         return second;
+    }
+
+    private <K, V> V lookup(Map<K, V> source, K key) {
+        if (source == null || key == null) {
+            return null;
+        }
+        return source.get(key);
     }
 
     private <T> T firstNonNull(T first, T second) {

@@ -2,6 +2,7 @@ package com.tutict.finalassignmentcloud.system.controller;
 
 import com.tutict.finalassignmentcloud.entity.SysDict;
 import com.tutict.finalassignmentcloud.entity.SysSettings;
+import com.tutict.finalassignmentcloud.reliability.IdempotencyReplayException;
 import com.tutict.finalassignmentcloud.system.service.SysDictService;
 import com.tutict.finalassignmentcloud.system.service.SysSettingsService;
 import io.swagger.v3.oas.annotations.Operation;
@@ -71,6 +72,9 @@ public class SystemSettingsController {
         try {
             request.setSettingId(settingId);
             if (useKey) {
+                if (sysSettingsService.shouldSkipProcessing(idempotencyKey)) {
+                    return ResponseEntity.status(HttpStatus.ALREADY_REPORTED).build();
+                }
                 sysSettingsService.checkAndInsertIdempotency(idempotencyKey, request, "update");
             }
             SysSettings updated = sysSettingsService.updateSysSettings(request);
@@ -224,6 +228,9 @@ public class SystemSettingsController {
         try {
             request.setDictId(dictId);
             if (useKey) {
+                if (sysDictService.shouldSkipProcessing(idempotencyKey)) {
+                    return ResponseEntity.status(HttpStatus.ALREADY_REPORTED).build();
+                }
                 sysDictService.checkAndInsertIdempotency(idempotencyKey, request, "update");
             }
             SysDict updated = sysDictService.updateSysDict(request);
@@ -336,6 +343,9 @@ public class SystemSettingsController {
     }
 
     private HttpStatus resolveStatus(Exception ex) {
+        if (ex instanceof IdempotencyReplayException) {
+            return HttpStatus.ALREADY_REPORTED;
+        }
         return (ex instanceof IllegalArgumentException || ex instanceof IllegalStateException)
                 ? HttpStatus.BAD_REQUEST
                 : HttpStatus.INTERNAL_SERVER_ERROR;

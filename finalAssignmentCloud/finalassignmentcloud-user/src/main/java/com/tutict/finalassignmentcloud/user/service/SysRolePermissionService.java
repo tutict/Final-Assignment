@@ -2,22 +2,21 @@ package com.tutict.finalassignmentcloud.user.service;
 
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
-import com.fasterxml.jackson.databind.ObjectMapper;
+import com.tutict.finalassignmentcloud.common.transaction.AfterCommit;
 import com.tutict.finalassignmentcloud.config.websocket.WsAction;
 import com.tutict.finalassignmentcloud.entity.SysRequestHistory;
 import com.tutict.finalassignmentcloud.entity.SysRolePermission;
 import com.tutict.finalassignmentcloud.entity.elastic.SysRolePermissionDocument;
+import com.tutict.finalassignmentcloud.reliability.HistoryReserve;
 import com.tutict.finalassignmentcloud.user.mapper.SysRequestHistoryMapper;
 import com.tutict.finalassignmentcloud.user.mapper.SysRolePermissionMapper;
 import com.tutict.finalassignmentcloud.user.repository.SysRolePermissionSearchRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.cache.annotation.Cacheable;
-import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.transaction.support.TransactionSynchronization;
-import org.springframework.transaction.support.TransactionSynchronizationManager;
 
 import java.time.LocalDateTime;
 import java.util.List;
@@ -35,20 +34,14 @@ public class SysRolePermissionService {
     private final SysRolePermissionMapper sysRolePermissionMapper;
     private final SysRequestHistoryMapper sysRequestHistoryMapper;
     private final SysRolePermissionSearchRepository sysRolePermissionSearchRepository;
-    private final KafkaTemplate<String, String> kafkaTemplate;
-    private final ObjectMapper objectMapper;
 
     @Autowired
     public SysRolePermissionService(SysRolePermissionMapper sysRolePermissionMapper,
                                     SysRequestHistoryMapper sysRequestHistoryMapper,
-                                    SysRolePermissionSearchRepository sysRolePermissionSearchRepository,
-                                    KafkaTemplate<String, String> kafkaTemplate,
-                                    ObjectMapper objectMapper) {
+                                    SysRolePermissionSearchRepository sysRolePermissionSearchRepository) {
         this.sysRolePermissionMapper = sysRolePermissionMapper;
         this.sysRequestHistoryMapper = sysRequestHistoryMapper;
         this.sysRolePermissionSearchRepository = sysRolePermissionSearchRepository;
-        this.kafkaTemplate = kafkaTemplate;
-        this.objectMapper = objectMapper;
     }
 
     @Transactional
@@ -56,26 +49,9 @@ public class SysRolePermissionService {
     @WsAction(service = "SysRolePermissionService", action = "checkAndInsertIdempotency")
     public void checkAndInsertIdempotency(String idempotencyKey, SysRolePermission relation, String action) {
         Objects.requireNonNull(relation, "SysRolePermission must not be null");
-        SysRequestHistory existing = sysRequestHistoryMapper.selectByIdempotencyKey(idempotencyKey);
-        if (existing != null) {
-            log.warning(() -> String.format("Duplicate role-permission request detected (key=%s)", idempotencyKey));
-            throw new RuntimeException("Duplicate role-permission request detected");
-        }
-
-        SysRequestHistory history = new SysRequestHistory();
-        history.setIdempotencyKey(idempotencyKey);
-        history.setBusinessStatus("PROCESSING");
-        history.setCreatedAt(LocalDateTime.now());
-        history.setUpdatedAt(LocalDateTime.now());
-        sysRequestHistoryMapper.insert(history);
-
-        sendKafkaMessage("sys_role_permission_" + action, idempotencyKey, relation);
-
-        history.setBusinessStatus("SUCCESS");
-        history.setBusinessId(relation.getId());
-        history.setRequestParams("PENDING");
-        history.setUpdatedAt(LocalDateTime.now());
-        sysRequestHistoryMapper.updateById(history);
+        HistoryReserve.reserve(sysRequestHistoryMapper, idempotencyKey, "SYS_ROLE_PERMISSION_" + action.toUpperCase(),
+                HistoryReserve.sha256(action + "|" + relation.getId() + "|" + relation.getRoleId()
+                        + "|" + relation.getPermissionId()));
     }
 
     @Transactional
@@ -108,7 +84,7 @@ public class SysRolePermissionService {
         if (rows == 0) {
             throw new IllegalStateException("SysRolePermission not found for id=" + id);
         }
-        TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
+        AfterCommit.execute(new TransactionSynchronization() {
             @Override
             public void afterCommit() {
                 sysRolePermissionSearchRepository.deleteById(id);
@@ -213,27 +189,22 @@ public class SysRolePermissionService {
             log.log(Level.WARNING, "Cannot mark failure for missing idempotency key {0}", idempotencyKey);
             return;
         }
+        if (!"PROCESSING".equalsIgnoreCase(history.getBusinessStatus())) {
+            return;
+        }
         history.setBusinessStatus("FAILED");
         history.setRequestParams(truncate(reason));
         history.setUpdatedAt(LocalDateTime.now());
         sysRequestHistoryMapper.updateById(history);
     }
 
-    private void sendKafkaMessage(String topic, String idempotencyKey, SysRolePermission relation) {
-        try {
-            String payload = objectMapper.writeValueAsString(relation);
-            kafkaTemplate.send(topic, idempotencyKey, payload);
-        } catch (Exception ex) {
-            log.log(Level.SEVERE, "Failed to send SysRolePermission Kafka message", ex);
-            throw new RuntimeException("Failed to send sys role permission event", ex);
-        }
-    }
+    
 
     private void syncToIndexAfterCommit(SysRolePermission relation) {
         if (relation == null) {
             return;
         }
-        TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
+        AfterCommit.execute(new TransactionSynchronization() {
             @Override
             public void afterCommit() {
                 SysRolePermissionDocument doc = SysRolePermissionDocument.fromEntity(relation);
@@ -248,7 +219,7 @@ public class SysRolePermissionService {
         if (records == null || records.isEmpty()) {
             return;
         }
-        TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
+        AfterCommit.execute(new TransactionSynchronization() {
             @Override
             public void afterCommit() {
                 List<SysRolePermissionDocument> documents = records.stream()

@@ -69,6 +69,9 @@ public class AppealManagementController {
                                                      Authentication authentication) {
         boolean useIdempotency = hasKey(idempotencyKey);
         try {
+            if (authentication != null && authentication.isAuthenticated()) {
+                request.setCreatedBy(authentication.getName());
+            }
             if (driverAccessService.isRegularUser(authentication, ELEVATED_ROLES)) {
                 UserProfileResponse profile = userProfileService.getCurrentUserProfile(authentication);
                 if (profile.getDriverId() == null) {
@@ -77,10 +80,6 @@ public class AppealManagementController {
                 request.setDriverId(profile.getDriverId());
             }
             if (useIdempotency) {
-                if (appealRecordService.shouldSkipProcessing(idempotencyKey)) {
-                    LOG.log(Level.INFO, "Appeal create skipped by idempotency key {0}", idempotencyKey);
-                    return ResponseEntity.status(HttpStatus.ALREADY_REPORTED).build();
-                }
                 appealRecordService.checkAndInsertIdempotency(idempotencyKey, request, "create");
             }
             AppealRecord saved = appealRecordService.createAppeal(request);
@@ -88,11 +87,11 @@ public class AppealManagementController {
                 appealRecordService.markHistorySuccess(idempotencyKey, saved.getAppealId());
             }
             return ResponseEntity.status(HttpStatus.CREATED).body(enrich(saved));
-        } catch (com.tutict.finalassignmentcloud.traffic.reliability.IdempotencyReplayException ex) {
+        } catch (com.tutict.finalassignmentcloud.reliability.IdempotencyReplayException ex) {
             return ResponseEntity.status(HttpStatus.ALREADY_REPORTED).build();
-        } catch (com.tutict.finalassignmentcloud.traffic.reliability.IdempotencyConflictException ex) {
+        } catch (com.tutict.finalassignmentcloud.reliability.IdempotencyConflictException ex) {
             return ResponseEntity.status(HttpStatus.CONFLICT).build();
-        } catch (com.tutict.finalassignmentcloud.traffic.reliability.IdempotencyInProgressException ex) {
+        } catch (com.tutict.finalassignmentcloud.reliability.IdempotencyInProgressException ex) {
             return ResponseEntity.status(HttpStatus.CONFLICT).build();
         } catch (Exception ex) {
             if (useIdempotency) {
@@ -120,11 +119,11 @@ public class AppealManagementController {
                 appealRecordService.markHistorySuccess(idempotencyKey, updated.getAppealId());
             }
             return ResponseEntity.ok(enrich(updated));
-        } catch (com.tutict.finalassignmentcloud.traffic.reliability.IdempotencyReplayException ex) {
+        } catch (com.tutict.finalassignmentcloud.reliability.IdempotencyReplayException ex) {
             return ResponseEntity.status(HttpStatus.ALREADY_REPORTED).build();
-        } catch (com.tutict.finalassignmentcloud.traffic.reliability.IdempotencyConflictException ex) {
+        } catch (com.tutict.finalassignmentcloud.reliability.IdempotencyConflictException ex) {
             return ResponseEntity.status(HttpStatus.CONFLICT).build();
-        } catch (com.tutict.finalassignmentcloud.traffic.reliability.IdempotencyInProgressException ex) {
+        } catch (com.tutict.finalassignmentcloud.reliability.IdempotencyInProgressException ex) {
             return ResponseEntity.status(HttpStatus.CONFLICT).build();
         } catch (Exception ex) {
             if (useIdempotency) {
@@ -141,11 +140,11 @@ public class AppealManagementController {
         try {
             appealRecordService.deleteAppeal(appealId);
             return ResponseEntity.noContent().build();
-        } catch (com.tutict.finalassignmentcloud.traffic.reliability.IdempotencyReplayException ex) {
+        } catch (com.tutict.finalassignmentcloud.reliability.IdempotencyReplayException ex) {
             return ResponseEntity.status(HttpStatus.ALREADY_REPORTED).build();
-        } catch (com.tutict.finalassignmentcloud.traffic.reliability.IdempotencyConflictException ex) {
+        } catch (com.tutict.finalassignmentcloud.reliability.IdempotencyConflictException ex) {
             return ResponseEntity.status(HttpStatus.CONFLICT).build();
-        } catch (com.tutict.finalassignmentcloud.traffic.reliability.IdempotencyInProgressException ex) {
+        } catch (com.tutict.finalassignmentcloud.reliability.IdempotencyInProgressException ex) {
             return ResponseEntity.status(HttpStatus.CONFLICT).build();
         } catch (Exception ex) {
             LOG.log(Level.WARNING, "Delete appeal failed", ex);
@@ -166,11 +165,11 @@ public class AppealManagementController {
                 return ResponseEntity.ok(List.of());
             }
             return ResponseEntity.ok(enrich(appealRecordService.findByDriverId(profile.getDriverId(), page, size)));
-        } catch (com.tutict.finalassignmentcloud.traffic.reliability.IdempotencyReplayException ex) {
+        } catch (com.tutict.finalassignmentcloud.reliability.IdempotencyReplayException ex) {
             return ResponseEntity.status(HttpStatus.ALREADY_REPORTED).build();
-        } catch (com.tutict.finalassignmentcloud.traffic.reliability.IdempotencyConflictException ex) {
+        } catch (com.tutict.finalassignmentcloud.reliability.IdempotencyConflictException ex) {
             return ResponseEntity.status(HttpStatus.CONFLICT).build();
-        } catch (com.tutict.finalassignmentcloud.traffic.reliability.IdempotencyInProgressException ex) {
+        } catch (com.tutict.finalassignmentcloud.reliability.IdempotencyInProgressException ex) {
             return ResponseEntity.status(HttpStatus.CONFLICT).build();
         } catch (Exception ex) {
             LOG.log(Level.WARNING, "List my appeals failed", ex);
@@ -184,11 +183,11 @@ public class AppealManagementController {
         try {
             AppealRecord record = appealRecordService.getAppealById(appealId);
             return record == null ? ResponseEntity.notFound().build() : ResponseEntity.ok(enrich(record));
-        } catch (com.tutict.finalassignmentcloud.traffic.reliability.IdempotencyReplayException ex) {
+        } catch (com.tutict.finalassignmentcloud.reliability.IdempotencyReplayException ex) {
             return ResponseEntity.status(HttpStatus.ALREADY_REPORTED).build();
-        } catch (com.tutict.finalassignmentcloud.traffic.reliability.IdempotencyConflictException ex) {
+        } catch (com.tutict.finalassignmentcloud.reliability.IdempotencyConflictException ex) {
             return ResponseEntity.status(HttpStatus.CONFLICT).build();
-        } catch (com.tutict.finalassignmentcloud.traffic.reliability.IdempotencyInProgressException ex) {
+        } catch (com.tutict.finalassignmentcloud.reliability.IdempotencyInProgressException ex) {
             return ResponseEntity.status(HttpStatus.CONFLICT).build();
         } catch (Exception ex) {
             LOG.log(Level.WARNING, "Get appeal failed", ex);
@@ -206,11 +205,11 @@ public class AppealManagementController {
                     ? businessRecordViewService.listAppeals(page, size)
                     : enrich(appealRecordService.findByOffenseId(offenseId, page, size));
             return ResponseEntity.ok(records);
-        } catch (com.tutict.finalassignmentcloud.traffic.reliability.IdempotencyReplayException ex) {
+        } catch (com.tutict.finalassignmentcloud.reliability.IdempotencyReplayException ex) {
             return ResponseEntity.status(HttpStatus.ALREADY_REPORTED).build();
-        } catch (com.tutict.finalassignmentcloud.traffic.reliability.IdempotencyConflictException ex) {
+        } catch (com.tutict.finalassignmentcloud.reliability.IdempotencyConflictException ex) {
             return ResponseEntity.status(HttpStatus.CONFLICT).build();
-        } catch (com.tutict.finalassignmentcloud.traffic.reliability.IdempotencyInProgressException ex) {
+        } catch (com.tutict.finalassignmentcloud.reliability.IdempotencyInProgressException ex) {
             return ResponseEntity.status(HttpStatus.CONFLICT).build();
         } catch (Exception ex) {
             LOG.log(Level.WARNING, "List appeals failed", ex);
@@ -230,11 +229,11 @@ public class AppealManagementController {
                 return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
             }
             return ResponseEntity.ok(enrich(appealRecordService.findByDriverId(driverId, page, size)));
-        } catch (com.tutict.finalassignmentcloud.traffic.reliability.IdempotencyReplayException ex) {
+        } catch (com.tutict.finalassignmentcloud.reliability.IdempotencyReplayException ex) {
             return ResponseEntity.status(HttpStatus.ALREADY_REPORTED).build();
-        } catch (com.tutict.finalassignmentcloud.traffic.reliability.IdempotencyConflictException ex) {
+        } catch (com.tutict.finalassignmentcloud.reliability.IdempotencyConflictException ex) {
             return ResponseEntity.status(HttpStatus.CONFLICT).build();
-        } catch (com.tutict.finalassignmentcloud.traffic.reliability.IdempotencyInProgressException ex) {
+        } catch (com.tutict.finalassignmentcloud.reliability.IdempotencyInProgressException ex) {
             return ResponseEntity.status(HttpStatus.CONFLICT).build();
         } catch (Exception ex) {
             LOG.log(Level.WARNING, "List appeals by driver failed", ex);
@@ -325,10 +324,6 @@ public class AppealManagementController {
         try {
             review.setAppealId(appealId);
             if (useIdempotency) {
-                if (appealReviewService.shouldSkipProcessing(idempotencyKey)) {
-                    LOG.log(Level.INFO, "Appeal review skipped by idempotency key {0}", idempotencyKey);
-                    return ResponseEntity.status(HttpStatus.ALREADY_REPORTED).build();
-                }
                 appealReviewService.checkAndInsertIdempotency(idempotencyKey, review, "create");
             }
             AppealReview saved = appealReviewService.createReview(review);
@@ -336,11 +331,11 @@ public class AppealManagementController {
                 appealReviewService.markHistorySuccess(idempotencyKey, saved.getReviewId());
             }
             return ResponseEntity.status(HttpStatus.CREATED).body(saved);
-        } catch (com.tutict.finalassignmentcloud.traffic.reliability.IdempotencyReplayException ex) {
+        } catch (com.tutict.finalassignmentcloud.reliability.IdempotencyReplayException ex) {
             return ResponseEntity.status(HttpStatus.ALREADY_REPORTED).build();
-        } catch (com.tutict.finalassignmentcloud.traffic.reliability.IdempotencyConflictException ex) {
+        } catch (com.tutict.finalassignmentcloud.reliability.IdempotencyConflictException ex) {
             return ResponseEntity.status(HttpStatus.CONFLICT).build();
-        } catch (com.tutict.finalassignmentcloud.traffic.reliability.IdempotencyInProgressException ex) {
+        } catch (com.tutict.finalassignmentcloud.reliability.IdempotencyInProgressException ex) {
             return ResponseEntity.status(HttpStatus.CONFLICT).build();
         } catch (Exception ex) {
             if (useIdempotency) {
@@ -368,11 +363,11 @@ public class AppealManagementController {
                 appealReviewService.markHistorySuccess(idempotencyKey, updated.getReviewId());
             }
             return ResponseEntity.ok(updated);
-        } catch (com.tutict.finalassignmentcloud.traffic.reliability.IdempotencyReplayException ex) {
+        } catch (com.tutict.finalassignmentcloud.reliability.IdempotencyReplayException ex) {
             return ResponseEntity.status(HttpStatus.ALREADY_REPORTED).build();
-        } catch (com.tutict.finalassignmentcloud.traffic.reliability.IdempotencyConflictException ex) {
+        } catch (com.tutict.finalassignmentcloud.reliability.IdempotencyConflictException ex) {
             return ResponseEntity.status(HttpStatus.CONFLICT).build();
-        } catch (com.tutict.finalassignmentcloud.traffic.reliability.IdempotencyInProgressException ex) {
+        } catch (com.tutict.finalassignmentcloud.reliability.IdempotencyInProgressException ex) {
             return ResponseEntity.status(HttpStatus.CONFLICT).build();
         } catch (Exception ex) {
             if (useIdempotency) {
@@ -389,11 +384,11 @@ public class AppealManagementController {
         try {
             appealReviewService.deleteReview(reviewId);
             return ResponseEntity.noContent().build();
-        } catch (com.tutict.finalassignmentcloud.traffic.reliability.IdempotencyReplayException ex) {
+        } catch (com.tutict.finalassignmentcloud.reliability.IdempotencyReplayException ex) {
             return ResponseEntity.status(HttpStatus.ALREADY_REPORTED).build();
-        } catch (com.tutict.finalassignmentcloud.traffic.reliability.IdempotencyConflictException ex) {
+        } catch (com.tutict.finalassignmentcloud.reliability.IdempotencyConflictException ex) {
             return ResponseEntity.status(HttpStatus.CONFLICT).build();
-        } catch (com.tutict.finalassignmentcloud.traffic.reliability.IdempotencyInProgressException ex) {
+        } catch (com.tutict.finalassignmentcloud.reliability.IdempotencyInProgressException ex) {
             return ResponseEntity.status(HttpStatus.CONFLICT).build();
         } catch (Exception ex) {
             LOG.log(Level.WARNING, "Delete appeal review failed", ex);
@@ -407,11 +402,11 @@ public class AppealManagementController {
         try {
             AppealReview review = appealReviewService.findById(reviewId);
             return review == null ? ResponseEntity.notFound().build() : ResponseEntity.ok(review);
-        } catch (com.tutict.finalassignmentcloud.traffic.reliability.IdempotencyReplayException ex) {
+        } catch (com.tutict.finalassignmentcloud.reliability.IdempotencyReplayException ex) {
             return ResponseEntity.status(HttpStatus.ALREADY_REPORTED).build();
-        } catch (com.tutict.finalassignmentcloud.traffic.reliability.IdempotencyConflictException ex) {
+        } catch (com.tutict.finalassignmentcloud.reliability.IdempotencyConflictException ex) {
             return ResponseEntity.status(HttpStatus.CONFLICT).build();
-        } catch (com.tutict.finalassignmentcloud.traffic.reliability.IdempotencyInProgressException ex) {
+        } catch (com.tutict.finalassignmentcloud.reliability.IdempotencyInProgressException ex) {
             return ResponseEntity.status(HttpStatus.CONFLICT).build();
         } catch (Exception ex) {
             LOG.log(Level.WARNING, "Get appeal review failed", ex);
@@ -424,11 +419,11 @@ public class AppealManagementController {
     public ResponseEntity<List<AppealReview>> listReviews() {
         try {
             return ResponseEntity.ok(appealReviewService.findAll());
-        } catch (com.tutict.finalassignmentcloud.traffic.reliability.IdempotencyReplayException ex) {
+        } catch (com.tutict.finalassignmentcloud.reliability.IdempotencyReplayException ex) {
             return ResponseEntity.status(HttpStatus.ALREADY_REPORTED).build();
-        } catch (com.tutict.finalassignmentcloud.traffic.reliability.IdempotencyConflictException ex) {
+        } catch (com.tutict.finalassignmentcloud.reliability.IdempotencyConflictException ex) {
             return ResponseEntity.status(HttpStatus.CONFLICT).build();
-        } catch (com.tutict.finalassignmentcloud.traffic.reliability.IdempotencyInProgressException ex) {
+        } catch (com.tutict.finalassignmentcloud.reliability.IdempotencyInProgressException ex) {
             return ResponseEntity.status(HttpStatus.CONFLICT).build();
         } catch (Exception ex) {
             LOG.log(Level.WARNING, "List appeal reviews failed", ex);
@@ -467,11 +462,11 @@ public class AppealManagementController {
         try {
             long total = appealReviewService.countByReviewLevel(reviewLevel);
             return ResponseEntity.ok(Map.of("reviewLevel", reviewLevel, "count", total));
-        } catch (com.tutict.finalassignmentcloud.traffic.reliability.IdempotencyReplayException ex) {
+        } catch (com.tutict.finalassignmentcloud.reliability.IdempotencyReplayException ex) {
             return ResponseEntity.status(HttpStatus.ALREADY_REPORTED).build();
-        } catch (com.tutict.finalassignmentcloud.traffic.reliability.IdempotencyConflictException ex) {
+        } catch (com.tutict.finalassignmentcloud.reliability.IdempotencyConflictException ex) {
             return ResponseEntity.status(HttpStatus.CONFLICT).build();
-        } catch (com.tutict.finalassignmentcloud.traffic.reliability.IdempotencyInProgressException ex) {
+        } catch (com.tutict.finalassignmentcloud.reliability.IdempotencyInProgressException ex) {
             return ResponseEntity.status(HttpStatus.CONFLICT).build();
         } catch (Exception ex) {
             LOG.log(Level.WARNING, "Count appeal reviews failed", ex);

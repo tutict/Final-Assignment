@@ -4,6 +4,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.tutict.finalassignmentcloud.entity.SysRole;
 import com.tutict.finalassignmentcloud.user.service.SysRoleService;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.kafka.annotation.EnableKafka;
 import org.springframework.kafka.annotation.KafkaListener;
 import org.springframework.kafka.support.KafkaHeaders;
 import org.springframework.messaging.handler.annotation.Header;
@@ -14,6 +15,7 @@ import java.util.logging.Level;
 import java.util.logging.Logger;
 
 @Service
+@EnableKafka
 // Kafka 鐩戝惉鍣紝澶勭悊娑堟伅
 public class SysRoleKafkaListener {
 

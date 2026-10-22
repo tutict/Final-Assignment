@@ -2,22 +2,21 @@ package com.tutict.finalassignmentcloud.system.service;
 
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
-import com.fasterxml.jackson.databind.ObjectMapper;
+import com.tutict.finalassignmentcloud.common.transaction.AfterCommit;
 import com.tutict.finalassignmentcloud.config.websocket.WsAction;
 import com.tutict.finalassignmentcloud.entity.SysBackupRestore;
 import com.tutict.finalassignmentcloud.entity.SysRequestHistory;
 import com.tutict.finalassignmentcloud.entity.elastic.SysBackupRestoreDocument;
+import com.tutict.finalassignmentcloud.reliability.IdempotencyReplayException;
 import com.tutict.finalassignmentcloud.system.mapper.SysBackupRestoreMapper;
 import com.tutict.finalassignmentcloud.system.mapper.SysRequestHistoryMapper;
 import com.tutict.finalassignmentcloud.system.repository.SysBackupRestoreSearchRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.cache.annotation.Cacheable;
-import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.transaction.support.TransactionSynchronization;
-import org.springframework.transaction.support.TransactionSynchronizationManager;
 
 import java.time.LocalDateTime;
 import java.time.format.DateTimeParseException;
@@ -37,20 +36,14 @@ public class SysBackupRestoreService {
     private final SysBackupRestoreMapper sysBackupRestoreMapper;
     private final SysRequestHistoryMapper sysRequestHistoryMapper;
     private final SysBackupRestoreSearchRepository sysBackupRestoreSearchRepository;
-    private final KafkaTemplate<String, String> kafkaTemplate;
-    private final ObjectMapper objectMapper;
 
     @Autowired
     public SysBackupRestoreService(SysBackupRestoreMapper sysBackupRestoreMapper,
                                    SysRequestHistoryMapper sysRequestHistoryMapper,
-                                   SysBackupRestoreSearchRepository sysBackupRestoreSearchRepository,
-                                   KafkaTemplate<String, String> kafkaTemplate,
-                                   ObjectMapper objectMapper) {
+                                   SysBackupRestoreSearchRepository sysBackupRestoreSearchRepository) {
         this.sysBackupRestoreMapper = sysBackupRestoreMapper;
         this.sysRequestHistoryMapper = sysRequestHistoryMapper;
         this.sysBackupRestoreSearchRepository = sysBackupRestoreSearchRepository;
-        this.kafkaTemplate = kafkaTemplate;
-        this.objectMapper = objectMapper;
     }
 
     @Transactional
@@ -61,7 +54,7 @@ public class SysBackupRestoreService {
         SysRequestHistory existing = sysRequestHistoryMapper.selectByIdempotencyKey(idempotencyKey);
         if (existing != null) {
             log.warning(() -> String.format("Duplicate sys backup/restore request detected (key=%s)", idempotencyKey));
-            throw new RuntimeException("Duplicate sys backup/restore request detected");
+            throw new IdempotencyReplayException("Duplicate sys backup/restore request detected");
         }
 
         SysRequestHistory history = new SysRequestHistory();
@@ -71,7 +64,6 @@ public class SysBackupRestoreService {
         history.setUpdatedAt(LocalDateTime.now());
         sysRequestHistoryMapper.insert(history);
 
-        sendKafkaMessage("sys_backup_restore_" + action, idempotencyKey, backupRestore);
 
         history.setBusinessStatus("SUCCESS");
         history.setBusinessId(backupRestore.getBackupId());
@@ -110,7 +102,7 @@ public class SysBackupRestoreService {
         if (rows == 0) {
             throw new IllegalStateException("SysBackupRestore not found for id=" + backupId);
         }
-        TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
+        AfterCommit.execute(new TransactionSynchronization() {
             @Override
             public void afterCommit() {
                 sysBackupRestoreSearchRepository.deleteById(backupId);
@@ -296,27 +288,22 @@ public class SysBackupRestoreService {
             log.log(Level.WARNING, "Cannot mark failure for missing idempotency key {0}", idempotencyKey);
             return;
         }
+        if (!"PROCESSING".equalsIgnoreCase(history.getBusinessStatus())) {
+            return;
+        }
         history.setBusinessStatus("FAILED");
         history.setRequestParams(truncate(reason));
         history.setUpdatedAt(LocalDateTime.now());
         sysRequestHistoryMapper.updateById(history);
     }
 
-    private void sendKafkaMessage(String topic, String idempotencyKey, SysBackupRestore backupRestore) {
-        try {
-            String payload = objectMapper.writeValueAsString(backupRestore);
-            kafkaTemplate.send(topic, idempotencyKey, payload);
-        } catch (Exception ex) {
-            log.log(Level.SEVERE, "Failed to send SysBackupRestore Kafka message", ex);
-            throw new RuntimeException("Failed to send sys backup/restore event", ex);
-        }
-    }
+    
 
     private void syncToIndexAfterCommit(SysBackupRestore backupRestore) {
         if (backupRestore == null) {
             return;
         }
-        TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
+        AfterCommit.execute(new TransactionSynchronization() {
             @Override
             public void afterCommit() {
                 SysBackupRestoreDocument doc = SysBackupRestoreDocument.fromEntity(backupRestore);
@@ -331,7 +318,7 @@ public class SysBackupRestoreService {
         if (records == null || records.isEmpty()) {
             return;
         }
-        TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
+        AfterCommit.execute(new TransactionSynchronization() {
             @Override
             public void afterCommit() {
                 List<SysBackupRestoreDocument> documents = records.stream()

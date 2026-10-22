@@ -20,10 +20,13 @@ import java.util.Map;
 public class DevKafkaConfiguration {
 
     private final String bootstrapServers;
+    private final boolean listenerAutoStartup;
 
     public DevKafkaConfiguration(
-            @Value("${spring.kafka.bootstrap-servers:localhost:9092}") String bootstrapServers) {
+            @Value("${spring.kafka.bootstrap-servers:localhost:9092}") String bootstrapServers,
+            @Value("${spring.kafka.listener.auto-startup:true}") boolean listenerAutoStartup) {
         this.bootstrapServers = bootstrapServers;
+        this.listenerAutoStartup = listenerAutoStartup;
     }
 
     @Bean
@@ -47,7 +50,7 @@ public class DevKafkaConfiguration {
         factory.setConsumerFactory(new DefaultKafkaConsumerFactory<>(props));
         LedgerKafkaSettings.rememberTrace(factory);
         factory.setCommonErrorHandler(LedgerKafkaSettings.consumerErrorHandler(kafkaTemplate()));
-        factory.setAutoStartup(false);
+        factory.setAutoStartup(listenerAutoStartup);
         return factory;
     }
 }

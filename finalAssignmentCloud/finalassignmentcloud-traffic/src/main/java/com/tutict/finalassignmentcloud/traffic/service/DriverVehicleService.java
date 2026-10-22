@@ -2,12 +2,13 @@ package com.tutict.finalassignmentcloud.traffic.service;
 
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
-import com.fasterxml.jackson.databind.ObjectMapper;
+import com.tutict.finalassignmentcloud.common.transaction.AfterCommit;
 import com.tutict.finalassignmentcloud.config.websocket.WsAction;
 import com.tutict.finalassignmentcloud.entity.DriverVehicle;
 import com.tutict.finalassignmentcloud.entity.SysRequestHistory;
 import com.tutict.finalassignmentcloud.entity.VehicleInformation;
 import com.tutict.finalassignmentcloud.entity.elastic.DriverVehicleDocument;
+import com.tutict.finalassignmentcloud.reliability.IdempotencyReplayException;
 import com.tutict.finalassignmentcloud.traffic.mapper.DriverVehicleMapper;
 import com.tutict.finalassignmentcloud.traffic.mapper.SysRequestHistoryMapper;
 import com.tutict.finalassignmentcloud.traffic.mapper.VehicleInformationMapper;
@@ -19,11 +20,9 @@ import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.elasticsearch.core.SearchHit;
 import org.springframework.data.elasticsearch.core.SearchHits;
-import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.transaction.support.TransactionSynchronization;
-import org.springframework.transaction.support.TransactionSynchronizationManager;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
@@ -44,22 +43,16 @@ public class DriverVehicleService {
     private final SysRequestHistoryMapper sysRequestHistoryMapper;
     private final DriverVehicleSearchRepository driverVehicleSearchRepository;
     private final VehicleInformationMapper vehicleInformationMapper;
-    private final KafkaTemplate<String, String> kafkaTemplate;
-    private final ObjectMapper objectMapper;
 
     @Autowired
     public DriverVehicleService(DriverVehicleMapper driverVehicleMapper,
                                 SysRequestHistoryMapper sysRequestHistoryMapper,
                                 DriverVehicleSearchRepository driverVehicleSearchRepository,
-                                VehicleInformationMapper vehicleInformationMapper,
-                                KafkaTemplate<String, String> kafkaTemplate,
-                                ObjectMapper objectMapper) {
+                                VehicleInformationMapper vehicleInformationMapper) {
         this.driverVehicleMapper = driverVehicleMapper;
         this.sysRequestHistoryMapper = sysRequestHistoryMapper;
         this.driverVehicleSearchRepository = driverVehicleSearchRepository;
         this.vehicleInformationMapper = vehicleInformationMapper;
-        this.kafkaTemplate = kafkaTemplate;
-        this.objectMapper = objectMapper;
     }
 
     @Transactional
@@ -70,7 +63,7 @@ public class DriverVehicleService {
         SysRequestHistory existing = sysRequestHistoryMapper.selectByIdempotencyKey(idempotencyKey);
         if (existing != null) {
             log.warning(() -> String.format("Duplicate driver-vehicle binding request detected (key=%s)", idempotencyKey));
-            throw new RuntimeException("Duplicate driver-vehicle request detected");
+            throw new IdempotencyReplayException("Duplicate driver-vehicle request detected");
         }
 
         SysRequestHistory history = new SysRequestHistory();
@@ -80,7 +73,6 @@ public class DriverVehicleService {
         history.setUpdatedAt(LocalDateTime.now());
         sysRequestHistoryMapper.insert(history);
 
-        sendKafkaMessage("driver_vehicle_" + action, idempotencyKey, binding);
 
         history.setBusinessStatus("SUCCESS");
         history.setBusinessId(binding.getId());
@@ -121,7 +113,7 @@ public class DriverVehicleService {
         if (rows == 0) {
             throw new IllegalStateException("Driver-vehicle binding not found for id=" + id);
         }
-        TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
+        AfterCommit.execute(new TransactionSynchronization() {
             @Override
             public void afterCommit() {
                 driverVehicleSearchRepository.deleteById(id);
@@ -240,26 +232,22 @@ public class DriverVehicleService {
             log.log(Level.WARNING, "Cannot mark failure for missing idempotency key {0}", idempotencyKey);
             return;
         }
+        if (!"PROCESSING".equalsIgnoreCase(history.getBusinessStatus())) {
+            return;
+        }
         history.setBusinessStatus("FAILED");
         history.setRequestParams(truncate(reason));
         history.setUpdatedAt(LocalDateTime.now());
         sysRequestHistoryMapper.updateById(history);
     }
 
-    private void sendKafkaMessage(String topic, String idempotencyKey, DriverVehicle binding) {
-        try {
-            String payload = objectMapper.writeValueAsString(binding);
-            kafkaTemplate.send(topic, idempotencyKey, payload);
-        } catch (Exception ex) {
-            log.log(Level.WARNING, "Failed to send DriverVehicle Kafka message", ex);
-        }
-    }
+    
 
     private void syncToIndexAfterCommit(DriverVehicle binding) {
         if (binding == null) {
             return;
         }
-        TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
+        AfterCommit.execute(new TransactionSynchronization() {
             @Override
             public void afterCommit() {
                 DriverVehicleDocument doc = DriverVehicleDocument.fromEntity(binding);
@@ -274,7 +262,7 @@ public class DriverVehicleService {
         if (records == null || records.isEmpty()) {
             return;
         }
-        TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
+        AfterCommit.execute(new TransactionSynchronization() {
             @Override
             public void afterCommit() {
                 List<DriverVehicleDocument> documents = records.stream()

@@ -2,22 +2,21 @@ package com.tutict.finalassignmentcloud.traffic.service;
 
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
-import com.fasterxml.jackson.databind.ObjectMapper;
+import com.tutict.finalassignmentcloud.common.transaction.AfterCommit;
 import com.tutict.finalassignmentcloud.config.websocket.WsAction;
 import com.tutict.finalassignmentcloud.entity.OffenseTypeDict;
 import com.tutict.finalassignmentcloud.entity.SysRequestHistory;
 import com.tutict.finalassignmentcloud.entity.elastic.OffenseTypeDictDocument;
+import com.tutict.finalassignmentcloud.reliability.IdempotencyReplayException;
 import com.tutict.finalassignmentcloud.traffic.mapper.OffenseTypeDictMapper;
 import com.tutict.finalassignmentcloud.traffic.mapper.SysRequestHistoryMapper;
 import com.tutict.finalassignmentcloud.traffic.repository.OffenseTypeDictSearchRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.cache.annotation.Cacheable;
-import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.transaction.support.TransactionSynchronization;
-import org.springframework.transaction.support.TransactionSynchronizationManager;
 
 import java.time.LocalDateTime;
 import java.util.List;
@@ -37,20 +36,14 @@ public class OffenseTypeDictService {
     private final OffenseTypeDictMapper offenseTypeDictMapper;
     private final SysRequestHistoryMapper sysRequestHistoryMapper;
     private final OffenseTypeDictSearchRepository offenseTypeDictSearchRepository;
-    private final KafkaTemplate<String, String> kafkaTemplate;
-    private final ObjectMapper objectMapper;
 
     @Autowired
     public OffenseTypeDictService(OffenseTypeDictMapper offenseTypeDictMapper,
                                   SysRequestHistoryMapper sysRequestHistoryMapper,
-                                  OffenseTypeDictSearchRepository offenseTypeDictSearchRepository,
-                                  KafkaTemplate<String, String> kafkaTemplate,
-                                  ObjectMapper objectMapper) {
+                                  OffenseTypeDictSearchRepository offenseTypeDictSearchRepository) {
         this.offenseTypeDictMapper = offenseTypeDictMapper;
         this.sysRequestHistoryMapper = sysRequestHistoryMapper;
         this.offenseTypeDictSearchRepository = offenseTypeDictSearchRepository;
-        this.kafkaTemplate = kafkaTemplate;
-        this.objectMapper = objectMapper;
     }
 
     @Transactional
@@ -59,7 +52,7 @@ public class OffenseTypeDictService {
     public void checkAndInsertIdempotency(String idempotencyKey, OffenseTypeDict dict, String action) {
         Objects.requireNonNull(dict, "OffenseTypeDict must not be null");
         if (sysRequestHistoryMapper.selectByIdempotencyKey(idempotencyKey) != null) {
-            throw new RuntimeException("Duplicate offense type dict request detected");
+            throw new IdempotencyReplayException("Duplicate offense type dict request detected");
         }
         SysRequestHistory history = new SysRequestHistory();
         history.setIdempotencyKey(idempotencyKey);
@@ -68,7 +61,6 @@ public class OffenseTypeDictService {
         history.setUpdatedAt(LocalDateTime.now());
         sysRequestHistoryMapper.insert(history);
 
-        sendKafkaMessage("offense_type_dict_" + action, idempotencyKey, dict);
 
         history.setBusinessStatus("SUCCESS");
         history.setBusinessId(Optional.ofNullable(dict.getTypeId()).map(Long::valueOf).orElse(null));
@@ -107,7 +99,7 @@ public class OffenseTypeDictService {
         if (rows == 0) {
             throw new IllegalStateException("No OffenseTypeDict deleted for id=" + typeId);
         }
-        TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
+        AfterCommit.execute(new TransactionSynchronization() {
             @Override
             public void afterCommit() {
                 offenseTypeDictSearchRepository.deleteById(typeId);
@@ -305,26 +297,22 @@ public class OffenseTypeDictService {
             log.log(Level.WARNING, "Cannot mark failure for missing idempotency key {0}", idempotencyKey);
             return;
         }
+        if (!"PROCESSING".equalsIgnoreCase(history.getBusinessStatus())) {
+            return;
+        }
         history.setBusinessStatus("FAILED");
         history.setRequestParams(truncate(reason));
         history.setUpdatedAt(LocalDateTime.now());
         sysRequestHistoryMapper.updateById(history);
     }
 
-    private void sendKafkaMessage(String topic, String idempotencyKey, OffenseTypeDict dict) {
-        try {
-            String payload = objectMapper.writeValueAsString(dict);
-            kafkaTemplate.send(topic, idempotencyKey, payload);
-        } catch (Exception ex) {
-            log.log(Level.WARNING, "Failed to send OffenseTypeDict Kafka message", ex);
-        }
-    }
+    
 
     private void syncToIndexAfterCommit(OffenseTypeDict dict) {
         if (dict == null) {
             return;
         }
-        TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
+        AfterCommit.execute(new TransactionSynchronization() {
             @Override
             public void afterCommit() {
                 OffenseTypeDictDocument doc = OffenseTypeDictDocument.fromEntity(dict);
@@ -339,7 +327,7 @@ public class OffenseTypeDictService {
         if (dicts == null || dicts.isEmpty()) {
             return;
         }
-        TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
+        AfterCommit.execute(new TransactionSynchronization() {
             @Override
             public void afterCommit() {
                 List<OffenseTypeDictDocument> documents = dicts.stream()

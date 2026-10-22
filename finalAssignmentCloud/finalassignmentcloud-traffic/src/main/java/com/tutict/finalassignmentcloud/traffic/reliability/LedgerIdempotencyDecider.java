@@ -25,6 +25,9 @@ public final class LedgerIdempotencyDecider {
             return (age != null && age.compareTo(PROCESSING_TTL) >= 0) ? Outcome.RETRY : Outcome.IN_PROGRESS;
         }
         if ("SUCCESS".equalsIgnoreCase(normalized)) {
+            if ("PENDING".equalsIgnoreCase(storedParams)) {
+                return Outcome.RETRY;
+            }
             return samePayload(storedParams, incomingFingerprint) ? Outcome.REPLAY : Outcome.CONFLICT;
         }
         return Outcome.CONFLICT;

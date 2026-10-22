@@ -3,6 +3,9 @@ package com.tutict.finalassignmentcloud.traffic.controller;
 import com.tutict.finalassignmentcloud.entity.DriverVehicle;
 import com.tutict.finalassignmentcloud.entity.VehicleInformation;
 import com.tutict.finalassignmentcloud.dto.response.ApiResponse;
+import com.tutict.finalassignmentcloud.reliability.IdempotencyConflictException;
+import com.tutict.finalassignmentcloud.reliability.IdempotencyInProgressException;
+import com.tutict.finalassignmentcloud.reliability.IdempotencyReplayException;
 import com.tutict.finalassignmentcloud.traffic.service.BusinessRecordViewService;
 import com.tutict.finalassignmentcloud.traffic.service.DriverAccessService;
 import com.tutict.finalassignmentcloud.traffic.service.DriverVehicleService;
@@ -68,8 +71,14 @@ public class VehicleInformationController {
                 vehicleInformationService.checkAndInsertIdempotency(idempotencyKey, request, "create");
             }
             VehicleInformation saved = vehicleInformationService.createVehicleInformation(request);
+            if (hasKey(idempotencyKey) && saved.getVehicleId() != null) {
+                vehicleInformationService.markHistorySuccess(idempotencyKey, saved.getVehicleId());
+            }
             return ResponseEntity.status(HttpStatus.CREATED).body(enrich(saved));
         } catch (Exception ex) {
+            if (hasKey(idempotencyKey) && !isIdempotencyOutcome(ex)) {
+                vehicleInformationService.markHistoryFailure(idempotencyKey, ex.getMessage());
+            }
             LOG.log(Level.SEVERE, "Create vehicle failed", ex);
             return ResponseEntity.status(resolveStatus(ex)).build();
         }
@@ -87,8 +96,14 @@ public class VehicleInformationController {
                 vehicleInformationService.checkAndInsertIdempotency(idempotencyKey, request, "update");
             }
             VehicleInformation updated = vehicleInformationService.updateVehicleInformation(request);
+            if (hasKey(idempotencyKey) && updated.getVehicleId() != null) {
+                vehicleInformationService.markHistorySuccess(idempotencyKey, updated.getVehicleId());
+            }
             return ResponseEntity.ok(enrich(updated));
         } catch (Exception ex) {
+            if (hasKey(idempotencyKey) && !isIdempotencyOutcome(ex)) {
+                vehicleInformationService.markHistoryFailure(idempotencyKey, ex.getMessage());
+            }
             LOG.log(Level.SEVERE, "Update vehicle failed", ex);
             return ResponseEntity.status(resolveStatus(ex)).build();
         }
@@ -299,6 +314,9 @@ public class VehicleInformationController {
         try {
             relation.setId(bindingId);
             if (useKey) {
+                if (driverVehicleService.shouldSkipProcessing(idempotencyKey)) {
+                    return ResponseEntity.status(HttpStatus.ALREADY_REPORTED).build();
+                }
                 driverVehicleService.checkAndInsertIdempotency(idempotencyKey, relation, "update");
             }
             DriverVehicle updated = driverVehicleService.updateBinding(relation);
@@ -545,8 +563,20 @@ public class VehicleInformationController {
     }
 
     private HttpStatus resolveStatus(Exception ex) {
+        if (ex instanceof IdempotencyReplayException) {
+            return HttpStatus.ALREADY_REPORTED;
+        }
+        if (ex instanceof IdempotencyInProgressException || ex instanceof IdempotencyConflictException) {
+            return HttpStatus.CONFLICT;
+        }
         return (ex instanceof IllegalArgumentException || ex instanceof IllegalStateException)
                 ? HttpStatus.BAD_REQUEST
                 : HttpStatus.INTERNAL_SERVER_ERROR;
+    }
+
+    private static boolean isIdempotencyOutcome(Exception ex) {
+        return ex instanceof IdempotencyReplayException
+                || ex instanceof IdempotencyConflictException
+                || ex instanceof IdempotencyInProgressException;
     }
 }

@@ -2,7 +2,7 @@ package com.tutict.finalassignmentcloud.traffic.service;
 
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
-import com.fasterxml.jackson.databind.ObjectMapper;
+import com.tutict.finalassignmentcloud.common.transaction.AfterCommit;
 import com.tutict.finalassignmentcloud.traffic.config.statemachine.states.OffenseProcessState;
 import com.tutict.finalassignmentcloud.config.websocket.WsAction;
 import com.tutict.finalassignmentcloud.entity.DriverInformation;
@@ -10,6 +10,7 @@ import com.tutict.finalassignmentcloud.entity.OffenseRecord;
 import com.tutict.finalassignmentcloud.entity.VehicleInformation;
 import com.tutict.finalassignmentcloud.entity.SysRequestHistory;
 import com.tutict.finalassignmentcloud.entity.elastic.OffenseRecordDocument;
+import com.tutict.finalassignmentcloud.reliability.IdempotencyReplayException;
 import com.tutict.finalassignmentcloud.traffic.mapper.DriverInformationMapper;
 import com.tutict.finalassignmentcloud.traffic.mapper.OffenseRecordMapper;
 import com.tutict.finalassignmentcloud.traffic.mapper.VehicleInformationMapper;
@@ -18,11 +19,9 @@ import com.tutict.finalassignmentcloud.traffic.repository.OffenseInformationSear
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.cache.annotation.Cacheable;
-import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.transaction.support.TransactionSynchronization;
-import org.springframework.transaction.support.TransactionSynchronizationManager;
 
 import java.time.LocalDateTime;
 import java.time.format.DateTimeParseException;
@@ -42,8 +41,6 @@ public class OffenseRecordService {
     private final OffenseRecordMapper offenseRecordMapper;
     private final SysRequestHistoryMapper sysRequestHistoryMapper;
     private final OffenseInformationSearchRepository offenseInformationSearchRepository;
-    private final KafkaTemplate<String, String> kafkaTemplate;
-    private final ObjectMapper objectMapper;
     private DriverInformationMapper driverInformationMapper;
     private VehicleInformationMapper vehicleInformationMapper;
 
@@ -57,14 +54,10 @@ public class OffenseRecordService {
     @Autowired
     public OffenseRecordService(OffenseRecordMapper offenseRecordMapper,
                                 SysRequestHistoryMapper sysRequestHistoryMapper,
-                                OffenseInformationSearchRepository offenseInformationSearchRepository,
-                                KafkaTemplate<String, String> kafkaTemplate,
-                                ObjectMapper objectMapper) {
+                                OffenseInformationSearchRepository offenseInformationSearchRepository) {
         this.offenseRecordMapper = offenseRecordMapper;
         this.sysRequestHistoryMapper = sysRequestHistoryMapper;
         this.offenseInformationSearchRepository = offenseInformationSearchRepository;
-        this.kafkaTemplate = kafkaTemplate;
-        this.objectMapper = objectMapper;
     }
 
     @Transactional
@@ -73,7 +66,7 @@ public class OffenseRecordService {
     public void checkAndInsertIdempotency(String idempotencyKey, OffenseRecord offenseRecord, String action) {
         Objects.requireNonNull(offenseRecord, "OffenseRecord must not be null");
         if (sysRequestHistoryMapper.selectByIdempotencyKey(idempotencyKey) != null) {
-            throw new RuntimeException("Duplicate offense record request detected");
+            throw new IdempotencyReplayException("Duplicate offense record request detected");
         }
 
         SysRequestHistory history = new SysRequestHistory();
@@ -83,7 +76,6 @@ public class OffenseRecordService {
         history.setUpdatedAt(LocalDateTime.now());
         sysRequestHistoryMapper.insert(history);
 
-        sendKafkaMessage("offense_record_" + action, idempotencyKey, offenseRecord);
 
         history.setBusinessStatus("SUCCESS");
         history.setBusinessId(offenseRecord.getOffenseId());
@@ -137,11 +129,7 @@ public class OffenseRecordService {
         int rows = offenseRecordMapper.deleteById(offenseId);
         if (rows == 0) {
             throw new IllegalStateException("No OffenseRecord deleted for id=" + offenseId);
-        }
-        if (!TransactionSynchronizationManager.isSynchronizationActive()) {
-            return;
-        }
-        TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
+        }        AfterCommit.execute(new TransactionSynchronization() {
             @Override
             public void afterCommit() {
                 offenseInformationSearchRepository.deleteById(offenseId);
@@ -394,29 +382,21 @@ public class OffenseRecordService {
             log.log(Level.WARNING, "Cannot mark failure for missing idempotency key {0}", idempotencyKey);
             return;
         }
+        if (!"PROCESSING".equalsIgnoreCase(history.getBusinessStatus())) {
+            return;
+        }
         history.setBusinessStatus("FAILED");
         history.setRequestParams(truncate(reason));
         history.setUpdatedAt(LocalDateTime.now());
         sysRequestHistoryMapper.updateById(history);
     }
 
-    private void sendKafkaMessage(String topic, String idempotencyKey, OffenseRecord offenseRecord) {
-        try {
-            String payload = objectMapper.writeValueAsString(offenseRecord);
-            kafkaTemplate.send(topic, idempotencyKey, payload);
-        } catch (Exception ex) {
-            log.log(Level.WARNING, "Failed to send OffenseRecord Kafka message", ex);
-        }
-    }
+    
 
     private void syncToIndexAfterCommit(OffenseRecord offenseRecord) {
         if (offenseRecord == null) {
             return;
-        }
-        if (!TransactionSynchronizationManager.isSynchronizationActive()) {
-            return;
-        }
-        TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
+        }        AfterCommit.execute(new TransactionSynchronization() {
             @Override
             public void afterCommit() {
                 OffenseRecordDocument doc = OffenseRecordDocument.fromEntity(offenseRecord);
@@ -430,11 +410,7 @@ public class OffenseRecordService {
     private void syncBatchToIndexAfterCommit(List<OffenseRecord> records) {
         if (records == null || records.isEmpty()) {
             return;
-        }
-        if (!TransactionSynchronizationManager.isSynchronizationActive()) {
-            return;
-        }
-        TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
+        }        AfterCommit.execute(new TransactionSynchronization() {
             @Override
             public void afterCommit() {
                 List<OffenseRecordDocument> documents = records.stream()

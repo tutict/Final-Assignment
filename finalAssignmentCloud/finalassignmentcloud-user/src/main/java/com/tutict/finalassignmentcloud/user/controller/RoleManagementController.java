@@ -2,6 +2,7 @@ package com.tutict.finalassignmentcloud.user.controller;
 
 import com.tutict.finalassignmentcloud.entity.SysRole;
 import com.tutict.finalassignmentcloud.entity.SysRolePermission;
+import com.tutict.finalassignmentcloud.reliability.IdempotencyReplayException;
 import com.tutict.finalassignmentcloud.user.service.SysRolePermissionService;
 import com.tutict.finalassignmentcloud.user.service.SysRoleService;
 import io.swagger.v3.oas.annotations.Operation;
@@ -80,6 +81,9 @@ public class RoleManagementController {
         try {
             request.setRoleId(roleId);
             if (useKey) {
+                if (sysRoleService.shouldSkipProcessing(idempotencyKey)) {
+                    return ResponseEntity.status(HttpStatus.ALREADY_REPORTED).build();
+                }
                 sysRoleService.checkAndInsertIdempotency(idempotencyKey, request, "update");
             }
             SysRole updated = sysRoleService.updateSysRole(request);
@@ -263,6 +267,9 @@ public class RoleManagementController {
         try {
             relation.setId(relationId);
             if (useKey) {
+                if (sysRolePermissionService.shouldSkipProcessing(idempotencyKey)) {
+                    return ResponseEntity.status(HttpStatus.ALREADY_REPORTED).build();
+                }
                 sysRolePermissionService.checkAndInsertIdempotency(idempotencyKey, relation, "update");
             }
             SysRolePermission updated = sysRolePermissionService.updateRelation(relation);
@@ -330,6 +337,9 @@ public class RoleManagementController {
     }
 
     private HttpStatus resolveStatus(Exception ex) {
+        if (ex instanceof IdempotencyReplayException) {
+            return HttpStatus.ALREADY_REPORTED;
+        }
         return (ex instanceof IllegalArgumentException || ex instanceof IllegalStateException)
                 ? HttpStatus.BAD_REQUEST
                 : HttpStatus.INTERNAL_SERVER_ERROR;

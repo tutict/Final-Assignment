@@ -2,22 +2,21 @@ package com.tutict.finalassignmentcloud.user.service;
 
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
-import com.fasterxml.jackson.databind.ObjectMapper;
+import com.tutict.finalassignmentcloud.common.transaction.AfterCommit;
 import com.tutict.finalassignmentcloud.config.websocket.WsAction;
 import com.tutict.finalassignmentcloud.entity.SysRequestHistory;
 import com.tutict.finalassignmentcloud.entity.SysUserRole;
 import com.tutict.finalassignmentcloud.entity.elastic.SysUserRoleDocument;
+import com.tutict.finalassignmentcloud.reliability.HistoryReserve;
 import com.tutict.finalassignmentcloud.user.mapper.SysRequestHistoryMapper;
 import com.tutict.finalassignmentcloud.user.mapper.SysUserRoleMapper;
 import com.tutict.finalassignmentcloud.user.repository.SysUserRoleSearchRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.cache.annotation.Cacheable;
-import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.transaction.support.TransactionSynchronization;
-import org.springframework.transaction.support.TransactionSynchronizationManager;
 
 import java.time.LocalDateTime;
 import java.util.List;
@@ -35,20 +34,14 @@ public class SysUserRoleService {
     private final SysUserRoleMapper sysUserRoleMapper;
     private final SysRequestHistoryMapper sysRequestHistoryMapper;
     private final SysUserRoleSearchRepository sysUserRoleSearchRepository;
-    private final KafkaTemplate<String, String> kafkaTemplate;
-    private final ObjectMapper objectMapper;
 
     @Autowired
     public SysUserRoleService(SysUserRoleMapper sysUserRoleMapper,
                               SysRequestHistoryMapper sysRequestHistoryMapper,
-                              SysUserRoleSearchRepository sysUserRoleSearchRepository,
-                              KafkaTemplate<String, String> kafkaTemplate,
-                              ObjectMapper objectMapper) {
+                              SysUserRoleSearchRepository sysUserRoleSearchRepository) {
         this.sysUserRoleMapper = sysUserRoleMapper;
         this.sysRequestHistoryMapper = sysRequestHistoryMapper;
         this.sysUserRoleSearchRepository = sysUserRoleSearchRepository;
-        this.kafkaTemplate = kafkaTemplate;
-        this.objectMapper = objectMapper;
     }
 
     @Transactional
@@ -56,26 +49,9 @@ public class SysUserRoleService {
     @WsAction(service = "SysUserRoleService", action = "checkAndInsertIdempotency")
     public void checkAndInsertIdempotency(String idempotencyKey, SysUserRole relation, String action) {
         Objects.requireNonNull(relation, "SysUserRole must not be null");
-        SysRequestHistory existing = sysRequestHistoryMapper.selectByIdempotencyKey(idempotencyKey);
-        if (existing != null) {
-            LOG.warning(() -> String.format("Duplicate sys user role request detected (key=%s)", idempotencyKey));
-            throw new RuntimeException("Duplicate sys user role request detected");
-        }
-
-        SysRequestHistory history = new SysRequestHistory();
-        history.setIdempotencyKey(idempotencyKey);
-        history.setBusinessStatus("PROCESSING");
-        history.setCreatedAt(LocalDateTime.now());
-        history.setUpdatedAt(LocalDateTime.now());
-        sysRequestHistoryMapper.insert(history);
-
-        sendKafkaMessage("sys_user_role_" + action, idempotencyKey, relation);
-
-        history.setBusinessStatus("SUCCESS");
-        history.setBusinessId(relation.getId());
-        history.setRequestParams("PENDING");
-        history.setUpdatedAt(LocalDateTime.now());
-        sysRequestHistoryMapper.updateById(history);
+        HistoryReserve.reserve(sysRequestHistoryMapper, idempotencyKey, "SYS_USER_ROLE_" + action.toUpperCase(),
+                HistoryReserve.sha256(action + "|" + relation.getId() + "|" + relation.getUserId()
+                        + "|" + relation.getRoleId()));
     }
 
     @Transactional
@@ -108,7 +84,7 @@ public class SysUserRoleService {
         if (rows == 0) {
             throw new IllegalStateException("SysUserRole not found for id=" + relationId);
         }
-        TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
+        AfterCommit.execute(new TransactionSynchronization() {
             @Override
             public void afterCommit() {
                 sysUserRoleSearchRepository.deleteById(relationId);
@@ -136,13 +112,10 @@ public class SysUserRoleService {
     public List<SysUserRole> findByUserId(Long userId, int page, int size) {
         requirePositive(userId, "User ID");
         validatePagination(page, size);
-        List<SysUserRole> index = mapHits(sysUserRoleSearchRepository.findByUserId(userId, pageable(page, size)));
-        if (!index.isEmpty()) {
-            return index;
-        }
         QueryWrapper<SysUserRole> wrapper = new QueryWrapper<>();
         wrapper.eq("user_id", userId)
                 .orderByDesc("created_at");
+        // The database is authoritative: a partially populated search index would silently drop roles.
         return fetchFromDatabase(wrapper, page, size);
     }
 
@@ -151,10 +124,6 @@ public class SysUserRoleService {
     public List<SysUserRole> findByRoleId(Integer roleId, int page, int size) {
         requirePositive(roleId, "Role ID");
         validatePagination(page, size);
-        List<SysUserRole> index = mapHits(sysUserRoleSearchRepository.findByRoleId(roleId, pageable(page, size)));
-        if (!index.isEmpty()) {
-            return index;
-        }
         QueryWrapper<SysUserRole> wrapper = new QueryWrapper<>();
         wrapper.eq("role_id", roleId)
                 .orderByDesc("created_at");
@@ -168,10 +137,6 @@ public class SysUserRoleService {
         requirePositive(userId, "User ID");
         requirePositive(roleId, "Role ID");
         validatePagination(page, size);
-        List<SysUserRole> index = mapHits(sysUserRoleSearchRepository.findByUserIdAndRoleId(userId, roleId, pageable(page, size)));
-        if (!index.isEmpty()) {
-            return index;
-        }
         QueryWrapper<SysUserRole> wrapper = new QueryWrapper<>();
         wrapper.eq("user_id", userId)
                 .eq("role_id", roleId)
@@ -216,27 +181,22 @@ public class SysUserRoleService {
             LOG.log(Level.WARNING, "Cannot mark failure for missing idempotency key {0}", idempotencyKey);
             return;
         }
+        if (!"PROCESSING".equalsIgnoreCase(history.getBusinessStatus())) {
+            return;
+        }
         history.setBusinessStatus("FAILED");
         history.setRequestParams(truncate(reason));
         history.setUpdatedAt(LocalDateTime.now());
         sysRequestHistoryMapper.updateById(history);
     }
 
-    private void sendKafkaMessage(String topic, String idempotencyKey, SysUserRole relation) {
-        try {
-            String payload = objectMapper.writeValueAsString(relation);
-            kafkaTemplate.send(topic, idempotencyKey, payload);
-        } catch (Exception ex) {
-            LOG.log(Level.SEVERE, "Failed to send SysUserRole Kafka message", ex);
-            throw new RuntimeException("Failed to send SysUserRole event", ex);
-        }
-    }
+    
 
     private void syncToIndexAfterCommit(SysUserRole relation) {
         if (relation == null) {
             return;
         }
-        TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
+        AfterCommit.execute(new TransactionSynchronization() {
             @Override
             public void afterCommit() {
                 SysUserRoleDocument doc = SysUserRoleDocument.fromEntity(relation);
@@ -251,7 +211,7 @@ public class SysUserRoleService {
         if (records == null || records.isEmpty()) {
             return;
         }
-        TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
+        AfterCommit.execute(new TransactionSynchronization() {
             @Override
             public void afterCommit() {
                 List<SysUserRoleDocument> documents = records.stream()

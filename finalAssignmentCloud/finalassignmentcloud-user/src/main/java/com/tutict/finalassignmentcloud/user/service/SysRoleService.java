@@ -2,22 +2,21 @@ package com.tutict.finalassignmentcloud.user.service;
 
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
-import com.fasterxml.jackson.databind.ObjectMapper;
+import com.tutict.finalassignmentcloud.common.transaction.AfterCommit;
 import com.tutict.finalassignmentcloud.config.websocket.WsAction;
 import com.tutict.finalassignmentcloud.entity.SysRequestHistory;
 import com.tutict.finalassignmentcloud.entity.SysRole;
 import com.tutict.finalassignmentcloud.entity.elastic.SysRoleDocument;
+import com.tutict.finalassignmentcloud.reliability.HistoryReserve;
 import com.tutict.finalassignmentcloud.user.mapper.SysRequestHistoryMapper;
 import com.tutict.finalassignmentcloud.user.mapper.SysRoleMapper;
 import com.tutict.finalassignmentcloud.user.repository.SysRoleSearchRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.cache.annotation.Cacheable;
-import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.transaction.support.TransactionSynchronization;
-import org.springframework.transaction.support.TransactionSynchronizationManager;
 
 import java.time.LocalDateTime;
 import java.util.List;
@@ -37,20 +36,14 @@ public class SysRoleService {
     private final SysRoleMapper sysRoleMapper;
     private final SysRequestHistoryMapper sysRequestHistoryMapper;
     private final SysRoleSearchRepository sysRoleSearchRepository;
-    private final KafkaTemplate<String, String> kafkaTemplate;
-    private final ObjectMapper objectMapper;
 
     @Autowired
     public SysRoleService(SysRoleMapper sysRoleMapper,
                           SysRequestHistoryMapper sysRequestHistoryMapper,
-                          SysRoleSearchRepository sysRoleSearchRepository,
-                          KafkaTemplate<String, String> kafkaTemplate,
-                          ObjectMapper objectMapper) {
+                          SysRoleSearchRepository sysRoleSearchRepository) {
         this.sysRoleMapper = sysRoleMapper;
         this.sysRequestHistoryMapper = sysRequestHistoryMapper;
         this.sysRoleSearchRepository = sysRoleSearchRepository;
-        this.kafkaTemplate = kafkaTemplate;
-        this.objectMapper = objectMapper;
     }
 
     @Transactional
@@ -58,26 +51,9 @@ public class SysRoleService {
     @WsAction(service = "SysRoleService", action = "checkAndInsertIdempotency")
     public void checkAndInsertIdempotency(String idempotencyKey, SysRole sysRole, String action) {
         Objects.requireNonNull(sysRole, "SysRole must not be null");
-        SysRequestHistory existing = sysRequestHistoryMapper.selectByIdempotencyKey(idempotencyKey);
-        if (existing != null) {
-            log.warning(() -> String.format("Duplicate sys role request detected (key=%s)", idempotencyKey));
-            throw new RuntimeException("Duplicate sys role request detected");
-        }
-
-        SysRequestHistory history = new SysRequestHistory();
-        history.setIdempotencyKey(idempotencyKey);
-        history.setBusinessStatus("PROCESSING");
-        history.setCreatedAt(LocalDateTime.now());
-        history.setUpdatedAt(LocalDateTime.now());
-        sysRequestHistoryMapper.insert(history);
-
-        sendKafkaMessage("sys_role_" + action, idempotencyKey, sysRole);
-
-        history.setBusinessStatus("SUCCESS");
-        history.setBusinessId(Optional.ofNullable(sysRole.getRoleId()).map(Integer::longValue).orElse(null));
-        history.setRequestParams("PENDING");
-        history.setUpdatedAt(LocalDateTime.now());
-        sysRequestHistoryMapper.updateById(history);
+        HistoryReserve.reserve(sysRequestHistoryMapper, idempotencyKey, "SYS_ROLE_" + action.toUpperCase(),
+                HistoryReserve.sha256(action + "|" + sysRole.getRoleId() + "|" + sysRole.getRoleCode()
+                        + "|" + sysRole.getRoleName() + "|" + sysRole.getStatus()));
     }
 
     @Transactional
@@ -110,7 +86,7 @@ public class SysRoleService {
         if (rows == 0) {
             throw new IllegalStateException("SysRole not found for id=" + roleId);
         }
-        TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
+        AfterCommit.execute(new TransactionSynchronization() {
             @Override
             public void afterCommit() {
                 sysRoleSearchRepository.deleteById(roleId);
@@ -136,12 +112,6 @@ public class SysRoleService {
     @Transactional(readOnly = true)
     @Cacheable(cacheNames = CACHE_NAME, key = "'all'", unless = "#result == null || #result.isEmpty()")
     public List<SysRole> findAll() {
-        List<SysRole> fromIndex = StreamSupport.stream(sysRoleSearchRepository.findAll().spliterator(), false)
-                .map(SysRoleDocument::toEntity)
-                .collect(Collectors.toList());
-        if (!fromIndex.isEmpty()) {
-            return fromIndex;
-        }
         List<SysRole> fromDb = sysRoleMapper.selectList(null);
         syncBatchToIndexAfterCommit(fromDb);
         return fromDb;
@@ -298,27 +268,22 @@ public class SysRoleService {
             log.log(Level.WARNING, "Cannot mark failure for missing idempotency key {0}", idempotencyKey);
             return;
         }
+        if (!"PROCESSING".equalsIgnoreCase(history.getBusinessStatus())) {
+            return;
+        }
         history.setBusinessStatus("FAILED");
         history.setRequestParams(truncate(reason));
         history.setUpdatedAt(LocalDateTime.now());
         sysRequestHistoryMapper.updateById(history);
     }
 
-    private void sendKafkaMessage(String topic, String idempotencyKey, SysRole sysRole) {
-        try {
-            String payload = objectMapper.writeValueAsString(sysRole);
-            kafkaTemplate.send(topic, idempotencyKey, payload);
-        } catch (Exception ex) {
-            log.log(Level.SEVERE, "Failed to send SysRole Kafka message", ex);
-            throw new RuntimeException("Failed to send sys role event", ex);
-        }
-    }
+    
 
     private void syncToIndexAfterCommit(SysRole sysRole) {
         if (sysRole == null) {
             return;
         }
-        TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
+        AfterCommit.execute(new TransactionSynchronization() {
             @Override
             public void afterCommit() {
                 SysRoleDocument doc = SysRoleDocument.fromEntity(sysRole);
@@ -333,7 +298,7 @@ public class SysRoleService {
         if (records == null || records.isEmpty()) {
             return;
         }
-        TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
+        AfterCommit.execute(new TransactionSynchronization() {
             @Override
             public void afterCommit() {
                 List<SysRoleDocument> documents = records.stream()

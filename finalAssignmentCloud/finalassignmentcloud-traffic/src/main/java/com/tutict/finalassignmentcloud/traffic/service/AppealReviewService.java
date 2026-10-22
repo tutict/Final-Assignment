@@ -2,7 +2,7 @@ package com.tutict.finalassignmentcloud.traffic.service;
 
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
-import com.fasterxml.jackson.databind.ObjectMapper;
+import com.tutict.finalassignmentcloud.common.transaction.AfterCommit;
 import com.tutict.finalassignmentcloud.config.websocket.WsAction;
 import com.tutict.finalassignmentcloud.entity.AppealReview;
 import com.tutict.finalassignmentcloud.entity.SysRequestHistory;
@@ -14,11 +14,9 @@ import com.tutict.finalassignmentcloud.traffic.repository.AppealReviewSearchRepo
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.cache.annotation.Cacheable;
-import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.transaction.support.TransactionSynchronization;
-import org.springframework.transaction.support.TransactionSynchronizationManager;
 
 import java.time.LocalDateTime;
 import java.time.format.DateTimeParseException;
@@ -38,20 +36,14 @@ public class AppealReviewService {
     private final AppealReviewMapper appealReviewMapper;
     private final SysRequestHistoryMapper sysRequestHistoryMapper;
     private final AppealReviewSearchRepository appealReviewSearchRepository;
-    private final KafkaTemplate<String, String> kafkaTemplate;
-    private final ObjectMapper objectMapper;
 
     @Autowired
     public AppealReviewService(AppealReviewMapper appealReviewMapper,
                                SysRequestHistoryMapper sysRequestHistoryMapper,
-                               AppealReviewSearchRepository appealReviewSearchRepository,
-                               KafkaTemplate<String, String> kafkaTemplate,
-                               ObjectMapper objectMapper) {
+                               AppealReviewSearchRepository appealReviewSearchRepository) {
         this.appealReviewMapper = appealReviewMapper;
         this.sysRequestHistoryMapper = sysRequestHistoryMapper;
         this.appealReviewSearchRepository = appealReviewSearchRepository;
-        this.kafkaTemplate = kafkaTemplate;
-        this.objectMapper = objectMapper;
     }
 
     @Transactional
@@ -70,7 +62,7 @@ public class AppealReviewService {
         validateAppealReview(appealReview);
         appealReviewMapper.insert(appealReview);
         syncToIndexAfterCommit(appealReview);
-        publishQuietly("appeal_review_create", appealReview);
+
         return appealReview;
     }
 
@@ -95,7 +87,7 @@ public class AppealReviewService {
         if (rows == 0) {
             throw new IllegalStateException("No AppealReview deleted for id=" + reviewId);
         }
-        TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
+        AfterCommit.execute(new TransactionSynchronization() {
             @Override
             public void afterCommit() {
                 appealReviewSearchRepository.deleteById(reviewId);
@@ -186,10 +178,11 @@ public class AppealReviewService {
     }
 
     public boolean shouldSkipProcessing(String idempotencyKey) {
+        if (idempotencyKey == null || idempotencyKey.isBlank()) {
+            return false;
+        }
         SysRequestHistory history = sysRequestHistoryMapper.selectByIdempotencyKey(idempotencyKey);
-        return history != null
-                && "SUCCESS".equalsIgnoreCase(history.getBusinessStatus())
-                && "DONE".equalsIgnoreCase(history.getRequestParams());
+        return history != null && "SUCCESS".equalsIgnoreCase(history.getBusinessStatus());
     }
 
     public void markHistorySuccess(String idempotencyKey, Long reviewId) {
@@ -210,34 +203,20 @@ public class AppealReviewService {
             log.log(Level.WARNING, "Cannot mark failure for missing idempotency key {0}", idempotencyKey);
             return;
         }
+        if (!"PROCESSING".equalsIgnoreCase(history.getBusinessStatus())) {
+            return;
+        }
         history.setBusinessStatus("FAILED");
         history.setRequestParams(truncate(reason));
         history.setUpdatedAt(LocalDateTime.now());
         sysRequestHistoryMapper.updateById(history);
     }
 
-    private void publishQuietly(String topic, AppealReview appealReview) {
-        try {
-            sendKafkaMessage(topic, null, appealReview);
-        } catch (RuntimeException ex) {
-            log.log(Level.SEVERE, "Appeal review kafka publish failed after the ledger commit", ex);
-        }
-    }
-
-    private void sendKafkaMessage(String topic, String idempotencyKey, AppealReview appealReview) {
-        try {
-            String payload = objectMapper.writeValueAsString(appealReview);
-            kafkaTemplate.send(topic, idempotencyKey, payload);
-        } catch (Exception ex) {
-            log.log(Level.WARNING, "Failed to send AppealReview Kafka message", ex);
-        }
-    }
-
     private void syncToIndexAfterCommit(AppealReview appealReview) {
         if (appealReview == null) {
             return;
         }
-        TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
+        AfterCommit.execute(new TransactionSynchronization() {
             @Override
             public void afterCommit() {
                 AppealReviewDocument doc = AppealReviewDocument.fromEntity(appealReview);
@@ -252,7 +231,7 @@ public class AppealReviewService {
         if (reviews == null || reviews.isEmpty()) {
             return;
         }
-        TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
+        AfterCommit.execute(new TransactionSynchronization() {
             @Override
             public void afterCommit() {
                 List<AppealReviewDocument> documents = reviews.stream()

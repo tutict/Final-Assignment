@@ -3,6 +3,7 @@ package com.tutict.finalassignmentcloud.system.appeal.domain.idempotency;
 import com.tutict.finalassignmentcloud.system.appeal.domain.policy.AppealBusinessPolicy;
 import com.tutict.finalassignmentcloud.entity.system.SysRequestHistory;
 import com.tutict.finalassignmentcloud.mapper.system.SysRequestHistoryMapper;
+import com.tutict.finalassignmentcloud.reliability.IdempotencyReplayException;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDateTime;
@@ -28,7 +29,7 @@ public class AppealIdempotencyService {
     public void checkAndInsert(String idempotencyKey) {
         SysRequestHistory history = sysRequestHistoryMapper.selectByIdempotencyKey(idempotencyKey);
         if (businessPolicy.isDuplicateRequest(history)) {
-            throw new RuntimeException("Duplicate appeal request detected");
+            throw new IdempotencyReplayException("Duplicate appeal request detected");
         }
         sysRequestHistoryMapper.insert(buildHistory(idempotencyKey));
     }
@@ -68,6 +69,9 @@ public class AppealIdempotencyService {
         SysRequestHistory history = sysRequestHistoryMapper.selectByIdempotencyKey(idempotencyKey);
         if (!businessPolicy.canUpdateHistory(history)) {
             log.log(Level.WARNING, "Cannot mark failure for missing idempotency key {0}", idempotencyKey);
+            return;
+        }
+        if (!"PROCESSING".equalsIgnoreCase(history.getBusinessStatus())) {
             return;
         }
         history.setBusinessStatus("FAILED");

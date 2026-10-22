@@ -1,6 +1,7 @@
 package com.tutict.finalassignmentcloud.user.controller;
 
 import com.tutict.finalassignmentcloud.entity.SysPermission;
+import com.tutict.finalassignmentcloud.reliability.IdempotencyReplayException;
 import com.tutict.finalassignmentcloud.user.service.SysPermissionService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
@@ -75,6 +76,9 @@ public class PermissionManagementController {
         try {
             request.setPermissionId(permissionId);
             if (useKey) {
+                if (sysPermissionService.shouldSkipProcessing(idempotencyKey)) {
+                    return ResponseEntity.status(HttpStatus.ALREADY_REPORTED).build();
+                }
                 sysPermissionService.checkAndInsertIdempotency(idempotencyKey, request, "update");
             }
             SysPermission updated = sysPermissionService.updateSysPermission(request);
@@ -224,6 +228,9 @@ public class PermissionManagementController {
     }
 
     private HttpStatus resolveStatus(Exception ex) {
+        if (ex instanceof IdempotencyReplayException) {
+            return HttpStatus.ALREADY_REPORTED;
+        }
         return (ex instanceof IllegalArgumentException || ex instanceof IllegalStateException)
                 ? HttpStatus.BAD_REQUEST
                 : HttpStatus.INTERNAL_SERVER_ERROR;

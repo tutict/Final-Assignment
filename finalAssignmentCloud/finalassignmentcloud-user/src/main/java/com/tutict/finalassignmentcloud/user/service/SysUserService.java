@@ -2,11 +2,12 @@ package com.tutict.finalassignmentcloud.user.service;
 
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
-import com.fasterxml.jackson.databind.ObjectMapper;
+import com.tutict.finalassignmentcloud.common.transaction.AfterCommit;
 import com.tutict.finalassignmentcloud.config.websocket.WsAction;
 import com.tutict.finalassignmentcloud.entity.SysRequestHistory;
 import com.tutict.finalassignmentcloud.entity.SysUser;
 import com.tutict.finalassignmentcloud.entity.elastic.SysUserDocument;
+import com.tutict.finalassignmentcloud.reliability.HistoryReserve;
 import com.tutict.finalassignmentcloud.user.mapper.SysRequestHistoryMapper;
 import com.tutict.finalassignmentcloud.user.mapper.SysUserMapper;
 import com.tutict.finalassignmentcloud.user.repository.SysUserSearchRepository;
@@ -14,12 +15,10 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.cache.annotation.Cacheable;
 import org.springframework.data.domain.PageRequest;
-import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.transaction.support.TransactionSynchronization;
-import org.springframework.transaction.support.TransactionSynchronizationManager;
 
 import java.time.LocalDateTime;
 import java.time.format.DateTimeParseException;
@@ -44,22 +43,16 @@ public class SysUserService {
     private final SysUserMapper sysUserMapper;
     private final SysRequestHistoryMapper sysRequestHistoryMapper;
     private final SysUserSearchRepository sysUserSearchRepository;
-    private final KafkaTemplate<String, String> kafkaTemplate;
-    private final ObjectMapper objectMapper;
     private final PasswordEncoder passwordEncoder;
 
     @Autowired
     public SysUserService(SysUserMapper sysUserMapper,
                           SysRequestHistoryMapper sysRequestHistoryMapper,
                           SysUserSearchRepository sysUserSearchRepository,
-                          KafkaTemplate<String, String> kafkaTemplate,
-                          ObjectMapper objectMapper,
                           PasswordEncoder passwordEncoder) {
         this.sysUserMapper = sysUserMapper;
         this.sysRequestHistoryMapper = sysRequestHistoryMapper;
         this.sysUserSearchRepository = sysUserSearchRepository;
-        this.kafkaTemplate = kafkaTemplate;
-        this.objectMapper = objectMapper;
         this.passwordEncoder = passwordEncoder;
     }
 
@@ -68,27 +61,15 @@ public class SysUserService {
     @WsAction(service = "SysUserService", action = "checkAndInsertIdempotency")
     public void checkAndInsertIdempotency(String idempotencyKey, SysUser sysUser, String action) {
         Objects.requireNonNull(sysUser, "SysUser must not be null");
-        SysRequestHistory existing = sysRequestHistoryMapper.selectByIdempotencyKey(idempotencyKey);
-        if (existing != null) {
-            LOG.warning(() -> String.format("Duplicate sys user request detected (key=%s)", idempotencyKey));
-            throw new RuntimeException("Duplicate sys user request detected");
-        }
+        // 只预留 PROCESSING，SUCCESS 必须等业务落库后由 markHistorySuccess 写入。
+        HistoryReserve.reserve(sysRequestHistoryMapper, idempotencyKey, "SYS_USER_" + action.toUpperCase(),
+                HistoryReserve.sha256(userFingerprint(sysUser, action)));
+    }
 
-        SysRequestHistory history = new SysRequestHistory();
-        history.setIdempotencyKey(idempotencyKey);
-        history.setBusinessStatus("PROCESSING");
-        history.setCreatedAt(LocalDateTime.now());
-        history.setUpdatedAt(LocalDateTime.now());
-        sysRequestHistoryMapper.insert(history);
-
-        encodePasswordIfNecessary(sysUser);
-        sendKafkaMessage("sys_user_" + action, idempotencyKey, sysUser);
-
-        history.setBusinessStatus("SUCCESS");
-        history.setBusinessId(sysUser.getUserId());
-        history.setRequestParams("PENDING");
-        history.setUpdatedAt(LocalDateTime.now());
-        sysRequestHistoryMapper.updateById(history);
+    private String userFingerprint(SysUser user, String action) {
+        return action + "|" + user.getUserId() + "|" + user.getUsername() + "|" + user.getRealName()
+                + "|" + user.getIdCardNumber() + "|" + user.getContactNumber() + "|" + user.getEmail()
+                + "|" + user.getStatus();
     }
 
     @Transactional
@@ -195,7 +176,7 @@ public class SysUserService {
         if (rows == 0) {
             throw new IllegalStateException("SysUser not found for id=" + userId);
         }
-        TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
+        AfterCommit.execute(new TransactionSynchronization() {
             @Override
             public void afterCommit() {
                 sysUserSearchRepository.deleteById(userId);
@@ -400,6 +381,20 @@ public class SysUserService {
         return entity;
     }
 
+    /**
+     * 登录校验必须绕过 Redis 缓存：缓存的 SysUser 经 Jackson 序列化时会因 password 的
+     * WRITE_ONLY 被剥离，回读后密码为空，导致所有登录都失败。
+     */
+    @Transactional(readOnly = true)
+    public SysUser findByUsernameForAuthentication(String username) {
+        if (isBlank(username)) {
+            return null;
+        }
+        QueryWrapper<SysUser> wrapper = new QueryWrapper<>();
+        wrapper.eq("username", username);
+        return sysUserMapper.selectOne(wrapper);
+    }
+
     public boolean isUsernameExists(String username) {
         if (isBlank(username)) {
             return false;
@@ -487,27 +482,22 @@ public class SysUserService {
             LOG.log(Level.WARNING, "Cannot mark failure for missing idempotency key {0}", idempotencyKey);
             return;
         }
+        if (!"PROCESSING".equalsIgnoreCase(history.getBusinessStatus())) {
+            return;
+        }
         history.setBusinessStatus("FAILED");
         history.setRequestParams(truncate(reason));
         history.setUpdatedAt(LocalDateTime.now());
         sysRequestHistoryMapper.updateById(history);
     }
 
-    private void sendKafkaMessage(String topic, String idempotencyKey, SysUser sysUser) {
-        try {
-            String payload = objectMapper.writeValueAsString(sysUser);
-            kafkaTemplate.send(topic, idempotencyKey, payload);
-        } catch (Exception ex) {
-            LOG.log(Level.SEVERE, "Failed to send SysUser Kafka message", ex);
-            throw new RuntimeException("Failed to send sys user event", ex);
-        }
-    }
+    
 
     private void syncToIndexAfterCommit(SysUser sysUser) {
         if (sysUser == null) {
             return;
         }
-        TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
+        AfterCommit.execute(new TransactionSynchronization() {
             @Override
             public void afterCommit() {
                 SysUserDocument doc = SysUserDocument.fromEntity(sysUser);
@@ -522,7 +512,7 @@ public class SysUserService {
         if (records == null || records.isEmpty()) {
             return;
         }
-        TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
+        AfterCommit.execute(new TransactionSynchronization() {
             @Override
             public void afterCommit() {
                 List<SysUserDocument> documents = records.stream()

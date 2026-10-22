@@ -1,6 +1,7 @@
 package com.tutict.finalassignmentcloud.traffic.controller;
 
 import com.tutict.finalassignmentcloud.entity.OffenseRecord;
+import com.tutict.finalassignmentcloud.reliability.IdempotencyReplayException;
 import com.tutict.finalassignmentcloud.traffic.service.BusinessRecordViewService;
 import com.tutict.finalassignmentcloud.traffic.service.DriverAccessService;
 import com.tutict.finalassignmentcloud.traffic.service.OffenseRecordService;
@@ -91,6 +92,9 @@ public class OffenseInformationController {
         try {
             request.setOffenseId(offenseId);
             if (useKey) {
+                if (offenseRecordService.shouldSkipProcessing(idempotencyKey)) {
+                    return ResponseEntity.status(HttpStatus.ALREADY_REPORTED).build();
+                }
                 offenseRecordService.checkAndInsertIdempotency(idempotencyKey, request, "update");
             }
             OffenseRecord updated = offenseRecordService.updateOffenseRecord(request);
@@ -323,6 +327,9 @@ public class OffenseInformationController {
     }
 
     private HttpStatus resolveStatus(Exception ex) {
+        if (ex instanceof IdempotencyReplayException) {
+            return HttpStatus.ALREADY_REPORTED;
+        }
         return (ex instanceof IllegalArgumentException || ex instanceof IllegalStateException)
                 ? HttpStatus.BAD_REQUEST
                 : HttpStatus.INTERNAL_SERVER_ERROR;

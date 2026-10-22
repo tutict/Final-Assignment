@@ -2,6 +2,7 @@ package com.tutict.finalassignmentcloud.traffic.service;
 
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
+import com.tutict.finalassignmentcloud.common.transaction.AfterCommit;
 import com.tutict.finalassignmentcloud.config.websocket.WsAction;
 import com.tutict.finalassignmentcloud.entity.DeductionRecord;
 import com.tutict.finalassignmentcloud.entity.SysRequestHistory;
@@ -13,11 +14,9 @@ import com.tutict.finalassignmentcloud.traffic.repository.DeductionRecordSearchR
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.cache.annotation.Cacheable;
-import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.transaction.support.TransactionSynchronization;
-import org.springframework.transaction.support.TransactionSynchronizationManager;
 
 import java.time.LocalDateTime;
 import java.time.format.DateTimeParseException;
@@ -37,17 +36,14 @@ public class DeductionRecordService {
     private final DeductionRecordMapper deductionRecordMapper;
     private final SysRequestHistoryMapper sysRequestHistoryMapper;
     private final DeductionRecordSearchRepository deductionRecordSearchRepository;
-    private final KafkaTemplate<String, DeductionRecord> kafkaTemplate;
 
     @Autowired
     public DeductionRecordService(DeductionRecordMapper deductionRecordMapper,
                                   SysRequestHistoryMapper sysRequestHistoryMapper,
-                                  DeductionRecordSearchRepository deductionRecordSearchRepository,
-                                  KafkaTemplate<String, DeductionRecord> kafkaTemplate) {
+                                  DeductionRecordSearchRepository deductionRecordSearchRepository) {
         this.deductionRecordMapper = deductionRecordMapper;
         this.sysRequestHistoryMapper = sysRequestHistoryMapper;
         this.deductionRecordSearchRepository = deductionRecordSearchRepository;
-        this.kafkaTemplate = kafkaTemplate;
     }
 
     @Transactional
@@ -66,7 +62,7 @@ public class DeductionRecordService {
         validateDeductionRecord(deductionRecord);
         deductionRecordMapper.insert(deductionRecord);
         syncToIndexAfterCommit(deductionRecord);
-        publishQuietly("deduction_record_create", deductionRecord);
+
         return deductionRecord;
     }
 
@@ -91,7 +87,7 @@ public class DeductionRecordService {
         if (rows == 0) {
             throw new IllegalStateException("No DeductionRecord deleted for id=" + deductionId);
         }
-        TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
+        AfterCommit.execute(new TransactionSynchronization() {
             @Override
             public void afterCommit() {
                 deductionRecordSearchRepository.deleteById(deductionId);
@@ -221,10 +217,11 @@ public class DeductionRecordService {
     }
 
     public boolean shouldSkipProcessing(String idempotencyKey) {
+        if (idempotencyKey == null || idempotencyKey.isBlank()) {
+            return false;
+        }
         SysRequestHistory history = sysRequestHistoryMapper.selectByIdempotencyKey(idempotencyKey);
-        return history != null
-                && "SUCCESS".equalsIgnoreCase(history.getBusinessStatus())
-                && "DONE".equalsIgnoreCase(history.getRequestParams());
+        return history != null && "SUCCESS".equalsIgnoreCase(history.getBusinessStatus());
     }
 
     public void markHistorySuccess(String idempotencyKey, Long deductionId) {
@@ -245,6 +242,9 @@ public class DeductionRecordService {
             log.log(Level.WARNING, "Cannot mark failure for missing idempotency key {0}", idempotencyKey);
             return;
         }
+        if (!"PROCESSING".equalsIgnoreCase(history.getBusinessStatus())) {
+            return;
+        }
         history.setBusinessStatus("FAILED");
         history.setRequestParams(truncate(reason));
         history.setUpdatedAt(LocalDateTime.now());
@@ -255,7 +255,7 @@ public class DeductionRecordService {
         if (deductionRecord == null) {
             return;
         }
-        TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
+        AfterCommit.execute(new TransactionSynchronization() {
             @Override
             public void afterCommit() {
                 DeductionRecordDocument doc = DeductionRecordDocument.fromEntity(deductionRecord);
@@ -270,7 +270,7 @@ public class DeductionRecordService {
         if (records == null || records.isEmpty()) {
             return;
         }
-        TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
+        AfterCommit.execute(new TransactionSynchronization() {
             @Override
             public void afterCommit() {
                 List<DeductionRecordDocument> documents = records.stream()
@@ -283,25 +283,6 @@ public class DeductionRecordService {
                 }
             }
         });
-    }
-
-    private void publishQuietly(String topic, DeductionRecord deductionRecord) {
-        try {
-            sendKafkaMessage(topic, null, deductionRecord);
-        } catch (RuntimeException ex) {
-            log.log(Level.SEVERE, "Deduction kafka publish failed after the ledger commit", ex);
-        }
-    }
-
-    private void sendKafkaMessage(String topic, String idempotencyKey, DeductionRecord deductionRecord) {
-        try {
-            kafkaTemplate.send(topic, idempotencyKey, deductionRecord);
-        } catch (Exception ex) {
-            log.log(Level.SEVERE,
-                    String.format("Failed to send DeductionRecord Kafka message (topic=%s, key=%s)", topic, idempotencyKey),
-                    ex);
-
-        }
     }
 
     private List<DeductionRecord> mapHits(org.springframework.data.elasticsearch.core.SearchHits<DeductionRecordDocument> hits) {

@@ -2,7 +2,7 @@ package com.tutict.finalassignmentcloud.traffic.service;
 
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
-import com.fasterxml.jackson.databind.ObjectMapper;
+import com.tutict.finalassignmentcloud.common.transaction.AfterCommit;
 import com.tutict.finalassignmentcloud.traffic.config.statemachine.states.AppealProcessState;
 import com.tutict.finalassignmentcloud.config.websocket.WsAction;
 import com.tutict.finalassignmentcloud.entity.AppealRecord;
@@ -10,6 +10,7 @@ import com.tutict.finalassignmentcloud.entity.SysRequestHistory;
 import com.tutict.finalassignmentcloud.entity.elastic.AppealRecordDocument;
 import com.tutict.finalassignmentcloud.traffic.mapper.AppealRecordMapper;
 import com.tutict.finalassignmentcloud.traffic.mapper.SysRequestHistoryMapper;
+import com.tutict.finalassignmentcloud.traffic.realtime.BusinessEventPublisher;
 import com.tutict.finalassignmentcloud.traffic.reliability.HistoryReserve;
 import com.tutict.finalassignmentcloud.traffic.repository.AppealRecordSearchRepository;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -19,15 +20,15 @@ import org.springframework.data.domain.PageRequest;
 import org.springframework.data.elasticsearch.core.SearchHit;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.elasticsearch.core.SearchHits;
-import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.transaction.support.TransactionSynchronization;
-import org.springframework.transaction.support.TransactionSynchronizationManager;
 
 import java.time.LocalDateTime;
 import java.time.format.DateTimeParseException;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Objects;
 import java.util.logging.Level;
 import java.util.logging.Logger;
@@ -42,20 +43,17 @@ public class AppealRecordService {
     private final AppealRecordMapper appealRecordMapper;
     private final SysRequestHistoryMapper sysRequestHistoryMapper;
     private final AppealRecordSearchRepository appealRecordSearchRepository;
-    private final KafkaTemplate<String, String> kafkaTemplate;
-    private final ObjectMapper objectMapper;
+    private final BusinessEventPublisher businessEventPublisher;
 
     @Autowired
     public AppealRecordService(AppealRecordMapper appealRecordMapper,
                                SysRequestHistoryMapper sysRequestHistoryMapper,
-                               KafkaTemplate<String, String> kafkaTemplate,
                                AppealRecordSearchRepository appealRecordSearchRepository,
-                               ObjectMapper objectMapper) {
+                               BusinessEventPublisher businessEventPublisher) {
         this.appealRecordMapper = appealRecordMapper;
         this.sysRequestHistoryMapper = sysRequestHistoryMapper;
-        this.kafkaTemplate = kafkaTemplate;
         this.appealRecordSearchRepository = appealRecordSearchRepository;
-        this.objectMapper = objectMapper;
+        this.businessEventPublisher = businessEventPublisher;
     }
 
     @Transactional
@@ -74,7 +72,7 @@ public class AppealRecordService {
         validateAppeal(appealRecord);
         appealRecordMapper.insert(appealRecord);
         syncIndexAfterCommit(appealRecord);
-        publishQuietly("appeal_create", appealRecord);
+
         return appealRecord;
     }
 
@@ -99,11 +97,26 @@ public class AppealRecordService {
         if (existing == null) {
             throw new IllegalStateException("Appeal not found: " + appealId);
         }
+        String previousStatus = existing.getProcessStatus();
         existing.setProcessStatus(newState != null ? newState.getCode() : existing.getProcessStatus());
         existing.setUpdatedAt(LocalDateTime.now());
         appealRecordMapper.updateById(existing);
         syncIndexAfterCommit(existing);
+        if (!Objects.equals(previousStatus, existing.getProcessStatus())) {
+            publishAppealStatusChanged(existing);
+        }
         return existing;
+    }
+
+    private void publishAppealStatusChanged(AppealRecord record) {
+        Map<String, Object> event = new LinkedHashMap<>();
+        event.put("type", "APPEAL_STATUS_CHANGED");
+        event.put("appealId", record.getAppealId());
+        event.put("newStatus", record.getProcessStatus());
+        event.put("updatedAt", record.getUpdatedAt() == null
+                ? LocalDateTime.now().toString()
+                : record.getUpdatedAt().toString());
+        businessEventPublisher.publish(record.getCreatedBy(), event);
     }
 
     @Transactional
@@ -114,7 +127,7 @@ public class AppealRecordService {
         if (rows == 0) {
             throw new IllegalStateException("Appeal not found: " + appealId);
         }
-        TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
+        AfterCommit.execute(new TransactionSynchronization() {
             @Override
             public void afterCommit() {
                 appealRecordSearchRepository.deleteById(appealId);
@@ -319,10 +332,11 @@ public class AppealRecordService {
     }
 
     public boolean shouldSkipProcessing(String idempotencyKey) {
+        if (idempotencyKey == null || idempotencyKey.isBlank()) {
+            return false;
+        }
         SysRequestHistory history = sysRequestHistoryMapper.selectByIdempotencyKey(idempotencyKey);
-        return history != null
-                && "SUCCESS".equalsIgnoreCase(history.getBusinessStatus())
-                && "DONE".equalsIgnoreCase(history.getRequestParams());
+        return history != null && "SUCCESS".equalsIgnoreCase(history.getBusinessStatus());
     }
 
     public void markHistorySuccess(String idempotencyKey, Long appealId) {
@@ -343,31 +357,17 @@ public class AppealRecordService {
             log.log(Level.WARNING, "Cannot mark failure for missing idempotency key {0}", idempotencyKey);
             return;
         }
+        if (!"PROCESSING".equalsIgnoreCase(history.getBusinessStatus())) {
+            return;
+        }
         history.setBusinessStatus("FAILED");
         history.setRequestParams(truncate(reason));
         history.setUpdatedAt(LocalDateTime.now());
         sysRequestHistoryMapper.updateById(history);
     }
 
-    private void publishQuietly(String topic, AppealRecord appealRecord) {
-        try {
-            sendKafkaMessage(topic, null, appealRecord);
-        } catch (RuntimeException ex) {
-            log.log(Level.SEVERE, "Appeal kafka publish failed after the ledger commit", ex);
-        }
-    }
-
-    private void sendKafkaMessage(String topic, String idempotencyKey, AppealRecord appealRecord) {
-        try {
-            String payload = objectMapper.writeValueAsString(appealRecord);
-            kafkaTemplate.send(topic, idempotencyKey, payload);
-        } catch (Exception e) {
-            log.log(Level.WARNING, "Failed to send appeal Kafka message", e);
-        }
-    }
-
     private void syncIndexAfterCommit(AppealRecord appealRecord) {
-        TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
+        AfterCommit.execute(new TransactionSynchronization() {
             @Override
             public void afterCommit() {
                 AppealRecordDocument doc = AppealRecordDocument.fromEntity(appealRecord);

@@ -3,19 +3,21 @@ package com.tutict.finalassignmentcloud.traffic.service;
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.tutict.finalassignmentcloud.common.transaction.AfterCommit;
 import com.tutict.finalassignmentcloud.traffic.config.statemachine.states.PaymentState;
 import com.tutict.finalassignmentcloud.config.websocket.WsAction;
 import com.tutict.finalassignmentcloud.entity.PaymentRecord;
 import com.tutict.finalassignmentcloud.entity.SysRequestHistory;
 import com.tutict.finalassignmentcloud.entity.elastic.PaymentRecordDocument;
+import com.tutict.finalassignmentcloud.reliability.IdempotencyConflictException;
+import com.tutict.finalassignmentcloud.reliability.IdempotencyInProgressException;
+import com.tutict.finalassignmentcloud.reliability.IdempotencyReplayException;
 import com.tutict.finalassignmentcloud.traffic.mapper.PaymentRecordMapper;
-import com.tutict.finalassignmentcloud.traffic.reliability.IdempotencyConflictException;
 import com.tutict.finalassignmentcloud.traffic.reliability.PaymentOptimisticLockException;
-import com.tutict.finalassignmentcloud.traffic.reliability.IdempotencyInProgressException;
-import com.tutict.finalassignmentcloud.traffic.reliability.IdempotencyReplayException;
 import com.tutict.finalassignmentcloud.traffic.reliability.LedgerIdempotencyDecider;
 import com.tutict.finalassignmentcloud.traffic.reliability.PaymentKafkaPublish;
 import com.tutict.finalassignmentcloud.traffic.mapper.SysRequestHistoryMapper;
+import com.tutict.finalassignmentcloud.traffic.realtime.BusinessEventPublisher;
 import com.tutict.finalassignmentcloud.traffic.repository.PaymentRecordSearchRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.cache.annotation.CacheEvict;
@@ -27,12 +29,14 @@ import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.transaction.support.TransactionSynchronization;
-import org.springframework.transaction.support.TransactionSynchronizationManager;
+import org.springframework.util.StringUtils;
 
 import java.time.Duration;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeParseException;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Objects;
 import java.util.logging.Level;
 import java.util.logging.Logger;
@@ -50,6 +54,7 @@ public class PaymentRecordService {
     private final PaymentRecordSearchRepository paymentRecordSearchRepository;
     private final KafkaTemplate<String, String> kafkaTemplate;
     private final ObjectMapper objectMapper;
+    private final BusinessEventPublisher businessEventPublisher;
     private final Counter kafkaPublishFailed;
 
     @Autowired
@@ -58,12 +63,14 @@ public class PaymentRecordService {
                                 PaymentRecordSearchRepository paymentRecordSearchRepository,
                                 KafkaTemplate<String, String> kafkaTemplate,
                                 ObjectMapper objectMapper,
+                                BusinessEventPublisher businessEventPublisher,
                                 ObjectProvider<MeterRegistry> meterRegistry) {
         this.paymentRecordMapper = paymentRecordMapper;
         this.sysRequestHistoryMapper = sysRequestHistoryMapper;
         this.paymentRecordSearchRepository = paymentRecordSearchRepository;
         this.kafkaTemplate = kafkaTemplate;
         this.objectMapper = objectMapper;
+        this.businessEventPublisher = businessEventPublisher;
         MeterRegistry registry = meterRegistry.getIfAvailable();
         this.kafkaPublishFailed = registry == null
                 ? null
@@ -112,10 +119,22 @@ public class PaymentRecordService {
     @Transactional
     @CacheEvict(cacheNames = CACHE_NAME, allEntries = true)
     public PaymentRecord createPaymentRecord(PaymentRecord paymentRecord) {
+        return createPaymentRecord(paymentRecord, null);
+    }
+
+    @Transactional
+    @CacheEvict(cacheNames = CACHE_NAME, allEntries = true)
+    public PaymentRecord createPaymentRecord(PaymentRecord paymentRecord, String idempotencyKey) {
         validatePaymentRecord(paymentRecord);
         paymentRecordMapper.insert(paymentRecord);
+        // The marker must be SUCCESS before the event leaves the transaction: the local
+        // consumer of payment_record_create skips keys that are already applied.
+        if (idempotencyKey != null && !idempotencyKey.isBlank()) {
+            markHistorySuccess(idempotencyKey, paymentRecord.getPaymentId());
+        }
         syncToIndexAfterCommit(paymentRecord);
-        publishPaymentEvent(paymentRecord);
+        publishPaymentEvent(idempotencyKey, paymentRecord);
+        publishPaymentStatusChanged(paymentRecord);
         return paymentRecord;
     }
 
@@ -126,6 +145,7 @@ public class PaymentRecordService {
         requirePositive(paymentRecord.getPaymentId(), "Payment ID");
         updateOrConflict(paymentRecord);
         syncToIndexAfterCommit(paymentRecord);
+        publishPaymentStatusChanged(paymentRecord);
         return paymentRecord;
     }
 
@@ -136,11 +156,43 @@ public class PaymentRecordService {
             throw new IllegalStateException("PaymentRecord not found for id=" + paymentId);
         }
         // 工作流只允许更新状态枚举值，其他字段由业务接口维护
+        String previousStatus = existing.getPaymentStatus();
         existing.setPaymentStatus(newState != null ? newState.getCode() : existing.getPaymentStatus());
         existing.setUpdatedAt(LocalDateTime.now());
         updateOrConflict(existing);
         syncToIndexAfterCommit(existing);
+        if (!Objects.equals(previousStatus, existing.getPaymentStatus())) {
+            publishPaymentStatusChanged(existing);
+        }
         return existing;
+    }
+
+    private void publishPaymentStatusChanged(PaymentRecord record) {
+        AfterCommit.execute(new TransactionSynchronization() {
+            @Override
+            public void afterCommit() {
+                sendPaymentStatusChanged(record);
+            }
+        });
+    }
+
+    private void sendPaymentStatusChanged(PaymentRecord record) {
+        String target = record.getCreatedBy();
+        if (!StringUtils.hasText(target)) {
+            // 没有归属用户时广播会泄露支付状态给所有在线会话。
+            log.warning(() -> String.format(
+                    "Skip PAYMENT_STATUS_CHANGED event without owner: paymentId=%s", record.getPaymentId()));
+            return;
+        }
+        Map<String, Object> event = new LinkedHashMap<>();
+        event.put("type", "PAYMENT_STATUS_CHANGED");
+        event.put("paymentId", record.getPaymentId());
+        event.put("fineId", record.getFineId());
+        event.put("newStatus", record.getPaymentStatus());
+        event.put("updatedAt", record.getUpdatedAt() == null
+                ? LocalDateTime.now().toString()
+                : record.getUpdatedAt().toString());
+        businessEventPublisher.publish(target, event);
     }
 
     private void updateOrConflict(PaymentRecord paymentRecord) {
@@ -162,11 +214,7 @@ public class PaymentRecordService {
         int rows = paymentRecordMapper.deleteById(paymentId);
         if (rows == 0) {
             throw new IllegalStateException("No PaymentRecord deleted for id=" + paymentId);
-        }
-        if (!TransactionSynchronizationManager.isSynchronizationActive()) {
-            return;
-        }
-        TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
+        }        AfterCommit.execute(new TransactionSynchronization() {
             @Override
             public void afterCommit() {
                 paymentRecordSearchRepository.deleteById(paymentId);
@@ -365,7 +413,11 @@ public class PaymentRecordService {
     }
 
     public boolean shouldSkipProcessing(String idempotencyKey) {
-        return false;
+        if (idempotencyKey == null || idempotencyKey.isBlank()) {
+            return false;
+        }
+        SysRequestHistory history = sysRequestHistoryMapper.selectByIdempotencyKey(idempotencyKey);
+        return history != null && "SUCCESS".equalsIgnoreCase(history.getBusinessStatus());
     }
 
     public void markHistorySuccess(String idempotencyKey, Long paymentId) {
@@ -386,6 +438,9 @@ public class PaymentRecordService {
             log.log(Level.WARNING, "Cannot mark failure for missing idempotency key {0}", idempotencyKey);
             return;
         }
+        if (!"PROCESSING".equalsIgnoreCase(history.getBusinessStatus())) {
+            return;
+        }
         history.setBusinessStatus("FAILED");
         history.setRequestParams(truncate(reason));
         history.setUpdatedAt(LocalDateTime.now());
@@ -396,11 +451,7 @@ public class PaymentRecordService {
     private void syncToIndexAfterCommit(PaymentRecord paymentRecord) {
         if (paymentRecord == null) {
             return;
-        }
-        if (!TransactionSynchronizationManager.isSynchronizationActive()) {
-            return;
-        }
-        TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
+        }        AfterCommit.execute(new TransactionSynchronization() {
             @Override
             public void afterCommit() {
                 PaymentRecordDocument doc = PaymentRecordDocument.fromEntity(paymentRecord);
@@ -431,8 +482,13 @@ public class PaymentRecordService {
         }
     }
 
-    private void publishPaymentEvent(PaymentRecord paymentRecord) {
-        java.util.concurrent.CompletableFuture.runAsync(() -> sendKafkaMessage("payment_record_create", null, paymentRecord));
+    private void publishPaymentEvent(String idempotencyKey, PaymentRecord paymentRecord) {
+        AfterCommit.execute(new TransactionSynchronization() {
+            @Override
+            public void afterCommit() {
+                sendKafkaMessage("payment_record_create", idempotencyKey, paymentRecord);
+            }
+        });
     }
 
     private void sendKafkaMessage(String topic, String idempotencyKey, PaymentRecord paymentRecord) {
@@ -491,11 +547,7 @@ public class PaymentRecordService {
     private void syncBatchToIndexAfterCommit(List<PaymentRecord> records) {
         if (records == null || records.isEmpty()) {
             return;
-        }
-        if (!TransactionSynchronizationManager.isSynchronizationActive()) {
-            return;
-        }
-        TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
+        }        AfterCommit.execute(new TransactionSynchronization() {
             @Override
             public void afterCommit() {
                 List<PaymentRecordDocument> documents = records.stream()

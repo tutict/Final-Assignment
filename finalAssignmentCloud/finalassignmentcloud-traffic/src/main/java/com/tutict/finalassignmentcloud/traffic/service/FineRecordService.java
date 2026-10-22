@@ -1,8 +1,8 @@
 package com.tutict.finalassignmentcloud.traffic.service;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
+import com.tutict.finalassignmentcloud.common.transaction.AfterCommit;
 import com.tutict.finalassignmentcloud.config.websocket.WsAction;
 import com.tutict.finalassignmentcloud.entity.FineRecord;
 import com.tutict.finalassignmentcloud.entity.SysRequestHistory;
@@ -14,11 +14,9 @@ import com.tutict.finalassignmentcloud.traffic.repository.FineRecordSearchReposi
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.cache.annotation.Cacheable;
-import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.transaction.support.TransactionSynchronization;
-import org.springframework.transaction.support.TransactionSynchronizationManager;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
@@ -39,20 +37,14 @@ public class FineRecordService {
     private final FineRecordMapper fineRecordMapper;
     private final SysRequestHistoryMapper sysRequestHistoryMapper;
     private final FineRecordSearchRepository fineRecordSearchRepository;
-    private final KafkaTemplate<String, String> kafkaTemplate;
-    private final ObjectMapper objectMapper;
 
     @Autowired
     public FineRecordService(FineRecordMapper fineRecordMapper,
                              SysRequestHistoryMapper sysRequestHistoryMapper,
-                             FineRecordSearchRepository fineRecordSearchRepository,
-                             KafkaTemplate<String, String> kafkaTemplate,
-                             ObjectMapper objectMapper) {
+                             FineRecordSearchRepository fineRecordSearchRepository) {
         this.fineRecordMapper = fineRecordMapper;
         this.sysRequestHistoryMapper = sysRequestHistoryMapper;
         this.fineRecordSearchRepository = fineRecordSearchRepository;
-        this.kafkaTemplate = kafkaTemplate;
-        this.objectMapper = objectMapper;
     }
 
     @Transactional
@@ -71,7 +63,7 @@ public class FineRecordService {
         validateFineRecord(fineRecord);
         fineRecordMapper.insert(fineRecord);
         syncToIndexAfterCommit(fineRecord);
-        publishQuietly("fine_record_create", fineRecord);
+
         return fineRecord;
     }
 
@@ -95,11 +87,7 @@ public class FineRecordService {
         int rows = fineRecordMapper.deleteById(fineId);
         if (rows == 0) {
             throw new IllegalStateException("No FineRecord deleted for id=" + fineId);
-        }
-        if (!TransactionSynchronizationManager.isSynchronizationActive()) {
-            return;
-        }
-        TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
+        }        AfterCommit.execute(new TransactionSynchronization() {
             @Override
             public void afterCommit() {
                 fineRecordSearchRepository.deleteById(fineId);
@@ -269,10 +257,11 @@ public class FineRecordService {
     }
 
     public boolean shouldSkipProcessing(String idempotencyKey) {
+        if (idempotencyKey == null || idempotencyKey.isBlank()) {
+            return false;
+        }
         SysRequestHistory history = sysRequestHistoryMapper.selectByIdempotencyKey(idempotencyKey);
-        return history != null
-                && "SUCCESS".equalsIgnoreCase(history.getBusinessStatus())
-                && "DONE".equalsIgnoreCase(history.getRequestParams());
+        return history != null && "SUCCESS".equalsIgnoreCase(history.getBusinessStatus());
     }
 
     public void markHistorySuccess(String idempotencyKey, Long fineId) {
@@ -293,37 +282,19 @@ public class FineRecordService {
             log.log(Level.WARNING, "Cannot mark failure for missing idempotency key {0}", idempotencyKey);
             return;
         }
+        if (!"PROCESSING".equalsIgnoreCase(history.getBusinessStatus())) {
+            return;
+        }
         history.setBusinessStatus("FAILED");
         history.setRequestParams(truncate(reason));
         history.setUpdatedAt(LocalDateTime.now());
         sysRequestHistoryMapper.updateById(history);
     }
 
-    private void publishQuietly(String topic, FineRecord fineRecord) {
-        try {
-            sendKafkaMessage(topic, null, fineRecord);
-        } catch (RuntimeException ex) {
-            log.log(Level.SEVERE, "Fine kafka publish failed after the ledger commit", ex);
-        }
-    }
-
-    private void sendKafkaMessage(String topic, String idempotencyKey, FineRecord fineRecord) {
-        try {
-            String payload = objectMapper.writeValueAsString(fineRecord);
-            kafkaTemplate.send(topic, idempotencyKey, payload);
-        } catch (Exception ex) {
-            log.log(Level.WARNING, "Failed to send FineRecord Kafka message", ex);
-        }
-    }
-
     private void syncToIndexAfterCommit(FineRecord fineRecord) {
         if (fineRecord == null) {
             return;
-        }
-        if (!TransactionSynchronizationManager.isSynchronizationActive()) {
-            return;
-        }
-        TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
+        }        AfterCommit.execute(new TransactionSynchronization() {
             @Override
             public void afterCommit() {
                 FineRecordDocument doc = FineRecordDocument.fromEntity(fineRecord);
@@ -337,11 +308,7 @@ public class FineRecordService {
     private void syncBatchToIndexAfterCommit(List<FineRecord> records) {
         if (records == null || records.isEmpty()) {
             return;
-        }
-        if (!TransactionSynchronizationManager.isSynchronizationActive()) {
-            return;
-        }
-        TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
+        }        AfterCommit.execute(new TransactionSynchronization() {
             @Override
             public void afterCommit() {
                 List<FineRecordDocument> documents = records.stream()

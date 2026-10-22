@@ -1,10 +1,13 @@
 package com.tutict.finalassignmentcloud.traffic.service;
 
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
+import com.tutict.finalassignmentcloud.common.transaction.AfterCommit;
 import com.tutict.finalassignmentcloud.config.websocket.WsAction;
 import com.tutict.finalassignmentcloud.entity.SysRequestHistory;
 import com.tutict.finalassignmentcloud.entity.VehicleInformation;
 import com.tutict.finalassignmentcloud.entity.elastic.VehicleInformationDocument;
+import com.tutict.finalassignmentcloud.reliability.IdempotencyReplayException;
+import com.tutict.finalassignmentcloud.traffic.reliability.HistoryReserve;
 import com.tutict.finalassignmentcloud.traffic.mapper.SysRequestHistoryMapper;
 import com.tutict.finalassignmentcloud.traffic.mapper.VehicleInformationMapper;
 import com.tutict.finalassignmentcloud.traffic.repository.VehicleInformationSearchRepository;
@@ -15,11 +18,9 @@ import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.elasticsearch.core.SearchHit;
 import org.springframework.data.elasticsearch.core.SearchHits;
-import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.transaction.support.TransactionSynchronization;
-import org.springframework.transaction.support.TransactionSynchronizationManager;
 
 import java.net.URLDecoder;
 import java.nio.charset.StandardCharsets;
@@ -38,17 +39,14 @@ public class VehicleInformationService {
 
     private final VehicleInformationMapper vehicleInformationMapper;
     private final SysRequestHistoryMapper sysRequestHistoryMapper;
-    private final KafkaTemplate<String, VehicleInformation> kafkaTemplate;
     private final VehicleInformationSearchRepository vehicleInformationSearchRepository;
 
     @Autowired
     public VehicleInformationService(VehicleInformationMapper vehicleInformationMapper,
                                      SysRequestHistoryMapper sysRequestHistoryMapper,
-                                     KafkaTemplate<String, VehicleInformation> kafkaTemplate,
                                      VehicleInformationSearchRepository vehicleInformationSearchRepository) {
         this.vehicleInformationMapper = vehicleInformationMapper;
         this.sysRequestHistoryMapper = sysRequestHistoryMapper;
-        this.kafkaTemplate = kafkaTemplate;
         this.vehicleInformationSearchRepository = vehicleInformationSearchRepository;
     }
 
@@ -57,22 +55,47 @@ public class VehicleInformationService {
     @WsAction(service = "VehicleInformationService", action = "checkAndInsertIdempotency")
     public void checkAndInsertIdempotency(String idempotencyKey, VehicleInformation vehicleInformation, String action) {
         Objects.requireNonNull(vehicleInformation, "Vehicle information cannot be null");
-        SysRequestHistory existing = sysRequestHistoryMapper.selectByIdempotencyKey(idempotencyKey);
-        if (existing != null) {
-            log.warning(() -> String.format("Duplicate vehicle request detected (key=%s)", idempotencyKey));
-            throw new RuntimeException("Duplicate vehicle request detected");
+        // 只预留 PROCESSING，SUCCESS 必须等业务落库后由 markHistorySuccess 写入。
+        HistoryReserve.reserve(sysRequestHistoryMapper, idempotencyKey, "VEHICLE_" + action.toUpperCase(),
+                HistoryReserve.sha256(action + "|" + vehicleInformation.getVehicleId() + "|"
+                        + vehicleInformation.getLicensePlate() + "|" + vehicleInformation.getEngineNumber()
+                        + "|" + vehicleInformation.getFrameNumber()));
+    }
+
+    public boolean shouldSkipProcessing(String idempotencyKey) {
+        if (idempotencyKey == null || idempotencyKey.isBlank()) {
+            return false;
         }
+        SysRequestHistory history = sysRequestHistoryMapper.selectByIdempotencyKey(idempotencyKey);
+        return history != null
+                && "SUCCESS".equalsIgnoreCase(history.getBusinessStatus())
+                && "DONE".equalsIgnoreCase(history.getRequestParams());
+    }
 
-        SysRequestHistory history = new SysRequestHistory();
-        history.setIdempotencyKey(idempotencyKey);
-        history.setBusinessStatus("PROCESSING");
-        history.setCreatedAt(LocalDateTime.now());
-        sysRequestHistoryMapper.insert(history);
-
-        sendKafkaMessage(action, vehicleInformation);
-
+    public void markHistorySuccess(String idempotencyKey, Long vehicleId) {
+        SysRequestHistory history = sysRequestHistoryMapper.selectByIdempotencyKey(idempotencyKey);
+        if (history == null) {
+            log.log(Level.WARNING, "Cannot mark success for missing idempotency key {0}", idempotencyKey);
+            return;
+        }
         history.setBusinessStatus("SUCCESS");
-        history.setBusinessId(vehicleInformation.getVehicleId());
+        history.setBusinessId(vehicleId);
+        history.setRequestParams("DONE");
+        history.setUpdatedAt(LocalDateTime.now());
+        sysRequestHistoryMapper.updateById(history);
+    }
+
+    public void markHistoryFailure(String idempotencyKey, String reason) {
+        SysRequestHistory history = sysRequestHistoryMapper.selectByIdempotencyKey(idempotencyKey);
+        if (history == null) {
+            log.log(Level.WARNING, "Cannot mark failure for missing idempotency key {0}", idempotencyKey);
+            return;
+        }
+        if (!"PROCESSING".equalsIgnoreCase(history.getBusinessStatus())) {
+            return;
+        }
+        history.setBusinessStatus("FAILED");
+        history.setRequestParams(truncate(reason));
         history.setUpdatedAt(LocalDateTime.now());
         sysRequestHistoryMapper.updateById(history);
     }
@@ -121,7 +144,7 @@ public class VehicleInformationService {
             return;
         }
         vehicleInformationMapper.delete(wrapper);
-        TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
+        AfterCommit.execute(new TransactionSynchronization() {
             @Override
             public void afterCommit() {
                 vehicles.stream()
@@ -397,7 +420,7 @@ public class VehicleInformationService {
     }
 
     private void syncToIndexAfterCommit(VehicleInformation vehicleInformation) {
-        TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
+        AfterCommit.execute(new TransactionSynchronization() {
             @Override
             public void afterCommit() {
                 VehicleInformationDocument doc = VehicleInformationDocument.fromEntity(vehicleInformation);
@@ -409,23 +432,13 @@ public class VehicleInformationService {
     }
 
     private void syncDeleteAfterCommit(Long vehicleId) {
-        TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
+        AfterCommit.execute(new TransactionSynchronization() {
             @Override
             public void afterCommit() {
                 vehicleInformationSearchRepository.deleteById(vehicleId);
             }
         });
     }
-
-    private void sendKafkaMessage(String action, VehicleInformation vehicleInformation) {
-        String topic = "vehicle_" + action.toLowerCase(Locale.ROOT);
-        try {
-            kafkaTemplate.send(topic, vehicleInformation);
-        } catch (Exception e) {
-            log.log(Level.WARNING, "Failed to send vehicle Kafka message", e);
-        }
-    }
-
     private void validateVehicle(VehicleInformation vehicleInformation) {
         if (vehicleInformation == null) {
             throw new IllegalArgumentException("Vehicle information cannot be null");
@@ -454,6 +467,13 @@ public class VehicleInformationService {
         if (value == null || value.trim().isEmpty()) {
             throw new IllegalArgumentException(message);
         }
+    }
+
+    private String truncate(String value) {
+        if (value == null) {
+            return "FAILED";
+        }
+        return value.length() <= 500 ? value : value.substring(0, 500);
     }
 }
 

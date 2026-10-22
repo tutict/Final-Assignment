@@ -2,6 +2,7 @@ package com.tutict.finalassignmentcloud.audit.controller;
 
 import com.tutict.finalassignmentcloud.entity.AuditLoginLog;
 import com.tutict.finalassignmentcloud.audit.service.AuditLoginLogService;
+import com.tutict.finalassignmentcloud.reliability.IdempotencyReplayException;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -75,6 +76,9 @@ public class LoginLogController {
         try {
             request.setLogId(logId);
             if (useKey) {
+                if (auditLoginLogService.shouldSkipProcessing(idempotencyKey)) {
+                    return ResponseEntity.status(HttpStatus.ALREADY_REPORTED).build();
+                }
                 auditLoginLogService.checkAndInsertIdempotency(idempotencyKey, request, "update");
             }
             AuditLoginLog updated = auditLoginLogService.updateAuditLoginLog(request);
@@ -237,6 +241,9 @@ public class LoginLogController {
     }
 
     private HttpStatus resolveStatus(Exception ex) {
+        if (ex instanceof IdempotencyReplayException) {
+            return HttpStatus.ALREADY_REPORTED;
+        }
         return (ex instanceof IllegalArgumentException || ex instanceof IllegalStateException)
                 ? HttpStatus.BAD_REQUEST
                 : HttpStatus.INTERNAL_SERVER_ERROR;

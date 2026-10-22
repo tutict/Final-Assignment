@@ -7,6 +7,8 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import com.tutict.finalassignmentcloud.entity.SysRequestHistory;
+import com.tutict.finalassignmentcloud.reliability.IdempotencyConflictException;
+import com.tutict.finalassignmentcloud.reliability.IdempotencyReplayException;
 import com.tutict.finalassignmentcloud.traffic.mapper.SysRequestHistoryMapper;
 import java.time.LocalDateTime;
 import org.junit.jupiter.api.Test;

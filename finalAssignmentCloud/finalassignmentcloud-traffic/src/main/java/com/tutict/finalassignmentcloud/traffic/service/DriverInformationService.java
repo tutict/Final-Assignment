@@ -1,12 +1,13 @@
 package com.tutict.finalassignmentcloud.traffic.service;
 
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
-import com.fasterxml.jackson.databind.ObjectMapper;
+import com.tutict.finalassignmentcloud.common.transaction.AfterCommit;
 import com.tutict.finalassignmentcloud.config.websocket.WsAction;
 import com.tutict.finalassignmentcloud.entity.DriverInformation;
 import com.tutict.finalassignmentcloud.entity.SysRequestHistory;
 import com.tutict.finalassignmentcloud.entity.SysUser;
 import com.tutict.finalassignmentcloud.entity.elastic.DriverInformationDocument;
+import com.tutict.finalassignmentcloud.reliability.IdempotencyReplayException;
 import com.tutict.finalassignmentcloud.traffic.client.UserClient;
 import com.tutict.finalassignmentcloud.traffic.mapper.DriverInformationMapper;
 import com.tutict.finalassignmentcloud.traffic.mapper.SysRequestHistoryMapper;
@@ -20,11 +21,9 @@ import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.elasticsearch.core.SearchHit;
 import org.springframework.data.elasticsearch.core.SearchHits;
-import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.transaction.support.TransactionSynchronization;
-import org.springframework.transaction.support.TransactionSynchronizationManager;
 import org.springframework.util.StringUtils;
 
 import java.time.LocalDateTime;
@@ -47,22 +46,16 @@ public class DriverInformationService {
     private final UserClient userClient;
     private final SysRequestHistoryMapper sysRequestHistoryMapper;
     private final DriverInformationSearchRepository driverInformationSearchRepository;
-    private final KafkaTemplate<String, String> kafkaTemplate;
-    private final ObjectMapper objectMapper;
 
     @Autowired
     public DriverInformationService(DriverInformationMapper driverInformationMapper,
                                     UserClient userClient,
                                     SysRequestHistoryMapper sysRequestHistoryMapper,
-                                    KafkaTemplate<String, String> kafkaTemplate,
-                                    DriverInformationSearchRepository driverInformationSearchRepository,
-                                    ObjectMapper objectMapper) {
+                                    DriverInformationSearchRepository driverInformationSearchRepository) {
         this.driverInformationMapper = driverInformationMapper;
         this.userClient = userClient;
         this.sysRequestHistoryMapper = sysRequestHistoryMapper;
-        this.kafkaTemplate = kafkaTemplate;
         this.driverInformationSearchRepository = driverInformationSearchRepository;
-        this.objectMapper = objectMapper;
     }
 
     @Transactional
@@ -75,7 +68,7 @@ public class DriverInformationService {
         SysRequestHistory existing = sysRequestHistoryMapper.selectByIdempotencyKey(idempotencyKey);
         if (existing != null) {
             log.warning(() -> String.format("Duplicate driver request detected (key=%s)", idempotencyKey));
-            throw new RuntimeException("Duplicate driver request detected");
+            throw new IdempotencyReplayException("Duplicate driver request detected");
         }
 
         SysRequestHistory history = new SysRequestHistory();
@@ -83,7 +76,6 @@ public class DriverInformationService {
         history.setBusinessStatus("PROCESSING");
         sysRequestHistoryMapper.insert(history);
 
-        sendKafkaMessage("driver_" + action, idempotencyKey, driverInformation);
 
         history.setBusinessStatus("SUCCESS");
         history.setBusinessId(driverInformation.getDriverId());
@@ -132,7 +124,7 @@ public class DriverInformationService {
         if (rows == 0) {
             throw new IllegalStateException("Driver not found: " + driverId);
         }
-        TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
+        AfterCommit.execute(new TransactionSynchronization() {
             @Override
             public void afterCommit() {
                 driverInformationSearchRepository.deleteById(driverId);
@@ -308,6 +300,9 @@ public class DriverInformationService {
             log.log(Level.WARNING, "Cannot mark failure for missing idempotency key {0}", idempotencyKey);
             return;
         }
+        if (!"PROCESSING".equalsIgnoreCase(history.getBusinessStatus())) {
+            return;
+        }
         history.setBusinessStatus("FAILED");
         history.setRequestParams(truncate(reason));
         history.setUpdatedAt(LocalDateTime.now());
@@ -339,14 +334,7 @@ public class DriverInformationService {
     }
 
     private void syncToIndexAfterCommit(DriverInformation driverInformation) {
-        if (!TransactionSynchronizationManager.isSynchronizationActive()) {
-            DriverInformationDocument doc = DriverInformationDocument.fromEntity(driverInformation);
-            if (doc != null) {
-                driverInformationSearchRepository.save(doc);
-            }
-            return;
-        }
-        TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
+        AfterCommit.execute(new TransactionSynchronization() {
             @Override
             public void afterCommit() {
                 DriverInformationDocument doc = DriverInformationDocument.fromEntity(driverInformation);
@@ -357,14 +345,7 @@ public class DriverInformationService {
         });
     }
 
-    private void sendKafkaMessage(String topic, String idempotencyKey, DriverInformation driverInformation) {
-        try {
-            String payload = objectMapper.writeValueAsString(driverInformation);
-            kafkaTemplate.send(topic, idempotencyKey, payload);
-        } catch (Exception e) {
-            log.log(Level.WARNING, "Failed to send driver Kafka message", e);
-        }
-    }
+    
 
     private SysUser safeGetUser(Long userId) {
         if (userId == null) {

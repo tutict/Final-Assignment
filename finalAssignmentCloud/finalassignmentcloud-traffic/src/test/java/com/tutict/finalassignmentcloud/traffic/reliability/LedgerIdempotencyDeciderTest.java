@@ -32,6 +32,12 @@ class LedgerIdempotencyDeciderTest {
     }
 
     @Test
+    void legacyPendingReservationCanRetry() {
+        assertEquals(LedgerIdempotencyDecider.Outcome.RETRY,
+                LedgerIdempotencyDecider.decide(true, "SUCCESS", "PENDING", "sha256:a", Duration.ofMinutes(5)));
+    }
+
+    @Test
     void processingIsInProgressUntilTwoMinutes() {
         assertEquals(LedgerIdempotencyDecider.Outcome.IN_PROGRESS,
                 LedgerIdempotencyDecider.decide(true, "PROCESSING", "sha256:a", "sha256:a", Duration.ofSeconds(30)));

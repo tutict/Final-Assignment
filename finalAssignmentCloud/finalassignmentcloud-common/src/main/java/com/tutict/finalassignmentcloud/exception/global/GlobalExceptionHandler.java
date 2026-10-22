@@ -10,7 +10,11 @@ import jakarta.ws.rs.ForbiddenException;
 import org.apache.kafka.common.errors.ResourceNotFoundException;
 import org.springframework.dao.DataIntegrityViolationException;
 import com.tutict.finalassignmentcloud.observability.LedgerConnectionSignals;
+import com.tutict.finalassignmentcloud.reliability.IdempotencyConflictException;
+import com.tutict.finalassignmentcloud.reliability.IdempotencyInProgressException;
+import com.tutict.finalassignmentcloud.reliability.IdempotencyReplayException;
 import org.springframework.http.HttpHeaders;
+import org.springframework.http.HttpMethod;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.AccessDeniedException;
@@ -21,15 +25,20 @@ import org.springframework.web.bind.MissingServletRequestParameterException;
 import org.springframework.web.bind.annotation.ControllerAdvice;
 import org.springframework.http.converter.HttpMessageNotReadableException;
 import org.springframework.web.HttpMediaTypeNotSupportedException;
+import org.springframework.web.HttpRequestMethodNotSupportedException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
+import org.springframework.web.servlet.NoHandlerFoundException;
+import org.springframework.web.servlet.resource.NoResourceFoundException;
 
 import java.time.OffsetDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.logging.Level;
 import java.util.logging.Logger;
+import java.util.stream.Collectors;
 
 @ControllerAdvice
 public class GlobalExceptionHandler {
@@ -160,6 +169,57 @@ public class GlobalExceptionHandler {
                 "Downstream dependency is unavailable",
                 request,
                 Map.of("errorCode", "DEPENDENCY_TIMEOUT"));
+        return ResponseEntity.status(response.getStatusCode())
+                .header(HttpHeaders.RETRY_AFTER, "1")
+                .body(response.getBody());
+    }
+
+    @ExceptionHandler(HttpRequestMethodNotSupportedException.class)
+    public ResponseEntity<Map<String, Object>> handleMethodNotSupported(HttpRequestMethodNotSupportedException ex,
+                                                                        HttpServletRequest request) {
+        logger.log(Level.WARNING, "不支持的请求方法 {0}", ex.getMethod());
+        Set<HttpMethod> supported = ex.getSupportedHttpMethods();
+        ResponseEntity<Map<String, Object>> response = buildResponse(HttpStatus.METHOD_NOT_ALLOWED,
+                "不支持的请求方法 " + ex.getMethod(), request,
+                Map.of("errorCode", "METHOD_NOT_ALLOWED"));
+        if (supported == null || supported.isEmpty()) {
+            return response;
+        }
+        String allow = supported.stream().map(HttpMethod::name).sorted().collect(Collectors.joining(", "));
+        return ResponseEntity.status(HttpStatus.METHOD_NOT_ALLOWED)
+                .header(HttpHeaders.ALLOW, allow)
+                .body(response.getBody());
+    }
+
+    @ExceptionHandler({NoResourceFoundException.class, NoHandlerFoundException.class})
+    public ResponseEntity<Map<String, Object>> handleNotFound(Exception ex, HttpServletRequest request) {
+        logger.log(Level.WARNING, "资源不存在 {0}", request == null ? "" : request.getRequestURI());
+        return buildResponse(HttpStatus.NOT_FOUND, "资源不存在", request, Map.of("errorCode", "NOT_FOUND"));
+    }
+
+    @ExceptionHandler(IdempotencyReplayException.class)
+    public ResponseEntity<Map<String, Object>> handleIdempotencyReplay(IdempotencyReplayException ex,
+                                                                       HttpServletRequest request) {
+        logger.log(Level.WARNING, "幂等重放 {0}", ex.getMessage());
+        return buildResponse(HttpStatus.ALREADY_REPORTED, "请求已处理 " + ex.getMessage(), request,
+                Map.of("errorCode", "IDEMPOTENCY_REPLAY"));
+    }
+
+    @ExceptionHandler(IdempotencyConflictException.class)
+    public ResponseEntity<Map<String, Object>> handleIdempotencyConflict(IdempotencyConflictException ex,
+                                                                         HttpServletRequest request) {
+        logger.log(Level.WARNING, "幂等冲突 {0}", ex.getMessage());
+        return buildResponse(HttpStatus.CONFLICT, "幂等键被复用于不同请求 " + ex.getMessage(), request,
+                Map.of("errorCode", "IDEMPOTENCY_CONFLICT"));
+    }
+
+    @ExceptionHandler(IdempotencyInProgressException.class)
+    public ResponseEntity<Map<String, Object>> handleIdempotencyInProgress(IdempotencyInProgressException ex,
+                                                                            HttpServletRequest request) {
+        logger.log(Level.WARNING, "幂等请求处理中 {0}", ex.getMessage());
+        ResponseEntity<Map<String, Object>> response = buildResponse(HttpStatus.CONFLICT,
+                "同一请求正在处理中 " + ex.getMessage(), request,
+                Map.of("errorCode", "IDEMPOTENCY_IN_PROGRESS"));
         return ResponseEntity.status(response.getStatusCode())
                 .header(HttpHeaders.RETRY_AFTER, "1")
                 .body(response.getBody());

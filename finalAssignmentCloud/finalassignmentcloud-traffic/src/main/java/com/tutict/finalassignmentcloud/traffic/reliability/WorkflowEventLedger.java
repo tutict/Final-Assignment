@@ -1,6 +1,9 @@
 package com.tutict.finalassignmentcloud.traffic.reliability;
 
 import com.tutict.finalassignmentcloud.entity.SysRequestHistory;
+import com.tutict.finalassignmentcloud.reliability.IdempotencyConflictException;
+import com.tutict.finalassignmentcloud.reliability.IdempotencyInProgressException;
+import com.tutict.finalassignmentcloud.reliability.IdempotencyReplayException;
 import com.tutict.finalassignmentcloud.traffic.mapper.SysRequestHistoryMapper;
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
@@ -101,6 +104,9 @@ public class WorkflowEventLedger {
         SysRequestHistory history = store.find(trim(idempotencyKey));
         if (history == null) {
             LOG.log(Level.WARNING, "Cannot mark workflow failure for missing key {0}", idempotencyKey);
+            return;
+        }
+        if (!"PROCESSING".equalsIgnoreCase(history.getBusinessStatus())) {
             return;
         }
         history.setBusinessStatus("FAILED");

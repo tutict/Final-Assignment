@@ -1,6 +1,7 @@
 package com.tutict.finalassignmentcloud.traffic.controller;
 
 import com.tutict.finalassignmentcloud.entity.OffenseTypeDict;
+import com.tutict.finalassignmentcloud.reliability.IdempotencyReplayException;
 import com.tutict.finalassignmentcloud.traffic.service.OffenseTypeDictService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
@@ -75,6 +76,9 @@ public class OffenseTypeController {
         try {
             request.setTypeId(typeId);
             if (useKey) {
+                if (offenseTypeDictService.shouldSkipProcessing(idempotencyKey)) {
+                    return ResponseEntity.status(HttpStatus.ALREADY_REPORTED).build();
+                }
                 offenseTypeDictService.checkAndInsertIdempotency(idempotencyKey, request, "update");
             }
             OffenseTypeDict updated = offenseTypeDictService.updateDict(request);
@@ -205,6 +209,9 @@ public class OffenseTypeController {
     }
 
     private HttpStatus resolveStatus(Exception ex) {
+        if (ex instanceof IdempotencyReplayException) {
+            return HttpStatus.ALREADY_REPORTED;
+        }
         return (ex instanceof IllegalArgumentException || ex instanceof IllegalStateException)
                 ? HttpStatus.BAD_REQUEST
                 : HttpStatus.INTERNAL_SERVER_ERROR;

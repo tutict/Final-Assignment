@@ -2,22 +2,21 @@ package com.tutict.finalassignmentcloud.user.service;
 
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
-import com.fasterxml.jackson.databind.ObjectMapper;
+import com.tutict.finalassignmentcloud.common.transaction.AfterCommit;
 import com.tutict.finalassignmentcloud.config.websocket.WsAction;
 import com.tutict.finalassignmentcloud.entity.SysPermission;
 import com.tutict.finalassignmentcloud.entity.SysRequestHistory;
 import com.tutict.finalassignmentcloud.entity.elastic.SysPermissionDocument;
+import com.tutict.finalassignmentcloud.reliability.HistoryReserve;
 import com.tutict.finalassignmentcloud.user.mapper.SysPermissionMapper;
 import com.tutict.finalassignmentcloud.user.mapper.SysRequestHistoryMapper;
 import com.tutict.finalassignmentcloud.user.repository.SysPermissionSearchRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.cache.annotation.Cacheable;
-import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.transaction.support.TransactionSynchronization;
-import org.springframework.transaction.support.TransactionSynchronizationManager;
 
 import java.time.LocalDateTime;
 import java.util.List;
@@ -37,20 +36,14 @@ public class SysPermissionService {
     private final SysPermissionMapper sysPermissionMapper;
     private final SysRequestHistoryMapper sysRequestHistoryMapper;
     private final SysPermissionSearchRepository sysPermissionSearchRepository;
-    private final KafkaTemplate<String, String> kafkaTemplate;
-    private final ObjectMapper objectMapper;
 
     @Autowired
     public SysPermissionService(SysPermissionMapper sysPermissionMapper,
                                 SysRequestHistoryMapper sysRequestHistoryMapper,
-                                SysPermissionSearchRepository sysPermissionSearchRepository,
-                                KafkaTemplate<String, String> kafkaTemplate,
-                                ObjectMapper objectMapper) {
+                                SysPermissionSearchRepository sysPermissionSearchRepository) {
         this.sysPermissionMapper = sysPermissionMapper;
         this.sysRequestHistoryMapper = sysRequestHistoryMapper;
         this.sysPermissionSearchRepository = sysPermissionSearchRepository;
-        this.kafkaTemplate = kafkaTemplate;
-        this.objectMapper = objectMapper;
     }
 
     @Transactional
@@ -58,26 +51,10 @@ public class SysPermissionService {
     @WsAction(service = "SysPermissionService", action = "checkAndInsertIdempotency")
     public void checkAndInsertIdempotency(String idempotencyKey, SysPermission permission, String action) {
         Objects.requireNonNull(permission, "SysPermission must not be null");
-        SysRequestHistory existing = sysRequestHistoryMapper.selectByIdempotencyKey(idempotencyKey);
-        if (existing != null) {
-            log.warning(() -> String.format("Duplicate sys permission request detected (key=%s)", idempotencyKey));
-            throw new RuntimeException("Duplicate sys permission request detected");
-        }
-
-        SysRequestHistory history = new SysRequestHistory();
-        history.setIdempotencyKey(idempotencyKey);
-        history.setBusinessStatus("PROCESSING");
-        history.setCreatedAt(LocalDateTime.now());
-        history.setUpdatedAt(LocalDateTime.now());
-        sysRequestHistoryMapper.insert(history);
-
-        sendKafkaMessage("sys_permission_" + action, idempotencyKey, permission);
-
-        history.setBusinessStatus("SUCCESS");
-        history.setBusinessId(Optional.ofNullable(permission.getPermissionId()).map(Integer::longValue).orElse(null));
-        history.setRequestParams("PENDING");
-        history.setUpdatedAt(LocalDateTime.now());
-        sysRequestHistoryMapper.updateById(history);
+        HistoryReserve.reserve(sysRequestHistoryMapper, idempotencyKey, "SYS_PERMISSION_" + action.toUpperCase(),
+                HistoryReserve.sha256(action + "|" + permission.getPermissionId() + "|"
+                        + permission.getPermissionCode() + "|" + permission.getPermissionName()
+                        + "|" + permission.getStatus()));
     }
 
     @Transactional
@@ -110,7 +87,7 @@ public class SysPermissionService {
         if (rows == 0) {
             throw new IllegalStateException("SysPermission not found for id=" + permissionId);
         }
-        TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
+        AfterCommit.execute(new TransactionSynchronization() {
             @Override
             public void afterCommit() {
                 sysPermissionSearchRepository.deleteById(permissionId);
@@ -351,27 +328,22 @@ public class SysPermissionService {
             log.log(Level.WARNING, "Cannot mark failure for missing idempotency key {0}", idempotencyKey);
             return;
         }
+        if (!"PROCESSING".equalsIgnoreCase(history.getBusinessStatus())) {
+            return;
+        }
         history.setBusinessStatus("FAILED");
         history.setRequestParams(truncate(reason));
         history.setUpdatedAt(LocalDateTime.now());
         sysRequestHistoryMapper.updateById(history);
     }
 
-    private void sendKafkaMessage(String topic, String idempotencyKey, SysPermission permission) {
-        try {
-            String payload = objectMapper.writeValueAsString(permission);
-            kafkaTemplate.send(topic, idempotencyKey, payload);
-        } catch (Exception ex) {
-            log.log(Level.SEVERE, "Failed to send SysPermission Kafka message", ex);
-            throw new RuntimeException("Failed to send sys permission event", ex);
-        }
-    }
+    
 
     private void syncToIndexAfterCommit(SysPermission permission) {
         if (permission == null) {
             return;
         }
-        TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
+        AfterCommit.execute(new TransactionSynchronization() {
             @Override
             public void afterCommit() {
                 SysPermissionDocument doc = SysPermissionDocument.fromEntity(permission);
@@ -386,7 +358,7 @@ public class SysPermissionService {
         if (records == null || records.isEmpty()) {
             return;
         }
-        TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
+        AfterCommit.execute(new TransactionSynchronization() {
             @Override
             public void afterCommit() {
                 List<SysPermissionDocument> documents = records.stream()

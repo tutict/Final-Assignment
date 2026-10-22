@@ -1,6 +1,7 @@
 package com.tutict.finalassignmentcloud.system.controller;
 
 import com.tutict.finalassignmentcloud.entity.SysBackupRestore;
+import com.tutict.finalassignmentcloud.reliability.IdempotencyReplayException;
 import com.tutict.finalassignmentcloud.system.service.SysBackupRestoreService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
@@ -67,6 +68,9 @@ public class BackupRestoreController {
         try {
             request.setBackupId(backupId);
             if (useKey) {
+                if (backupRestoreService.shouldSkipProcessing(idempotencyKey)) {
+                    return ResponseEntity.status(HttpStatus.ALREADY_REPORTED).build();
+                }
                 backupRestoreService.checkAndInsertIdempotency(idempotencyKey, request, "update");
             }
             SysBackupRestore updated = backupRestoreService.updateSysBackupRestore(request);
@@ -188,6 +192,9 @@ public class BackupRestoreController {
     }
 
     private HttpStatus resolveStatus(Exception ex) {
+        if (ex instanceof IdempotencyReplayException) {
+            return HttpStatus.ALREADY_REPORTED;
+        }
         return (ex instanceof IllegalArgumentException || ex instanceof IllegalStateException)
                 ? HttpStatus.BAD_REQUEST
                 : HttpStatus.INTERNAL_SERVER_ERROR;

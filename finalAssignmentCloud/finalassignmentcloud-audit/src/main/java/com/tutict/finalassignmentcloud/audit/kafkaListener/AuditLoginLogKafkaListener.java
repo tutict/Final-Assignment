@@ -4,6 +4,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.tutict.finalassignmentcloud.audit.service.AuditLoginLogService;
 import com.tutict.finalassignmentcloud.entity.AuditLoginLog;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.kafka.annotation.EnableKafka;
 import org.springframework.kafka.annotation.KafkaListener;
 import org.springframework.kafka.support.KafkaHeaders;
 import org.springframework.messaging.handler.annotation.Header;
@@ -14,6 +15,7 @@ import java.util.logging.Level;
 import java.util.logging.Logger;
 
 @Service
+@EnableKafka
 // Kafka 监听器，处理消息
 public class AuditLoginLogKafkaListener {
 

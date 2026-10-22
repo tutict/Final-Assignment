@@ -2,12 +2,12 @@ package com.tutict.finalassignmentcloud.traffic.controller;
 
 import com.tutict.finalassignmentcloud.traffic.config.statemachine.states.PaymentState;
 import com.tutict.finalassignmentcloud.entity.PaymentRecord;
+import com.tutict.finalassignmentcloud.reliability.IdempotencyConflictException;
+import com.tutict.finalassignmentcloud.reliability.IdempotencyInProgressException;
+import com.tutict.finalassignmentcloud.reliability.IdempotencyReplayException;
 import com.tutict.finalassignmentcloud.traffic.service.DriverAccessService;
-import com.tutict.finalassignmentcloud.traffic.reliability.IdempotencyConflictException;
 import com.tutict.finalassignmentcloud.traffic.reliability.PaymentOptimisticLockException;
-import com.tutict.finalassignmentcloud.traffic.reliability.IdempotencyInProgressException;
 import com.tutict.finalassignmentcloud.traffic.reliability.DuplicateKeySignals;
-import com.tutict.finalassignmentcloud.traffic.reliability.IdempotencyReplayException;
 import com.tutict.finalassignmentcloud.traffic.service.PaymentRecordService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
@@ -58,13 +58,17 @@ public class PaymentRecordController {
     @Operation(summary = "创建支付记录")
     public ResponseEntity<PaymentRecord> createPayment(@RequestBody PaymentRecord request,
                                                        @RequestHeader(value = "Idempotency-Key", required = false)
-                                                       String idempotencyKey) {
+                                                       String idempotencyKey,
+                                                       Authentication authentication) {
         if (!hasKey(idempotencyKey)) {
             return ResponseEntity.badRequest().build();
         }
         try {
+            if (authentication != null && authentication.isAuthenticated()) {
+                request.setCreatedBy(authentication.getName());
+            }
             paymentRecordService.checkAndInsertIdempotency(idempotencyKey, request, "create");
-            PaymentRecord saved = paymentRecordService.createPaymentRecord(request);
+            PaymentRecord saved = paymentRecordService.createPaymentRecord(request, idempotencyKey);
             if (saved.getPaymentId() != null) {
                 paymentRecordService.markHistorySuccess(idempotencyKey, saved.getPaymentId());
             }
@@ -183,7 +187,7 @@ public class PaymentRecordController {
             return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
         }
         request.setDriverId(driverId);
-        return createPayment(request, idempotencyKey);
+        return createPayment(request, idempotencyKey, authentication);
     }
 
     @GetMapping("/search/payer")

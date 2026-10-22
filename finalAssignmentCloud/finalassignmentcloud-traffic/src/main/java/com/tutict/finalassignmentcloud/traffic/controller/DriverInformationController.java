@@ -4,6 +4,7 @@ import com.tutict.finalassignmentcloud.config.security.SecurityRoleUtils;
 import com.tutict.finalassignmentcloud.entity.DriverInformation;
 import com.tutict.finalassignmentcloud.entity.SysUser;
 import com.tutict.finalassignmentcloud.dto.response.UserProfileResponse;
+import com.tutict.finalassignmentcloud.reliability.IdempotencyReplayException;
 import com.tutict.finalassignmentcloud.traffic.service.BusinessRecordViewService;
 import com.tutict.finalassignmentcloud.traffic.service.DriverAccessService;
 import com.tutict.finalassignmentcloud.traffic.service.DriverInformationService;
@@ -136,6 +137,9 @@ public class DriverInformationController {
         boolean useKey = hasKey(idempotencyKey);
         try {
             if (useKey) {
+                if (driverInformationService.shouldSkipProcessing(idempotencyKey)) {
+                    return ResponseEntity.status(HttpStatus.ALREADY_REPORTED).build();
+                }
                 driverInformationService.checkAndInsertIdempotency(idempotencyKey, existing, "update");
             }
             DriverInformation updated = driverInformationService.updateDriver(existing);
@@ -188,6 +192,9 @@ public class DriverInformationController {
             }
             request.setDriverId(driverId);
             if (useKey) {
+                if (driverInformationService.shouldSkipProcessing(idempotencyKey)) {
+                    return ResponseEntity.status(HttpStatus.ALREADY_REPORTED).build();
+                }
                 driverInformationService.checkAndInsertIdempotency(idempotencyKey, request, "update");
             }
             DriverInformation updated = driverInformationService.updateDriver(request);
@@ -345,6 +352,9 @@ public class DriverInformationController {
     }
 
     private HttpStatus resolveStatus(Exception ex) {
+        if (ex instanceof IdempotencyReplayException) {
+            return HttpStatus.ALREADY_REPORTED;
+        }
         return (ex instanceof IllegalArgumentException || ex instanceof IllegalStateException)
                 ? HttpStatus.BAD_REQUEST
                 : HttpStatus.INTERNAL_SERVER_ERROR;

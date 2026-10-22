@@ -2,7 +2,6 @@ package com.tutict.finalassignmentcloud.audit.service;
 
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import com.tutict.finalassignmentcloud.config.websocket.WsAction;
 import com.tutict.finalassignmentcloud.entity.AuditOperationLog;
 import com.tutict.finalassignmentcloud.entity.SysRequestHistory;
@@ -10,6 +9,8 @@ import com.tutict.finalassignmentcloud.entity.elastic.AuditOperationLogDocument;
 import com.tutict.finalassignmentcloud.audit.mapper.AuditOperationLogMapper;
 import com.tutict.finalassignmentcloud.audit.mapper.SysRequestHistoryMapper;
 import com.tutict.finalassignmentcloud.audit.repository.AuditOperationLogSearchRepository;
+import com.tutict.finalassignmentcloud.common.transaction.AfterCommit;
+import com.tutict.finalassignmentcloud.reliability.IdempotencyReplayException;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.cache.annotation.Cacheable;
@@ -17,11 +18,9 @@ import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.elasticsearch.core.SearchHit;
 import org.springframework.data.elasticsearch.core.SearchHits;
-import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.transaction.support.TransactionSynchronization;
-import org.springframework.transaction.support.TransactionSynchronizationManager;
 
 import java.time.LocalDateTime;
 import java.time.format.DateTimeParseException;
@@ -41,20 +40,14 @@ public class AuditOperationLogService {
     private final AuditOperationLogMapper auditOperationLogMapper;
     private final SysRequestHistoryMapper sysRequestHistoryMapper;
     private final AuditOperationLogSearchRepository auditOperationLogSearchRepository;
-    private final KafkaTemplate<String, String> kafkaTemplate;
-    private final ObjectMapper objectMapper;
 
     @Autowired
     public AuditOperationLogService(AuditOperationLogMapper auditOperationLogMapper,
                                     SysRequestHistoryMapper sysRequestHistoryMapper,
-                                    AuditOperationLogSearchRepository auditOperationLogSearchRepository,
-                                    KafkaTemplate<String, String> kafkaTemplate,
-                                    ObjectMapper objectMapper) {
+                                    AuditOperationLogSearchRepository auditOperationLogSearchRepository) {
         this.auditOperationLogMapper = auditOperationLogMapper;
         this.sysRequestHistoryMapper = sysRequestHistoryMapper;
         this.auditOperationLogSearchRepository = auditOperationLogSearchRepository;
-        this.kafkaTemplate = kafkaTemplate;
-        this.objectMapper = objectMapper;
     }
 
     @Transactional
@@ -63,7 +56,7 @@ public class AuditOperationLogService {
     public void checkAndInsertIdempotency(String idempotencyKey, AuditOperationLog auditOperationLog, String action) {
         Objects.requireNonNull(auditOperationLog, "AuditOperationLog must not be null");
         if (sysRequestHistoryMapper.selectByIdempotencyKey(idempotencyKey) != null) {
-            throw new RuntimeException("Duplicate audit operation log request detected");
+            throw new IdempotencyReplayException("Duplicate audit operation log request detected");
         }
 
         SysRequestHistory history = new SysRequestHistory();
@@ -73,7 +66,6 @@ public class AuditOperationLogService {
         history.setUpdatedAt(LocalDateTime.now());
         sysRequestHistoryMapper.insert(history);
 
-        sendKafkaMessage("audit_operation_log_" + action, idempotencyKey, auditOperationLog);
 
         history.setBusinessStatus("SUCCESS");
         history.setBusinessId(auditOperationLog.getLogId());
@@ -112,7 +104,7 @@ public class AuditOperationLogService {
         if (rows == 0) {
             throw new IllegalStateException("Audit operation log not found for id=" + logId);
         }
-        TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
+        AfterCommit.execute(new TransactionSynchronization() {
             @Override
             public void afterCommit() {
                 auditOperationLogSearchRepository.deleteById(logId);
@@ -303,27 +295,22 @@ public class AuditOperationLogService {
             log.log(Level.WARNING, "Cannot mark failure for missing idempotency key {0}", idempotencyKey);
             return;
         }
+        if (!"PROCESSING".equalsIgnoreCase(history.getBusinessStatus())) {
+            return;
+        }
         history.setBusinessStatus("FAILED");
         history.setRequestParams(truncate(reason));
         history.setUpdatedAt(LocalDateTime.now());
         sysRequestHistoryMapper.updateById(history);
     }
 
-    private void sendKafkaMessage(String topic, String idempotencyKey, AuditOperationLog auditOperationLog) {
-        try {
-            String payload = objectMapper.writeValueAsString(auditOperationLog);
-            kafkaTemplate.send(topic, idempotencyKey, payload);
-        } catch (Exception ex) {
-            log.log(Level.SEVERE, "Failed to send AuditOperationLog Kafka message", ex);
-            throw new RuntimeException("Failed to send AuditOperationLog event", ex);
-        }
-    }
+    
 
     private void syncToIndexAfterCommit(AuditOperationLog auditOperationLog) {
         if (auditOperationLog == null) {
             return;
         }
-        TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
+        AfterCommit.execute(new TransactionSynchronization() {
             @Override
             public void afterCommit() {
                 AuditOperationLogDocument doc = AuditOperationLogDocument.fromEntity(auditOperationLog);
@@ -338,7 +325,7 @@ public class AuditOperationLogService {
         if (records == null || records.isEmpty()) {
             return;
         }
-        TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
+        AfterCommit.execute(new TransactionSynchronization() {
             @Override
             public void afterCommit() {
                 List<AuditOperationLogDocument> documents = records.stream()
@@ -381,6 +368,21 @@ public class AuditOperationLogService {
         }
         if (auditOperationLog.getOperationTime() == null) {
             auditOperationLog.setOperationTime(LocalDateTime.now());
+        }
+        if (isBlank(auditOperationLog.getOperationType())) {
+            auditOperationLog.setOperationType("API");
+        }
+        if (isBlank(auditOperationLog.getOperationModule())) {
+            auditOperationLog.setOperationModule("System");
+        }
+        if (isBlank(auditOperationLog.getOperationFunction())) {
+            auditOperationLog.setOperationFunction("event");
+        }
+        if (isBlank(auditOperationLog.getRequestIp())) {
+            auditOperationLog.setRequestIp("0.0.0.0");
+        }
+        if (isBlank(auditOperationLog.getUsername())) {
+            auditOperationLog.setUsername("unknown");
         }
     }
 
