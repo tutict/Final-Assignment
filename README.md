@@ -351,7 +351,6 @@ API Gateway (Spring Cloud Gateway)
 ├─ Audit Service (审计日志)
 ├─ System Service (系统配置)
 ├─ RAG Service (文档检索问答)
-└─ Search Service (全文搜索)
   ↓
 Common Library (共享基础设施)
   ↓
@@ -371,7 +370,6 @@ MySQL / Redis / Elasticsearch / Kafka
 | System | 8085 | 系统配置、字典管理 | ✅ 生产就绪 |
 | Common | - | 共享库：安全、缓存、消息、工具 | ✅ 生产就绪 |
 | RAG | via Gateway | 文档上传、分块、向量化、语义检索 | ✅ 生产就绪 |
-| Search | via Gateway | Elasticsearch 全文搜索 | ✅ 生产就绪 |
 
 ### 技术栈
 
@@ -490,7 +488,6 @@ docker compose ps
    - Audit
    - System
    - RAG（可选）
-   - Search（可选）
 
 3. 验证服务注册：访问 http://localhost:8848/nacos（用户名/密码：nacos/nacos）
 

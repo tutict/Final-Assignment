@@ -54,17 +54,15 @@ spring:
               predicates:
                 - Path=/api/rag/**
               metadata:
-                response-timeout: 8000
-            - id: search-service
-              uri: http://127.0.0.1:${CLOUD_SEARCH_PORT:18087}
-              predicates:
-                - Path=/api/search/**
+                # metadata.response-timeout 在 Gateway 5.0.3 由 NettyRoutingFilter 按毫秒解析，写成 120s 会被回退到全局 3s
+                response-timeout: 120000
             - id: ai-service
               uri: http://127.0.0.1:${CLOUD_AI_PORT:18086}
               predicates:
                 - Path=/api/ai/**
               metadata:
-                response-timeout: 8000
+                # 需同时容纳一次 llama3.2 推理与 SSE 流式输出，故高于 AI 服务自身的 30s 动作预算
+                response-timeout: 120000
 
 
 server:
