@@ -16,7 +16,6 @@ class StaticDiscoveryConfigTest {
                 "../finalassignmentcloud-user/src/main/resources/application-dev.yml",
                 "../finalassignmentcloud-audit/src/main/resources/application-dev.yml",
                 "../finalassignmentcloud-system/src/main/resources/application-dev.yml",
-                "../finalassignmentcloud-search/src/main/resources/application-dev.yml",
                 "../finalassignmentcloud-rag/src/main/resources/application-dev.yml",
                 "../finalassignmentcloud-ai/src/main/resources/application-dev.yml"
         };

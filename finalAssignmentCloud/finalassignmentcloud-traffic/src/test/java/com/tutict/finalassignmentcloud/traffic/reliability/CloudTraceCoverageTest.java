@@ -14,7 +14,6 @@ class CloudTraceCoverageTest {
         for (String app : new String[] {
                 "finalassignmentcloud-auth/src/main/java/com/tutict/finalassignmentcloud/auth/FinalAssignmentCloudAuthApplication.java",
                 "finalassignmentcloud-audit/src/main/java/com/tutict/finalassignmentcloud/audit/FinalAssignmentCloudAuditApplication.java",
-                "finalassignmentcloud-search/src/main/java/com/tutict/finalassignmentcloud/search/FinalAssignmentCloudSearchApplication.java",
                 "finalassignmentcloud-ai/src/main/java/com/tutict/finalassignmentcloud/ai/FinalAssignmentCloudAiApplication.java"
         }) {
             assertTrue(Files.readString(root.resolve(app)).contains("com.tutict.finalassignmentcloud.observability"), app);
@@ -27,7 +26,6 @@ class CloudTraceCoverageTest {
                 "finalassignmentcloud-audit/src/main/resources/application.yml",
                 "finalassignmentcloud-system/src/main/resources/application.yml",
                 "finalassignmentcloud-ai/src/main/resources/application.yml",
-                "finalassignmentcloud-search/src/main/resources/application.yml",
                 "finalassignmentcloud-rag/src/main/resources/application.yml",
                 "finalassignmentcloud-gateway/src/main/resources/application.yml"
         }) {

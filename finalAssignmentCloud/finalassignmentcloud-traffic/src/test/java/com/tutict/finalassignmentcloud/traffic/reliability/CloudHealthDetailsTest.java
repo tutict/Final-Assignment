@@ -19,7 +19,6 @@ class CloudHealthDetailsTest {
                 "finalassignmentcloud-audit/src/main/resources/application.yml",
                 "finalassignmentcloud-system/src/main/resources/application.yml",
                 "finalassignmentcloud-ai/src/main/resources/application.yml",
-                "finalassignmentcloud-search/src/main/resources/application.yml",
                 "finalassignmentcloud-rag/src/main/resources/application.yml",
                 "finalassignmentcloud-gateway/src/main/resources/application.yml"
         }) {

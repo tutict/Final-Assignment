@@ -15,8 +15,15 @@ class GatewayRouteContractTest {
         String dev = Files.readString(Path.of("src/main/resources/application-dev.yml"));
         assertTrue(main.contains("response-timeout: 3s"));
         assertTrue(dev.contains("response-timeout: 3s"));
-        assertTrue(section(dev, "id: rag-service", "id: search-service").contains("response-timeout: 8000"));
-        assertTrue(section(dev, "id: ai-service", "server:").contains("response-timeout: 8000"));
+        assertTrue(section(dev, "id: rag-service", "id: ai-service").contains("response-timeout: 120000"));
+        assertTrue(section(dev, "id: ai-service", "server:").contains("response-timeout: 120000"));
+        assertTrue(section(main, "id: rag-service", "id: ai-service").contains("response-timeout: 120000"));
+        assertTrue(section(main, "id: ai-service", "globalcors:").contains("response-timeout: 120000"));
+        // 搜索服务已下线，路由表不得再保留指向该服务的入口
+        assertFalse(main.contains("search-service"), main);
+        assertFalse(dev.contains("search-service"), dev);
+        assertFalse(main.contains("finalassignmentcloud-search"), main);
+        assertFalse(dev.contains("finalassignmentcloud-search"), dev);
         assertFalse(main.contains("name: Retry") || main.contains("retries:"), main);
         assertFalse(dev.contains("name: Retry") || dev.contains("retries:"), dev);
         assertTrue(main.contains("redis:") && main.contains("enabled: ${MANAGEMENT_HEALTH_REDIS_ENABLED:false}"), main);
@@ -33,8 +40,10 @@ class GatewayRouteContractTest {
                 "http://127.0.0.1:13000"
         }) {
             assertTrue(main.contains(origin), origin);
-            assertTrue(dev.contains(origin), origin);
         }
+        // dev profile 不定义 globalcors/allowed-origins，运行时继承 application.yml 的 CORS 配置
+        assertFalse(dev.contains("globalcors"), dev);
+        assertFalse(dev.contains("allowed-origins"), dev);
     }
 
     private static String section(String text, String start, String end) {
