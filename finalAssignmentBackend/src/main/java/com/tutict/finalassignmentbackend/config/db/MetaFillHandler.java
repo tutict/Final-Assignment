@@ -10,19 +10,37 @@ import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Component;
 
+import java.time.LocalDateTime;
 import java.util.Map;
 
 @Component
-public class RequestHistoryUserFillHandler implements MetaObjectHandler {
+public class MetaFillHandler implements MetaObjectHandler {
 
     private final SysUserMapper sysUserMapper;
 
-    public RequestHistoryUserFillHandler(SysUserMapper sysUserMapper) {
+    public MetaFillHandler(SysUserMapper sysUserMapper) {
         this.sysUserMapper = sysUserMapper;
     }
 
     @Override
     public void insertFill(MetaObject metaObject) {
+        LocalDateTime now = LocalDateTime.now();
+        strictInsertFill(metaObject, "createdAt", LocalDateTime.class, now);
+        strictInsertFill(metaObject, "updatedAt", LocalDateTime.class, now);
+        fillRequestHistoryUser(metaObject);
+    }
+
+    @Override
+    public void updateFill(MetaObject metaObject) {
+        strictUpdateFill(metaObject, "updatedAt", LocalDateTime.class, LocalDateTime.now());
+    }
+
+    /**
+     * MyBatis-Plus emits columns annotated with {@code fill = FieldFill.INSERT} into every
+     * INSERT statement, so an unfilled timestamp is persisted as NULL and the database
+     * {@code DEFAULT CURRENT_TIMESTAMP} never applies.
+     */
+    private void fillRequestHistoryUser(MetaObject metaObject) {
         SysRequestHistory history = historyOf(metaObject);
         if (history == null || history.getUserId() != null) {
             return;
@@ -36,11 +54,6 @@ public class RequestHistoryUserFillHandler implements MetaObjectHandler {
             history.setUserId(userId);
         }
     }
-
-    @Override
-    public void updateFill(MetaObject metaObject) {
-    }
-
 
     private SysRequestHistory historyOf(MetaObject metaObject) {
         Object original = metaObject.getOriginalObject();
