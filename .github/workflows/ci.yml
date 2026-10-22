@@ -66,6 +66,16 @@ jobs:
           --health-interval=10s
           --health-timeout=5s
           --health-retries=10
+      # 网关的 BusinessEventSubscriber 在启动时就要连 Redis，缺失会让网关上下文加载失败。
+      redis:
+        image: redis:7
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd="redis-cli ping"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=10
     env:
       # user/traffic/system/audit 模块共享 traffic 库；auth 模块单独使用 traffic_test 库。
       TEST_DB_URL: jdbc:mysql://127.0.0.1:3306/traffic?useSSL=false&serverTimezone=Asia/Shanghai&allowPublicKeyRetrieval=true
