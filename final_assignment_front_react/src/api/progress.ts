@@ -113,9 +113,8 @@ export async function createProgress(item: Partial<ProgressItem>): Promise<Progr
 export async function updateProgressStatus(id: number, newStatus: string): Promise<ProgressItem> {
   const existing = await api.get<Record<string, unknown>>(`${API_PATHS.PROGRESS}/${id}`);
   const body = { ...(existing.data || {}), businessStatus: newStatus, status: newStatus };
-  const response = await api.put<BackendProgress>(`${API_PATHS.PROGRESS}/${id}`, body, {
-    headers: { 'Idempotency-Key': generateIdempotencyKey() },
-  });
+  // PUT 以路径中的记录 ID 为幂等标识，更新重复执行收敛到同一状态，无需再伪造幂等键。
+  const response = await api.put<BackendProgress>(`${API_PATHS.PROGRESS}/${id}`, body);
   return normalizeProgress(response.data as Record<string, unknown>);
 }
 

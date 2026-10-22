@@ -1,15 +1,13 @@
 package system
 
 import (
-	"final_assignment_backend_go/project/internal/service/shared"
 	"time"
 
 	"final_assignment_backend_go/project/internal/domain"
 	"final_assignment_backend_go/project/internal/repo"
-
-	"gorm.io/gorm"
 )
 
+// ProgressItemService 处理 /api/progress，持久化落在共享的 sys_request_history 表。
 type ProgressItemService struct {
 	repo *repo.ProgressItemRepo
 }
@@ -22,81 +20,49 @@ func (s *ProgressItemService) CreateItem(item *domain.ProgressItem) error {
 	return s.repo.Create(item)
 }
 
-func (s *ProgressItemService) DB() *gorm.DB { return s.repo.DB() }
-
-func (s *ProgressItemService) CreateProgress(progress *domain.ProgressItem) (*domain.ProgressItem, error) {
+func (s *ProgressItemService) CreateProgress(progress *domain.ProgressItem, idempotencyKey string) (*domain.ProgressItem, error) {
 	if progress.SubmitTime.IsZero() {
 		progress.SubmitTime = time.Now()
 	}
 	if progress.Status == "" {
 		progress.Status = "PENDING"
 	}
-	return progress, s.DB().Create(progress).Error
+	if err := s.repo.CreateWithKey(progress, idempotencyKey); err != nil {
+		return nil, err
+	}
+	return progress, nil
+}
+
+func (s *ProgressItemService) FindProgressByIdempotencyKey(key string) (*domain.ProgressItem, error) {
+	return s.repo.FindByIdempotencyKey(key)
 }
 
 func (s *ProgressItemService) GetAllProgress() ([]domain.ProgressItem, error) {
-	items, err := s.repo.FindAll()
-	if shared.IsMissingTable(err) {
-		return []domain.ProgressItem{}, nil
-	}
-	return items, err
+	return s.repo.FindAll()
 }
 
 func (s *ProgressItemService) GetProgressByUsername(username string) ([]domain.ProgressItem, error) {
-	var items []domain.ProgressItem
-	err := s.DB().Where("username = ?", username).Find(&items).Error
-	if shared.IsMissingTable(err) {
-		return []domain.ProgressItem{}, nil
-	}
-	return items, err
+	return s.repo.FindByUsername(username)
 }
 
 func (s *ProgressItemService) UpdateProgress(item *domain.ProgressItem) (*domain.ProgressItem, error) {
-	var existing domain.ProgressItem
-	if err := s.DB().Where("id = ?", item.ID).First(&existing).Error; err != nil {
-		return nil, err
-	}
-	if item.Title != "" {
-		existing.Title = item.Title
-	}
-	if item.Status != "" {
-		existing.Status = item.Status
-	}
-	if item.Details != "" {
-		existing.Details = item.Details
-	}
-	if item.Username != "" {
-		existing.Username = item.Username
-	}
-	if !item.SubmitTime.IsZero() {
-		existing.SubmitTime = item.SubmitTime
-	}
-	return &existing, s.DB().Save(&existing).Error
+	return s.repo.Update(item)
 }
 
 func (s *ProgressItemService) UpdateProgressStatus(id int, status string) (*domain.ProgressItem, error) {
-	var item domain.ProgressItem
-	if err := s.DB().Where("id = ?", id).First(&item).Error; err != nil {
-		return nil, err
-	}
-	item.Status = status
-	return &item, s.DB().Save(&item).Error
+	return s.repo.Update(&domain.ProgressItem{ID: id, Status: status})
 }
 
 func (s *ProgressItemService) DeleteProgress(id int) error {
-	return s.DB().Where("id = ?", id).Delete(&domain.ProgressItem{}).Error
+	return s.repo.Delete(id)
 }
 
 func (s *ProgressItemService) GetProgressByStatus(status string) ([]domain.ProgressItem, error) {
-	var items []domain.ProgressItem
-	err := s.DB().Where("status = ?", status).Find(&items).Error
-	return items, err
+	return s.repo.FindByStatus(status)
 }
 
 func (s *ProgressItemService) GetProgressByTimeRange(start time.Time, end time.Time) ([]domain.ProgressItem, error) {
-	var items []domain.ProgressItem
-	err := s.DB().Where("submit_time BETWEEN ? AND ?", start, end).Find(&items).Error
-	return items, err
+	return s.repo.FindByTimeRange(start, end)
 }
 
 type ProgressService = ProgressItemService

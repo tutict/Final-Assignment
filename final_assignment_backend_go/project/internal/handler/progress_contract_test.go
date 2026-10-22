@@ -15,12 +15,32 @@ import (
 
 type progressStub struct {
 	items []domain.ProgressItem
+	keys  map[string]int
 }
 
-func (s *progressStub) CreateProgress(item *domain.ProgressItem) (*domain.ProgressItem, error) {
+func (s *progressStub) CreateProgress(item *domain.ProgressItem, key string) (*domain.ProgressItem, error) {
 	item.ID = len(s.items) + 1
 	s.items = append(s.items, *item)
+	if key != "" {
+		if s.keys == nil {
+			s.keys = make(map[string]int)
+		}
+		s.keys[key] = item.ID
+	}
 	return item, nil
+}
+
+func (s *progressStub) FindProgressByIdempotencyKey(key string) (*domain.ProgressItem, error) {
+	id, ok := s.keys[key]
+	if !ok {
+		return nil, nil
+	}
+	for i := range s.items {
+		if s.items[i].ID == id {
+			return &s.items[i], nil
+		}
+	}
+	return nil, nil
 }
 func (s *progressStub) DeleteProgress(id int) error {
 	return nil
@@ -87,6 +107,33 @@ func TestProgressRoutesMatchFrontend(t *testing.T) {
 		t.Fatalf("status filter leaked or missed: %#v", listed)
 	}
 
+	got := httptest.NewRecorder()
+	router.ServeHTTP(got, httptest.NewRequest(http.MethodGet, "/api/progress/1", nil))
+	if got.Code != http.StatusOK {
+		t.Fatalf("get=%d body=%s", got.Code, got.Body.String())
+	}
+
+	peek := httptest.NewRecorder()
+	router.ServeHTTP(peek, httptest.NewRequest(http.MethodGet, "/api/progress/by-username?username=other", nil))
+	if peek.Code != http.StatusForbidden {
+		t.Fatalf("driver peek other user = %d, want 403", peek.Code)
+	}
+}
+
+func TestProgressAdminCanUpdateAndDelete(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	stub := &progressStub{items: []domain.ProgressItem{
+		{ID: 1, Title: "appeal", Status: "Pending", Username: "driver", SubmitTime: time.Now()},
+		{ID: 2, Title: "fine", Status: "Pending", Username: "other", SubmitTime: time.Now()},
+	}}
+	router := gin.New()
+	router.Use(func(c *gin.Context) {
+		c.Set("username", "admin")
+		c.Set("normalizedRoles", []string{"SUPER_ADMIN"})
+		c.Next()
+	})
+	NewProgressHandler(stub).RegisterRoutes(router)
+
 	body := bytes.NewBufferString(`{"businessType":"appeal","businessStatus":"Processing","submitTime":"2026-09-30T10:00:00Z"}`)
 	update := httptest.NewRecorder()
 	req := httptest.NewRequest(http.MethodPut, "/api/progress/1", body)
@@ -103,9 +150,106 @@ func TestProgressRoutesMatchFrontend(t *testing.T) {
 		t.Fatalf("updated=%#v", updated)
 	}
 
-	got := httptest.NewRecorder()
-	router.ServeHTTP(got, httptest.NewRequest(http.MethodGet, "/api/progress/1", nil))
-	if got.Code != http.StatusOK {
-		t.Fatalf("get=%d body=%s", got.Code, got.Body.String())
+	statusRes := httptest.NewRecorder()
+	router.ServeHTTP(statusRes, httptest.NewRequest(http.MethodPut, "/api/progress/2/status?newStatus=Archived", nil))
+	if statusRes.Code != http.StatusOK {
+		t.Fatalf("status update=%d body=%s", statusRes.Code, statusRes.Body.String())
+	}
+
+	del := httptest.NewRecorder()
+	router.ServeHTTP(del, httptest.NewRequest(http.MethodDelete, "/api/progress/2", nil))
+	if del.Code != http.StatusNoContent {
+		t.Fatalf("delete=%d body=%s", del.Code, del.Body.String())
+	}
+}
+
+func TestProgressCreateReplayHonorsIdempotencyKey(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	stub := &progressStub{}
+	router := gin.New()
+	router.Use(func(c *gin.Context) {
+		c.Set("username", "admin")
+		c.Set("normalizedRoles", []string{"SUPER_ADMIN"})
+		c.Next()
+	})
+	NewProgressHandler(stub).RegisterRoutes(router)
+
+	body := `{"title":"replay","status":"Pending"}`
+	create := func() *httptest.ResponseRecorder {
+		req := httptest.NewRequest(http.MethodPost, "/api/progress", bytes.NewBufferString(body))
+		req.Header.Set("Content-Type", "application/json")
+		req.Header.Set("Idempotency-Key", "progress-replay-1")
+		rec := httptest.NewRecorder()
+		router.ServeHTTP(rec, req)
+		return rec
+	}
+
+	if rec := create(); rec.Code != http.StatusCreated {
+		t.Fatalf("first create = %d body=%s", rec.Code, rec.Body.String())
+	}
+	if rec := create(); rec.Code != http.StatusAlreadyReported {
+		t.Fatalf("replay = %d body=%s", rec.Code, rec.Body.String())
+	}
+	if len(stub.items) != 1 {
+		t.Fatalf("replay must not create a new row, got %d", len(stub.items))
+	}
+}
+
+func TestProgressDriverCannotWrite(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	stub := &progressStub{items: []domain.ProgressItem{
+		{ID: 1, Title: "appeal", Status: "Pending", Username: "driver", SubmitTime: time.Now()},
+		{ID: 2, Title: "fine", Status: "Pending", Username: "other", SubmitTime: time.Now()},
+	}}
+	router := gin.New()
+	router.Use(func(c *gin.Context) {
+		c.Set("username", "driver")
+		c.Set("normalizedRoles", []string{"USER"})
+		c.Next()
+	})
+	NewProgressHandler(stub).RegisterRoutes(router)
+
+	statusRes := httptest.NewRecorder()
+	router.ServeHTTP(statusRes, httptest.NewRequest(http.MethodPut, "/api/progress/1/status?newStatus=Archived", nil))
+	if statusRes.Code != http.StatusForbidden {
+		t.Fatalf("status update = %d, want 403", statusRes.Code)
+	}
+
+	del := httptest.NewRecorder()
+	router.ServeHTTP(del, httptest.NewRequest(http.MethodDelete, "/api/progress/2", nil))
+	if del.Code != http.StatusForbidden {
+		t.Fatalf("delete = %d, want 403", del.Code)
+	}
+
+	update := httptest.NewRecorder()
+	req := httptest.NewRequest(http.MethodPut, "/api/progress/1", bytes.NewBufferString(`{"status":"Archived"}`))
+	req.Header.Set("Content-Type", "application/json")
+	router.ServeHTTP(update, req)
+	if update.Code != http.StatusForbidden {
+		t.Fatalf("update = %d, want 403", update.Code)
+	}
+
+	own := httptest.NewRecorder()
+	router.ServeHTTP(own, httptest.NewRequest(http.MethodGet, "/api/progress/by-username?username=driver", nil))
+	if own.Code != http.StatusOK {
+		t.Fatalf("driver own list = %d body=%s", own.Code, own.Body.String())
+	}
+	var listed []domain.ProgressItem
+	if err := json.Unmarshal(own.Body.Bytes(), &listed); err != nil {
+		t.Fatal(err)
+	}
+	if len(listed) != 1 || listed[0].Username != "driver" {
+		t.Fatalf("driver own list = %#v", listed)
+	}
+
+	create := httptest.NewRecorder()
+	req = httptest.NewRequest(http.MethodPost, "/api/progress", bytes.NewBufferString(`{"title":"self","username":"other"}`))
+	req.Header.Set("Content-Type", "application/json")
+	router.ServeHTTP(create, req)
+	if create.Code != http.StatusCreated {
+		t.Fatalf("driver create = %d body=%s", create.Code, create.Body.String())
+	}
+	if len(stub.items) != 3 || stub.items[2].Username != "driver" {
+		t.Fatalf("driver create must bind JWT owner, got %#v", stub.items)
 	}
 }

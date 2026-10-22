@@ -22,8 +22,7 @@ public interface SystemRequestHistoryClient {
 
     @PutMapping("/api/system/requests/{historyId}")
     SysRequestHistory update(@PathVariable("historyId") Long historyId,
-                             @RequestBody SysRequestHistory request,
-                             @RequestHeader(value = "Idempotency-Key", required = false) String idempotencyKey);
+                             @RequestBody SysRequestHistory request);
 
     @DeleteMapping("/api/system/requests/{historyId}")
     void delete(@PathVariable("historyId") Long historyId);

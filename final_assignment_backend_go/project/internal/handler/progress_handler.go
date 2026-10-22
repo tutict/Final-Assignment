@@ -1,6 +1,7 @@
 package handler
 
 import (
+	"errors"
 	"log"
 	"net/http"
 	"strconv"
@@ -67,9 +68,34 @@ func (h *ProgressHandler) CreateProgress(c *gin.Context) {
 	}
 
 	progress = normalizeProgressPayload(progress)
+	// 非治理角色的归属只能来自 JWT，不能信任请求体里的 username，防止替他人建记录。
+	if !HasCapability(c, CapGovernance) || strings.TrimSpace(progress.Username) == "" {
+		progress.Username = c.GetString("username")
+	}
+	progress.UserID = nil
+	key := idempotencyKey(c)
+	if key != "" {
+		existing, findErr := h.svc.FindProgressByIdempotencyKey(key)
+		if findErr != nil {
+			log.Printf("Error checking idempotency key: %v", findErr)
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "create failed"})
+			return
+		}
+		if existing != nil {
+			c.JSON(http.StatusAlreadyReported, existing)
+			return
+		}
+	}
 	log.Printf("Attempting to create progress item with title: %s", progress.Title)
-	saved, err := h.svc.CreateProgress(&progress)
+	saved, err := h.svc.CreateProgress(&progress, key)
 	if err != nil {
+		// 并发重放会撞唯一索引：重新按幂等键读取，能读到就按重放返回。
+		if key != "" {
+			if existing, findErr := h.svc.FindProgressByIdempotencyKey(key); findErr == nil && existing != nil {
+				c.JSON(http.StatusAlreadyReported, existing)
+				return
+			}
+		}
 		log.Printf("Error creating progress: %v", err)
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "create failed"})
 		return
@@ -82,23 +108,23 @@ func (h *ProgressHandler) CreateProgress(c *gin.Context) {
 func (h *ProgressHandler) GetAllProgress(c *gin.Context) {
 	items, err := h.visibleProgress(c)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		c.JSON(progressErrorStatus(err), gin.H{"error": err.Error()})
 		return
 	}
 	c.JSON(http.StatusOK, items)
 }
 
-// GetProgressByUsername GET /api/progress?username=xxx
+// GetProgressByUsername GET /api/progress/by-username?username=xxx
 func (h *ProgressHandler) GetProgressByUsername(c *gin.Context) {
-	username := c.Query("username")
+	username := strings.TrimSpace(c.Query("username"))
 	if username == "" {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "username required"})
 		return
 	}
 
-	items, err := h.svc.GetProgressByUsername(username)
+	items, err := h.visibleProgress(c)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		c.JSON(progressErrorStatus(err), gin.H{"error": err.Error()})
 		return
 	}
 	c.JSON(http.StatusOK, items)
@@ -106,6 +132,9 @@ func (h *ProgressHandler) GetProgressByUsername(c *gin.Context) {
 
 // UpdateProgressStatus PUT /api/progress/:progressId/status?newStatus=PROCESSING
 func (h *ProgressHandler) UpdateProgressStatus(c *gin.Context) {
+	if !RequireWrite(c, ResourceProgress) {
+		return
+	}
 	id, _ := strconv.Atoi(c.Param("progressId"))
 	newStatus := normalizeProgressStatus(c.Query("newStatus"))
 
@@ -130,7 +159,14 @@ func (h *ProgressHandler) UpdateProgressStatus(c *gin.Context) {
 
 // DeleteProgress DELETE /api/progress/:progressId
 func (h *ProgressHandler) DeleteProgress(c *gin.Context) {
+	if !RequireWrite(c, ResourceProgress) {
+		return
+	}
 	id, _ := strconv.Atoi(c.Param("progressId"))
+	if _, err := h.findVisible(c, id); err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "not found"})
+		return
+	}
 	if err := h.svc.DeleteProgress(id); err != nil {
 		c.JSON(http.StatusNotFound, gin.H{"error": "not found"})
 		return
@@ -152,7 +188,7 @@ func (h *ProgressHandler) GetProgressByStatus(c *gin.Context) {
 	}
 	items, err := h.visibleProgress(c)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		c.JSON(progressErrorStatus(err), gin.H{"error": err.Error()})
 		return
 	}
 	filtered := make([]domain.ProgressItem, 0)
@@ -178,7 +214,7 @@ func (h *ProgressHandler) GetProgressByTimeRange(c *gin.Context) {
 	}
 	visible, err := h.visibleProgress(c)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		c.JSON(progressErrorStatus(err), gin.H{"error": err.Error()})
 		return
 	}
 	items := make([]domain.ProgressItem, 0)
@@ -233,9 +269,16 @@ func (h *ProgressHandler) visibleProgress(c *gin.Context) ([]domain.ProgressItem
 	}
 	username := c.GetString("username")
 	if requested != "" && requested != username {
-		return []domain.ProgressItem{}, nil
+		return nil, errProgressForbidden
 	}
 	return h.svc.GetProgressByUsername(username)
+}
+
+func progressErrorStatus(err error) int {
+	if errors.Is(err, errProgressForbidden) {
+		return http.StatusForbidden
+	}
+	return http.StatusInternalServerError
 }
 
 func (h *ProgressHandler) GetProgress(c *gin.Context) {
@@ -246,7 +289,7 @@ func (h *ProgressHandler) GetProgress(c *gin.Context) {
 	}
 	items, err := h.visibleProgress(c)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		c.JSON(progressErrorStatus(err), gin.H{"error": err.Error()})
 		return
 	}
 	for _, item := range items {
@@ -259,6 +302,9 @@ func (h *ProgressHandler) GetProgress(c *gin.Context) {
 }
 
 func (h *ProgressHandler) UpdateProgress(c *gin.Context) {
+	if !RequireWrite(c, ResourceProgress) {
+		return
+	}
 	id, err := strconv.Atoi(c.Param("progressId"))
 	if err != nil || id <= 0 {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid progress id"})
@@ -328,6 +374,7 @@ func (h *ProgressHandler) findVisible(c *gin.Context, id int) (domain.ProgressIt
 }
 
 var errNotVisible = errString("progress not visible")
+var errProgressForbidden = errors.New("progress access denied")
 
 type errString string
 

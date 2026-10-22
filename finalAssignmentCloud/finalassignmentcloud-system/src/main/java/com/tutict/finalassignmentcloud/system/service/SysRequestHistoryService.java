@@ -2,23 +2,25 @@ package com.tutict.finalassignmentcloud.system.service;
 
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
-import com.fasterxml.jackson.databind.ObjectMapper;
+import com.tutict.finalassignmentcloud.common.transaction.AfterCommit;
 import com.tutict.finalassignmentcloud.config.websocket.WsAction;
 import com.tutict.finalassignmentcloud.entity.SysRequestHistory;
+import com.tutict.finalassignmentcloud.entity.SysUser;
 import com.tutict.finalassignmentcloud.entity.elastic.SysRequestHistoryDocument;
+import com.tutict.finalassignmentcloud.reliability.IdempotencyReplayException;
 import com.tutict.finalassignmentcloud.system.mapper.SysRequestHistoryMapper;
+import com.tutict.finalassignmentcloud.system.mapper.SysUserMapper;
 import com.tutict.finalassignmentcloud.system.repository.SysRequestHistorySearchRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.cache.annotation.Cacheable;
-import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.transaction.support.TransactionSynchronization;
-import org.springframework.transaction.support.TransactionSynchronizationManager;
 
 import java.time.LocalDateTime;
 import java.time.format.DateTimeParseException;
+import java.time.temporal.ChronoUnit;
 import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
@@ -35,18 +37,39 @@ public class SysRequestHistoryService {
 
     private final SysRequestHistoryMapper sysRequestHistoryMapper;
     private final SysRequestHistorySearchRepository sysRequestHistorySearchRepository;
-    private final KafkaTemplate<String, String> kafkaTemplate;
-    private final ObjectMapper objectMapper;
+    private final SysUserMapper sysUserMapper;
 
     @Autowired
     public SysRequestHistoryService(SysRequestHistoryMapper sysRequestHistoryMapper,
                                     SysRequestHistorySearchRepository sysRequestHistorySearchRepository,
-                                    KafkaTemplate<String, String> kafkaTemplate,
-                                    ObjectMapper objectMapper) {
+                                    SysUserMapper sysUserMapper) {
         this.sysRequestHistoryMapper = sysRequestHistoryMapper;
         this.sysRequestHistorySearchRepository = sysRequestHistorySearchRepository;
-        this.kafkaTemplate = kafkaTemplate;
-        this.objectMapper = objectMapper;
+        this.sysUserMapper = sysUserMapper;
+    }
+
+    @Transactional(readOnly = true)
+    public Long resolveUserId(String username) {
+        if (username == null || username.isBlank()) {
+            return null;
+        }
+        SysUser user = sysUserMapper.selectOne(new QueryWrapper<SysUser>()
+                .eq("username", username.trim())
+                .last("LIMIT 1"));
+        return user == null ? null : user.getUserId();
+    }
+
+    @Transactional(readOnly = true)
+    public boolean isOwnedBy(Long id, String username) {
+        if (id == null || id <= 0 || username == null || username.isBlank()) {
+            return false;
+        }
+        SysRequestHistory history = sysRequestHistoryMapper.selectById(id);
+        if (history == null || history.getUserId() == null) {
+            return false;
+        }
+        Long ownerId = resolveUserId(username);
+        return ownerId != null && ownerId.equals(history.getUserId());
     }
 
     @Transactional
@@ -57,7 +80,7 @@ public class SysRequestHistoryService {
         SysRequestHistory existing = sysRequestHistoryMapper.selectByIdempotencyKey(idempotencyKey);
         if (existing != null) {
             log.warning(() -> String.format("Duplicate sys request history request detected (key=%s)", idempotencyKey));
-            throw new RuntimeException("Duplicate sys request history request detected");
+            throw new IdempotencyReplayException("Duplicate sys request history request detected");
         }
 
         SysRequestHistory history = new SysRequestHistory();
@@ -67,7 +90,6 @@ public class SysRequestHistoryService {
         history.setUpdatedAt(LocalDateTime.now());
         sysRequestHistoryMapper.insert(history);
 
-        sendKafkaMessage("sys_request_history_" + action, idempotencyKey, historyPayload);
 
         history.setBusinessStatus("SUCCESS");
         history.setBusinessId(historyPayload.getId());
@@ -88,14 +110,31 @@ public class SysRequestHistoryService {
     @Transactional
     @CacheEvict(cacheNames = CACHE_NAME, allEntries = true)
     public SysRequestHistory updateSysRequestHistory(SysRequestHistory history) {
-        validateHistory(history);
+        if (history == null) {
+            throw new IllegalArgumentException("SysRequestHistory must not be null");
+        }
         requirePositive(history.getId());
+        SysRequestHistory existing = sysRequestHistoryMapper.selectById(history.getId());
+        if (existing == null) {
+            throw new IllegalStateException("SysRequestHistory not found for id=" + history.getId());
+        }
+        // 幂等键与创建时间描述的是“创建”这一事实，更新改写它们会让原始创建请求的重放检测失效。
+        history.setIdempotencyKey(existing.getIdempotencyKey());
+        history.setCreatedAt(existing.getCreatedAt());
+        history.setUpdatedAt(LocalDateTime.now());
+        if (isBlank(history.getBusinessType())) {
+            history.setBusinessType(existing.getBusinessType());
+        }
+        if (isBlank(history.getBusinessStatus())) {
+            history.setBusinessStatus(existing.getBusinessStatus());
+        }
         int rows = sysRequestHistoryMapper.updateById(history);
         if (rows == 0) {
             throw new IllegalStateException("SysRequestHistory not found for id=" + history.getId());
         }
-        syncToIndexAfterCommit(history);
-        return history;
+        SysRequestHistory merged = sysRequestHistoryMapper.selectById(history.getId());
+        syncToIndexAfterCommit(merged);
+        return merged;
     }
 
     @Transactional
@@ -106,7 +145,7 @@ public class SysRequestHistoryService {
         if (rows == 0) {
             throw new IllegalStateException("SysRequestHistory not found for id=" + id);
         }
-        TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
+        AfterCommit.execute(new TransactionSynchronization() {
             @Override
             public void afterCommit() {
                 sysRequestHistorySearchRepository.deleteById(id);
@@ -322,27 +361,22 @@ public class SysRequestHistoryService {
             log.log(Level.WARNING, "Cannot mark failure for missing idempotency key {0}", idempotencyKey);
             return;
         }
+        if (!"PROCESSING".equalsIgnoreCase(history.getBusinessStatus())) {
+            return;
+        }
         history.setBusinessStatus("FAILED");
         history.setRequestParams(truncate(reason));
         history.setUpdatedAt(LocalDateTime.now());
         sysRequestHistoryMapper.updateById(history);
     }
 
-    private void sendKafkaMessage(String topic, String idempotencyKey, SysRequestHistory history) {
-        try {
-            String payload = objectMapper.writeValueAsString(history);
-            kafkaTemplate.send(topic, idempotencyKey, payload);
-        } catch (Exception ex) {
-            log.log(Level.SEVERE, "Failed to send SysRequestHistory Kafka message", ex);
-            throw new RuntimeException("Failed to send sys request history event", ex);
-        }
-    }
+    
 
     private void syncToIndexAfterCommit(SysRequestHistory history) {
         if (history == null) {
             return;
         }
-        TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
+        AfterCommit.execute(new TransactionSynchronization() {
             @Override
             public void afterCommit() {
                 SysRequestHistoryDocument doc = SysRequestHistoryDocument.fromEntity(history);
@@ -357,7 +391,7 @@ public class SysRequestHistoryService {
         if (records == null || records.isEmpty()) {
             return;
         }
-        TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
+        AfterCommit.execute(new TransactionSynchronization() {
             @Override
             public void afterCommit() {
                 List<SysRequestHistoryDocument> documents = records.stream()
@@ -399,13 +433,23 @@ public class SysRequestHistoryService {
             throw new IllegalArgumentException("SysRequestHistory must not be null");
         }
         if (isBlank(history.getIdempotencyKey())) {
-            throw new IllegalArgumentException("Idempotency key must not be blank");
+            history.setIdempotencyKey(java.util.UUID.randomUUID().toString().replace("-", ""));
         }
+        if (isBlank(history.getBusinessType())) {
+            history.setBusinessType("GENERAL");
+        }
+        if (isBlank(history.getRequestMethod())) {
+            history.setRequestMethod("POST");
+        }
+        if (history.getRequestUrl() == null) {
+            history.setRequestUrl("/api/progress");
+        }
+        // 共享表的时间列是秒精度，MySQL 会四舍五入纳秒；先截断可让创建响应与落库值一致。
         if (history.getCreatedAt() == null) {
-            history.setCreatedAt(LocalDateTime.now());
+            history.setCreatedAt(LocalDateTime.now().truncatedTo(ChronoUnit.SECONDS));
         }
         if (history.getUpdatedAt() == null) {
-            history.setUpdatedAt(LocalDateTime.now());
+            history.setUpdatedAt(LocalDateTime.now().truncatedTo(ChronoUnit.SECONDS));
         }
         if (isBlank(history.getBusinessStatus())) {
             history.setBusinessStatus("PENDING");

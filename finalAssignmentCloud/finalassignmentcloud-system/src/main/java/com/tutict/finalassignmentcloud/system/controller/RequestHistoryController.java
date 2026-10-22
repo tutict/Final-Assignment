@@ -1,13 +1,19 @@
 package com.tutict.finalassignmentcloud.system.controller;
 
 import com.tutict.finalassignmentcloud.entity.SysRequestHistory;
+import com.tutict.finalassignmentcloud.reliability.IdempotencyConflictException;
+import com.tutict.finalassignmentcloud.reliability.IdempotencyInProgressException;
+import com.tutict.finalassignmentcloud.reliability.IdempotencyReplayException;
 import com.tutict.finalassignmentcloud.system.service.SysRequestHistoryService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.annotation.security.RolesAllowed;
+import org.springframework.dao.DuplicateKeyException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.GrantedAuthority;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -40,27 +46,30 @@ public class RequestHistoryController {
     }
 
     @PostMapping
+    @RolesAllowed({"SUPER_ADMIN", "ADMIN", "USER"})
     @Operation(summary = "创建请求历史记录")
     public ResponseEntity<SysRequestHistory> create(@RequestBody SysRequestHistory request,
                                                     @RequestHeader(value = "Idempotency-Key", required = false)
-                                                    String idempotencyKey) {
-        boolean useKey = hasKey(idempotencyKey);
+                                                    String idempotencyKey,
+                                                    Authentication authentication) {
         try {
-            if (useKey) {
-                if (sysRequestHistoryService.shouldSkipProcessing(idempotencyKey)) {
+            if (isRegularUser(authentication)) {
+                request.setUserId(sysRequestHistoryService.resolveUserId(authentication.getName()));
+            }
+            request.setId(null);
+            request.setDeletedAt(null);
+            if (hasKey(idempotencyKey)) {
+                if (sysRequestHistoryService.findByIdempotencyKey(idempotencyKey).isPresent()) {
                     return ResponseEntity.status(HttpStatus.ALREADY_REPORTED).build();
                 }
-                sysRequestHistoryService.checkAndInsertIdempotency(idempotencyKey, request, "create");
+                request.setIdempotencyKey(idempotencyKey);
             }
             SysRequestHistory saved = sysRequestHistoryService.createSysRequestHistory(request);
-            if (useKey && saved.getId() != null) {
-                sysRequestHistoryService.markHistorySuccess(idempotencyKey, saved.getId());
-            }
             return ResponseEntity.status(HttpStatus.CREATED).body(saved);
+        } catch (DuplicateKeyException ex) {
+            // 并发重放会同时通过上面的存在性检查，唯一索引是最终裁决者。
+            return ResponseEntity.status(HttpStatus.ALREADY_REPORTED).build();
         } catch (Exception ex) {
-            if (useKey) {
-                sysRequestHistoryService.markHistoryFailure(idempotencyKey, ex.getMessage());
-            }
             LOG.log(Level.SEVERE, "Create request history failed", ex);
             return ResponseEntity.status(resolveStatus(ex)).build();
         }
@@ -69,24 +78,12 @@ public class RequestHistoryController {
     @PutMapping("/{historyId}")
     @Operation(summary = "更新请求历史记录")
     public ResponseEntity<SysRequestHistory> update(@PathVariable Long historyId,
-                                                    @RequestBody SysRequestHistory request,
-                                                    @RequestHeader(value = "Idempotency-Key", required = false)
-                                                    String idempotencyKey) {
-        boolean useKey = hasKey(idempotencyKey);
+                                                    @RequestBody SysRequestHistory request) {
         try {
             request.setId(historyId);
-            if (useKey) {
-                sysRequestHistoryService.checkAndInsertIdempotency(idempotencyKey, request, "update");
-            }
             SysRequestHistory updated = sysRequestHistoryService.updateSysRequestHistory(request);
-            if (useKey && updated.getId() != null) {
-                sysRequestHistoryService.markHistorySuccess(idempotencyKey, updated.getId());
-            }
             return ResponseEntity.ok(updated);
         } catch (Exception ex) {
-            if (useKey) {
-                sysRequestHistoryService.markHistoryFailure(idempotencyKey, ex.getMessage());
-            }
             LOG.log(Level.SEVERE, "Update request history failed", ex);
             return ResponseEntity.status(resolveStatus(ex)).build();
         }
@@ -105,11 +102,19 @@ public class RequestHistoryController {
     }
 
     @GetMapping("/{historyId}")
+    @RolesAllowed({"SUPER_ADMIN", "ADMIN", "USER"})
     @Operation(summary = "查询请求历史记录详情")
-    public ResponseEntity<SysRequestHistory> get(@PathVariable Long historyId) {
+    public ResponseEntity<SysRequestHistory> get(@PathVariable Long historyId, Authentication authentication) {
         try {
             SysRequestHistory history = sysRequestHistoryService.findById(historyId);
-            return history == null ? ResponseEntity.notFound().build() : ResponseEntity.ok(history);
+            if (history == null) {
+                return ResponseEntity.notFound().build();
+            }
+            if (isRegularUser(authentication)
+                    && !sysRequestHistoryService.isOwnedBy(historyId, authentication.getName())) {
+                return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
+            }
+            return ResponseEntity.ok(history);
         } catch (Exception ex) {
             LOG.log(Level.WARNING, "Get request history failed", ex);
             return ResponseEntity.status(resolveStatus(ex)).build();
@@ -219,7 +224,34 @@ public class RequestHistoryController {
         return value != null && !value.isBlank();
     }
 
+    private boolean isRegularUser(Authentication authentication) {
+        if (authentication == null) {
+            return false;
+        }
+        boolean user = false;
+        boolean staff = false;
+        for (GrantedAuthority authority : authentication.getAuthorities()) {
+            String role = authority.getAuthority();
+            if (role == null) {
+                continue;
+            }
+            if (role.contains("USER")) {
+                user = true;
+            }
+            if (role.contains("ADMIN") || role.contains("STAFF")) {
+                staff = true;
+            }
+        }
+        return user && !staff;
+    }
+
     private HttpStatus resolveStatus(Exception ex) {
+        if (ex instanceof IdempotencyReplayException || ex instanceof DuplicateKeyException) {
+            return HttpStatus.ALREADY_REPORTED;
+        }
+        if (ex instanceof IdempotencyConflictException || ex instanceof IdempotencyInProgressException) {
+            return HttpStatus.CONFLICT;
+        }
         return (ex instanceof IllegalArgumentException || ex instanceof IllegalStateException)
                 ? HttpStatus.BAD_REQUEST
                 : HttpStatus.INTERNAL_SERVER_ERROR;

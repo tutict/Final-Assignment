@@ -50,13 +50,18 @@ public class ProgressItemController {
     @Operation(summary = "创建进度记录")
     public ResponseEntity<?> create(@Valid @RequestBody SysRequestHistory request,
                                                     @RequestHeader(value = "Idempotency-Key", required = false)
-                                                    String idempotencyKey) {
-        if (!hasKey(request.getIdempotencyKey()) && hasKey(idempotencyKey)) {
+                                                    String idempotencyKey,
+                                                    Authentication authentication) {
+        if (isRegularUser(authentication)) {
+            request.setUserId(null);
+            request.setUsername(authentication.getName());
+        }
+        if (hasKey(idempotencyKey)) {
             request.setIdempotencyKey(idempotencyKey);
         }
-        boolean useKey = hasKey(request.getIdempotencyKey());
+        String effectiveKey = request.getIdempotencyKey();
         try {
-            if (useKey && sysRequestHistoryService.shouldSkipProcessing(request.getIdempotencyKey())) {
+            if (hasKey(effectiveKey) && sysRequestHistoryService.findByIdempotencyKey(effectiveKey).isPresent()) {
                 return ResponseEntity.status(HttpStatus.ALREADY_REPORTED).body(ApiResponse.ok(null));
             }
             SysRequestHistory saved = sysRequestHistoryService.createSysRequestHistory(request);
@@ -71,27 +76,14 @@ public class ProgressItemController {
     }
 
     @PutMapping("/{historyId}")
-    @RolesAllowed({"SUPER_ADMIN", "ADMIN", "USER"})
     @Operation(summary = "更新进度记录")
     public ResponseEntity<SysRequestHistory> update(@PathVariable Long historyId,
-                                                    @Valid @RequestBody SysRequestHistory request,
-                                                    @RequestHeader(value = "Idempotency-Key", required = false)
-                                                    String idempotencyKey) {
-        boolean useKey = hasKey(idempotencyKey);
+                                                    @Valid @RequestBody SysRequestHistory request) {
         try {
             request.setId(historyId);
-            if (useKey) {
-                sysRequestHistoryService.checkAndInsertIdempotency(idempotencyKey, request, "update");
-            }
             SysRequestHistory updated = sysRequestHistoryService.updateSysRequestHistory(request);
-            if (useKey && updated.getId() != null) {
-                sysRequestHistoryService.markHistorySuccess(idempotencyKey, updated.getId());
-            }
             return ResponseEntity.ok(updated);
         } catch (Exception ex) {
-            if (useKey) {
-                sysRequestHistoryService.markHistoryFailure(idempotencyKey, ex.getMessage());
-            }
             LOG.log(Level.SEVERE, "Update request history failed", ex);
             if (ex instanceof RuntimeException) {
                 throw (RuntimeException) ex;
@@ -118,10 +110,17 @@ public class ProgressItemController {
     @GetMapping("/{historyId}")
     @RolesAllowed({"SUPER_ADMIN", "ADMIN", "USER"})
     @Operation(summary = "查询进度详情")
-    public ResponseEntity<SysRequestHistory> get(@PathVariable Long historyId) {
+    public ResponseEntity<SysRequestHistory> get(@PathVariable Long historyId, Authentication authentication) {
         try {
             SysRequestHistory history = sysRequestHistoryService.findById(historyId);
-            return history == null ? ResponseEntity.notFound().build() : ResponseEntity.ok(history);
+            if (history == null) {
+                return ResponseEntity.notFound().build();
+            }
+            if (isRegularUser(authentication)
+                    && !sysRequestHistoryService.isOwnedBy(historyId, authentication.getName())) {
+                return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
+            }
+            return ResponseEntity.ok(history);
         } catch (Exception ex) {
             LOG.log(Level.WARNING, "Get request history failed", ex);
             if (ex instanceof RuntimeException) {

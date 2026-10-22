@@ -40,26 +40,26 @@ public class ProgressItemController {
     SysRequestHistoryService sysRequestHistoryService;
 
     @POST
+    @RolesAllowed({"SUPER_ADMIN", "ADMIN", "USER"})
     @RunOnVirtualThread
     public Response create(SysRequestHistory request,
-                           @HeaderParam("Idempotency-Key") String idempotencyKey) {
-        boolean useKey = hasKey(idempotencyKey);
+                           @HeaderParam("Idempotency-Key") String idempotencyKey,
+                           @Context SecurityContext securityContext) {
         try {
-            if (useKey) {
-                if (sysRequestHistoryService.shouldSkipProcessing(idempotencyKey)) {
+            // 普通用户强制归属自己；管理员未显式指定负责人时也记为当前登录人，
+            // 与单体/Go 后端的归属语义保持一致，避免同一张表出现“未记录”行。
+            if (isRegularUser(securityContext) || request.getUserId() == null) {
+                request.setUserId(sysRequestHistoryService.resolveUserId(securityContext.getUserPrincipal().getName()));
+            }
+            if (hasKey(idempotencyKey)) {
+                if (sysRequestHistoryService.findByIdempotencyKey(idempotencyKey).isPresent()) {
                     return Response.status(208).build();
                 }
-                sysRequestHistoryService.checkAndInsertIdempotency(idempotencyKey, request, "create");
+                request.setIdempotencyKey(idempotencyKey);
             }
             SysRequestHistory saved = sysRequestHistoryService.createSysRequestHistory(request);
-            if (useKey && saved.getId() != null) {
-                sysRequestHistoryService.markHistorySuccess(idempotencyKey, saved.getId());
-            }
             return Response.status(Response.Status.CREATED).entity(saved).build();
         } catch (Exception ex) {
-            if (useKey) {
-                sysRequestHistoryService.markHistoryFailure(idempotencyKey, ex.getMessage());
-            }
             LOG.log(Level.SEVERE, "Create request history failed", ex);
             return Response.status(resolveStatus(ex)).build();
         }
@@ -69,23 +69,12 @@ public class ProgressItemController {
     @Path("/{historyId}")
     @RunOnVirtualThread
     public Response update(@PathParam("historyId") Long historyId,
-                           SysRequestHistory request,
-                           @HeaderParam("Idempotency-Key") String idempotencyKey) {
-        boolean useKey = hasKey(idempotencyKey);
+                           SysRequestHistory request) {
         try {
             request.setId(historyId);
-            if (useKey) {
-                sysRequestHistoryService.checkAndInsertIdempotency(idempotencyKey, request, "update");
-            }
             SysRequestHistory updated = sysRequestHistoryService.updateSysRequestHistory(request);
-            if (useKey && updated.getId() != null) {
-                sysRequestHistoryService.markHistorySuccess(idempotencyKey, updated.getId());
-            }
             return Response.ok(updated).build();
         } catch (Exception ex) {
-            if (useKey) {
-                sysRequestHistoryService.markHistoryFailure(idempotencyKey, ex.getMessage());
-            }
             LOG.log(Level.SEVERE, "Update request history failed", ex);
             return Response.status(resolveStatus(ex)).build();
         }
@@ -106,11 +95,19 @@ public class ProgressItemController {
 
     @GET
     @Path("/{historyId}")
+    @RolesAllowed({"SUPER_ADMIN", "ADMIN", "USER"})
     @RunOnVirtualThread
-    public Response get(@PathParam("historyId") Long historyId) {
+    public Response get(@PathParam("historyId") Long historyId, @Context SecurityContext securityContext) {
         try {
             SysRequestHistory history = sysRequestHistoryService.findById(historyId);
-            return history == null ? Response.status(Response.Status.NOT_FOUND).build() : Response.ok(history).build();
+            if (history == null) {
+                return Response.status(Response.Status.NOT_FOUND).build();
+            }
+            if (isRegularUser(securityContext)
+                    && !sysRequestHistoryService.isOwnedBy(historyId, securityContext.getUserPrincipal().getName())) {
+                return Response.status(Response.Status.FORBIDDEN).build();
+            }
+            return Response.ok(history).build();
         } catch (Exception ex) {
             LOG.log(Level.WARNING, "Get request history failed", ex);
             return Response.status(resolveStatus(ex)).build();

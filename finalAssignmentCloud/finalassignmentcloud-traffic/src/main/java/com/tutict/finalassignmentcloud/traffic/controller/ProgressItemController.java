@@ -66,11 +66,18 @@ public class ProgressItemController {
     }
 
     @PostMapping
+    @RolesAllowed({"SUPER_ADMIN", "ADMIN", "USER"})
     @Operation(summary = "创建进度记录")
     public ResponseEntity<SysRequestHistory> create(@RequestBody SysRequestHistory request,
                                                     @RequestHeader(value = "Idempotency-Key", required = false)
-                                                    String idempotencyKey) {
+                                                    String idempotencyKey,
+                                                    Authentication authentication) {
         try {
+            // 普通用户强制归属自己；管理员未显式指定负责人时也记为当前登录人，
+            // 与单体/Go 后端的归属语义保持一致，避免同一张表出现“未记录”行。
+            if (isRegularUser(authentication) || request.getUserId() == null) {
+                request.setUserId(resolveUserId(authentication.getName()));
+            }
             SysRequestHistory saved = requestHistoryClient.create(request, idempotencyKey);
             if (saved == null) {
                 return ResponseEntity.status(HttpStatus.ALREADY_REPORTED).build();
@@ -87,11 +94,9 @@ public class ProgressItemController {
     @PutMapping("/{historyId}")
     @Operation(summary = "更新进度记录")
     public ResponseEntity<SysRequestHistory> update(@PathVariable Long historyId,
-                                                    @RequestBody SysRequestHistory request,
-                                                    @RequestHeader(value = "Idempotency-Key", required = false)
-                                                    String idempotencyKey) {
+                                                    @RequestBody SysRequestHistory request) {
         try {
-            SysRequestHistory updated = requestHistoryClient.update(historyId, request, idempotencyKey);
+            SysRequestHistory updated = requestHistoryClient.update(historyId, request);
             if (updated == null) {
                 return ResponseEntity.status(HttpStatus.ALREADY_REPORTED).build();
             }
@@ -119,9 +124,13 @@ public class ProgressItemController {
     }
 
     @GetMapping("/{historyId}")
+    @RolesAllowed({"SUPER_ADMIN", "ADMIN", "USER"})
     @Operation(summary = "查询进度记录")
-    public ResponseEntity<SysRequestHistory> get(@PathVariable Long historyId) {
+    public ResponseEntity<SysRequestHistory> get(@PathVariable Long historyId, Authentication authentication) {
         try {
+            if (isRegularUser(authentication) && !isOwnedBy(historyId, authentication.getName())) {
+                return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
+            }
             SysRequestHistory history = requestHistoryClient.get(historyId);
             return history == null ? ResponseEntity.notFound().build() : ResponseEntity.ok(history);
         } catch (FeignException.NotFound ex) {
@@ -204,10 +213,34 @@ public class ProgressItemController {
         }
     }
 
+    private Long resolveUserId(String username) {
+        if (username == null || username.isBlank()) {
+            return null;
+        }
+        List<Long> ids = jdbcTemplate.queryForList(
+                "SELECT user_id FROM sys_user WHERE username = ? AND deleted_at IS NULL LIMIT 1",
+                Long.class, username.trim());
+        return ids.isEmpty() ? null : ids.get(0);
+    }
+
+    private boolean isOwnedBy(Long historyId, String username) {
+        if (historyId == null || historyId <= 0 || username == null || username.isBlank()) {
+            return false;
+        }
+        List<Integer> matches = jdbcTemplate.queryForList(
+                "SELECT 1 FROM sys_request_history h JOIN sys_user u ON u.user_id = h.user_id "
+                        + "WHERE h.id = ? AND u.username = ? AND h.deleted_at IS NULL LIMIT 1",
+                Integer.class, historyId, username.trim());
+        return !matches.isEmpty();
+    }
+
     private HttpStatus resolveStatus(FeignException ex) {
         int status = ex.status();
         if (status == 400) {
             return HttpStatus.BAD_REQUEST;
+        }
+        if (status == 403) {
+            return HttpStatus.FORBIDDEN;
         }
         if (status == 404) {
             return HttpStatus.NOT_FOUND;

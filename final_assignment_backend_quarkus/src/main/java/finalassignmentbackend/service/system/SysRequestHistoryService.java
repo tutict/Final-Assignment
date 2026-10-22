@@ -3,7 +3,9 @@ import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import finalassignmentbackend.config.websocket.WsAction;
 import finalassignmentbackend.entity.SysRequestHistory;
+import finalassignmentbackend.entity.SysUser;
 import finalassignmentbackend.mapper.SysRequestHistoryMapper;
+import finalassignmentbackend.mapper.SysUserMapper;
 import io.quarkus.cache.CacheInvalidate;
 import io.quarkus.cache.CacheResult;
 import io.quarkus.runtime.annotations.RegisterForReflection;
@@ -13,6 +15,7 @@ import jakarta.transaction.Transactional;
 
 import java.time.LocalDateTime;
 import java.time.format.DateTimeParseException;
+import java.time.temporal.ChronoUnit;
 import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
@@ -27,6 +30,20 @@ public class SysRequestHistoryService {
 
     @Inject
     SysRequestHistoryMapper sysRequestHistoryMapper;
+
+    @Inject
+    SysUserMapper sysUserMapper;
+
+    @Transactional
+    public Long resolveUserId(String username) {
+        if (isBlank(username)) {
+            return null;
+        }
+        SysUser user = sysUserMapper.selectOne(new QueryWrapper<SysUser>()
+                .eq("username", username.trim())
+                .last("LIMIT 1"));
+        return user == null ? null : user.getUserId();
+    }
 
     @Transactional
     @CacheInvalidate(cacheName = "sysRequestHistoryCache")
@@ -64,13 +81,41 @@ public class SysRequestHistoryService {
     @Transactional
     @CacheInvalidate(cacheName = "sysRequestHistoryCache")
     public SysRequestHistory updateSysRequestHistory(SysRequestHistory history) {
-        validateHistory(history);
+        if (history == null) {
+            throw new IllegalArgumentException("SysRequestHistory must not be null");
+        }
         requirePositive(history.getId());
+        SysRequestHistory existing = sysRequestHistoryMapper.selectById(history.getId());
+        if (existing == null) {
+            throw new IllegalStateException("SysRequestHistory not found for id=" + history.getId());
+        }
+        // 幂等键与创建时间描述的是“创建”这一事实，更新改写它们会让原始创建请求的重放检测失效。
+        history.setIdempotencyKey(existing.getIdempotencyKey());
+        history.setCreatedAt(existing.getCreatedAt());
+        history.setUpdatedAt(LocalDateTime.now());
+        if (isBlank(history.getBusinessType())) {
+            history.setBusinessType(existing.getBusinessType());
+        }
+        if (isBlank(history.getBusinessStatus())) {
+            history.setBusinessStatus(existing.getBusinessStatus());
+        }
         int rows = sysRequestHistoryMapper.updateById(history);
         if (rows == 0) {
             throw new IllegalStateException("SysRequestHistory not found for id=" + history.getId());
         }
-        return history;
+        SysRequestHistory merged = sysRequestHistoryMapper.selectById(history.getId());
+        return merged;
+    }
+
+    public boolean isOwnedBy(Long id, String username) {
+        if (id == null || id <= 0 || isBlank(username)) {
+            return false;
+        }
+        SysRequestHistory history = sysRequestHistoryMapper.selectById(id);
+        if (history == null || history.getUserId() == null) {
+            return false;
+        }
+        return history.getUserId().equals(resolveUserId(username));
     }
 
     @Transactional
@@ -245,13 +290,23 @@ public class SysRequestHistoryService {
             throw new IllegalArgumentException("SysRequestHistory must not be null");
         }
         if (isBlank(history.getIdempotencyKey())) {
-            throw new IllegalArgumentException("Idempotency key must not be blank");
+            history.setIdempotencyKey(java.util.UUID.randomUUID().toString().replace("-", ""));
         }
+        if (isBlank(history.getBusinessType())) {
+            history.setBusinessType("GENERAL");
+        }
+        if (isBlank(history.getRequestMethod())) {
+            history.setRequestMethod("POST");
+        }
+        if (history.getRequestUrl() == null) {
+            history.setRequestUrl("/api/progress");
+        }
+        // 共享表的时间列是秒精度，MySQL 会四舍五入纳秒；先截断可让创建响应与落库值一致。
         if (history.getCreatedAt() == null) {
-            history.setCreatedAt(LocalDateTime.now());
+            history.setCreatedAt(LocalDateTime.now().truncatedTo(ChronoUnit.SECONDS));
         }
         if (history.getUpdatedAt() == null) {
-            history.setUpdatedAt(LocalDateTime.now());
+            history.setUpdatedAt(LocalDateTime.now().truncatedTo(ChronoUnit.SECONDS));
         }
         if (isBlank(history.getBusinessStatus())) {
             history.setBusinessStatus("PENDING");

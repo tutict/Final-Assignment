@@ -141,7 +141,8 @@ type PermissionService interface {
 }
 
 type ProgressService interface {
-	CreateProgress(*domain.ProgressItem) (*domain.ProgressItem, error)
+	CreateProgress(*domain.ProgressItem, string) (*domain.ProgressItem, error)
+	FindProgressByIdempotencyKey(string) (*domain.ProgressItem, error)
 	DeleteProgress(int) error
 	GetAllProgress() ([]domain.ProgressItem, error)
 	GetProgressByStatus(string) ([]domain.ProgressItem, error)
