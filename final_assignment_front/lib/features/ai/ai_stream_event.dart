@@ -1,3 +1,5 @@
+import 'package:final_assignment_front/features/model/chat_action.dart';
+
 class AiStreamEvent {
   AiStreamEvent({
     required this.type,
@@ -83,6 +85,33 @@ class AiStreamEvent {
     return int.tryParse(value?.toString() ?? '');
   }
 
+  /// 后端下发的业务动作，payload 结构为 type/label/target/value。
+  ChatAction? get action {
+    final payloadValue = payloadMap;
+    if (payloadValue == null) return null;
+    final label = _stringValue(payloadValue['label']);
+    final target = _stringValue(payloadValue['target']);
+    if ((label == null || label.isEmpty) &&
+        (target == null || target.isEmpty)) {
+      return null;
+    }
+    return ChatAction(
+      type: _stringValue(payloadValue['type']),
+      label: label,
+      target: target,
+      value: _stringValue(payloadValue['value']),
+    );
+  }
+
+  /// 工具调用名称。
+  String? get toolName => _stringValue(payloadMap?['name']);
+
+  /// 工具调用阶段，start/end。
+  String? get toolPhase => _stringValue(payloadMap?['phase']);
+
+  /// 事件携带的业务摘要。
+  String? get summary => _stringValue(payloadMap?['summary']);
+
   static String? _stringValue(Object? value) {
     if (value == null) return null;
     if (value is String) return value;
@@ -106,6 +135,10 @@ class AiStreamEvent {
 enum AiStreamEventType {
   session('session'),
   token('token'),
+  action('action'),
+  tool('tool'),
+  result('result'),
+  draft('draft'),
   done('done'),
   error('error'),
   usage('usage'),

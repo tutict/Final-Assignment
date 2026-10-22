@@ -1,3 +1,4 @@
+import 'package:final_assignment_front/core/auth/role_utils.dart';
 import 'package:final_assignment_front/features/api/backup_restore_controller_api.dart';
 import 'package:final_assignment_front/features/dashboard/controllers/manager_dashboard_controller.dart';
 import 'package:final_assignment_front/features/dashboard/views/manager/pages/main_process/manager_business_page_chrome.dart';
@@ -78,7 +79,7 @@ class _BackupAndRestoreState extends State<BackupAndRestorePage> {
         throw Exception('未登录，请重新登录');
       }
       final roles = _extractRoles(jwtToken);
-      final isAdmin = roles.any((role) => role.toUpperCase().contains('ADMIN'));
+      final isAdmin = RoleUtils.canManageBusiness(roles);
       if (!isAdmin) {
         setState(() {
           _isAdmin = false;
@@ -581,7 +582,7 @@ class _BackupDetailPageState extends State<BackupDetailPage> {
       }
       final roles = _extractRoles(token);
       setState(() {
-        _isAdmin = roles.any((role) => role.toUpperCase().contains('ADMIN'));
+        _isAdmin = RoleUtils.canManageBusiness(roles);
         isLoading.value = false;
       });
     } catch (_) {

@@ -9,6 +9,7 @@ import 'package:final_assignment_front/utils/services/auth_token_store.dart';
 import 'package:get/get.dart';
 import 'package:jwt_decoder/jwt_decoder.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:final_assignment_front/core/auth/role_utils.dart';
 
 class ProgressController extends BaseListController<ProgressItem> {
   final ProgressControllerApi progressApi = ProgressControllerApi();
@@ -59,16 +60,7 @@ class ProgressController extends BaseListController<ProgressItem> {
     }
     try {
       final decoded = JwtDecoder.decode(token);
-      final roles = decoded['roles'];
-      if (roles is List) {
-        _isAdmin.value = roles
-            .map((e) => e.toString())
-            .any((role) => role.contains('ADMIN'));
-      } else if (roles is String) {
-        _isAdmin.value = roles.contains('ADMIN');
-      } else {
-        _isAdmin.value = false;
-      }
+      _isAdmin.value = RoleUtils.canManageBusiness(decoded['roles']);
     } catch (_) {
       _isAdmin.value = false;
     }

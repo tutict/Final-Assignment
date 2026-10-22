@@ -120,7 +120,12 @@ class AiChatApi {
         cancelToken: cancelToken,
       ).listen(
         (event) {
-          if (event.type == AiStreamEventType.token) {
+          // agent 可能先下发工具调用/动作再输出文本，这些事件同样代表后端已开始响应。
+          if (event.type == AiStreamEventType.token ||
+              event.type == AiStreamEventType.action ||
+              event.type == AiStreamEventType.tool ||
+              event.type == AiStreamEventType.result ||
+              event.type == AiStreamEventType.draft) {
             completeFirstToken();
           }
           if ((event.type == AiStreamEventType.keepalive ||

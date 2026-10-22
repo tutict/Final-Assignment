@@ -3,6 +3,7 @@ import 'dart:developer' as developer;
 import 'package:final_assignment_front/core/network/app_exception.dart';
 import 'package:final_assignment_front/features/ai/ai_chat_api.dart';
 import 'package:final_assignment_front/features/ai/ai_stream_event.dart';
+import 'package:final_assignment_front/features/model/chat_action.dart';
 import 'package:final_assignment_front/features/model/chat_action_response.dart';
 import 'package:final_assignment_front/features/model/chat_response.dart';
 import 'package:final_assignment_front/utils/services/api_client.dart';
@@ -18,6 +19,7 @@ class ChatStreamChunk {
     this.fallbackReason,
     this.isQueue = false,
     this.queuePosition,
+    this.actions = const [],
   });
 
   final String text;
@@ -27,6 +29,9 @@ class ChatStreamChunk {
   final String? fallbackReason;
   final bool isQueue;
   final int? queuePosition;
+
+  /// 后端 agent 下发的业务动作。
+  final List<ChatAction> actions;
 }
 
 class ChatControllerApi with BaseApiClient {
@@ -121,7 +126,7 @@ class ChatControllerApi with BaseApiClient {
     )) {
       switch (event.type) {
         case AiStreamEventType.token:
-          final token = removeMarkdown(event.token ?? '');
+          final token = removeMarkdown(event.token ?? '', trim: false);
           if (token.isNotEmpty) {
             yield ChatStreamChunk(
               text: token,
@@ -129,6 +134,17 @@ class ChatControllerApi with BaseApiClient {
               messageId: event.messageId,
               isFallback: event.isFallback,
               fallbackReason: event.fallbackReason,
+            );
+          }
+          break;
+        case AiStreamEventType.action:
+          final action = event.action;
+          if (action != null) {
+            yield ChatStreamChunk(
+              text: '',
+              sessionKey: event.sessionKey,
+              messageId: event.messageId,
+              actions: [action],
             );
           }
           break;
@@ -151,6 +167,9 @@ class ChatControllerApi with BaseApiClient {
           );
           break;
         case AiStreamEventType.session:
+        case AiStreamEventType.tool:
+        case AiStreamEventType.result:
+        case AiStreamEventType.draft:
         case AiStreamEventType.usage:
         case AiStreamEventType.unknown:
           break;
@@ -163,42 +182,39 @@ class ChatControllerApi with BaseApiClient {
   /// [text] 后端返回的原始 AI 文本，可能包含 Markdown 加粗、标题、斜体、
   /// 删除线或 `<think>` 推理片段。
   ///
+  /// [trim] 是否裁剪首尾空白。流式增量必须传 `false`：LLM 的 token 之间靠空格分隔，
+  /// 逐 token 裁剪会把整段英文粘成 "Icouldn'tfindanyinformation"。
+  ///
   /// 返回去除常见 Markdown 标记后的纯文本；该方法只处理入参字符串，
   /// 不访问网络、不修改对象状态，也不会产生 UI 副作用。
   ///
   /// 该清洗逻辑放在 API 层，是为了让普通请求和 [streamChat] 的流式 token
   /// 使用同一套文本规范，避免多个 UI 页面重复实现不一致的 Markdown 处理。
-  String removeMarkdown(String text) {
+  String removeMarkdown(String text, {bool trim = true}) {
     text = text.replaceAllMapped(
       RegExp(r'<think>([\s\S]*?)</think>'),
       (match) => '[THINK]${match.group(1)}[/THINK]',
     );
     text = text.replaceAll(RegExp(r'</?think>'), '');
     text = text.replaceAllMapped(
-      RegExp(r'\*\*(.*?)\*\*'),
+      RegExp(r'\*\*(.+?)\*\*'),
+      (match) => match.group(1)!,
+    );
+    // 斜体只在两侧不是单词字符时才剥离，避免吃掉 "a*b*c" 这类正文符号。
+    text = text.replaceAllMapped(
+      RegExp(r'(?<![\w*])\*(?!\*)(?!\s)(.+?)(?<!\s)\*(?!\*)'),
       (match) => match.group(1)!,
     );
     text = text.replaceAllMapped(
-      RegExp(r'\*(.*?)\*'),
+      RegExp(r'(?<![\w_])_(?!\s)(.+?)(?<!\s)_(?![\w])'),
       (match) => match.group(1)!,
     );
-    text = text.replaceAllMapped(
-      RegExp(r'##(.*?)##'),
-      (match) => match.group(1)!,
-    );
-    text = text.replaceAllMapped(
-      RegExp(r'_(.*?)_'),
-      (match) => match.group(1)!,
-    );
-    text = text.replaceAllMapped(
-      RegExp(r'-(.*?)-'),
-      (match) => match.group(1)!,
-    );
-    text = text.replaceAllMapped(
-      RegExp(r'###(.*?)###'),
-      (match) => match.group(1)!,
-    );
-    return text.trim();
+    // 行首的标题、列表与引用符号属于展示标记，正文中的连字符要原样保留。
+    text = text.replaceAll(RegExp(r'^[ \t]{0,3}#{1,6}[ \t]+', multiLine: true), '');
+    text = text.replaceAll(RegExp(r'^[ \t]*[-*+][ \t]+', multiLine: true), '');
+    text = text.replaceAll(RegExp(r'^[ \t]{0,3}>[ \t]?', multiLine: true), '');
+    if (trim) text = text.trim();
+    return text;
   }
 
   /// @realtimeApi

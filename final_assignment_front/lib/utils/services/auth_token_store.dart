@@ -1,3 +1,4 @@
+import 'package:final_assignment_front/core/utils/app_logger.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -13,6 +14,14 @@ class AuthTokenStore {
   static const _legacyJwtKeys = ['jwt_token', 'jwtToken'];
   static const _legacyRefreshKeys = ['refresh_token', 'refreshToken'];
 
+  // flutter_secure_storage's web backend refuses to run outside a secure
+  // context (HTTPS or loopback only), so a plain-HTTP host cannot use it and
+  // the web build keeps the tokens in SharedPreferences (localStorage)
+  // instead. Everything running on the origin can read them from there, so the
+  // tokens must never end up in a log line.
+  static const _webJwtKey = 'auth_web_jwt_token';
+  static const _webRefreshKey = 'auth_web_refresh_token';
+
   SharedPreferences? _prefs;
   String? _jwtToken;
   String? _refreshToken;
@@ -21,15 +30,11 @@ class AuthTokenStore {
   Future<void> _ensureLoaded() async {
     if (_loaded) return;
 
-    _prefs ??= await SharedPreferences.getInstance();
-    _jwtToken = await _loadToken(
-      secureKey: _jwtKey,
-      legacyKeys: _legacyJwtKeys,
-    );
-    _refreshToken = await _loadToken(
-      secureKey: _refreshKey,
-      legacyKeys: _legacyRefreshKeys,
-    );
+    if (kIsWeb) {
+      await _loadWebTokens();
+    } else {
+      await _loadSecureTokens();
+    }
     _loaded = true;
   }
 
@@ -44,6 +49,7 @@ class AuthTokenStore {
     await _writeToken(
       secureKey: _jwtKey,
       legacyKeys: _legacyJwtKeys,
+      webKey: _webJwtKey,
       value: token,
     );
     _jwtToken = _normalizeToken(token);
@@ -63,6 +69,7 @@ class AuthTokenStore {
     await _writeToken(
       secureKey: _refreshKey,
       legacyKeys: _legacyRefreshKeys,
+      webKey: _webRefreshKey,
       value: token,
     );
     _refreshToken = _normalizeToken(token);
@@ -78,15 +85,22 @@ class AuthTokenStore {
     await setRefreshToken(null);
   }
 
-  Future<String?> _loadToken({
+  Future<void> _loadSecureTokens() async {
+    _prefs ??= await SharedPreferences.getInstance();
+    _jwtToken = await _readSecureToken(
+      secureKey: _jwtKey,
+      legacyKeys: _legacyJwtKeys,
+    );
+    _refreshToken = await _readSecureToken(
+      secureKey: _refreshKey,
+      legacyKeys: _legacyRefreshKeys,
+    );
+  }
+
+  Future<String?> _readSecureToken({
     required String secureKey,
     required List<String> legacyKeys,
   }) async {
-    if (kIsWeb) {
-      await _removeLegacyKeys(legacyKeys);
-      return null;
-    }
-
     final secureValue =
         _normalizeToken(await _secureStorage.read(key: secureKey));
     if (secureValue != null) {
@@ -107,18 +121,41 @@ class AuthTokenStore {
     return null;
   }
 
+  Future<void> _loadWebTokens() async {
+    final prefs = await _openPreferences();
+    _jwtToken = _readWebToken(prefs, _webJwtKey);
+    _refreshToken = _readWebToken(prefs, _webRefreshKey);
+    await _removeLegacyKeys(_legacyJwtKeys);
+    await _removeLegacyKeys(_legacyRefreshKeys);
+  }
+
+  String? _readWebToken(SharedPreferences? prefs, String key) {
+    if (prefs == null) return null;
+    try {
+      return _normalizeToken(prefs.getString(key));
+    } catch (error) {
+      AppLogger.error('Web token read failed: ${error.runtimeType}');
+      return null;
+    }
+  }
+
   Future<void> _writeToken({
     required String secureKey,
     required List<String> legacyKeys,
+    required String webKey,
     required String? value,
   }) async {
-    _prefs ??= await SharedPreferences.getInstance();
     final normalized = _normalizeToken(value);
     if (kIsWeb) {
-      await _removeLegacyKeys(legacyKeys);
+      await _writeWebToken(
+        legacyKeys: legacyKeys,
+        webKey: webKey,
+        value: normalized,
+      );
       return;
     }
 
+    _prefs ??= await SharedPreferences.getInstance();
     if (normalized == null) {
       await _secureStorage.delete(key: secureKey);
     } else {
@@ -127,11 +164,48 @@ class AuthTokenStore {
     await _removeLegacyKeys(legacyKeys);
   }
 
-  Future<void> _removeLegacyKeys(List<String> keys) async {
-    _prefs ??= await SharedPreferences.getInstance();
-    for (final key in keys) {
-      await _prefs!.remove(key);
+  Future<void> _writeWebToken({
+    required List<String> legacyKeys,
+    required String webKey,
+    required String? value,
+  }) async {
+    final prefs = await _openPreferences();
+    if (prefs != null) {
+      try {
+        if (value == null) {
+          await prefs.remove(webKey);
+        } else {
+          await prefs.setString(webKey, value);
+        }
+      } catch (error) {
+        // Persisting is best effort: an unavailable localStorage must not
+        // break the sign-in, the session then simply stays in memory.
+        AppLogger.error('Web token write failed: ${error.runtimeType}');
+      }
     }
+    await _removeLegacyKeys(legacyKeys);
+  }
+
+  Future<void> _removeLegacyKeys(List<String> keys) async {
+    final prefs = await _openPreferences();
+    if (prefs == null) return;
+    for (final key in keys) {
+      await prefs.remove(key);
+    }
+  }
+
+  /// Opens the preference store. The web build degrades to a memory-only
+  /// session when localStorage is unavailable instead of failing outright.
+  Future<SharedPreferences?> _openPreferences() async {
+    final existing = _prefs;
+    if (existing != null) return existing;
+    try {
+      _prefs = await SharedPreferences.getInstance();
+    } catch (error) {
+      if (!kIsWeb) rethrow;
+      AppLogger.error('Web preferences unavailable: ${error.runtimeType}');
+    }
+    return _prefs;
   }
 
   String? _normalizeToken(String? token) {

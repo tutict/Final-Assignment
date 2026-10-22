@@ -63,11 +63,19 @@ mixin PageAuthMixin<T extends StatefulWidget> on State<T> {
     return roles;
   }
 
-  /// True when the current session's roles satisfy [RoleUtils.isAdminRole].
+  /// 管理端业务页面的准入校验：ADMIN 与 SUPER_ADMIN 都可以进入。
+  ///
+  /// 页面若按角色名精确相等来判定准入，SUPER_ADMIN 会被误判成"权限不足"，
+  /// 而后端对同一批管理接口是放行超管的。
+  Future<List<String>?> requireManagerRoles() {
+    return requireRoles((roles) => RoleUtils.canManageBusiness(roles));
+  }
+
+  /// True when the current session's roles may enter management pages.
   Future<bool> currentIsAdmin() async {
     final claims = await ensureFreshJwt();
     if (claims == null) return false;
-    return RoleUtils.isAdminRole(claims['roles']);
+    return RoleUtils.canManageBusiness(claims['roles']);
   }
 }
 

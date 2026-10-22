@@ -38,18 +38,29 @@ void main() {
       violations,
       isEmpty,
       reason:
-          'Use AuthTokenStore so JWT/refresh tokens stay in secure storage on native platforms and are not persisted on web.',
+          'Use AuthTokenStore so JWT/refresh tokens stay in secure storage on native platforms.',
     );
   });
 
-  test('AuthTokenStore uses secure storage and memory-only web tokens', () {
+  test('AuthTokenStore keeps native tokens in secure storage and persists web tokens under dedicated keys', () {
     final source = File(
       '${root.path}/lib/utils/services/auth_token_store.dart',
     ).readAsStringSync();
 
     expect(source, contains('FlutterSecureStorage'));
     expect(source, contains('if (kIsWeb)'));
-    expect(source, isNot(contains('.setString(')));
+
+    // 原生端令牌只落 secure storage，legacy 键不得经 SharedPreferences 写入。
+    for (final key in ['jwt_token', 'jwtToken', 'refresh_token', 'refreshToken']) {
+      expect(source, isNot(contains("setString('$key'")));
+      expect(source, isNot(contains('setString("$key"')));
+    }
+    expect(source, contains('_secureStorage.write(key: secureKey, value: normalized)'));
+
+    // Web 端没有 secure storage，刷新不掉登录要求令牌落在 localStorage 的专用键上。
+    expect(source, contains("'auth_web_jwt_token'"));
+    expect(source, contains("'auth_web_refresh_token'"));
+    expect(source, contains('prefs.setString(webKey, value)'));
   });
 
   test('websocket URLs never carry bearer access tokens', () {

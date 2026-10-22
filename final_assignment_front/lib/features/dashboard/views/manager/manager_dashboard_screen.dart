@@ -52,6 +52,11 @@ class DashboardScreen extends GetView<ManagerDashboardController> {
   @override
   Widget build(BuildContext context) {
     controller.pageResolver ??= resolveDashboardPage;
+    if (controller.hasUnconsumedShellArguments) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        controller.consumeShellArguments();
+      });
+    }
     final double screenWidth = MediaQuery.of(context).size.width;
     final double screenHeight = MediaQuery.of(context).size.height;
     const double expandedSidebarWidth = 248;

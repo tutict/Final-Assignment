@@ -53,6 +53,16 @@ class RoleUtils {
     return isSuperAdminRole(value) || isAdminRole(value);
   }
 
+  /// 管理端业务页面的准入角色：ADMIN 与 SUPER_ADMIN。
+  ///
+  /// 超管在权限上是 ADMIN 的超集：后端对罚款、扣分、违法、车辆等管理接口一律放行
+  /// SUPER_ADMIN，管理端页面也把同一批入口展示给超管。用角色名的精确相等来判定
+  /// 会把超管误判成"权限不足"，因此这里按集合语义判断。
+  static bool canManageBusiness(Object? value) {
+    final roles = parseRoles(value);
+    return roles.any((role) => _isAdminCode(role) || _isSuperAdminCode(role));
+  }
+
   static bool isAppealReviewerRole(Object? value) {
     return parseRoles(value).any(_isAppealReviewerCode);
   }

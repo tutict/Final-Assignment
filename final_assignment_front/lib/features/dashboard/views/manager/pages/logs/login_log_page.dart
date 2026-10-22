@@ -72,7 +72,7 @@ class _LoginLogPageState extends State<LoginLogPage> with PageAuthMixin {
       final claims = await ensureFreshJwt();
       if (claims == null) return; // session expired, redirected to login
       _currentUsername = claims['sub']?.toString() ?? '';
-      final roles = await requireRoles((r) => r.contains('ADMIN'));
+      final roles = await requireManagerRoles();
       if (roles == null) return; // session expired during role check
       _isAdmin = roles.isNotEmpty;
       if (!_isAdmin) {

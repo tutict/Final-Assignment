@@ -53,7 +53,26 @@ class AuthService extends GetxService {
   final http.Client _client;
   final Duration refreshSkew;
   bool _isRedirecting = false;
+  bool _restoreAttempted = false;
   Completer<SessionRefreshStatus>? _refreshCompleter;
+
+  /// Restores the session persisted by a previous run (app restart or browser
+  /// reload). The stored access token is renewed silently with the refresh
+  /// token when it expired, and `null` is returned when the session cannot be
+  /// recovered. Only the first call per app instance restores, so a user who
+  /// deliberately opens the login screen can still sign in again.
+  Future<AuthenticatedUser?> restoreSession() async {
+    if (_restoreAttempted) return null;
+    _restoreAttempted = true;
+
+    final token = await AuthTokenStore.instance.getJwtToken();
+    if (token == null || token.isEmpty) return null;
+
+    final isValid = await ensureValidSession();
+    if (!isValid) return null;
+
+    return currentUser(refreshIfNeeded: false);
+  }
 
   Future<bool> ensureValidSession({bool redirectIfInvalid = false}) async {
     final token = await AuthTokenStore.instance.getJwtToken();

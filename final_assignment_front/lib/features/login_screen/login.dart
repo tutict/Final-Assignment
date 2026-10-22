@@ -3,6 +3,7 @@ import 'dart:convert';
 
 import 'package:final_assignment_front/config/routes/app_routes.dart';
 import 'package:final_assignment_front/config/themes/app_theme.dart';
+import 'package:final_assignment_front/core/auth/auth_service.dart';
 import 'package:final_assignment_front/core/auth/role_utils.dart';
 import 'package:final_assignment_front/core/auth/user_profile_service.dart';
 import 'package:final_assignment_front/core/network/app_exception.dart';
@@ -44,6 +45,7 @@ class _LoginScreenState extends State<LoginScreen> {
   bool _isSubmitting = false;
   bool _obscurePassword = true;
   bool _obscureConfirmPassword = true;
+  bool _isRestoringSession = true;
   _AuthMode _mode = _AuthMode.login;
 
   @override
@@ -52,6 +54,7 @@ class _LoginScreenState extends State<LoginScreen> {
     authApi = AuthControllerApi();
     _theme = Get.find<ThemeController>();
     _userRole = null;
+    _restoreSession();
   }
 
   @override
@@ -60,6 +63,42 @@ class _LoginScreenState extends State<LoginScreen> {
     _passwordController.dispose();
     _confirmPasswordController.dispose();
     super.dispose();
+  }
+
+  /// Continues with the session persisted by a previous run instead of
+  /// asking for the credentials again after a browser reload.
+  Future<void> _restoreSession() async {
+    final user = await _restoreStoredSession();
+    if (!mounted) return;
+
+    if (user == null) {
+      setState(() => _isRestoringSession = false);
+      return;
+    }
+
+    _userRole = RoleUtils.preferredRole(user.roles);
+    NavigationHelper.offAllNamed(
+      RoleUtils.canAccessStaffDashboard(_userRole)
+          ? Routes.dashboard
+          : Routes.userDashboard,
+    );
+    // The route change replaces this screen; fall back to the login form
+    // when it did not happen.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted && Get.currentRoute == Routes.login) {
+        setState(() => _isRestoringSession = false);
+      }
+    });
+  }
+
+  Future<AuthenticatedUser?> _restoreStoredSession() async {
+    if (!Get.isRegistered<AuthService>()) return null;
+    try {
+      return await Get.find<AuthService>().restoreSession();
+    } catch (error) {
+      AppLogger.error('会话恢复失败: ${error.runtimeType}');
+      return null;
+    }
   }
 
   Map<String, dynamic>? _decodeJwt(String token) {
@@ -90,14 +129,16 @@ class _LoginScreenState extends State<LoginScreen> {
     String username, {
     Object? jwtRoles,
   }) async {
-    await AuthTokenStore.instance.setJwtToken(accessToken);
-
-    final refreshToken = _stringValue(result['refreshToken']);
-    await AuthTokenStore.instance.setRefreshToken(refreshToken);
-
     final data = result['success'] == true && result['data'] is Map
         ? Map<String, dynamic>.from(result['data'] as Map)
         : result;
+
+    await AuthTokenStore.instance.setJwtToken(accessToken);
+
+    final refreshToken =
+        _stringValue(data['refreshToken'] ?? result['refreshToken']);
+    await AuthTokenStore.instance.setRefreshToken(refreshToken);
+
     final userData = data['user'];
     final resolvedUsername = _stringValue(data['username'] ??
             (userData is Map ? userData['username'] : null)) ??
@@ -464,6 +505,13 @@ class _LoginScreenState extends State<LoginScreen> {
     return Obx(() {
       final themeData = _buildTheme();
 
+      if (_isRestoringSession) {
+        return Theme(
+          data: themeData,
+          child: _buildRestoringView(themeData),
+        );
+      }
+
       return Theme(
         data: themeData,
         child: Scaffold(
@@ -532,6 +580,20 @@ class _LoginScreenState extends State<LoginScreen> {
         ),
       );
     });
+  }
+
+  Widget _buildRestoringView(ThemeData themeData) {
+    final colorScheme = themeData.colorScheme;
+    return Scaffold(
+      body: Stack(
+        children: [
+          const Positioned.fill(child: _StaticLoginBackground()),
+          Center(
+            child: CircularProgressIndicator(color: colorScheme.primary),
+          ),
+        ],
+      ),
+    );
   }
 
   Widget _brandPane(ThemeData themeData, {bool compact = false}) {

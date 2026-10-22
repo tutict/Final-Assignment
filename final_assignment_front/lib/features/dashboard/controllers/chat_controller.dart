@@ -4,6 +4,8 @@ import 'dart:convert';
 import 'package:final_assignment_front/config/routes/app_routes.dart';
 import 'package:final_assignment_front/core/auth/role_utils.dart';
 import 'package:final_assignment_front/core/utils/app_logger.dart';
+import 'package:final_assignment_front/features/ai/ai_chat_identity.dart';
+import 'package:final_assignment_front/features/ai/business_action_catalog.dart';
 import 'package:final_assignment_front/features/ai/business_chat_agent.dart';
 import 'package:final_assignment_front/features/ai/ai_chat_api.dart';
 import 'package:final_assignment_front/features/api/chat_controller_api.dart';
@@ -95,25 +97,12 @@ class ChatController extends GetxController {
       _showContextLimitHint();
     }
 
+    // 本地关键词代理只作为兜底：后端 agent 下发的动作优先级更高。
     final businessAction =
         businessAgent.resolve(message: text, role: userRole.value);
+    final localActions = _normalizeActions(businessAction?.actions ?? const []);
     messages.add(ChatMessage(formalContent: text, isUser: true));
     textController.clear();
-
-    // Admin/super-admin keep the local shortcut. USER questions must still hit
-    // the model, otherwise preset chips like "如何查询我的交通违法记录？" never get a reply.
-    if (!isUserFacingChat &&
-        businessAction != null &&
-        businessAction.actions.isNotEmpty) {
-      messages.add(ChatMessage(
-        formalContent: businessAction.answer ?? '已识别到可执行业务动作，请点击下方按钮继续。',
-        isUser: false,
-        isSystem: true,
-        actions: businessAction.actions,
-        needConfirm: businessAction.needConfirm,
-      ));
-      return;
-    }
 
     loadingState.value = webSearchEnabled.value
         ? ChatLoadingState.searching
@@ -129,9 +118,7 @@ class ChatController extends GetxController {
     _activeCancelToken = cancelToken;
     isStreaming.value = true;
 
-    var aiMessageIndex = messages.length - 1;
-    final thinkBuffer = StringBuffer();
-    final formalBuffer = StringBuffer();
+    final draft = _AiMessageDraft(messages.length - 1, localActions);
     final chunkBuffer = StringBuffer();
     final processedChunks = <String>{};
     Timer? debounceTimer;
@@ -148,13 +135,19 @@ class ChatController extends GetxController {
         _sessionKey = streamChunk.sessionKey;
       }
 
+      if (streamChunk.actions.isNotEmpty) {
+        draft.addBackendActions(_normalizeActions(streamChunk.actions));
+        _syncDraftActions(draft);
+        return;
+      }
+
       final chunk = streamChunk.text;
       if (streamChunk.isQueue) {
         loadingState.value = ChatLoadingState.queuing;
-        if (aiMessageIndex >= 0 &&
-            aiMessageIndex < messages.length &&
-            messages[aiMessageIndex].formalContent.startsWith('THINKING:')) {
-          messages[aiMessageIndex] = const ChatMessage(
+        if (draft.messageIndex >= 0 &&
+            draft.messageIndex < messages.length &&
+            messages[draft.messageIndex].formalContent.startsWith('THINKING:')) {
+          messages[draft.messageIndex] = const ChatMessage(
             formalContent: 'THINKING: Queuing...',
             isUser: false,
           );
@@ -194,9 +187,12 @@ class ChatController extends GetxController {
 
       if (isFirstMessage) {
         _removeThinkingMessages();
-        messages
-            .add(const ChatMessage(formalContent: 'DeepSeek: ', isUser: false));
-        aiMessageIndex = messages.length - 1;
+        messages.add(ChatMessage(
+          formalContent: AiChatIdentity.prefix,
+          isUser: false,
+          actions: draft.actions,
+        ));
+        draft.messageIndex = messages.length - 1;
         isFirstMessage = false;
       }
 
@@ -211,14 +207,12 @@ class ChatController extends GetxController {
       chunkBuffer.clear();
       await _appendAiText(
         cleanChunk,
-        aiMessageIndex,
-        thinkBuffer,
-        formalBuffer,
+        draft,
         debounceTimer,
       );
       if (!enableWordStreaming.value) {
         debounceTimer = Timer(const Duration(milliseconds: 100), () {
-          _updateAiMessage(aiMessageIndex, thinkBuffer, formalBuffer);
+          _updateAiMessage(draft);
         });
       }
     }
@@ -292,9 +286,7 @@ class ChatController extends GetxController {
         if (!processedChunks.contains(cleanChunk)) {
           await _appendAiText(
             cleanChunk,
-            aiMessageIndex,
-            thinkBuffer,
-            formalBuffer,
+            draft,
             null,
           );
         }
@@ -306,37 +298,27 @@ class ChatController extends GetxController {
           formalContent: businessAction?.answer ?? '暂时没有生成回复，请稍后再试。',
           isUser: false,
           isSystem: true,
-          actions: businessAction?.actions ?? const [],
+          actions: draft.actions,
           needConfirm: businessAction?.needConfirm ?? false,
         ));
         return;
       }
-      if (businessAction != null &&
-          businessAction.actions.isNotEmpty &&
-          aiMessageIndex >= 0 &&
-          aiMessageIndex < messages.length) {
-        final current = messages[aiMessageIndex];
-        messages[aiMessageIndex] = ChatMessage(
-          thinkContent: current.thinkContent,
-          formalContent: current.formalContent,
-          isUser: false,
-          actions: businessAction.actions,
-          needConfirm: businessAction.needConfirm,
-        );
-      }
 
-      final finalFormalContent = formalBuffer.toString();
-      var finalThinkContent = thinkBuffer.toString();
+      final finalFormalContent =
+          chatApi.removeMarkdown(draft.formalBuffer.toString());
+      var finalThinkContent =
+          chatApi.removeMarkdown(draft.thinkBuffer.toString());
       if (finalFormalContent.contains(
         RegExp(r'^\s*(\d+\.\s+|[-*]\s+)', multiLine: true),
       )) {
         finalThinkContent = '';
       }
 
-      messages[aiMessageIndex] = ChatMessage(
+      messages[draft.messageIndex] = ChatMessage(
         thinkContent: finalThinkContent,
-        formalContent: 'DeepSeek: $finalFormalContent',
+        formalContent: '${AiChatIdentity.prefix}$finalFormalContent',
         isUser: false,
+        actions: draft.actions,
       );
     } catch (error, stackTrace) {
       if (cancelToken.isCanceled && !timedOut) {
@@ -347,9 +329,13 @@ class ChatController extends GetxController {
       _removeThinkingMessages();
       _showFriendlyError('AI stream failed', details: error.toString());
       messages.add(ChatMessage(
-        formalContent: 'Error: $error',
+        formalContent: localActions.isNotEmpty
+            ? (businessAction?.answer ?? 'AI 服务暂时不可用，请稍后再试。')
+            : 'Error: $error',
         isUser: false,
         isSystem: true,
+        actions: localActions,
+        needConfirm: businessAction?.needConfirm ?? false,
       ));
     } finally {
       uiTimeoutTimer?.cancel();
@@ -364,9 +350,7 @@ class ChatController extends GetxController {
 
   Future<void> _appendAiText(
     String text,
-    int aiMessageIndex,
-    StringBuffer thinkBuffer,
-    StringBuffer formalBuffer,
+    _AiMessageDraft draft,
     Timer? debounceTimer,
   ) async {
     final parts = _splitThinkAndFormal(text);
@@ -374,36 +358,72 @@ class ChatController extends GetxController {
     final formalPart = parts[1];
 
     if (!enableWordStreaming.value) {
-      thinkBuffer.write(thinkPart);
-      formalBuffer.write(formalPart);
+      draft.thinkBuffer.write(thinkPart);
+      draft.formalBuffer.write(formalPart);
       debounceTimer?.cancel();
       return;
     }
 
     for (final word in _splitChineseWords(thinkPart)) {
-      thinkBuffer.write(word);
-      _updateAiMessage(aiMessageIndex, thinkBuffer, formalBuffer);
+      draft.thinkBuffer.write(word);
+      _updateAiMessage(draft);
       await Future<void>.delayed(
           Duration(milliseconds: wordStreamDelayMs.value));
     }
     for (final word in _splitChineseWords(formalPart)) {
-      formalBuffer.write(word);
-      _updateAiMessage(aiMessageIndex, thinkBuffer, formalBuffer);
+      draft.formalBuffer.write(word);
+      _updateAiMessage(draft);
       await Future<void>.delayed(
           Duration(milliseconds: wordStreamDelayMs.value));
     }
   }
 
-  void _updateAiMessage(
-    int aiMessageIndex,
-    StringBuffer thinkBuffer,
-    StringBuffer formalBuffer,
-  ) {
-    if (aiMessageIndex < 0 || aiMessageIndex >= messages.length) return;
-    messages[aiMessageIndex] = ChatMessage(
-      thinkContent: thinkBuffer.toString(),
-      formalContent: 'DeepSeek: ${formalBuffer.toString()}',
+  void _updateAiMessage(_AiMessageDraft draft) {
+    final index = draft.messageIndex;
+    if (index < 0 || index >= messages.length) return;
+    // 逐 token 清洗无法匹配被拆到不同分片里的 "**"，因此对累计文本再整体清洗一次。
+    messages[index] = ChatMessage(
+      thinkContent: chatApi.removeMarkdown(draft.thinkBuffer.toString()),
+      formalContent: '${AiChatIdentity.prefix}'
+          '${chatApi.removeMarkdown(draft.formalBuffer.toString(), trim: false)}',
       isUser: false,
+      actions: draft.actions,
+    );
+  }
+
+  /// 把后端或本地代理下发的动作归一化成统一文案与路由。
+  List<ChatAction> _normalizeActions(List<ChatAction> actions) {
+    if (actions.isEmpty) return const [];
+    final isStaff = canUseManagerPrompts;
+    final normalized = <ChatAction>[];
+    for (final action in actions) {
+      final entry =
+          BusinessActionCatalog.resolve(action.target, isStaff: isStaff);
+      if (entry == null) {
+        normalized.add(action);
+        continue;
+      }
+      normalized.add(ChatAction(
+        type: action.type ?? 'NAVIGATE',
+        label: entry.label,
+        target: entry.route,
+        value: action.value,
+      ));
+    }
+    return normalized;
+  }
+
+  /// 动作先于正文到达时，把按钮补到已经渲染的助手消息上。
+  void _syncDraftActions(_AiMessageDraft draft) {
+    final index = draft.messageIndex;
+    if (index < 0 || index >= messages.length) return;
+    final current = messages[index];
+    if (current.formalContent.startsWith('THINKING:')) return;
+    messages[index] = ChatMessage(
+      thinkContent: current.thinkContent,
+      formalContent: current.formalContent,
+      isUser: false,
+      actions: draft.actions,
     );
   }
 
@@ -491,10 +511,8 @@ class ChatController extends GetxController {
 
   String _messageContentForHistory(ChatMessage message) {
     final content = message.formalContent.trim();
-    if (!message.isUser && content.startsWith('DeepSeek:')) {
-      return content.substring('DeepSeek:'.length).trim();
-    }
-    return content;
+    if (message.isUser) return content;
+    return AiChatIdentity.stripPrefix(content);
   }
 
   void _showContextLimitHint() {
@@ -578,5 +596,35 @@ class ChatController extends GetxController {
     _cancelActiveStream();
     textController.dispose();
     super.onClose();
+  }
+}
+
+/// 一次流式回答的草稿状态：记录正文、思考过程与已收集到的业务动作。
+class _AiMessageDraft {
+  _AiMessageDraft(this.messageIndex, this.fallbackActions);
+
+  int messageIndex;
+
+  /// 后端没有给出动作时使用的本地兜底动作。
+  final List<ChatAction> fallbackActions;
+
+  /// 后端 agent 下发的动作，优先级高于本地兜底动作。
+  final List<ChatAction> backendActions = <ChatAction>[];
+
+  final StringBuffer thinkBuffer = StringBuffer();
+  final StringBuffer formalBuffer = StringBuffer();
+
+  List<ChatAction> get actions => List<ChatAction>.unmodifiable(
+        backendActions.isNotEmpty ? backendActions : fallbackActions,
+      );
+
+  void addBackendActions(List<ChatAction> actions) {
+    for (final action in actions) {
+      final duplicated = backendActions.any(
+        (existing) =>
+            existing.label == action.label && existing.target == action.target,
+      );
+      if (!duplicated) backendActions.add(action);
+    }
   }
 }

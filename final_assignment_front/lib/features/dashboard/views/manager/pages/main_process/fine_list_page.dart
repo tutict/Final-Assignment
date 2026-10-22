@@ -92,7 +92,7 @@ class _FineListState extends State<FineListPage> with PageAuthMixin {
   Future<void> _initialize() async {
     setState(() => _isLoading = true);
     try {
-      final roles = await requireRoles((r) => r.contains('ADMIN'));
+      final roles = await requireManagerRoles();
       if (roles == null) return; // session expired, redirected to login
       _isAdmin = roles.isNotEmpty;
       if (!_isAdmin) {
@@ -991,7 +991,7 @@ class _FineDetailPageState extends State<FineDetailPage> with PageAuthMixin {
   Future<void> _initialize() async {
     setState(() => _isLoading = true);
     try {
-      final roles = await requireRoles((r) => r.contains('ADMIN'));
+      final roles = await requireManagerRoles();
       if (roles == null) return; // session expired, redirected to login
       _isAdmin = roles.isNotEmpty;
       if (!_isAdmin) {

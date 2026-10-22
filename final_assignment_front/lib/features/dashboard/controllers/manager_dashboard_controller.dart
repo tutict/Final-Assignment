@@ -1,5 +1,6 @@
 import 'package:final_assignment_front/core/utils/app_logger.dart';
 import 'package:final_assignment_front/core/auth/role_utils.dart';
+import 'package:final_assignment_front/config/navigation/shell_arguments.dart';
 import 'package:final_assignment_front/config/navigation/shell_navigation.dart';
 import 'package:final_assignment_front/config/routes/app_routes.dart';
 import 'package:final_assignment_front/features/dashboard/views/shared/widgets/guide_controller.dart';
@@ -24,7 +25,8 @@ class ManagerDashboardController extends GetxController {
   final caseCardDataList = <CaseCardData>[].obs;
   var selectedStyle = 'Basic'.obs;
   final activeNavRoute = 'homePage'.obs;
-  bool shellArgsConsumed = false;
+  String? _consumedShellArgsSignature;
+  bool _shellArgsReady = false;
   bool sidebarDefaultApplied = false;
   final currentTheme = 'Light'.obs;
   final Rx<ThemeData> currentBodyTheme = AppTheme.basicLight.obs;
@@ -107,10 +109,8 @@ class ManagerDashboardController extends GetxController {
       currentDriverName.value = userName;
       currentEmail.value = userEmail;
       currentRole.value = RoleUtils.preferredRole(userRole);
-      if (!shellArgsConsumed) {
-        shellArgsConsumed = true;
-        consumeShellArguments();
-      }
+      _shellArgsReady = true;
+      consumeShellArguments();
       await offenseApi.initializeWithJwt();
       await roleApi.initializeWithJwt();
     } else {
@@ -304,26 +304,28 @@ class ManagerDashboardController extends GetxController {
     isShowingSidebarContent.value = true;
   }
 
-  void consumeShellArguments() {
-    final args = Get.arguments;
-    final guideFromArgs = args is Map ? args['guide'] : null;
-    final pageFromArgs = args is Map ? args['page'] : null;
-    final openChat = args is Map && args['openChat'] == true;
-    final queryGuide = Uri.base.queryParameters['guide'];
-    final guide = guideFromArgs is String && guideFromArgs.isNotEmpty
-        ? guideFromArgs
-        : queryGuide;
-    var page = pageFromArgs is String && pageFromArgs.isNotEmpty ? pageFromArgs : null;
-    if ((page == null || page == 'homePage') && guide != null && guide.isNotEmpty) {
-      page = switch (guide) {
-        'payment' => RoutePaths.fineInformation,
-        'quick' || 'flow' || 'evidence' || 'video' => RoutePaths.userOffenseListPage,
-        _ => page,
-      };
-    }
-    if (openChat) isChatExpanded.value = true;
-    final section = args is Map ? args['section'] : null;
-    if (section == 'appearance' || Uri.base.queryParameters['section'] == 'appearance') {
+  /// 是否还有未消费的外壳参数（路由切换后带入了新的 page/section/guide）。
+  bool get hasUnconsumedShellArguments =>
+      _shellArgsReady &&
+      ShellArguments.from(Get.arguments).signature !=
+          _consumedShellArgsSignature;
+
+  /// 消费外壳参数；同一份参数只会被消费一次，新的跳转总能生效。
+  bool consumeShellArguments() {
+    if (!_shellArgsReady) return false;
+    final shell = ShellArguments.from(Get.arguments);
+    if (shell.signature == _consumedShellArgsSignature) return false;
+    _consumedShellArgsSignature = shell.signature;
+    _applyShellArguments(shell);
+    return true;
+  }
+
+  void _applyShellArguments(ShellArguments shell) {
+    final guide = shell.effectiveGuide();
+    final page = shell.effectivePage();
+    if (shell.openChat) isChatExpanded.value = true;
+    if (shell.section == 'appearance' ||
+        Uri.base.queryParameters['section'] == 'appearance') {
       focusAppearance.value = true;
     }
     if (page != null && page.isNotEmpty && page != 'homePage') {

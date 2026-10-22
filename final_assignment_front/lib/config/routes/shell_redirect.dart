@@ -30,6 +30,8 @@ class ShellRedirect extends StatefulWidget {
 }
 
 class _ShellRedirectState extends State<ShellRedirect> {
+  static int _requestCounter = 0;
+
   @override
   void initState() {
     super.initState();
@@ -57,7 +59,14 @@ class _ShellRedirectState extends State<ShellRedirect> {
       'guide': widget.guide,
       'openChat': widget.openChat,
       'section': widget.section,
+      // 每次重定向都带上唯一标识，避免相同参数被当成重复消费而丢弃。
+      'requestId': _nextRequestId(),
     });
+  }
+
+  String _nextRequestId() {
+    _requestCounter++;
+    return '${DateTime.now().microsecondsSinceEpoch}-$_requestCounter';
   }
 
   @override

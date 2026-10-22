@@ -1,5 +1,6 @@
 // ignore_for_file: use_build_context_synchronously
 import 'package:final_assignment_front/features/dashboard/views/manager/pages/main_process/manager_record_table.dart';
+import 'package:final_assignment_front/core/auth/role_utils.dart';
 import 'package:final_assignment_front/core/utils/app_logger.dart';
 
 import 'package:final_assignment_front/features/api/driver_information_controller_api.dart';
@@ -88,7 +89,7 @@ class _VehicleListState extends State<VehicleList> with PageAuthMixin {
   Future<void> _initialize() async {
     setState(() => _isLoading = true);
     try {
-      final roles = await requireRoles((r) => r.contains('ADMIN'));
+      final roles = await requireManagerRoles();
       if (roles == null) return; // session expired, redirected to login
       _isAdmin = roles.isNotEmpty;
       if (!_isAdmin) {
@@ -1231,11 +1232,11 @@ class _VehicleDetailPageState extends State<VehicleDetailPage>
 
   Future<void> _checkUserRole() async {
     try {
-      final roles = await requireRoles((r) => r.contains('ADMIN'));
+      final roles = await requireManagerRoles();
       if (roles == null) return; // session expired, redirected to login
       AppLogger.debug('User roles: $roles');
       setState(
-          () => _isEditable = roles.contains('ADMIN') ||
+          () => _isEditable = RoleUtils.canManageBusiness(roles) ||
               (_currentDriverName == widget.vehicle.ownerName));
     } catch (e) {
       AppLogger.error('Error checking role: $e');

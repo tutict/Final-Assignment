@@ -77,7 +77,7 @@ class _OffenseListPageState extends State<OffenseList> with PageAuthMixin {
   Future<void> _initialize() async {
     setState(() => _isLoading = true);
     try {
-      final roles = await requireRoles((r) => r.contains('ADMIN'));
+      final roles = await requireManagerRoles();
       if (roles == null) return; // session expired, redirected to login
       _isAdmin = roles.isNotEmpty;
       if (!_isAdmin) {
@@ -783,7 +783,7 @@ class _OffenseDetailPageState extends State<OffenseDetailPage>
   Future<void> _initialize() async {
     setState(() => _isLoading = true);
     try {
-      final roles = await requireRoles((r) => r.contains('ADMIN'));
+      final roles = await requireManagerRoles();
       if (roles == null) return; // session expired, redirected to login
       _isEditable = roles.isNotEmpty;
       if (!_isEditable) {

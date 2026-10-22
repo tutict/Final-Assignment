@@ -37,8 +37,7 @@ class UserDashboard extends GetView<UserDashboardController> with FloatingBase {
   @override
   Widget build(BuildContext context) {
     controller.pageResolver ??= resolveDashboardPage;
-    if (!controller.shellArgsConsumed) {
-      controller.shellArgsConsumed = true;
+    if (controller.hasUnconsumedShellArguments) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
         controller.consumeShellArguments();
       });

@@ -4,6 +4,7 @@ import 'package:final_assignment_front/features/api/deduction_information_contro
 import 'package:final_assignment_front/features/model/deduction_record.dart';
 import 'package:final_assignment_front/utils/services/auth_token_store.dart';
 import 'package:jwt_decoder/jwt_decoder.dart';
+import 'package:final_assignment_front/core/auth/role_utils.dart';
 
 abstract class DeductionRepository {
   Future<void> initializeWithJwt();
@@ -109,12 +110,7 @@ class DeductionRepositoryImpl extends BaseRepository
       }
 
       final decoded = JwtDecoder.decode(token);
-      final roles = decoded['roles'];
-      if (roles is String) return roles.contains('ADMIN');
-      if (roles is Iterable) {
-        return roles.map((role) => role.toString()).contains('ADMIN');
-      }
-      return false;
+      return RoleUtils.canManageBusiness(decoded['roles']);
     });
   }
 

@@ -19,6 +19,14 @@ class AppConfig {
   static const aiBasePath =
       String.fromEnvironment('AI_BASE_PATH', defaultValue: '/api/ai');
 
+  /// AI 对话模型的供应商标识，需与后端实际使用的推理服务保持一致。
+  static const aiProvider =
+      String.fromEnvironment('AI_PROVIDER', defaultValue: 'Ollama');
+
+  /// AI 对话模型标识，需与后端 OLLAMA_CHAT_MODEL 保持一致。
+  static const aiChatModel =
+      String.fromEnvironment('AI_CHAT_MODEL', defaultValue: 'llama3.2');
+
   static const apiPort = int.fromEnvironment('API_PORT', defaultValue: 8080);
 
   static const wsPort = int.fromEnvironment('WS_PORT', defaultValue: 8080);

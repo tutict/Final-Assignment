@@ -4,6 +4,7 @@ import 'dart:developer' as developer;
 
 import 'package:final_assignment_front/config/routes/app_routes.dart';
 import 'package:final_assignment_front/core/auth/auth_service.dart';
+import 'package:final_assignment_front/core/auth/role_utils.dart';
 import 'package:final_assignment_front/features/api/appeal_management_controller_api.dart';
 import 'package:final_assignment_front/features/api/auth_controller_api.dart';
 import 'package:final_assignment_front/features/api/offense_information_controller_api.dart';
@@ -153,7 +154,7 @@ class _AppealManagementAdminState extends State<ManagerAppealManagementPage> {
           final roles = (userData['roles'] as List<dynamic>?)
               ?.map((r) => r.toString().toUpperCase())
               .toList();
-          if (roles != null && roles.contains('ADMIN')) {
+          if (roles != null && RoleUtils.canManageBusiness(roles)) {
             setState(() => _isAdmin = true);
             return;
           }
@@ -191,7 +192,7 @@ class _AppealManagementAdminState extends State<ManagerAppealManagementPage> {
       } else {
         roles = [];
       }
-      setState(() => _isAdmin = roles.contains('ADMIN'));
+      setState(() => _isAdmin = RoleUtils.canManageBusiness(roles));
       if (!_isAdmin) {
         setState(() => _errorMessage = '权限不足：JWT角色为 $roles，非管理员');
       }
@@ -641,7 +642,7 @@ class _AppealDetailPageState extends State<AppealDetailPage> {
           final roles = (userData['roles'] as List<dynamic>?)
               ?.map((r) => r.toString().toUpperCase())
               .toList();
-          if (roles != null && roles.contains('ADMIN')) {
+          if (roles != null && RoleUtils.canManageBusiness(roles)) {
             setState(() => _isAdmin = true);
             return;
           }
@@ -679,7 +680,7 @@ class _AppealDetailPageState extends State<AppealDetailPage> {
       } else {
         roles = [];
       }
-      setState(() => _isAdmin = roles.contains('ADMIN'));
+      setState(() => _isAdmin = RoleUtils.canManageBusiness(roles));
       if (!_isAdmin) {
         setState(() => _errorMessage = '权限不足：JWT角色为 $roles，非管理员');
       }

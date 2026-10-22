@@ -59,9 +59,7 @@ class _SystemLogPageState extends State<SystemLogPage> with PageAuthMixin {
       _errorMessage = '';
     });
     try {
-      final roles = await requireRoles(
-        (roles) => roles.contains('ADMIN'),
-      );
+      final roles = await requireManagerRoles();
       if (roles == null) return; // session expired, redirected to login
       _isAdmin = roles.isNotEmpty;
       if (!_isAdmin) {

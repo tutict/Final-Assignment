@@ -68,7 +68,7 @@ class _OperationLogPageState extends State<OperationLogPage> with PageAuthMixin 
   Future<void> _initialize() async {
     setState(() => _isLoading = true);
     try {
-      final roles = await requireRoles((r) => r.contains('ADMIN'));
+      final roles = await requireManagerRoles();
       if (roles == null) return; // session expired, redirected to login
       _isAdmin = roles.isNotEmpty;
       if (!_isAdmin) {
