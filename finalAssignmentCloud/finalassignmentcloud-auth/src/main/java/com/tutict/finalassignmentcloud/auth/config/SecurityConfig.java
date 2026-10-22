@@ -32,17 +32,20 @@ public class SecurityConfig {
     }
 
     @Bean
-    public SecurityFilterChain securityFilterChain(HttpSecurity http, JwtAuthenticationFilter jwtAuthenticationFilter) throws Exception {
+    public PublicEndpoints publicEndpoints() {
+        return new PublicEndpoints();
+    }
+
+    @Bean
+    public SecurityFilterChain securityFilterChain(HttpSecurity http,
+                                                   JwtAuthenticationFilter jwtAuthenticationFilter,
+                                                   PublicEndpoints publicEndpoints) throws Exception {
         http
                 .csrf(AbstractHttpConfigurer::disable)
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authorizeHttpRequests(authz -> authz
                         .dispatcherTypeMatchers(DispatcherType.ASYNC, DispatcherType.ERROR).permitAll()
-                        .requestMatchers(
-                                "/api/auth/**",
-                                "/actuator/health",
-                                "/actuator/health/**"
-                        ).permitAll()
+                        .requestMatchers(publicEndpoints).permitAll()
                         .requestMatchers("/actuator/prometheus").hasRole("ADMIN")
                         .anyRequest().authenticated())
                 .exceptionHandling(ex -> ex
@@ -54,8 +57,9 @@ public class SecurityConfig {
 
     @Bean
     public JwtAuthenticationFilter jwtAuthenticationFilter(
-            com.tutict.finalassignmentcloud.auth.reliability.AuthReliabilityMetrics metrics) {
-        return new JwtAuthenticationFilter(tokenProvider, tokenBlacklistService, metrics::dependencyTimeout);
+            com.tutict.finalassignmentcloud.auth.reliability.AuthReliabilityMetrics metrics,
+            PublicEndpoints publicEndpoints) {
+        return new JwtAuthenticationFilter(tokenProvider, tokenBlacklistService, metrics::dependencyTimeout, publicEndpoints);
     }
 
     @Bean

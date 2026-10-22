@@ -1,5 +1,6 @@
 package com.tutict.finalassignmentcloud.auth.config.login.jwt;
 
+import com.tutict.finalassignmentcloud.auth.config.PublicEndpoints;
 import com.tutict.finalassignmentcloud.auth.reliability.BlacklistAccessPolicy;
 import com.tutict.finalassignmentcloud.auth.service.TokenBlacklistService;
 import org.jetbrains.annotations.NotNull;
@@ -25,12 +26,12 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
     private final TokenProvider tokenProvider;
     private final TokenBlacklistService tokenBlacklistService;
+    private final Runnable dependencyTimeout;
+    private final PublicEndpoints publicEndpoints;
 
     public JwtAuthenticationFilter(TokenProvider tokenProvider) {
         this(tokenProvider, null);
     }
-
-    private final Runnable dependencyTimeout;
 
     public JwtAuthenticationFilter(TokenProvider tokenProvider, TokenBlacklistService tokenBlacklistService) {
         this(tokenProvider, tokenBlacklistService, null);
@@ -39,9 +40,17 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
     public JwtAuthenticationFilter(TokenProvider tokenProvider,
                                    TokenBlacklistService tokenBlacklistService,
                                    Runnable dependencyTimeout) {
+        this(tokenProvider, tokenBlacklistService, dependencyTimeout, new PublicEndpoints());
+    }
+
+    public JwtAuthenticationFilter(TokenProvider tokenProvider,
+                                   TokenBlacklistService tokenBlacklistService,
+                                   Runnable dependencyTimeout,
+                                   PublicEndpoints publicEndpoints) {
         this.tokenProvider = tokenProvider;
         this.tokenBlacklistService = tokenBlacklistService;
         this.dependencyTimeout = dependencyTimeout;
+        this.publicEndpoints = publicEndpoints;
     }
 
     @Override
@@ -85,6 +94,8 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                     new UsernamePasswordAuthenticationToken(username, null, authorities);
             SecurityContextHolder.getContext().setAuthentication(authentication);
             logger.debug("Authentication set for user: {}", username);
+        } else if (publicEndpoints.matches(request)) {
+            logger.debug("No JWT required for public endpoint: {}", request.getRequestURI());
         } else {
             logger.warn("Invalid, revoked or missing JWT in request: {}", request.getRequestURI());
         }

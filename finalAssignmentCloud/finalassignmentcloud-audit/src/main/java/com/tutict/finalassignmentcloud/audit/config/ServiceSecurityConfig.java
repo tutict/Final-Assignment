@@ -56,12 +56,15 @@ public class ServiceSecurityConfig {
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers("/actuator/health", "/actuator/health/**").permitAll()
                         .requestMatchers("/actuator/prometheus").hasRole("ADMIN")
+                        .requestMatchers("/api/logs/internal/**").hasRole("INTERNAL")
                         .anyRequest().authenticated())
                 .exceptionHandling(ex -> ex
                         .authenticationEntryPoint(SecurityResponseWriter::writeUnauthorized)
                         .accessDeniedHandler(SecurityResponseWriter::writeForbidden))
-                .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class)
-                .addFilterBefore(internalServiceTokenFilter, UsernamePasswordAuthenticationFilter.class);
+                // 内部令牌过滤器必须晚于 JWT 过滤器：内部端点要以内部服务身份执行，
+                // 不能被转发过来的终端用户 JWT 覆盖。
+                .addFilterBefore(internalServiceTokenFilter, UsernamePasswordAuthenticationFilter.class)
+                .addFilterBefore(jwtAuthenticationFilter, InternalServiceTokenFilter.class);
         return http.build();
     }
 }

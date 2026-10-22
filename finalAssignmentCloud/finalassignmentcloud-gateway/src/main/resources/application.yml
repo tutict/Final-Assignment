@@ -41,6 +41,10 @@ spring:
           discovery:
             locator:
               enabled: true
+          default-filters:
+            # 内部服务令牌仅由服务间调用注入，网关必须剥离客户端携带的同名请求头，
+            # 否则外部请求可借该请求头冒用内部服务身份。
+            - RemoveRequestHeader=X-Internal-Service-Token
           httpclient:
             connect-timeout: 1000
             response-timeout: 3s

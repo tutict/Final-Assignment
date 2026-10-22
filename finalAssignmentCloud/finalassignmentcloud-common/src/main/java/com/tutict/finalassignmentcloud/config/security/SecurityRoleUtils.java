@@ -1,5 +1,6 @@
 package com.tutict.finalassignmentcloud.config.security;
 
+import org.springframework.security.authentication.AnonymousAuthenticationToken;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.GrantedAuthority;
 
@@ -10,6 +11,18 @@ import java.util.stream.Collectors;
 public final class SecurityRoleUtils {
 
     private SecurityRoleUtils() {
+    }
+
+    /**
+     * 判断请求是否由真实登录主体发起。
+     *
+     * <p>Spring Security 的匿名过滤器会为未认证请求放入 {@link AnonymousAuthenticationToken}，
+     * 因此仅判断 {@code authentication != null} 会把匿名请求误判为已认证。
+     */
+    public static boolean isAuthenticated(Authentication authentication) {
+        return authentication != null
+                && authentication.isAuthenticated()
+                && !(authentication instanceof AnonymousAuthenticationToken);
     }
 
     public static boolean hasRole(Authentication authentication, String role) {

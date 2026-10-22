@@ -72,9 +72,13 @@ public class BusinessWebSocketHandler implements WebSocketHandler {
 
     private Session open(String username, WebSocketSession session) {
         Session holder = new Session(username, session);
-        sessionsByUsername
-                .computeIfAbsent(username, ignored -> new CopyOnWriteArraySet<>())
-                .add(holder);
+        // 注册与注销必须落在同一次 compute 里：否则注销线程可能在"集合已空"与"移除表项"之间
+        // 让新会话挂到一个已被摘掉的集合上，导致该会话再也收不到推送。
+        sessionsByUsername.compute(username, (key, sessions) -> {
+            Set<Session> target = sessions == null ? new CopyOnWriteArraySet<>() : sessions;
+            target.add(holder);
+            return target;
+        });
         // 单一订阅 + concatMap 保证同一会话的帧按序发送，不会交错。
         holder.outbound.asFlux()
                 .concatMap(message -> session.send(Mono.just(message)))
@@ -85,14 +89,10 @@ public class BusinessWebSocketHandler implements WebSocketHandler {
     }
 
     private void close(Session holder) {
-        Set<Session> sessions = sessionsByUsername.get(holder.username);
-        if (sessions == null) {
-            return;
-        }
-        sessions.remove(holder);
-        if (sessions.isEmpty()) {
-            sessionsByUsername.remove(holder.username);
-        }
+        sessionsByUsername.computeIfPresent(holder.username, (key, sessions) -> {
+            sessions.remove(holder);
+            return sessions.isEmpty() ? null : sessions;
+        });
         holder.outbound.tryEmitComplete();
         log.info("WebSocket session closed for user={}, activeSessions={}",
                 holder.username, activeSessionCount());

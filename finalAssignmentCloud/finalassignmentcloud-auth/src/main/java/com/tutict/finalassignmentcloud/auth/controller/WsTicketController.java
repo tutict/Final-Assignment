@@ -1,6 +1,7 @@
 package com.tutict.finalassignmentcloud.auth.controller;
 
 import com.tutict.finalassignmentcloud.auth.config.websocket.WsTicketService;
+import com.tutict.finalassignmentcloud.config.security.SecurityRoleUtils;
 import com.tutict.finalassignmentcloud.dto.response.ApiResponse;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
@@ -37,7 +38,7 @@ public class WsTicketController {
     @SecurityRequirement(name = "bearerAuth")
     @Operation(summary = "签发 WebSocket 连接票据", description = "票据有效期 30 秒且只能被消费一次")
     public ResponseEntity<ApiResponse<Map<String, String>>> issue(Authentication authentication) {
-        if (authentication == null || !authentication.isAuthenticated()) {
+        if (!SecurityRoleUtils.isAuthenticated(authentication)) {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
                     .body(ApiResponse.error("UNAUTHORIZED", "Unauthorized"));
         }

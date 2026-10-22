@@ -8,7 +8,6 @@ import org.slf4j.LoggerFactory;
 import org.springframework.context.ApplicationContext;
 import org.springframework.stereotype.Component;
 
-import jakarta.annotation.PostConstruct;
 
 import java.lang.reflect.Method;
 import java.util.HashMap;
@@ -23,7 +22,9 @@ public class WsActionRegistry {
 
     private static final Logger log = LoggerFactory.getLogger(WsActionRegistry.class);
 
-    private final Map<String, HandlerMethod> registry = new HashMap<>();
+    private static final String SCANNED_PACKAGE = "com.tutict.finalassignmentcloud.auth.service";
+
+    private volatile Map<String, HandlerMethod> registry;
 
     private final ApplicationContext applicationContext;
 
@@ -31,19 +32,21 @@ public class WsActionRegistry {
         this.applicationContext = applicationContext;
     }
 
-    @PostConstruct
-    void init() {
-        log.info("---- WsActionRegistry init start ----");
-
-        // 获取Spring容器中所有的Bean
-        String[] beanNames = applicationContext.getBeanDefinitionNames();
-        for (String beanName : beanNames) {
+    /**
+     * 扫描带 @WsAction 的方法，并存储到 Map:  (serviceName + "#" + actionName) -> (beanInstance, method)
+     * 索引在首次查询时构建：在 @PostConstruct 阶段遍历容器会提前实例化全部单例，
+     * 并在自身仍在创建时抛 BeanCurrentlyInCreationException。
+     */
+    private Map<String, HandlerMethod> scan() {
+        log.info("---- WsActionRegistry scan start ----");
+        Map<String, HandlerMethod> scanned = new HashMap<>();
+        for (String beanName : applicationContext.getBeanDefinitionNames()) {
             Object bean = applicationContext.getBean(beanName);
             Class<?> beanClass = bean.getClass();
             Class<?> actualClass = getActualClass(beanClass);
 
             // 如果不想遍历全部, 你可以加判断:
-            if (!actualClass.getPackageName().startsWith("com.tutict.finalassignmentcloud.auth.service")) continue;
+            if (!actualClass.getPackageName().startsWith(SCANNED_PACKAGE)) continue;
 
             for (Method m : actualClass.getMethods()) {
                 WsAction anno = m.getAnnotation(WsAction.class);
@@ -54,13 +57,27 @@ public class WsActionRegistry {
                     String key = serviceName + "#" + actionName;
 
                     HandlerMethod hm = new HandlerMethod(bean, m);
-                    registry.put(key, hm);
+                    scanned.put(key, hm);
                     log.info("注册WsAction: key={}, method={}.{}", key, actualClass.getSimpleName(), m.getName());
                 }
             }
         }
+        log.info("---- WsActionRegistry scan end, total size={} ----", scanned.size());
+        return scanned;
+    }
 
-        log.info("---- WsActionRegistry init end, total size={} ----", registry.size());
+    private Map<String, HandlerMethod> registry() {
+        Map<String, HandlerMethod> current = registry;
+        if (current == null) {
+            synchronized (this) {
+                current = registry;
+                if (current == null) {
+                    current = scan();
+                    registry = current;
+                }
+            }
+        }
+        return current;
     }
 
     /**
@@ -78,7 +95,7 @@ public class WsActionRegistry {
      * 根据 (serviceName, actionName) 找到 Bean+Method
      */
     public HandlerMethod getHandler(String serviceName, String actionName) {
-        return registry.get(serviceName + "#" + actionName);
+        return registry().get(serviceName + "#" + actionName);
     }
 
     // 包装类，存储一份 bean 实例 + method

@@ -1,6 +1,7 @@
 package com.tutict.finalassignmentcloud.exception.global;
 
 import com.github.dockerjava.api.exception.UnauthorizedException;
+import com.tutict.finalassignmentcloud.common.exception.BusinessException;
 import com.tutict.finalassignmentcloud.dto.response.ApiResponse;
 import com.tutict.finalassignmentcloud.exception.DependencyUnavailableException;
 import jakarta.servlet.http.HttpServletRequest;
@@ -21,8 +22,10 @@ import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.core.AuthenticationException;
 import org.springframework.validation.BindException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
+import org.springframework.web.bind.MissingRequestHeaderException;
 import org.springframework.web.bind.MissingServletRequestParameterException;
 import org.springframework.web.bind.annotation.ControllerAdvice;
+import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
 import org.springframework.http.converter.HttpMessageNotReadableException;
 import org.springframework.web.HttpMediaTypeNotSupportedException;
 import org.springframework.web.HttpRequestMethodNotSupportedException;
@@ -144,6 +147,33 @@ public class GlobalExceptionHandler {
         logger.log(Level.WARNING, "缺少请求参数: {0}", ex.getParameterName());
         return buildResponse(HttpStatus.BAD_REQUEST,
                 "缺少请求参数: " + ex.getParameterName(), request, null);
+    }
+
+    @ExceptionHandler(MissingRequestHeaderException.class)
+    public ResponseEntity<Map<String, Object>> handleMissingRequestHeaderException(
+            MissingRequestHeaderException ex,
+            HttpServletRequest request) {
+        logger.log(Level.WARNING, "缺少请求头: {0}", ex.getHeaderName());
+        return buildResponse(HttpStatus.BAD_REQUEST,
+                "缺少请求头: " + ex.getHeaderName(), request, Map.of("errorCode", "BAD_REQUEST"));
+    }
+
+    @ExceptionHandler(MethodArgumentTypeMismatchException.class)
+    public ResponseEntity<Map<String, Object>> handleMethodArgumentTypeMismatchException(
+            MethodArgumentTypeMismatchException ex,
+            HttpServletRequest request) {
+        logger.log(Level.WARNING, "请求参数类型不匹配: {0}", ex.getName());
+        return buildResponse(HttpStatus.BAD_REQUEST,
+                "请求参数类型不匹配: " + ex.getName(), request, Map.of("errorCode", "BAD_REQUEST"));
+    }
+
+    @ExceptionHandler(BusinessException.class)
+    public ResponseEntity<Map<String, Object>> handleBusinessException(BusinessException ex,
+                                                                       HttpServletRequest request) {
+        logger.log(Level.WARNING, "业务校验失败: {0}", ex.getMessage());
+        Map<String, Object> extra = new LinkedHashMap<>();
+        extra.put("errorCode", ex.getErrorCode() == null ? "BUSINESS_ERROR" : ex.getErrorCode());
+        return buildResponse(HttpStatus.BAD_REQUEST, ex.getMessage(), request, extra);
     }
 
     @ExceptionHandler(HttpMessageNotReadableException.class)
