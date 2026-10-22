@@ -12,6 +12,10 @@ import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.annotation.security.RolesAllowed;
+import com.tutict.finalassignmentcloud.reliability.IdempotencyReplayException;
+import com.tutict.finalassignmentcloud.reliability.IdempotencyConflictException;
+import com.tutict.finalassignmentcloud.reliability.IdempotencyInProgressException;
+import com.tutict.finalassignmentcloud.reliability.IdempotencyOutcome;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
@@ -94,10 +98,10 @@ public class AppealManagementController {
         } catch (com.tutict.finalassignmentcloud.reliability.IdempotencyInProgressException ex) {
             return ResponseEntity.status(HttpStatus.CONFLICT).build();
         } catch (Exception ex) {
-            if (useIdempotency) {
+            if (useIdempotency && !IdempotencyOutcome.isControl(ex)) {
                 appealRecordService.markHistoryFailure(idempotencyKey, ex.getMessage());
             }
-            LOG.log(Level.SEVERE, "Create appeal failed", ex);
+            LOG.log(IdempotencyOutcome.isControl(ex) ? Level.INFO : Level.SEVERE, "Create appeal failed", ex);
             return ResponseEntity.status(resolveStatus(ex)).build();
         }
     }
@@ -126,10 +130,10 @@ public class AppealManagementController {
         } catch (com.tutict.finalassignmentcloud.reliability.IdempotencyInProgressException ex) {
             return ResponseEntity.status(HttpStatus.CONFLICT).build();
         } catch (Exception ex) {
-            if (useIdempotency) {
+            if (useIdempotency && !IdempotencyOutcome.isControl(ex)) {
                 appealRecordService.markHistoryFailure(idempotencyKey, ex.getMessage());
             }
-            LOG.log(Level.SEVERE, "Update appeal failed", ex);
+            LOG.log(IdempotencyOutcome.isControl(ex) ? Level.INFO : Level.SEVERE, "Update appeal failed", ex);
             return ResponseEntity.status(resolveStatus(ex)).build();
         }
     }
@@ -338,10 +342,10 @@ public class AppealManagementController {
         } catch (com.tutict.finalassignmentcloud.reliability.IdempotencyInProgressException ex) {
             return ResponseEntity.status(HttpStatus.CONFLICT).build();
         } catch (Exception ex) {
-            if (useIdempotency) {
+            if (useIdempotency && !IdempotencyOutcome.isControl(ex)) {
                 appealReviewService.markHistoryFailure(idempotencyKey, ex.getMessage());
             }
-            LOG.log(Level.SEVERE, "Create appeal review failed", ex);
+            LOG.log(IdempotencyOutcome.isControl(ex) ? Level.INFO : Level.SEVERE, "Create appeal review failed", ex);
             return ResponseEntity.status(resolveStatus(ex)).build();
         }
     }
@@ -370,10 +374,10 @@ public class AppealManagementController {
         } catch (com.tutict.finalassignmentcloud.reliability.IdempotencyInProgressException ex) {
             return ResponseEntity.status(HttpStatus.CONFLICT).build();
         } catch (Exception ex) {
-            if (useIdempotency) {
+            if (useIdempotency && !IdempotencyOutcome.isControl(ex)) {
                 appealReviewService.markHistoryFailure(idempotencyKey, ex.getMessage());
             }
-            LOG.log(Level.SEVERE, "Update appeal review failed", ex);
+            LOG.log(IdempotencyOutcome.isControl(ex) ? Level.INFO : Level.SEVERE, "Update appeal review failed", ex);
             return ResponseEntity.status(resolveStatus(ex)).build();
         }
     }
@@ -487,6 +491,12 @@ public class AppealManagementController {
     }
 
     private HttpStatus resolveStatus(Exception ex) {
+        if (ex instanceof IdempotencyReplayException) {
+            return HttpStatus.ALREADY_REPORTED;
+        }
+        if (ex instanceof IdempotencyConflictException || ex instanceof IdempotencyInProgressException) {
+            return HttpStatus.CONFLICT;
+        }
         return (ex instanceof IllegalArgumentException || ex instanceof IllegalStateException)
                 ? HttpStatus.BAD_REQUEST
                 : HttpStatus.INTERNAL_SERVER_ERROR;

@@ -4,7 +4,8 @@ import java.time.Duration;
 
 /**
  * 共享台账的幂等决策：只有业务真正成功后才应写入 SUCCESS。
- * PENDING 是旧版本“预留即成功”留下的状态，按可重试处理。
+ * PENDING / DONE 是旧版本“预留即成功”留下的占位值，没有请求指纹，无法判断是否同键异内容，
+ * 只能按“已处理”对待，避免重复执行副作用。
  */
 public final class LedgerIdempotencyDecider {
 
@@ -23,25 +24,25 @@ public final class LedgerIdempotencyDecider {
         }
         String normalized = status == null ? "" : status.trim();
         if ("FAILED".equalsIgnoreCase(normalized)) {
-            return Outcome.RETRY;
+            if (!LedgerFingerprint.isFingerprint(storedParams)) {
+                return Outcome.RETRY;
+            }
+            return sameFingerprint(storedParams, incomingFingerprint) ? Outcome.RETRY : Outcome.CONFLICT;
         }
         if ("PROCESSING".equalsIgnoreCase(normalized)) {
             return (age != null && age.compareTo(PROCESSING_TTL) >= 0) ? Outcome.RETRY : Outcome.IN_PROGRESS;
         }
         if ("SUCCESS".equalsIgnoreCase(normalized)) {
-            if ("PENDING".equalsIgnoreCase(storedParams)) {
-                return Outcome.RETRY;
+            if (!LedgerFingerprint.isFingerprint(storedParams)) {
+                return Outcome.REPLAY;
             }
-            return samePayload(storedParams, incomingFingerprint) ? Outcome.REPLAY : Outcome.CONFLICT;
+            return sameFingerprint(storedParams, incomingFingerprint) ? Outcome.REPLAY : Outcome.CONFLICT;
         }
         return Outcome.CONFLICT;
     }
 
-    private static boolean samePayload(String storedParams, String incomingFingerprint) {
+    private static boolean sameFingerprint(String storedParams, String incomingFingerprint) {
         if (incomingFingerprint == null || incomingFingerprint.isBlank()) {
-            return true;
-        }
-        if (storedParams == null || storedParams.isBlank() || "DONE".equalsIgnoreCase(storedParams)) {
             return true;
         }
         return storedParams.equals(incomingFingerprint);

@@ -5,6 +5,7 @@ import com.tutict.finalassignmentcloud.entity.PaymentRecord;
 import com.tutict.finalassignmentcloud.reliability.IdempotencyConflictException;
 import com.tutict.finalassignmentcloud.reliability.IdempotencyInProgressException;
 import com.tutict.finalassignmentcloud.reliability.IdempotencyReplayException;
+import com.tutict.finalassignmentcloud.reliability.IdempotencyOutcome;
 import com.tutict.finalassignmentcloud.traffic.service.DriverAccessService;
 import com.tutict.finalassignmentcloud.traffic.reliability.PaymentOptimisticLockException;
 import com.tutict.finalassignmentcloud.traffic.reliability.DuplicateKeySignals;
@@ -85,7 +86,7 @@ public class PaymentRecordController {
                 return ResponseEntity.status(HttpStatus.CONFLICT).build();
             }
             paymentRecordService.markHistoryFailure(idempotencyKey, ex.getMessage());
-            LOG.log(Level.SEVERE, "Create payment record failed", ex);
+            LOG.log(IdempotencyOutcome.isControl(ex) ? Level.INFO : Level.SEVERE, "Create payment record failed", ex);
             return ResponseEntity.status(resolveStatus(ex)).build();
         }
     }
@@ -108,7 +109,7 @@ public class PaymentRecordController {
             }
             return ResponseEntity.ok(updated);
         } catch (PaymentOptimisticLockException ex) {
-            if (useKey) {
+            if (useKey && !IdempotencyOutcome.isControl(ex)) {
                 paymentRecordService.markHistoryFailure(idempotencyKey, ex.getMessage());
             }
             return ResponseEntity.status(HttpStatus.CONFLICT).build();
@@ -116,10 +117,10 @@ public class PaymentRecordController {
             if (DuplicateKeySignals.duplicateKey(ex)) {
                 return ResponseEntity.status(HttpStatus.CONFLICT).build();
             }
-            if (useKey) {
+            if (useKey && !IdempotencyOutcome.isControl(ex)) {
                 paymentRecordService.markHistoryFailure(idempotencyKey, ex.getMessage());
             }
-            LOG.log(Level.SEVERE, "Update payment record failed", ex);
+            LOG.log(IdempotencyOutcome.isControl(ex) ? Level.INFO : Level.SEVERE, "Update payment record failed", ex);
             return ResponseEntity.status(resolveStatus(ex)).build();
         }
     }
@@ -275,6 +276,12 @@ public class PaymentRecordController {
     }
 
     private HttpStatus resolveStatus(Exception ex) {
+        if (ex instanceof IdempotencyReplayException) {
+            return HttpStatus.ALREADY_REPORTED;
+        }
+        if (ex instanceof IdempotencyConflictException || ex instanceof IdempotencyInProgressException) {
+            return HttpStatus.CONFLICT;
+        }
         return (ex instanceof IllegalArgumentException || ex instanceof IllegalStateException)
                 ? HttpStatus.BAD_REQUEST
                 : HttpStatus.INTERNAL_SERVER_ERROR;

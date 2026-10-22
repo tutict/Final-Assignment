@@ -4,7 +4,6 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.tutict.finalassignmentcloud.entity.VehicleInformation;
 import com.tutict.finalassignmentcloud.reliability.IdempotencyConflictException;
 import com.tutict.finalassignmentcloud.reliability.IdempotencyReplayException;
-import com.tutict.finalassignmentcloud.traffic.reliability.HistoryReserve;
 import com.tutict.finalassignmentcloud.traffic.service.VehicleInformationService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.kafka.annotation.EnableKafka;
@@ -16,6 +15,7 @@ import org.springframework.stereotype.Service;
 
 import java.util.logging.Level;
 import java.util.logging.Logger;
+import com.tutict.finalassignmentcloud.reliability.LedgerFingerprint;
 
 @Service
 @EnableKafka
@@ -55,7 +55,7 @@ public class VehicleInformationKafkaListener {
         String key = idempotencyKey;
         if (isBlank(key)) {
             // 没有 key 时用消息内容派生稳定键，避免重投产生重复数据。
-            key = HistoryReserve.sha256(action + "|" + message);
+            key = LedgerFingerprint.sha256(action + "|" + message);
             log.log(Level.WARNING, "VehicleInformation event without key, using derived key {0}", key);
         }
         if (vehicleInformationService.shouldSkipProcessing(key)) {

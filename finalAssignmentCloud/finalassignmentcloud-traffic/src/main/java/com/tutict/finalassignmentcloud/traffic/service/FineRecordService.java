@@ -9,7 +9,7 @@ import com.tutict.finalassignmentcloud.entity.SysRequestHistory;
 import com.tutict.finalassignmentcloud.entity.elastic.FineRecordDocument;
 import com.tutict.finalassignmentcloud.traffic.mapper.FineRecordMapper;
 import com.tutict.finalassignmentcloud.traffic.mapper.SysRequestHistoryMapper;
-import com.tutict.finalassignmentcloud.traffic.reliability.HistoryReserve;
+import com.tutict.finalassignmentcloud.reliability.HistoryReserve;
 import com.tutict.finalassignmentcloud.traffic.repository.FineRecordSearchRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.cache.annotation.CacheEvict;
@@ -27,6 +27,7 @@ import java.util.logging.Level;
 import java.util.logging.Logger;
 import java.util.stream.Collectors;
 import java.util.stream.StreamSupport;
+import com.tutict.finalassignmentcloud.reliability.LedgerFingerprint;
 
 @Service
 public class FineRecordService {
@@ -53,7 +54,7 @@ public class FineRecordService {
     public void checkAndInsertIdempotency(String idempotencyKey, FineRecord fineRecord, String action) {
         Objects.requireNonNull(fineRecord, "FineRecord must not be null");
         HistoryReserve.reserve(sysRequestHistoryMapper, idempotencyKey, "FINE_" + action.toUpperCase(),
-                HistoryReserve.sha256(fineRecord.getOffenseId() + "|" + fineRecord.getFineAmount() + "|"
+                LedgerFingerprint.fingerprint(fineRecord.getOffenseId() + "|" + fineRecord.getFineAmount() + "|"
                         + fineRecord.getDriverId() + "|" + fineRecord.getPaymentStatus()));
     }
 
@@ -265,30 +266,17 @@ public class FineRecordService {
     }
 
     public void markHistorySuccess(String idempotencyKey, Long fineId) {
-        SysRequestHistory history = sysRequestHistoryMapper.selectByIdempotencyKey(idempotencyKey);
-        if (history == null) {
-            log.log(Level.WARNING, "Cannot mark success for missing idempotency key {0}", idempotencyKey);
-            return;
+        Long businessId = fineId;
+        if (!HistoryReserve.markSuccess(sysRequestHistoryMapper, idempotencyKey, businessId)) {
+            log.log(Level.WARNING, "Idempotency key {0} is not pending, success marking skipped", idempotencyKey);
         }
-        history.setBusinessStatus("SUCCESS");
-        history.setBusinessId(fineId);
-        history.setUpdatedAt(LocalDateTime.now());
-        sysRequestHistoryMapper.updateById(history);
     }
 
     public void markHistoryFailure(String idempotencyKey, String reason) {
-        SysRequestHistory history = sysRequestHistoryMapper.selectByIdempotencyKey(idempotencyKey);
-        if (history == null) {
-            log.log(Level.WARNING, "Cannot mark failure for missing idempotency key {0}", idempotencyKey);
-            return;
+        log.log(Level.FINE, "Marking idempotency key {0} as failed: {1}", new Object[]{idempotencyKey, reason});
+        if (!HistoryReserve.markFailure(sysRequestHistoryMapper, idempotencyKey)) {
+            log.log(Level.WARNING, "Idempotency key {0} is not pending, failure marking skipped", idempotencyKey);
         }
-        if (!"PROCESSING".equalsIgnoreCase(history.getBusinessStatus())) {
-            return;
-        }
-        history.setBusinessStatus("FAILED");
-        history.setRequestParams(truncate(reason));
-        history.setUpdatedAt(LocalDateTime.now());
-        sysRequestHistoryMapper.updateById(history);
     }
 
     private void syncToIndexAfterCommit(FineRecord fineRecord) {
@@ -396,11 +384,5 @@ public class FineRecordService {
         return value == null || value.trim().isEmpty();
     }
 
-    private String truncate(String value) {
-        if (value == null) {
-            return null;
-        }
-        return value.length() <= 500 ? value : value.substring(0, 500);
     }
-}
 

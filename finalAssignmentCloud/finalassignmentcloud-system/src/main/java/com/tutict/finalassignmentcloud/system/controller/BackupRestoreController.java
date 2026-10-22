@@ -2,6 +2,9 @@ package com.tutict.finalassignmentcloud.system.controller;
 
 import com.tutict.finalassignmentcloud.entity.SysBackupRestore;
 import com.tutict.finalassignmentcloud.reliability.IdempotencyReplayException;
+import com.tutict.finalassignmentcloud.reliability.IdempotencyConflictException;
+import com.tutict.finalassignmentcloud.reliability.IdempotencyInProgressException;
+import com.tutict.finalassignmentcloud.reliability.IdempotencyOutcome;
 import com.tutict.finalassignmentcloud.system.service.SysBackupRestoreService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
@@ -39,9 +42,6 @@ public class BackupRestoreController {
         boolean useKey = hasKey(idempotencyKey);
         try {
             if (useKey) {
-                if (backupRestoreService.shouldSkipProcessing(idempotencyKey)) {
-                    return ResponseEntity.status(HttpStatus.ALREADY_REPORTED).build();
-                }
                 backupRestoreService.checkAndInsertIdempotency(idempotencyKey, request, "create");
             }
             SysBackupRestore saved = backupRestoreService.createSysBackupRestore(request);
@@ -50,10 +50,10 @@ public class BackupRestoreController {
             }
             return ResponseEntity.status(HttpStatus.CREATED).body(saved);
         } catch (Exception ex) {
-            if (useKey) {
+            if (useKey && !IdempotencyOutcome.isControl(ex)) {
                 backupRestoreService.markHistoryFailure(idempotencyKey, ex.getMessage());
             }
-            LOG.log(Level.SEVERE, "Create backup task failed", ex);
+            LOG.log(IdempotencyOutcome.isControl(ex) ? Level.INFO : Level.SEVERE, "Create backup task failed", ex);
             return ResponseEntity.status(resolveStatus(ex)).build();
         }
     }
@@ -68,9 +68,6 @@ public class BackupRestoreController {
         try {
             request.setBackupId(backupId);
             if (useKey) {
-                if (backupRestoreService.shouldSkipProcessing(idempotencyKey)) {
-                    return ResponseEntity.status(HttpStatus.ALREADY_REPORTED).build();
-                }
                 backupRestoreService.checkAndInsertIdempotency(idempotencyKey, request, "update");
             }
             SysBackupRestore updated = backupRestoreService.updateSysBackupRestore(request);
@@ -79,10 +76,10 @@ public class BackupRestoreController {
             }
             return ResponseEntity.ok(updated);
         } catch (Exception ex) {
-            if (useKey) {
+            if (useKey && !IdempotencyOutcome.isControl(ex)) {
                 backupRestoreService.markHistoryFailure(idempotencyKey, ex.getMessage());
             }
-            LOG.log(Level.SEVERE, "Update backup task failed", ex);
+            LOG.log(IdempotencyOutcome.isControl(ex) ? Level.INFO : Level.SEVERE, "Update backup task failed", ex);
             return ResponseEntity.status(resolveStatus(ex)).build();
         }
     }
@@ -194,6 +191,9 @@ public class BackupRestoreController {
     private HttpStatus resolveStatus(Exception ex) {
         if (ex instanceof IdempotencyReplayException) {
             return HttpStatus.ALREADY_REPORTED;
+        }
+        if (ex instanceof IdempotencyConflictException || ex instanceof IdempotencyInProgressException) {
+            return HttpStatus.CONFLICT;
         }
         return (ex instanceof IllegalArgumentException || ex instanceof IllegalStateException)
                 ? HttpStatus.BAD_REQUEST

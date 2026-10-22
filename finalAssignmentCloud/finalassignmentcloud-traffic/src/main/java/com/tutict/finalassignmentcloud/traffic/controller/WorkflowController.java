@@ -65,20 +65,45 @@ public class WorkflowController {
 
     @PostMapping("/offenses/{offenseId}/events/{event}")
     @Operation(summary = "触发违法记录状态事件")
-    public ResponseEntity<OffenseRecord> triggerOffenseEvent(@PathVariable Long offenseId,
-                                                             @PathVariable OffenseProcessEvent event) {
+    public ResponseEntity<?> triggerOffenseEvent(@PathVariable Long offenseId,
+                                                 @PathVariable OffenseProcessEvent event,
+                                                 @RequestHeader(value = "Idempotency-Key", required = false)
+                                                 String idempotencyKey) {
+        if (isBlank(idempotencyKey)) {
+            return missingKey();
+        }
         OffenseRecord record = offenseRecordService.findById(offenseId);
         if (record == null) {
             return ResponseEntity.notFound().build();
+        }
+        String eventName = event.name();
+        try {
+            workflowEventLedger.reserve(idempotencyKey, "OFFENSE_STATUS",
+                    "/api/workflow/offenses/" + offenseId + "/events/" + eventName, offenseId, eventName);
+        } catch (IdempotencyReplayException ex) {
+            return ResponseEntity.status(HttpStatus.ALREADY_REPORTED).build();
+        } catch (IdempotencyConflictException ex) {
+            metrics.idempotencyConflict();
+            return ResponseEntity.status(HttpStatus.CONFLICT).build();
+        } catch (IdempotencyInProgressException ex) {
+            return ResponseEntity.status(HttpStatus.CONFLICT).header("Retry-After", "1").build();
         }
         OffenseProcessState currentState = resolveOffenseState(record.getProcessStatus());
         OffenseProcessState newState = stateMachineService.processOffenseState(offenseId, currentState, event);
         if (newState == currentState) {
             LOG.log(Level.WARNING, "Offense {0} event {1} rejected at state {2}", new Object[]{offenseId, event, currentState});
-            return ResponseEntity.status(HttpStatus.CONFLICT).body(record);
+            workflowEventLedger.markFailed(idempotencyKey, "workflow transition rejected");
+            return workflowConflict();
         }
-        OffenseRecord updated = offenseRecordService.updateProcessStatus(offenseId, newState);
-        return ResponseEntity.ok(updated);
+        try {
+            OffenseRecord updated = offenseRecordService.updateProcessStatus(offenseId, newState);
+            workflowEventLedger.markSuccess(idempotencyKey, offenseId);
+            return ResponseEntity.ok(updated);
+        } catch (RuntimeException ex) {
+            workflowEventLedger.markFailed(idempotencyKey, ex.getMessage());
+            LOG.log(Level.WARNING, "Offense workflow update failed", ex);
+            return ResponseEntity.internalServerError().build();
+        }
     }
 
     @PostMapping("/payments/{paymentId}/events/{event}")

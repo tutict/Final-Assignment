@@ -2,6 +2,9 @@ package com.tutict.finalassignmentcloud.traffic.controller;
 
 import com.tutict.finalassignmentcloud.entity.OffenseTypeDict;
 import com.tutict.finalassignmentcloud.reliability.IdempotencyReplayException;
+import com.tutict.finalassignmentcloud.reliability.IdempotencyConflictException;
+import com.tutict.finalassignmentcloud.reliability.IdempotencyInProgressException;
+import com.tutict.finalassignmentcloud.reliability.IdempotencyOutcome;
 import com.tutict.finalassignmentcloud.traffic.service.OffenseTypeDictService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
@@ -47,9 +50,6 @@ public class OffenseTypeController {
         boolean useKey = hasKey(idempotencyKey);
         try {
             if (useKey) {
-                if (offenseTypeDictService.shouldSkipProcessing(idempotencyKey)) {
-                    return ResponseEntity.status(HttpStatus.ALREADY_REPORTED).build();
-                }
                 offenseTypeDictService.checkAndInsertIdempotency(idempotencyKey, request, "create");
             }
             OffenseTypeDict saved = offenseTypeDictService.createDict(request);
@@ -58,10 +58,10 @@ public class OffenseTypeController {
             }
             return ResponseEntity.status(HttpStatus.CREATED).body(saved);
         } catch (Exception ex) {
-            if (useKey) {
+            if (useKey && !IdempotencyOutcome.isControl(ex)) {
                 offenseTypeDictService.markHistoryFailure(idempotencyKey, ex.getMessage());
             }
-            LOG.log(Level.SEVERE, "Create offense type failed", ex);
+            LOG.log(IdempotencyOutcome.isControl(ex) ? Level.INFO : Level.SEVERE, "Create offense type failed", ex);
             return ResponseEntity.status(resolveStatus(ex)).build();
         }
     }
@@ -76,9 +76,6 @@ public class OffenseTypeController {
         try {
             request.setTypeId(typeId);
             if (useKey) {
-                if (offenseTypeDictService.shouldSkipProcessing(idempotencyKey)) {
-                    return ResponseEntity.status(HttpStatus.ALREADY_REPORTED).build();
-                }
                 offenseTypeDictService.checkAndInsertIdempotency(idempotencyKey, request, "update");
             }
             OffenseTypeDict updated = offenseTypeDictService.updateDict(request);
@@ -87,10 +84,10 @@ public class OffenseTypeController {
             }
             return ResponseEntity.ok(updated);
         } catch (Exception ex) {
-            if (useKey) {
+            if (useKey && !IdempotencyOutcome.isControl(ex)) {
                 offenseTypeDictService.markHistoryFailure(idempotencyKey, ex.getMessage());
             }
-            LOG.log(Level.SEVERE, "Update offense type failed", ex);
+            LOG.log(IdempotencyOutcome.isControl(ex) ? Level.INFO : Level.SEVERE, "Update offense type failed", ex);
             return ResponseEntity.status(resolveStatus(ex)).build();
         }
     }
@@ -211,6 +208,9 @@ public class OffenseTypeController {
     private HttpStatus resolveStatus(Exception ex) {
         if (ex instanceof IdempotencyReplayException) {
             return HttpStatus.ALREADY_REPORTED;
+        }
+        if (ex instanceof IdempotencyConflictException || ex instanceof IdempotencyInProgressException) {
+            return HttpStatus.CONFLICT;
         }
         return (ex instanceof IllegalArgumentException || ex instanceof IllegalStateException)
                 ? HttpStatus.BAD_REQUEST

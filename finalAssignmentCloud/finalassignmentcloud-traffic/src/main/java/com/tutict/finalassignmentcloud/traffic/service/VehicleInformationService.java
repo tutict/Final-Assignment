@@ -7,7 +7,7 @@ import com.tutict.finalassignmentcloud.entity.SysRequestHistory;
 import com.tutict.finalassignmentcloud.entity.VehicleInformation;
 import com.tutict.finalassignmentcloud.entity.elastic.VehicleInformationDocument;
 import com.tutict.finalassignmentcloud.reliability.IdempotencyReplayException;
-import com.tutict.finalassignmentcloud.traffic.reliability.HistoryReserve;
+import com.tutict.finalassignmentcloud.reliability.HistoryReserve;
 import com.tutict.finalassignmentcloud.traffic.mapper.SysRequestHistoryMapper;
 import com.tutict.finalassignmentcloud.traffic.mapper.VehicleInformationMapper;
 import com.tutict.finalassignmentcloud.traffic.repository.VehicleInformationSearchRepository;
@@ -30,6 +30,7 @@ import java.util.logging.Level;
 import java.util.logging.Logger;
 import java.util.stream.Collectors;
 import java.util.stream.StreamSupport;
+import com.tutict.finalassignmentcloud.reliability.LedgerFingerprint;
 
 @Service
 public class VehicleInformationService {
@@ -57,7 +58,7 @@ public class VehicleInformationService {
         Objects.requireNonNull(vehicleInformation, "Vehicle information cannot be null");
         // 只预留 PROCESSING，SUCCESS 必须等业务落库后由 markHistorySuccess 写入。
         HistoryReserve.reserve(sysRequestHistoryMapper, idempotencyKey, "VEHICLE_" + action.toUpperCase(),
-                HistoryReserve.sha256(action + "|" + vehicleInformation.getVehicleId() + "|"
+                LedgerFingerprint.fingerprint(action + "|" + vehicleInformation.getVehicleId() + "|"
                         + vehicleInformation.getLicensePlate() + "|" + vehicleInformation.getEngineNumber()
                         + "|" + vehicleInformation.getFrameNumber()));
     }
@@ -73,31 +74,17 @@ public class VehicleInformationService {
     }
 
     public void markHistorySuccess(String idempotencyKey, Long vehicleId) {
-        SysRequestHistory history = sysRequestHistoryMapper.selectByIdempotencyKey(idempotencyKey);
-        if (history == null) {
-            log.log(Level.WARNING, "Cannot mark success for missing idempotency key {0}", idempotencyKey);
-            return;
+        Long businessId = vehicleId;
+        if (!HistoryReserve.markSuccess(sysRequestHistoryMapper, idempotencyKey, businessId)) {
+            log.log(Level.WARNING, "Idempotency key {0} is not pending, success marking skipped", idempotencyKey);
         }
-        history.setBusinessStatus("SUCCESS");
-        history.setBusinessId(vehicleId);
-        history.setRequestParams("DONE");
-        history.setUpdatedAt(LocalDateTime.now());
-        sysRequestHistoryMapper.updateById(history);
     }
 
     public void markHistoryFailure(String idempotencyKey, String reason) {
-        SysRequestHistory history = sysRequestHistoryMapper.selectByIdempotencyKey(idempotencyKey);
-        if (history == null) {
-            log.log(Level.WARNING, "Cannot mark failure for missing idempotency key {0}", idempotencyKey);
-            return;
+        log.log(Level.FINE, "Marking idempotency key {0} as failed: {1}", new Object[]{idempotencyKey, reason});
+        if (!HistoryReserve.markFailure(sysRequestHistoryMapper, idempotencyKey)) {
+            log.log(Level.WARNING, "Idempotency key {0} is not pending, failure marking skipped", idempotencyKey);
         }
-        if (!"PROCESSING".equalsIgnoreCase(history.getBusinessStatus())) {
-            return;
-        }
-        history.setBusinessStatus("FAILED");
-        history.setRequestParams(truncate(reason));
-        history.setUpdatedAt(LocalDateTime.now());
-        sysRequestHistoryMapper.updateById(history);
     }
 
     @Transactional
@@ -469,11 +456,5 @@ public class VehicleInformationService {
         }
     }
 
-    private String truncate(String value) {
-        if (value == null) {
-            return "FAILED";
-        }
-        return value.length() <= 500 ? value : value.substring(0, 500);
     }
-}
 

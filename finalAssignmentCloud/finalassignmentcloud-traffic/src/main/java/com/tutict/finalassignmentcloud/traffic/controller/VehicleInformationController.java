@@ -6,6 +6,7 @@ import com.tutict.finalassignmentcloud.dto.response.ApiResponse;
 import com.tutict.finalassignmentcloud.reliability.IdempotencyConflictException;
 import com.tutict.finalassignmentcloud.reliability.IdempotencyInProgressException;
 import com.tutict.finalassignmentcloud.reliability.IdempotencyReplayException;
+import com.tutict.finalassignmentcloud.reliability.IdempotencyOutcome;
 import com.tutict.finalassignmentcloud.traffic.service.BusinessRecordViewService;
 import com.tutict.finalassignmentcloud.traffic.service.DriverAccessService;
 import com.tutict.finalassignmentcloud.traffic.service.DriverVehicleService;
@@ -76,10 +77,10 @@ public class VehicleInformationController {
             }
             return ResponseEntity.status(HttpStatus.CREATED).body(enrich(saved));
         } catch (Exception ex) {
-            if (hasKey(idempotencyKey) && !isIdempotencyOutcome(ex)) {
+            if (hasKey(idempotencyKey) && !IdempotencyOutcome.isControl(ex)) {
                 vehicleInformationService.markHistoryFailure(idempotencyKey, ex.getMessage());
             }
-            LOG.log(Level.SEVERE, "Create vehicle failed", ex);
+            LOG.log(IdempotencyOutcome.isControl(ex) ? Level.INFO : Level.SEVERE, "Create vehicle failed", ex);
             return ResponseEntity.status(resolveStatus(ex)).build();
         }
     }
@@ -101,10 +102,10 @@ public class VehicleInformationController {
             }
             return ResponseEntity.ok(enrich(updated));
         } catch (Exception ex) {
-            if (hasKey(idempotencyKey) && !isIdempotencyOutcome(ex)) {
+            if (hasKey(idempotencyKey) && !IdempotencyOutcome.isControl(ex)) {
                 vehicleInformationService.markHistoryFailure(idempotencyKey, ex.getMessage());
             }
-            LOG.log(Level.SEVERE, "Update vehicle failed", ex);
+            LOG.log(IdempotencyOutcome.isControl(ex) ? Level.INFO : Level.SEVERE, "Update vehicle failed", ex);
             return ResponseEntity.status(resolveStatus(ex)).build();
         }
     }
@@ -260,9 +261,6 @@ public class VehicleInformationController {
         try {
             relation.setVehicleId(vehicleId);
             if (useKey) {
-                if (driverVehicleService.shouldSkipProcessing(idempotencyKey)) {
-                    return ResponseEntity.status(HttpStatus.ALREADY_REPORTED).build();
-                }
                 driverVehicleService.checkAndInsertIdempotency(idempotencyKey, relation, "create");
             }
             DriverVehicle saved = driverVehicleService.createBinding(relation);
@@ -271,10 +269,10 @@ public class VehicleInformationController {
             }
             return ResponseEntity.status(HttpStatus.CREATED).body(saved);
         } catch (Exception ex) {
-            if (useKey) {
+            if (useKey && !IdempotencyOutcome.isControl(ex)) {
                 driverVehicleService.markHistoryFailure(idempotencyKey, ex.getMessage());
             }
-            LOG.log(Level.SEVERE, "Create driver-vehicle binding failed", ex);
+            LOG.log(IdempotencyOutcome.isControl(ex) ? Level.INFO : Level.SEVERE, "Create driver-vehicle binding failed", ex);
             return ResponseEntity.status(resolveStatus(ex)).build();
         }
     }
@@ -314,9 +312,6 @@ public class VehicleInformationController {
         try {
             relation.setId(bindingId);
             if (useKey) {
-                if (driverVehicleService.shouldSkipProcessing(idempotencyKey)) {
-                    return ResponseEntity.status(HttpStatus.ALREADY_REPORTED).build();
-                }
                 driverVehicleService.checkAndInsertIdempotency(idempotencyKey, relation, "update");
             }
             DriverVehicle updated = driverVehicleService.updateBinding(relation);
@@ -325,10 +320,10 @@ public class VehicleInformationController {
             }
             return ResponseEntity.ok(updated);
         } catch (Exception ex) {
-            if (useKey) {
+            if (useKey && !IdempotencyOutcome.isControl(ex)) {
                 driverVehicleService.markHistoryFailure(idempotencyKey, ex.getMessage());
             }
-            LOG.log(Level.SEVERE, "Update driver-vehicle binding failed", ex);
+            LOG.log(IdempotencyOutcome.isControl(ex) ? Level.INFO : Level.SEVERE, "Update driver-vehicle binding failed", ex);
             return ResponseEntity.status(resolveStatus(ex)).build();
         }
     }
@@ -566,7 +561,7 @@ public class VehicleInformationController {
         if (ex instanceof IdempotencyReplayException) {
             return HttpStatus.ALREADY_REPORTED;
         }
-        if (ex instanceof IdempotencyInProgressException || ex instanceof IdempotencyConflictException) {
+        if (ex instanceof IdempotencyConflictException || ex instanceof IdempotencyInProgressException) {
             return HttpStatus.CONFLICT;
         }
         return (ex instanceof IllegalArgumentException || ex instanceof IllegalStateException)
@@ -574,9 +569,4 @@ public class VehicleInformationController {
                 : HttpStatus.INTERNAL_SERVER_ERROR;
     }
 
-    private static boolean isIdempotencyOutcome(Exception ex) {
-        return ex instanceof IdempotencyReplayException
-                || ex instanceof IdempotencyConflictException
-                || ex instanceof IdempotencyInProgressException;
-    }
 }

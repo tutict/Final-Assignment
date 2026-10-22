@@ -1,7 +1,7 @@
 package com.tutict.finalassignmentcloud.mapper.system;
 
 import com.baomidou.mybatisplus.core.mapper.BaseMapper;
-import com.tutict.finalassignmentcloud.entity.system.SysRequestHistory;
+import com.tutict.finalassignmentcloud.entity.SysRequestHistory;
 import org.apache.ibatis.annotations.Mapper;
 import org.apache.ibatis.annotations.Param;
 import org.apache.ibatis.annotations.Select;

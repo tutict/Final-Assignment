@@ -2,6 +2,9 @@ package com.tutict.finalassignmentcloud.traffic.controller;
 
 import com.tutict.finalassignmentcloud.entity.OffenseRecord;
 import com.tutict.finalassignmentcloud.reliability.IdempotencyReplayException;
+import com.tutict.finalassignmentcloud.reliability.IdempotencyConflictException;
+import com.tutict.finalassignmentcloud.reliability.IdempotencyInProgressException;
+import com.tutict.finalassignmentcloud.reliability.IdempotencyOutcome;
 import com.tutict.finalassignmentcloud.traffic.service.BusinessRecordViewService;
 import com.tutict.finalassignmentcloud.traffic.service.DriverAccessService;
 import com.tutict.finalassignmentcloud.traffic.service.OffenseRecordService;
@@ -63,9 +66,6 @@ public class OffenseInformationController {
         boolean useKey = hasKey(idempotencyKey);
         try {
             if (useKey) {
-                if (offenseRecordService.shouldSkipProcessing(idempotencyKey)) {
-                    return ResponseEntity.status(HttpStatus.ALREADY_REPORTED).build();
-                }
                 offenseRecordService.checkAndInsertIdempotency(idempotencyKey, request, "create");
             }
             OffenseRecord saved = offenseRecordService.createOffenseRecord(request);
@@ -74,10 +74,10 @@ public class OffenseInformationController {
             }
             return ResponseEntity.status(HttpStatus.CREATED).body(enrich(saved));
         } catch (Exception ex) {
-            if (useKey) {
+            if (useKey && !IdempotencyOutcome.isControl(ex)) {
                 offenseRecordService.markHistoryFailure(idempotencyKey, ex.getMessage());
             }
-            LOG.log(Level.SEVERE, "Create offense failed", ex);
+            LOG.log(IdempotencyOutcome.isControl(ex) ? Level.INFO : Level.SEVERE, "Create offense failed", ex);
             return ResponseEntity.status(resolveStatus(ex)).build();
         }
     }
@@ -92,9 +92,6 @@ public class OffenseInformationController {
         try {
             request.setOffenseId(offenseId);
             if (useKey) {
-                if (offenseRecordService.shouldSkipProcessing(idempotencyKey)) {
-                    return ResponseEntity.status(HttpStatus.ALREADY_REPORTED).build();
-                }
                 offenseRecordService.checkAndInsertIdempotency(idempotencyKey, request, "update");
             }
             OffenseRecord updated = offenseRecordService.updateOffenseRecord(request);
@@ -103,10 +100,10 @@ public class OffenseInformationController {
             }
             return ResponseEntity.ok(enrich(updated));
         } catch (Exception ex) {
-            if (useKey) {
+            if (useKey && !IdempotencyOutcome.isControl(ex)) {
                 offenseRecordService.markHistoryFailure(idempotencyKey, ex.getMessage());
             }
-            LOG.log(Level.SEVERE, "Update offense failed", ex);
+            LOG.log(IdempotencyOutcome.isControl(ex) ? Level.INFO : Level.SEVERE, "Update offense failed", ex);
             return ResponseEntity.status(resolveStatus(ex)).build();
         }
     }
@@ -329,6 +326,9 @@ public class OffenseInformationController {
     private HttpStatus resolveStatus(Exception ex) {
         if (ex instanceof IdempotencyReplayException) {
             return HttpStatus.ALREADY_REPORTED;
+        }
+        if (ex instanceof IdempotencyConflictException || ex instanceof IdempotencyInProgressException) {
+            return HttpStatus.CONFLICT;
         }
         return (ex instanceof IllegalArgumentException || ex instanceof IllegalStateException)
                 ? HttpStatus.BAD_REQUEST

@@ -7,6 +7,7 @@ import com.tutict.finalassignmentcloud.config.websocket.WsAction;
 import com.tutict.finalassignmentcloud.entity.SysRequestHistory;
 import com.tutict.finalassignmentcloud.entity.SysUser;
 import com.tutict.finalassignmentcloud.entity.elastic.SysRequestHistoryDocument;
+import com.tutict.finalassignmentcloud.reliability.HistoryReserve;
 import com.tutict.finalassignmentcloud.reliability.IdempotencyReplayException;
 import com.tutict.finalassignmentcloud.system.mapper.SysRequestHistoryMapper;
 import com.tutict.finalassignmentcloud.system.mapper.SysUserMapper;
@@ -28,6 +29,7 @@ import java.util.logging.Level;
 import java.util.logging.Logger;
 import java.util.stream.Collectors;
 import java.util.stream.StreamSupport;
+import com.tutict.finalassignmentcloud.reliability.LedgerFingerprint;
 
 @Service
 public class SysRequestHistoryService {
@@ -76,26 +78,9 @@ public class SysRequestHistoryService {
     @CacheEvict(cacheNames = CACHE_NAME, allEntries = true)
     @WsAction(service = "SysRequestHistoryService", action = "checkAndInsertIdempotency")
     public void checkAndInsertIdempotency(String idempotencyKey, SysRequestHistory historyPayload, String action) {
-        Objects.requireNonNull(historyPayload, "SysRequestHistory must not be null");
-        SysRequestHistory existing = sysRequestHistoryMapper.selectByIdempotencyKey(idempotencyKey);
-        if (existing != null) {
-            log.warning(() -> String.format("Duplicate sys request history request detected (key=%s)", idempotencyKey));
-            throw new IdempotencyReplayException("Duplicate sys request history request detected");
-        }
-
-        SysRequestHistory history = new SysRequestHistory();
-        history.setIdempotencyKey(idempotencyKey);
-        history.setBusinessStatus("PROCESSING");
-        history.setCreatedAt(LocalDateTime.now());
-        history.setUpdatedAt(LocalDateTime.now());
-        sysRequestHistoryMapper.insert(history);
-
-
-        history.setBusinessStatus("SUCCESS");
-        history.setBusinessId(historyPayload.getId());
-        history.setRequestParams("PENDING");
-        history.setUpdatedAt(LocalDateTime.now());
-        sysRequestHistoryMapper.updateById(history);
+        HistoryReserve.reserve(sysRequestHistoryMapper, idempotencyKey, "SYS_REQUEST_HISTORY_" + action.toUpperCase(),
+                LedgerFingerprint.fingerprint(action + "|" + historyPayload.getIdempotencyKey() + "|" + historyPayload.getRequestMethod()
+                        + "|" + historyPayload.getRequestUrl() + "|" + historyPayload.getBusinessType()));
     }
 
     @Transactional
@@ -343,31 +328,17 @@ public class SysRequestHistoryService {
     }
 
     public void markHistorySuccess(String idempotencyKey, Long historyId) {
-        SysRequestHistory history = sysRequestHistoryMapper.selectByIdempotencyKey(idempotencyKey);
-        if (history == null) {
-            log.log(Level.WARNING, "Cannot mark success for missing idempotency key {0}", idempotencyKey);
-            return;
+        Long businessId = historyId;
+        if (!HistoryReserve.markSuccess(sysRequestHistoryMapper, idempotencyKey, businessId)) {
+            log.log(Level.WARNING, "Idempotency key {0} is not pending, success marking skipped", idempotencyKey);
         }
-        history.setBusinessStatus("SUCCESS");
-        history.setBusinessId(historyId);
-        history.setRequestParams("DONE");
-        history.setUpdatedAt(LocalDateTime.now());
-        sysRequestHistoryMapper.updateById(history);
     }
 
     public void markHistoryFailure(String idempotencyKey, String reason) {
-        SysRequestHistory history = sysRequestHistoryMapper.selectByIdempotencyKey(idempotencyKey);
-        if (history == null) {
-            log.log(Level.WARNING, "Cannot mark failure for missing idempotency key {0}", idempotencyKey);
-            return;
+        log.log(Level.FINE, "Marking idempotency key {0} as failed: {1}", new Object[]{idempotencyKey, reason});
+        if (!HistoryReserve.markFailure(sysRequestHistoryMapper, idempotencyKey)) {
+            log.log(Level.WARNING, "Idempotency key {0} is not pending, failure marking skipped", idempotencyKey);
         }
-        if (!"PROCESSING".equalsIgnoreCase(history.getBusinessStatus())) {
-            return;
-        }
-        history.setBusinessStatus("FAILED");
-        history.setRequestParams(truncate(reason));
-        history.setUpdatedAt(LocalDateTime.now());
-        sysRequestHistoryMapper.updateById(history);
     }
 
     
@@ -484,11 +455,5 @@ public class SysRequestHistoryService {
         return value == null || value.trim().isEmpty();
     }
 
-    private String truncate(String value) {
-        if (value == null) {
-            return null;
-        }
-        return value.length() <= 500 ? value : value.substring(0, 500);
     }
-}
 

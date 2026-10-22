@@ -8,6 +8,7 @@ import com.tutict.finalassignmentcloud.entity.DriverVehicle;
 import com.tutict.finalassignmentcloud.entity.SysRequestHistory;
 import com.tutict.finalassignmentcloud.entity.VehicleInformation;
 import com.tutict.finalassignmentcloud.entity.elastic.DriverVehicleDocument;
+import com.tutict.finalassignmentcloud.reliability.HistoryReserve;
 import com.tutict.finalassignmentcloud.reliability.IdempotencyReplayException;
 import com.tutict.finalassignmentcloud.traffic.mapper.DriverVehicleMapper;
 import com.tutict.finalassignmentcloud.traffic.mapper.SysRequestHistoryMapper;
@@ -32,6 +33,7 @@ import java.util.logging.Level;
 import java.util.logging.Logger;
 import java.util.stream.Collectors;
 import java.util.stream.StreamSupport;
+import com.tutict.finalassignmentcloud.reliability.LedgerFingerprint;
 
 @Service
 public class DriverVehicleService {
@@ -59,26 +61,9 @@ public class DriverVehicleService {
     @CacheEvict(cacheNames = CACHE_NAME, allEntries = true)
     @WsAction(service = "DriverVehicleService", action = "checkAndInsertIdempotency")
     public void checkAndInsertIdempotency(String idempotencyKey, DriverVehicle binding, String action) {
-        Objects.requireNonNull(binding, "DriverVehicle must not be null");
-        SysRequestHistory existing = sysRequestHistoryMapper.selectByIdempotencyKey(idempotencyKey);
-        if (existing != null) {
-            log.warning(() -> String.format("Duplicate driver-vehicle binding request detected (key=%s)", idempotencyKey));
-            throw new IdempotencyReplayException("Duplicate driver-vehicle request detected");
-        }
-
-        SysRequestHistory history = new SysRequestHistory();
-        history.setIdempotencyKey(idempotencyKey);
-        history.setBusinessStatus("PROCESSING");
-        history.setCreatedAt(LocalDateTime.now());
-        history.setUpdatedAt(LocalDateTime.now());
-        sysRequestHistoryMapper.insert(history);
-
-
-        history.setBusinessStatus("SUCCESS");
-        history.setBusinessId(binding.getId());
-        history.setRequestParams("PENDING");
-        history.setUpdatedAt(LocalDateTime.now());
-        sysRequestHistoryMapper.updateById(history);
+        HistoryReserve.reserve(sysRequestHistoryMapper, idempotencyKey, "DRIVER_VEHICLE_" + action.toUpperCase(),
+                LedgerFingerprint.fingerprint(action + "|" + binding.getDriverId() + "|" + binding.getVehicleId()
+                        + "|" + binding.getRelationship()));
     }
 
     @Transactional
@@ -214,31 +199,17 @@ public class DriverVehicleService {
     }
 
     public void markHistorySuccess(String idempotencyKey, Long bindingId) {
-        SysRequestHistory history = sysRequestHistoryMapper.selectByIdempotencyKey(idempotencyKey);
-        if (history == null) {
-            log.log(Level.WARNING, "Cannot mark success for missing idempotency key {0}", idempotencyKey);
-            return;
+        Long businessId = bindingId;
+        if (!HistoryReserve.markSuccess(sysRequestHistoryMapper, idempotencyKey, businessId)) {
+            log.log(Level.WARNING, "Idempotency key {0} is not pending, success marking skipped", idempotencyKey);
         }
-        history.setBusinessStatus("SUCCESS");
-        history.setBusinessId(bindingId);
-        history.setRequestParams("DONE");
-        history.setUpdatedAt(LocalDateTime.now());
-        sysRequestHistoryMapper.updateById(history);
     }
 
     public void markHistoryFailure(String idempotencyKey, String reason) {
-        SysRequestHistory history = sysRequestHistoryMapper.selectByIdempotencyKey(idempotencyKey);
-        if (history == null) {
-            log.log(Level.WARNING, "Cannot mark failure for missing idempotency key {0}", idempotencyKey);
-            return;
+        log.log(Level.FINE, "Marking idempotency key {0} as failed: {1}", new Object[]{idempotencyKey, reason});
+        if (!HistoryReserve.markFailure(sysRequestHistoryMapper, idempotencyKey)) {
+            log.log(Level.WARNING, "Idempotency key {0} is not pending, failure marking skipped", idempotencyKey);
         }
-        if (!"PROCESSING".equalsIgnoreCase(history.getBusinessStatus())) {
-            return;
-        }
-        history.setBusinessStatus("FAILED");
-        history.setRequestParams(truncate(reason));
-        history.setUpdatedAt(LocalDateTime.now());
-        sysRequestHistoryMapper.updateById(history);
     }
 
     
@@ -352,11 +323,5 @@ public class DriverVehicleService {
         return value == null || value.trim().isEmpty();
     }
 
-    private String truncate(String value) {
-        if (value == null) {
-            return null;
-        }
-        return value.length() <= 500 ? value : value.substring(0, 500);
     }
-}
 

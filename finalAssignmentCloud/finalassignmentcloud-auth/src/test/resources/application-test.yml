@@ -38,10 +38,13 @@ management:
 
 jwt:
   secret:
-    key: ${AUTH_TEST_JWT_SECRET:test-secret-key-for-cloud-auth-integration-tests-32chars}
+    key: ${AUTH_TEST_JWT_SECRET:Y2xvdWQtYXV0aC1pbnRlZ3JhdGlvbi10ZXN0LXNlY3JldC1rZXktMjAyNi1yb3RhdGlvbg==}
   algorithm: HS256
   access-token-expiration: 3600
   refresh-token-expiration: 86400
+
+internal:
+  service-token: ${INTERNAL_SERVICE_TOKEN:test-internal-service-token-32bytes-ok}
 
 logging:
   level:

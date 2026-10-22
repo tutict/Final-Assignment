@@ -6,6 +6,7 @@ import com.tutict.finalassignmentcloud.entity.SysUserRole;
 import com.tutict.finalassignmentcloud.reliability.IdempotencyConflictException;
 import com.tutict.finalassignmentcloud.reliability.IdempotencyInProgressException;
 import com.tutict.finalassignmentcloud.reliability.IdempotencyReplayException;
+import com.tutict.finalassignmentcloud.reliability.IdempotencyOutcome;
 import com.tutict.finalassignmentcloud.user.service.SysUserRoleService;
 import com.tutict.finalassignmentcloud.user.service.SysUserService;
 import io.swagger.v3.oas.annotations.Operation;
@@ -60,9 +61,6 @@ public class UserManagementController {
         boolean useKey = hasKey(idempotencyKey);
         try {
             if (useKey) {
-                if (sysUserService.shouldSkipProcessing(idempotencyKey)) {
-                    return ResponseEntity.status(HttpStatus.ALREADY_REPORTED).build();
-                }
                 sysUserService.checkAndInsertIdempotency(idempotencyKey, request, "create");
             }
             SysUser saved = sysUserService.createSysUser(request);
@@ -71,10 +69,10 @@ public class UserManagementController {
             }
             return ResponseEntity.status(HttpStatus.CREATED).body(saved);
         } catch (Exception ex) {
-            if (useKey && !isIdempotencyOutcome(ex)) {
+            if (useKey && !IdempotencyOutcome.isControl(ex)) {
                 sysUserService.markHistoryFailure(idempotencyKey, ex.getMessage());
             }
-            LOG.log(Level.SEVERE, "Create user failed", ex);
+            LOG.log(IdempotencyOutcome.isControl(ex) ? Level.INFO : Level.SEVERE, "Create user failed", ex);
             return ResponseEntity.status(resolveStatus(ex)).build();
         }
     }
@@ -89,9 +87,6 @@ public class UserManagementController {
         try {
             request.setUserId(userId);
             if (useKey) {
-                if (sysUserService.shouldSkipProcessing(idempotencyKey)) {
-                    return ResponseEntity.status(HttpStatus.ALREADY_REPORTED).build();
-                }
                 sysUserService.checkAndInsertIdempotency(idempotencyKey, request, "update");
             }
             SysUser updated = sysUserService.updateSysUser(request);
@@ -100,10 +95,10 @@ public class UserManagementController {
             }
             return ResponseEntity.ok(updated);
         } catch (Exception ex) {
-            if (useKey && !isIdempotencyOutcome(ex)) {
+            if (useKey && !IdempotencyOutcome.isControl(ex)) {
                 sysUserService.markHistoryFailure(idempotencyKey, ex.getMessage());
             }
-            LOG.log(Level.SEVERE, "Update user failed", ex);
+            LOG.log(IdempotencyOutcome.isControl(ex) ? Level.INFO : Level.SEVERE, "Update user failed", ex);
             return ResponseEntity.status(resolveStatus(ex)).build();
         }
     }
@@ -125,7 +120,7 @@ public class UserManagementController {
     @RolesAllowed({"SUPER_ADMIN", "ADMIN", "USER", "TRAFFIC_POLICE", "FINANCE", "APPEAL_REVIEWER"})
     @Operation(summary = "查询当前用户")
     public ResponseEntity<SysUser> currentUser(Authentication authentication) {
-        if (authentication == null || authentication.getName() == null || authentication.getName().isBlank()) {
+        if (!SecurityRoleUtils.isAuthenticated(authentication)) {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
         }
         SysUser user = sysUserService.findByUsername(authentication.getName());
@@ -136,7 +131,7 @@ public class UserManagementController {
     @RolesAllowed({"SUPER_ADMIN", "ADMIN", "USER", "TRAFFIC_POLICE", "FINANCE", "APPEAL_REVIEWER"})
     @Operation(summary = "更新当前用户资料")
     public ResponseEntity<SysUser> updateCurrentUser(@RequestBody SysUser patch, Authentication authentication) {
-        if (authentication == null || authentication.getName() == null || authentication.getName().isBlank()) {
+        if (!SecurityRoleUtils.isAuthenticated(authentication)) {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
         }
         try {
@@ -152,7 +147,7 @@ public class UserManagementController {
     @RolesAllowed({"SUPER_ADMIN", "ADMIN", "USER", "TRAFFIC_POLICE", "FINANCE", "APPEAL_REVIEWER"})
     @Operation(summary = "修改当前用户密码")
     public ResponseEntity<Void> updateCurrentPassword(@RequestBody String newPassword, Authentication authentication) {
-        if (authentication == null || authentication.getName() == null || authentication.getName().isBlank()) {
+        if (!SecurityRoleUtils.isAuthenticated(authentication)) {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
         }
         try {
@@ -334,9 +329,6 @@ public class UserManagementController {
         try {
             relation.setUserId(userId);
             if (useKey) {
-                if (sysUserRoleService.shouldSkipProcessing(idempotencyKey)) {
-                    return ResponseEntity.status(HttpStatus.ALREADY_REPORTED).build();
-                }
                 sysUserRoleService.checkAndInsertIdempotency(idempotencyKey, relation, "create");
             }
             SysUserRole saved = sysUserRoleService.createRelation(relation);
@@ -345,10 +337,10 @@ public class UserManagementController {
             }
             return ResponseEntity.status(HttpStatus.CREATED).body(saved);
         } catch (Exception ex) {
-            if (useKey) {
+            if (useKey && !IdempotencyOutcome.isControl(ex)) {
                 sysUserRoleService.markHistoryFailure(idempotencyKey, ex.getMessage());
             }
-            LOG.log(Level.SEVERE, "Add user role failed", ex);
+            LOG.log(IdempotencyOutcome.isControl(ex) ? Level.INFO : Level.SEVERE, "Add user role failed", ex);
             return ResponseEntity.status(resolveStatus(ex)).build();
         }
     }
@@ -393,9 +385,6 @@ public class UserManagementController {
         try {
             relation.setId(relationId);
             if (useKey) {
-                if (sysUserRoleService.shouldSkipProcessing(idempotencyKey)) {
-                    return ResponseEntity.status(HttpStatus.ALREADY_REPORTED).build();
-                }
                 sysUserRoleService.checkAndInsertIdempotency(idempotencyKey, relation, "update");
             }
             SysUserRole updated = sysUserRoleService.updateRelation(relation);
@@ -404,10 +393,10 @@ public class UserManagementController {
             }
             return ResponseEntity.ok(updated);
         } catch (Exception ex) {
-            if (useKey) {
+            if (useKey && !IdempotencyOutcome.isControl(ex)) {
                 sysUserRoleService.markHistoryFailure(idempotencyKey, ex.getMessage());
             }
-            LOG.log(Level.SEVERE, "Update user role failed", ex);
+            LOG.log(IdempotencyOutcome.isControl(ex) ? Level.INFO : Level.SEVERE, "Update user role failed", ex);
             return ResponseEntity.status(resolveStatus(ex)).build();
         }
     }
@@ -476,7 +465,7 @@ public class UserManagementController {
         if (ex instanceof IdempotencyReplayException) {
             return HttpStatus.ALREADY_REPORTED;
         }
-        if (ex instanceof IdempotencyInProgressException || ex instanceof IdempotencyConflictException) {
+        if (ex instanceof IdempotencyConflictException || ex instanceof IdempotencyInProgressException) {
             return HttpStatus.CONFLICT;
         }
         return (ex instanceof IllegalArgumentException || ex instanceof IllegalStateException)
@@ -484,9 +473,4 @@ public class UserManagementController {
                 : HttpStatus.INTERNAL_SERVER_ERROR;
     }
 
-    private static boolean isIdempotencyOutcome(Exception ex) {
-        return ex instanceof IdempotencyReplayException
-                || ex instanceof IdempotencyConflictException
-                || ex instanceof IdempotencyInProgressException;
-    }
 }

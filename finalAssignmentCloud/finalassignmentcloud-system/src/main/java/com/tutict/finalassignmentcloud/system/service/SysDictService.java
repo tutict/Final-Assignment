@@ -7,6 +7,7 @@ import com.tutict.finalassignmentcloud.config.websocket.WsAction;
 import com.tutict.finalassignmentcloud.entity.SysDict;
 import com.tutict.finalassignmentcloud.entity.SysRequestHistory;
 import com.tutict.finalassignmentcloud.entity.elastic.SysDictDocument;
+import com.tutict.finalassignmentcloud.reliability.HistoryReserve;
 import com.tutict.finalassignmentcloud.reliability.IdempotencyReplayException;
 import com.tutict.finalassignmentcloud.system.mapper.SysDictMapper;
 import com.tutict.finalassignmentcloud.system.mapper.SysRequestHistoryMapper;
@@ -26,6 +27,7 @@ import java.util.logging.Level;
 import java.util.logging.Logger;
 import java.util.stream.Collectors;
 import java.util.stream.StreamSupport;
+import com.tutict.finalassignmentcloud.reliability.LedgerFingerprint;
 
 @Service
 public class SysDictService {
@@ -50,24 +52,9 @@ public class SysDictService {
     @CacheEvict(cacheNames = CACHE_NAME, allEntries = true)
     @WsAction(service = "SysDictService", action = "checkAndInsertIdempotency")
     public void checkAndInsertIdempotency(String idempotencyKey, SysDict sysDict, String action) {
-        Objects.requireNonNull(sysDict, "SysDict must not be null");
-        if (sysRequestHistoryMapper.selectByIdempotencyKey(idempotencyKey) != null) {
-            throw new IdempotencyReplayException("Duplicate SysDict request detected");
-        }
-
-        SysRequestHistory history = new SysRequestHistory();
-        history.setIdempotencyKey(idempotencyKey);
-        history.setBusinessStatus("PROCESSING");
-        history.setCreatedAt(LocalDateTime.now());
-        history.setUpdatedAt(LocalDateTime.now());
-        sysRequestHistoryMapper.insert(history);
-
-
-        history.setBusinessStatus("SUCCESS");
-        history.setBusinessId(Optional.ofNullable(sysDict.getDictId()).map(Long::valueOf).orElse(null));
-        history.setRequestParams("PENDING");
-        history.setUpdatedAt(LocalDateTime.now());
-        sysRequestHistoryMapper.updateById(history);
+        HistoryReserve.reserve(sysRequestHistoryMapper, idempotencyKey, "SYS_DICT_" + action.toUpperCase(),
+                LedgerFingerprint.fingerprint(action + "|" + sysDict.getDictType() + "|" + sysDict.getDictCode()
+                        + "|" + sysDict.getDictValue()));
     }
 
     @Transactional
@@ -261,31 +248,17 @@ public class SysDictService {
     }
 
     public void markHistorySuccess(String idempotencyKey, Integer dictId) {
-        SysRequestHistory history = sysRequestHistoryMapper.selectByIdempotencyKey(idempotencyKey);
-        if (history == null) {
-            log.log(Level.WARNING, "Cannot mark success for missing idempotency key {0}", idempotencyKey);
-            return;
+        Long businessId = dictId != null ? dictId.longValue() : null;
+        if (!HistoryReserve.markSuccess(sysRequestHistoryMapper, idempotencyKey, businessId)) {
+            log.log(Level.WARNING, "Idempotency key {0} is not pending, success marking skipped", idempotencyKey);
         }
-        history.setBusinessStatus("SUCCESS");
-        history.setBusinessId(dictId != null ? dictId.longValue() : null);
-        history.setRequestParams("DONE");
-        history.setUpdatedAt(LocalDateTime.now());
-        sysRequestHistoryMapper.updateById(history);
     }
 
     public void markHistoryFailure(String idempotencyKey, String reason) {
-        SysRequestHistory history = sysRequestHistoryMapper.selectByIdempotencyKey(idempotencyKey);
-        if (history == null) {
-            log.log(Level.WARNING, "Cannot mark failure for missing idempotency key {0}", idempotencyKey);
-            return;
+        log.log(Level.FINE, "Marking idempotency key {0} as failed: {1}", new Object[]{idempotencyKey, reason});
+        if (!HistoryReserve.markFailure(sysRequestHistoryMapper, idempotencyKey)) {
+            log.log(Level.WARNING, "Idempotency key {0} is not pending, failure marking skipped", idempotencyKey);
         }
-        if (!"PROCESSING".equalsIgnoreCase(history.getBusinessStatus())) {
-            return;
-        }
-        history.setBusinessStatus("FAILED");
-        history.setRequestParams(truncate(reason));
-        history.setUpdatedAt(LocalDateTime.now());
-        sysRequestHistoryMapper.updateById(history);
     }
 
     
@@ -356,11 +329,5 @@ public class SysDictService {
         return value == null || value.trim().isEmpty();
     }
 
-    private String truncate(String value) {
-        if (value == null) {
-            return null;
-        }
-        return value.length() <= 500 ? value : value.substring(0, 500);
     }
-}
 

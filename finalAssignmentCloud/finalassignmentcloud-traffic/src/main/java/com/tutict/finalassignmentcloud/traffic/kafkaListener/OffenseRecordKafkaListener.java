@@ -37,8 +37,7 @@ public class OffenseRecordKafkaListener {
     public void onOffenseRecordCreate(@Header(value = KafkaHeaders.RECEIVED_KEY, required = false) byte[] rawKey,
                                       @Payload String message) {
         log.log(Level.INFO, "Received Kafka message for OffenseRecord create: {0}", message);
-        // 使用虚拟线程异步处理，避免阻塞监听线程
-        Thread.ofVirtual().start(() -> processMessage(asKey(rawKey), message, "create"));
+        processMessage(asKey(rawKey), message, "create");
     }
 
     // 监听 Kafka 消息（更新）
@@ -46,8 +45,7 @@ public class OffenseRecordKafkaListener {
     public void onOffenseRecordUpdate(@Header(value = KafkaHeaders.RECEIVED_KEY, required = false) byte[] rawKey,
                                       @Payload String message) {
         log.log(Level.INFO, "Received Kafka message for OffenseRecord update: {0}", message);
-        // 使用虚拟线程异步处理，避免阻塞监听线程
-        Thread.ofVirtual().start(() -> processMessage(asKey(rawKey), message, "update"));
+        processMessage(asKey(rawKey), message, "update");
     }
 
     // 统一处理消息并执行业务逻辑

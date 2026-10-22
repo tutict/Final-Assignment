@@ -4,7 +4,6 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.tutict.finalassignmentcloud.entity.SysUser;
 import com.tutict.finalassignmentcloud.reliability.IdempotencyConflictException;
 import com.tutict.finalassignmentcloud.reliability.IdempotencyReplayException;
-import com.tutict.finalassignmentcloud.reliability.HistoryReserve;
 import com.tutict.finalassignmentcloud.user.service.SysUserService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.kafka.annotation.EnableKafka;
@@ -16,6 +15,7 @@ import org.springframework.stereotype.Service;
 
 import java.util.logging.Level;
 import java.util.logging.Logger;
+import com.tutict.finalassignmentcloud.reliability.LedgerFingerprint;
 
 @Service
 @EnableKafka
@@ -54,7 +54,7 @@ public class SysUserKafkaListener {
     private void processMessage(String idempotencyKey, String message, String action) {
         String key = idempotencyKey;
         if (isBlank(key)) {
-            key = HistoryReserve.sha256(action + "|" + message);
+            key = LedgerFingerprint.sha256(action + "|" + message);
             log.log(Level.WARNING, "SysUser event without key, using derived key {0}", key);
         }
         if (sysUserService.shouldSkipProcessing(key)) {

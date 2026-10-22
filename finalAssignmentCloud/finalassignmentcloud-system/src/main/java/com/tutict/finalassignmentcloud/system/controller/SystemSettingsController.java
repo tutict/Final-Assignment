@@ -3,6 +3,9 @@ package com.tutict.finalassignmentcloud.system.controller;
 import com.tutict.finalassignmentcloud.entity.SysDict;
 import com.tutict.finalassignmentcloud.entity.SysSettings;
 import com.tutict.finalassignmentcloud.reliability.IdempotencyReplayException;
+import com.tutict.finalassignmentcloud.reliability.IdempotencyConflictException;
+import com.tutict.finalassignmentcloud.reliability.IdempotencyInProgressException;
+import com.tutict.finalassignmentcloud.reliability.IdempotencyOutcome;
 import com.tutict.finalassignmentcloud.system.service.SysDictService;
 import com.tutict.finalassignmentcloud.system.service.SysSettingsService;
 import io.swagger.v3.oas.annotations.Operation;
@@ -43,9 +46,6 @@ public class SystemSettingsController {
         boolean useKey = hasKey(idempotencyKey);
         try {
             if (useKey) {
-                if (sysSettingsService.shouldSkipProcessing(idempotencyKey)) {
-                    return ResponseEntity.status(HttpStatus.ALREADY_REPORTED).build();
-                }
                 sysSettingsService.checkAndInsertIdempotency(idempotencyKey, request, "create");
             }
             SysSettings saved = sysSettingsService.createSysSettings(request);
@@ -54,10 +54,10 @@ public class SystemSettingsController {
             }
             return ResponseEntity.status(HttpStatus.CREATED).body(saved);
         } catch (Exception ex) {
-            if (useKey) {
+            if (useKey && !IdempotencyOutcome.isControl(ex)) {
                 sysSettingsService.markHistoryFailure(idempotencyKey, ex.getMessage());
             }
-            LOG.log(Level.SEVERE, "Create setting failed", ex);
+            LOG.log(IdempotencyOutcome.isControl(ex) ? Level.INFO : Level.SEVERE, "Create setting failed", ex);
             return ResponseEntity.status(resolveStatus(ex)).build();
         }
     }
@@ -72,9 +72,6 @@ public class SystemSettingsController {
         try {
             request.setSettingId(settingId);
             if (useKey) {
-                if (sysSettingsService.shouldSkipProcessing(idempotencyKey)) {
-                    return ResponseEntity.status(HttpStatus.ALREADY_REPORTED).build();
-                }
                 sysSettingsService.checkAndInsertIdempotency(idempotencyKey, request, "update");
             }
             SysSettings updated = sysSettingsService.updateSysSettings(request);
@@ -83,10 +80,10 @@ public class SystemSettingsController {
             }
             return ResponseEntity.ok(updated);
         } catch (Exception ex) {
-            if (useKey) {
+            if (useKey && !IdempotencyOutcome.isControl(ex)) {
                 sysSettingsService.markHistoryFailure(idempotencyKey, ex.getMessage());
             }
-            LOG.log(Level.SEVERE, "Update setting failed", ex);
+            LOG.log(IdempotencyOutcome.isControl(ex) ? Level.INFO : Level.SEVERE, "Update setting failed", ex);
             return ResponseEntity.status(resolveStatus(ex)).build();
         }
     }
@@ -199,9 +196,6 @@ public class SystemSettingsController {
         boolean useKey = hasKey(idempotencyKey);
         try {
             if (useKey) {
-                if (sysDictService.shouldSkipProcessing(idempotencyKey)) {
-                    return ResponseEntity.status(HttpStatus.ALREADY_REPORTED).build();
-                }
                 sysDictService.checkAndInsertIdempotency(idempotencyKey, request, "create");
             }
             SysDict saved = sysDictService.createSysDict(request);
@@ -210,10 +204,10 @@ public class SystemSettingsController {
             }
             return ResponseEntity.status(HttpStatus.CREATED).body(saved);
         } catch (Exception ex) {
-            if (useKey) {
+            if (useKey && !IdempotencyOutcome.isControl(ex)) {
                 sysDictService.markHistoryFailure(idempotencyKey, ex.getMessage());
             }
-            LOG.log(Level.SEVERE, "Create dict failed", ex);
+            LOG.log(IdempotencyOutcome.isControl(ex) ? Level.INFO : Level.SEVERE, "Create dict failed", ex);
             return ResponseEntity.status(resolveStatus(ex)).build();
         }
     }
@@ -228,9 +222,6 @@ public class SystemSettingsController {
         try {
             request.setDictId(dictId);
             if (useKey) {
-                if (sysDictService.shouldSkipProcessing(idempotencyKey)) {
-                    return ResponseEntity.status(HttpStatus.ALREADY_REPORTED).build();
-                }
                 sysDictService.checkAndInsertIdempotency(idempotencyKey, request, "update");
             }
             SysDict updated = sysDictService.updateSysDict(request);
@@ -239,10 +230,10 @@ public class SystemSettingsController {
             }
             return ResponseEntity.ok(updated);
         } catch (Exception ex) {
-            if (useKey) {
+            if (useKey && !IdempotencyOutcome.isControl(ex)) {
                 sysDictService.markHistoryFailure(idempotencyKey, ex.getMessage());
             }
-            LOG.log(Level.SEVERE, "Update dict failed", ex);
+            LOG.log(IdempotencyOutcome.isControl(ex) ? Level.INFO : Level.SEVERE, "Update dict failed", ex);
             return ResponseEntity.status(resolveStatus(ex)).build();
         }
     }
@@ -345,6 +336,9 @@ public class SystemSettingsController {
     private HttpStatus resolveStatus(Exception ex) {
         if (ex instanceof IdempotencyReplayException) {
             return HttpStatus.ALREADY_REPORTED;
+        }
+        if (ex instanceof IdempotencyConflictException || ex instanceof IdempotencyInProgressException) {
+            return HttpStatus.CONFLICT;
         }
         return (ex instanceof IllegalArgumentException || ex instanceof IllegalStateException)
                 ? HttpStatus.BAD_REQUEST

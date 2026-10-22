@@ -1,13 +1,17 @@
 package com.tutict.finalassignmentcloud.auth.controller;
 
 import com.tutict.finalassignmentcloud.auth.config.websocket.WsTicketService;
+import com.tutict.finalassignmentcloud.auth.exception.UsernameAlreadyExistsException;
 import com.tutict.finalassignmentcloud.auth.service.AuthWsService;
 import com.tutict.finalassignmentcloud.auth.service.TokenBlacklistService;
+import com.tutict.finalassignmentcloud.config.security.SecurityRoleUtils;
 import com.tutict.finalassignmentcloud.dto.request.RefreshRequest;
 import com.tutict.finalassignmentcloud.dto.response.SysUserResponse;
 import com.tutict.finalassignmentcloud.dto.response.TokenResponse;
 import com.tutict.finalassignmentcloud.dto.response.UserProfileResponse;
 import com.tutict.finalassignmentcloud.entity.SysUser;
+import com.tutict.finalassignmentcloud.reliability.IdempotencyConflictException;
+import com.tutict.finalassignmentcloud.reliability.IdempotencyInProgressException;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.media.Content;
@@ -26,7 +30,6 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.security.core.Authentication;
 import org.springframework.transaction.annotation.Transactional;
-import org.springframework.util.StringUtils;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
@@ -143,8 +146,8 @@ public class AuthController {
     @Transactional
     @Operation(
             summary = "用户注册",
-            description = "注册新用户并自动分配角色，支持幂等性保护"
-    )
+            description = "注册新用户并自动分配角色。请求体带 idempotencyKey 时按幂等处理："
+                    + "同一把键提交同一份注册请求只建一次号，重放直接返回原结果")
     @ApiResponses({
             @ApiResponse(
                     responseCode = "201",
@@ -154,15 +157,24 @@ public class AuthController {
             ,
             @ApiResponse(
                     responseCode = "409",
-                    description = "用户名已存在或重复请求",
+                    description = "用户名已存在，或幂等键被复用于不同的注册请求",
                     content = @Content(mediaType = "application/json",
-                            schema = @Schema(type = "object", example = "{\"error\":\"用户名已存在\"}")))
+                            schema = @Schema(type = "object",
+                                    example = "{\"error\":\"用户名已存在\",\"errorCode\":\"USERNAME_EXISTS\"}")))
+            ,
+            @ApiResponse(
+                    responseCode = "400",
+                    description = "请求参数不合法",
+                    content = @Content(mediaType = "application/json",
+                            schema = @Schema(type = "object",
+                                    example = "{\"error\":\"Username must not be blank\",\"errorCode\":\"BAD_REQUEST\"}")))
             ,
             @ApiResponse(
                     responseCode = "500",
                     description = "服务器内部错误",
                     content = @Content(mediaType = "application/json",
-                            schema = @Schema(type = "object", example = "{\"error\":\"Internal server error\"}")))
+                            schema = @Schema(type = "object",
+                                    example = "{\"error\":\"注册失败，请稍后重试\",\"errorCode\":\"REGISTRATION_FAILED\"}")))
     })
     public CompletableFuture<ResponseEntity<Map<String, String>>> registerUser(
             @RequestBody
@@ -174,18 +186,39 @@ public class AuthController {
                         LOG.log(Level.INFO, "Register succeeded for username: {0}", registerRequest.getUsername());
                         return ResponseEntity.status(HttpStatus.CREATED)
                                 .body(Map.of("status", status));
-                    } catch (Exception ex) {
-                        LOG.log(Level.WARNING, "Register failed for username: {0}, error: {1}",
-                                new Object[]{registerRequest.getUsername(), ex.getMessage()});
+                    } catch (UsernameAlreadyExistsException ex) {
+                        LOG.log(Level.INFO, "Register rejected, username already exists: {0}",
+                                registerRequest.getUsername());
                         return ResponseEntity.status(HttpStatus.CONFLICT)
-                                .body(Map.of("error", "Registration failed. Please try again later."));
+                                .body(Map.of("error", "用户名已存在", "errorCode", "USERNAME_EXISTS"));
+                    } catch (IdempotencyConflictException ex) {
+                        LOG.log(Level.WARNING, "Register rejected, idempotency key reused with another payload: {0}",
+                                registerRequest.getUsername());
+                        return ResponseEntity.status(HttpStatus.CONFLICT)
+                                .body(Map.of("error", "幂等键被复用于不同的注册请求", "errorCode",
+                                        "IDEMPOTENCY_CONFLICT"));
+                    } catch (IdempotencyInProgressException ex) {
+                        LOG.log(Level.INFO, "Register in progress for username: {0}", registerRequest.getUsername());
+                        return ResponseEntity.status(HttpStatus.CONFLICT)
+                                .header("Retry-After", "1")
+                                .body(Map.of("error", "同一注册请求正在处理中", "errorCode",
+                                        "IDEMPOTENCY_IN_PROGRESS"));
+                    } catch (IllegalArgumentException ex) {
+                        LOG.log(Level.WARNING, "Register rejected, invalid request: {0}", ex.getMessage());
+                        return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                                .body(Map.of("error", String.valueOf(ex.getMessage()), "errorCode", "BAD_REQUEST"));
+                    } catch (Exception ex) {
+                        LOG.log(Level.SEVERE, "Register failed for username: {0}, error: {1}",
+                                new Object[]{registerRequest.getUsername(), ex.getMessage()});
+                        return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                                .body(Map.of("error", "注册失败，请稍后重试", "errorCode", "REGISTRATION_FAILED"));
                     }
                 }, VIRTUAL_THREAD_EXECUTOR)
                 .exceptionally(throwable -> {
                     LOG.log(Level.SEVERE, "Unexpected error in registerUser for username: {0}, error: {1}",
                             new Object[]{registerRequest.getUsername(), throwable.getMessage()});
                     return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                            .body(Map.of("error", "Internal server error"));
+                            .body(Map.of("error", "注册失败，请稍后重试", "errorCode", "REGISTRATION_FAILED"));
                 });
     }
 
@@ -230,7 +263,7 @@ public class AuthController {
     public ResponseEntity<com.tutict.finalassignmentcloud.dto.response.ApiResponse<Void>> logout(
             @RequestHeader("Authorization") String bearerToken,
             Authentication authentication) {
-        if (authentication == null || !StringUtils.hasText(authentication.getName())) {
+        if (!SecurityRoleUtils.isAuthenticated(authentication)) {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
                     .body(com.tutict.finalassignmentcloud.dto.response.ApiResponse.error("UNAUTHORIZED", "Unauthorized"));
         }
@@ -274,7 +307,7 @@ public class AuthController {
     @Operation(summary = "Get current user profile")
     public ResponseEntity<com.tutict.finalassignmentcloud.dto.response.ApiResponse<UserProfileResponse>> getCurrentUser(
             Authentication authentication) {
-        if (authentication == null) {
+        if (!SecurityRoleUtils.isAuthenticated(authentication)) {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
                     .body(com.tutict.finalassignmentcloud.dto.response.ApiResponse.error("UNAUTHORIZED", "Unauthorized"));
         }
@@ -300,7 +333,7 @@ public class AuthController {
     })
     public ResponseEntity<com.tutict.finalassignmentcloud.dto.response.ApiResponse<Map<String, String>>> issueWsTicket(
             Authentication authentication) {
-        if (authentication == null) {
+        if (!SecurityRoleUtils.isAuthenticated(authentication)) {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
                     .body(com.tutict.finalassignmentcloud.dto.response.ApiResponse.error("UNAUTHORIZED", "Unauthorized"));
         }

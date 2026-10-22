@@ -3,6 +3,9 @@ package com.tutict.finalassignmentcloud.user.controller;
 import com.tutict.finalassignmentcloud.entity.SysRole;
 import com.tutict.finalassignmentcloud.entity.SysRolePermission;
 import com.tutict.finalassignmentcloud.reliability.IdempotencyReplayException;
+import com.tutict.finalassignmentcloud.reliability.IdempotencyConflictException;
+import com.tutict.finalassignmentcloud.reliability.IdempotencyInProgressException;
+import com.tutict.finalassignmentcloud.reliability.IdempotencyOutcome;
 import com.tutict.finalassignmentcloud.user.service.SysRolePermissionService;
 import com.tutict.finalassignmentcloud.user.service.SysRoleService;
 import io.swagger.v3.oas.annotations.Operation;
@@ -52,9 +55,6 @@ public class RoleManagementController {
         boolean useKey = hasKey(idempotencyKey);
         try {
             if (useKey) {
-                if (sysRoleService.shouldSkipProcessing(idempotencyKey)) {
-                    return ResponseEntity.status(HttpStatus.ALREADY_REPORTED).build();
-                }
                 sysRoleService.checkAndInsertIdempotency(idempotencyKey, request, "create");
             }
             SysRole saved = sysRoleService.createSysRole(request);
@@ -63,10 +63,10 @@ public class RoleManagementController {
             }
             return ResponseEntity.status(HttpStatus.CREATED).body(saved);
         } catch (Exception ex) {
-            if (useKey) {
+            if (useKey && !IdempotencyOutcome.isControl(ex)) {
                 sysRoleService.markHistoryFailure(idempotencyKey, ex.getMessage());
             }
-            LOG.log(Level.SEVERE, "Create role failed", ex);
+            LOG.log(IdempotencyOutcome.isControl(ex) ? Level.INFO : Level.SEVERE, "Create role failed", ex);
             return ResponseEntity.status(resolveStatus(ex)).build();
         }
     }
@@ -81,9 +81,6 @@ public class RoleManagementController {
         try {
             request.setRoleId(roleId);
             if (useKey) {
-                if (sysRoleService.shouldSkipProcessing(idempotencyKey)) {
-                    return ResponseEntity.status(HttpStatus.ALREADY_REPORTED).build();
-                }
                 sysRoleService.checkAndInsertIdempotency(idempotencyKey, request, "update");
             }
             SysRole updated = sysRoleService.updateSysRole(request);
@@ -92,10 +89,10 @@ public class RoleManagementController {
             }
             return ResponseEntity.ok(updated);
         } catch (Exception ex) {
-            if (useKey) {
+            if (useKey && !IdempotencyOutcome.isControl(ex)) {
                 sysRoleService.markHistoryFailure(idempotencyKey, ex.getMessage());
             }
-            LOG.log(Level.SEVERE, "Update role failed", ex);
+            LOG.log(IdempotencyOutcome.isControl(ex) ? Level.INFO : Level.SEVERE, "Update role failed", ex);
             return ResponseEntity.status(resolveStatus(ex)).build();
         }
     }
@@ -213,9 +210,6 @@ public class RoleManagementController {
         try {
             relation.setRoleId(roleId);
             if (useKey) {
-                if (sysRolePermissionService.shouldSkipProcessing(idempotencyKey)) {
-                    return ResponseEntity.status(HttpStatus.ALREADY_REPORTED).build();
-                }
                 sysRolePermissionService.checkAndInsertIdempotency(idempotencyKey, relation, "create");
             }
             SysRolePermission saved = sysRolePermissionService.createRelation(relation);
@@ -224,10 +218,10 @@ public class RoleManagementController {
             }
             return ResponseEntity.status(HttpStatus.CREATED).body(saved);
         } catch (Exception ex) {
-            if (useKey) {
+            if (useKey && !IdempotencyOutcome.isControl(ex)) {
                 sysRolePermissionService.markHistoryFailure(idempotencyKey, ex.getMessage());
             }
-            LOG.log(Level.SEVERE, "Add role permission failed", ex);
+            LOG.log(IdempotencyOutcome.isControl(ex) ? Level.INFO : Level.SEVERE, "Add role permission failed", ex);
             return ResponseEntity.status(resolveStatus(ex)).build();
         }
     }
@@ -267,9 +261,6 @@ public class RoleManagementController {
         try {
             relation.setId(relationId);
             if (useKey) {
-                if (sysRolePermissionService.shouldSkipProcessing(idempotencyKey)) {
-                    return ResponseEntity.status(HttpStatus.ALREADY_REPORTED).build();
-                }
                 sysRolePermissionService.checkAndInsertIdempotency(idempotencyKey, relation, "update");
             }
             SysRolePermission updated = sysRolePermissionService.updateRelation(relation);
@@ -278,10 +269,10 @@ public class RoleManagementController {
             }
             return ResponseEntity.ok(updated);
         } catch (Exception ex) {
-            if (useKey) {
+            if (useKey && !IdempotencyOutcome.isControl(ex)) {
                 sysRolePermissionService.markHistoryFailure(idempotencyKey, ex.getMessage());
             }
-            LOG.log(Level.SEVERE, "Update role permission failed", ex);
+            LOG.log(IdempotencyOutcome.isControl(ex) ? Level.INFO : Level.SEVERE, "Update role permission failed", ex);
             return ResponseEntity.status(resolveStatus(ex)).build();
         }
     }
@@ -339,6 +330,9 @@ public class RoleManagementController {
     private HttpStatus resolveStatus(Exception ex) {
         if (ex instanceof IdempotencyReplayException) {
             return HttpStatus.ALREADY_REPORTED;
+        }
+        if (ex instanceof IdempotencyConflictException || ex instanceof IdempotencyInProgressException) {
+            return HttpStatus.CONFLICT;
         }
         return (ex instanceof IllegalArgumentException || ex instanceof IllegalStateException)
                 ? HttpStatus.BAD_REQUEST

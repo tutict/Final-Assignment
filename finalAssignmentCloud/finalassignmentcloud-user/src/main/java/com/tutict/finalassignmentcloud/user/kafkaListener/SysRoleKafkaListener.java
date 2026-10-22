@@ -37,8 +37,7 @@ public class SysRoleKafkaListener {
     public void onSysRoleCreateReceived(@Header(value = KafkaHeaders.RECEIVED_KEY, required = false) byte[] rawKey,
                                         @Payload String message) {
         log.log(Level.INFO, "Received Kafka message for sys role create: {0}", message);
-        // 使用虚拟线程异步处理，避免阻塞监听线程
-        Thread.ofVirtual().start(() -> processMessage(asKey(rawKey), message, "create"));
+        processMessage(asKey(rawKey), message, "create");
     }
 
     // 鐩戝惉 Kafka 娑堟伅
@@ -46,8 +45,7 @@ public class SysRoleKafkaListener {
     public void onSysRoleUpdateReceived(@Header(value = KafkaHeaders.RECEIVED_KEY, required = false) byte[] rawKey,
                                         @Payload String message) {
         log.log(Level.INFO, "Received Kafka message for sys role update: {0}", message);
-        // 使用虚拟线程异步处理，避免阻塞监听线程
-        Thread.ofVirtual().start(() -> processMessage(asKey(rawKey), message, "update"));
+        processMessage(asKey(rawKey), message, "update");
     }
 
     // 缁熶竴澶勭悊娑堟伅骞舵墽琛屼笟鍔￠€昏緫

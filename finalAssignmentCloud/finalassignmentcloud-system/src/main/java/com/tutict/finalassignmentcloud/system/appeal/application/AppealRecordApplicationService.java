@@ -278,7 +278,7 @@ public class AppealRecordApplicationService {
         applyAppealStatusPrecondition(updateWrapper, existing.getProcessStatus());
         int rows = appealRecordMapper.update(null, updateWrapper);
         if (workflowDecisionPolicy.isMissingMutation(rows)) {
-            throw new BusinessException("CONFLICT", "该记录已被处理，无法重复操作");
+            throw new BusinessException("该记录已被处理，无法重复操作", "CONFLICT");
         }
         searchIndexer.indexAfterCommit(merged);
         cachePolicy.onWrite();

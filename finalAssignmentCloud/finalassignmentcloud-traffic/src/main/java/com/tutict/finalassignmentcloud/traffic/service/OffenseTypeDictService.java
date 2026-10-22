@@ -7,6 +7,7 @@ import com.tutict.finalassignmentcloud.config.websocket.WsAction;
 import com.tutict.finalassignmentcloud.entity.OffenseTypeDict;
 import com.tutict.finalassignmentcloud.entity.SysRequestHistory;
 import com.tutict.finalassignmentcloud.entity.elastic.OffenseTypeDictDocument;
+import com.tutict.finalassignmentcloud.reliability.HistoryReserve;
 import com.tutict.finalassignmentcloud.reliability.IdempotencyReplayException;
 import com.tutict.finalassignmentcloud.traffic.mapper.OffenseTypeDictMapper;
 import com.tutict.finalassignmentcloud.traffic.mapper.SysRequestHistoryMapper;
@@ -26,6 +27,7 @@ import java.util.logging.Level;
 import java.util.logging.Logger;
 import java.util.stream.Collectors;
 import java.util.stream.StreamSupport;
+import com.tutict.finalassignmentcloud.reliability.LedgerFingerprint;
 
 @Service
 public class OffenseTypeDictService {
@@ -50,23 +52,9 @@ public class OffenseTypeDictService {
     @CacheEvict(cacheNames = CACHE_NAME, allEntries = true)
     @WsAction(service = "OffenseTypeDictService", action = "checkAndInsertIdempotency")
     public void checkAndInsertIdempotency(String idempotencyKey, OffenseTypeDict dict, String action) {
-        Objects.requireNonNull(dict, "OffenseTypeDict must not be null");
-        if (sysRequestHistoryMapper.selectByIdempotencyKey(idempotencyKey) != null) {
-            throw new IdempotencyReplayException("Duplicate offense type dict request detected");
-        }
-        SysRequestHistory history = new SysRequestHistory();
-        history.setIdempotencyKey(idempotencyKey);
-        history.setBusinessStatus("PROCESSING");
-        history.setCreatedAt(LocalDateTime.now());
-        history.setUpdatedAt(LocalDateTime.now());
-        sysRequestHistoryMapper.insert(history);
-
-
-        history.setBusinessStatus("SUCCESS");
-        history.setBusinessId(Optional.ofNullable(dict.getTypeId()).map(Long::valueOf).orElse(null));
-        history.setRequestParams("PENDING");
-        history.setUpdatedAt(LocalDateTime.now());
-        sysRequestHistoryMapper.updateById(history);
+        HistoryReserve.reserve(sysRequestHistoryMapper, idempotencyKey, "OFFENSE_TYPE_" + action.toUpperCase(),
+                LedgerFingerprint.fingerprint(action + "|" + dict.getOffenseCode() + "|" + dict.getOffenseName()
+                        + "|" + dict.getCategory()));
     }
 
     @Transactional
@@ -279,31 +267,17 @@ public class OffenseTypeDictService {
     }
 
     public void markHistorySuccess(String idempotencyKey, Integer typeId) {
-        SysRequestHistory history = sysRequestHistoryMapper.selectByIdempotencyKey(idempotencyKey);
-        if (history == null) {
-            log.log(Level.WARNING, "Cannot mark success for missing idempotency key {0}", idempotencyKey);
-            return;
+        Long businessId = typeId != null ? typeId.longValue() : null;
+        if (!HistoryReserve.markSuccess(sysRequestHistoryMapper, idempotencyKey, businessId)) {
+            log.log(Level.WARNING, "Idempotency key {0} is not pending, success marking skipped", idempotencyKey);
         }
-        history.setBusinessStatus("SUCCESS");
-        history.setBusinessId(typeId != null ? typeId.longValue() : null);
-        history.setRequestParams("DONE");
-        history.setUpdatedAt(LocalDateTime.now());
-        sysRequestHistoryMapper.updateById(history);
     }
 
     public void markHistoryFailure(String idempotencyKey, String reason) {
-        SysRequestHistory history = sysRequestHistoryMapper.selectByIdempotencyKey(idempotencyKey);
-        if (history == null) {
-            log.log(Level.WARNING, "Cannot mark failure for missing idempotency key {0}", idempotencyKey);
-            return;
+        log.log(Level.FINE, "Marking idempotency key {0} as failed: {1}", new Object[]{idempotencyKey, reason});
+        if (!HistoryReserve.markFailure(sysRequestHistoryMapper, idempotencyKey)) {
+            log.log(Level.WARNING, "Idempotency key {0} is not pending, failure marking skipped", idempotencyKey);
         }
-        if (!"PROCESSING".equalsIgnoreCase(history.getBusinessStatus())) {
-            return;
-        }
-        history.setBusinessStatus("FAILED");
-        history.setRequestParams(truncate(reason));
-        history.setUpdatedAt(LocalDateTime.now());
-        sysRequestHistoryMapper.updateById(history);
     }
 
     
@@ -399,11 +373,5 @@ public class OffenseTypeDictService {
         return value == null || value.trim().isEmpty();
     }
 
-    private String truncate(String value) {
-        if (value == null) {
-            return null;
-        }
-        return value.length() <= 500 ? value : value.substring(0, 500);
     }
-}
 

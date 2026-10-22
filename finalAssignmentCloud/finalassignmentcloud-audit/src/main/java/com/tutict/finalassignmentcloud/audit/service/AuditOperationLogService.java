@@ -10,6 +10,7 @@ import com.tutict.finalassignmentcloud.audit.mapper.AuditOperationLogMapper;
 import com.tutict.finalassignmentcloud.audit.mapper.SysRequestHistoryMapper;
 import com.tutict.finalassignmentcloud.audit.repository.AuditOperationLogSearchRepository;
 import com.tutict.finalassignmentcloud.common.transaction.AfterCommit;
+import com.tutict.finalassignmentcloud.reliability.HistoryReserve;
 import com.tutict.finalassignmentcloud.reliability.IdempotencyReplayException;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.cache.annotation.CacheEvict;
@@ -30,6 +31,7 @@ import java.util.logging.Level;
 import java.util.logging.Logger;
 import java.util.stream.Collectors;
 import java.util.stream.StreamSupport;
+import com.tutict.finalassignmentcloud.reliability.LedgerFingerprint;
 
 @Service
 public class AuditOperationLogService {
@@ -54,24 +56,9 @@ public class AuditOperationLogService {
     @CacheEvict(cacheNames = CACHE_NAME, allEntries = true)
     @WsAction(service = "AuditOperationLogService", action = "checkAndInsertIdempotency")
     public void checkAndInsertIdempotency(String idempotencyKey, AuditOperationLog auditOperationLog, String action) {
-        Objects.requireNonNull(auditOperationLog, "AuditOperationLog must not be null");
-        if (sysRequestHistoryMapper.selectByIdempotencyKey(idempotencyKey) != null) {
-            throw new IdempotencyReplayException("Duplicate audit operation log request detected");
-        }
-
-        SysRequestHistory history = new SysRequestHistory();
-        history.setIdempotencyKey(idempotencyKey);
-        history.setBusinessStatus("PROCESSING");
-        history.setCreatedAt(LocalDateTime.now());
-        history.setUpdatedAt(LocalDateTime.now());
-        sysRequestHistoryMapper.insert(history);
-
-
-        history.setBusinessStatus("SUCCESS");
-        history.setBusinessId(auditOperationLog.getLogId());
-        history.setRequestParams("PENDING");
-        history.setUpdatedAt(LocalDateTime.now());
-        sysRequestHistoryMapper.updateById(history);
+        HistoryReserve.reserve(sysRequestHistoryMapper, idempotencyKey, "AUDIT_OPERATION_" + action.toUpperCase(),
+                LedgerFingerprint.fingerprint(action + "|" + auditOperationLog.getUsername() + "|" + auditOperationLog.getOperationType()
+                        + "|" + auditOperationLog.getOperationModule() + "|" + auditOperationLog.getRequestUrl()));
     }
 
     @Transactional
@@ -277,31 +264,17 @@ public class AuditOperationLogService {
     }
 
     public void markHistorySuccess(String idempotencyKey, Long logId) {
-        SysRequestHistory history = sysRequestHistoryMapper.selectByIdempotencyKey(idempotencyKey);
-        if (history == null) {
-            log.log(Level.WARNING, "Cannot mark success for missing idempotency key {0}", idempotencyKey);
-            return;
+        Long businessId = logId;
+        if (!HistoryReserve.markSuccess(sysRequestHistoryMapper, idempotencyKey, businessId)) {
+            log.log(Level.WARNING, "Idempotency key {0} is not pending, success marking skipped", idempotencyKey);
         }
-        history.setBusinessStatus("SUCCESS");
-        history.setBusinessId(logId);
-        history.setRequestParams("DONE");
-        history.setUpdatedAt(LocalDateTime.now());
-        sysRequestHistoryMapper.updateById(history);
     }
 
     public void markHistoryFailure(String idempotencyKey, String reason) {
-        SysRequestHistory history = sysRequestHistoryMapper.selectByIdempotencyKey(idempotencyKey);
-        if (history == null) {
-            log.log(Level.WARNING, "Cannot mark failure for missing idempotency key {0}", idempotencyKey);
-            return;
+        log.log(Level.FINE, "Marking idempotency key {0} as failed: {1}", new Object[]{idempotencyKey, reason});
+        if (!HistoryReserve.markFailure(sysRequestHistoryMapper, idempotencyKey)) {
+            log.log(Level.WARNING, "Idempotency key {0} is not pending, failure marking skipped", idempotencyKey);
         }
-        if (!"PROCESSING".equalsIgnoreCase(history.getBusinessStatus())) {
-            return;
-        }
-        history.setBusinessStatus("FAILED");
-        history.setRequestParams(truncate(reason));
-        history.setUpdatedAt(LocalDateTime.now());
-        sysRequestHistoryMapper.updateById(history);
     }
 
     
@@ -414,11 +387,5 @@ public class AuditOperationLogService {
         return value == null || value.trim().isEmpty();
     }
 
-    private String truncate(String value) {
-        if (value == null) {
-            return null;
-        }
-        return value.length() <= 500 ? value : value.substring(0, 500);
     }
-}
 

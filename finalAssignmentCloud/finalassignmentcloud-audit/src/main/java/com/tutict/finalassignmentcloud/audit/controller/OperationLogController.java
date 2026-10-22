@@ -3,6 +3,9 @@ package com.tutict.finalassignmentcloud.audit.controller;
 import com.tutict.finalassignmentcloud.entity.AuditOperationLog;
 import com.tutict.finalassignmentcloud.audit.service.AuditOperationLogService;
 import com.tutict.finalassignmentcloud.reliability.IdempotencyReplayException;
+import com.tutict.finalassignmentcloud.reliability.IdempotencyConflictException;
+import com.tutict.finalassignmentcloud.reliability.IdempotencyInProgressException;
+import com.tutict.finalassignmentcloud.reliability.IdempotencyOutcome;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -52,9 +55,6 @@ public class OperationLogController {
         boolean useKey = hasKey(idempotencyKey);
         try {
             if (useKey) {
-                if (auditOperationLogService.shouldSkipProcessing(idempotencyKey)) {
-                    return ResponseEntity.status(HttpStatus.ALREADY_REPORTED).build();
-                }
                 auditOperationLogService.checkAndInsertIdempotency(idempotencyKey, request, "create");
             }
             AuditOperationLog saved = auditOperationLogService.createAuditOperationLog(request);
@@ -63,10 +63,10 @@ public class OperationLogController {
             }
             return ResponseEntity.status(HttpStatus.CREATED).body(saved);
         } catch (Exception ex) {
-            if (useKey) {
+            if (useKey && !IdempotencyOutcome.isControl(ex)) {
                 auditOperationLogService.markHistoryFailure(idempotencyKey, ex.getMessage());
             }
-            LOG.log(Level.SEVERE, "Create operation log failed", ex);
+            LOG.log(IdempotencyOutcome.isControl(ex) ? Level.INFO : Level.SEVERE, "Create operation log failed", ex);
             return ResponseEntity.status(resolveStatus(ex)).build();
         }
     }
@@ -81,9 +81,6 @@ public class OperationLogController {
         try {
             request.setLogId(logId);
             if (useKey) {
-                if (auditOperationLogService.shouldSkipProcessing(idempotencyKey)) {
-                    return ResponseEntity.status(HttpStatus.ALREADY_REPORTED).build();
-                }
                 auditOperationLogService.checkAndInsertIdempotency(idempotencyKey, request, "update");
             }
             AuditOperationLog updated = auditOperationLogService.updateAuditOperationLog(request);
@@ -92,10 +89,10 @@ public class OperationLogController {
             }
             return ResponseEntity.ok(updated);
         } catch (Exception ex) {
-            if (useKey) {
+            if (useKey && !IdempotencyOutcome.isControl(ex)) {
                 auditOperationLogService.markHistoryFailure(idempotencyKey, ex.getMessage());
             }
-            LOG.log(Level.SEVERE, "Update operation log failed", ex);
+            LOG.log(IdempotencyOutcome.isControl(ex) ? Level.INFO : Level.SEVERE, "Update operation log failed", ex);
             return ResponseEntity.status(resolveStatus(ex)).build();
         }
     }
@@ -277,6 +274,9 @@ public class OperationLogController {
     private HttpStatus resolveStatus(Exception ex) {
         if (ex instanceof IdempotencyReplayException) {
             return HttpStatus.ALREADY_REPORTED;
+        }
+        if (ex instanceof IdempotencyConflictException || ex instanceof IdempotencyInProgressException) {
+            return HttpStatus.CONFLICT;
         }
         return (ex instanceof IllegalArgumentException || ex instanceof IllegalStateException)
                 ? HttpStatus.BAD_REQUEST

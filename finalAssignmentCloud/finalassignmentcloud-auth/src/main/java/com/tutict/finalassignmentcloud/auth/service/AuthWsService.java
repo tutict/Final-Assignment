@@ -6,6 +6,8 @@ import com.tutict.finalassignmentcloud.auth.client.RoleClient;
 import com.tutict.finalassignmentcloud.exception.DependencyUnavailableException;
 import com.tutict.finalassignmentcloud.auth.client.UserClient;
 import com.tutict.finalassignmentcloud.auth.config.login.jwt.TokenProvider;
+import com.tutict.finalassignmentcloud.auth.exception.UsernameAlreadyExistsException;
+import com.tutict.finalassignmentcloud.auth.reliability.RegistrationIdempotencyService;
 import com.tutict.finalassignmentcloud.config.security.SecurityRoleUtils;
 import com.tutict.finalassignmentcloud.config.websocket.WsAction;
 import com.tutict.finalassignmentcloud.dto.internal.InternalUserCreateRequest;
@@ -22,6 +24,7 @@ import com.tutict.finalassignmentcloud.entity.SysUser;
 import com.tutict.finalassignmentcloud.entity.SysUserRole;
 import com.tutict.finalassignmentcloud.enums.DataScope;
 import com.tutict.finalassignmentcloud.enums.RoleType;
+import com.tutict.finalassignmentcloud.reliability.IdempotencyReplayException;
 import feign.FeignException;
 import lombok.Data;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -66,6 +69,7 @@ public class AuthWsService {
     private final PasswordEncoder passwordEncoder;
     private final RefreshTokenService refreshTokenService;
     private final TokenBlacklistService tokenBlacklistService;
+    private final RegistrationIdempotencyService registrationIdempotency;
 
     @Autowired
     public AuthWsService(TokenProvider tokenProvider,
@@ -75,7 +79,8 @@ public class AuthWsService {
                          DriverClient driverClient,
                          PasswordEncoder passwordEncoder,
                          RefreshTokenService refreshTokenService,
-                         TokenBlacklistService tokenBlacklistService) {
+                         TokenBlacklistService tokenBlacklistService,
+                         RegistrationIdempotencyService registrationIdempotency) {
         this.tokenProvider = tokenProvider;
         this.auditLogClient = auditLogClient;
         this.userClient = userClient;
@@ -84,6 +89,7 @@ public class AuthWsService {
         this.passwordEncoder = passwordEncoder;
         this.refreshTokenService = refreshTokenService;
         this.tokenBlacklistService = tokenBlacklistService;
+        this.registrationIdempotency = registrationIdempotency;
     }
 
     @CacheEvict(cacheNames = "AuthCache", allEntries = true)
@@ -219,9 +225,22 @@ public class AuthWsService {
         validateRegisterRequest(registerRequest);
         logger.info(() -> String.format("Attempting to register user: %s", registerRequest.getUsername()));
 
+        String idempotencyKey = registerRequest.getIdempotencyKey();
+        if (StringUtils.hasText(idempotencyKey)) {
+            try {
+                registrationIdempotency.reserve(idempotencyKey, registerRequest.getUsername(),
+                        registerRequest.getPassword());
+            } catch (IdempotencyReplayException replay) {
+                // 同一把幂等键的同一份注册请求此前已经完成，直接返回原结果，不再重复建号。
+                logger.info(() -> String.format("Registration replayed for username: %s",
+                        registerRequest.getUsername()));
+                return "CREATED";
+            }
+        }
+
         if (safeGetByUsername(registerRequest.getUsername()) != null) {
             logger.severe(() -> String.format("Username already exists: %s", registerRequest.getUsername()));
-            throw new RuntimeException("Username already exists: " + registerRequest.getUsername());
+            throw new UsernameAlreadyExistsException(registerRequest.getUsername());
         }
 
         InternalUserCreateRequest createRequest = new InternalUserCreateRequest();
@@ -230,7 +249,7 @@ public class AuthWsService {
         createRequest.setStatus("Active");
         createRequest.setCreatedAt(LocalDateTime.now());
         createRequest.setUpdatedAt(LocalDateTime.now());
-        InternalUserProfile created = userClient.createUser(createRequest);
+        InternalUserProfile created = createUserInternal(createRequest, registerRequest.getUsername());
         SysUser savedUser = created == null ? null : created.toEntity();
         logger.info(() -> String.format("User created successfully: %s", registerRequest.getUsername()));
 
@@ -252,8 +271,26 @@ public class AuthWsService {
         SysRole role = resolveOrCreateRole("USER");
         assignRole(savedUser, role);
 
+        if (StringUtils.hasText(idempotencyKey)) {
+            registrationIdempotency.markSuccess(idempotencyKey, savedUser.getUserId());
+        }
         logger.info(() -> String.format("User registered successfully: %s", registerRequest.getUsername()));
         return "CREATED";
+    }
+
+    /**
+     * 内部建号接口对所有失败都回 400，撞上并发注册的唯一键时只能再查一次用户名来区分。
+     */
+    private InternalUserProfile createUserInternal(InternalUserCreateRequest createRequest, String username) {
+        try {
+            return userClient.createUser(createRequest);
+        } catch (FeignException.BadRequest ex) {
+            if (safeGetByUsername(username) != null) {
+                logger.warning(() -> String.format("Username already exists (concurrent registration): %s", username));
+                throw new UsernameAlreadyExistsException(username);
+            }
+            throw ex;
+        }
     }
 
     @Transactional

@@ -64,6 +64,12 @@ jwt:
       #       -----BEGIN PUBLIC KEY-----
       #       ...
 
+auth:
+  registration:
+    fingerprint:
+      # 注册幂等指纹的 HMAC 密钥。缺省复用内部服务令牌，轮换该密钥会让历史幂等键失效。
+      secret: ${AUTH_FINGERPRINT_SECRET:${INTERNAL_SERVICE_TOKEN:}}
+
 logging:
   pattern:
     level: "%5p [traceId=%X{traceId:-}]"

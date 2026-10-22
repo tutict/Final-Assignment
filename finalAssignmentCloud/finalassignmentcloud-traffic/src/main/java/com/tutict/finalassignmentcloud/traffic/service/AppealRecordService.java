@@ -11,7 +11,7 @@ import com.tutict.finalassignmentcloud.entity.elastic.AppealRecordDocument;
 import com.tutict.finalassignmentcloud.traffic.mapper.AppealRecordMapper;
 import com.tutict.finalassignmentcloud.traffic.mapper.SysRequestHistoryMapper;
 import com.tutict.finalassignmentcloud.traffic.realtime.BusinessEventPublisher;
-import com.tutict.finalassignmentcloud.traffic.reliability.HistoryReserve;
+import com.tutict.finalassignmentcloud.reliability.HistoryReserve;
 import com.tutict.finalassignmentcloud.traffic.repository.AppealRecordSearchRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.cache.annotation.CacheEvict;
@@ -23,6 +23,7 @@ import org.springframework.data.elasticsearch.core.SearchHits;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.transaction.support.TransactionSynchronization;
+import org.springframework.util.StringUtils;
 
 import java.time.LocalDateTime;
 import java.time.format.DateTimeParseException;
@@ -33,6 +34,7 @@ import java.util.Objects;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import java.util.stream.Collectors;
+import com.tutict.finalassignmentcloud.reliability.LedgerFingerprint;
 
 @Service
 public class AppealRecordService {
@@ -62,7 +64,7 @@ public class AppealRecordService {
     public void checkAndInsertIdempotency(String idempotencyKey, AppealRecord appealRecord, String action) {
         Objects.requireNonNull(appealRecord, "Appeal record cannot be null");
         HistoryReserve.reserve(sysRequestHistoryMapper, idempotencyKey, "APPEAL_" + action.toUpperCase(),
-                HistoryReserve.sha256(appealRecord.getOffenseId() + "|" + appealRecord.getDriverId() + "|"
+                LedgerFingerprint.fingerprint(appealRecord.getOffenseId() + "|" + appealRecord.getDriverId() + "|"
                         + appealRecord.getAppealReason() + "|" + appealRecord.getAcceptanceStatus()));
     }
 
@@ -109,6 +111,13 @@ public class AppealRecordService {
     }
 
     private void publishAppealStatusChanged(AppealRecord record) {
+        String target = record.getCreatedBy();
+        if (!StringUtils.hasText(target)) {
+            // 没有归属用户时广播会把申诉状态泄露给所有在线会话。
+            log.warning(() -> String.format(
+                    "Skip APPEAL_STATUS_CHANGED event without owner: appealId=%s", record.getAppealId()));
+            return;
+        }
         Map<String, Object> event = new LinkedHashMap<>();
         event.put("type", "APPEAL_STATUS_CHANGED");
         event.put("appealId", record.getAppealId());
@@ -116,7 +125,7 @@ public class AppealRecordService {
         event.put("updatedAt", record.getUpdatedAt() == null
                 ? LocalDateTime.now().toString()
                 : record.getUpdatedAt().toString());
-        businessEventPublisher.publish(record.getCreatedBy(), event);
+        businessEventPublisher.publish(target, event);
     }
 
     @Transactional
@@ -340,30 +349,17 @@ public class AppealRecordService {
     }
 
     public void markHistorySuccess(String idempotencyKey, Long appealId) {
-        SysRequestHistory history = sysRequestHistoryMapper.selectByIdempotencyKey(idempotencyKey);
-        if (history == null) {
-            log.log(Level.WARNING, "Cannot mark success for missing idempotency key {0}", idempotencyKey);
-            return;
+        Long businessId = appealId;
+        if (!HistoryReserve.markSuccess(sysRequestHistoryMapper, idempotencyKey, businessId)) {
+            log.log(Level.WARNING, "Idempotency key {0} is not pending, success marking skipped", idempotencyKey);
         }
-        history.setBusinessStatus("SUCCESS");
-        history.setBusinessId(appealId);
-        history.setUpdatedAt(LocalDateTime.now());
-        sysRequestHistoryMapper.updateById(history);
     }
 
     public void markHistoryFailure(String idempotencyKey, String reason) {
-        SysRequestHistory history = sysRequestHistoryMapper.selectByIdempotencyKey(idempotencyKey);
-        if (history == null) {
-            log.log(Level.WARNING, "Cannot mark failure for missing idempotency key {0}", idempotencyKey);
-            return;
+        log.log(Level.FINE, "Marking idempotency key {0} as failed: {1}", new Object[]{idempotencyKey, reason});
+        if (!HistoryReserve.markFailure(sysRequestHistoryMapper, idempotencyKey)) {
+            log.log(Level.WARNING, "Idempotency key {0} is not pending, failure marking skipped", idempotencyKey);
         }
-        if (!"PROCESSING".equalsIgnoreCase(history.getBusinessStatus())) {
-            return;
-        }
-        history.setBusinessStatus("FAILED");
-        history.setRequestParams(truncate(reason));
-        history.setUpdatedAt(LocalDateTime.now());
-        sysRequestHistoryMapper.updateById(history);
     }
 
     private void syncIndexAfterCommit(AppealRecord appealRecord) {
@@ -469,11 +465,5 @@ public class AppealRecordService {
         }
     }
 
-    private String truncate(String value) {
-        if (value == null) {
-            return null;
-        }
-        return value.length() <= 500 ? value : value.substring(0, 500);
     }
-}
 

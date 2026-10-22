@@ -5,6 +5,9 @@ import com.tutict.finalassignmentcloud.entity.DriverInformation;
 import com.tutict.finalassignmentcloud.entity.SysUser;
 import com.tutict.finalassignmentcloud.dto.response.UserProfileResponse;
 import com.tutict.finalassignmentcloud.reliability.IdempotencyReplayException;
+import com.tutict.finalassignmentcloud.reliability.IdempotencyConflictException;
+import com.tutict.finalassignmentcloud.reliability.IdempotencyInProgressException;
+import com.tutict.finalassignmentcloud.reliability.IdempotencyOutcome;
 import com.tutict.finalassignmentcloud.traffic.service.BusinessRecordViewService;
 import com.tutict.finalassignmentcloud.traffic.service.DriverAccessService;
 import com.tutict.finalassignmentcloud.traffic.service.DriverInformationService;
@@ -66,9 +69,6 @@ public class DriverInformationController {
         boolean useKey = hasKey(idempotencyKey);
         try {
             if (useKey) {
-                if (driverInformationService.shouldSkipProcessing(idempotencyKey)) {
-                    return ResponseEntity.status(HttpStatus.ALREADY_REPORTED).build();
-                }
                 driverInformationService.checkAndInsertIdempotency(idempotencyKey, request, "create");
             }
             DriverInformation saved = driverInformationService.createDriver(request);
@@ -77,10 +77,10 @@ public class DriverInformationController {
             }
             return ResponseEntity.status(HttpStatus.CREATED).body(enrich(saved));
         } catch (Exception ex) {
-            if (useKey) {
+            if (useKey && !IdempotencyOutcome.isControl(ex)) {
                 driverInformationService.markHistoryFailure(idempotencyKey, ex.getMessage());
             }
-            LOG.log(Level.SEVERE, "Create driver failed", ex);
+            LOG.log(IdempotencyOutcome.isControl(ex) ? Level.INFO : Level.SEVERE, "Create driver failed", ex);
             return ResponseEntity.status(resolveStatus(ex)).build();
         }
     }
@@ -137,9 +137,6 @@ public class DriverInformationController {
         boolean useKey = hasKey(idempotencyKey);
         try {
             if (useKey) {
-                if (driverInformationService.shouldSkipProcessing(idempotencyKey)) {
-                    return ResponseEntity.status(HttpStatus.ALREADY_REPORTED).build();
-                }
                 driverInformationService.checkAndInsertIdempotency(idempotencyKey, existing, "update");
             }
             DriverInformation updated = driverInformationService.updateDriver(existing);
@@ -148,7 +145,7 @@ public class DriverInformationController {
             }
             return ResponseEntity.noContent().build();
         } catch (RuntimeException ex) {
-            if (useKey) {
+            if (useKey && !IdempotencyOutcome.isControl(ex)) {
                 driverInformationService.markHistoryFailure(idempotencyKey, ex.getMessage());
             }
             throw ex;
@@ -192,9 +189,6 @@ public class DriverInformationController {
             }
             request.setDriverId(driverId);
             if (useKey) {
-                if (driverInformationService.shouldSkipProcessing(idempotencyKey)) {
-                    return ResponseEntity.status(HttpStatus.ALREADY_REPORTED).build();
-                }
                 driverInformationService.checkAndInsertIdempotency(idempotencyKey, request, "update");
             }
             DriverInformation updated = driverInformationService.updateDriver(request);
@@ -203,10 +197,10 @@ public class DriverInformationController {
             }
             return ResponseEntity.ok(enrich(updated));
         } catch (Exception ex) {
-            if (useKey) {
+            if (useKey && !IdempotencyOutcome.isControl(ex)) {
                 driverInformationService.markHistoryFailure(idempotencyKey, ex.getMessage());
             }
-            LOG.log(Level.SEVERE, "Update driver failed", ex);
+            LOG.log(IdempotencyOutcome.isControl(ex) ? Level.INFO : Level.SEVERE, "Update driver failed", ex);
             return ResponseEntity.status(resolveStatus(ex)).build();
         }
     }
@@ -299,7 +293,7 @@ public class DriverInformationController {
     }
 
     @PostMapping("/internal/linked")
-    @RolesAllowed({"SUPER_ADMIN", "ADMIN", "TRAFFIC_POLICE", "USER"})
+    @RolesAllowed({"SUPER_ADMIN", "ADMIN", "TRAFFIC_POLICE", "USER", "INTERNAL"})
     @Operation(summary = "Find or create linked driver profile")
     public ResponseEntity<DriverInformation> findOrCreateLinkedDriver(@RequestBody SysUser user,
                                                                       Authentication authentication) {
@@ -344,6 +338,9 @@ public class DriverInformationController {
         if (authentication == null || user == null || user.getUsername() == null) {
             return false;
         }
+        if (SecurityRoleUtils.hasRole(authentication, "INTERNAL")) {
+            return true;
+        }
         if (SecurityRoleUtils.hasAnyRole(authentication, ELEVATED_ROLES)) {
             return true;
         }
@@ -354,6 +351,9 @@ public class DriverInformationController {
     private HttpStatus resolveStatus(Exception ex) {
         if (ex instanceof IdempotencyReplayException) {
             return HttpStatus.ALREADY_REPORTED;
+        }
+        if (ex instanceof IdempotencyConflictException || ex instanceof IdempotencyInProgressException) {
+            return HttpStatus.CONFLICT;
         }
         return (ex instanceof IllegalArgumentException || ex instanceof IllegalStateException)
                 ? HttpStatus.BAD_REQUEST

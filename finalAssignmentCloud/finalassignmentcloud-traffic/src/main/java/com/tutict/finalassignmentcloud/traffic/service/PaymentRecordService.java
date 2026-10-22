@@ -4,6 +4,7 @@ import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.tutict.finalassignmentcloud.common.transaction.AfterCommit;
+import com.tutict.finalassignmentcloud.reliability.HistoryReserve;
 import com.tutict.finalassignmentcloud.traffic.config.statemachine.states.PaymentState;
 import com.tutict.finalassignmentcloud.config.websocket.WsAction;
 import com.tutict.finalassignmentcloud.entity.PaymentRecord;
@@ -14,7 +15,7 @@ import com.tutict.finalassignmentcloud.reliability.IdempotencyInProgressExceptio
 import com.tutict.finalassignmentcloud.reliability.IdempotencyReplayException;
 import com.tutict.finalassignmentcloud.traffic.mapper.PaymentRecordMapper;
 import com.tutict.finalassignmentcloud.traffic.reliability.PaymentOptimisticLockException;
-import com.tutict.finalassignmentcloud.traffic.reliability.LedgerIdempotencyDecider;
+import com.tutict.finalassignmentcloud.reliability.LedgerIdempotencyDecider;
 import com.tutict.finalassignmentcloud.traffic.reliability.PaymentKafkaPublish;
 import com.tutict.finalassignmentcloud.traffic.mapper.SysRequestHistoryMapper;
 import com.tutict.finalassignmentcloud.traffic.realtime.BusinessEventPublisher;
@@ -421,30 +422,17 @@ public class PaymentRecordService {
     }
 
     public void markHistorySuccess(String idempotencyKey, Long paymentId) {
-        SysRequestHistory history = sysRequestHistoryMapper.selectByIdempotencyKey(idempotencyKey);
-        if (history == null) {
-            log.log(Level.WARNING, "Cannot mark success for missing idempotency key {0}", idempotencyKey);
-            return;
+        Long businessId = paymentId;
+        if (!HistoryReserve.markSuccess(sysRequestHistoryMapper, idempotencyKey, businessId)) {
+            log.log(Level.WARNING, "Idempotency key {0} is not pending, success marking skipped", idempotencyKey);
         }
-        history.setBusinessStatus("SUCCESS");
-        history.setBusinessId(paymentId);
-        history.setUpdatedAt(LocalDateTime.now());
-        sysRequestHistoryMapper.updateById(history);
     }
 
     public void markHistoryFailure(String idempotencyKey, String reason) {
-        SysRequestHistory history = sysRequestHistoryMapper.selectByIdempotencyKey(idempotencyKey);
-        if (history == null) {
-            log.log(Level.WARNING, "Cannot mark failure for missing idempotency key {0}", idempotencyKey);
-            return;
+        log.log(Level.FINE, "Marking idempotency key {0} as failed: {1}", new Object[]{idempotencyKey, reason});
+        if (!HistoryReserve.markFailure(sysRequestHistoryMapper, idempotencyKey)) {
+            log.log(Level.WARNING, "Idempotency key {0} is not pending, failure marking skipped", idempotencyKey);
         }
-        if (!"PROCESSING".equalsIgnoreCase(history.getBusinessStatus())) {
-            return;
-        }
-        history.setBusinessStatus("FAILED");
-        history.setRequestParams(truncate(reason));
-        history.setUpdatedAt(LocalDateTime.now());
-        sysRequestHistoryMapper.updateById(history);
     }
 
     // 通过事务回调，确保只有数据库提交成功后才刷新 ES，避免脏数据
@@ -536,13 +524,7 @@ public class PaymentRecordService {
         return value == null || value.trim().isEmpty();
     }
 
-    private String truncate(String value) {
-        if (value == null) {
-            return null;
-        }
-        return value.length() <= 500 ? value : value.substring(0, 500);
-    }
-
+    
     // 批量操作时同样复用 afterCommit 钩子，降低对 ES 的写入频率
     private void syncBatchToIndexAfterCommit(List<PaymentRecord> records) {
         if (records == null || records.isEmpty()) {
