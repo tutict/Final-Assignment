@@ -2,7 +2,6 @@ package com.tutict.finalassignmentbackend.service.driver;
 
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import com.tutict.finalassignmentbackend.config.websocket.WsAction;
 import com.tutict.finalassignmentbackend.entity.driver.DriverInformation;
 import com.tutict.finalassignmentbackend.entity.system.SysRequestHistory;
@@ -11,6 +10,7 @@ import com.tutict.finalassignmentbackend.entity.elastic.DriverInformationDocumen
 import com.tutict.finalassignmentbackend.mapper.driver.DriverInformationMapper;
 import com.tutict.finalassignmentbackend.mapper.system.SysRequestHistoryMapper;
 import com.tutict.finalassignmentbackend.mapper.admin.SysUserMapper;
+import com.tutict.finalassignmentbackend.reliability.IdempotencyReplayException;
 import com.tutict.finalassignmentbackend.repository.DriverInformationSearchRepository;
 import com.tutict.finalassignmentbackend.security.crypto.SensitiveDataPersistenceService;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -21,7 +21,6 @@ import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.elasticsearch.core.SearchHit;
 import org.springframework.data.elasticsearch.core.SearchHits;
-import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.transaction.support.TransactionSynchronization;
@@ -48,24 +47,18 @@ public class DriverInformationService {
     private final SysUserMapper sysUserMapper;
     private final SysRequestHistoryMapper sysRequestHistoryMapper;
     private final DriverInformationSearchRepository driverInformationSearchRepository;
-    private final KafkaTemplate<String, String> kafkaTemplate;
-    private final ObjectMapper objectMapper;
     private final SensitiveDataPersistenceService sensitiveDataPersistenceService;
 
     @Autowired
     public DriverInformationService(DriverInformationMapper driverInformationMapper,
                                     SysUserMapper sysUserMapper,
                                     SysRequestHistoryMapper sysRequestHistoryMapper,
-                                    KafkaTemplate<String, String> kafkaTemplate,
                                     DriverInformationSearchRepository driverInformationSearchRepository,
-                                    ObjectMapper objectMapper,
                                     SensitiveDataPersistenceService sensitiveDataPersistenceService) {
         this.driverInformationMapper = driverInformationMapper;
         this.sysUserMapper = sysUserMapper;
         this.sysRequestHistoryMapper = sysRequestHistoryMapper;
-        this.kafkaTemplate = kafkaTemplate;
         this.driverInformationSearchRepository = driverInformationSearchRepository;
-        this.objectMapper = objectMapper;
         this.sensitiveDataPersistenceService = sensitiveDataPersistenceService;
     }
 
@@ -79,7 +72,7 @@ public class DriverInformationService {
         SysRequestHistory existing = sysRequestHistoryMapper.selectByIdempotencyKey(idempotencyKey);
         if (existing != null) {
             log.warning(() -> String.format("Duplicate driver request detected (key=%s)", idempotencyKey));
-            throw new RuntimeException("Duplicate driver request detected");
+            throw new IdempotencyReplayException("Duplicate driver request detected");
         }
 
         SysRequestHistory history = new SysRequestHistory();
@@ -88,7 +81,6 @@ public class DriverInformationService {
         sysRequestHistoryMapper.insert(history);
 
         sensitiveDataPersistenceService.prepare(driverInformation);
-        sendKafkaMessage("driver_" + action, idempotencyKey, driverInformation);
 
         history.setBusinessStatus("SUCCESS");
         history.setBusinessId(driverInformation.getDriverId());
@@ -416,14 +408,7 @@ public class DriverInformationService {
         });
     }
 
-    private void sendKafkaMessage(String topic, String idempotencyKey, DriverInformation driverInformation) {
-        try {
-            String payload = objectMapper.writeValueAsString(driverInformation);
-            kafkaTemplate.send(topic, idempotencyKey, payload);
-        } catch (Exception e) {
-            log.log(Level.WARNING, "Failed to send driver Kafka message", e);
-        }
-    }
+
 
     private void validateDriver(DriverInformation driverInformation) {
         if (driverInformation == null) {

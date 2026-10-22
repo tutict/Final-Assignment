@@ -9,6 +9,7 @@ import com.tutict.finalassignmentbackend.entity.system.SysSettings;
 import com.tutict.finalassignmentbackend.entity.elastic.SysSettingsDocument;
 import com.tutict.finalassignmentbackend.mapper.system.SysRequestHistoryMapper;
 import com.tutict.finalassignmentbackend.mapper.system.SysSettingsMapper;
+import com.tutict.finalassignmentbackend.reliability.IdempotencyReplayException;
 import com.tutict.finalassignmentbackend.repository.SysSettingsSearchRepository;
 import com.tutict.finalassignmentbackend.service.messaging.KafkaMessageSender;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -68,7 +69,7 @@ public class SysSettingsService {
                 return;
             }
             LOG.warning(() -> String.format("Duplicate sys settings request detected (key=%s)", idempotencyKey));
-            throw new RuntimeException("Duplicate sys settings request detected");
+            throw new IdempotencyReplayException("Duplicate sys settings request detected");
         }
 
         SysRequestHistory history = new SysRequestHistory();
@@ -83,7 +84,7 @@ public class SysSettingsService {
         } catch (org.springframework.dao.DataIntegrityViolationException ex) {
             SysRequestHistory racing = sysRequestHistoryMapper.selectByIdempotencyKey(idempotencyKey);
             if (racing != null && !"FAILED".equalsIgnoreCase(racing.getBusinessStatus())) {
-                throw new RuntimeException("Duplicate sys settings request detected");
+                throw new IdempotencyReplayException("Duplicate sys settings request detected");
             }
             throw ex;
         }

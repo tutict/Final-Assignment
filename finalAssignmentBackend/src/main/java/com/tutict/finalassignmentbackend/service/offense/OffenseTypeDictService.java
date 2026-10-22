@@ -2,18 +2,17 @@ package com.tutict.finalassignmentbackend.service.offense;
 
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import com.tutict.finalassignmentbackend.config.websocket.WsAction;
 import com.tutict.finalassignmentbackend.entity.offense.OffenseTypeDict;
 import com.tutict.finalassignmentbackend.entity.system.SysRequestHistory;
 import com.tutict.finalassignmentbackend.entity.elastic.OffenseTypeDictDocument;
 import com.tutict.finalassignmentbackend.mapper.offense.OffenseTypeDictMapper;
 import com.tutict.finalassignmentbackend.mapper.system.SysRequestHistoryMapper;
+import com.tutict.finalassignmentbackend.reliability.IdempotencyReplayException;
 import com.tutict.finalassignmentbackend.repository.OffenseTypeDictSearchRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.cache.annotation.Cacheable;
-import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.transaction.support.TransactionSynchronization;
@@ -37,20 +36,14 @@ public class OffenseTypeDictService {
     private final OffenseTypeDictMapper offenseTypeDictMapper;
     private final SysRequestHistoryMapper sysRequestHistoryMapper;
     private final OffenseTypeDictSearchRepository offenseTypeDictSearchRepository;
-    private final KafkaTemplate<String, String> kafkaTemplate;
-    private final ObjectMapper objectMapper;
 
     @Autowired
     public OffenseTypeDictService(OffenseTypeDictMapper offenseTypeDictMapper,
                                   SysRequestHistoryMapper sysRequestHistoryMapper,
-                                  OffenseTypeDictSearchRepository offenseTypeDictSearchRepository,
-                                  KafkaTemplate<String, String> kafkaTemplate,
-                                  ObjectMapper objectMapper) {
+                                  OffenseTypeDictSearchRepository offenseTypeDictSearchRepository) {
         this.offenseTypeDictMapper = offenseTypeDictMapper;
         this.sysRequestHistoryMapper = sysRequestHistoryMapper;
         this.offenseTypeDictSearchRepository = offenseTypeDictSearchRepository;
-        this.kafkaTemplate = kafkaTemplate;
-        this.objectMapper = objectMapper;
     }
 
     @Transactional
@@ -59,7 +52,7 @@ public class OffenseTypeDictService {
     public void checkAndInsertIdempotency(String idempotencyKey, OffenseTypeDict dict, String action) {
         Objects.requireNonNull(dict, "OffenseTypeDict must not be null");
         if (sysRequestHistoryMapper.selectByIdempotencyKey(idempotencyKey) != null) {
-            throw new RuntimeException("Duplicate offense type dict request detected");
+            throw new IdempotencyReplayException("Duplicate offense type dict request detected");
         }
         SysRequestHistory history = new SysRequestHistory();
         history.setIdempotencyKey(idempotencyKey);
@@ -68,7 +61,6 @@ public class OffenseTypeDictService {
         history.setUpdatedAt(LocalDateTime.now());
         sysRequestHistoryMapper.insert(history);
 
-        sendKafkaMessage("offense_type_dict_" + action, idempotencyKey, dict);
 
         history.setBusinessStatus("SUCCESS");
         history.setBusinessId(Optional.ofNullable(dict.getTypeId()).map(Long::valueOf).orElse(null));
@@ -311,15 +303,7 @@ public class OffenseTypeDictService {
         sysRequestHistoryMapper.updateById(history);
     }
 
-    private void sendKafkaMessage(String topic, String idempotencyKey, OffenseTypeDict dict) {
-        try {
-            String payload = objectMapper.writeValueAsString(dict);
-            kafkaTemplate.send(topic, idempotencyKey, payload);
-        } catch (Exception ex) {
-            log.log(Level.SEVERE, "Failed to send OffenseTypeDict Kafka message", ex);
-            throw new RuntimeException("Failed to send OffenseTypeDict event", ex);
-        }
-    }
+
 
     private void syncToIndexAfterCommit(OffenseTypeDict record) {
         if (record == null) {

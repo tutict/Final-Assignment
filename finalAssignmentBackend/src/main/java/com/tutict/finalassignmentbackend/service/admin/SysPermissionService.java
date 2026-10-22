@@ -2,18 +2,17 @@ package com.tutict.finalassignmentbackend.service.admin;
 
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import com.tutict.finalassignmentbackend.config.websocket.WsAction;
 import com.tutict.finalassignmentbackend.entity.admin.SysPermission;
 import com.tutict.finalassignmentbackend.entity.system.SysRequestHistory;
 import com.tutict.finalassignmentbackend.entity.elastic.SysPermissionDocument;
 import com.tutict.finalassignmentbackend.mapper.admin.SysPermissionMapper;
 import com.tutict.finalassignmentbackend.mapper.system.SysRequestHistoryMapper;
+import com.tutict.finalassignmentbackend.reliability.IdempotencyReplayException;
 import com.tutict.finalassignmentbackend.repository.SysPermissionSearchRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.cache.annotation.Cacheable;
-import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.transaction.support.TransactionSynchronization;
@@ -37,20 +36,14 @@ public class SysPermissionService {
     private final SysPermissionMapper sysPermissionMapper;
     private final SysRequestHistoryMapper sysRequestHistoryMapper;
     private final SysPermissionSearchRepository sysPermissionSearchRepository;
-    private final KafkaTemplate<String, String> kafkaTemplate;
-    private final ObjectMapper objectMapper;
 
     @Autowired
     public SysPermissionService(SysPermissionMapper sysPermissionMapper,
                                 SysRequestHistoryMapper sysRequestHistoryMapper,
-                                SysPermissionSearchRepository sysPermissionSearchRepository,
-                                KafkaTemplate<String, String> kafkaTemplate,
-                                ObjectMapper objectMapper) {
+                                SysPermissionSearchRepository sysPermissionSearchRepository) {
         this.sysPermissionMapper = sysPermissionMapper;
         this.sysRequestHistoryMapper = sysRequestHistoryMapper;
         this.sysPermissionSearchRepository = sysPermissionSearchRepository;
-        this.kafkaTemplate = kafkaTemplate;
-        this.objectMapper = objectMapper;
     }
 
     @Transactional
@@ -61,7 +54,7 @@ public class SysPermissionService {
         SysRequestHistory existing = sysRequestHistoryMapper.selectByIdempotencyKey(idempotencyKey);
         if (existing != null) {
             log.warning(() -> String.format("Duplicate sys permission request detected (key=%s)", idempotencyKey));
-            throw new RuntimeException("Duplicate sys permission request detected");
+            throw new IdempotencyReplayException("Duplicate sys permission request detected");
         }
 
         SysRequestHistory history = new SysRequestHistory();
@@ -71,7 +64,6 @@ public class SysPermissionService {
         history.setUpdatedAt(LocalDateTime.now());
         sysRequestHistoryMapper.insert(history);
 
-        sendKafkaMessage("sys_permission_" + action, idempotencyKey, permission);
 
         history.setBusinessStatus("SUCCESS");
         history.setBusinessId(Optional.ofNullable(permission.getPermissionId()).map(Integer::longValue).orElse(null));
@@ -357,15 +349,7 @@ public class SysPermissionService {
         sysRequestHistoryMapper.updateById(history);
     }
 
-    private void sendKafkaMessage(String topic, String idempotencyKey, SysPermission permission) {
-        try {
-            String payload = objectMapper.writeValueAsString(permission);
-            kafkaTemplate.send(topic, idempotencyKey, payload);
-        } catch (Exception ex) {
-            log.log(Level.SEVERE, "Failed to send SysPermission Kafka message", ex);
-            throw new RuntimeException("Failed to send sys permission event", ex);
-        }
-    }
+
 
     private void syncToIndexAfterCommit(SysPermission permission) {
         if (permission == null) {

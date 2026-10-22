@@ -1,6 +1,5 @@
 package com.tutict.finalassignmentbackend.service.offense;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.tutict.finalassignmentbackend.config.websocket.WsAction;
@@ -20,7 +19,6 @@ import com.tutict.finalassignmentbackend.repository.FineRecordSearchRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.cache.annotation.Cacheable;
-import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.transaction.support.TransactionSynchronization;
@@ -46,8 +44,6 @@ public class FineRecordService {
     private final OffenseRecordMapper offenseRecordMapper;
     private final SysRequestHistoryMapper sysRequestHistoryMapper;
     private final FineRecordSearchRepository fineRecordSearchRepository;
-    private final KafkaTemplate<String, String> kafkaTemplate;
-    private final ObjectMapper objectMapper;
     private final LedgerHistoryReserve ledgerHistoryReserve;
 
     @Autowired
@@ -55,15 +51,11 @@ public class FineRecordService {
                              OffenseRecordMapper offenseRecordMapper,
                              SysRequestHistoryMapper sysRequestHistoryMapper,
                              FineRecordSearchRepository fineRecordSearchRepository,
-                             KafkaTemplate<String, String> kafkaTemplate,
-                             ObjectMapper objectMapper,
                              LedgerHistoryReserve ledgerHistoryReserve) {
         this.fineRecordMapper = fineRecordMapper;
         this.offenseRecordMapper = offenseRecordMapper;
         this.sysRequestHistoryMapper = sysRequestHistoryMapper;
         this.fineRecordSearchRepository = fineRecordSearchRepository;
-        this.kafkaTemplate = kafkaTemplate;
-        this.objectMapper = objectMapper;
         this.ledgerHistoryReserve = ledgerHistoryReserve;
     }
 
@@ -78,7 +70,6 @@ public class FineRecordService {
                 String.valueOf(fineRecord.getFineNumber())));
         ledgerHistoryReserve.reserve(idempotencyKey, "FINE_" + action, "POST", "/api/fines", fingerprint);
         try {
-            sendKafkaMessage("fine_record_" + action, idempotencyKey, fineRecord);
         } catch (RuntimeException ex) {
             log.log(Level.WARNING, "Fine Kafka publish failed after idempotency reserve", ex);
         }
@@ -320,15 +311,7 @@ public class FineRecordService {
         sysRequestHistoryMapper.updateById(history);
     }
 
-    private void sendKafkaMessage(String topic, String idempotencyKey, FineRecord fineRecord) {
-        try {
-            String payload = objectMapper.writeValueAsString(fineRecord);
-            kafkaTemplate.send(topic, idempotencyKey, payload);
-        } catch (Exception ex) {
-            log.log(Level.SEVERE, "Failed to send FineRecord Kafka message", ex);
-            throw new RuntimeException("Failed to send FineRecord event", ex);
-        }
-    }
+
 
     private void syncToIndexAfterCommit(FineRecord fineRecord) {
         if (fineRecord == null) {

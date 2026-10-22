@@ -2,7 +2,6 @@ package com.tutict.finalassignmentbackend.service.appeal;
 
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import com.tutict.finalassignmentbackend.config.websocket.WsAction;
 import com.tutict.finalassignmentbackend.entity.appeal.AppealReview;
 import com.tutict.finalassignmentbackend.entity.system.SysRequestHistory;
@@ -15,7 +14,6 @@ import com.tutict.finalassignmentbackend.repository.AppealReviewSearchRepository
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.cache.annotation.Cacheable;
-import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.transaction.support.TransactionSynchronization;
@@ -39,22 +37,16 @@ public class AppealReviewService {
     private final AppealReviewMapper appealReviewMapper;
     private final SysRequestHistoryMapper sysRequestHistoryMapper;
     private final AppealReviewSearchRepository appealReviewSearchRepository;
-    private final KafkaTemplate<String, String> kafkaTemplate;
-    private final ObjectMapper objectMapper;
     private final LedgerHistoryReserve ledgerHistoryReserve;
 
     @Autowired
     public AppealReviewService(AppealReviewMapper appealReviewMapper,
                                SysRequestHistoryMapper sysRequestHistoryMapper,
                                AppealReviewSearchRepository appealReviewSearchRepository,
-                               KafkaTemplate<String, String> kafkaTemplate,
-                               ObjectMapper objectMapper,
                                LedgerHistoryReserve ledgerHistoryReserve) {
         this.appealReviewMapper = appealReviewMapper;
         this.sysRequestHistoryMapper = sysRequestHistoryMapper;
         this.appealReviewSearchRepository = appealReviewSearchRepository;
-        this.kafkaTemplate = kafkaTemplate;
-        this.objectMapper = objectMapper;
         this.ledgerHistoryReserve = ledgerHistoryReserve;
     }
 
@@ -69,7 +61,6 @@ public class AppealReviewService {
                 String.valueOf(appealReview.getReviewOpinion())));
         ledgerHistoryReserve.reserve(idempotencyKey, "APPEAL_REVIEW_" + action, "POST", "/api/appeals/reviews", fingerprint);
         try {
-            sendKafkaMessage("appeal_review_" + action, idempotencyKey, appealReview);
         } catch (RuntimeException ex) {
             log.log(Level.WARNING, "Appeal review Kafka publish failed after idempotency reserve", ex);
         }
@@ -232,15 +223,7 @@ public class AppealReviewService {
         sysRequestHistoryMapper.updateById(history);
     }
 
-    private void sendKafkaMessage(String topic, String idempotencyKey, AppealReview appealReview) {
-        try {
-            String payload = objectMapper.writeValueAsString(appealReview);
-            kafkaTemplate.send(topic, idempotencyKey, payload);
-        } catch (Exception ex) {
-            log.log(Level.SEVERE, "Failed to send AppealReview Kafka message", ex);
-            throw new RuntimeException("Failed to send AppealReview event", ex);
-        }
-    }
+
 
     private void syncToIndexAfterCommit(AppealReview appealReview) {
         if (appealReview == null) {

@@ -10,6 +10,7 @@ import com.tutict.finalassignmentbackend.entity.system.SysRequestHistory;
 import com.tutict.finalassignmentbackend.entity.elastic.SysBackupRestoreDocument;
 import com.tutict.finalassignmentbackend.mapper.system.SysBackupRestoreMapper;
 import com.tutict.finalassignmentbackend.mapper.system.SysRequestHistoryMapper;
+import com.tutict.finalassignmentbackend.reliability.IdempotencyReplayException;
 import com.tutict.finalassignmentbackend.repository.SysBackupRestoreSearchRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.cache.annotation.CacheEvict;
@@ -70,7 +71,7 @@ public class SysBackupRestoreService {
                 return;
             }
             log.warning(() -> String.format("Duplicate sys backup/restore request detected (key=%s)", idempotencyKey));
-            throw new RuntimeException("Duplicate sys backup/restore request detected");
+            throw new IdempotencyReplayException("Duplicate sys backup/restore request detected");
         }
 
         SysRequestHistory history = new SysRequestHistory();
@@ -86,7 +87,7 @@ public class SysBackupRestoreService {
             // Concurrent insert: re-read the winner and treat as duplicate
             SysRequestHistory racing = sysRequestHistoryMapper.selectByIdempotencyKey(idempotencyKey);
             if (racing != null && !"FAILED".equalsIgnoreCase(racing.getBusinessStatus())) {
-                throw new RuntimeException("Duplicate sys backup/restore request detected");
+                throw new IdempotencyReplayException("Duplicate sys backup/restore request detected");
             }
             throw ex;
         }

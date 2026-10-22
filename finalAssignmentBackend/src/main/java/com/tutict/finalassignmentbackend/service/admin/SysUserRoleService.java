@@ -2,18 +2,17 @@ package com.tutict.finalassignmentbackend.service.admin;
 
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import com.tutict.finalassignmentbackend.config.websocket.WsAction;
 import com.tutict.finalassignmentbackend.entity.system.SysRequestHistory;
 import com.tutict.finalassignmentbackend.entity.admin.SysUserRole;
 import com.tutict.finalassignmentbackend.entity.elastic.SysUserRoleDocument;
 import com.tutict.finalassignmentbackend.mapper.system.SysRequestHistoryMapper;
 import com.tutict.finalassignmentbackend.mapper.admin.SysUserRoleMapper;
+import com.tutict.finalassignmentbackend.reliability.IdempotencyReplayException;
 import com.tutict.finalassignmentbackend.repository.SysUserRoleSearchRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.cache.annotation.Cacheable;
-import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.transaction.support.TransactionSynchronization;
@@ -35,20 +34,14 @@ public class SysUserRoleService {
     private final SysUserRoleMapper sysUserRoleMapper;
     private final SysRequestHistoryMapper sysRequestHistoryMapper;
     private final SysUserRoleSearchRepository sysUserRoleSearchRepository;
-    private final KafkaTemplate<String, String> kafkaTemplate;
-    private final ObjectMapper objectMapper;
 
     @Autowired
     public SysUserRoleService(SysUserRoleMapper sysUserRoleMapper,
                               SysRequestHistoryMapper sysRequestHistoryMapper,
-                              SysUserRoleSearchRepository sysUserRoleSearchRepository,
-                              KafkaTemplate<String, String> kafkaTemplate,
-                              ObjectMapper objectMapper) {
+                              SysUserRoleSearchRepository sysUserRoleSearchRepository) {
         this.sysUserRoleMapper = sysUserRoleMapper;
         this.sysRequestHistoryMapper = sysRequestHistoryMapper;
         this.sysUserRoleSearchRepository = sysUserRoleSearchRepository;
-        this.kafkaTemplate = kafkaTemplate;
-        this.objectMapper = objectMapper;
     }
 
     @Transactional
@@ -59,7 +52,7 @@ public class SysUserRoleService {
         SysRequestHistory existing = sysRequestHistoryMapper.selectByIdempotencyKey(idempotencyKey);
         if (existing != null) {
             LOG.warning(() -> String.format("Duplicate sys user role request detected (key=%s)", idempotencyKey));
-            throw new RuntimeException("Duplicate sys user role request detected");
+            throw new IdempotencyReplayException("Duplicate sys user role request detected");
         }
 
         SysRequestHistory history = new SysRequestHistory();
@@ -69,7 +62,6 @@ public class SysUserRoleService {
         history.setUpdatedAt(LocalDateTime.now());
         sysRequestHistoryMapper.insert(history);
 
-        sendKafkaMessage("sys_user_role_" + action, idempotencyKey, relation);
 
         history.setBusinessStatus("SUCCESS");
         history.setBusinessId(relation.getId());
@@ -135,13 +127,10 @@ public class SysUserRoleService {
     public List<SysUserRole> findByUserId(Long userId, int page, int size) {
         requirePositive(userId, "User ID");
         validatePagination(page, size);
-        List<SysUserRole> index = mapHits(sysUserRoleSearchRepository.findByUserId(userId, pageable(page, size)));
-        if (!index.isEmpty()) {
-            return index;
-        }
         QueryWrapper<SysUserRole> wrapper = new QueryWrapper<>();
         wrapper.eq("user_id", userId)
                 .orderByDesc("created_at");
+        // The database is authoritative: a partially populated search index would silently drop roles.
         return fetchFromDatabase(wrapper, page, size);
     }
 
@@ -150,10 +139,6 @@ public class SysUserRoleService {
     public List<SysUserRole> findByRoleId(Integer roleId, int page, int size) {
         requirePositive(roleId, "Role ID");
         validatePagination(page, size);
-        List<SysUserRole> index = mapHits(sysUserRoleSearchRepository.findByRoleId(roleId, pageable(page, size)));
-        if (!index.isEmpty()) {
-            return index;
-        }
         QueryWrapper<SysUserRole> wrapper = new QueryWrapper<>();
         wrapper.eq("role_id", roleId)
                 .orderByDesc("created_at");
@@ -167,10 +152,6 @@ public class SysUserRoleService {
         requirePositive(userId, "User ID");
         requirePositive(roleId, "Role ID");
         validatePagination(page, size);
-        List<SysUserRole> index = mapHits(sysUserRoleSearchRepository.findByUserIdAndRoleId(userId, roleId, pageable(page, size)));
-        if (!index.isEmpty()) {
-            return index;
-        }
         QueryWrapper<SysUserRole> wrapper = new QueryWrapper<>();
         wrapper.eq("user_id", userId)
                 .eq("role_id", roleId)
@@ -221,15 +202,7 @@ public class SysUserRoleService {
         sysRequestHistoryMapper.updateById(history);
     }
 
-    private void sendKafkaMessage(String topic, String idempotencyKey, SysUserRole relation) {
-        try {
-            String payload = objectMapper.writeValueAsString(relation);
-            kafkaTemplate.send(topic, idempotencyKey, payload);
-        } catch (Exception ex) {
-            LOG.log(Level.SEVERE, "Failed to send SysUserRole Kafka message", ex);
-            throw new RuntimeException("Failed to send SysUserRole event", ex);
-        }
-    }
+
 
     private void syncToIndexAfterCommit(SysUserRole relation) {
         if (relation == null) {

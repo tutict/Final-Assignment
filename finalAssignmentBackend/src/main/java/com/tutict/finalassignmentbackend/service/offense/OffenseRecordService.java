@@ -27,6 +27,7 @@ import com.tutict.finalassignmentbackend.offense.governance.StaleFullUpdateRejec
 import com.tutict.finalassignmentbackend.offense.governance.rollout.GovernanceRolloutPolicy;
 import com.tutict.finalassignmentbackend.offense.governance.rollout.GovernanceSourceType;
 import com.tutict.finalassignmentbackend.exception.BusinessException;
+import com.tutict.finalassignmentbackend.reliability.IdempotencyReplayException;
 import com.tutict.finalassignmentbackend.repository.OffenseInformationSearchRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.cache.annotation.CacheEvict;
@@ -88,7 +89,7 @@ public class OffenseRecordService {
     public void checkAndInsertIdempotency(String idempotencyKey, OffenseRecord offenseRecord, String action) {
         Objects.requireNonNull(offenseRecord, "OffenseRecord must not be null");
         if (sysRequestHistoryMapper.selectByIdempotencyKey(idempotencyKey) != null) {
-            throw new RuntimeException("Duplicate offense record request detected");
+            throw new IdempotencyReplayException("Duplicate offense record request detected");
         }
 
         SysRequestHistory history = new SysRequestHistory();
@@ -98,10 +99,6 @@ public class OffenseRecordService {
         history.setUpdatedAt(LocalDateTime.now());
         sysRequestHistoryMapper.insert(history);
 
-        if (!"create".equalsIgnoreCase(action)) {
-            MutationSideEffectPolicy policy = semanticIntentClassifier.classifyIdempotencyPublish(action);
-            sideEffectCoordinator.publishKafkaLegacy(policy, () -> sendKafkaMessage("offense_record_" + action, idempotencyKey, offenseRecord));
-        }
 
         history.setBusinessStatus("SUCCESS");
         history.setBusinessId(offenseRecord.getOffenseId());
@@ -315,6 +312,16 @@ public class OffenseRecordService {
         MutationSideEffectPolicy policy = semanticIntentClassifier.classifyIdempotencyPublish("create");
         sideEffectCoordinator.publishKafkaAfterCommit(policy,
                 () -> sendKafkaMessage("offense_record_create", idempotencyKey, offenseRecord));
+    }
+
+    private void sendKafkaMessage(String topic, String idempotencyKey, OffenseRecord offenseRecord) {
+        try {
+            String payload = objectMapper.writeValueAsString(offenseRecord);
+            kafkaTemplate.send(topic, idempotencyKey, payload);
+        } catch (Exception ex) {
+            log.log(Level.SEVERE, "Failed to send OffenseRecord Kafka message", ex);
+            throw new RuntimeException("Failed to send offense record event", ex);
+        }
     }
 
     @Transactional
@@ -598,14 +605,7 @@ public class OffenseRecordService {
         sysRequestHistoryMapper.updateById(history);
     }
 
-    private void sendKafkaMessage(String topic, String idempotencyKey, OffenseRecord offenseRecord) {
-        try {
-            String payload = objectMapper.writeValueAsString(offenseRecord);
-            kafkaTemplate.send(topic, idempotencyKey, payload);
-        } catch (Exception ex) {
-            log.log(Level.WARNING, "Failed to send OffenseRecord Kafka message", ex);
-        }
-    }
+
 
     private void syncToIndexAfterCommit(MutationSideEffectPolicy policy, OffenseRecord offenseRecord) {
         if (offenseRecord == null) {

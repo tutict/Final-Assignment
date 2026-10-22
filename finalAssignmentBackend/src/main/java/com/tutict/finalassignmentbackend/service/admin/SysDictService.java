@@ -2,18 +2,17 @@ package com.tutict.finalassignmentbackend.service.admin;
 
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import com.tutict.finalassignmentbackend.config.websocket.WsAction;
 import com.tutict.finalassignmentbackend.entity.system.SysDict;
 import com.tutict.finalassignmentbackend.entity.system.SysRequestHistory;
 import com.tutict.finalassignmentbackend.entity.elastic.SysDictDocument;
 import com.tutict.finalassignmentbackend.mapper.system.SysDictMapper;
 import com.tutict.finalassignmentbackend.mapper.system.SysRequestHistoryMapper;
+import com.tutict.finalassignmentbackend.reliability.IdempotencyReplayException;
 import com.tutict.finalassignmentbackend.repository.SysDictSearchRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.cache.annotation.Cacheable;
-import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.transaction.support.TransactionSynchronization;
@@ -37,20 +36,14 @@ public class SysDictService {
     private final SysDictMapper sysDictMapper;
     private final SysRequestHistoryMapper sysRequestHistoryMapper;
     private final SysDictSearchRepository sysDictSearchRepository;
-    private final KafkaTemplate<String, String> kafkaTemplate;
-    private final ObjectMapper objectMapper;
 
     @Autowired
     public SysDictService(SysDictMapper sysDictMapper,
                           SysRequestHistoryMapper sysRequestHistoryMapper,
-                          SysDictSearchRepository sysDictSearchRepository,
-                          KafkaTemplate<String, String> kafkaTemplate,
-                          ObjectMapper objectMapper) {
+                          SysDictSearchRepository sysDictSearchRepository) {
         this.sysDictMapper = sysDictMapper;
         this.sysRequestHistoryMapper = sysRequestHistoryMapper;
         this.sysDictSearchRepository = sysDictSearchRepository;
-        this.kafkaTemplate = kafkaTemplate;
-        this.objectMapper = objectMapper;
     }
 
     @Transactional
@@ -59,7 +52,7 @@ public class SysDictService {
     public void checkAndInsertIdempotency(String idempotencyKey, SysDict sysDict, String action) {
         Objects.requireNonNull(sysDict, "SysDict must not be null");
         if (sysRequestHistoryMapper.selectByIdempotencyKey(idempotencyKey) != null) {
-            throw new RuntimeException("Duplicate SysDict request detected");
+            throw new IdempotencyReplayException("Duplicate SysDict request detected");
         }
 
         SysRequestHistory history = new SysRequestHistory();
@@ -69,7 +62,6 @@ public class SysDictService {
         history.setUpdatedAt(LocalDateTime.now());
         sysRequestHistoryMapper.insert(history);
 
-        sendKafkaMessage("sys_dict_" + action, idempotencyKey, sysDict);
 
         history.setBusinessStatus("SUCCESS");
         history.setBusinessId(Optional.ofNullable(sysDict.getDictId()).map(Long::valueOf).orElse(null));
@@ -293,15 +285,7 @@ public class SysDictService {
         sysRequestHistoryMapper.updateById(history);
     }
 
-    private void sendKafkaMessage(String topic, String idempotencyKey, SysDict sysDict) {
-        try {
-            String payload = objectMapper.writeValueAsString(sysDict);
-            kafkaTemplate.send(topic, idempotencyKey, payload);
-        } catch (Exception ex) {
-            log.log(Level.SEVERE, "Failed to send SysDict Kafka message", ex);
-            throw new RuntimeException("Failed to send SysDict event", ex);
-        }
-    }
+
 
     private void syncToIndexAfterCommit(SysDict sysDict) {
         if (sysDict == null) {

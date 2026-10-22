@@ -2,7 +2,6 @@ package com.tutict.finalassignmentbackend.service.audit;
 
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import com.tutict.finalassignmentbackend.common.PageLimits;
 import com.tutict.finalassignmentbackend.config.websocket.WsAction;
 import com.tutict.finalassignmentbackend.entity.audit.AuditOperationLog;
@@ -10,6 +9,7 @@ import com.tutict.finalassignmentbackend.entity.system.SysRequestHistory;
 import com.tutict.finalassignmentbackend.entity.elastic.AuditOperationLogDocument;
 import com.tutict.finalassignmentbackend.mapper.audit.AuditOperationLogMapper;
 import com.tutict.finalassignmentbackend.mapper.system.SysRequestHistoryMapper;
+import com.tutict.finalassignmentbackend.reliability.IdempotencyReplayException;
 import com.tutict.finalassignmentbackend.repository.AuditOperationLogSearchRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.cache.annotation.CacheEvict;
@@ -18,7 +18,6 @@ import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.elasticsearch.core.SearchHit;
 import org.springframework.data.elasticsearch.core.SearchHits;
-import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.transaction.support.TransactionSynchronization;
@@ -42,20 +41,14 @@ public class AuditOperationLogService {
     private final AuditOperationLogMapper auditOperationLogMapper;
     private final SysRequestHistoryMapper sysRequestHistoryMapper;
     private final AuditOperationLogSearchRepository auditOperationLogSearchRepository;
-    private final KafkaTemplate<String, String> kafkaTemplate;
-    private final ObjectMapper objectMapper;
 
     @Autowired
     public AuditOperationLogService(AuditOperationLogMapper auditOperationLogMapper,
                                     SysRequestHistoryMapper sysRequestHistoryMapper,
-                                    AuditOperationLogSearchRepository auditOperationLogSearchRepository,
-                                    KafkaTemplate<String, String> kafkaTemplate,
-                                    ObjectMapper objectMapper) {
+                                    AuditOperationLogSearchRepository auditOperationLogSearchRepository) {
         this.auditOperationLogMapper = auditOperationLogMapper;
         this.sysRequestHistoryMapper = sysRequestHistoryMapper;
         this.auditOperationLogSearchRepository = auditOperationLogSearchRepository;
-        this.kafkaTemplate = kafkaTemplate;
-        this.objectMapper = objectMapper;
     }
 
     @Transactional
@@ -64,7 +57,7 @@ public class AuditOperationLogService {
     public void checkAndInsertIdempotency(String idempotencyKey, AuditOperationLog auditOperationLog, String action) {
         Objects.requireNonNull(auditOperationLog, "AuditOperationLog must not be null");
         if (sysRequestHistoryMapper.selectByIdempotencyKey(idempotencyKey) != null) {
-            throw new RuntimeException("Duplicate audit operation log request detected");
+            throw new IdempotencyReplayException("Duplicate audit operation log request detected");
         }
 
         SysRequestHistory history = new SysRequestHistory();
@@ -75,7 +68,6 @@ public class AuditOperationLogService {
         sysRequestHistoryMapper.insert(history);
 
         try {
-            sendKafkaMessage("audit_operation_log_" + action, idempotencyKey, auditOperationLog);
         } catch (RuntimeException ex) {
             log.log(Level.WARNING, "Operation log Kafka publish failed after idempotency reserve", ex);
         }
@@ -339,15 +331,7 @@ public class AuditOperationLogService {
         sysRequestHistoryMapper.updateById(history);
     }
 
-    private void sendKafkaMessage(String topic, String idempotencyKey, AuditOperationLog auditOperationLog) {
-        try {
-            String payload = objectMapper.writeValueAsString(auditOperationLog);
-            kafkaTemplate.send(topic, idempotencyKey, payload);
-        } catch (Exception ex) {
-            log.log(Level.SEVERE, "Failed to send AuditOperationLog Kafka message", ex);
-            throw new RuntimeException("Failed to send AuditOperationLog event", ex);
-        }
-    }
+
 
     private void syncToIndexAfterCommit(AuditOperationLog record) {
         if (record == null) {

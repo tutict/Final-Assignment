@@ -2,18 +2,17 @@ package com.tutict.finalassignmentbackend.service.admin;
 
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import com.tutict.finalassignmentbackend.config.websocket.WsAction;
 import com.tutict.finalassignmentbackend.entity.system.SysRequestHistory;
 import com.tutict.finalassignmentbackend.entity.admin.SysRolePermission;
 import com.tutict.finalassignmentbackend.entity.elastic.SysRolePermissionDocument;
 import com.tutict.finalassignmentbackend.mapper.system.SysRequestHistoryMapper;
 import com.tutict.finalassignmentbackend.mapper.admin.SysRolePermissionMapper;
+import com.tutict.finalassignmentbackend.reliability.IdempotencyReplayException;
 import com.tutict.finalassignmentbackend.repository.SysRolePermissionSearchRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.cache.annotation.Cacheable;
-import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.transaction.support.TransactionSynchronization;
@@ -35,20 +34,14 @@ public class SysRolePermissionService {
     private final SysRolePermissionMapper sysRolePermissionMapper;
     private final SysRequestHistoryMapper sysRequestHistoryMapper;
     private final SysRolePermissionSearchRepository sysRolePermissionSearchRepository;
-    private final KafkaTemplate<String, String> kafkaTemplate;
-    private final ObjectMapper objectMapper;
 
     @Autowired
     public SysRolePermissionService(SysRolePermissionMapper sysRolePermissionMapper,
                                     SysRequestHistoryMapper sysRequestHistoryMapper,
-                                    SysRolePermissionSearchRepository sysRolePermissionSearchRepository,
-                                    KafkaTemplate<String, String> kafkaTemplate,
-                                    ObjectMapper objectMapper) {
+                                    SysRolePermissionSearchRepository sysRolePermissionSearchRepository) {
         this.sysRolePermissionMapper = sysRolePermissionMapper;
         this.sysRequestHistoryMapper = sysRequestHistoryMapper;
         this.sysRolePermissionSearchRepository = sysRolePermissionSearchRepository;
-        this.kafkaTemplate = kafkaTemplate;
-        this.objectMapper = objectMapper;
     }
 
     @Transactional
@@ -59,7 +52,7 @@ public class SysRolePermissionService {
         SysRequestHistory existing = sysRequestHistoryMapper.selectByIdempotencyKey(idempotencyKey);
         if (existing != null) {
             log.warning(() -> String.format("Duplicate role-permission request detected (key=%s)", idempotencyKey));
-            throw new RuntimeException("Duplicate role-permission request detected");
+            throw new IdempotencyReplayException("Duplicate role-permission request detected");
         }
 
         SysRequestHistory history = new SysRequestHistory();
@@ -69,7 +62,6 @@ public class SysRolePermissionService {
         history.setUpdatedAt(LocalDateTime.now());
         sysRequestHistoryMapper.insert(history);
 
-        sendKafkaMessage("sys_role_permission_" + action, idempotencyKey, relation);
 
         history.setBusinessStatus("SUCCESS");
         history.setBusinessId(relation.getId());
@@ -219,15 +211,7 @@ public class SysRolePermissionService {
         sysRequestHistoryMapper.updateById(history);
     }
 
-    private void sendKafkaMessage(String topic, String idempotencyKey, SysRolePermission relation) {
-        try {
-            String payload = objectMapper.writeValueAsString(relation);
-            kafkaTemplate.send(topic, idempotencyKey, payload);
-        } catch (Exception ex) {
-            log.log(Level.SEVERE, "Failed to send SysRolePermission Kafka message", ex);
-            throw new RuntimeException("Failed to send sys role permission event", ex);
-        }
-    }
+
 
     private void syncToIndexAfterCommit(SysRolePermission relation) {
         if (relation == null) {

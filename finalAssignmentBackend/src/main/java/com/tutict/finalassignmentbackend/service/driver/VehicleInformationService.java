@@ -8,6 +8,7 @@ import com.tutict.finalassignmentbackend.entity.driver.VehicleInformation;
 import com.tutict.finalassignmentbackend.entity.elastic.VehicleInformationDocument;
 import com.tutict.finalassignmentbackend.mapper.system.SysRequestHistoryMapper;
 import com.tutict.finalassignmentbackend.mapper.driver.VehicleInformationMapper;
+import com.tutict.finalassignmentbackend.reliability.IdempotencyReplayException;
 import com.tutict.finalassignmentbackend.repository.VehicleInformationSearchRepository;
 import com.tutict.finalassignmentbackend.security.crypto.SensitiveDataPersistenceService;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -18,7 +19,6 @@ import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.elasticsearch.core.SearchHit;
 import org.springframework.data.elasticsearch.core.SearchHits;
-import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.transaction.support.TransactionSynchronization;
@@ -42,19 +42,16 @@ public class VehicleInformationService {
 
     private final VehicleInformationMapper vehicleInformationMapper;
     private final SysRequestHistoryMapper sysRequestHistoryMapper;
-    private final KafkaTemplate<String, VehicleInformation> kafkaTemplate;
     private final VehicleInformationSearchRepository vehicleInformationSearchRepository;
     private final SensitiveDataPersistenceService sensitiveDataPersistenceService;
 
     @Autowired
     public VehicleInformationService(VehicleInformationMapper vehicleInformationMapper,
                                      SysRequestHistoryMapper sysRequestHistoryMapper,
-                                     KafkaTemplate<String, VehicleInformation> kafkaTemplate,
                                      VehicleInformationSearchRepository vehicleInformationSearchRepository,
                                      SensitiveDataPersistenceService sensitiveDataPersistenceService) {
         this.vehicleInformationMapper = vehicleInformationMapper;
         this.sysRequestHistoryMapper = sysRequestHistoryMapper;
-        this.kafkaTemplate = kafkaTemplate;
         this.vehicleInformationSearchRepository = vehicleInformationSearchRepository;
         this.sensitiveDataPersistenceService = sensitiveDataPersistenceService;
     }
@@ -67,7 +64,7 @@ public class VehicleInformationService {
         SysRequestHistory existing = sysRequestHistoryMapper.selectByIdempotencyKey(idempotencyKey);
         if (existing != null) {
             log.warning(() -> String.format("Duplicate vehicle request detected (key=%s)", idempotencyKey));
-            throw new RuntimeException("Duplicate vehicle request detected");
+            throw new IdempotencyReplayException("Duplicate vehicle request detected");
         }
 
         SysRequestHistory history = new SysRequestHistory();
@@ -77,7 +74,6 @@ public class VehicleInformationService {
         sysRequestHistoryMapper.insert(history);
 
         sensitiveDataPersistenceService.prepare(vehicleInformation);
-        sendKafkaMessage(action, idempotencyKey, vehicleInformation);
 
         history.setBusinessStatus("SUCCESS");
         history.setBusinessId(vehicleInformation.getVehicleId());
@@ -490,39 +486,7 @@ public class VehicleInformationService {
         });
     }
 
-    private void sendKafkaMessage(String action, String idempotencyKey, VehicleInformation vehicleInformation) {
-        String topic = "vehicle_information_" + action.toLowerCase(Locale.ROOT);
-        try {
-            Runnable sendTask = () -> kafkaTemplate.send(topic, idempotencyKey, vehicleInformation).whenComplete((result, ex) -> {
-                if (ex != null) {
-                    log.log(Level.SEVERE, "Failed to send vehicle Kafka message", ex);
-                } else {
-                    log.log(Level.FINE, "Vehicle Kafka message sent: topic={0}, partition={1}, offset={2}",
-                            new Object[]{
-                                    topic,
-                                    result.getRecordMetadata().partition(),
-                                    result.getRecordMetadata().offset()
-                            });
-                }
-            });
-            if (TransactionSynchronizationManager.isSynchronizationActive()) {
-                TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
-                    @Override
-                    public void afterCommit() {
-                        try {
-                            sendTask.run();
-                        } catch (RuntimeException ex) {
-                            log.log(Level.WARNING, "Vehicle Kafka publish failed after commit", ex);
-                        }
-                    }
-                });
-            } else {
-                sendTask.run();
-            }
-        } catch (Exception e) {
-            log.log(Level.WARNING, "Failed to send vehicle Kafka message", e);
-        }
-    }
+
 
     public boolean shouldSkipProcessing(String idempotencyKey) {
         SysRequestHistory history = sysRequestHistoryMapper.selectByIdempotencyKey(idempotencyKey);

@@ -18,7 +18,6 @@ import com.tutict.finalassignmentbackend.repository.DeductionRecordSearchReposit
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.cache.annotation.Cacheable;
-import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.transaction.support.TransactionSynchronization;
@@ -44,7 +43,6 @@ public class DeductionRecordService {
     private final OffenseRecordMapper offenseRecordMapper;
     private final SysRequestHistoryMapper sysRequestHistoryMapper;
     private final DeductionRecordSearchRepository deductionRecordSearchRepository;
-    private final KafkaTemplate<String, DeductionRecord> kafkaTemplate;
     private final LedgerHistoryReserve ledgerHistoryReserve;
 
     @Autowired
@@ -53,14 +51,12 @@ public class DeductionRecordService {
                                   OffenseRecordMapper offenseRecordMapper,
                                   SysRequestHistoryMapper sysRequestHistoryMapper,
                                   DeductionRecordSearchRepository deductionRecordSearchRepository,
-                                  KafkaTemplate<String, DeductionRecord> kafkaTemplate,
                                   LedgerHistoryReserve ledgerHistoryReserve) {
         this.deductionRecordMapper = deductionRecordMapper;
         this.driverInformationMapper = driverInformationMapper;
         this.offenseRecordMapper = offenseRecordMapper;
         this.sysRequestHistoryMapper = sysRequestHistoryMapper;
         this.deductionRecordSearchRepository = deductionRecordSearchRepository;
-        this.kafkaTemplate = kafkaTemplate;
         this.ledgerHistoryReserve = ledgerHistoryReserve;
     }
 
@@ -75,7 +71,6 @@ public class DeductionRecordService {
                 String.valueOf(deductionRecord.getDeductedPoints())));
         ledgerHistoryReserve.reserve(idempotencyKey, "DEDUCTION_" + action, "POST", "/api/deductions", fingerprint);
         try {
-            sendKafkaMessage("deduction_record_" + action, idempotencyKey, deductionRecord);
         } catch (RuntimeException ex) {
             log.log(Level.WARNING, "Deduction Kafka publish failed after idempotency reserve", ex);
         }
@@ -332,15 +327,7 @@ public class DeductionRecordService {
     }
 
 
-    private void sendKafkaMessage(String topic, String idempotencyKey, DeductionRecord deductionRecord) {
-        try {
-            kafkaTemplate.send(topic, idempotencyKey, deductionRecord);
-        } catch (Exception ex) {
-            log.log(Level.WARNING,
-                    String.format("Failed to send DeductionRecord Kafka message (topic=%s, key=%s)", topic, idempotencyKey),
-                    ex);
-        }
-    }
+
 
     private List<DeductionRecord> mapHits(org.springframework.data.elasticsearch.core.SearchHits<DeductionRecordDocument> hits) {
         if (hits == null || !hits.hasSearchHits()) {
