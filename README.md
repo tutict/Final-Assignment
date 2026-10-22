@@ -69,6 +69,15 @@
 - 多后端契约对齐：Cloud RAG 文档列表支持分页；Go 端 RAG、违法与日志接口对齐共享契约；Quarkus 在 GraalPy 不可用时安全降级；本地启动脚本兼容 Windows 路径并重试网关端口。
 - 数据与前端健壮性：统一填充 `createdAt` / `updatedAt`，避免 MyBatis-Plus 显式写入 NULL；RAG 响应按 `success/data` 解包；表格行 key 去重；Flutter 页面正确释放滚动控制器。
 
+### 云端专项加固（2026-10 第二轮）
+
+- 服务边界收敛：下线独立的搜索服务模块，Elasticsearch 索引设置随实体迁入共享库（设置文件与实体需同处一个 classpath）；Nacos 配置按服务名隔离，清理搜索服务遗留的发现项。
+- 服务间鉴权收紧：内部调用统一携带 `X-Internal-Service-Token`，服务端校验后只授予 `ROLE_INTERNAL`；网关剥离客户端自带的该请求头，外部无法伪造内部身份；内部端点不再依赖管理员角色。
+- 幂等并发修复：幂等键唯一键冲突时改用加锁读（当前读）回读，避免在可重复读隔离级别下拿到过期快照而把并发请求误判为“首次请求”。
+- AI 链路加固：联网检索的查询词以变量绑定进 GraalPy 上下文，不再拼接进 Python 源码；推理超时改为可配置（`ai.chat.timeout-millis`，默认 30s），并区分超时、空响应、熔断拒绝等原因。
+- CI 覆盖：GitHub Actions 的 Cloud 作业接入 MySQL 8.0 并灌入 `database/traffic.sql`，对全部 Cloud 模块执行编译与测试；各模块补齐独立的测试配置。
+- 前端会话与角色：Flutter Web 端令牌改存 SharedPreferences（secure storage 在非安全上下文不可用）；超管在管理端按角色集合语义判定为 ADMIN 的超集；外壳重定向参数带 `requestId`，同一页面连续跳转不再被当作重复消费；React 刷新令牌按 `ApiResponse.data` 解包。
+
 ## 架构速览
 
 ```text
@@ -367,9 +376,10 @@ MySQL / Redis / Elasticsearch / Kafka
 | User | 8082 | 用户管理、角色权限、驾驶员档案 | ✅ 生产就绪 |
 | Traffic | 8083 | 违章、罚款、扣分、申诉、车辆（含分库分表） | ✅ 生产就绪 |
 | Audit | 8084 | 操作日志、登录日志、审计查询 | ✅ 生产就绪 |
-| System | 8085 | 系统配置、字典管理 | ✅ 生产就绪 |
+| System | 18085 | 系统配置、字典管理 | ✅ 生产就绪 |
+| AI | 18086 | 对话编排、联网检索、模型推理 | ✅ 生产就绪 |
 | Common | - | 共享库：安全、缓存、消息、工具 | ✅ 生产就绪 |
-| RAG | via Gateway | 文档上传、分块、向量化、语义检索 | ✅ 生产就绪 |
+| RAG | 18088 | 文档上传、分块、向量化、语义检索 | ✅ 生产就绪 |
 
 ### 技术栈
 
@@ -487,6 +497,7 @@ docker compose ps
    - Traffic
    - Audit
    - System
+   - AI
    - RAG（可选）
 
 3. 验证服务注册：访问 http://localhost:8848/nacos（用户名/密码：nacos/nacos）
@@ -504,6 +515,8 @@ cd finalAssignmentCloud/finalassignmentcloud-user && mvn spring-boot:run
 cd finalAssignmentCloud/finalassignmentcloud-traffic && mvn spring-boot:run
 cd finalAssignmentCloud/finalassignmentcloud-audit && mvn spring-boot:run
 cd finalAssignmentCloud/finalassignmentcloud-system && mvn spring-boot:run
+cd finalAssignmentCloud/finalassignmentcloud-ai && mvn spring-boot:run
+cd finalAssignmentCloud/finalassignmentcloud-rag && mvn spring-boot:run
 ```
 
 ### 性能测试
@@ -563,34 +576,37 @@ NACOS_GROUP=DEFAULT_GROUP
 NACOS_USERNAME=
 NACOS_PASSWORD=
 
-# 数据库（各服务独立数据库）
-DB_URL=jdbc:mysql://localhost:3306/traffic?useSSL=false&serverTimezone=Asia/Shanghai
-DB_USERNAME=root
-DB_PASSWORD=your_password
+# 数据库（各服务独立数据库，auth/user/traffic 共用 traffic 库）
+AUTH_DB_URL=jdbc:mysql://localhost:3306/traffic_management?useSSL=false&serverTimezone=Asia/Shanghai
+AUTH_DB_USERNAME=root
+AUTH_DB_PASSWORD=your_password
 
 # Redis
-REDIS_HOST=localhost
-REDIS_PORT=6379
-REDIS_PASSWORD=
+SPRING_DATA_REDIS_HOST=localhost
+SPRING_DATA_REDIS_PORT=6379
 
 # Elasticsearch
 ELASTICSEARCH_URIS=http://localhost:9200
 
 # Kafka
-KAFKA_BOOTSTRAP_SERVERS=localhost:9092
+SPRING_KAFKA_BOOTSTRAP_SERVERS=localhost:9092
 
-# JWT
-JWT_SECRET=replace_with_a_real_secret
-JWT_EXPIRATION=3600000
+# JWT（HS256 的密钥需为 Base64 编码；留空或弱值启动即失败）
+JWT_SECRET_KEY=base64_encoded_secret
+JWT_ACCESS_TOKEN_EXPIRATION=3600
+JWT_REFRESH_TOKEN_EXPIRATION=604800
 
 # 内部服务间鉴权（auth 与 user 服务必填，启动时 fail-fast 校验非空/非弱值）
 # auth 经 feign 调用 user 的 /api/users/internal/** 端点时带 X-Internal-Service-Token 头
 INTERNAL_SERVICE_TOKEN=replace_with_a_strong_internal_token
 
+# 注册幂等指纹的 HMAC 密钥，缺省复用 INTERNAL_SERVICE_TOKEN；轮换会让历史幂等键失效
+AUTH_FINGERPRINT_SECRET=
+
 # 后量子 JWT 签名（可选，默认 HS256）
-# 切 ML-DSA-65 时，auth 与所有下游服务需配置同一 ML-DSA 公钥以验签
+# 切 ML-DSA-65 时，在 jwt.ml-dsa.rotation.keys 配置版本化密钥环（含 kid 与 PEM 公私钥），
+# auth 与所有下游服务需配置同一密钥环以验签
 JWT_ALGORITHM=HS256
-JWT_ML_DSA_PUBLIC_KEY=
 
 # RAG（可选）
 RAG_ENABLED=true
