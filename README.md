@@ -58,6 +58,17 @@
 - 敏感字段支持 `AES-GCM` 密文列与 `HMAC blind-index` 查询列
 - 统一 Kafka Listener 幂等处理器，减少重复反序列化、重复请求判断、成功/失败历史标记代码
 
+## 近期工程化加固
+
+2026-10 完成了一轮契约、并发/事务、安全和构建配置审查，主要变化：
+
+- 幂等账本统一：Cloud 共享 `HistoryReserve` / `LedgerIdempotencyDecider`，创建请求先落 `PROCESSING` 再执行副作用；重放返回 `208`，同键异内容或处理中返回 `409`，失败标记只允许从 `PROCESSING` 降级。
+- 实时链路：Cloud 网关改用 Redis 一次性 WebSocket 票据（`POST /api/ws-ticket`），付款状态变更在事务提交后仅推送给记录归属人，缺少归属人时跳过广播。
+- 认证与审计：公开注册固定授予 `USER`；内部服务经专用 DTO 传递密码哈希；`password` / `salt` 不再进入响应；审计日志的调用者由服务端绑定；Quarkus 启动时校验 JWT 签名与验签密钥一致。
+- 进度与用户契约：各后端 `/api/progress` 统一归属校验与幂等语义；用户更新改为部分字段合并，密码留空不会清空凭据；React 用户管理页补齐检索、创建、编辑、删除和字段校验。
+- 多后端契约对齐：Cloud RAG 文档列表支持分页；Go 端 RAG、违法与日志接口对齐共享契约；Quarkus 在 GraalPy 不可用时安全降级；本地启动脚本兼容 Windows 路径并重试网关端口。
+- 数据与前端健壮性：统一填充 `createdAt` / `updatedAt`，避免 MyBatis-Plus 显式写入 NULL；RAG 响应按 `success/data` 解包；表格行 key 去重；Flutter 页面正确释放滚动控制器。
+
 ## 架构速览
 
 ```text
