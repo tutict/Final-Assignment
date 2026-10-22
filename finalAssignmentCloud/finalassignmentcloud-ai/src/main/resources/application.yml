@@ -43,6 +43,8 @@ management:
       exposure:
         include: health,prometheus
 ai:
+  chat:
+    timeout-millis: ${AI_CHAT_TIMEOUT_MILLIS:30000}
   search:
     timeout-seconds: ${AI_SEARCH_TIMEOUT:30}
   rag:

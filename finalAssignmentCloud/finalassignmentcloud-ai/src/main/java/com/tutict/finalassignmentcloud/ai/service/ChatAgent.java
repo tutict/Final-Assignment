@@ -12,6 +12,7 @@ import jakarta.annotation.PreDestroy;
 import org.springframework.ai.chat.messages.AssistantMessage;
 import org.springframework.ai.chat.model.Generation;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.ai.chat.messages.UserMessage;
@@ -25,6 +26,7 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
@@ -36,10 +38,18 @@ public class ChatAgent {
     private static final Logger logger = LoggerFactory.getLogger(ChatAgent.class);
     private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper();
 
+    // 单次 llama3.2 推理（含 JSON 生成）耗时在数秒到数十秒量级，预算过小会必然走降级
+    private static final long DEFAULT_CHAT_TIMEOUT_MILLIS = 30_000L;
+    private static final String REASON_TIMEOUT = "timeout";
+    private static final String REASON_EMPTY_RESPONSE = "empty_provider_response";
+    private static final String REASON_BULKHEAD_FULL = "bulkhead_full";
+    private static final String REASON_PROVIDER_ERROR = "provider_error";
+    private static final String REASON_INTERRUPTED = "interrupted";
+
     private final OllamaChatModel chatModel;
     private final AIChatSearchService aiChatSearchService;
     private final RagRetrievalService ragRetrievalService;
-    private static final long CHAT_TIMEOUT_MILLIS = 700;
+    private final long chatTimeoutMillis;
 
     private final AiAgentRoleResolver roleResolver;
     private final AgentConstraintService constraintService;
@@ -53,7 +63,7 @@ public class ChatAgent {
                      AiAgentRoleResolver roleResolver,
                      AgentConstraintService constraintService) {
         this(chatModel, aiChatSearchService, ragRetrievalService, roleResolver, constraintService,
-                new ModelCallBulkhead(), null);
+                new ModelCallBulkhead(), null, DEFAULT_CHAT_TIMEOUT_MILLIS);
     }
 
     @Autowired
@@ -63,7 +73,8 @@ public class ChatAgent {
                      AiAgentRoleResolver roleResolver,
                      AgentConstraintService constraintService,
                      ModelCallBulkhead modelCalls,
-                     AiFallbackMetrics aiFallbackMetrics) {
+                     AiFallbackMetrics aiFallbackMetrics,
+                     @Value("${ai.chat.timeout-millis:30000}") long chatTimeoutMillis) {
         this.chatModel = chatModel;
         this.aiChatSearchService = aiChatSearchService;
         this.ragRetrievalService = ragRetrievalService;
@@ -71,6 +82,7 @@ public class ChatAgent {
         this.constraintService = constraintService;
         this.modelCalls = modelCalls == null ? new ModelCallBulkhead() : modelCalls;
         this.aiFallbackMetrics = aiFallbackMetrics;
+        this.chatTimeoutMillis = chatTimeoutMillis > 0 ? chatTimeoutMillis : DEFAULT_CHAT_TIMEOUT_MILLIS;
     }
 
     public Flux<ChatResponse> streamChat(String message, String massage, boolean webSearch) {
@@ -114,17 +126,17 @@ public class ChatAgent {
         logger.info("AI chat actions request received. message={}, webSearch={}", userMessage, webSearch);
 
         Prompt prompt = buildActionPrompt(userMessage, webSearch, safeMetadata(metadata));
-        ChatResponse response = completeWithTimeout(prompt);
-        if (response == null) {
-            return fallbackActions("empty_provider_response");
+        ChatOutcome outcome = completeWithTimeout(prompt);
+        if (outcome.response() == null) {
+            return fallbackActions(outcome.failureReason());
         }
-        String content = extractResponseText(response);
+        String content = extractResponseText(outcome.response());
         return parseActionResponse(content);
     }
 
-    private ChatResponse completeWithTimeout(Prompt prompt) {
+    private ChatOutcome completeWithTimeout(Prompt prompt) {
         if (!modelCalls.tryAcquire()) {
-            return null;
+            return ChatOutcome.failed(REASON_BULKHEAD_FULL);
         }
         final CompletableFuture<ChatResponse> future;
         try {
@@ -138,34 +150,46 @@ public class ChatAgent {
         } catch (RuntimeException ex) {
             modelCalls.release();
             logger.warn("AI action generation was rejected. reason={}", ex.toString());
-            return null;
+            return ChatOutcome.failed(REASON_PROVIDER_ERROR);
         }
         try {
-            return future.get(CHAT_TIMEOUT_MILLIS, TimeUnit.MILLISECONDS);
+            ChatResponse response = future.get(chatTimeoutMillis, TimeUnit.MILLISECONDS);
+            if (response == null) {
+                return ChatOutcome.failed(REASON_EMPTY_RESPONSE);
+            }
+            return ChatOutcome.succeeded(response);
         } catch (TimeoutException ex) {
             future.cancel(true);
-            logger.warn("AI action generation timed out after {} ms", CHAT_TIMEOUT_MILLIS);
-            return null;
+            logger.warn("AI action generation timed out after {} ms", chatTimeoutMillis);
+            return ChatOutcome.failed(REASON_TIMEOUT);
         } catch (InterruptedException ex) {
             Thread.currentThread().interrupt();
             future.cancel(true);
-            return null;
-        } catch (Exception ex) {
+            logger.warn("AI action generation was interrupted. reason={}", ex.toString());
+            return ChatOutcome.failed(REASON_INTERRUPTED);
+        } catch (ExecutionException ex) {
             logger.warn("AI action generation failed. reason={}", ex.toString());
-            return null;
+            return ChatOutcome.failed(REASON_PROVIDER_ERROR);
         }
     }
 
     private ChatActionResponse fallbackActions(String reason) {
         markFallback();
         ChatActionResponse response = new ChatActionResponse(
-                "AI 动作生成暂时不可用，请先手动操作。",
+                fallbackAnswer(reason),
                 List.of(),
                 false
         );
         response.setFallback(true);
         logger.info("AI chat actions degraded. reason={}", reason);
         return response;
+    }
+
+    private String fallbackAnswer(String reason) {
+        if (REASON_TIMEOUT.equals(reason)) {
+            return "AI 动作生成超时，请稍后重试。";
+        }
+        return "AI 动作生成暂时不可用，请先手动操作。";
     }
 
     private void markFallback() {
@@ -265,6 +289,9 @@ public class ChatAgent {
         String cleaned = stripCodeFence(content).trim();
         String json = extractJsonObject(cleaned);
         if (json == null || json.isBlank()) {
+            if (cleaned.isBlank()) {
+                return fallbackActions(REASON_EMPTY_RESPONSE);
+            }
             return fallbackActionResponse(cleaned);
         }
         try {
@@ -393,5 +420,16 @@ public class ChatAgent {
             }
         }
         return builder;
+    }
+
+    private record ChatOutcome(ChatResponse response, String failureReason) {
+
+        static ChatOutcome succeeded(ChatResponse response) {
+            return new ChatOutcome(response, null);
+        }
+
+        static ChatOutcome failed(String reason) {
+            return new ChatOutcome(null, reason);
+        }
     }
 }

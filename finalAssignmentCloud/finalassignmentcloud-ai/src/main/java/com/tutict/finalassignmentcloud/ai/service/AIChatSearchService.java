@@ -10,7 +10,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 
-import java.io.UnsupportedEncodingException;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
@@ -78,24 +77,16 @@ public class AIChatSearchService {
     }
 
     private List<Map<String, String>> searchWithGraalPy(String query) throws Exception {
-        String gbkQuery;
-        try {
-            gbkQuery = new String(query.getBytes("GBK"), "GBK").replace("'", "\\'");
-        } catch (UnsupportedEncodingException e) {
-            throw new RuntimeException("Query encoding failed: " + e.getMessage(), e);
-        }
-
-        String pythonCode = String.format(
-                """
-                        import json
-                        from baidu_crawler import search
-                        res = search('%s', num_results=15, debug=False)
-                        json.dumps(res, ensure_ascii=False)
-                        """,
-                gbkQuery
-        );
-
-        Future<Value> future = executor.submit(() -> graalPyContext.eval(pythonCode));
+        Future<Value> future = executor.submit(() -> {
+            // 查询串作为数据绑定传入 Python 作用域，不能拼接进源码：拼接会让外部输入
+            // 直接变成可执行代码，而 GraalPy 上下文开启了 allowAllAccess。
+            graalPyContext.getContext().getBindings("python").putMember("query", query);
+            return graalPyContext.eval("""
+                    import json
+                    from baidu_crawler import search
+                    json.dumps(search(query, num_results=15, debug=False), ensure_ascii=False)
+                    """);
+        });
         Value pyResult;
         try {
             pyResult = future.get(timeoutSeconds, TimeUnit.SECONDS);
