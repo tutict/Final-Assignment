@@ -55,9 +55,16 @@ export async function getAllUsers<T = unknown[]>(): Promise<T> {
   return response.data;
 }
 
-export interface RefreshResult {
+export interface RefreshPayload {
   jwtToken?: string;
+  accessToken?: string;
   refreshToken?: string;
+  token?: string;
+}
+
+export interface RefreshResult extends RefreshPayload {
+  success?: boolean;
+  data?: RefreshPayload;
   [key: string]: unknown;
 }
 

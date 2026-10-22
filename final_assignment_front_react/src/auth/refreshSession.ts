@@ -6,7 +6,8 @@
  * - 按结果分类：success（拿到新令牌）/ rejected（refresh token 失效）/ transientFailure（网络/5xx，可重试）；
  * - 成功后回写新令牌，失败时清空本地令牌。
  */
-import { refreshAccessToken } from '../api/auth';
+import { refreshAccessToken, type RefreshPayload } from '../api/auth';
+import { unwrapPayload } from '../api/entities';
 import {
   clearTokens,
   getAccessToken,
@@ -29,9 +30,10 @@ export async function refreshSession(): Promise<RefreshOutcome> {
 
   inflight = (async () => {
     try {
-      const result = await refreshAccessToken(refreshToken);
-      const nextAccess = result.jwtToken || result.accessToken || result.token;
-      const nextRefresh = result.refreshToken || refreshToken;
+      // 后端把令牌放在 ApiResponse 的 data 里，裸对象只作兼容。
+      const payload = unwrapPayload<RefreshPayload>(await refreshAccessToken(refreshToken));
+      const nextAccess = payload?.accessToken || payload?.jwtToken || payload?.token;
+      const nextRefresh = payload?.refreshToken || refreshToken;
       if (!nextAccess) {
         clearTokens();
         return 'rejected';
