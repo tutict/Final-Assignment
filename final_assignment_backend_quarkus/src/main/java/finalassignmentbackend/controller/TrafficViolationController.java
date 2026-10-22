@@ -32,7 +32,7 @@ import java.util.logging.Logger;
 @Path("/api/violations")
 @Produces(MediaType.APPLICATION_JSON)
 @Tag(name = "Traffic Violations", description = "Traffic violation aggregation endpoints")
-@RolesAllowed({"SUPER_ADMIN", "ADMIN", "TRAFFIC_POLICE", "FINANCE"})
+@RolesAllowed({"SUPER_ADMIN", "ADMIN", "TRAFFIC_POLICE", "APPEAL_REVIEWER", "FINANCE"})
 public class TrafficViolationController {
 
     private static final Logger LOG = Logger.getLogger(TrafficViolationController.class.getName());

@@ -6,17 +6,22 @@ import org.graalvm.polyglot.Context;
 import org.graalvm.polyglot.Value;
 
 import java.io.File;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 
 // Quarkus作用域注解，用于定义应用级别的单例Bean
 @ApplicationScoped
 public class GraalPyContext {
 
-    // GraalVM Python上下文对象
+    private static final Logger logger = Logger.getLogger(GraalPyContext.class.getName());
+
+    // GraalVM Python上下文对象；venv 缺失时为空，AI 搜索降级为不可用
     private final Context context;
 
     // 构造函数，初始化GraalVM Python上下文
     @Inject
     public GraalPyContext() {
+        Context built = null;
         try {
             String sitePackagesPath;
             String executablePath;
@@ -62,18 +67,28 @@ public class GraalPyContext {
             }
 
             // 配置GraalPy上下文
-            context = Context.newBuilder("python")
+            built = Context.newBuilder("python")
                     .option("python.PythonPath", pythonPath)
                     .option("python.Executable", executablePath)
                     .allowAllAccess(true)
                     .build();
         } catch (Exception e) {
-            throw new RuntimeException("初始化GraalPy上下文失败: " + e.getMessage(), e);
+            logger.log(Level.WARNING,
+                    "GraalPy 初始化失败，AI 网页搜索将不可用（不影响其他功能）: {0}",
+                    e.getMessage());
         }
+        this.context = built;
+    }
+
+    public boolean isAvailable() {
+        return context != null;
     }
 
     // 执行Python代码并返回结果
     public Value eval(String source) {
+        if (context == null) {
+            throw new IllegalStateException("GraalPy is not available");
+        }
         return context.eval("python", source);
     }
 }

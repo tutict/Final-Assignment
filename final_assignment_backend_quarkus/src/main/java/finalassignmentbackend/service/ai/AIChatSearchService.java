@@ -40,8 +40,8 @@ public class AIChatSearchService {
 
     @PostConstruct
     void initGraalPy() {
-        if (graalPyContext == null) {
-            logger.log(Level.WARNING, "GraalPyContext 未注入，AI 网页搜索不可用");
+        if (graalPyContext == null || !graalPyContext.isAvailable()) {
+            logger.log(Level.WARNING, "GraalPyContext 不可用，AI 网页搜索不可用");
             return;
         }
         try {

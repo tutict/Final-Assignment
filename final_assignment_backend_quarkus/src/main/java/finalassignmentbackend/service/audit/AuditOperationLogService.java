@@ -254,6 +254,21 @@ public class AuditOperationLogService {
         if (logRecord.getOperationTime() == null) {
             logRecord.setOperationTime(LocalDateTime.now());
         }
+        if (isBlank(logRecord.getOperationType())) {
+            logRecord.setOperationType("API");
+        }
+        if (isBlank(logRecord.getOperationModule())) {
+            logRecord.setOperationModule("System");
+        }
+        if (isBlank(logRecord.getOperationFunction())) {
+            logRecord.setOperationFunction("event");
+        }
+        if (isBlank(logRecord.getRequestIp())) {
+            logRecord.setRequestIp("0.0.0.0");
+        }
+        if (isBlank(logRecord.getUsername())) {
+            logRecord.setUsername("unknown");
+        }
     }
 
     private void validateLogId(AuditOperationLog logRecord) {

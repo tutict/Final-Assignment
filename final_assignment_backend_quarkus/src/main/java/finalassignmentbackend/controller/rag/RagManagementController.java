@@ -74,14 +74,24 @@ public class RagManagementController {
     @GET
     @Path("/documents")
     @RunOnVirtualThread
-    public Response documents(@QueryParam("query") String query, @QueryParam("limit") @DefaultValue("50") int limit) {
+    public Response documents(@QueryParam("query") String query,
+                              @QueryParam("page") @DefaultValue("1") int page,
+                              @QueryParam("size") Integer size,
+                              @QueryParam("limit") @DefaultValue("50") int limit) {
+        int pageNo = Math.max(1, page);
+        int pageSize = Math.max(1, Math.min(size != null ? size : limit, 200));
         QueryWrapper<RagDocument> wrapper = new QueryWrapper<RagDocument>().orderByDesc("updated_at");
         if (query != null && !query.isBlank()) {
             String keyword = query.trim();
             wrapper.and(nested -> nested.like("title", keyword).or().like("source_table", keyword).or().like("source_id", keyword));
         }
-        Page<RagDocument> page = documentMapper.selectPage(new Page<>(1, Math.max(1, Math.min(limit, 200))), wrapper);
-        return Response.ok(ApiResponse.ok(page.getRecords())).build();
+        Page<RagDocument> result = documentMapper.selectPage(new Page<>(pageNo, pageSize), wrapper);
+        Map<String, Object> body = new LinkedHashMap<>();
+        body.put("items", result.getRecords());
+        body.put("total", result.getTotal());
+        body.put("page", pageNo);
+        body.put("size", pageSize);
+        return Response.ok(ApiResponse.ok(body)).build();
     }
 
     @GET
