@@ -950,6 +950,7 @@ class UserAppealDetailPage extends StatefulWidget {
 
 class _UserAppealDetailPageState extends State<UserAppealDetailPage> {
   late final ProgressController progressController;
+  final ScrollController _detailScrollController = ScrollController();
   bool isLoading = false;
 
   final UserDashboardController? controller =
@@ -963,6 +964,12 @@ class _UserAppealDetailPageState extends State<UserAppealDetailPage> {
     ProgressBinding.registerDependencies();
     progressController = Get.find<ProgressController>();
     _fetchProgress();
+  }
+
+  @override
+  void dispose() {
+    _detailScrollController.dispose();
+    super.dispose();
   }
 
   Future<void> _fetchProgress() async {
@@ -1140,8 +1147,10 @@ class _UserAppealDetailPageState extends State<UserAppealDetailPage> {
         body: Padding(
           padding: const EdgeInsets.all(16.0),
           child: CupertinoScrollbar(
+            controller: _detailScrollController,
             thumbVisibility: true,
             child: ListView(
+              controller: _detailScrollController,
               children: [
                 DashboardPanel(
                   padding: const EdgeInsets.all(16.0),

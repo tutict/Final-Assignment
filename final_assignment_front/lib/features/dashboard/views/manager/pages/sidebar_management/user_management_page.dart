@@ -130,12 +130,8 @@ class _UserManagementPageState extends State<UserManagementPage> {
         return;
       }
       final decodedToken = JwtDecoder.decode(jwtToken);
-      final roles = decodedToken['roles'] is List
-          ? (decodedToken['roles'] as List).map((r) => r.toString()).toList()
-          : decodedToken['roles'] is String
-              ? [decodedToken['roles'].toString()]
-              : [];
-      _isAdmin = RoleUtils.isAdminRole(roles);
+      final roles = RoleUtils.parseRoles(decodedToken['roles']);
+      _isAdmin = RoleUtils.canAccessAdminDashboard(decodedToken['roles']);
       _logger.info('User roles: $roles, isAdmin: $_isAdmin');
 
       if (_isAdmin) {

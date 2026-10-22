@@ -557,6 +557,7 @@ class _AppealDetailPageState extends State<AppealDetailPage> {
       AppealManagementControllerApi();
   final TextEditingController _rejectionReasonController =
       TextEditingController();
+  final ScrollController _detailScrollController = ScrollController();
   late AppealRecordModel _currentAppeal;
   bool _isLoading = false;
   bool _isAdmin = false;
@@ -569,6 +570,13 @@ class _AppealDetailPageState extends State<AppealDetailPage> {
     super.initState();
     _currentAppeal = widget.appeal;
     _initialize();
+  }
+
+  @override
+  void dispose() {
+    _rejectionReasonController.dispose();
+    _detailScrollController.dispose();
+    super.dispose();
   }
 
   Future<bool> _validateJwtToken() async {
@@ -981,11 +989,12 @@ class _AppealDetailPageState extends State<AppealDetailPage> {
                           : null,
                     )
                   : CupertinoScrollbar(
-                      controller: ScrollController(),
+                      controller: _detailScrollController,
                       thumbVisibility: true,
                       thickness: 6.0,
                       thicknessWhileDragging: 10.0,
                       child: SingleChildScrollView(
+                        controller: _detailScrollController,
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.stretch,
                           children: [

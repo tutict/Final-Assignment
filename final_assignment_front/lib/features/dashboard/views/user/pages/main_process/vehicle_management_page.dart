@@ -1312,9 +1312,9 @@ class _VehicleDetailPageState extends State<VehicleDetailPage> {
     try {
       final jwtToken = await _requireJwtToken();
       final decodedToken = JwtDecoder.decode(jwtToken);
-      final roles = decodedToken['roles']?.toString().split(',') ?? [];
+      final roles = RoleUtils.parseRoles(decodedToken['roles']);
       setState(() {
-        _isEditable = RoleUtils.isAdminRole(roles) ||
+        _isEditable = RoleUtils.canAccessAdminDashboard(roles) ||
             (_currentDriverIdCardNumber != null &&
                 _currentDriverIdCardNumber == widget.vehicle.idCardNumber);
       });

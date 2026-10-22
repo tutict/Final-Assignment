@@ -1038,14 +1038,23 @@ class _ProgressMasterDetail extends StatefulWidget {
 
 class _ProgressMasterDetailState extends State<_ProgressMasterDetail> {
   ProgressItem? _selected;
+  final ScrollController _scrollController = ScrollController();
+
+  @override
+  void dispose() {
+    _scrollController.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
     final list = Scrollbar(
+      controller: _scrollController,
       thumbVisibility: true,
       child: RefreshIndicator(
         onRefresh: widget.onRetry ?? () async {},
         child: ListView.separated(
+          controller: _scrollController,
           physics: const AlwaysScrollableScrollPhysics(),
           padding: const EdgeInsets.only(bottom: 12),
           itemCount: widget.items.length,
