@@ -188,11 +188,20 @@ public class RagManagementController {
 
     @GetMapping("/documents")
     @Operation(summary = "List RAG source documents")
-    @Cacheable(cacheNames = "ragAdminReadCache", key = "'documents:' + (#query == null ? '' : #query) + ':' + #limit")
-    public ResponseEntity<ApiResponse<List<RagDocument>>> listDocuments(
+    @Cacheable(
+            cacheNames = "ragAdminReadCache",
+            key = "'documents:' + (#query == null ? '' : #query) + ':' + #page + ':' + #size + ':' + #limit"
+    )
+    public ResponseEntity<ApiResponse<RagDocumentPage>> listDocuments(
             @RequestParam(required = false) String query,
-            @RequestParam(defaultValue = "50") int limit
+            @RequestParam(defaultValue = "1") int page,
+            @RequestParam(required = false) Integer size,
+            @RequestParam(required = false) Integer limit
     ) {
+        int pageNo = PageLimits.normalizePage(page);
+        int pageSize = size != null
+                ? PageLimits.normalizeSize(size)
+                : PageLimits.normalizeLimit(limit == null ? PageLimits.DEFAULT_SIZE : limit);
         QueryWrapper<RagDocument> wrapper = new QueryWrapper<RagDocument>()
                 .orderByDesc("updated_at");
         if (query != null && !query.isBlank()) {
@@ -210,11 +219,16 @@ public class RagManagementController {
                     .or()
                     .apply("CAST(metadata_json AS CHAR) LIKE {0}", "%" + keyword + "%"));
         }
-        Page<RagDocument> page = documentMapper.selectPage(
-                new Page<>(1, normalizeLimit(limit)),
+        Page<RagDocument> result = documentMapper.selectPage(
+                new Page<>(pageNo, pageSize),
                 wrapper
         );
-        return ResponseEntity.ok(ApiResponse.ok(page.getRecords()));
+        return ResponseEntity.ok(ApiResponse.ok(new RagDocumentPage(
+                result.getRecords(),
+                result.getTotal(),
+                pageNo,
+                pageSize
+        )));
     }
 
 
@@ -683,6 +697,14 @@ public class RagManagementController {
             long failedEmbeddingTaskCount,
             long succeededEmbeddingTaskCount,
             long poisonedEmbeddingTaskCount
+    ) {
+    }
+
+    public record RagDocumentPage(
+            List<RagDocument> items,
+            long total,
+            int page,
+            int size
     ) {
     }
 
