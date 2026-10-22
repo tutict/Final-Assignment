@@ -87,7 +87,6 @@ export CLOUD_TRAFFIC_PORT="${CLOUD_TRAFFIC_PORT:-18083}"
 export CLOUD_AUDIT_PORT="${CLOUD_AUDIT_PORT:-8084}"
 export CLOUD_SYSTEM_PORT="${CLOUD_SYSTEM_PORT:-18085}"
 export CLOUD_AI_PORT="${CLOUD_AI_PORT:-18086}"
-export CLOUD_SEARCH_PORT="${CLOUD_SEARCH_PORT:-18087}"
 export CLOUD_RAG_PORT="${CLOUD_RAG_PORT:-18088}"
 export CLOUD_GATEWAY_PORT="$GATEWAY_PORT"
 LOCAL_DEV_CONFIG="$CLOUD_DIR/config/local-dev.yml"
@@ -186,7 +185,6 @@ start_module finalassignmentcloud-auth "$CLOUD_AUTH_PORT" 384m
 start_module finalassignmentcloud-traffic "$CLOUD_TRAFFIC_PORT" 384m
 start_module finalassignmentcloud-audit "$CLOUD_AUDIT_PORT" 256m || true
 start_module finalassignmentcloud-system "$CLOUD_SYSTEM_PORT" 256m || true
-start_module finalassignmentcloud-search "$CLOUD_SEARCH_PORT" 256m || true
 start_module finalassignmentcloud-rag "$CLOUD_RAG_PORT" 768m
 
 HEALTH_WAIT="${CLOUD_SERVICE_HEALTH_WAIT_SECONDS:-180}"

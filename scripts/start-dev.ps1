@@ -1045,20 +1045,37 @@ function Clear-StaleProjectProcesses {
         Clear-StaleProjectListenersOnPort -Port $port -Role "backend"
     }
 
-    $reactPort = 5173
-    if ($ReactDevUrl -match ':(\d+)(?:/|$)') { $reactPort = [int]$Matches[1] }
-    Clear-StaleProjectListenersOnPort -Port $reactPort -Role "React frontend"
-    foreach ($fallback in @((Get-EnvValue "REACT_FALLBACK_PORTS" "15173,4173,51730") -split '[,;\s]+')) {
-        if ($fallback -match '^\d+$') { Clear-StaleProjectListenersOnPort -Port ([int]$fallback) -Role "React frontend" }
+    # Cloud services listen on their own ports (auth 8081, user 18082, ...). A leftover
+    # instance blocks the next start, so clear them from the shared Cloud port table.
+    foreach ($port in @(Get-CloudServicePorts)) {
+        Clear-StaleProjectListenersOnPort -Port $port -Role "cloud service"
     }
 
+    $reactPorts = @()
+    $reactPort = 5173
+    if ($ReactDevUrl -match ':(\d+)(?:/|$)') { $reactPort = [int]$Matches[1] }
+    $reactPorts += $reactPort
+    foreach ($fallback in @((Get-EnvValue "REACT_FALLBACK_PORTS" "15173,4173,51730") -split '[,;\s]+')) {
+        if ($fallback -match '^\d+$') { $reactPorts += [int]$fallback }
+    }
+    foreach ($port in @($reactPorts | Select-Object -Unique)) {
+        Clear-StaleProjectListenersOnPort -Port $port -Role "React frontend"
+    }
+
+    $flutterPorts = @()
     $flutterPort = 3000
     if ($FlutterArgs -match "--web-port[= ]\s*(\d+)") { $flutterPort = [int]$Matches[1] }
     elseif ($FlutterWebUrl -match ':(\d+)(?:/|$)') { $flutterPort = [int]$Matches[1] }
-    if ($ClearStaleFlutterPort -ieq "true") {
-        Clear-StaleFlutterOnPort -Address "127.0.0.1" -Port $flutterPort
+    $flutterPorts += $flutterPort
+    foreach ($fallback in @((Get-EnvValue "FLUTTER_FALLBACK_PORTS" "13000,3001,24678") -split '[,;\s]+')) {
+        if ($fallback -match '^\d+$') { $flutterPorts += [int]$fallback }
     }
-    Clear-StaleProjectListenersOnPort -Port $flutterPort -Role "Flutter frontend"
+    foreach ($port in @($flutterPorts | Select-Object -Unique)) {
+        if ($ClearStaleFlutterPort -ieq "true") {
+            Clear-StaleFlutterOnPort -Address "127.0.0.1" -Port $port
+        }
+        Clear-StaleProjectListenersOnPort -Port $port -Role "Flutter frontend"
+    }
 }
 
 
@@ -1090,6 +1107,18 @@ function Clear-StaleFlutterOnPort([string]$Address, [int]$Port) {
     }
 }
 
+function Get-CloudServicePorts {
+    $cloudPorts = @()
+    foreach ($name in @("CLOUD_AUTH_PORT","CLOUD_USER_PORT","CLOUD_TRAFFIC_PORT","CLOUD_AUDIT_PORT","CLOUD_SYSTEM_PORT","CLOUD_AI_PORT","CLOUD_RAG_PORT")) {
+        $raw = Get-EnvValue $name
+        if ($raw -match '^\d+$') { $cloudPorts += [int]$raw }
+    }
+    foreach ($fallback in @(8081, 18082, 18083, 8084, 18085, 18086, 18088, 8085, 8086, 8087, 8088)) {
+        if ($cloudPorts -notcontains $fallback) { $cloudPorts += $fallback }
+    }
+    return @($cloudPorts | Select-Object -Unique)
+}
+
 function Get-BackendListenPorts {
     switch ($BackendChoice) {
         "go" { return @([int]$BackendPort) }
@@ -1097,13 +1126,7 @@ function Get-BackendListenPorts {
         "quarkus" { return @([int]$BackendPort, [int]$BackendInternalPort) }
         "cloud" {
             $cloudPorts = @([int]$BackendPort)
-            foreach ($name in @("CLOUD_AUTH_PORT","CLOUD_USER_PORT","CLOUD_TRAFFIC_PORT","CLOUD_AUDIT_PORT","CLOUD_SYSTEM_PORT","CLOUD_AI_PORT","CLOUD_SEARCH_PORT","CLOUD_RAG_PORT")) {
-                $raw = Get-EnvValue $name
-                if ($raw -match '^\d+$') { $cloudPorts += [int]$raw }
-            }
-            foreach ($fallback in @(8081, 18082, 18083, 8084, 18085, 18086, 18087, 18088, 8085, 8086, 8087, 8088)) {
-                if ($cloudPorts -notcontains $fallback) { $cloudPorts += $fallback }
-            }
+            $cloudPorts += @(Get-CloudServicePorts)
             return @($cloudPorts | Select-Object -Unique)
         }
         default { return @() }

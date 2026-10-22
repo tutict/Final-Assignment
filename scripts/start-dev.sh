@@ -494,20 +494,23 @@ for host in ("0.0.0.0", "127.0.0.1"):
   fi
 }
 
+cloud_service_ports() {
+  printf '%s\n' "${CLOUD_AUTH_PORT:-8081}"
+  printf '%s\n' "${CLOUD_USER_PORT:-18082}"
+  printf '%s\n' "${CLOUD_TRAFFIC_PORT:-18083}"
+  printf '%s\n' "${CLOUD_AUDIT_PORT:-8084}"
+  printf '%s\n' "${CLOUD_SYSTEM_PORT:-18085}"
+  printf '%s\n' "${CLOUD_AI_PORT:-18086}"
+  printf '%s\n' "${CLOUD_RAG_PORT:-18088}"
+}
+
 backend_listen_ports() {
   case "$BACKEND_CHOICE" in
     go) printf '%s\n' "$BACKEND_PORT" ;;
     spring|quarkus) printf '%s\n%s\n' "$BACKEND_PORT" "$BACKEND_INTERNAL_PORT" ;;
     cloud)
       printf '%s\n' "$BACKEND_PORT"
-      printf '%s\n' "${CLOUD_AUTH_PORT:-8081}"
-      printf '%s\n' "${CLOUD_USER_PORT:-18082}"
-      printf '%s\n' "${CLOUD_TRAFFIC_PORT:-18083}"
-      printf '%s\n' "${CLOUD_AUDIT_PORT:-8084}"
-      printf '%s\n' "${CLOUD_SYSTEM_PORT:-18085}"
-      printf '%s\n' "${CLOUD_AI_PORT:-18086}"
-      printf '%s\n' "${CLOUD_SEARCH_PORT:-18087}"
-      printf '%s\n' "${CLOUD_RAG_PORT:-18088}"
+      cloud_service_ports
       ;;
   esac
 }
@@ -925,12 +928,32 @@ clear_stale_project_processes() {
     esac
     clear_stale_listeners_on_port "$port" "backend"
   done
+  # Cloud services listen on their own ports (auth 8081, user 18082, ...). A leftover
+  # instance blocks the next start, so clear them from the shared Cloud port table.
+  for port in $(cloud_service_ports); do
+    case "$port" in
+      ''|*[!0-9]*) continue ;;
+    esac
+    clear_stale_listeners_on_port "$port" "cloud service"
+  done
   react_port=$(printf '%s' "${REACT_DEV_URL:-http://127.0.0.1:5173}" | awk -F: '{print $NF}' | tr -cd '0-9')
   [ -n "$react_port" ] || react_port=5173
   clear_stale_listeners_on_port "$react_port" "React frontend"
+  for port in $REACT_FALLBACK_PORTS; do
+    case "$port" in
+      ''|*[!0-9]*) continue ;;
+    esac
+    clear_stale_listeners_on_port "$port" "React frontend"
+  done
   flutter_port=$(printf '%s' "${FLUTTER_ARGS:-}" | awk '{for (i=1;i<=NF;i++) if ($i=="--web-port") {print $(i+1); exit} else if ($i ~ /^--web-port=/) {sub(/^--web-port=/,"",$i); print $i; exit}}')
   [ -n "$flutter_port" ] || flutter_port=3000
   clear_stale_listeners_on_port "$flutter_port" "Flutter frontend"
+  for port in $FLUTTER_FALLBACK_PORTS; do
+    case "$port" in
+      ''|*[!0-9]*) continue ;;
+    esac
+    clear_stale_listeners_on_port "$port" "Flutter frontend"
+  done
 }
 
 kill_tree() {

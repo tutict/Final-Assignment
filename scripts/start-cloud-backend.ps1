@@ -118,7 +118,7 @@ Set-EnvDefault "RAG_SQL_INIT_MODE" "always" | Out-Null
 Set-EnvDefault "RAG_EMBEDDING_ENABLED" "false" | Out-Null
 Set-EnvDefault "RAG_INDEXING_ENABLED" "false" | Out-Null
 Set-EnvDefault "RAG_BACKFILL_ENABLED" "false" | Out-Null
-Set-EnvDefault "OLLAMA_ENABLED" "false" | Out-Null
+Set-EnvDefault "OLLAMA_ENABLED" "true" | Out-Null
 Set-EnvDefault "ELASTICSEARCH_URIS" "http://localhost:9200" | Out-Null
 Set-EnvDefault "OLLAMA_MODEL" "llama3.2" | Out-Null
 Set-EnvDefault "OLLAMA_CHAT_MODEL" "llama3.2" | Out-Null
@@ -133,7 +133,6 @@ Set-EnvDefault "CLOUD_TRAFFIC_PORT" "18083" | Out-Null
 Set-EnvDefault "CLOUD_AUDIT_PORT" "8084" | Out-Null
 Set-EnvDefault "CLOUD_SYSTEM_PORT" "18085" | Out-Null
 Set-EnvDefault "CLOUD_AI_PORT" "18086" | Out-Null
-Set-EnvDefault "CLOUD_SEARCH_PORT" "18087" | Out-Null
 Set-EnvDefault "CLOUD_RAG_PORT" "18088" | Out-Null
 if ($GatewayPort -gt 0) {
     [Environment]::SetEnvironmentVariable("CLOUD_GATEWAY_PORT", [string]$GatewayPort, "Process")
@@ -182,7 +181,6 @@ $modules = @(
     @{ Name = "finalassignmentcloud-traffic"; Port = [int]$env:CLOUD_TRAFFIC_PORT; Critical = $true; Optional = $false; Last = $false; Xmx = "384m" },
     @{ Name = "finalassignmentcloud-audit"; Port = [int]$env:CLOUD_AUDIT_PORT; Critical = $false; Optional = $false; Last = $false; Xmx = "256m" },
     @{ Name = "finalassignmentcloud-system"; Port = [int]$env:CLOUD_SYSTEM_PORT; Critical = $false; Optional = $false; Last = $false; Xmx = "256m" },
-    @{ Name = "finalassignmentcloud-search"; Port = [int]$env:CLOUD_SEARCH_PORT; Critical = $false; Optional = $false; Last = $false; Xmx = "256m" },
     @{ Name = "finalassignmentcloud-rag"; Port = [int]$env:CLOUD_RAG_PORT; Critical = $true; Optional = $false; Last = $false; Xmx = "768m" },
     @{ Name = "finalassignmentcloud-ai"; Port = [int]$env:CLOUD_AI_PORT; Critical = $false; Optional = $true; Last = $false; Xmx = "768m" },
     @{ Name = "finalassignmentcloud-gateway"; Port = [int]$env:CLOUD_GATEWAY_PORT; Critical = $true; Optional = $false; Last = $true; Xmx = "256m" }
