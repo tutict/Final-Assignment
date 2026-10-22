@@ -32,7 +32,7 @@ spring:
             - id: auth-service
               uri: http://127.0.0.1:${CLOUD_AUTH_PORT:8081}
               predicates:
-                - Path=/api/auth/**
+                - Path=/api/auth/**,/api/ws-ticket
             - id: user-service
               uri: http://127.0.0.1:${CLOUD_USER_PORT:18082}
               predicates:
@@ -67,39 +67,6 @@ spring:
                 response-timeout: 8000
 
 
-      globalcors:
-        add-to-simple-url-handler-mapping: true
-        cors-configurations:
-          '[/**]':
-            allowedOrigins:
-              - http://localhost:3000
-              - http://127.0.0.1:3000
-              - http://localhost:8080
-              - http://127.0.0.1:8080
-              - http://localhost:5173
-              - http://127.0.0.1:5173
-              - http://localhost:15173
-              - http://127.0.0.1:15173
-              - http://localhost:13000
-              - http://127.0.0.1:13000
-            allowedMethods:
-              - GET
-              - POST
-              - PUT
-              - DELETE
-              - PATCH
-              - OPTIONS
-            allowedHeaders:
-              - Authorization
-              - Content-Type
-              - Idempotency-Key
-              - X-Trace-Id
-              - Cache-Control
-              - Accept
-              - X-Requested-With
-            exposedHeaders:
-              - X-Trace-Id
-            allowCredentials: true
 server:
   port: ${CLOUD_GATEWAY_PORT:8080}
 

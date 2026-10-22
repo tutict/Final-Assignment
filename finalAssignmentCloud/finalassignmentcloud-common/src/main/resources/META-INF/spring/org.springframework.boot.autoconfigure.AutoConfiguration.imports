@@ -1,2 +1,3 @@
 com.tutict.finalassignmentcloud.config.redis.SplitRedisConnectionConfiguration
+com.tutict.finalassignmentcloud.common.realtime.WsTicketStoreAutoConfiguration
 com.tutict.finalassignmentcloud.reliability.ElasticsearchUnavailableConfiguration

@@ -18,6 +18,7 @@ import {
   type ReactNode,
 } from 'react';
 import { useAuth } from '../auth/AuthContext';
+import { API_BASE_URL } from '../api/client';
 
 export interface AppealStatusChange {
   appealId: number;
@@ -46,11 +47,24 @@ interface BusinessEventContextValue {
 
 const BusinessEventContext = createContext<BusinessEventContextValue | null>(null);
 
-const WS_BASE =
-  import.meta.env.VITE_WS_BASE_URL ||
-  (typeof window !== 'undefined'
-    ? `${window.location.protocol === 'https:' ? 'wss' : 'ws'}://${window.location.host}`
-    : 'ws://localhost:5173');
+function resolveWsBase(): string {
+  const configured = import.meta.env.VITE_WS_BASE_URL;
+  if (configured) return configured;
+  const apiUrl = API_BASE_URL.startsWith('http')
+    ? API_BASE_URL
+    : typeof window !== 'undefined'
+      ? window.location.origin
+      : 'http://localhost:8080';
+  try {
+    const url = new URL(apiUrl);
+    return `${url.protocol === 'https:' ? 'wss' : 'ws'}://${url.host}`;
+  } catch {
+    return 'ws://localhost:8080';
+  }
+}
+
+const WS_BASE = resolveWsBase();
+const API_ROOT = API_BASE_URL.replace(/\/+$/, '');
 
 const RECONNECT_DELAYS = [1000, 2000, 4000, 8000, 15000];
 
@@ -169,7 +183,7 @@ export function BusinessEventProvider({ children }: { children: ReactNode }) {
 
     let ticket = '';
     try {
-      const response = await fetch('/api/ws-ticket', {
+      const response = await fetch(`${API_ROOT}/api/ws-ticket`, {
         method: 'POST',
         headers: { Authorization: 'Bearer ' + token },
       });

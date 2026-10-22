@@ -1,47 +1,29 @@
 package com.tutict.finalassignmentcloud.auth.config.websocket;
 
+import com.tutict.finalassignmentcloud.common.realtime.WsTicketStore;
 import org.springframework.stereotype.Service;
 
-import java.time.Duration;
 import java.time.Instant;
 import java.util.List;
-import java.util.UUID;
-import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.ConcurrentMap;
 
+/**
+ * 签发 WebSocket 连接票据。
+ *
+ * 票据保存在 Redis 中，由网关在握手时一次性消费，
+ * 因此认证服务与网关无需共享进程内状态。
+ */
 @Service
 public class WsTicketService {
 
-    private static final Duration TICKET_TTL = Duration.ofSeconds(30);
+    private final WsTicketStore wsTicketStore;
 
-    private final ConcurrentMap<String, Ticket> tickets = new ConcurrentHashMap<>();
+    public WsTicketService(WsTicketStore wsTicketStore) {
+        this.wsTicketStore = wsTicketStore;
+    }
 
     public Ticket issue(String username, List<String> roles) {
-        purgeExpired();
-        Ticket ticket = new Ticket(
-                UUID.randomUUID().toString(),
-                username,
-                roles == null ? List.of() : List.copyOf(roles),
-                Instant.now().plus(TICKET_TTL)
-        );
-        tickets.put(ticket.value(), ticket);
-        return ticket;
-    }
-
-    public Ticket consume(String value) {
-        if (value == null || value.isBlank()) {
-            return null;
-        }
-        Ticket ticket = tickets.remove(value);
-        if (ticket == null || ticket.expiresAt().isBefore(Instant.now())) {
-            return null;
-        }
-        return ticket;
-    }
-
-    private void purgeExpired() {
-        Instant now = Instant.now();
-        tickets.entrySet().removeIf(entry -> entry.getValue().expiresAt().isBefore(now));
+        WsTicketStore.IssuedTicket issued = wsTicketStore.issue(username, roles);
+        return new Ticket(issued.value(), issued.username(), issued.roles(), issued.expiresAt());
     }
 
     public record Ticket(String value, String username, List<String> roles, Instant expiresAt) {
