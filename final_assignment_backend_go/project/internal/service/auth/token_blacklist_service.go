@@ -40,6 +40,15 @@ func NewTokenBlacklistService(client *redis.Client, failOpenWhenUnavailable bool
 	}
 }
 
+// NewLocalTokenBlacklistService 在 REDIS_ENABLED=false 时提供进程内撤销。
+// 此时没有跨实例黑名单可查，必须放行未在本地撤销的 token，否则整个无 Redis 开发模式不可用。
+func NewLocalTokenBlacklistService() *TokenBlacklistService {
+	return &TokenBlacklistService{
+		ctx:         context.Background(),
+		callTimeout: 200 * time.Millisecond,
+	}
+}
+
 // Blacklist 把 access token 加入黑名单，TTL 等于其剩余寿命（毫秒）。
 // fail-open=false 时若 Redis 不可用返回错误，调用方应据此返回失败响应，避免"登出成功但未撤销"。
 func (b *TokenBlacklistService) Blacklist(token string, ttlMillis int64) error {
@@ -47,6 +56,9 @@ func (b *TokenBlacklistService) Blacklist(token string, ttlMillis int64) error {
 		return nil
 	}
 	b.remember(token, time.Duration(ttlMillis)*time.Millisecond)
+	if b.client == nil {
+		return nil
+	}
 	ttl := time.Duration(ttlMillis) * time.Millisecond
 	ctx, cancel := b.callCtx()
 	defer cancel()
@@ -70,6 +82,9 @@ func (b *TokenBlacklistService) Inspect(token string) reliability.Verdict {
 	}
 	if b.locallyRevoked(token) {
 		return reliability.VerdictRevoked
+	}
+	if b.client == nil {
+		return reliability.VerdictClear
 	}
 	ctx, cancel := b.callCtx()
 	defer cancel()

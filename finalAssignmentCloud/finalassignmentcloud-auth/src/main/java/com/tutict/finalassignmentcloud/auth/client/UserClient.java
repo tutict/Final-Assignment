@@ -1,5 +1,7 @@
 package com.tutict.finalassignmentcloud.auth.client;
 
+import com.tutict.finalassignmentcloud.dto.internal.InternalUserCreateRequest;
+import com.tutict.finalassignmentcloud.dto.internal.InternalUserView;
 import com.tutict.finalassignmentcloud.entity.SysUser;
 import com.tutict.finalassignmentcloud.entity.SysUserRole;
 import org.springframework.cloud.openfeign.FeignClient;
@@ -14,21 +16,20 @@ import org.springframework.web.bind.annotation.RequestParam;
 import java.util.List;
 
 /**
- * 内部 service-to-service 调用统一返回完整 {@link SysUser}（含 password 哈希），与服务端实际返回一致。
+ * 登录所需的密码哈希通过内部 DTO 传递（SysUser 的 password 标记为 WRITE_ONLY，普通响应不会出站）。
  * service token（X-Internal-Service-Token）由全局 feign 拦截器注入，方法签名不再携带该参数。
  */
 @FeignClient(name = "finalassignmentcloud-user")
 public interface UserClient {
 
     @GetMapping("/api/users/internal/search/username/{username}")
-    SysUser getByUsername(@PathVariable("username") String username);
+    InternalUserView getByUsername(@PathVariable("username") String username);
 
     @GetMapping("/api/users")
     List<SysUser> getAllUsers();
 
-    @PostMapping("/api/users")
-    SysUser createUser(@RequestBody SysUser request,
-                       @RequestHeader(value = "Idempotency-Key", required = false) String idempotencyKey);
+    @PostMapping("/api/users/internal")
+    InternalUserView createUser(@RequestBody InternalUserCreateRequest request);
 
     @GetMapping("/api/users/{userId}")
     SysUser getById(@PathVariable("userId") Long userId);

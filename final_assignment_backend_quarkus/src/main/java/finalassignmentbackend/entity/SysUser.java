@@ -2,6 +2,8 @@ package finalassignmentbackend.entity;
 
 import com.baomidou.mybatisplus.annotation.*;
 import com.fasterxml.jackson.annotation.JsonAlias;
+import com.fasterxml.jackson.annotation.JsonProperty;
+import jakarta.json.bind.annotation.JsonbTransient;
 import lombok.Data;
 
 import java.io.Serial;
@@ -38,13 +40,26 @@ public class SysUser implements Serializable {
      * 密码 (加密存储)
      */
     @TableField("password")
+    @JsonProperty(access = JsonProperty.Access.WRITE_ONLY)
     private String password;
 
     /**
      * 密码盐??
      */
     @TableField("salt")
+    @JsonProperty(access = JsonProperty.Access.WRITE_ONLY)
     private String salt;
+
+    // Quarkus REST 用 JSON-B 序列化，Jackson 的 WRITE_ONLY 不生效；getter 级 transient 只屏蔽输出。
+    @JsonbTransient
+    public String getPassword() {
+        return password;
+    }
+
+    @JsonbTransient
+    public String getSalt() {
+        return salt;
+    }
 
     /**
      * 真实姓名

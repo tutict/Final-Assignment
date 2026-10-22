@@ -1,6 +1,8 @@
 package finalassignmentbackend.entity;
 
 import com.baomidou.mybatisplus.annotation.*;
+import com.fasterxml.jackson.annotation.JsonIgnore;
+import jakarta.json.bind.annotation.JsonbTransient;
 import lombok.Data;
 
 import java.io.Serial;
@@ -113,6 +115,8 @@ public class AuditLoginLog implements Serializable {
     /**
      * 访问令牌
      */
+    @JsonIgnore
+    @JsonbTransient
     @TableField("token")
     private String token;
 

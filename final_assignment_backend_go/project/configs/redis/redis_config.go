@@ -27,6 +27,9 @@ type RedisConfig struct {
 	Client      *redis.Client
 	Blacklist   *redis.Client
 	Ctx         context.Context
+	// Disabled 表示 REDIS_ENABLED=false：缓存与跨实例撤销不可用，
+	// 调用方应退化为进程内实现而不是把依赖故障当作运行时错误。
+	Disabled bool
 }
 
 // NewRedisConfig 从环境变量初始化配置（类似 Spring @Value）
@@ -58,6 +61,7 @@ func NewRedisConfig() *RedisConfig {
 		Timeout:     timeout,
 		CachePrefix: "app-cache:",
 		Ctx:         context.Background(),
+		Disabled:    host == "",
 	}
 }
 

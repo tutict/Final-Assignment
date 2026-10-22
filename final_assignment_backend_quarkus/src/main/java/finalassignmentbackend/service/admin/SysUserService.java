@@ -166,6 +166,21 @@ public class SysUserService {
         if (isBlank(username)) {
             return null;
         }
+        return selectByUsername(username);
+    }
+
+    /**
+     * 登录校验必须绕过 Redis 缓存：缓存的 SysUser 经 Jackson 序列化时会因 password 的
+     * WRITE_ONLY 被剥离，回读后密码为空，导致所有登录都失败。
+     */
+    public SysUser findByUsernameForAuthentication(String username) {
+        if (isBlank(username)) {
+            return null;
+        }
+        return selectByUsername(username);
+    }
+
+    private SysUser selectByUsername(String username) {
         QueryWrapper<SysUser> wrapper = new QueryWrapper<>();
         wrapper.eq("username", username);
         return sysUserMapper.selectOne(wrapper);

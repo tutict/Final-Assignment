@@ -139,7 +139,13 @@ func main() {
 	// Redis down defaults to fail-closed. Login, refresh, and writes without a
 	// local revocation cache return 503. Ordinary GETs stay with DecideAccess.
 	// Set TOKEN_BLACKLIST_FAIL_OPEN=true only for the old no-Redis dev bypass.
-	blacklistService := authsvc.NewTokenBlacklistService(redisCfg.Blacklist, envOrDefault("TOKEN_BLACKLIST_FAIL_OPEN", "false") == "true")
+	var blacklistService *authsvc.TokenBlacklistService
+	if redisCfg.Disabled {
+		log.Println("[INFO] Redis disabled; token revocation is process-local only")
+		blacklistService = authsvc.NewLocalTokenBlacklistService()
+	} else {
+		blacklistService = authsvc.NewTokenBlacklistService(redisCfg.Blacklist, envOrDefault("TOKEN_BLACKLIST_FAIL_OPEN", "false") == "true")
+	}
 
 	// 初始化用户和认证服务
 	userService := admin.NewUserManagementService(repo.NewUserManagementRepo(db))
@@ -179,8 +185,7 @@ func main() {
 		handler.RegisterAiChatRoutes(router, aiChatHandler)
 	}
 
-	// WebSocket Ticket 路由
-	router.POST("/api/ws-ticket", handler.NewWsTicketHandler(wsTicketService).IssueTicket)
+	// WebSocket Ticket 校验/统计为公开只读接口；签发需要登录后从 JWT 派生身份。
 	router.GET("/api/ws-ticket/validate", handler.NewWsTicketHandler(wsTicketService).ValidateTicket)
 	router.GET("/api/ws-ticket/stats", handler.NewWsTicketHandler(wsTicketService).GetStats)
 	registerEventBusRoute(router)
@@ -190,6 +195,7 @@ func main() {
 
 	// 需要认证的路由
 	router.Use(requiredPrincipal(tokenProvider, blacklistService), accessPolicy())
+	router.POST("/api/ws-ticket", handler.NewWsTicketHandler(wsTicketService).IssueTicketFromAuth)
 	router.GET("/actuator/prometheus", reliability.Prometheus(db))
 	router.POST("/actuator/ledgerReconcile", reliability.LedgerReconcile(func() (int, error) {
 		return reliability.ReconcileStale(db, time.Now())

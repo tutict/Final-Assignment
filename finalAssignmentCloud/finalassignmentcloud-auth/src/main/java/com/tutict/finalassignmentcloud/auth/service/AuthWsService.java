@@ -7,6 +7,8 @@ import com.tutict.finalassignmentcloud.exception.DependencyUnavailableException;
 import com.tutict.finalassignmentcloud.auth.client.UserClient;
 import com.tutict.finalassignmentcloud.auth.config.login.jwt.TokenProvider;
 import com.tutict.finalassignmentcloud.config.websocket.WsAction;
+import com.tutict.finalassignmentcloud.dto.internal.InternalUserCreateRequest;
+import com.tutict.finalassignmentcloud.dto.internal.InternalUserView;
 import com.tutict.finalassignmentcloud.dto.request.RefreshRequest;
 import com.tutict.finalassignmentcloud.dto.response.TokenResponse;
 import com.tutict.finalassignmentcloud.entity.AuditLoginLog;
@@ -221,16 +223,14 @@ public class AuthWsService {
             throw new RuntimeException("Username already exists: " + registerRequest.getUsername());
         }
 
-        String idempotencyKey = registerRequest.getIdempotencyKey();
-
-        SysUser newUser = new SysUser();
-        newUser.setUsername(registerRequest.getUsername());
-        newUser.setPassword(passwordEncoder.encode(registerRequest.getPassword()));
-        newUser.setSalt(null);
-        newUser.setStatus("Active");
-        newUser.setCreatedAt(LocalDateTime.now());
-        newUser.setUpdatedAt(LocalDateTime.now());
-        SysUser savedUser = userClient.createUser(newUser, idempotencyKey);
+        InternalUserCreateRequest createRequest = new InternalUserCreateRequest();
+        createRequest.setUsername(registerRequest.getUsername());
+        createRequest.setPassword(passwordEncoder.encode(registerRequest.getPassword()));
+        createRequest.setStatus("Active");
+        createRequest.setCreatedAt(LocalDateTime.now());
+        createRequest.setUpdatedAt(LocalDateTime.now());
+        InternalUserView created = userClient.createUser(createRequest);
+        SysUser savedUser = created == null ? null : created.toEntity();
         logger.info(() -> String.format("User created successfully: %s", registerRequest.getUsername()));
 
         if (savedUser == null || savedUser.getUserId() == null) {
@@ -241,7 +241,14 @@ public class AuthWsService {
             throw new RuntimeException("User creation failed; unable to load user info");
         }
 
-        SysRole role = resolveOrCreateRole(registerRequest.getRole());
+        // 公开注册只允许普通用户角色；角色提升必须由管理员在用户管理接口完成。
+        if (StringUtils.hasText(registerRequest.getRole())
+                && !"USER".equalsIgnoreCase(registerRequest.getRole().trim())) {
+            logger.warning(() -> String.format(
+                    "Ignoring requested role %s during public registration of %s",
+                    registerRequest.getRole(), registerRequest.getUsername()));
+        }
+        SysRole role = resolveOrCreateRole("USER");
         assignRole(savedUser, role);
 
         logger.info(() -> String.format("User registered successfully: %s", registerRequest.getUsername()));
@@ -544,7 +551,8 @@ public class AuthWsService {
             return null;
         }
         try {
-            return userClient.getByUsername(username);
+            InternalUserView user = userClient.getByUsername(username);
+            return user == null ? null : user.toEntity();
         } catch (FeignException.NotFound ex) {
             return null;
         } catch (FeignException ex) {

@@ -1,6 +1,7 @@
 package com.tutict.finalassignmentcloud.entity;
 
 import com.baomidou.mybatisplus.annotation.*;
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import lombok.Data;
 
 import java.io.Serial;
@@ -113,6 +114,7 @@ public class AuditLoginLog implements Serializable {
     /**
      * 访问令牌
      */
+    @JsonIgnore
     @TableField("token")
     private String token;
 

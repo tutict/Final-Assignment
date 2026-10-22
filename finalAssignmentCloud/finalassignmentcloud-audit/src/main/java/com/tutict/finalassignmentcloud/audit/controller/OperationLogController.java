@@ -2,12 +2,15 @@ package com.tutict.finalassignmentcloud.audit.controller;
 
 import com.tutict.finalassignmentcloud.entity.AuditOperationLog;
 import com.tutict.finalassignmentcloud.audit.service.AuditOperationLogService;
+import com.tutict.finalassignmentcloud.reliability.IdempotencyReplayException;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.annotation.security.RolesAllowed;
+import jakarta.servlet.http.HttpServletRequest;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -42,7 +45,10 @@ public class OperationLogController {
     @Operation(summary = "写入操作日志")
     public ResponseEntity<AuditOperationLog> create(@RequestBody AuditOperationLog request,
                                                     @RequestHeader(value = "Idempotency-Key", required = false)
-                                                    String idempotencyKey) {
+                                                    String idempotencyKey,
+                                                    HttpServletRequest httpRequest,
+                                                    Authentication authentication) {
+        bindCaller(request, httpRequest, authentication);
         boolean useKey = hasKey(idempotencyKey);
         try {
             if (useKey) {
@@ -75,6 +81,9 @@ public class OperationLogController {
         try {
             request.setLogId(logId);
             if (useKey) {
+                if (auditOperationLogService.shouldSkipProcessing(idempotencyKey)) {
+                    return ResponseEntity.status(HttpStatus.ALREADY_REPORTED).build();
+                }
                 auditOperationLogService.checkAndInsertIdempotency(idempotencyKey, request, "update");
             }
             AuditOperationLog updated = auditOperationLogService.updateAuditOperationLog(request);
@@ -235,7 +244,40 @@ public class OperationLogController {
         return value != null && !value.isBlank();
     }
 
+    private void bindCaller(AuditOperationLog request, HttpServletRequest httpRequest, Authentication authentication) {
+        if (request == null) {
+            return;
+        }
+        String caller = authentication == null ? null : authentication.getName();
+        if (caller != null && !caller.isBlank()) {
+            request.setUsername(caller);
+        }
+        if (isBlank(request.getRequestIp()) && httpRequest != null) {
+            request.setRequestIp(resolveClientIp(httpRequest));
+        }
+    }
+
+    private String resolveClientIp(HttpServletRequest httpRequest) {
+        String forwarded = httpRequest.getHeader("X-Forwarded-For");
+        if (forwarded != null && !forwarded.isBlank()) {
+            int comma = forwarded.indexOf(',');
+            String first = comma > 0 ? forwarded.substring(0, comma) : forwarded;
+            if (!first.isBlank()) {
+                return first.trim();
+            }
+        }
+        String remote = httpRequest.getRemoteAddr();
+        return remote == null || remote.isBlank() ? "0.0.0.0" : remote;
+    }
+
+    private boolean isBlank(String value) {
+        return value == null || value.trim().isEmpty();
+    }
+
     private HttpStatus resolveStatus(Exception ex) {
+        if (ex instanceof IdempotencyReplayException) {
+            return HttpStatus.ALREADY_REPORTED;
+        }
         return (ex instanceof IllegalArgumentException || ex instanceof IllegalStateException)
                 ? HttpStatus.BAD_REQUEST
                 : HttpStatus.INTERNAL_SERVER_ERROR;

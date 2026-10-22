@@ -2,6 +2,7 @@ package com.tutict.finalassignmentcloud.entity;
 
 import com.baomidou.mybatisplus.annotation.*;
 import com.fasterxml.jackson.annotation.JsonAlias;
+import com.fasterxml.jackson.annotation.JsonProperty;
 import lombok.Data;
 
 import java.io.Serial;
@@ -37,6 +38,7 @@ public class SysUser implements Serializable {
     /**
      * 密码 (加密存储)
      */
+    @JsonProperty(access = JsonProperty.Access.WRITE_ONLY)
     @TableField("password")
     private String password;
 
@@ -46,6 +48,7 @@ public class SysUser implements Serializable {
      * @deprecated BCrypt includes its own salt. This field is retained only for legacy data migration.
      */
     @Deprecated
+    @JsonProperty(access = JsonProperty.Access.WRITE_ONLY)
     @TableField("salt")
     private String salt;
 

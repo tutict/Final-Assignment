@@ -15,8 +15,11 @@ import jakarta.ws.rs.Path;
 import jakarta.ws.rs.PathParam;
 import jakarta.ws.rs.Produces;
 import jakarta.ws.rs.QueryParam;
+import jakarta.ws.rs.core.Context;
+import jakarta.ws.rs.core.HttpHeaders;
 import jakarta.ws.rs.core.MediaType;
 import jakarta.ws.rs.core.Response;
+import jakarta.ws.rs.core.SecurityContext;
 import org.eclipse.microprofile.openapi.annotations.tags.Tag;
 
 import java.util.List;
@@ -38,7 +41,10 @@ public class OperationLogController {
     @POST
     @RunOnVirtualThread
     public Response create(AuditOperationLog request,
-                           @HeaderParam("Idempotency-Key") String idempotencyKey) {
+                           @HeaderParam("Idempotency-Key") String idempotencyKey,
+                           @Context SecurityContext securityContext,
+                           @Context HttpHeaders headers) {
+        bindCaller(request, securityContext, headers);
         boolean useKey = hasKey(idempotencyKey);
         try {
             if (useKey) {
@@ -255,6 +261,29 @@ public class OperationLogController {
 
     private boolean hasKey(String value) {
         return value != null && !value.isBlank();
+    }
+
+    private void bindCaller(AuditOperationLog request, SecurityContext securityContext, HttpHeaders headers) {
+        if (request == null) {
+            return;
+        }
+        String caller = securityContext == null ? null : securityContext.getUserPrincipal() == null
+                ? null
+                : securityContext.getUserPrincipal().getName();
+        if (caller != null && !caller.isBlank()) {
+            request.setUsername(caller);
+        }
+        if (isBlank(request.getRequestIp()) && headers != null) {
+            String forwarded = headers.getHeaderString("X-Forwarded-For");
+            if (forwarded != null && !forwarded.isBlank()) {
+                int comma = forwarded.indexOf(',');
+                request.setRequestIp((comma > 0 ? forwarded.substring(0, comma) : forwarded).trim());
+            }
+        }
+    }
+
+    private boolean isBlank(String value) {
+        return value == null || value.trim().isEmpty();
     }
 
     private Response.Status resolveStatus(Exception ex) {

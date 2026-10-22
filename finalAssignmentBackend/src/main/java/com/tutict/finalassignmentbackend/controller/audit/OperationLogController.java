@@ -49,7 +49,7 @@ public class OperationLogController {
     }
 
     @PostMapping
-    @RolesAllowed({"SUPER_ADMIN", "ADMIN", "USER", "TRAFFIC_POLICE", "FINANCE"})
+    @RolesAllowed({"SUPER_ADMIN", "ADMIN", "USER", "TRAFFIC_POLICE", "FINANCE", "APPEAL_REVIEWER"})
     @Operation(summary = "写入操作日志")
     public ResponseEntity<?> create(@Valid @RequestBody AuditOperationLog request,
                                                     @RequestHeader(value = "Idempotency-Key", required = false)
