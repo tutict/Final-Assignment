@@ -90,7 +90,12 @@ export CLOUD_AI_PORT="${CLOUD_AI_PORT:-18086}"
 export CLOUD_SEARCH_PORT="${CLOUD_SEARCH_PORT:-18087}"
 export CLOUD_RAG_PORT="${CLOUD_RAG_PORT:-18088}"
 export CLOUD_GATEWAY_PORT="$GATEWAY_PORT"
-export SPRING_CONFIG_ADDITIONAL_LOCATION="optional:file:$CLOUD_DIR/config/local-dev.yml"
+LOCAL_DEV_CONFIG="$CLOUD_DIR/config/local-dev.yml"
+if command -v cygpath >/dev/null 2>&1; then
+  # Git Bash passes /c/... paths that the JVM cannot resolve on Windows.
+  LOCAL_DEV_CONFIG="$(cygpath -w "$LOCAL_DEV_CONFIG")"
+fi
+export SPRING_CONFIG_ADDITIONAL_LOCATION="optional:file:$LOCAL_DEV_CONFIG"
 
 MVN_CMD="${MVN_CMD:-mvn}"
 JAVA_CMD="${JAVA_CMD:-java}"
@@ -145,6 +150,36 @@ wait_health() {
   return 1
 }
 
+# Windows hands out ephemeral ports from 1024, so a service can lose the race
+# for a fixed port (8080 included). Retry the bind instead of failing the stack.
+start_module_with_retry() {
+  name="$1"
+  port="$2"
+  xmx="$3"
+  attempts="${4:-8}"
+  attempt=1
+  while [ "$attempt" -le "$attempts" ]; do
+    start_module "$name" "$port" "$xmx"
+    pid="$(tail -n 1 "$LOG_DIR/cloud-pids.txt" | cut -d= -f2)"
+    sleep 3
+    if ! kill -0 "$pid" 2>/dev/null; then
+      log "$name exited during startup (attempt $attempt/$attempts), retrying"
+      sleep 2
+      attempt=$((attempt + 1))
+      continue
+    fi
+    if wait_health "$name" "$port" "${CLOUD_SERVICE_HEALTH_WAIT_SECONDS:-180}"; then
+      return 0
+    fi
+    log "$name failed health check (attempt $attempt/$attempts), retrying"
+    kill "$pid" 2>/dev/null || true
+    sleep 3
+    attempt=$((attempt + 1))
+  done
+  echo "$name could not be started after $attempts attempts" >&2
+  return 1
+}
+
 : >"$LOG_DIR/cloud-pids.txt"
 start_module finalassignmentcloud-user "$CLOUD_USER_PORT" 384m
 start_module finalassignmentcloud-auth "$CLOUD_AUTH_PORT" 384m
@@ -160,8 +195,7 @@ wait_health finalassignmentcloud-auth "$CLOUD_AUTH_PORT" "$HEALTH_WAIT"
 wait_health finalassignmentcloud-traffic "$CLOUD_TRAFFIC_PORT" "$HEALTH_WAIT"
 wait_health finalassignmentcloud-rag "$CLOUD_RAG_PORT" "$HEALTH_WAIT" || true
 
-start_module finalassignmentcloud-gateway "$CLOUD_GATEWAY_PORT" 256m
-wait_health finalassignmentcloud-gateway "$CLOUD_GATEWAY_PORT" "${CLOUD_GATEWAY_HEALTH_WAIT_SECONDS:-180}"
+start_module_with_retry finalassignmentcloud-gateway "$CLOUD_GATEWAY_PORT" 256m 10
 
 log "Cloud stack is up. Gateway: http://127.0.0.1:$CLOUD_GATEWAY_PORT"
 log "Logs: $LOG_DIR"
