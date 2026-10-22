@@ -1,0 +1,43 @@
+spring:
+  main:
+    allow-bean-definition-overriding: true
+    allow-circular-references: true
+  datasource:
+    url: ${TEST_DB_URL:jdbc:mysql://localhost:3306/traffic?useSSL=false&serverTimezone=Asia/Shanghai&allowPublicKeyRetrieval=true}
+    username: ${TEST_DB_USERNAME:root}
+    password: ${TEST_DB_PASSWORD:root}
+    driver-class-name: com.mysql.cj.jdbc.Driver
+    hikari:
+      connection-timeout: ${DB_CONNECTION_TIMEOUT_MS:250}
+  cloud:
+    nacos:
+      config:
+        enabled: false
+      discovery:
+        enabled: false
+  kafka:
+    listener:
+      auto-startup: false
+  data:
+    redis:
+      repositories:
+        enabled: false
+
+management:
+  health:
+    elasticsearch:
+      enabled: false
+    redis:
+      enabled: false
+    kafka:
+      enabled: false
+
+jwt:
+  secret:
+    key: ${TEST_JWT_SECRET:Y2xvdWQtYXV0aC1pbnRlZ3JhdGlvbi10ZXN0LXNlY3JldC1rZXktMjAyNi1yb3RhdGlvbg==}
+  algorithm: HS256
+  access-token-expiration: 3600
+  refresh-token-expiration: 86400
+
+internal:
+  service-token: ${INTERNAL_SERVICE_TOKEN:test-internal-service-token-32bytes-ok}

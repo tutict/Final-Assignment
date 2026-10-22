@@ -1,0 +1,38 @@
+spring:
+  main:
+    allow-bean-definition-overriding: true
+    allow-circular-references: true
+  autoconfigure:
+    exclude:
+      - org.springframework.boot.autoconfigure.jdbc.DataSourceAutoConfiguration
+      - org.springframework.boot.jdbc.autoconfigure.DataSourceAutoConfiguration
+  cloud:
+    nacos:
+      config:
+        enabled: false
+      discovery:
+        enabled: false
+  kafka:
+    listener:
+      auto-startup: false
+  data:
+    redis:
+      repositories:
+        enabled: false
+
+management:
+  health:
+    redis:
+      enabled: false
+    kafka:
+      enabled: false
+
+jwt:
+  secret:
+    key: ${TEST_JWT_SECRET:Y2xvdWQtYXV0aC1pbnRlZ3JhdGlvbi10ZXN0LXNlY3JldC1rZXktMjAyNi1yb3RhdGlvbg==}
+  algorithm: HS256
+  access-token-expiration: 3600
+  refresh-token-expiration: 86400
+
+internal:
+  service-token: ${INTERNAL_SERVICE_TOKEN:test-internal-service-token-32bytes-ok}

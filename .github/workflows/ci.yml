@@ -53,6 +53,28 @@ jobs:
   spring-cloud:
     name: Spring Cloud (modules)
     runs-on: ubuntu-latest
+    services:
+      mysql:
+        image: mysql:8.0
+        env:
+          MYSQL_ROOT_PASSWORD: root
+          MYSQL_DATABASE: traffic
+        ports:
+          - 3306:3306
+        options: >-
+          --health-cmd="mysqladmin ping -h localhost -uroot -proot"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=10
+    env:
+      # user/traffic/system/audit 模块共享 traffic 库；auth 模块单独使用 traffic_test 库。
+      TEST_DB_URL: jdbc:mysql://127.0.0.1:3306/traffic?useSSL=false&serverTimezone=Asia/Shanghai&allowPublicKeyRetrieval=true
+      TEST_DB_USERNAME: root
+      TEST_DB_PASSWORD: root
+      AUTH_TEST_DB_URL: jdbc:mysql://127.0.0.1:3306/traffic_test?createDatabaseIfNotExist=true&useUnicode=true&characterEncoding=utf8&serverTimezone=Asia/Shanghai&allowPublicKeyRetrieval=true&useSSL=false
+      AUTH_TEST_DB_USERNAME: root
+      AUTH_TEST_DB_PASSWORD: root
+      INTERNAL_SERVICE_TOKEN: ci-only-internal-service-token-32-bytes-min
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-java@v4
@@ -60,9 +82,17 @@ jobs:
           distribution: temurin
           java-version: "25"
           cache: maven
+      - name: Seed MySQL schema
+        run: |
+          mysql -h 127.0.0.1 -uroot -proot -e "CREATE DATABASE IF NOT EXISTS traffic_test CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;"
+          mysql -h 127.0.0.1 -uroot -proot traffic < database/traffic.sql
+          mysql -h 127.0.0.1 -uroot -proot traffic_test < database/traffic.sql
       - name: Compile all modules
         working-directory: finalAssignmentCloud
-        run: mvn -B -ntp -am -pl finalassignmentcloud-traffic compile
+        run: mvn -B -ntp compile
+      - name: Unit + integration tests
+        working-directory: finalAssignmentCloud
+        run: mvn -B -ntp test
 
   quarkus-backend:
     name: Quarkus (backend)
