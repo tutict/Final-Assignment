@@ -224,6 +224,19 @@ func (s *memoryRagDocumentStore) List(_ context.Context, _ string, _ int) ([]dom
 	return documents, nil
 }
 
+func (s *memoryRagDocumentStore) ListPage(_ context.Context, _ string, offset, limit int) ([]domain.RagDocument, int64, error) {
+	documents, _ := s.List(context.Background(), "", 0)
+	total := int64(len(documents))
+	if offset > len(documents) {
+		offset = len(documents)
+	}
+	end := offset + limit
+	if end > len(documents) {
+		end = len(documents)
+	}
+	return documents[offset:end], total, nil
+}
+
 func (s *memoryRagDocumentStore) Count(context.Context) (int64, error) {
 	return int64(len(s.items)), nil
 }

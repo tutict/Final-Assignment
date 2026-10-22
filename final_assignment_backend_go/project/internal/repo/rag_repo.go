@@ -31,17 +31,34 @@ func (r *RagDocumentRepo) FindByID(ctx context.Context, id string) (*domain.RagD
 }
 
 func (r *RagDocumentRepo) List(ctx context.Context, query string, limit int) ([]domain.RagDocument, error) {
-	db := r.db.WithContext(ctx).Order("updated_at DESC")
-	if query != "" {
-		like := "%" + query + "%"
-		db = db.Where(
-			"title LIKE ? OR source_table LIKE ? OR source_id LIKE ? OR acl_scope LIKE ? OR route LIKE ? OR metadata_json LIKE ?",
-			like, like, like, like, like, like,
-		)
+	var documents []domain.RagDocument
+	err := applyRagDocumentQuery(r.db.WithContext(ctx), query).
+		Order("updated_at DESC").
+		Limit(limit).
+		Find(&documents).Error
+	return documents, err
+}
+
+func (r *RagDocumentRepo) ListPage(ctx context.Context, query string, offset, limit int) ([]domain.RagDocument, int64, error) {
+	db := applyRagDocumentQuery(r.db.WithContext(ctx), query)
+	var total int64
+	if err := db.Model(&domain.RagDocument{}).Count(&total).Error; err != nil {
+		return nil, 0, err
 	}
 	var documents []domain.RagDocument
-	err := db.Limit(limit).Find(&documents).Error
-	return documents, err
+	err := db.Order("updated_at DESC").Offset(offset).Limit(limit).Find(&documents).Error
+	return documents, total, err
+}
+
+func applyRagDocumentQuery(db *gorm.DB, query string) *gorm.DB {
+	if query == "" {
+		return db
+	}
+	like := "%" + query + "%"
+	return db.Where(
+		"title LIKE ? OR source_table LIKE ? OR source_id LIKE ? OR acl_scope LIKE ? OR route LIKE ? OR metadata_json LIKE ?",
+		like, like, like, like, like, like,
+	)
 }
 
 func (r *RagDocumentRepo) Count(ctx context.Context) (int64, error) {

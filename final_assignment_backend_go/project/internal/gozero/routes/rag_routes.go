@@ -58,7 +58,7 @@ func RagOverviewHandler(runtime *gozerorag.Runtime) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		if !runtime.Ready() {
 			response.OK(w, map[string]any{
-				"enabled":                     false,
+				"ragEnabled":                  false,
 				"indexingEnabled":             false,
 				"documentCount":               0,
 				"readyDocumentCount":          0,
@@ -84,17 +84,27 @@ func ListRagDocumentsHandler(runtime *gozerorag.Runtime) http.HandlerFunc {
 		if !requireRAGRuntime(w, runtime, "RAG_DISABLED", "RAG document listing is not enabled") {
 			return
 		}
-		limit, err := intQuery(r, "limit", 50, 200)
+		page, err := intQuery(r, "page", 1, 100000)
 		if err != nil {
 			badRequest(w, err)
 			return
 		}
-		documents, err := runtime.Documents.List(r.Context(), r.URL.Query().Get("query"), limit)
+		size, err := intQuery(r, "size", 20, 200)
+		if err != nil {
+			badRequest(w, err)
+			return
+		}
+		documents, total, err := runtime.Documents.ListPage(r.Context(), r.URL.Query().Get("query"), page, size)
 		if err != nil {
 			serviceError(w, err)
 			return
 		}
-		response.OK(w, documents)
+		response.OK(w, map[string]any{
+			"items": documents,
+			"total": total,
+			"page":  page,
+			"size":  size,
+		})
 	}
 }
 

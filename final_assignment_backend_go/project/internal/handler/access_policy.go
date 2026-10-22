@@ -54,7 +54,7 @@ var resourcePolicies = map[Resource]resourcePolicy{
 	ResourceAppeals:    {Write: CapStaffWrite, UnscopedRead: CapElevatedRead},
 	ResourceFines:      {Write: CapFinanceWrite, UnscopedRead: CapElevatedRead},
 	ResourceDeductions: {Write: CapFinanceWrite, UnscopedRead: CapElevatedRead},
-	ResourceProgress:   {UnscopedRead: CapElevatedRead},
+	ResourceProgress:   {Write: CapGovernance, UnscopedRead: CapElevatedRead},
 	ResourcePayments:   {UnscopedRead: CapFinanceRead},
 }
 
@@ -149,6 +149,12 @@ func AllowsPath(c *gin.Context, path string) bool {
 // AccessPolicy 用 pathPolicies 拦截治理路径，取代散落的 RequiresAdminPath if。
 func AccessPolicy() gin.HandlerFunc {
 	return func(c *gin.Context) {
+		// Audit trail writes are open to every authenticated principal (parity with Spring/Quarkus);
+		// reading them stays restricted by the /api/logs policy below.
+		if c.Request.Method == http.MethodPost && c.Request.URL.Path == "/api/logs/operation" {
+			c.Next()
+			return
+		}
 		if !AllowsPath(c, c.Request.URL.Path) {
 			c.AbortWithStatusJSON(http.StatusForbidden, gin.H{"error": "access denied"})
 			return

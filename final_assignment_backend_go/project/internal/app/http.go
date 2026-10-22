@@ -71,6 +71,7 @@ func RegisterHTTP(router *gin.Engine, gormDB *gorm.DB, userService *admin.UserMa
 	registerFineRoutes(router, handler.NewFineController(fineService))
 	registerAppealRoutes(router, handler.NewAppealHandler(appealService))
 	registerTrafficRoutes(router, handler.NewTrafficViolationHandler(trafficService))
+	handler.NewViolationCompatController(offenseService, fineService, paymentService, deductionService, appealService).RegisterRoutes(router)
 }
 
 func registerFineRoutes(router *gin.Engine, controller *handler.FineController) {
@@ -112,14 +113,14 @@ func registerAppealRoutes(router *gin.Engine, controller *handler.AppealHandler)
 }
 
 func registerTrafficRoutes(router *gin.Engine, controller *handler.TrafficViolationHandler) {
-	mount := func(prefix string) {
+	mountAnalytics := func(prefix string) {
 		group := router.Group(prefix)
 		group.GET("/violation-types", controller.GetViolationTypeCounts)
 		group.GET("/time-series", controller.GetTimeSeriesData)
 		group.GET("/appeal-reasons", controller.GetAppealReasonCounts)
 		group.GET("/fine-payment-status", controller.GetFinePaymentStatus)
-		group.GET("/status", controller.GetFinePaymentStatus)
 	}
-	mount("/api/traffic-violations")
-	mount("/api/violations")
+	mountAnalytics("/api/traffic-violations")
+	mountAnalytics("/api/violations")
+	router.GET("/api/traffic-violations/status", controller.GetFinePaymentStatus)
 }

@@ -10,7 +10,7 @@ import (
 )
 
 var (
-	localDateTimeJSON = regexp.MustCompile(`"((?:19|20)\d{2}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2})"`)
+	localDateTimeJSON = regexp.MustCompile(`"((?:19|20)\d{2}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d{1,9})?)"`)
 	localDateJSON     = regexp.MustCompile(`"((?:19|20)\d{2}-\d{2}-\d{2})"`)
 )
 

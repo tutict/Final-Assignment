@@ -65,6 +65,7 @@ type RagDocumentStore interface {
 	Save(ctx context.Context, document *domain.RagDocument) error
 	FindByID(ctx context.Context, id string) (*domain.RagDocument, error)
 	List(ctx context.Context, query string, limit int) ([]domain.RagDocument, error)
+	ListPage(ctx context.Context, query string, offset, limit int) ([]domain.RagDocument, int64, error)
 	Count(ctx context.Context) (int64, error)
 	CountByStatus(ctx context.Context, status string) (int64, error)
 	DeleteByID(ctx context.Context, id string) (int64, error)
@@ -197,7 +198,7 @@ func (r RagRetrievalResult) WithScores(bm25Score, vectorScore, finalScore float6
 }
 
 type RagOverview struct {
-	Enabled                     bool  `json:"enabled"`
+	Enabled                     bool  `json:"ragEnabled"`
 	IndexingEnabled             bool  `json:"indexingEnabled"`
 	DocumentCount               int64 `json:"documentCount"`
 	ReadyDocumentCount          int64 `json:"readyDocumentCount"`
@@ -297,6 +298,16 @@ func normalizeRagConfig(config RagConfig) RagConfig {
 		config.RerankLexicalWeight = defaults.RerankLexicalWeight
 	}
 	return config
+}
+
+func normalizePage(page, size int) (int, int) {
+	if page < 1 {
+		page = 1
+	}
+	if size < 1 {
+		size = 20
+	}
+	return page, normalizeLimit(size, 200)
 }
 
 func normalizeLimit(value, max int) int {

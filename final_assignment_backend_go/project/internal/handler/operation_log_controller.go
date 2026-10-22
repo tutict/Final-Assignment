@@ -45,12 +45,14 @@ func (c *OperationLogController) mountOperationLogs(api *gin.RouterGroup) {
 // POST /api/operationLogs
 func (c *OperationLogController) createOperationLog(ctx *gin.Context) {
 	var logEntry domain.OperationLog
-	idempotencyKey := ctx.Query("idempotencyKey")
+	idempotencyKey := idempotencyKey(ctx)
 
 	if err := ctx.ShouldBindJSON(&logEntry); err != nil {
 		ctx.JSON(http.StatusBadRequest, gin.H{"error": "invalid request body"})
 		return
 	}
+
+	applyOperationLogDefaults(&logEntry, ctx)
 
 	if err := c.Service.CheckAndInsertIdempotency(idempotencyKey, &logEntry, "create"); err != nil {
 		ctx.JSON(http.StatusConflict, gin.H{"error": err.Error()})
@@ -58,6 +60,24 @@ func (c *OperationLogController) createOperationLog(ctx *gin.Context) {
 	}
 
 	ctx.Status(http.StatusCreated)
+}
+
+func applyOperationLogDefaults(logEntry *domain.OperationLog, ctx *gin.Context) {
+	if strings.TrimSpace(logEntry.OperationType) == "" {
+		logEntry.OperationType = "API"
+	}
+	if strings.TrimSpace(logEntry.OperationModule) == "" {
+		logEntry.OperationModule = "System"
+	}
+	if strings.TrimSpace(logEntry.OperationFunction) == "" {
+		logEntry.OperationFunction = "event"
+	}
+	if strings.TrimSpace(logEntry.RequestIP) == "" {
+		logEntry.RequestIP = ctx.ClientIP()
+	}
+	if strings.TrimSpace(logEntry.Username) == "" {
+		logEntry.Username = ctx.GetString("username")
+	}
 }
 
 // GET /api/operationLogs/:logId

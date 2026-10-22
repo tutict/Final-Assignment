@@ -35,6 +35,11 @@ func (s *RagDocumentService) List(ctx context.Context, query string, limit int) 
 	return s.documents.List(ctx, strings.TrimSpace(query), normalizeLimit(limit, 200))
 }
 
+func (s *RagDocumentService) ListPage(ctx context.Context, query string, page, size int) ([]domain.RagDocument, int64, error) {
+	page, size = normalizePage(page, size)
+	return s.documents.ListPage(ctx, strings.TrimSpace(query), (page-1)*size, size)
+}
+
 func (s *RagDocumentService) Overview(ctx context.Context) (RagOverview, error) {
 	documentCount, err := s.documents.Count(ctx)
 	if err != nil {
