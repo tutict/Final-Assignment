@@ -2,7 +2,6 @@ package com.tutict.finalassignmentbackend.service.admin;
 
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import com.tutict.finalassignmentbackend.common.PageRequest;
 import com.tutict.finalassignmentbackend.config.websocket.WsAction;
 import com.tutict.finalassignmentbackend.entity.system.SysRequestHistory;
@@ -10,9 +9,9 @@ import com.tutict.finalassignmentbackend.entity.admin.SysUser;
 import com.tutict.finalassignmentbackend.entity.elastic.SysUserDocument;
 import com.tutict.finalassignmentbackend.mapper.system.SysRequestHistoryMapper;
 import com.tutict.finalassignmentbackend.mapper.admin.SysUserMapper;
+import com.tutict.finalassignmentbackend.reliability.IdempotencyReplayException;
 import com.tutict.finalassignmentbackend.repository.SysUserSearchRepository;
 import com.tutict.finalassignmentbackend.security.crypto.SensitiveDataPersistenceService;
-import com.tutict.finalassignmentbackend.service.messaging.KafkaMessageSender;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.cache.annotation.Cacheable;
@@ -44,8 +43,6 @@ public class SysUserService {
     private final SysUserMapper sysUserMapper;
     private final SysRequestHistoryMapper sysRequestHistoryMapper;
     private final SysUserSearchRepository sysUserSearchRepository;
-    private final KafkaMessageSender kafkaMessageSender;
-    private final ObjectMapper objectMapper;
     private final PasswordEncoder passwordEncoder;
     private final SensitiveDataPersistenceService sensitiveDataPersistenceService;
 
@@ -53,15 +50,11 @@ public class SysUserService {
     public SysUserService(SysUserMapper sysUserMapper,
                           SysRequestHistoryMapper sysRequestHistoryMapper,
                           SysUserSearchRepository sysUserSearchRepository,
-                          KafkaMessageSender kafkaMessageSender,
-                          ObjectMapper objectMapper,
                           PasswordEncoder passwordEncoder,
                           SensitiveDataPersistenceService sensitiveDataPersistenceService) {
         this.sysUserMapper = sysUserMapper;
         this.sysRequestHistoryMapper = sysRequestHistoryMapper;
         this.sysUserSearchRepository = sysUserSearchRepository;
-        this.kafkaMessageSender = kafkaMessageSender;
-        this.objectMapper = objectMapper;
         this.passwordEncoder = passwordEncoder;
         this.sensitiveDataPersistenceService = sensitiveDataPersistenceService;
     }
@@ -74,7 +67,7 @@ public class SysUserService {
         SysRequestHistory existing = sysRequestHistoryMapper.selectByIdempotencyKey(idempotencyKey);
         if (existing != null) {
             LOG.warning(() -> String.format("Duplicate sys user request detected (key=%s)", idempotencyKey));
-            throw new RuntimeException("Duplicate sys user request detected");
+            throw new IdempotencyReplayException("Duplicate sys user request detected");
         }
 
         SysRequestHistory history = new SysRequestHistory();
@@ -86,7 +79,6 @@ public class SysUserService {
 
         encodePasswordIfNecessary(sysUser);
         sensitiveDataPersistenceService.prepare(sysUser);
-        sendKafkaMessage("sys_user_" + action, idempotencyKey, sysUser);
 
         history.setBusinessStatus("SUCCESS");
         history.setBusinessId(sysUser.getUserId());
@@ -108,17 +100,66 @@ public class SysUserService {
 
     @Transactional
     @CacheEvict(cacheNames = CACHE_NAME, allEntries = true)
-    public SysUser updateSysUser(SysUser sysUser) {
-        validateSysUser(sysUser);
-        requirePositive(sysUser.getUserId());
-        encodePasswordIfNecessary(sysUser);
-        sensitiveDataPersistenceService.prepare(sysUser);
-        int rows = sysUserMapper.updateById(sysUser);
-        if (rows == 0) {
-            throw new IllegalStateException("SysUser not found for id=" + sysUser.getUserId());
+    public SysUser updateSysUser(SysUser patch) {
+        if (patch == null) {
+            throw new IllegalArgumentException("SysUser must not be null");
         }
-        syncToIndexAfterCommit(sysUser);
-        return sysUser;
+        requirePositive(patch.getUserId());
+        SysUser existing = sysUserMapper.selectById(patch.getUserId());
+        if (existing == null) {
+            throw new IllegalStateException("SysUser not found for id=" + patch.getUserId());
+        }
+        mergeForUpdate(existing, patch);
+        validateSysUser(existing);
+        encodePasswordIfNecessary(existing);
+        sensitiveDataPersistenceService.prepare(existing);
+        existing.setUpdatedAt(LocalDateTime.now());
+        int rows = sysUserMapper.updateById(existing);
+        if (rows == 0) {
+            throw new IllegalStateException("SysUser not found for id=" + patch.getUserId());
+        }
+        syncToIndexAfterCommit(existing);
+        return existing;
+    }
+
+    private void mergeForUpdate(SysUser existing, SysUser request) {
+        if (!isBlank(request.getUsername())) {
+            existing.setUsername(request.getUsername());
+        }
+        if (!isBlank(request.getPassword())) {
+            existing.setPassword(request.getPassword());
+            existing.setPasswordUpdateTime(LocalDateTime.now());
+        }
+        if (request.getRealName() != null) {
+            existing.setRealName(request.getRealName());
+        }
+        if (request.getGender() != null) {
+            existing.setGender(request.getGender());
+        }
+        if (request.getContactNumber() != null && !request.getContactNumber().contains("*")) {
+            existing.setContactNumber(request.getContactNumber());
+        }
+        if (request.getEmail() != null) {
+            existing.setEmail(request.getEmail());
+        }
+        if (request.getDepartment() != null) {
+            existing.setDepartment(request.getDepartment());
+        }
+        if (request.getPosition() != null) {
+            existing.setPosition(request.getPosition());
+        }
+        if (request.getEmployeeNumber() != null) {
+            existing.setEmployeeNumber(request.getEmployeeNumber());
+        }
+        if (!isBlank(request.getStatus())) {
+            existing.setStatus(request.getStatus());
+        }
+        if (request.getAccountExpiryDate() != null) {
+            existing.setAccountExpiryDate(request.getAccountExpiryDate());
+        }
+        if (request.getRemarks() != null) {
+            existing.setRemarks(request.getRemarks());
+        }
     }
 
     @Transactional
@@ -471,15 +512,7 @@ public class SysUserService {
         sysRequestHistoryMapper.updateById(history);
     }
 
-    private void sendKafkaMessage(String topic, String idempotencyKey, SysUser sysUser) {
-        try {
-            String payload = objectMapper.writeValueAsString(sysUser);
-            kafkaMessageSender.sendAfterCommit(topic, idempotencyKey, payload);
-        } catch (Exception ex) {
-            LOG.log(Level.SEVERE, "Failed to send SysUser Kafka message", ex);
-            throw new RuntimeException("Failed to send sys user event", ex);
-        }
-    }
+    
 
     private void syncToIndexAfterCommit(SysUser sysUser) {
         if (sysUser == null) {

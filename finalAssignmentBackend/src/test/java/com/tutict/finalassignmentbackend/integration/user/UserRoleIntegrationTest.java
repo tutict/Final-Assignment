@@ -179,4 +179,31 @@ class UserRoleIntegrationTest extends BaseIntegrationTest {
             .then()
             .statusCode(anyOf(is(403), is(200), is(201)));
     }
+
+    @Test
+    @Order(12)
+    @DisplayName("更新用户：不传 password 时保留原密码且不重置创建时间")
+    void update_user_without_password_preserves_credentials() {
+        Response existing = authSpec(adminToken)
+            .get("/api/users/search/username/testuser");
+        existing.then().statusCode(200);
+        long userId = existing.jsonPath().getLong("data.userId");
+        String createdAt = existing.jsonPath().getString("data.createTime");
+
+        authSpec(adminToken)
+            .header("Idempotency-Key", newIdempotencyKey())
+            .body(Map.of(
+                "username", "testuser",
+                "realName", "更新后姓名",
+                "status", "Active"
+            ))
+            .put("/api/users/" + userId)
+            .then()
+            .statusCode(200)
+            .body("data.realName", equalTo("更新后姓名"))
+            .body("data.createTime", equalTo(createdAt))
+            .body("data.password", nullValue());
+
+        loginAs("testuser", "User@123456");
+    }
 }

@@ -6,6 +6,7 @@ import com.tutict.finalassignmentbackend.common.idempotency.IdempotentExecution;
 import com.tutict.finalassignmentbackend.common.idempotency.IdempotentRequestExecutor;
 import com.tutict.finalassignmentbackend.dto.mapper.UserResponseMapper;
 import com.tutict.finalassignmentbackend.dto.request.UserCreateRequest;
+import com.tutict.finalassignmentbackend.dto.request.UserUpdateRequest;
 import com.tutict.finalassignmentbackend.dto.response.ApiResponse;
 import com.tutict.finalassignmentbackend.dto.response.PageResponse;
 import com.tutict.finalassignmentbackend.dto.response.UserResponse;
@@ -92,7 +93,7 @@ public class UserManagementController {
     @PutMapping("/{userId}")
     @Operation(summary = "更新用户")
     public ResponseEntity<ApiResponse<UserResponse>> updateUser(@PathVariable Long userId,
-                                                                @Valid @RequestBody UserCreateRequest request,
+                                                                @Valid @RequestBody UserUpdateRequest request,
                                                                 @RequestHeader(value = "Idempotency-Key", required = false)
                                                                 String idempotencyKey) {
         try {

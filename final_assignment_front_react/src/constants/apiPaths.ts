@@ -11,6 +11,11 @@ export const API_PATHS = {
   USERS_BY_ID: (userId: string | number) => `/api/users/${userId}`,
   USERS_BY_USERNAME: (username: string) =>
     `/api/users/search/username/${encodeURIComponent(username)}`,
+  USERS_SEARCH_USERNAME_PREFIX: '/api/users/search/username/prefix',
+  USERS_SEARCH_REAL_NAME_PREFIX: '/api/users/search/real-name/prefix',
+  USERS_SEARCH_CONTACT: '/api/users/search/contact',
+  USERS_SEARCH_STATUS: '/api/users/search/status',
+  USERS_SEARCH_DEPARTMENT: '/api/users/search/department',
   DRIVERS: '/api/drivers',
   DRIVERS_BY_ID: (driverId: string | number) => `/api/drivers/${driverId}`,
   VEHICLES: '/api/vehicles',

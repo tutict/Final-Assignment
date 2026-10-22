@@ -754,7 +754,6 @@ export const entityConfigs: EntityConfigs = {
     label: '用户管理',
     basePath: API_PATHS.USERS,
     idField: 'userId',
-    useCustomPage: true,
     displayFields: ['realName', 'username', 'contactNumber', 'email', 'department', 'position', 'status', 'lastLoginTime', 'userId'],
     editableFields: ['username', 'realName', 'gender', 'contactNumber', 'email', 'department', 'position', 'employeeNumber', 'status', 'accountExpiryDate', 'remarks'],
     fields: [

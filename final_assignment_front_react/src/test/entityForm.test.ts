@@ -42,6 +42,15 @@ describe('validateEntityForm', () => {
     expect(validateEntityForm(fields, { deductionPoints: 3 })).toEqual({});
   });
 
+  it('enforces string length bounds without treating text as a number', () => {
+    const fields: EntityField[] = [
+      { name: 'username', label: '账号', validation: { minLength: 3, maxLength: 5, message: '账号长度须为 3~5 个字符' } },
+    ];
+    expect(validateEntityForm(fields, { username: 'admin' })).toEqual({});
+    expect(validateEntityForm(fields, { username: 'ab' })).toEqual({ username: '账号长度须为 3~5 个字符' });
+    expect(validateEntityForm(fields, { username: 'administrator' })).toEqual({ username: '账号长度须为 3~5 个字符' });
+  });
+
   it('reports every failing field at once', () => {
     const fields: EntityField[] = [
       { name: 'a', label: 'A', validation: { required: true } },

@@ -12,6 +12,8 @@ export interface FieldValidation {
   enum?: readonly string[];
   min?: number;
   max?: number;
+  minLength?: number;
+  maxLength?: number;
   message?: string;
 }
 

@@ -56,6 +56,18 @@ export function validateEntityForm(
       }
     }
 
+    if (validation.minLength !== undefined || validation.maxLength !== undefined) {
+      const length = String(value).length;
+      if (validation.minLength !== undefined && length < validation.minLength) {
+        errors[field.name] = validation.message ?? `${label}长度不能少于${validation.minLength}个字符`;
+        return;
+      }
+      if (validation.maxLength !== undefined && length > validation.maxLength) {
+        errors[field.name] = validation.message ?? `${label}长度不能超过${validation.maxLength}个字符`;
+        return;
+      }
+    }
+
     if (validation.min !== undefined || validation.max !== undefined) {
       const numericValue = Number(value);
       if (Number.isNaN(numericValue)) {
@@ -160,6 +172,7 @@ export default function EntityForm({
             ) : (
               <input
                 type={inputType}
+                autoComplete={inputType === 'password' ? 'new-password' : undefined}
                 value={renderedValue as string | number | readonly string[]}
                 onChange={(event) => {
                   let nextValue: unknown;
