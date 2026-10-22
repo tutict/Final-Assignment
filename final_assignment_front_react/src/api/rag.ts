@@ -112,15 +112,18 @@ export interface RagIndexMigrationResult {
   message: string;
 }
 
-function payloadOf(response: { data?: unknown }): Record<string, unknown> {
+function payloadOf(response: { data?: unknown }): unknown {
   const raw = response.data;
   if (raw && typeof raw === "object" && "success" in raw && "data" in raw) {
-    const inner = (raw as { data?: unknown }).data;
-    if (inner && typeof inner === "object" && !Array.isArray(inner)) {
-      return inner as Record<string, unknown>;
-    }
+    return (raw as { data?: unknown }).data;
   }
-  return (raw as Record<string, unknown>) || {};
+  return raw;
+}
+
+function asRecord(value: unknown): Record<string, unknown> {
+  return value && typeof value === "object" && !Array.isArray(value)
+    ? (value as Record<string, unknown>)
+    : {};
 }
 
 function asInt(value: unknown): number {
@@ -175,10 +178,8 @@ function normalizeIndexResult(data: Record<string, unknown>): RagIndexResult {
 
 /** GET /api/rag/admin/overview */
 export async function getRagOverview(): Promise<RagOverview> {
-  const response = await api.get<Record<string, unknown>>(
-    API_PATHS.RAG_OVERVIEW
-  );
-  return normalizeOverview(response.data || {});
+  const response = await api.get<unknown>(API_PATHS.RAG_OVERVIEW);
+  return normalizeOverview(asRecord(payloadOf(response)));
 }
 
 /** GET /api/rag/admin/documents?query=&page=&size= */
@@ -195,8 +196,13 @@ export async function listRagDocuments(
       size,
     },
   });
-  const data = payloadOf(response);
-  const rawItems = Array.isArray(data.items) ? data.items : Array.isArray(data) ? data : [];
+  const payload = payloadOf(response);
+  const data = asRecord(payload);
+  const rawItems = Array.isArray(payload)
+    ? payload
+    : Array.isArray(data.items)
+      ? data.items
+      : [];
   const items = rawItems.map((item) =>
     normalizeDocument((item as Record<string, unknown>) || {})
   );
@@ -213,7 +219,7 @@ export async function getRagDocument(documentId: string): Promise<RagDocumentDet
   const response = await api.get<Record<string, unknown>>(
     API_PATHS.RAG_DOCUMENTS_BY_ID(documentId)
   );
-  const data = payloadOf(response);
+  const data = asRecord(payloadOf(response));
   const chunks = Array.isArray(data.chunks) ? data.chunks : [];
   return {
     document: normalizeDocument((data.document as Record<string, unknown>) || {}),
@@ -254,7 +260,7 @@ export async function updateRagDocument(
     },
     { headers: { "Idempotency-Key": generateIdempotencyKey() } }
   );
-  return normalizeIndexResult(response.data || {});
+  return normalizeIndexResult(asRecord(payloadOf(response)));
 }
 
 /** POST /api/rag/admin/preview */
@@ -263,12 +269,18 @@ export async function previewRag(payload: {
   asRole?: string;
   topK?: number;
 }): Promise<RagPreviewHit[]> {
-  const response = await api.post<unknown[]>(API_PATHS.RAG_PREVIEW, {
+  const response = await api.post<unknown>(API_PATHS.RAG_PREVIEW, {
     query: payload.query.trim(),
     asRole: payload.asRole || "USER",
     topK: payload.topK ?? 8,
   });
-  const list = Array.isArray(response.data) ? response.data : [];
+  const unwrapped = payloadOf(response);
+  const data = asRecord(unwrapped);
+  const list = Array.isArray(unwrapped)
+    ? unwrapped
+    : Array.isArray(data.items)
+      ? data.items
+      : [];
   return list.map((item) => {
     const hit = (item as Record<string, unknown>) || {};
     return {
@@ -309,7 +321,7 @@ export async function createManualRagDocument(payload: {
     },
     { headers: { "Idempotency-Key": generateIdempotencyKey() } }
   );
-  return normalizeIndexResult(response.data || {});
+  return normalizeIndexResult(asRecord(payloadOf(response)));
 }
 
 /** POST /api/rag/admin/documents/upload —— multipart 上传文档 */
@@ -343,7 +355,7 @@ export async function uploadRagDocument(payload: {
       timeout: 60000,
     }
   );
-  return normalizeIndexResult(response.data || {});
+  return normalizeIndexResult(asRecord(payloadOf(response)));
 }
 
 /** DELETE /api/rag/admin/documents/{documentId} */
@@ -356,16 +368,17 @@ export async function runRagBackfill(
   page = 1,
   size = 200
 ): Promise<RagBackfillResult> {
-  const response = await api.post<Record<string, unknown>>(
+  const response = await api.post<unknown>(
     API_PATHS.RAG_BACKFILL,
     undefined,
     { params: { page, size } }
   );
+  const data = asRecord(payloadOf(response));
   return {
-    processedDocuments: asInt(response.data?.processedDocuments),
-    failedDocuments: asInt(response.data?.failedDocuments),
-    hasMore: Boolean(response.data?.hasMore),
-    enabled: Boolean(response.data?.enabled),
+    processedDocuments: asInt(data.processedDocuments),
+    failedDocuments: asInt(data.failedDocuments),
+    hasMore: Boolean(data.hasMore),
+    enabled: Boolean(data.enabled),
   };
 }
 
@@ -375,17 +388,18 @@ export async function runRagBackfillBatches(
   size = 200,
   maxPages = 20
 ): Promise<RagBackfillRunResult> {
-  const response = await api.post<Record<string, unknown>>(
+  const response = await api.post<unknown>(
     API_PATHS.RAG_BACKFILL_RUN,
     undefined,
     { params: { startPage, size, maxPages } }
   );
+  const data = asRecord(payloadOf(response));
   return {
-    processedDocuments: asInt(response.data?.processedDocuments),
-    failedDocuments: asInt(response.data?.failedDocuments),
-    processedPages: asInt(response.data?.processedPages),
-    hasMore: Boolean(response.data?.hasMore),
-    enabled: Boolean(response.data?.enabled),
+    processedDocuments: asInt(data.processedDocuments),
+    failedDocuments: asInt(data.failedDocuments),
+    processedPages: asInt(data.processedPages),
+    hasMore: Boolean(data.hasMore),
+    enabled: Boolean(data.enabled),
   };
 }
 
@@ -393,17 +407,18 @@ export async function runRagBackfillBatches(
 export async function runRagEmbeddingBatch(
   limit = 25
 ): Promise<RagEmbeddingBatchResult> {
-  const response = await api.post<Record<string, unknown>>(
+  const response = await api.post<unknown>(
     API_PATHS.RAG_EMBEDDING_RUN,
     undefined,
     { params: { limit } }
   );
+  const data = asRecord(payloadOf(response));
   return {
-    selectedTasks: asInt(response.data?.selectedTasks),
-    succeededTasks: asInt(response.data?.succeededTasks),
-    failedTasks: asInt(response.data?.failedTasks),
-    enabled: Boolean(response.data?.enabled),
-    alreadyRunning: Boolean(response.data?.alreadyRunning),
+    selectedTasks: asInt(data.selectedTasks),
+    succeededTasks: asInt(data.succeededTasks),
+    failedTasks: asInt(data.failedTasks),
+    enabled: Boolean(data.enabled),
+    alreadyRunning: Boolean(data.alreadyRunning),
   };
 }
 
@@ -411,15 +426,16 @@ export async function runRagEmbeddingBatch(
 export async function requeueRagEmbeddingTasks(
   limit = 1000
 ): Promise<RagRequeueResult> {
-  const response = await api.post<Record<string, unknown>>(
+  const response = await api.post<unknown>(
     API_PATHS.RAG_EMBEDDING_REQUEUE,
     undefined,
     { params: { limit } }
   );
+  const data = asRecord(payloadOf(response));
   return {
-    requeuedChunks: asInt(response.data?.requeuedChunks),
-    requeuedTasks: asInt(response.data?.requeuedTasks),
-    createdTasks: asInt(response.data?.createdTasks),
+    requeuedChunks: asInt(data.requeuedChunks),
+    requeuedTasks: asInt(data.requeuedTasks),
+    createdTasks: asInt(data.createdTasks),
   };
 }
 
@@ -429,7 +445,7 @@ export async function migrateRagIndex(payload: {
   requeue?: boolean;
   requeueLimit?: number;
 }): Promise<RagIndexMigrationResult> {
-  const response = await api.post<Record<string, unknown>>(
+  const response = await api.post<unknown>(
     API_PATHS.RAG_INDEX_MIGRATE,
     undefined,
     {
@@ -440,7 +456,7 @@ export async function migrateRagIndex(payload: {
       },
     }
   );
-  const data = response.data || {};
+  const data = asRecord(payloadOf(response));
   return {
     enabled: Boolean(data.enabled),
     createdIndex: Boolean(data.createdIndex),

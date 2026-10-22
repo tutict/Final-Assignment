@@ -1,15 +1,30 @@
 import type { ReactNode } from 'react';
 
-const IDENTITY_FIELDS = ['paymentId', 'appealId', 'deductionId', 'reviewId', 'fineId', 'offenseId', 'driverId', 'vehicleId', 'userId', 'id', 'key'];
+const IDENTITY_FIELDS = ['logId', 'paymentId', 'appealId', 'deductionId', 'reviewId', 'fineId', 'offenseId', 'driverId', 'vehicleId', 'userId', 'id', 'key'];
 
-function identityForRow(row: Record<string, unknown>, index: number): string {
-  for (const field of IDENTITY_FIELDS) {
+function identityForRow(row: Record<string, unknown>, index: number, idField?: string): string {
+  const candidates = idField ? [idField, ...IDENTITY_FIELDS] : IDENTITY_FIELDS;
+  for (const field of candidates) {
     const value = row[field];
     if (value !== undefined && value !== null && value !== '') {
       return field + ':' + String(value);
     }
   }
   return 'row:' + String(index);
+}
+
+/**
+ * 主键在部分聚合视图里并不唯一（例如操作日志的 userId 会被多行复用），
+ * 直接用作 React key 会触发重复键警告并导致行错位，因此为重复项追加序号后缀。
+ */
+function buildRowKeys(rows: Array<Record<string, unknown>>, idField?: string): string[] {
+  const seen = new Map<string, number>();
+  return rows.map((row, index) => {
+    const base = identityForRow(row, index, idField);
+    const count = seen.get(base) ?? 0;
+    seen.set(base, count + 1);
+    return count === 0 ? base : `${base}#${count}`;
+  });
 }
 
 
@@ -22,6 +37,7 @@ export interface DataTableColumn {
 interface DataTableProps {
   columns: DataTableColumn[];
   rows: Array<Record<string, unknown>>;
+  idField?: string;
   onEdit?: (row: Record<string, unknown>) => void;
   onDelete?: (row: Record<string, unknown>) => void;
   onView?: (row: Record<string, unknown>) => void;
@@ -33,6 +49,7 @@ interface DataTableProps {
 export default function DataTable({
   columns,
   rows,
+  idField,
   onEdit,
   onDelete,
   onView,
@@ -44,6 +61,7 @@ export default function DataTable({
   const hasActions = actionCount > 0;
   const useMenu = actionCount > 2;
   const colSpan = columns.length + (hasActions ? 1 : 0);
+  const rowKeys = buildRowKeys(rows, idField);
 
   return (
     <div className="table-card">
@@ -66,7 +84,7 @@ export default function DataTable({
           ) : (
             rows.map((row, index) => {
               const rowErrorMessage = getRowErrorMessage?.(row);
-              const rowKey = identityForRow(row, index);
+              const rowKey = rowKeys[index];
 
               if (rowErrorMessage) {
                 return (

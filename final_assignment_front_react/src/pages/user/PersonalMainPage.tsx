@@ -32,7 +32,7 @@ export default function PersonalMainPage() {
   const driverQuery = useQuery({
     queryKey: ['driver', driverId],
     queryFn: () => getDriver(driverId as number),
-    enabled: driverId !== undefined,
+    enabled: driverId != null,
   });
 
   const [editing, setEditing] = useState(false);

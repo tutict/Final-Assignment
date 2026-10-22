@@ -96,7 +96,11 @@ export default function SystemLogPage() {
         ) : null}
         {loginLogsLoading ? <div className="placeholder">加载中...</div> : null}
         {!loginLogsError ? (
-          <DataTable columns={loginColumns} rows={(loginLogRows as Record<string, unknown>[]) || []} />
+          <DataTable
+            columns={loginColumns}
+            rows={(loginLogRows as Record<string, unknown>[]) || []}
+            idField="logId"
+          />
         ) : null}
       </div>
 
@@ -113,6 +117,7 @@ export default function SystemLogPage() {
           <DataTable
             columns={operationColumns}
             rows={(operationLogRows as Record<string, unknown>[]) || []}
+            idField="logId"
           />
         ) : null}
       </div>

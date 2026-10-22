@@ -291,6 +291,7 @@ export default function CrudPage({ config }: CrudPageProps) {
       <DataTable
         columns={columns}
         rows={pagedRows}
+        idField={config.idField}
         onEdit={canMutate ? handleEdit : undefined}
         onDelete={canMutate ? handleConfirmDelete : undefined}
         onView={config.onView}

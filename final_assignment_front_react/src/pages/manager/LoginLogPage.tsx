@@ -123,7 +123,7 @@ export default function LoginLogPage() {
       ) : null}
       {query.isLoading ? <div className="placeholder">加载中...</div> : null}
 
-      <DataTable columns={columns} rows={rows} />
+      <DataTable columns={columns} rows={rows} idField="logId" />
     </PageLayout>
   );
 }

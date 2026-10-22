@@ -39,7 +39,7 @@ const LOG_FIELDS: Array<EntityField & { key?: string }> = [
   { name: 'requestIp', key: 'requestIp', label: 'IP' },
   { name: 'operationResult', key: 'operationResult', label: '结果' },
   { name: 'errorMessage', key: 'errorMessage', label: '错误信息' },
-  { name: 'executionTime', key: 'executionTime', label: '耗时(ms)' },
+  { name: 'executionTime', key: 'executionTime', label: '耗时(ms)', type: 'int' },
 ];
 
 interface SearchState {
@@ -125,7 +125,7 @@ export default function OperationLogPage() {
       ) : null}
       {query.isLoading ? <div className="placeholder">加载中...</div> : null}
 
-      <DataTable columns={columns} rows={rows} />
+      <DataTable columns={columns} rows={rows} idField="logId" />
     </PageLayout>
   );
 }
