@@ -7,7 +7,7 @@ spring:
     virtual:
       enabled: ${SPRING_THREADS_VIRTUAL_ENABLED:false}
   config:
-    import: "optional:nacos:"
+    import: "optional:nacos:${spring.application.name}"
   cloud:
     nacos:
       discovery:

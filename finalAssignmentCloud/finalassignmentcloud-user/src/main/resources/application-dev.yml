@@ -27,8 +27,6 @@ spring:
               - uri: http://127.0.0.1:${CLOUD_SYSTEM_PORT:18085}
             finalassignmentcloud-ai:
               - uri: http://127.0.0.1:${CLOUD_AI_PORT:18086}
-            finalassignmentcloud-search:
-              - uri: http://127.0.0.1:${CLOUD_SEARCH_PORT:18087}
             finalassignmentcloud-rag:
               - uri: http://127.0.0.1:${CLOUD_RAG_PORT:18088}
             finalassignmentcloud-gateway:

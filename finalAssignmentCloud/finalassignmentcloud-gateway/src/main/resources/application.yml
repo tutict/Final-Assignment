@@ -16,7 +16,7 @@ spring:
   application:
     name: finalassignmentcloud-gateway
   config:
-    import: "optional:nacos:"
+    import: "optional:nacos:${spring.application.name}"
   cloud:
     nacos:
       discovery:
