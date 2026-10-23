@@ -18,6 +18,9 @@ ai:
     circuit-breaker-failure-threshold: 3
     health-cache-ttl: PT30S
   agent:
+    # When disabled, chat answers come straight from the model + retrieved context instead of
+    # the tool-routing agent loop. Used by offline RAG answer evaluation.
+    enabled: ${AI_AGENT_ENABLED:true}
     max-rounds: 4
     draft:
       store: ${AI_AGENT_DRAFT_STORE:redis}

@@ -39,6 +39,31 @@ class AnswerGroundingPolicyTest {
     }
 
     @Test
+    void allowsFullWidthCitationBrackets() {
+        assertThat(policy.evaluate("需要在十五日内缴纳【1】", List.of(source())).grounded()).isTrue();
+    }
+
+    @Test
+    void allowsGroupedCitationsWithHalfWidthOrFullWidthCommas() {
+        List<RetrievalResult> sources = List.of(source(), secondSource());
+
+        assertThat(policy.evaluate("两项规定同时适用 [1,2]", sources).grounded()).isTrue();
+        assertThat(policy.evaluate("两项规定同时适用 [1，2]", sources).grounded()).isTrue();
+        assertThat(policy.evaluate("两项规定同时适用【1，2】", sources).grounded()).isTrue();
+        assertThat(policy.evaluate("两项规定同时适用 [1, 2]", sources).grounded()).isTrue();
+    }
+
+    @Test
+    void rejectsGroupedCitationWhenEveryIndexIsOutsideSourceRange() {
+        List<RetrievalResult> sources = List.of(source(), secondSource());
+
+        GroundingDecision decision = policy.evaluate("详见 [3,4]", sources);
+
+        assertThat(decision.grounded()).isFalse();
+        assertThat(decision.reason()).isEqualTo("missing_citation");
+    }
+
+    @Test
     void rejectsCitationIndexOutsideSourceRange() {
         GroundingDecision decision = policy.evaluate("see [9] for details", List.of(source()));
 
@@ -104,6 +129,24 @@ class AnswerGroundingPolicyTest {
                 0.2,
                 0.6,
                 0.84,
+                Map.of()
+        );
+    }
+
+    private static RetrievalResult secondSource() {
+        return new RetrievalResult(
+                "chunk-2",
+                "doc-2",
+                "逾期缴纳会产生滞纳金。",
+                "Late Payment Rules",
+                "BUSINESS",
+                "docs",
+                "8",
+                "body",
+                "/fine/late",
+                0.1,
+                0.5,
+                0.72,
                 Map.of()
         );
     }

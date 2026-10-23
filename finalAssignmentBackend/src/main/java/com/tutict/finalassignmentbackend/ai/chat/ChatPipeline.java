@@ -206,13 +206,19 @@ public class ChatPipeline {
         AiAgentRole agentRole = identity.isAuthenticated()
                 ? aiAgentRoleResolver.resolve(identity.roles())
                 : aiAgentRoleResolver.resolve(metadata);
+        // Tool-routing constraints only make sense when the agent loop is active. In pure RAG
+        // mode (ai.agent.enabled=false) injecting navigation/draft rules would steer the model
+        // away from answering from the retrieved context.
+        AgentRuntime runtime = resolveAgentRuntime();
+        String agentConstraints = runtime != null && agentConstraintService != null
+                ? agentConstraintService.constraintsFor(agentRole)
+                : "";
         String prompt = promptAssembler.assemble(
                 sanitizeUserMessage(userMessage),
                 conversationWindow(metadata),
                 retrievalResults,
-                agentConstraintService.constraintsFor(agentRole)
+                agentConstraints
         );
-        AgentRuntime runtime = resolveAgentRuntime();
         Flux<ChatStreamEvent> events = runtime != null
                 ? runtime.run(userMessage, request.sessionKey(), prompt, metadata, identity)
                 : chatStreamService.stream(new AiChatStreamRequest(

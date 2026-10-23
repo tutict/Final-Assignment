@@ -25,7 +25,10 @@ public class AnswerGroundingPolicy {
     public static final String UNCITED_ANSWER =
             "抱歉，我无法为该问题提供有可靠来源支撑的回答。";
 
-    private static final Pattern NUMERIC_CITATION = Pattern.compile("\\[(\\d{1,2})]");
+    // Accept half-width [1] and full-width 【1】 markers, including grouped forms such as
+    // [1,2] and [1，2] that models emit when a sentence is supported by several sources.
+    private static final Pattern NUMERIC_CITATION =
+            Pattern.compile("[\\[【](\\d{1,2}(?:\\s*[,，]\\s*\\d{1,2})*)[\\]】]");
 
     private final boolean enforcementEnabled;
 
@@ -64,9 +67,15 @@ public class AnswerGroundingPolicy {
     private static boolean hasCitation(String answer, List<RetrievalResult> sources) {
         Matcher matcher = NUMERIC_CITATION.matcher(answer);
         while (matcher.find()) {
-            int index = Integer.parseInt(matcher.group(1));
-            if (index >= 1 && index <= sources.size()) {
-                return true;
+            for (String part : matcher.group(1).split("[,，]")) {
+                String digits = part.trim();
+                if (digits.isEmpty()) {
+                    continue;
+                }
+                int index = Integer.parseInt(digits);
+                if (index >= 1 && index <= sources.size()) {
+                    return true;
+                }
             }
         }
         String lowered = answer.toLowerCase(Locale.ROOT);

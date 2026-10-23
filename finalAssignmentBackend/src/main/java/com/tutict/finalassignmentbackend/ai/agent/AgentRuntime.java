@@ -15,6 +15,7 @@ import com.tutict.finalassignmentbackend.model.ai.ChatAction;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.stereotype.Service;
 import reactor.core.publisher.Flux;
 
@@ -27,6 +28,8 @@ import java.util.Map;
 import java.util.UUID;
 
 @Service
+@ConditionalOnProperty(prefix = "ai.agent", name = "enabled",
+        havingValue = "true", matchIfMissing = true)
 public class AgentRuntime {
 
     private static final Logger logger = LoggerFactory.getLogger(AgentRuntime.class);
