@@ -111,6 +111,19 @@ class AppealManagementControllerApi with BaseApiClient {
     );
   }
 
+  Future<List<AppealRecordModel>> listAllAppealsPaged({
+    int pageSize = 100,
+    int maxPages = 10,
+  }) async {
+    final results = <AppealRecordModel>[];
+    for (var page = 1; page <= maxPages; page++) {
+      final batch = await listAllAppeals(page: page, size: pageSize);
+      results.addAll(batch);
+      if (batch.length < pageSize) break;
+    }
+    return results;
+  }
+
   Future<List<AppealRecordModel>> searchAppealsByNumberPrefix({
     required String appealNumber,
     int page = 1,

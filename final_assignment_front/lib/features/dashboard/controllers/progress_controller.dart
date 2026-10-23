@@ -69,7 +69,7 @@ class ProgressController extends BaseListController<ProgressItem> {
   Future<void> fetchAppeals() async {
     try {
       await appealApi.initializeWithJwt();
-      appeals.value = await appealApi.listAllAppeals();
+      appeals.value = await appealApi.listAllAppealsPaged();
     } catch (_) {
       appeals.clear();
     }

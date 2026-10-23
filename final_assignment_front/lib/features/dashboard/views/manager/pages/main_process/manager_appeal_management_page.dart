@@ -7,7 +7,6 @@ import 'package:final_assignment_front/core/auth/auth_service.dart';
 import 'package:final_assignment_front/core/auth/role_utils.dart';
 import 'package:final_assignment_front/features/api/appeal_management_controller_api.dart';
 import 'package:final_assignment_front/features/api/auth_controller_api.dart';
-import 'package:final_assignment_front/features/api/offense_information_controller_api.dart';
 import 'package:final_assignment_front/features/dashboard/controllers/manager_dashboard_controller.dart';
 import 'package:final_assignment_front/features/dashboard/views/manager/pages/main_process/manager_business_page_chrome.dart';
 import 'package:final_assignment_front/features/dashboard/views/shared/widgets/dashboard_chrome.dart';
@@ -56,8 +55,6 @@ class ManagerAppealManagementPage extends StatefulWidget {
 class _AppealManagementAdminState extends State<ManagerAppealManagementPage> {
   final AppealManagementControllerApi appealApi =
       AppealManagementControllerApi();
-  final OffenseInformationControllerApi offenseApi =
-      OffenseInformationControllerApi();
   final TextEditingController _searchController = TextEditingController();
   List<AppealRecordModel> _appeals = [];
   List<AppealRecordModel> _filteredAppeals = [];
@@ -67,7 +64,6 @@ class _AppealManagementAdminState extends State<ManagerAppealManagementPage> {
   bool _isLoading = false;
   bool _canReviewAppeals = false;
   String _errorMessage = '';
-  static const int _maxOffenseBatch = 20;
   final ManagerDashboardController controller =
       Get.find<ManagerDashboardController>();
 
@@ -124,7 +120,6 @@ class _AppealManagementAdminState extends State<ManagerAppealManagementPage> {
         return;
       }
       await appealApi.initializeWithJwt();
-      await offenseApi.initializeWithJwt();
       await _checkUserRole();
       if (_canReviewAppeals) {
         await _loadAppeals(reset: true);
@@ -230,31 +225,13 @@ class _AppealManagementAdminState extends State<ManagerAppealManagementPage> {
         .toList();
   }
 
-  Future<List<AppealRecordModel>> _fetchAllAppeals({int pageSize = 50}) async {
+  Future<List<AppealRecordModel>> _fetchAllAppeals() async {
     if (!await _validateJwtToken()) {
       NavigationHelper.offAllNamed(Routes.login);
       return [];
     }
     await appealApi.initializeWithJwt();
-    await offenseApi.initializeWithJwt();
-    final offenses = await offenseApi.listOffenses();
-    final List<AppealRecordModel> results = [];
-    for (final offense in offenses.take(_maxOffenseBatch)) {
-      final offenseId = offense.offenseId;
-      if (offenseId == null) continue;
-      try {
-        final subset = await appealApi.listAppeals(
-          offenseId: offenseId,
-          page: 1,
-          size: pageSize,
-        );
-        results.addAll(subset);
-      } catch (e) {
-        developer.log('Failed to load appeals for offense $offenseId: $e',
-            name: 'AppealManagement');
-      }
-    }
-    return results;
+    return appealApi.listAllAppealsPaged();
   }
 
   Future<void> _loadAppeals({bool reset = false, String? query}) async {
