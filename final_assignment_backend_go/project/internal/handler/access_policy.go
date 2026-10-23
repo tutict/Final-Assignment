@@ -16,6 +16,8 @@ const (
 	CapFinanceWrite Capability = "finance_write"
 	CapElevatedRead Capability = "elevated_read"
 	CapFinanceRead  Capability = "finance_read"
+	CapAppealWrite  Capability = "appeal_write"
+	CapAppealRead   Capability = "appeal_read"
 	CapSuperAdmin   Capability = "super_admin"
 )
 
@@ -25,6 +27,8 @@ var capabilityRoles = map[Capability][]string{
 	CapFinanceWrite: {"ADMIN", "SUPER_ADMIN", "TRAFFIC_POLICE", "FINANCE"},
 	CapElevatedRead: {"ADMIN", "SUPER_ADMIN", "TRAFFIC_POLICE", "FINANCE"},
 	CapFinanceRead:  {"ADMIN", "SUPER_ADMIN", "FINANCE"},
+	CapAppealWrite:  {"ADMIN", "SUPER_ADMIN", "TRAFFIC_POLICE", "APPEAL_REVIEWER"},
+	CapAppealRead:   {"ADMIN", "SUPER_ADMIN", "TRAFFIC_POLICE", "FINANCE", "APPEAL_REVIEWER"},
 	CapSuperAdmin:   {"SUPER_ADMIN"},
 }
 
@@ -51,7 +55,7 @@ var resourcePolicies = map[Resource]resourcePolicy{
 	ResourceDrivers:    {Write: CapStaffWrite, UnscopedRead: CapElevatedRead},
 	ResourceVehicles:   {Write: CapStaffWrite, UnscopedRead: CapElevatedRead},
 	ResourceOffenses:   {Write: CapStaffWrite, UnscopedRead: CapElevatedRead},
-	ResourceAppeals:    {Write: CapStaffWrite, UnscopedRead: CapElevatedRead},
+	ResourceAppeals:    {Write: CapAppealWrite, UnscopedRead: CapAppealRead},
 	ResourceFines:      {Write: CapFinanceWrite, UnscopedRead: CapElevatedRead},
 	ResourceDeductions: {Write: CapFinanceWrite, UnscopedRead: CapElevatedRead},
 	ResourceProgress:   {Write: CapGovernance, UnscopedRead: CapElevatedRead},

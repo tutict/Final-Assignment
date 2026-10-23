@@ -4,9 +4,11 @@ import (
 	"errors"
 	"final_assignment_backend_go/project/internal/reliability"
 	"final_assignment_backend_go/project/internal/service/payment"
+	"io"
 	"net/http"
 	"strconv"
 	"strings"
+	"unicode/utf8"
 
 	"github.com/gin-gonic/gin"
 
@@ -18,7 +20,11 @@ import (
 type WorkflowServiceContract interface {
 	TriggerOffenseEvent(offenseID int64, event string) (*domain.OffenseInformation, error)
 	TriggerPaymentEvent(paymentID int64, event string, idempotencyKey string) (*domain.PaymentRecord, error)
-	TriggerAppealEvent(appealID int64, event string, idempotencyKey string) (*domain.AppealManagement, error)
+	TriggerAppealEvent(appealID int64, event string, idempotencyKey string, reason string) (*domain.AppealManagement, error)
+}
+
+type appealEventRequest struct {
+	Reason string `json:"reason"`
 }
 
 // WorkflowController 对齐 Spring 的 WorkflowController（/api/workflow）。
@@ -99,7 +105,23 @@ func (c *WorkflowController) triggerAppealEvent(ctx *gin.Context) {
 		ctx.JSON(http.StatusBadRequest, gin.H{"error": "unknown appeal event: " + event})
 		return
 	}
-	updated, err := c.Service.TriggerAppealEvent(appealID, event, idempotencyKey)
+	var payload appealEventRequest
+	if err := ctx.ShouldBindJSON(&payload); err != nil && !errors.Is(err, io.EOF) {
+		ctx.JSON(http.StatusBadRequest, gin.H{
+			"errorCode": "VALIDATION_ERROR",
+			"message":   "请求体必须是包含 reason 的 JSON 对象",
+		})
+		return
+	}
+	reason := strings.TrimSpace(payload.Reason)
+	if utf8.RuneCountInString(reason) > 500 {
+		ctx.JSON(http.StatusBadRequest, gin.H{
+			"errorCode": "VALIDATION_ERROR",
+			"message":   "驳回原因不能超过 500 字",
+		})
+		return
+	}
+	updated, err := c.Service.TriggerAppealEvent(appealID, event, idempotencyKey, reason)
 	if err != nil {
 		workflowError(ctx, err)
 		return

@@ -62,6 +62,10 @@ func TestCapabilityTable(t *testing.T) {
 		{"FINANCE", CapFinanceRead, true},
 		{"TRAFFIC_POLICE", CapFinanceRead, false},
 		{"USER", CapFinanceRead, false},
+		{"APPEAL_REVIEWER", CapAppealWrite, true},
+		{"APPEAL_REVIEWER", CapAppealRead, true},
+		{"FINANCE", CapAppealWrite, false},
+		{"USER", CapAppealRead, false},
 		{"SUPER_ADMIN", CapSuperAdmin, true},
 		{"ADMIN", CapSuperAdmin, false},
 		{"USER", CapSuperAdmin, false},
@@ -103,5 +107,13 @@ func TestResourcePolicyTable(t *testing.T) {
 	}
 	if !RequireWrite(finance, ResourceFines) {
 		t.Fatal("FINANCE should write fines")
+	}
+
+	reviewer := contextWithRole("APPEAL_REVIEWER")
+	if !Unscoped(reviewer, ResourceAppeals) {
+		t.Fatal("APPEAL_REVIEWER should unscoped-read appeals")
+	}
+	if !RequireWrite(reviewer, ResourceAppeals) {
+		t.Fatal("APPEAL_REVIEWER should write appeals")
 	}
 }

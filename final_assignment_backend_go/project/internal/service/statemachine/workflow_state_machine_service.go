@@ -237,7 +237,7 @@ func (s *WorkflowService) TriggerPaymentEvent(paymentID int64, event string, ide
 }
 
 // TriggerAppealEvent 触发申诉状态事件并持久化新状态。
-func (s *WorkflowService) TriggerAppealEvent(appealID int64, event string, idempotencyKey string) (*domain.AppealManagement, error) {
+func (s *WorkflowService) TriggerAppealEvent(appealID int64, event string, idempotencyKey string, reason string) (*domain.AppealManagement, error) {
 	db := reliability.Ledger(s.db)
 	var appeal domain.AppealManagement
 	if err := db.Where("appeal_id = ?", appealID).First(&appeal).Error; err != nil {
@@ -256,9 +256,10 @@ func (s *WorkflowService) TriggerAppealEvent(appealID int64, event string, idemp
 		_ = reliability.MarkFailed(db, idempotencyKey, ErrWorkflowTransitionRejected.Error())
 		return nil, ErrWorkflowTransitionRejected
 	}
+	updates := appealStatusUpdates(next, reason)
 	result := db.Model(&domain.AppealManagement{}).
 		Where("appeal_id = ?", appealID).
-		Update("process_status", next)
+		Updates(updates)
 	if result.Error != nil {
 		_ = reliability.MarkFailed(db, idempotencyKey, result.Error.Error())
 		return nil, result.Error
@@ -267,5 +268,17 @@ func (s *WorkflowService) TriggerAppealEvent(appealID int64, event string, idemp
 		return nil, err
 	}
 	appeal.ProcessStatus = next
+	if rejectionReason, ok := updates["rejection_reason"].(string); ok {
+		appeal.RejectionReason = rejectionReason
+	}
 	return &appeal, nil
+}
+
+func appealStatusUpdates(next, reason string) map[string]any {
+	updates := map[string]any{"process_status": next}
+	trimmed := strings.TrimSpace(reason)
+	if next == AppealStateRejected && trimmed != "" {
+		updates["rejection_reason"] = trimmed
+	}
+	return updates
 }
