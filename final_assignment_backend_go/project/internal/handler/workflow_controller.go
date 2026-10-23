@@ -47,6 +47,9 @@ func (c *WorkflowController) RegisterRoutes(group *gin.RouterGroup) {
 
 // POST /api/workflow/offenses/:offenseId/events/:event
 func (c *WorkflowController) triggerOffenseEvent(ctx *gin.Context) {
+	if !requireWorkflowRole(ctx) {
+		return
+	}
 	offenseID, err := strconv.ParseInt(ctx.Param("offenseId"), 10, 64)
 	if err != nil || offenseID <= 0 {
 		ctx.JSON(http.StatusBadRequest, gin.H{"error": "invalid offense ID"})
@@ -67,6 +70,9 @@ func (c *WorkflowController) triggerOffenseEvent(ctx *gin.Context) {
 
 // POST /api/workflow/payments/:paymentId/events/:event
 func (c *WorkflowController) triggerPaymentEvent(ctx *gin.Context) {
+	if !requireWorkflowRole(ctx) {
+		return
+	}
 	paymentID, err := strconv.ParseInt(ctx.Param("paymentId"), 10, 64)
 	if err != nil || paymentID <= 0 {
 		ctx.JSON(http.StatusBadRequest, gin.H{"error": "invalid payment ID"})
@@ -91,6 +97,9 @@ func (c *WorkflowController) triggerPaymentEvent(ctx *gin.Context) {
 
 // POST /api/workflow/appeals/:appealId/events/:event
 func (c *WorkflowController) triggerAppealEvent(ctx *gin.Context) {
+	if !requireWorkflowRole(ctx) {
+		return
+	}
 	appealID, err := strconv.ParseInt(ctx.Param("appealId"), 10, 64)
 	if err != nil || appealID <= 0 {
 		ctx.JSON(http.StatusBadRequest, gin.H{"error": "invalid appeal ID"})
@@ -127,6 +136,15 @@ func (c *WorkflowController) triggerAppealEvent(ctx *gin.Context) {
 		return
 	}
 	ctx.JSON(http.StatusOK, updated)
+}
+
+// requireWorkflowRole 对齐 Spring / Cloud / Quarkus WorkflowController 的类级角色。
+func requireWorkflowRole(ctx *gin.Context) bool {
+	if memberOfRole(ctx, "SUPER_ADMIN", "ADMIN", "TRAFFIC_POLICE", "FINANCE", "APPEAL_REVIEWER") {
+		return true
+	}
+	ctx.JSON(http.StatusForbidden, gin.H{"error": "access denied"})
+	return false
 }
 
 // workflowError 对齐 Spring WorkflowController 的错误语义：404 / 208 / 409。

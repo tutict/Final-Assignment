@@ -35,15 +35,37 @@ func (s *stubWorkflowService) TriggerAppealEvent(appealID int64, event string, i
 }
 
 func workflowRouter(service *stubWorkflowService) *gin.Engine {
+	return workflowRouterWithRole(service, "ADMIN")
+}
+
+func workflowRouterWithRole(service *stubWorkflowService, role string) *gin.Engine {
 	gin.SetMode(gin.TestMode)
 	router := gin.New()
 	router.Use(func(c *gin.Context) {
-		c.Set("role", "ADMIN")
-		c.Set("normalizedRoles", []string{"ADMIN"})
+		c.Set("role", role)
+		c.Set("normalizedRoles", []string{role})
 		c.Next()
 	})
 	NewWorkflowController(service).RegisterRoutes(router.Group("/api"))
 	return router
+}
+
+func TestAppealWorkflowRejectsUserRole(t *testing.T) {
+	service := &stubWorkflowService{}
+	req := httptest.NewRequest(http.MethodPost, "/api/workflow/appeals/1/events/REJECT",
+		strings.NewReader(`{"reason":"证据不足"}`))
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("Idempotency-Key", "key-user")
+	res := httptest.NewRecorder()
+
+	workflowRouterWithRole(service, "USER").ServeHTTP(res, req)
+
+	if res.Code != http.StatusForbidden {
+		t.Fatalf("status=%d body=%s", res.Code, res.Body.String())
+	}
+	if service.appealCalls != 0 {
+		t.Fatal("USER must not reach the workflow service")
+	}
 }
 
 func TestAppealWorkflowPassesTrimmedReason(t *testing.T) {
