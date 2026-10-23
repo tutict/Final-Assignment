@@ -1,6 +1,7 @@
 package finalassignmentbackend.service.appeal;
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
+import finalassignmentbackend.config.statemachine.states.AppealProcessState;
 import finalassignmentbackend.config.websocket.WsAction;
 import finalassignmentbackend.entity.AppealRecord;
 import finalassignmentbackend.entity.SysRequestHistory;
@@ -67,7 +68,11 @@ public class AppealManagementService {
 
     @Transactional
     @CacheInvalidate(cacheName = "appealCache")
-    public AppealRecord updateProcessStatus(Long appealId, finalassignmentbackend.config.statemachine.states.AppealProcessState newState) {
+    public AppealRecord updateProcessStatus(Long appealId, AppealProcessState newState) {
+        return updateProcessStatus(appealId, newState, null);
+    }
+
+    public AppealRecord updateProcessStatus(Long appealId, AppealProcessState newState, String rejectionReason) {
         validateAppealId(appealId);
         if (newState == null) {
             throw new IllegalArgumentException("Process state must not be null");
@@ -76,10 +81,21 @@ public class AppealManagementService {
         if (record == null) {
             throw new IllegalStateException("Appeal not found: " + appealId);
         }
-        record.setProcessStatus(newState.getCode());
-        record.setUpdatedAt(LocalDateTime.now());
+        applyAppealStatus(record, newState, rejectionReason);
         appealRecordMapper.updateById(record);
         return record;
+    }
+
+    static void applyAppealStatus(AppealRecord record, AppealProcessState newState, String rejectionReason) {
+        Objects.requireNonNull(record, "Appeal record cannot be null");
+        Objects.requireNonNull(newState, "Process state must not be null");
+        record.setProcessStatus(newState.getCode());
+        record.setUpdatedAt(LocalDateTime.now());
+        if (newState == AppealProcessState.REJECTED
+                && rejectionReason != null
+                && !rejectionReason.isBlank()) {
+            record.setRejectionReason(rejectionReason.trim());
+        }
     }
 
     @Transactional

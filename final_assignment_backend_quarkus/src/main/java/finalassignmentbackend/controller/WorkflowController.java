@@ -6,6 +6,7 @@ import finalassignmentbackend.config.statemachine.events.PaymentEvent;
 import finalassignmentbackend.config.statemachine.states.AppealProcessState;
 import finalassignmentbackend.config.statemachine.states.OffenseProcessState;
 import finalassignmentbackend.config.statemachine.states.PaymentState;
+import finalassignmentbackend.dto.WorkflowAppealEventRequest;
 import finalassignmentbackend.entity.AppealRecord;
 import finalassignmentbackend.entity.OffenseRecord;
 import finalassignmentbackend.entity.PaymentRecord;
@@ -37,7 +38,7 @@ import java.util.logging.Logger;
 @Path("/api/workflow")
 @Produces(MediaType.APPLICATION_JSON)
 @Tag(name = "Workflow Engine", description = "State machine driven workflow endpoints")
-@RolesAllowed({"SUPER_ADMIN", "ADMIN", "TRAFFIC_POLICE", "FINANCE"})
+@RolesAllowed({"SUPER_ADMIN", "ADMIN", "TRAFFIC_POLICE", "FINANCE", "APPEAL_REVIEWER"})
 public class WorkflowController {
 
     private static final Logger LOG = Logger.getLogger(WorkflowController.class.getName());
@@ -131,9 +132,16 @@ public class WorkflowController {
     @RunOnVirtualThread
     public Response triggerAppealEvent(@PathParam("appealId") Long appealId,
                                        @PathParam("event") AppealProcessEvent event,
-                                       @HeaderParam("Idempotency-Key") String idempotencyKey) {
+                                       @HeaderParam("Idempotency-Key") String idempotencyKey,
+                                       WorkflowAppealEventRequest payload) {
         if (isBlank(idempotencyKey)) {
             return missingKey();
+        }
+        String rejectionReason = payload == null ? null : payload.getReason();
+        if (rejectionReason != null && rejectionReason.trim().length() > 500) {
+            return Response.status(Response.Status.BAD_REQUEST)
+                    .entity(Map.of("errorCode", "VALIDATION_ERROR", "message", "驳回原因不能超过 500 字"))
+                    .build();
         }
         AppealRecord record = appealManagementService.getAppealById(appealId);
         if (record == null) {
@@ -162,7 +170,8 @@ public class WorkflowController {
             return workflowConflict();
         }
         try {
-            AppealRecord updated = appealManagementService.updateProcessStatus(appealId, newState);
+            AppealRecord updated = appealManagementService.updateProcessStatus(
+                    appealId, newState, rejectionReason);
             workflowEventLedger.markSuccess(idempotencyKey, appealId);
             return Response.ok(updated).build();
         } catch (RuntimeException ex) {

@@ -48,6 +48,11 @@ class RoleGateAnnotationTest {
     }
 
     @Test
+    void workflowAllowsAppealReviewer() throws IOException {
+        assertClassRoles("WorkflowController.java", "\"APPEAL_REVIEWER\"");
+    }
+
+    @Test
     void userCanStillReadOwnDriverAndFineLists() throws IOException {
         String driver = readController("DriverInformationController.java");
         String fine = readController("FineInformationController.java");
