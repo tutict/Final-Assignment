@@ -262,6 +262,11 @@ public class AppealRecordApplicationService {
 
     @Transactional(rollbackFor = Exception.class)
     public AppealRecord updateProcessStatus(Long appealId, AppealProcessState newState) {
+        return updateProcessStatus(appealId, newState, null);
+    }
+
+    @Transactional(rollbackFor = Exception.class)
+    public AppealRecord updateProcessStatus(Long appealId, AppealProcessState newState, String rejectionReason) {
         domainService.validateAppealId(appealId);
         AppealRecord existing = appealRecordMapper.selectById(appealId);
         if (workflowDecisionPolicy.isMissingAppeal(existing)) {
@@ -282,10 +287,17 @@ public class AppealRecordApplicationService {
                 WORKFLOW_UPDATE_CALLER
         );
         merged.setUpdatedAt(LocalDateTime.now());
+        boolean persistRejectionReason = newState == AppealProcessState.REJECTED && !isBlank(rejectionReason);
+        if (persistRejectionReason) {
+            merged.setRejectionReason(rejectionReason.trim());
+        }
         UpdateWrapper<AppealRecord> updateWrapper = new UpdateWrapper<AppealRecord>()
                 .eq("appeal_id", appealId)
                 .set("process_status", merged.getProcessStatus())
                 .set("updated_at", merged.getUpdatedAt());
+        if (persistRejectionReason) {
+            updateWrapper.set("rejection_reason", merged.getRejectionReason());
+        }
         applyAppealStatusPrecondition(updateWrapper, existing.getProcessStatus());
         int rows = appealRecordMapper.update(null, updateWrapper);
         if (workflowDecisionPolicy.isMissingMutation(rows)) {

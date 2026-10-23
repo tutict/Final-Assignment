@@ -694,8 +694,9 @@ class _AppealDetailPageState extends State<AppealDetailPage> {
 
   Future<AppealRecordModel> _triggerAppealWorkflowEvent(
     int appealId,
-    AppealProcessEventType event,
-  ) async {
+    AppealProcessEventType event, {
+    String? reason,
+  }) async {
     if (!await _validateJwtToken()) {
       NavigationHelper.offAllNamed(Routes.login);
       throw AppException.http(401, '未授权');
@@ -704,6 +705,7 @@ class _AppealDetailPageState extends State<AppealDetailPage> {
       appealId: appealId,
       eventCode: event.code,
       idempotencyKey: generateIdempotencyKey(),
+      reason: reason,
     );
   }
 
@@ -863,10 +865,12 @@ class _AppealDetailPageState extends State<AppealDetailPage> {
                           await _ensureReviewStarted(appealId);
                           final updatedAppeal =
                               await _triggerAppealWorkflowEvent(
-                                  appealId, AppealProcessEventType.reject);
+                                  appealId, AppealProcessEventType.reject,
+                                  reason: reason);
                           developer.log(
                               'Rejecting appeal ID: $appealId via workflow event');
                           _showSnackBar('申诉已驳回，用户可重新提交');
+                          _rejectionReasonController.clear();
                           _applyUpdatedAppeal(updatedAppeal);
                           Navigator.pop(ctx);
                           if (mounted) Navigator.pop(context, true);

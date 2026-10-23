@@ -36,6 +36,11 @@ public class AppealWorkflowOrchestrator {
     }
 
     @Transactional
+    public AppealRecord updateProcessStatus(Long appealId, AppealProcessState newState, String rejectionReason) {
+        return applicationService.updateProcessStatus(appealId, newState, rejectionReason);
+    }
+
+    @Transactional
     public AppealRecord applyKafkaEvent(AppealRecord appealRecord, String action) {
         return applicationService.applyKafkaEvent(appealRecord, action);
     }

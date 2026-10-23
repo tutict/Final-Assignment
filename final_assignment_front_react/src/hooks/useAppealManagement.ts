@@ -159,6 +159,7 @@ function invalidateAppealCaches(
 
 interface WorkflowVariables extends Appealish {
   event: string;
+  reason?: string;
 }
 
 export function useAppealManagement(options: ListParams = {}) {
@@ -172,8 +173,11 @@ export function useAppealManagement(options: ListParams = {}) {
 
   const workflowMutation = useMutation({
     mutationKey: appealManagementKeys.workflow(),
-    mutationFn: ({ appealId, event }: WorkflowVariables) =>
-      postWithIdempotency(API_PATHS.APPEAL_WORKFLOW_EVENT(appealId as string | number, event), {}),
+    mutationFn: ({ appealId, event, reason }: WorkflowVariables) =>
+      postWithIdempotency(
+        API_PATHS.APPEAL_WORKFLOW_EVENT(appealId as string | number, event),
+        reason ? { reason } : {}
+      ),
     onSuccess: async (updatedAppeal, variables) => {
       const changedAppeal: Appealish = {
         appealId: variables.appealId,
@@ -190,10 +194,10 @@ export function useAppealManagement(options: ListParams = {}) {
   });
 
   const triggerWorkflow = useCallback(
-    (appealOrId: AppealId | Appealish, event: string): Promise<unknown> => {
+    (appealOrId: AppealId | Appealish, event: string, reason?: string): Promise<unknown> => {
       const { appealId, offenseId } = resolveAppealIdentity(appealOrId);
       if (!appealId) return Promise.resolve();
-      return workflowMutation.mutateAsync({ appealId, offenseId, event });
+      return workflowMutation.mutateAsync({ appealId, offenseId, event, reason });
     },
     [workflowMutation]
   );
@@ -204,7 +208,8 @@ export function useAppealManagement(options: ListParams = {}) {
   );
 
   const reject = useCallback(
-    (appealOrId: AppealId | Appealish) => triggerWorkflow(appealOrId, APPEAL_PROCESS_EVENT.reject),
+    (appealOrId: AppealId | Appealish, reason: string) =>
+      triggerWorkflow(appealOrId, APPEAL_PROCESS_EVENT.reject, reason),
     [triggerWorkflow]
   );
 

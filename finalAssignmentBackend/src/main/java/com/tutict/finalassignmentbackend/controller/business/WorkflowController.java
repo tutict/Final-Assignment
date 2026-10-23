@@ -6,6 +6,7 @@ import com.tutict.finalassignmentbackend.config.statemachine.events.PaymentEvent
 import com.tutict.finalassignmentbackend.config.statemachine.states.AppealProcessState;
 import com.tutict.finalassignmentbackend.config.statemachine.states.OffenseProcessState;
 import com.tutict.finalassignmentbackend.config.statemachine.states.PaymentState;
+import com.tutict.finalassignmentbackend.dto.request.WorkflowAppealEventRequest;
 import com.tutict.finalassignmentbackend.dto.response.ApiResponse;
 import com.tutict.finalassignmentbackend.entity.appeal.AppealRecord;
 import com.tutict.finalassignmentbackend.entity.offense.OffenseRecord;
@@ -21,10 +22,12 @@ import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.annotation.security.RolesAllowed;
+import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RestController;
@@ -115,7 +118,9 @@ public class WorkflowController {
     public ResponseEntity<?> triggerAppealEvent(@PathVariable Long appealId,
                                                 @PathVariable AppealProcessEvent event,
                                                 @RequestHeader(value = "Idempotency-Key", required = true)
-                                                String idempotencyKey) {
+                                                String idempotencyKey,
+                                                @Valid @RequestBody(required = false)
+                                                WorkflowAppealEventRequest payload) {
         AppealRecord record = appealRecordService.getAppealById(appealId);
         if (record == null) {
             return ResponseEntity.notFound().build();
@@ -131,7 +136,10 @@ public class WorkflowController {
             return workflowConflict();
         }
         try {
-            AppealRecord updated = appealRecordService.updateProcessStatus(appealId, newState);
+            AppealRecord updated = appealRecordService.updateProcessStatus(
+                    appealId,
+                    newState,
+                    payload == null ? null : payload.getReason());
             ledgerHistoryReserve.markSuccess(idempotencyKey, appealId);
             return ResponseEntity.ok(updated);
         } catch (RuntimeException ex) {

@@ -44,10 +44,14 @@ public class AppealRecordService {
     }
 
     /**
-     * 供工作流调用的状态更新方法，只改 processStatus 字段
+     * 供工作流调用的状态更新方法，只改 processStatus 字段（驳回时可附带原因）
      */
     public AppealRecord updateProcessStatus(Long appealId, AppealProcessState newState) {
         return workflowOrchestrator.updateProcessStatus(appealId, newState);
+    }
+
+    public AppealRecord updateProcessStatus(Long appealId, AppealProcessState newState, String rejectionReason) {
+        return workflowOrchestrator.updateProcessStatus(appealId, newState, rejectionReason);
     }
 
     @Transactional

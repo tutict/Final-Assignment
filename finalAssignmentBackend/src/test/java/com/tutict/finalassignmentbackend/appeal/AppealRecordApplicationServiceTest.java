@@ -1,6 +1,7 @@
 package com.tutict.finalassignmentbackend.appeal;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.baomidou.mybatisplus.core.conditions.update.UpdateWrapper;
 import com.tutict.finalassignmentbackend.appeal.application.AppealRecordApplicationService;
 import com.tutict.finalassignmentbackend.appeal.application.workflow.AppealWorkflowOrchestrator;
 import com.tutict.finalassignmentbackend.appeal.cache.AppealCachePolicy;
@@ -186,6 +187,71 @@ class AppealRecordApplicationServiceTest {
         verify(cachePolicy).onWrite();
         assertThat(updated.getAppellantName()).isEqualTo("Stable Name");
         assertThat(updated.getProcessStatus()).isEqualTo(AppealProcessState.UNDER_REVIEW.getCode());
+    }
+
+    @Test
+    @SuppressWarnings("unchecked")
+    void rejectedWorkflowPersistsTrimmedRejectionReason() {
+        AppealRecordMapper appealRecordMapper = mock(AppealRecordMapper.class);
+        AppealRecordSearchIndexer searchIndexer = mock(AppealRecordSearchIndexer.class);
+        TransactionalDomainEventPublisher eventPublisher = mock(TransactionalDomainEventPublisher.class);
+        AppealCachePolicy cachePolicy = mock(AppealCachePolicy.class);
+        AppealIdempotencyService idempotencyService = mock(AppealIdempotencyService.class);
+        AppealRecordApplicationService service = new AppealRecordApplicationService(
+                appealRecordMapper,
+                new AppealRecordDomainService(),
+                searchIndexer,
+                eventPublisher,
+                cachePolicy,
+                idempotencyService,
+                new AppealWorkflowDecisionPolicy(),
+                new AppealUpdateMergeCoordinator()
+        );
+        AppealRecord existing = appealRecord();
+        existing.setProcessStatus(AppealProcessState.UNDER_REVIEW.getCode());
+        when(appealRecordMapper.selectById(10L)).thenReturn(existing);
+        when(appealRecordMapper.update(org.mockito.ArgumentMatchers.isNull(), org.mockito.ArgumentMatchers.any())).thenReturn(1);
+        ArgumentCaptor<UpdateWrapper<AppealRecord>> wrapper = ArgumentCaptor.forClass(UpdateWrapper.class);
+
+        AppealRecord updated = service.updateProcessStatus(10L, AppealProcessState.REJECTED, "  证据不足  ");
+
+        verify(appealRecordMapper).update(org.mockito.ArgumentMatchers.isNull(), wrapper.capture());
+        assertThat(wrapper.getValue().getSqlSet()).contains("rejection_reason");
+        assertThat(wrapper.getValue().getParamNameValuePairs()).containsValue("证据不足");
+        assertThat(updated.getProcessStatus()).isEqualTo(AppealProcessState.REJECTED.getCode());
+        assertThat(updated.getRejectionReason()).isEqualTo("证据不足");
+    }
+
+    @Test
+    @SuppressWarnings("unchecked")
+    void nonRejectedWorkflowDoesNotWriteRejectionReason() {
+        AppealRecordMapper appealRecordMapper = mock(AppealRecordMapper.class);
+        AppealRecordSearchIndexer searchIndexer = mock(AppealRecordSearchIndexer.class);
+        TransactionalDomainEventPublisher eventPublisher = mock(TransactionalDomainEventPublisher.class);
+        AppealCachePolicy cachePolicy = mock(AppealCachePolicy.class);
+        AppealIdempotencyService idempotencyService = mock(AppealIdempotencyService.class);
+        AppealRecordApplicationService service = new AppealRecordApplicationService(
+                appealRecordMapper,
+                new AppealRecordDomainService(),
+                searchIndexer,
+                eventPublisher,
+                cachePolicy,
+                idempotencyService,
+                new AppealWorkflowDecisionPolicy(),
+                new AppealUpdateMergeCoordinator()
+        );
+        AppealRecord existing = appealRecord();
+        existing.setProcessStatus(AppealProcessState.UNDER_REVIEW.getCode());
+        when(appealRecordMapper.selectById(10L)).thenReturn(existing);
+        when(appealRecordMapper.update(org.mockito.ArgumentMatchers.isNull(), org.mockito.ArgumentMatchers.any())).thenReturn(1);
+        ArgumentCaptor<UpdateWrapper<AppealRecord>> wrapper = ArgumentCaptor.forClass(UpdateWrapper.class);
+
+        AppealRecord updated = service.updateProcessStatus(10L, AppealProcessState.APPROVED, "说明");
+
+        verify(appealRecordMapper).update(org.mockito.ArgumentMatchers.isNull(), wrapper.capture());
+        assertThat(wrapper.getValue().getSqlSet()).doesNotContain("rejection_reason");
+        assertThat(updated.getProcessStatus()).isEqualTo(AppealProcessState.APPROVED.getCode());
+        assertThat(updated.getRejectionReason()).isNull();
     }
 
     @Test

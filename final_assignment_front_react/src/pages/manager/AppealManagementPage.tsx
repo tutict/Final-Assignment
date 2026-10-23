@@ -93,8 +93,12 @@ export default function AppealManagementPage() {
   const { confirm: handleConfirmReject, loading: rejecting } = useConfirm(
     async () => {
       if (!activeAppealRow?.appealId) return;
+      const reason = rejectReason.trim();
+      if (!reason) {
+        throw new Error('请填写驳回原因');
+      }
       setActionError('');
-      await reject(activeAppealRow);
+      await reject(activeAppealRow, reason);
     },
     {
       onSuccess: handleCloseDetail,
@@ -159,7 +163,12 @@ export default function AppealManagementPage() {
             <div><strong>处理结果：</strong>{activeAppealRow.processResult}</div>
             <label className="form-field full">
               <span>驳回原因</span>
-              <textarea value={rejectReason} onChange={(event) => setRejectReason(event.target.value)} rows={3} />
+              <textarea
+                value={rejectReason}
+                onChange={(event) => setRejectReason(event.target.value)}
+                maxLength={500}
+                rows={3}
+              />
             </label>
           </div>
         ) : null}

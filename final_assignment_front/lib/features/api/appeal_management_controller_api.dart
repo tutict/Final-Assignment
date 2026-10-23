@@ -51,13 +51,18 @@ class AppealManagementControllerApi with BaseApiClient {
     required int appealId,
     required String eventCode,
     required String idempotencyKey,
+    String? reason,
   }) {
     requireNotBlank(eventCode, 'eventCode');
     requireNotBlank(idempotencyKey, 'idempotencyKey');
+    final trimmedReason = reason?.trim();
     return requestObject(
       'POST',
       '/api/workflow/appeals/$appealId/events/${Uri.encodeComponent(eventCode)}',
       AppealRecordModel.fromJson,
+      body: trimmedReason == null || trimmedReason.isEmpty
+          ? null
+          : {'reason': trimmedReason},
       idempotencyKey: idempotencyKey,
     );
   }
