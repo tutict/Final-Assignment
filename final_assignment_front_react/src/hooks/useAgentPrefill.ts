@@ -3,7 +3,8 @@
  * 对齐 Flutter _decodeActionArguments：location.state = { agentAction, agentPrefill }
  * agentPrefill 包含 licensePlate / businessNumber / source。
  */
-import { useLocation } from 'react-router-dom';
+import { useEffect, useState } from 'react';
+import { useLocation, useNavigate } from 'react-router-dom';
 
 export interface AgentPrefill {
   licensePlate?: string;
@@ -20,9 +21,25 @@ interface AgentRouteState {
 /** 读取并消费 route state 中的 agentPrefill（一次性：读取后清除历史 state，避免刷新复现）。 */
 export function useAgentPrefill(): AgentPrefill | null {
   const location = useLocation();
-  const state = location.state as AgentRouteState | null;
-  if (!state || !state.agentPrefill) return null;
-  return state.agentPrefill;
+  const navigate = useNavigate();
+  const [prefill, setPrefill] = useState<AgentPrefill | null>(
+    () => (location.state as AgentRouteState | null)?.agentPrefill ?? null
+  );
+
+  useEffect(() => {
+    const state = location.state as AgentRouteState | null;
+    if (!state?.agentPrefill) return;
+    setPrefill(state.agentPrefill);
+    const remaining: AgentRouteState = { ...state };
+    delete remaining.agentPrefill;
+    delete remaining.agentAction;
+    navigate(
+      { pathname: location.pathname, search: location.search, hash: location.hash },
+      { replace: true, state: Object.keys(remaining).length ? remaining : null }
+    );
+  }, [location, navigate]);
+
+  return prefill;
 }
 
 /** 是否存在车牌预填。 */

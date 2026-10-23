@@ -78,6 +78,14 @@
 - CI 覆盖：GitHub Actions 的 Cloud 作业接入 MySQL 8.0 并灌入 `database/traffic.sql`，对全部 Cloud 模块执行编译与测试；各模块补齐独立的测试配置。
 - 前端会话与角色：Flutter Web 端令牌改存 SharedPreferences（secure storage 在非安全上下文不可用）；超管在管理端按角色集合语义判定为 ADMIN 的超集；外壳重定向参数带 `requestId`，同一页面连续跳转不再被当作重复消费；React 刷新令牌按 `ApiResponse.data` 解包。
 
+### 双前端深度审查加固（2026-10 第三轮）
+
+- 认证续期：React 与 Flutter 都将刷新结果区分为成功、拒绝、瞬时失败；网络抖动或后端短暂不可用时保留本地会话并提示重试，只有服务端明确拒绝才清空令牌。React 刷新成功后同步 axios 默认头、`AuthContext` 角色与 WebSocket 票据；登出先清本地缓存与 React Query 数据，再异步吊销 refresh token。
+- 时间语义：React 统一按本地墙钟时间发送 `YYYY-MM-DDTHH:mm:ss`，不再把 `LocalDateTime` 当成 UTC 实例；请求历史、进度、日志等时间范围检索补齐起止时间，避免 UTC 容器下的整体偏移与恒空结果。
+- 列表完整性：React 抽出 `listAllPages` 自动翻页（用户、备份、仪表盘）；Flutter 生成层新增 `requestAllPages`，车辆、违法、驾驶员、用户与备份列表不再静默截断在首页 20 条；申诉列表改为按页拉取全量数据，不再只扫描前 20 条违法记录。
+- 申诉工作流：驳回原因随工作流事件落库到 `rejection_reason`；`APPEAL_REVIEWER` 可正常进入申诉管理并执行审批；管理端与移动端共用同一状态机与幂等账本。
+- 低危收尾：Flutter 调试日志对 `Authorization` / `Cookie` 脱敏且默认不打印响应体；RAG 资料详情按请求序号丢弃过期响应并显示加载状态；AI 预填参数只消费一次；业务事件去重后按前缀失效 React Query 缓存。
+
 ## 架构速览
 
 ```text

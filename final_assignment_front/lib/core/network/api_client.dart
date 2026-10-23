@@ -54,6 +54,14 @@ class ApiClient {
       StreamController<String>.broadcast();
   static Completer<SessionRefreshStatus>? _refreshCompleter;
   static const int _maxReconnectAttempts = 5;
+  static const bool _logHttpBody =
+      bool.fromEnvironment('LOG_HTTP_BODY', defaultValue: false);
+  static const Set<String> _sensitiveHeaders = {
+    'authorization',
+    'cookie',
+    'set-cookie',
+    'proxy-authorization',
+  };
   static const Duration _initialReconnectDelay = Duration(seconds: 1);
 
   Stream<String> get wsMessageStream => _wsMessageController.stream;
@@ -182,7 +190,8 @@ class ApiClient {
       final uri = _buildUri(path, queryParamsList);
       if (kDebugMode) {
         AppLogger.debug('Request URL: $uri');
-        AppLogger.debug('Final Request Headers: $headerParams');
+        AppLogger.debug(
+            'Final Request Headers: ${_redactHeaders(headerParams)}');
       }
 
       final msgBody =
@@ -197,7 +206,7 @@ class ApiClient {
         msgBody,
       ).timeout(const Duration(seconds: 30));
 
-      if (kDebugMode) {
+      if (kDebugMode && _logHttpBody) {
         AppLogger.debug('Response: ${response.statusCode} - ${response.body}');
       }
 
@@ -356,6 +365,16 @@ class ApiClient {
     if (token != null && token.isNotEmpty) {
       setJwtToken(token);
     }
+  }
+
+  Map<String, String> _redactHeaders(Map<String, String> headers) {
+    return {
+      for (final entry in headers.entries)
+        entry.key:
+            _sensitiveHeaders.contains(entry.key.toLowerCase())
+                ? '<redacted>'
+                : entry.value,
+    };
   }
 
   Uri _buildUri(String path, Iterable<QueryParam> queryParams) {

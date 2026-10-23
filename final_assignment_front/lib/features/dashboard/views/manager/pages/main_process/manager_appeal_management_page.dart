@@ -174,7 +174,7 @@ class _AppealManagementAdminState extends State<ManagerAppealManagementPage> {
     try {
       final jwtToken = (await AuthTokenStore.instance.getJwtToken())!;
       final decodedToken = JwtDecoder.decode(jwtToken);
-      developer.log('JWT decoded: $decodedToken');
+      developer.log('JWT roles claim: ${decodedToken['roles']}');
       final rawRoles = decodedToken['roles'];
       List<String> roles;
       if (rawRoles is String) {
@@ -644,7 +644,7 @@ class _AppealDetailPageState extends State<AppealDetailPage> {
     try {
       final jwtToken = (await AuthTokenStore.instance.getJwtToken())!;
       final decodedToken = JwtDecoder.decode(jwtToken);
-      developer.log('JWT decoded: $decodedToken');
+      developer.log('JWT roles claim: ${decodedToken['roles']}');
       final rawRoles = decodedToken['roles'];
       List<String> roles;
       if (rawRoles is String) {
@@ -807,6 +807,7 @@ class _AppealDetailPageState extends State<AppealDetailPage> {
                     ),
                   ),
                   maxLines: 3,
+                  maxLength: 500,
                   style: themeData.textTheme.bodyMedium?.copyWith(
                     color: themeData.colorScheme.onSurface,
                   ),

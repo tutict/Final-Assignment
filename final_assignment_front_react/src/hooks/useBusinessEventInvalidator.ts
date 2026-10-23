@@ -1,6 +1,16 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { useBusinessEvents, type BusinessEvent } from '../realtime/BusinessEventContext';
+
+function eventQueryKeys(event: BusinessEvent): string[][] {
+  if (event.type === 'APPEAL_STATUS_CHANGED') {
+    return [['appeals'], ['userAppeals']];
+  }
+  if (event.type === 'PAYMENT_STATUS_CHANGED') {
+    return [['payments'], ['fines'], ['offenses']];
+  }
+  return [];
+}
 
 /**
  * 订阅业务事件，在申诉/支付状态变化时失效 React Query 缓存。
@@ -11,26 +21,14 @@ export function useBusinessEventInvalidator(): (queryKeys: string[][]) => void {
   const queryClient = useQueryClient();
   const { subscribe } = useBusinessEvents();
 
-  const [pendingKeys, setPendingKeys] = useState<string[][]>([]);
-
   useEffect(() => {
     const unsubscribe = subscribe((event: BusinessEvent) => {
-      if (event.type === 'APPEAL_STATUS_CHANGED') {
-        setPendingKeys((prev) => [...prev, ['appeals'], ['userAppeals']]);
-      } else if (event.type === 'PAYMENT_STATUS_CHANGED') {
-        setPendingKeys((prev) => [...prev, ['payments'], ['fines'], ['offenses']]);
+      for (const key of eventQueryKeys(event)) {
+        void queryClient.invalidateQueries({ queryKey: key });
       }
     });
     return unsubscribe;
-  }, [subscribe]);
-
-  useEffect(() => {
-    if (pendingKeys.length === 0) return;
-    for (const key of pendingKeys) {
-      void queryClient.invalidateQueries({ queryKey: key });
-    }
-    setPendingKeys([]);
-  }, [pendingKeys, queryClient]);
+  }, [subscribe, queryClient]);
 
   return useMemo(
     () => (queryKeys: string[][]) => {

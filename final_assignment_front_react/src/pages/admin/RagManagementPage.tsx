@@ -2,7 +2,7 @@
  * RAG 知识资料管理页（ADMIN / SUPER_ADMIN），对齐 Flutter RagManagementPage。
  * 功能：概览统计、文档列表（搜索 + 删除）、手动录入、文件上传、回填/向量/索引维护按钮。
  */
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import PageLayout from "../../components/PageLayout";
 import ErrorStateView from "../../components/ErrorStateView";
@@ -192,10 +192,34 @@ export default function RagManagementPage() {
   const [previewQuery, setPreviewQuery] = useState("");
   const [previewHits, setPreviewHits] = useState<RagPreviewHit[]>([]);
   const [detail, setDetail] = useState<RagDocumentDetail | null>(null);
+  const [detailLoading, setDetailLoading] = useState(false);
+  const detailRequestId = useRef(0);
   const [detailTitle, setDetailTitle] = useState("");
   const [detailContent, setDetailContent] = useState("");
   const [detailAcl, setDetailAcl] = useState<AclScope>("PUBLIC");
   const [detailRoute, setDetailRoute] = useState("");
+
+  const openDocumentDetail = (documentId: string) => {
+    const requestId = detailRequestId.current + 1;
+    detailRequestId.current = requestId;
+    setDetailLoading(true);
+    void getRagDocument(documentId)
+      .then((next) => {
+        if (requestId !== detailRequestId.current) return;
+        setDetail(next);
+        setDetailTitle(next.document.title);
+        setDetailContent(next.content);
+        setDetailAcl((next.document.aclScope as AclScope) || "PUBLIC");
+        setDetailRoute(next.document.route);
+      })
+      .catch((error) => {
+        if (requestId !== detailRequestId.current) return;
+        setToast({ message: getErrorMessage(error), isError: true });
+      })
+      .finally(() => {
+        if (requestId === detailRequestId.current) setDetailLoading(false);
+      });
+  };
 
   const reloadAll = () => {
     void queryClient.invalidateQueries({ queryKey: ["rag"] });
@@ -669,15 +693,7 @@ export default function RagManagementPage() {
             <DocumentTile
               key={document.id}
               document={document}
-              onOpen={() => {
-                void getRagDocument(document.id).then((next) => {
-                  setDetail(next);
-                  setDetailTitle(next.document.title);
-                  setDetailContent(next.content);
-                  setDetailAcl((next.document.aclScope as AclScope) || "PUBLIC");
-                  setDetailRoute(next.document.route);
-                }).catch((error) => setToast({ message: getErrorMessage(error), isError: true }));
-              }}
+              onOpen={() => openDocumentDetail(document.id)}
               onDelete={() => deleteMutation.mutate(document.id)}
               deleting={deleteMutation.isPending}
             />
@@ -695,9 +711,16 @@ export default function RagManagementPage() {
           ) : null}
         </div>
       </div>
+      {detailLoading && !detail ? (
+        <div className="panel rag-form-panel" style={{ marginTop: 16 }}>
+          <h3>资料详情</h3>
+          <div className="rag-hint">加载中...</div>
+        </div>
+      ) : null}
       {detail ? (
         <div className="panel rag-form-panel" style={{ marginTop: 16 }}>
           <h3>资料详情</h3>
+          {detailLoading ? <div className="rag-hint">加载中...</div> : null}
           <div className="rag-hint">
             切片 {detail.chunks.length} · 失败 {detail.chunks.filter((chunk) => ["FAILED", "POISONED"].includes(chunk.embeddingStatus.toUpperCase())).length}
           </div>

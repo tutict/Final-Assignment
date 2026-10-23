@@ -1,5 +1,5 @@
 import { useDeferredValue, useEffect, useMemo, useState } from 'react';
-import { useMutation, useQuery, type UseQueryResult } from '@tanstack/react-query';
+import { useMutation, useQuery, useQueryClient, type UseQueryResult } from '@tanstack/react-query';
 import PageLayout from '../../components/PageLayout';
 import DataTable from '../../components/DataTable';
 import SearchBar from '../../components/SearchBar';
@@ -84,21 +84,23 @@ export default function CrudPage({ config }: CrudPageProps) {
     unknown
   > & { refetch?: () => void };
   const { data, isLoading, error, refetch = () => {} } = queryResult;
+  const queryClient = useQueryClient();
+  const invalidateEntity = () => queryClient.invalidateQueries({ queryKey: [config.key] });
 
   const createMutation = useMutation({
     mutationFn: (payload: unknown) => createEntity(config.basePath, payload),
-    onSuccess: () => refetch(),
+    onSuccess: invalidateEntity,
   });
 
   const updateMutation = useMutation({
     mutationFn: ({ id, payload }: { id: string | number; payload: unknown }) =>
       updateEntity(config.basePath, id, payload),
-    onSuccess: () => refetch(),
+    onSuccess: invalidateEntity,
   });
 
   const deleteMutation = useMutation({
     mutationFn: (id: string | number) => deleteEntity(config.basePath, id),
-    onSuccess: () => refetch(),
+    onSuccess: invalidateEntity,
   });
 
   const rows: Record<string, unknown>[] = Array.isArray(data) ? data : [];
