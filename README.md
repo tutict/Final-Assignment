@@ -86,6 +86,11 @@
 - 申诉工作流：驳回原因随工作流事件落库到 `rejection_reason`；`APPEAL_REVIEWER` 可正常进入申诉管理并执行审批；管理端与移动端共用同一状态机与幂等账本。
 - 低危收尾：Flutter 调试日志对 `Authorization` / `Cookie` 脱敏且默认不打印响应体；RAG 资料详情按请求序号丢弃过期响应并显示加载状态；AI 预填参数只消费一次；业务事件去重后按前缀失效 React Query 缓存。
 
+### 四端契约对齐（2026-10 第四轮）
+
+- 申诉驳回原因：Cloud / Quarkus / Go 的 `/api/workflow/appeals/{id}/events/{event}` 统一接收可选 `{reason}`，仅在目标状态为 `Rejected` 时写入 `rejection_reason`；Quarkus 与 Go 同步补齐 500 字上限校验。
+- 审核员准入：Quarkus 工作流端点补入 `APPEAL_REVIEWER`；Go 申诉读写新增独立的 `appeal_read` / `appeal_write` 能力，审核员不再被挡在申诉业务之外。
+
 ## 架构速览
 
 ```text
