@@ -89,7 +89,7 @@
 ### 四端契约对齐（2026-10 第四轮）
 
 - 申诉驳回原因：Cloud / Quarkus / Go 的 `/api/workflow/appeals/{id}/events/{event}` 统一接收可选 `{reason}`，仅在目标状态为 `Rejected` 时写入 `rejection_reason`；Quarkus 与 Go 同步补齐 500 字上限校验。
-- 审核员准入：Quarkus 工作流端点补入 `APPEAL_REVIEWER`；Go 申诉读写新增独立的 `appeal_read` / `appeal_write` 能力，审核员不再被挡在申诉业务之外。
+- 审核员与端点准入：Quarkus 工作流端点补入 `APPEAL_REVIEWER`；Go 申诉读写新增独立的 `appeal_read` / `appeal_write` 能力，并给 `/api/workflow/*` 补上类级角色门禁，普通用户不再能触发状态机。
 
 ## 架构速览
 
