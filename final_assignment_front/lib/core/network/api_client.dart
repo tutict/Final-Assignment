@@ -52,7 +52,7 @@ class ApiClient {
   final Map<String, Completer<Map<String, dynamic>>> _pendingRequests = {};
   final StreamController<String> _wsMessageController =
       StreamController<String>.broadcast();
-  static Completer<bool>? _refreshCompleter;
+  static Completer<SessionRefreshStatus>? _refreshCompleter;
   static const int _maxReconnectAttempts = 5;
   static const Duration _initialReconnectDelay = Duration(seconds: 1);
 
@@ -215,8 +215,8 @@ class ApiClient {
           !isRetry &&
           authNames.contains('bearerAuth') &&
           !passThroughStatusCodes.contains(401)) {
-        final refreshed = await _safeRefreshToken();
-        if (refreshed) {
+        final refreshStatus = await _safeRefreshToken();
+        if (refreshStatus == SessionRefreshStatus.success) {
           return await invokeAPI(
             path,
             method,
@@ -230,11 +230,18 @@ class ApiClient {
             isRetry: true,
           );
         }
-        await _clearSessionAndRedirect();
+        if (refreshStatus == SessionRefreshStatus.rejected) {
+          await _clearSessionAndRedirect();
+          throw const AppException(
+            type: AppErrorType.unauthorized,
+            message: 'Login expired',
+            statusCode: 401,
+          );
+        }
+        // 瞬时失败：保留 refresh token 与会话，交给用户稍后重试。
         throw const AppException(
-          type: AppErrorType.unauthorized,
-          message: 'Login expired',
-          statusCode: 401,
+          type: AppErrorType.network,
+          message: '登录状态续期失败，请检查网络后重试',
         );
       }
 
@@ -282,31 +289,32 @@ class ApiClient {
     }
   }
 
-  Future<bool> _safeRefreshToken() async {
+  Future<SessionRefreshStatus> _safeRefreshToken() async {
     if (_refreshCompleter != null) {
       return _refreshCompleter!.future;
     }
 
-    _refreshCompleter = Completer<bool>();
+    final completer = Completer<SessionRefreshStatus>();
+    _refreshCompleter = completer;
     try {
       if (!Get.isRegistered<AuthService>()) {
-        _refreshCompleter!.complete(false);
-        return false;
+        completer.complete(SessionRefreshStatus.rejected);
+        return SessionRefreshStatus.rejected;
       }
-      final result = await Get.find<AuthService>().refreshJwtToken();
-      if (result) {
+      final status = await Get.find<AuthService>().refreshSession();
+      if (status == SessionRefreshStatus.success) {
         final token = await AuthTokenStore.instance.getJwtToken();
         if (token != null && token.isNotEmpty) {
           setJwtToken(token);
         }
       }
-      _refreshCompleter!.complete(result);
-      return result;
+      completer.complete(status);
+      return status;
     } catch (_) {
-      if (!_refreshCompleter!.isCompleted) {
-        _refreshCompleter!.complete(false);
+      if (!completer.isCompleted) {
+        completer.complete(SessionRefreshStatus.transientFailure);
       }
-      return false;
+      return SessionRefreshStatus.transientFailure;
     } finally {
       _refreshCompleter = null;
     }
@@ -322,7 +330,23 @@ class ApiClient {
   Future<void> _refreshJwtForAuth(List<String> authNames) async {
     if (!authNames.contains('bearerAuth')) return;
     if (!Get.isRegistered<AuthService>()) return;
-    await Get.find<AuthService>().ensureValidSession(redirectIfInvalid: true);
+    // 不在续期内部直接跳登录：瞬时失败时保留会话，由调用方提示重试；
+    // 只有确认不可恢复（refresh token 已不存在/被拒）才抛 unauthorized。
+    final valid = await Get.find<AuthService>().ensureValidSession();
+    if (valid) return;
+
+    final refreshToken = await AuthTokenStore.instance.getRefreshToken();
+    if (refreshToken == null || refreshToken.isEmpty) {
+      throw const AppException(
+        type: AppErrorType.unauthorized,
+        message: 'Login expired',
+        statusCode: 401,
+      );
+    }
+    throw const AppException(
+      type: AppErrorType.network,
+      message: '登录状态续期失败，请检查网络后重试',
+    );
   }
 
   Future<void> _loadJwtForAuth(List<String> authNames) async {
