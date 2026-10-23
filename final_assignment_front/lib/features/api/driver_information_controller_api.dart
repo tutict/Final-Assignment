@@ -38,7 +38,8 @@ class DriverInformationControllerApi with BaseApiClient {
   }
 
   Future<List<DriverInformation>> listDrivers() {
-    return requestList('GET', '/api/drivers', DriverInformation.fromJson);
+    // 后端默认每页 20 条，列表需要全量
+    return requestAllPages('/api/drivers', DriverInformation.fromJson);
   }
 
   Future<void> updateDriverName({

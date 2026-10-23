@@ -13,8 +13,8 @@ class VehicleInformationControllerApi with BaseApiClient {
   Future<void> initializeWithJwt() => initializeClientWithJwt();
 
   Future<List<VehicleInformation>> listVehicles() {
-    return requestList(
-      'GET',
+    // 后端默认每页 20 条，列表/统计需要全量
+    return requestAllPages(
       '/api/vehicles',
       VehicleInformation.fromJson,
     );

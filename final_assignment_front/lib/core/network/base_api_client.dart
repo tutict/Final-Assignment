@@ -712,6 +712,112 @@ mixin BaseApiClient {
     );
   }
 
+  /// 取回服务端分页列表的全部数据。
+  ///
+  /// 生成式 `requestList` 只读第一页 `content`，而这些端点默认每页 20 条，
+  /// 列表/统计会被静默截断。这里从 [startPage] 起按 [pageSize] 翻页，
+  /// 读取 `total` 判断是否取满，并对页数与总行数设硬上限。
+  /// 裸数组端点（未分页）直接返回完整列表。
+  Future<List<T>> requestAllPages<T>(
+    String path,
+    T Function(Map<String, dynamic> json) fromJson, {
+    Iterable<QueryParam> queryParams = const [],
+    int startPage = 0,
+    int pageSize = 100,
+    int maxPages = 10,
+    int maxRows = 500,
+    Set<int> emptyStatusCodes = const {204},
+    Set<int> passThroughStatusCodes = const {},
+  }) async {
+    final baseParams = <String, String>{
+      for (final param in queryParams) param.name: param.value,
+    };
+    final collected = <T>[];
+    var page = startPage;
+
+    for (var fetched = 0;
+        fetched < maxPages && collected.length < maxRows;
+        fetched++) {
+      final response = await request(
+        'GET',
+        path,
+        queryParams: queryParamsFromMap({
+          ...baseParams,
+          'page': page,
+          'size': pageSize,
+        }),
+        passThroughStatusCodes: passThroughStatusCodes,
+      );
+      if (emptyStatusCodes.contains(response.statusCode)) return collected;
+      ensureSuccess(response);
+
+      final payload = unwrapPayload(decodeJsonBody(response));
+      if (payload == null) return collected;
+      if (payload is List) {
+        // 未分页端点：一次返回完整列表
+        collected.addAll(_mapListItems(payload, fromJson, response));
+        break;
+      }
+      if (payload is! Map) {
+        throw AppException(
+          type: AppErrorType.businessError,
+          message: 'Expected JSON list response, got ${payload.runtimeType}',
+          statusCode: response.statusCode,
+          originalError: response,
+        );
+      }
+
+      final body = Map<String, dynamic>.from(payload);
+      final content = body['content'] ?? body['records'] ?? body['items'];
+      if (content is! List) {
+        throw AppException(
+          type: AppErrorType.businessError,
+          message: 'Expected JSON list response, got ${payload.runtimeType}',
+          statusCode: response.statusCode,
+          originalError: response,
+        );
+      }
+
+      collected.addAll(_mapListItems(content, fromJson, response));
+      final total = _asInt(body['total'] ?? body['totalElements'],
+          fallback: collected.length);
+      final serverSize = _asInt(body['size'] ?? body['pageSize'],
+          fallback: pageSize);
+      final serverPage = _asInt(body['page'] ?? body['number'], fallback: page);
+      if (content.isEmpty ||
+          collected.length >= total ||
+          content.length < serverSize) {
+        break;
+      }
+      page = serverPage + 1;
+    }
+
+    return collected.length > maxRows
+        ? collected.sublist(0, maxRows)
+        : collected;
+  }
+
+  List<T> _mapListItems<T>(
+    List<dynamic> list,
+    T Function(Map<String, dynamic> json) fromJson,
+    http.Response response,
+  ) {
+    return list.map((item) {
+      if (item is Map<String, dynamic>) {
+        return fromJson(item);
+      }
+      if (item is Map) {
+        return fromJson(Map<String, dynamic>.from(item));
+      }
+      throw AppException(
+        type: AppErrorType.businessError,
+        message: 'Expected JSON object in list, got ${item.runtimeType}',
+        statusCode: response.statusCode,
+        originalError: response,
+      );
+    }).toList();
+  }
+
   List<T> parseListResponse<T>(
     http.Response response,
     T Function(Map<String, dynamic> json) fromJson, {
@@ -754,20 +860,7 @@ mixin BaseApiClient {
         ),
     };
 
-    return list.map((item) {
-      if (item is Map<String, dynamic>) {
-        return fromJson(item);
-      }
-      if (item is Map) {
-        return fromJson(Map<String, dynamic>.from(item));
-      }
-      throw AppException(
-        type: AppErrorType.businessError,
-        message: 'Expected JSON object in list, got ${item.runtimeType}',
-        statusCode: response.statusCode,
-        originalError: response,
-      );
-    }).toList();
+    return _mapListItems(list, fromJson, response);
   }
 
   List<T> parseValueListResponse<T>(

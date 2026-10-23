@@ -17,50 +17,13 @@ class UserManagementControllerApi with BaseApiClient {
   Future<void> initializeWithJwt() => initializeClientWithJwt();
 
   Future<PageResult<UserResponse>> listUsersPage() async {
-    final response = await request('GET', '/api/users');
-    ensureSuccess(response);
-    if (decodeBodyBytes(response).trim().isEmpty) {
-      return const PageResult<UserResponse>(
-        content: [],
-        total: 0,
-        page: 0,
-        size: 20,
-      );
-    }
-    final decoded = unwrapPayload(jsonDecode(decodeBodyBytes(response)));
-    if (decoded is List) {
-      final users = decoded
-          .map((item) => UserResponse.fromJson(
-                Map<String, dynamic>.from(item as Map),
-              ))
-          .toList();
-      return PageResult<UserResponse>(
-        content: users,
-        total: users.length,
-        page: 1,
-        size: users.length,
-      );
-    }
-    if (decoded is Map) {
-      final page = Map<String, dynamic>.from(decoded);
-      final content = page['content'] ?? page['records'] ?? page['items'];
-      if (content is List) {
-        return PageResult<UserResponse>(
-          content: content
-              .map((item) => UserResponse.fromJson(
-                    Map<String, dynamic>.from(item as Map),
-                  ))
-              .toList(),
-          total: _toInt(page['total'] ?? page['totalElements']) ??
-              content.length,
-          page: _toInt(page['page'] ?? page['number']) ?? 1,
-          size: _toInt(page['size'] ?? page['pageSize']) ?? content.length,
-        );
-      }
-    }
-    throw AppException.http(
-      response.statusCode,
-      'Expected users list response, got ${decoded.runtimeType}',
+    // 后端默认每页 20 条，管理员列表需要全量
+    final users = await requestAllPages('/api/users', UserResponse.fromJson);
+    return PageResult<UserResponse>(
+      content: users,
+      total: users.length,
+      page: 0,
+      size: users.length,
     );
   }
 
@@ -644,12 +607,5 @@ class UserManagementControllerApi with BaseApiClient {
       return <String>[];
     }
     return result.map((item) => item.toString()).toList();
-  }
-
-  int? _toInt(dynamic value) {
-    if (value == null) return null;
-    if (value is int) return value;
-    if (value is num) return value.toInt();
-    return int.tryParse(value.toString());
   }
 }

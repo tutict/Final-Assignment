@@ -49,7 +49,8 @@ class OffenseInformationControllerApi with BaseApiClient {
   }
 
   Future<List<OffenseInformation>> listOffenses() {
-    return requestList('GET', '/api/offenses', OffenseInformation.fromJson);
+    // 后端默认每页 20 条，仪表盘/选择器需要全量
+    return requestAllPages('/api/offenses', OffenseInformation.fromJson);
   }
 
   Future<OffenseInformation> updateOffense({

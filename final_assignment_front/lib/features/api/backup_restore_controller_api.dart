@@ -55,8 +55,7 @@ class BackupRestoreControllerApi with BaseApiClient {
 
   Future<List<BackupRestore>> listBackups({String? status}) {
     final trimmedStatus = status?.trim();
-    return requestList(
-      'GET',
+    return requestAllPages(
       '/api/system/backup',
       BackupRestore.fromJson,
       queryParams: queryParamsFromMap({
