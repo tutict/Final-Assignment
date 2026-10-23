@@ -1,0 +1,13 @@
+{
+  "faithfulness": 0.75,
+  "response_relevancy": 0.75,
+  "context_precision": 0.60,
+  "context_recall": 0.85,
+  "answer_correctness": 0.55,
+  "citation_compliance": 0.90,
+  "max_fallback_rate": 0.10,
+  "max_acl_leakage": 0,
+  "min_unanswerable_abstention": 0.80,
+  "min_scored_coverage": 0.90,
+  "enforce": false
+}

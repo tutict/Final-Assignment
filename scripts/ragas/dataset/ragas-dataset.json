@@ -1,0 +1,271 @@
+{
+  "version": 1,
+  "description": "Chinese RAGAS answer-quality set. Answerable questions cover every PUBLIC chunk of rag-eval/golden-set.json; unanswerable and ACL probes are scored as slices, not RAGAS means.",
+  "questions": [
+    {
+      "id": "a01",
+      "kind": "answerable",
+      "user_input": "罚款最晚需要在多长时间内缴纳？",
+      "reference": "违法罚款需在处罚决定书送达后15日内完成缴纳，逾期将产生滞纳金。",
+      "relevant_chunk_ids": ["c-fine-payment-guide"]
+    },
+    {
+      "id": "a02",
+      "kind": "answerable",
+      "user_input": "缴纳罚款有哪些渠道？",
+      "reference": "可通过交管12123、银行柜台或线上支付平台缴纳，也支持微信支付、支付宝、银行卡转账和现金。",
+      "relevant_chunk_ids": ["c-fine-payment-guide", "c-fine-payment-methods"]
+    },
+    {
+      "id": "a03",
+      "kind": "answerable",
+      "user_input": "逾期缴纳罚款的滞纳金如何计算，最多会是多少？",
+      "reference": "逾期未缴纳罚款的，每日按罚款金额的百分之三加处罚款，滞纳金总额不得超过罚款本金。",
+      "relevant_chunk_ids": ["c-fine-late-fee"]
+    },
+    {
+      "id": "a04",
+      "kind": "answerable",
+      "user_input": "缴款成功后如何获取电子票据？",
+      "reference": "缴款成功后系统自动生成电子票据，可在我的票据页面下载，电子票据与纸质票据具有同等法律效力。",
+      "relevant_chunk_ids": ["c-fine-payment-methods", "c-fine-receipt"]
+    },
+    {
+      "id": "a05",
+      "kind": "answerable",
+      "user_input": "违法记录被撤销后，已缴纳的罚款怎么处理？",
+      "reference": "违法记录被撤销后，已缴纳的罚款将原路退回，退款一般在三个工作日内到账。",
+      "relevant_chunk_ids": ["c-fine-refund"]
+    },
+    {
+      "id": "a06",
+      "kind": "answerable",
+      "user_input": "对违法记录有异议，最晚什么时候可以提交申诉？",
+      "reference": "可在收到处罚决定书之日起六十日内提交申诉，超过法定期限的申诉将不予受理。",
+      "relevant_chunk_ids": ["c-appeal-process", "c-appeal-deadline"]
+    },
+    {
+      "id": "a07",
+      "kind": "answerable",
+      "user_input": "提交申诉需要提供哪些材料？",
+      "reference": "申诉需提供身份证明、行驶证及证据材料。",
+      "relevant_chunk_ids": ["c-appeal-process"]
+    },
+    {
+      "id": "a08",
+      "kind": "answerable",
+      "user_input": "申诉时上传的证据照片或视频有什么要求？",
+      "reference": "证据应能清晰反映违法时间、地点及车辆号牌。",
+      "relevant_chunk_ids": ["c-appeal-evidence"]
+    },
+    {
+      "id": "a09",
+      "kind": "answerable",
+      "user_input": "一个记分周期内记满十二分会怎样？",
+      "reference": "驾驶人应当参加道路交通安全法律法规学习并接受考试；需参加为期七日的满分学习并通过科目一考试，考试合格后记分予以清除。",
+      "relevant_chunk_ids": ["c-license-points", "c-license-restore"]
+    },
+    {
+      "id": "a10",
+      "kind": "answerable",
+      "user_input": "记分周期是多长时间，从何时开始计算？",
+      "reference": "记分周期为十二个月，自驾驶证初次领证之日起计算；周期结束后未满十二分的记分予以清除。",
+      "relevant_chunk_ids": ["c-license-cycle"]
+    },
+    {
+      "id": "a11",
+      "kind": "answerable",
+      "user_input": "满分学习需要多长时间，考试内容是什么？",
+      "reference": "需参加为期七日的满分学习并通过科目一考试。",
+      "relevant_chunk_ids": ["c-license-restore"]
+    },
+    {
+      "id": "a12",
+      "kind": "answerable",
+      "user_input": "新车上牌需要携带哪些材料，到哪里办理？",
+      "reference": "需携带购车发票、车辆合格证、交强险凭证及车主身份证明到车管所办理注册登记。",
+      "relevant_chunk_ids": ["c-vehicle-registration"]
+    },
+    {
+      "id": "a13",
+      "kind": "answerable",
+      "user_input": "非营运小型客车的年检周期是怎样规定的？",
+      "reference": "前六年免上线检验，每两年申领一次检验标志；超过六年需每年上线检验一次。",
+      "relevant_chunk_ids": ["c-vehicle-inspection"]
+    },
+    {
+      "id": "a14",
+      "kind": "answerable",
+      "user_input": "车辆过户需要哪些证件，在哪里办理？",
+      "reference": "买卖双方需携带身份证、行驶证、登记证书到车管所办理转移登记。",
+      "relevant_chunk_ids": ["c-vehicle-transfer"]
+    },
+    {
+      "id": "a15",
+      "kind": "answerable",
+      "user_input": "违法记录生成后通过哪些方式通知车主？",
+      "reference": "系统通过短信、APP推送和邮寄三种方式通知车主，通知状态包括已发送和未发送。",
+      "relevant_chunk_ids": ["c-offense-notice"]
+    },
+    {
+      "id": "a16",
+      "kind": "answerable",
+      "user_input": "超速百分之二十以上未达百分之五十如何处罚？",
+      "reference": "记六分并处罚款。",
+      "relevant_chunk_ids": ["c-offense-speeding"]
+    },
+    {
+      "id": "a17",
+      "kind": "answerable",
+      "user_input": "超速未达百分之二十如何处罚？",
+      "reference": "处警告或二百元以下罚款。",
+      "relevant_chunk_ids": ["c-offense-speeding"]
+    },
+    {
+      "id": "a18",
+      "kind": "answerable",
+      "user_input": "违章停车会被如何处罚？",
+      "reference": "处二十元以上二百元以下罚款，并可将车辆拖移至不妨碍交通的地点。",
+      "relevant_chunk_ids": ["c-offense-parking"]
+    },
+    {
+      "id": "a19",
+      "kind": "answerable",
+      "user_input": "业务办理进度在哪里查看，会推送哪些节点？",
+      "reference": "业务办理进度通过站内消息实时推送，包括受理、审核、办结等节点，用户可在消息中心查看。",
+      "relevant_chunk_ids": ["c-progress-message"]
+    },
+    {
+      "id": "a20",
+      "kind": "answerable",
+      "user_input": "相同幂等键的请求重复提交会怎样？",
+      "reference": "相同幂等键的重复请求只会执行一次，重复提交将返回首次处理结果，避免重复扣款或重复录入。",
+      "relevant_chunk_ids": ["c-idempotency"]
+    },
+    {
+      "id": "a21",
+      "kind": "answerable",
+      "user_input": "驾驶人如何修改联系方式和住址？身份证号码变更怎么办？",
+      "reference": "可在个人中心更新联系方式和住址；身份证号码变更需到窗口办理。",
+      "relevant_chunk_ids": ["c-driver-profile"]
+    },
+    {
+      "id": "a22",
+      "kind": "answerable",
+      "user_input": "账户密码应该怎样设置才安全？",
+      "reference": "建议定期修改登录密码并开启二次验证，密码应包含大小写字母、数字和特殊字符。",
+      "relevant_chunk_ids": ["c-account-security"]
+    },
+    {
+      "id": "a23",
+      "kind": "answerable",
+      "user_input": "智能助手能回答哪些问题，回答是否附带来源？",
+      "reference": "智能助手可回答违法处理、缴费、申诉等常见问题，回答内容基于知识库检索生成并附带引用来源。",
+      "relevant_chunk_ids": ["c-rag-assistant"]
+    },
+    {
+      "id": "a24",
+      "kind": "answerable",
+      "user_input": "超过六十日的申诉还能受理吗？",
+      "reference": "超过法定期限的申诉将不予受理，应在收到处罚决定书六十日内提交。",
+      "relevant_chunk_ids": ["c-appeal-deadline"]
+    },
+    {
+      "id": "a25",
+      "kind": "answerable",
+      "user_input": "缴纳罚款支持微信或支付宝吗？",
+      "reference": "罚款支持微信支付、支付宝、银行卡转账和现金四种缴纳渠道，缴款成功后自动生成电子票据。",
+      "relevant_chunk_ids": ["c-fine-payment-methods"]
+    },
+    {
+      "id": "a26",
+      "kind": "answerable",
+      "user_input": "记满十二分并考试合格后，记分会怎么处理？",
+      "reference": "记满十二分的驾驶人需参加为期七日的满分学习并通过科目一考试，考试合格后记分予以清除。",
+      "relevant_chunk_ids": ["c-license-restore"]
+    },
+    {
+      "id": "a27",
+      "kind": "answerable",
+      "multihop": true,
+      "user_input": "超速百分之二十以上和违章停车分别怎么处罚？",
+      "reference": "超速百分之二十以上未达百分之五十的记六分并处罚款；违章停车处二十元以上二百元以下罚款，并可将车辆拖移至不妨碍交通的地点。",
+      "relevant_chunk_ids": ["c-offense-speeding", "c-offense-parking"]
+    },
+    {
+      "id": "a28",
+      "kind": "answerable",
+      "multihop": true,
+      "user_input": "车辆年检和过户分别需要办理什么？",
+      "reference": "非营运小型客车前六年免上线检验、每两年申领检验标志，超过六年每年上线检验；过户需买卖双方携带身份证、行驶证、登记证书到车管所办理转移登记。",
+      "relevant_chunk_ids": ["c-vehicle-inspection", "c-vehicle-transfer"]
+    },
+    {
+      "id": "a29",
+      "kind": "answerable",
+      "multihop": true,
+      "user_input": "记分周期结束后分数会清除吗？如果记满十二分呢？",
+      "reference": "记分周期为十二个月，周期结束后未满十二分的记分予以清除；记满十二分的需参加七日满分学习并通过科目一考试，合格后记分清除。",
+      "relevant_chunk_ids": ["c-license-cycle", "c-license-restore"]
+    },
+    {
+      "id": "a30",
+      "kind": "answerable",
+      "multihop": true,
+      "user_input": "申诉需要哪些材料？如果违法记录被撤销，罚款怎么退？",
+      "reference": "申诉需提供身份证明、行驶证及证据材料；违法记录被撤销后，已缴纳的罚款原路退回，一般在三个工作日内到账。",
+      "relevant_chunk_ids": ["c-appeal-process", "c-fine-refund"]
+    },
+    {
+      "id": "u01",
+      "kind": "unanswerable",
+      "user_input": "车辆达到报废标准后应如何办理报废？",
+      "reference": "",
+      "relevant_chunk_ids": [],
+      "notes": "语料没有报废流程，期望拒答或说明知识库不足。"
+    },
+    {
+      "id": "u02",
+      "kind": "unanswerable",
+      "user_input": "外地驾驶证转入本地需要哪些手续？",
+      "reference": "",
+      "relevant_chunk_ids": [],
+      "notes": "语料没有驾驶证转入业务，期望拒答或说明知识库不足。"
+    },
+    {
+      "id": "u03",
+      "kind": "unanswerable",
+      "user_input": "在高速公路上占用应急车道会怎么处罚？",
+      "reference": "",
+      "relevant_chunk_ids": [],
+      "notes": "语料只有超速与违停处罚，没有占用应急车道，期望拒答或说明知识库不足。"
+    },
+    {
+      "id": "p01",
+      "kind": "acl_probe",
+      "user_input": "操作日志审查",
+      "reference": "",
+      "relevant_chunk_ids": [],
+      "must_not_return": ["c-admin-audit-log"],
+      "notes": "USER 不应检索到仅 SUPER_ADMIN 可见的日志资料。"
+    },
+    {
+      "id": "p02",
+      "kind": "acl_probe",
+      "user_input": "我的违法记录",
+      "reference": "",
+      "relevant_chunk_ids": [],
+      "must_not_return": ["c-user-offense-mine"],
+      "notes": "USER 文档归属 driver-1001，当前 driver 账号不应看到。"
+    },
+    {
+      "id": "p03",
+      "kind": "acl_probe",
+      "user_input": "每日对账怎么做",
+      "reference": "",
+      "relevant_chunk_ids": [],
+      "must_not_return": ["c-dept-finance-sop"],
+      "notes": "driver 没有部门身份，不应看到 DEPARTMENT 资料。"
+    }
+  ]
+}
