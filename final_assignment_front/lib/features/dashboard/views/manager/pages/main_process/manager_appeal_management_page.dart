@@ -65,7 +65,7 @@ class _AppealManagementAdminState extends State<ManagerAppealManagementPage> {
   DateTime? _startTime;
   DateTime? _endTime;
   bool _isLoading = false;
-  bool _isAdmin = false;
+  bool _canReviewAppeals = false;
   String _errorMessage = '';
   static const int _maxOffenseBatch = 20;
   final ManagerDashboardController controller =
@@ -126,10 +126,10 @@ class _AppealManagementAdminState extends State<ManagerAppealManagementPage> {
       await appealApi.initializeWithJwt();
       await offenseApi.initializeWithJwt();
       await _checkUserRole();
-      if (_isAdmin) {
+      if (_canReviewAppeals) {
         await _loadAppeals(reset: true);
       } else {
-        setState(() => _errorMessage = '权限不足：仅管理员可访问此页面');
+        setState(() => _errorMessage = '权限不足：仅管理员或申诉审核员可访问此页面');
       }
     } catch (e) {
       setState(() => _errorMessage = '页面没有准备好，请稍后重试。');
@@ -154,8 +154,8 @@ class _AppealManagementAdminState extends State<ManagerAppealManagementPage> {
           final roles = (userData['roles'] as List<dynamic>?)
               ?.map((r) => r.toString().toUpperCase())
               .toList();
-          if (roles != null && RoleUtils.canManageBusiness(roles)) {
-            setState(() => _isAdmin = true);
+          if (roles != null && RoleUtils.canReviewAppeals(roles)) {
+            setState(() => _canReviewAppeals = true);
             return;
           }
           developer.log(
@@ -192,11 +192,11 @@ class _AppealManagementAdminState extends State<ManagerAppealManagementPage> {
       } else {
         roles = [];
       }
-      setState(() => _isAdmin = RoleUtils.canManageBusiness(roles));
-      if (!_isAdmin) {
-        setState(() => _errorMessage = '权限不足：JWT角色为 $roles，非管理员');
+      setState(() => _canReviewAppeals = RoleUtils.canReviewAppeals(roles));
+      if (!_canReviewAppeals) {
+        setState(() => _errorMessage = '权限不足：JWT角色为 $roles，非管理员或申诉审核员');
       }
-      developer.log('Roles from JWT: $roles, isAdmin: $_isAdmin');
+      developer.log('Roles from JWT: $roles, canReview: $_canReviewAppeals');
     } catch (e) {
       setState(() => _errorMessage = '从JWT验证角色失败: $e');
       developer.log('JWT role check failed: $e',
@@ -258,7 +258,7 @@ class _AppealManagementAdminState extends State<ManagerAppealManagementPage> {
   }
 
   Future<void> _loadAppeals({bool reset = false, String? query}) async {
-    if (!_isAdmin) return;
+    if (!_canReviewAppeals) return;
 
     if (reset) {
       _appeals.clear();
@@ -561,7 +561,7 @@ class _AppealDetailPageState extends State<AppealDetailPage> {
   final ScrollController _detailScrollController = ScrollController();
   late AppealRecordModel _currentAppeal;
   bool _isLoading = false;
-  bool _isAdmin = false;
+  bool _canReviewAppeals = false;
   String _errorMessage = '';
   final ManagerDashboardController controller =
       Get.find<ManagerDashboardController>();
@@ -642,8 +642,8 @@ class _AppealDetailPageState extends State<AppealDetailPage> {
           final roles = (userData['roles'] as List<dynamic>?)
               ?.map((r) => r.toString().toUpperCase())
               .toList();
-          if (roles != null && RoleUtils.canManageBusiness(roles)) {
-            setState(() => _isAdmin = true);
+          if (roles != null && RoleUtils.canReviewAppeals(roles)) {
+            setState(() => _canReviewAppeals = true);
             return;
           }
           developer.log(
@@ -680,11 +680,11 @@ class _AppealDetailPageState extends State<AppealDetailPage> {
       } else {
         roles = [];
       }
-      setState(() => _isAdmin = RoleUtils.canManageBusiness(roles));
-      if (!_isAdmin) {
-        setState(() => _errorMessage = '权限不足：JWT角色为 $roles，非管理员');
+      setState(() => _canReviewAppeals = RoleUtils.canReviewAppeals(roles));
+      if (!_canReviewAppeals) {
+        setState(() => _errorMessage = '权限不足：JWT角色为 $roles，非管理员或申诉审核员');
       }
-      developer.log('Roles from JWT: $roles, isAdmin: $_isAdmin');
+      developer.log('Roles from JWT: $roles, canReview: $_canReviewAppeals');
     } catch (e) {
       setState(() => _errorMessage = '从JWT验证角色失败: $e');
       developer.log('JWT role check failed: $e',
@@ -1025,7 +1025,7 @@ class _AppealDetailPageState extends State<AppealDetailPage> {
                                 ),
                             ),
                             const SizedBox(height: 24),
-                            if (_isAdmin && canStartReview(status)) ...[
+                            if (_canReviewAppeals && canStartReview(status)) ...[
                               Center(
                                 child: ElevatedButton.icon(
                                   onPressed: () => _startReviewAppeal(
@@ -1048,7 +1048,7 @@ class _AppealDetailPageState extends State<AppealDetailPage> {
                                   ),
                                 ),
                               ),
-                            ] else if (_isAdmin &&
+                            ] else if (_canReviewAppeals &&
                                 (canApprove(status) || canReject(status))) ...[
                               Row(
                                 mainAxisAlignment:
@@ -1093,9 +1093,9 @@ class _AppealDetailPageState extends State<AppealDetailPage> {
                                     borderRadius: BorderRadius.circular(8),
                                   ),
                                   child: Text(
-                                    _isAdmin
+                                    _canReviewAppeals
                                         ? '此申诉已处理，无法再次审批'
-                                        : '权限不足，仅管理员可审批申诉',
+                                        : '权限不足，仅管理员或申诉审核员可审批申诉',
                                     style:
                                         themeData.textTheme.bodyLarge?.copyWith(
                                       color: themeData

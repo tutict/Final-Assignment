@@ -29,6 +29,22 @@ void main() {
     });
   });
 
+  group('RoleUtils.canReviewAppeals', () {
+    test('放行管理员与申诉审核员', () {
+      expect(RoleUtils.canReviewAppeals(['ADMIN']), isTrue);
+      expect(RoleUtils.canReviewAppeals(['SUPER_ADMIN']), isTrue);
+      expect(RoleUtils.canReviewAppeals(['APPEAL_REVIEWER']), isTrue);
+      expect(RoleUtils.canReviewAppeals('ROLE_APPEAL_REVIEWER'), isTrue);
+    });
+
+    test('拒绝非申诉审核角色', () {
+      expect(RoleUtils.canReviewAppeals(['USER']), isFalse);
+      expect(RoleUtils.canReviewAppeals(['TRAFFIC_POLICE', 'FINANCE']), isFalse);
+      expect(RoleUtils.canReviewAppeals(null), isFalse);
+      expect(RoleUtils.canReviewAppeals(''), isFalse);
+    });
+  });
+
   test('代码库不再用角色名精确相等做管理端准入判定', () {
     final offenders = <String>[];
     for (final entity in Directory('lib').listSync(recursive: true).whereType<File>()) {

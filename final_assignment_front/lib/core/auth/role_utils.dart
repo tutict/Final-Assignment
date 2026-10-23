@@ -67,6 +67,11 @@ class RoleUtils {
     return parseRoles(value).any(_isAppealReviewerCode);
   }
 
+  /// 申诉管理页面的准入角色：ADMIN、SUPER_ADMIN 与 APPEAL_REVIEWER。
+  static bool canReviewAppeals(Object? value) {
+    return canManageBusiness(value) || isAppealReviewerRole(value);
+  }
+
   static bool canAccessStaffDashboard(Object? value) {
     return canAccessAdminDashboard(value) || isAppealReviewerRole(value);
   }
