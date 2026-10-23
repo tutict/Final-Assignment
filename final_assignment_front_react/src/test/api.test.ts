@@ -1,9 +1,14 @@
-import { describe, expect, it, vi } from 'vitest';
-import { unwrapList, unwrapPayload } from '../api/entities';
+import { afterEach, describe, expect, it, vi } from 'vitest';
+import { listAllPages, unwrapList, unwrapPayload } from '../api/entities';
+import { api } from '../api/client';
 
 // entities.ts imports the axios singleton at module scope; the tests below only
 // exercise the pure unwrapping helpers, so no network calls can happen.
 import { generateIdempotencyKey, setAuthCallbacks, setRefreshHook } from '../api/client';
+
+afterEach(() => {
+  vi.restoreAllMocks();
+});
 
 describe('backend envelope unwrapping', () => {
   it('unwraps { data: { content: [...] } } page envelopes to the bare array', () => {
@@ -23,6 +28,52 @@ describe('backend envelope unwrapping', () => {
   it('unwrapPayload returns the inner data object when present', () => {
     expect(unwrapPayload({ data: { id: 7 } })).toEqual({ id: 7 });
     expect(unwrapPayload({ id: 7 })).toEqual({ id: 7 });
+  });
+});
+
+describe('listAllPages', () => {
+  const rows = Array.from({ length: 45 }, (_, index) => ({ id: index }));
+
+  it('keeps requesting pages until the server total is collected', async () => {
+    const getSpy = vi.spyOn(api, 'get');
+    // 默认分页只回 20 条
+    getSpy.mockResolvedValueOnce({
+      data: { content: rows.slice(0, 20), total: rows.length, page: 0, size: 20 },
+    } as never);
+    // 按 100/页重取第一页
+    getSpy.mockResolvedValueOnce({
+      data: { content: rows, total: rows.length, page: 0, size: 100 },
+    } as never);
+
+    const result = await listAllPages('/api/users');
+
+    expect(result).toHaveLength(45);
+    expect(getSpy).toHaveBeenCalledTimes(2);
+    expect(getSpy.mock.calls[1][1]).toMatchObject({ params: { page: 0, size: 100 } });
+  });
+
+  it('walks subsequent pages for 1-based endpoints', async () => {
+    const getSpy = vi.spyOn(api, 'get');
+    getSpy.mockResolvedValueOnce({
+      data: { data: { content: rows.slice(0, 2), total: 4, page: 1, size: 2 } },
+    } as never);
+    getSpy.mockResolvedValueOnce({
+      data: { data: { content: rows.slice(2, 4), total: 4, page: 2, size: 2 } },
+    } as never);
+
+    const result = await listAllPages('/api/appeals', { page: 1, size: 2 }, { pageSize: 2 });
+
+    expect(result).toEqual(rows.slice(0, 4));
+    expect(getSpy.mock.calls[1][1]).toMatchObject({ params: { page: 2, size: 2 } });
+  });
+
+  it('returns bare arrays untouched without extra requests', async () => {
+    const getSpy = vi.spyOn(api, 'get').mockResolvedValueOnce({ data: rows } as never);
+
+    const result = await listAllPages('/api/logs/login');
+
+    expect(result).toHaveLength(45);
+    expect(getSpy).toHaveBeenCalledTimes(1);
   });
 });
 

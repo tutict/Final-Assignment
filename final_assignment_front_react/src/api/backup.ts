@@ -3,6 +3,7 @@
  * 提供备份列表、创建、更新（含恢复）、删除、详情，以及按文件名/状态的服务端搜索。
  */
 import { api, generateIdempotencyKey } from './client';
+import { listAllPages } from './entities';
 import { API_PATHS } from '../constants/apiPaths';
 import { nowLocalIso } from '../utils/format';
 
@@ -31,10 +32,8 @@ export interface BackupRestore {
 const BASE = API_PATHS.SYSTEM_BACKUP;
 
 export async function listBackups(status?: string): Promise<BackupRestore[]> {
-  const response = await api.get<BackupRestore[]>(BASE, {
-    params: status ? { status } : undefined,
-  });
-  return Array.isArray(response.data) ? response.data : [];
+  // 后端返回裸 PageResponse（无 ApiResponse 信封），且默认只给第一页 20 条
+  return listAllPages<BackupRestore>(BASE, status ? { status } : {});
 }
 
 export async function getBackup(backupId: number): Promise<BackupRestore> {

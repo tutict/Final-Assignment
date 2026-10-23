@@ -46,6 +46,45 @@ function readPage(payload: unknown): PageBody | null {
 const MAX_PAGE_SIZE = 100;
 const MAX_LIST_ROWS = 500;
 
+/**
+ * 按服务端分页取全量列表。列表/仪表盘只取第一页会静默截断为 20 条，
+ * 这里从服务端回报的起始页开始按 100/页翻页，直到取满 total 或触达行数上限。
+ * 非分页端点（裸数组）原样返回。
+ */
+export async function listAllPages<T = Record<string, unknown>>(
+  basePath: string,
+  params: Params = {},
+  options: { pageSize?: number; maxRows?: number } = {}
+): Promise<T[]> {
+  const pageSize = options.pageSize ?? MAX_PAGE_SIZE;
+  const maxRows = options.maxRows ?? MAX_LIST_ROWS;
+
+  const response = await api.get<unknown>(basePath, { params });
+  const first = readPage(response.data);
+  if (!first) return unwrapList<T>(response.data);
+  if (first.content.length >= first.total) return first.content as T[];
+
+  const collected: T[] = [];
+  let page = first.page;
+  if (first.size === pageSize) {
+    collected.push(...(first.content as T[]));
+    if (collected.length >= first.total) return collected.slice(0, maxRows);
+    page += 1;
+  }
+
+  for (let guard = 0; guard < 10 && collected.length < maxRows; guard += 1) {
+    const body = readPage(
+      (await api.get<unknown>(basePath, { params: { ...params, page, size: pageSize } })).data
+    );
+    if (!body || body.content.length === 0) break;
+    collected.push(...(body.content as T[]));
+    const effectiveSize = body.size > 0 ? body.size : body.content.length;
+    if (collected.length >= body.total || body.content.length < effectiveSize) break;
+    page += 1;
+  }
+  return collected.slice(0, maxRows);
+}
+
 export async function listEntities<T = unknown[]>(basePath: string, params?: Params): Promise<T> {
   const response = await api.get<unknown>(basePath, { params });
   const explicitWindow = Boolean(params && ("page" in params || "size" in params));

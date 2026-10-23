@@ -5,8 +5,7 @@
 import { useQuery, keepPreviousData } from '@tanstack/react-query';
 import { useMemo } from 'react';
 import dayjs from 'dayjs';
-import { api } from '../api/client';
-import { unwrapList } from '../api/entities';
+import { listAllPages } from '../api/entities';
 import { API_PATHS } from '../constants/apiPaths';
 
 export interface OffenseRecord {
@@ -194,27 +193,19 @@ function buildFinePaymentStatus(fines: Array<{ paymentStatus?: string }>): Payme
 export function useOffenseDashboard() {
   const offenses = useQuery<OffenseRecord[]>({
     queryKey: ['offenses', 'dashboard'],
-    queryFn: async () => {
-      const response = await api.get<unknown>(API_PATHS.OFFENSES, { params: { page: 0, size: 100 } });
-      return unwrapList<OffenseRecord>(response.data);
-    },
+    queryFn: () => listAllPages<OffenseRecord>(API_PATHS.OFFENSES, { page: 0, size: 100 }),
     staleTime: 60_000,
     placeholderData: keepPreviousData,
   });
   const fines = useQuery<Array<{ paymentStatus?: string }>>({
     queryKey: ['fines', 'dashboard'],
-    queryFn: async () => {
-      const response = await api.get<unknown>(API_PATHS.FINES);
-      return unwrapList<{ paymentStatus?: string }>(response.data);
-    },
+    queryFn: () => listAllPages<{ paymentStatus?: string }>(API_PATHS.FINES, { page: 1, size: 100 }),
     staleTime: 60_000,
   });
   const appeals = useQuery<Array<{ appealReason?: string }>>({
     queryKey: ['appeals', 'dashboard'],
-    queryFn: async () => {
-      const response = await api.get<unknown>(API_PATHS.APPEAL_LIST, { params: { page: 1, size: 100 } });
-      return unwrapList<{ appealReason?: string }>(response.data);
-    },
+    queryFn: () =>
+      listAllPages<{ appealReason?: string }>(API_PATHS.APPEAL_LIST, { page: 1, size: 100 }),
     staleTime: 60_000,
   });
 
@@ -233,7 +224,7 @@ export function useOffenseDashboard() {
   return {
     ...offenses,
     isLoading: offenses.isLoading || fines.isLoading || appeals.isLoading,
-    isError: Boolean(offenses.isError || fines.isError),
+    isError: Boolean(offenses.isError || fines.isError || appeals.isError),
     metrics,
     refresh: () => {
       void offenses.refetch();

@@ -4,8 +4,7 @@
  */
 import { useQuery, keepPreviousData } from '@tanstack/react-query';
 import { useMemo } from 'react';
-import { api } from '../api/client';
-import { unwrapList } from '../api/entities';
+import { listAllPages } from '../api/entities';
 import { API_PATHS } from '../constants/apiPaths';
 
 export interface UserOffenseRecord {
@@ -67,12 +66,11 @@ export function useUserOffenses(driverId?: string | number) {
   return useQuery<UserOffenseRecord[]>({
     queryKey: ['userOffenses', driverId ?? 'none'],
     enabled: driverId !== undefined && driverId !== null && String(driverId) !== '',
-    queryFn: async () => {
-      const response = await api.get<unknown>(API_PATHS.OFFENSES_BY_DRIVER(driverId as string | number), {
-        params: { page: 1, size: 100 },
-      });
-      return unwrapList<UserOffenseRecord>(response.data);
-    },
+    queryFn: () =>
+      listAllPages<UserOffenseRecord>(API_PATHS.OFFENSES_BY_DRIVER(driverId as string | number), {
+        page: 1,
+        size: 100,
+      }),
     staleTime: 60_000,
     placeholderData: keepPreviousData,
   });
@@ -82,12 +80,11 @@ export function useUserFines(driverId?: string | number) {
   return useQuery<UserFineRecord[]>({
     queryKey: ['userFines', driverId ?? 'none'],
     enabled: driverId !== undefined && driverId !== null && String(driverId) !== '',
-    queryFn: async () => {
-      const response = await api.get<unknown>(API_PATHS.FINES_BY_DRIVER(driverId as string | number), {
-        params: { page: 1, size: 100 },
-      });
-      return unwrapList<UserFineRecord>(response.data);
-    },
+    queryFn: () =>
+      listAllPages<UserFineRecord>(API_PATHS.FINES_BY_DRIVER(driverId as string | number), {
+        page: 1,
+        size: 100,
+      }),
     staleTime: 60_000,
     placeholderData: keepPreviousData,
   });

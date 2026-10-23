@@ -4,7 +4,7 @@
  * 列表与检索端点返回裸 JSON 数组（无分页包装），检索参数 page/size 为 1-based。
  */
 import { api, generateIdempotencyKey } from './client';
-import { unwrapPayload } from './entities';
+import { listAllPages, unwrapPayload } from './entities';
 import { API_PATHS } from '../constants/apiPaths';
 
 export interface ManagedUser {
@@ -40,37 +40,17 @@ export interface ManagedUserInput {
 }
 
 const DEFAULT_PAGE = 1;
-const DEFAULT_SIZE = 20;
-
-function asUserList(data: unknown): ManagedUser[] {
-  const payload = unwrapPayload<unknown>(data);
-  if (Array.isArray(payload)) {
-    return payload as ManagedUser[];
-  }
-  if (payload && typeof payload === 'object') {
-    const page = payload as Record<string, unknown>;
-    const content = page.content ?? page.records ?? page.items;
-    if (Array.isArray(content)) {
-      return content as ManagedUser[];
-    }
-  }
-  return [];
-}
 
 async function searchUsers(
   path: string,
   params: Record<string, string | number>
 ): Promise<ManagedUser[]> {
-  const response = await api.get<unknown>(path, {
-    params: { ...params, page: DEFAULT_PAGE, size: DEFAULT_SIZE },
-  });
-  return asUserList(response.data);
+  return listAllPages<ManagedUser>(path, { ...params, page: DEFAULT_PAGE });
 }
 
-/** GET /api/users —— 全量用户列表。 */
+/** GET /api/users —— 全量用户列表（后端分页，自动翻页取全量）。 */
 export async function listUsers(): Promise<ManagedUser[]> {
-  const response = await api.get<unknown>(API_PATHS.USERS);
-  return asUserList(response.data);
+  return listAllPages<ManagedUser>(API_PATHS.USERS);
 }
 
 /** GET /api/users/search/username/prefix —— 按账号前缀检索。 */
