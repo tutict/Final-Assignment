@@ -4,6 +4,7 @@
  */
 import { api, generateIdempotencyKey } from './client';
 import { API_PATHS } from '../constants/apiPaths';
+import { nowLocalIso } from '../utils/format';
 
 export interface BackupRestore {
   backupId?: number;
@@ -73,7 +74,7 @@ export async function restoreBackup(backup: BackupRestore): Promise<BackupRestor
   if (backup.backupId == null) throw new Error('备份 ID 为空');
   return updateBackup(backup.backupId, {
     ...backup,
-    restoreTime: new Date().toISOString(),
+    restoreTime: nowLocalIso(),
     restoreStatus: 'RESTORED',
     status: 'RESTORED',
   });

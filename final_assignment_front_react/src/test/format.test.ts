@@ -1,5 +1,16 @@
 import { describe, expect, it } from 'vitest';
-import { formatDateTime, formatDate, fromInputDateTime, humanizeKey, normalizeText, toInputDateTime } from '../utils/format';
+import {
+  formatDateTime,
+  formatDate,
+  fromInputDateTime,
+  humanizeKey,
+  normalizeText,
+  nowLocalIso,
+  toInputDateTime,
+  toLocalDateEnd,
+  toLocalDateStart,
+  toLocalIsoDateTime,
+} from '../utils/format';
 
 describe('format utils', () => {
   it('formats an ISO date-time as YYYY-MM-DD HH:mm', () => {
@@ -16,9 +27,24 @@ describe('format utils', () => {
     expect(formatDate('not-a-date')).toBe('not-a-date');
   });
 
-  it('round-trips datetime-local input values to ISO strings', () => {
-    const iso = fromInputDateTime('2026-10-01T08:30');
-    expect(iso).toBe(new Date(iso as string).toISOString());
+  it('maps datetime-local input to a local wall-clock string without a zone', () => {
+    // 后端按 LocalDateTime 解析，带 Z 会被换算时区导致写入时间偏移
+    expect(fromInputDateTime('2026-10-01T08:30')).toBe('2026-10-01T08:30:00');
+    expect(fromInputDateTime('2026-10-01T08:30:00')).toBe('2026-10-01T08:30:00');
+  });
+
+  it('formats arbitrary values as local wall-clock ISO without a zone suffix', () => {
+    expect(toLocalIsoDateTime('2026-10-01T14:30:00')).toBe('2026-10-01T14:30:00');
+    expect(toLocalIsoDateTime('')).toBe('');
+    expect(toLocalIsoDateTime(undefined)).toBe('');
+    expect(nowLocalIso()).toMatch(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}$/);
+  });
+
+  it('expands date pickers to the full local day', () => {
+    expect(toLocalDateStart('2026-10-01')).toBe('2026-10-01T00:00:00');
+    expect(toLocalDateEnd('2026-10-01')).toBe('2026-10-01T23:59:59');
+    expect(toLocalDateStart('')).toBe('');
+    expect(toLocalDateEnd('')).toBe('');
   });
 
   it('humanizes camelCase and snake_case keys', () => {

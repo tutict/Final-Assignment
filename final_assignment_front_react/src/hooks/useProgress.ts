@@ -14,6 +14,7 @@ import {
   updateProgressStatus,
   type ProgressItem,
 } from '../api/progress';
+import { nowLocalIso, toLocalDateEnd, toLocalDateStart } from '../utils/format';
 
 export const PROGRESS_STATUS_CATEGORIES = ['Pending', 'Processing', 'Completed', 'Failed', 'Archived'] as const;
 export type ProgressStatus = (typeof PROGRESS_STATUS_CATEGORIES)[number];
@@ -45,10 +46,15 @@ export function useProgress({ canManage = false }: UseProgressOptions = {}) {
   const hasDateFilter = Boolean(startDate && endDate);
   const hasActiveFilter = Boolean(selectedStatus) || hasDateFilter;
 
-  // 时间范围筛选走独立后端端点（对齐 Flutter fetchProgressByTimeRange）
+  // 时间范围筛选走独立后端端点（对齐 Flutter fetchProgressByTimeRange）；
+  // 后端按秒级 LocalDateTime 绑定，日期需展开成当天起止墙钟时间。
   const timeRangeQuery = useQuery({
     queryKey: ['progress', 'timeRange', startDate, endDate],
-    queryFn: () => searchProgressByTimeRange(startDate as string, endDate as string),
+    queryFn: () =>
+      searchProgressByTimeRange(
+        toLocalDateStart(startDate as string),
+        toLocalDateEnd(endDate as string)
+      ),
     enabled: hasDateFilter,
   });
 
@@ -110,7 +116,7 @@ export function useProgress({ canManage = false }: UseProgressOptions = {}) {
         details: payload.details,
         appealId: payload.appealId,
         status: 'Pending',
-        submitTime: new Date().toISOString(),
+        submitTime: nowLocalIso(),
         username: '',
       }),
     onSuccess: () => invalidateAll(),

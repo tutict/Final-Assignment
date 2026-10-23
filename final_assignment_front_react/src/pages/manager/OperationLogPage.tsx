@@ -18,6 +18,7 @@ import {
 } from '../../api/logSearch';
 import { buildColumns } from '../../utils/buildColumns';
 import { getErrorMessage } from '../../utils/errorMessages';
+import { toLocalDateEnd, toLocalDateStart } from '../../utils/format';
 import type { EntityField } from '../../config/entityTypes';
 
 const SEARCH_OPTIONS: SearchTypeOption[] = [
@@ -58,18 +59,6 @@ const EMPTY_SEARCH: SearchState = {
   submitted: false,
 };
 
-function toIsoStartOfDay(date: string): string {
-  return date ? `${date}T00:00:00` : '';
-}
-
-function toIsoEndOfDay(date: string): string {
-  // 对齐 Flutter operation_log_page：endTime +1 天
-  if (!date) return '';
-  const d = new Date(`${date}T00:00:00`);
-  d.setDate(d.getDate() + 1);
-  return d.toISOString().slice(0, 19);
-}
-
 export default function OperationLogPage() {
   const columns = useMemo(() => buildColumns(LOG_FIELDS), []);
   const [search, setSearch] = useState<SearchState>(EMPTY_SEARCH);
@@ -86,9 +75,10 @@ export default function OperationLogPage() {
         return searchOperationLogsByResult(search.text.trim());
       }
       if (search.type === 'time-range' && search.startDate && search.endDate) {
+        // 后端 LocalDateTime.parse 要求秒级本地时间，结束日取 23:59:59 纳入整天
         return searchOperationLogsByTimeRange(
-          toIsoStartOfDay(search.startDate),
-          toIsoEndOfDay(search.endDate)
+          toLocalDateStart(search.startDate),
+          toLocalDateEnd(search.endDate)
         );
       }
       return listOperationLogs();

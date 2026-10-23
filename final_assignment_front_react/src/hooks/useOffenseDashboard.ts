@@ -4,6 +4,7 @@
  */
 import { useQuery, keepPreviousData } from '@tanstack/react-query';
 import { useMemo } from 'react';
+import dayjs from 'dayjs';
 import { api } from '../api/client';
 import { unwrapList } from '../api/entities';
 import { API_PATHS } from '../constants/apiPaths';
@@ -69,8 +70,11 @@ function isSettledStatus(status?: string): boolean {
 }
 
 
+// 违法时间是后端 LocalDateTime（本地墙钟、无时区），按本地日期切桶；
+// 直接 slice(0,10) 会把带 Z 的 UTC 时间算到错误的日期。
 function dayKey(value: string): string {
-  return value.slice(0, 10);
+  const parsed = dayjs(value);
+  return parsed.isValid() ? parsed.format('YYYY-MM-DD') : value.slice(0, 10);
 }
 
 function dayLabel(value: string): string {
@@ -92,14 +96,13 @@ function countBy<T>(
   );
 }
 
-function buildTimeSeries(data: OffenseRecord[], windowStart: Date): TimeSeriesPoint[] {
+function buildTimeSeries(data: OffenseRecord[], windowStartMs: number): TimeSeriesPoint[] {
   const buckets = new Map<string, TimeSeriesPoint>();
-  const today = new Date();
+  const today = dayjs();
   // 预填 30 天空桶，保证 x 轴连续
   for (let i = WINDOW_DAYS - 1; i >= 0; i -= 1) {
-    const d = new Date(today);
-    d.setDate(today.getDate() - i);
-    const key = d.toISOString().slice(0, 10);
+    const d = today.subtract(i, 'day');
+    const key = d.format('YYYY-MM-DD');
     buckets.set(key, { day: key, label: dayLabel(key), fines: 0, points: 0 });
   }
   for (const item of data) {
@@ -108,7 +111,8 @@ function buildTimeSeries(data: OffenseRecord[], windowStart: Date): TimeSeriesPo
     const key = dayKey(time);
     const bucket = buckets.get(key);
     if (!bucket) continue;
-    if (new Date(time) < windowStart) continue;
+    const timestamp = dayjs(time).valueOf();
+    if (!Number.isNaN(timestamp) && timestamp < windowStartMs) continue;
     bucket.fines += Number(item.fineAmount ?? 0);
     bucket.points += Number(item.deductedPoints ?? 0);
   }
@@ -132,12 +136,11 @@ function buildPaymentStatus(data: OffenseRecord[]): PaymentSlice[] {
 }
 
 export function buildOffenseMetrics(data: OffenseRecord[]): OffenseDashboardMetrics {
-  const now = new Date();
-  const windowStart = new Date(now);
-  windowStart.setDate(now.getDate() - WINDOW_DAYS);
-  const windowStartIso = windowStart.toISOString();
+  const now = dayjs();
+  const windowStart = now.subtract(WINDOW_DAYS, 'day');
+  const windowStartIso = windowStart.format('YYYY-MM-DDTHH:mm:ss');
 
-  const todayKey = now.toISOString().slice(0, 10);
+  const todayKey = now.format('YYYY-MM-DD');
   let todayAdded = 0;
   let pending = 0;
   let processed = 0;
@@ -154,7 +157,7 @@ export function buildOffenseMetrics(data: OffenseRecord[]): OffenseDashboardMetr
 
   return {
     offenseTypes: countBy(data, (item) => item.offenseType || item.offenseDescription, '未知类型'),
-    timeSeries: buildTimeSeries(data, windowStart),
+    timeSeries: buildTimeSeries(data, windowStart.valueOf()),
     paymentStatus: buildPaymentStatus(data),
     appealReasons: countBy(data, (item) => item.processResult || item.remarks, '无'),
     total: data.length,

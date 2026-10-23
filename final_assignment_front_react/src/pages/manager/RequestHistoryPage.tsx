@@ -18,7 +18,7 @@ import {
 } from '../../api/systemLogs';
 import type { RequestHistorySearchField } from '../../constants/apiPaths';
 import type { DataTableColumn } from '../../components/DataTable';
-import { formatDateTime } from '../../utils/format';
+import { formatDateTime, toLocalDateEnd, toLocalDateStart } from '../../utils/format';
 
 interface FieldOption {
   value: RequestHistorySearchField;
@@ -63,6 +63,7 @@ export default function RequestHistoryPage() {
   const [startTime, setStartTime] = useState('');
   const [endTime, setEndTime] = useState('');
   const [page, setPage] = useState(1);
+  const [rangeError, setRangeError] = useState('');
   const [submitted, setSubmitted] = useState<{
     field: RequestHistorySearchField;
     value: string;
@@ -75,13 +76,18 @@ export default function RequestHistoryPage() {
 
   const buildSearchValue = (): string => {
     if (isTimeRange) {
-      // 对齐 api/systemLogs.ts FIELD_PARAMS.time-range：以 "~" 拼接，空侧表示开放区间
-      return `${startTime}~${endTime}`;
+      // 后端两个参数均必填，且只接受秒级 LocalDateTime（"yyyy-MM-ddTHH:mm:ss"）
+      return `${toLocalDateStart(startTime)}~${toLocalDateEnd(endTime)}`;
     }
     return value.trim();
   };
 
   const handleSubmit = (nextPage = 1) => {
+    if (isTimeRange && (!startTime || !endTime)) {
+      setRangeError('请同时选择开始日期和结束日期。');
+      return;
+    }
+    setRangeError('');
     const searchValue = buildSearchValue();
     setPage(nextPage);
     setSubmitted({
@@ -98,6 +104,7 @@ export default function RequestHistoryPage() {
     setStartTime('');
     setEndTime('');
     setSubmitted(null);
+    setRangeError('');
     setPage(1);
   };
 
@@ -174,6 +181,7 @@ export default function RequestHistoryPage() {
             重置
           </button>
         </div>
+        {rangeError ? <p className="form-error">{rangeError}</p> : null}
       </div>
 
       {query.isError ? (

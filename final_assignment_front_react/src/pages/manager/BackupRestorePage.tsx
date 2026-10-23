@@ -17,7 +17,7 @@ import {
   type BackupRestore,
 } from '../../api/backup';
 import { useAuth } from '../../auth/AuthContext';
-import { formatDateTime } from '../../utils/format';
+import { formatDateTime, nowLocalIso } from '../../utils/format';
 import { getErrorMessage } from '../../utils/errorMessages';
 
 export default function BackupRestorePage() {
@@ -82,7 +82,7 @@ export default function BackupRestorePage() {
     try {
       await createBackup({
         backupFileName: name,
-        backupTime: new Date().toISOString(),
+        backupTime: nowLocalIso(),
         remarks: form.remarks.trim() || '手动创建的备份',
         status: 'PENDING',
       });

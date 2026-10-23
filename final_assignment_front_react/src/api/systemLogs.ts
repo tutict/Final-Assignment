@@ -81,7 +81,7 @@ const FIELD_PARAMS: Record<
   user: (value) => ({ userId: value }),
   ip: (value) => ({ requestIp: value }),
   "time-range": (value) => {
-    // value 形如 "startTime~endTime"，留空侧表示开放区间
+    // value 形如 "startTime~endTime"，均为秒级本地时间（后端要求两端都非空）
     const [start, end] = value.split("~");
     return {
       startTime: (start || "").trim(),
