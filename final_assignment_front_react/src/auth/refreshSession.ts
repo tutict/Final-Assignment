@@ -19,6 +19,27 @@ export type RefreshOutcome = 'success' | 'rejected' | 'transientFailure';
 
 let inflight: Promise<RefreshOutcome> | null = null;
 
+type TokenRefreshedListener = (accessToken: string) => void;
+const tokenRefreshedListeners = new Set<TokenRefreshedListener>();
+
+/** 订阅刷新成功后的新访问令牌；React 状态与 WebSocket 依赖它保持同步。 */
+export function onAccessTokenRefreshed(listener: TokenRefreshedListener): () => void {
+  tokenRefreshedListeners.add(listener);
+  return () => {
+    tokenRefreshedListeners.delete(listener);
+  };
+}
+
+function notifyAccessTokenRefreshed(accessToken: string): void {
+  tokenRefreshedListeners.forEach((listener) => {
+    try {
+      listener(accessToken);
+    } catch {
+      /* 订阅方异常不影响刷新结果 */
+    }
+  });
+}
+
 export async function refreshSession(): Promise<RefreshOutcome> {
   if (inflight) return inflight;
 
@@ -39,6 +60,7 @@ export async function refreshSession(): Promise<RefreshOutcome> {
         return 'rejected';
       }
       setTokens(String(nextAccess), String(nextRefresh));
+      notifyAccessTokenRefreshed(String(nextAccess));
       return 'success';
     } catch (error) {
       const status = (error as { response?: { status?: number } })?.response?.status;

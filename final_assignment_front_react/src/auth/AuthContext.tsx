@@ -9,6 +9,7 @@ import {
 } from 'react';
 import { jwtDecode } from 'jwt-decode';
 import { useNavigate } from 'react-router-dom';
+import { useQueryClient } from '@tanstack/react-query';
 import { login as loginApi, register as registerApi, logoutRefresh } from '../api/auth';
 import { getCurrentProfile } from '../api/profile';
 import {
@@ -23,7 +24,7 @@ import {
   getRefreshToken,
   setTokens,
 } from './tokens';
-import { refreshSession } from './refreshSession';
+import { onAccessTokenRefreshed, refreshSession } from './refreshSession';
 
 export interface AuthState {
   token: string;
@@ -116,12 +117,16 @@ function persistProfileFields(values: {
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
   const [auth, setAuth] = useState<AuthState | null>(() => loadStoredAuth());
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
     setAuthCallbacks({
-      onLogout: () => setAuth(null),
+      onLogout: () => {
+        setAuth(null);
+        queryClient.clear();
+      },
       onNavigate: (path) => navigate(path, { replace: true }),
     });
     setRefreshHook(refreshSession);
@@ -129,7 +134,25 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setAuthCallbacks();
       setRefreshHook(null);
     };
-  }, [navigate]);
+  }, [navigate, queryClient]);
+
+  // 刷新成功后同步 React 状态：axios 默认头、WebSocket ticket 与角色都依赖它。
+  useEffect(
+    () =>
+      onAccessTokenRefreshed((nextToken) => {
+        const nextRoles = extractRoles(nextToken).map((role) => role.replace('ROLE_', ''));
+        setAuth((current) => {
+          if (!current) return current;
+          return {
+            ...current,
+            token: nextToken,
+            roles: nextRoles.length > 0 ? nextRoles : current.roles,
+            userRole: nextRoles[0] || current.userRole,
+          };
+        });
+      }),
+    []
+  );
 
   useEffect(() => {
     if (auth?.token) {
@@ -273,11 +296,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const logout = useCallback(async () => {
     const refreshToken = getRefreshToken();
-    await logoutRefresh(refreshToken); // 通知后端吊销 refresh token（失败不阻塞）
+    // 先清本地会话，服务端吊销是尽力而为，不能阻塞登出。
     clearStoredAuth();
     clearTokens();
+    setAuthToken(null);
     setAuth(null);
-  }, []);
+    queryClient.clear();
+    void logoutRefresh(refreshToken);
+  }, [queryClient]);
 
   const value = useMemo<AuthContextValue>(
     () => ({

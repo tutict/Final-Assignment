@@ -4,6 +4,7 @@ interface ApiError {
     data?: { message?: string };
   };
   message?: string;
+  isTransientAuthFailure?: boolean;
 }
 
 function fieldMessages(data: unknown): string {
@@ -28,6 +29,10 @@ export function getErrorMessage(error: unknown): string {
 
   if (!status && isOffline) {
     return '网络连接已断开，请检查网络设置';
+  }
+
+  if (e.isTransientAuthFailure) {
+    return '登录状态续期失败，请检查网络后重试';
   }
 
   switch (status) {

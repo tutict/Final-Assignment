@@ -187,7 +187,11 @@ export function BusinessEventProvider({ children }: { children: ReactNode }) {
         method: 'POST',
         headers: { Authorization: 'Bearer ' + token },
       });
-      if (response.status === 401) return;
+      if (response.status === 401) {
+        // 访问令牌可能刚过期：退避重连，等刷新完成后 token 变化会重建连接。
+        scheduleReconnect();
+        return;
+      }
       if (!response.ok) {
         scheduleReconnect();
         return;
@@ -251,6 +255,7 @@ export function BusinessEventProvider({ children }: { children: ReactNode }) {
       setConnected(false);
       return;
     }
+    reconnectAttemptRef.current = 0;
     void connect();
     return () => {
       clearReconnect();

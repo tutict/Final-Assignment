@@ -6,7 +6,11 @@ vi.mock('../api/auth', () => ({
 }));
 
 import { getAccessToken, getRefreshToken, setTokens } from '../auth/tokens';
-import { refreshSession, resetRefreshState } from '../auth/refreshSession';
+import {
+  onAccessTokenRefreshed,
+  refreshSession,
+  resetRefreshState,
+} from '../auth/refreshSession';
 
 describe('refreshSession', () => {
   beforeEach(() => {
@@ -47,5 +51,29 @@ describe('refreshSession', () => {
     await expect(refreshSession()).resolves.toBe('rejected');
     expect(getAccessToken()).toBeNull();
     expect(getRefreshToken()).toBeNull();
+  });
+
+  it('notifies subscribers with the refreshed access token', async () => {
+    const listener = vi.fn();
+    const unsubscribe = onAccessTokenRefreshed(listener);
+    refreshAccessToken.mockResolvedValue({
+      success: true,
+      data: { accessToken: 'new-access', refreshToken: 'new-refresh' },
+    });
+
+    await expect(refreshSession()).resolves.toBe('success');
+    expect(listener).toHaveBeenCalledWith('new-access');
+    unsubscribe();
+  });
+
+  it('does not notify subscribers on transient failure', async () => {
+    const listener = vi.fn();
+    const unsubscribe = onAccessTokenRefreshed(listener);
+    refreshAccessToken.mockRejectedValue({ response: { status: 503 } });
+
+    await expect(refreshSession()).resolves.toBe('transientFailure');
+    expect(listener).not.toHaveBeenCalled();
+    expect(getAccessToken()).toBe('old-access');
+    unsubscribe();
   });
 });

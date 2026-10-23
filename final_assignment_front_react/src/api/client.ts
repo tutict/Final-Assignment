@@ -45,9 +45,12 @@ export function setAuthToken(token: string | null): void {
 }
 
 api.interceptors.request.use((config) => {
+  // localStorage 是令牌唯一真源：刷新令牌后必须覆盖 axios 默认头里的旧值。
   const stored = localStorage.getItem('authToken');
-  if (stored && !config.headers.Authorization) {
+  if (stored) {
     config.headers.Authorization = `Bearer ${stored}`;
+  } else {
+    delete config.headers.Authorization;
   }
   return config;
 });
@@ -80,17 +83,27 @@ api.interceptors.response.use(
       !(original.url || '').includes(SKIP_REFRESH)
     ) {
       original._retry = true;
+      let outcome: 'success' | 'rejected' | 'transientFailure';
       try {
-        const outcome = await refreshHook();
-        if (outcome === 'success') {
-          const stored = localStorage.getItem('authToken');
-          if (stored) {
-            original.headers.Authorization = `Bearer ${stored}`;
-          }
-          return api.request(original);
-        }
+        outcome = await refreshHook();
       } catch {
-        /* 刷新失败，继续走登录重定向 */
+        outcome = 'transientFailure';
+      }
+      if (outcome === 'success') {
+        const stored = localStorage.getItem('authToken');
+        if (stored) {
+          original.headers.Authorization = `Bearer ${stored}`;
+        }
+        return api.request(original);
+      }
+      if (outcome === 'transientFailure') {
+        // 网络抖动/5xx 不得销毁会话；保留令牌，让用户稍后重试。
+        return Promise.reject(
+          Object.assign(error, {
+            isTransientAuthFailure: true,
+            message: '登录状态续期失败，请检查网络后重试',
+          })
+        );
       }
     }
 
