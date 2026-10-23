@@ -94,6 +94,10 @@ public class AppealRecordService {
      * 供工作流调用的状态更新方法，只改 processStatus 字段
      */
     public AppealRecord updateProcessStatus(Long appealId, AppealProcessState newState) {
+        return updateProcessStatus(appealId, newState, null);
+    }
+
+    public AppealRecord updateProcessStatus(Long appealId, AppealProcessState newState, String rejectionReason) {
         validateAppealId(appealId);
         AppealRecord existing = appealRecordMapper.selectById(appealId);
         if (existing == null) {
@@ -102,6 +106,9 @@ public class AppealRecordService {
         String previousStatus = existing.getProcessStatus();
         existing.setProcessStatus(newState != null ? newState.getCode() : existing.getProcessStatus());
         existing.setUpdatedAt(LocalDateTime.now());
+        if (newState == AppealProcessState.REJECTED && StringUtils.hasText(rejectionReason)) {
+            existing.setRejectionReason(rejectionReason.trim());
+        }
         appealRecordMapper.updateById(existing);
         syncIndexAfterCommit(existing);
         if (!Objects.equals(previousStatus, existing.getProcessStatus())) {

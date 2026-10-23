@@ -6,6 +6,7 @@ import com.tutict.finalassignmentcloud.traffic.config.statemachine.events.Paymen
 import com.tutict.finalassignmentcloud.traffic.config.statemachine.states.AppealProcessState;
 import com.tutict.finalassignmentcloud.traffic.config.statemachine.states.OffenseProcessState;
 import com.tutict.finalassignmentcloud.traffic.config.statemachine.states.PaymentState;
+import com.tutict.finalassignmentcloud.traffic.dto.WorkflowAppealEventRequest;
 import com.tutict.finalassignmentcloud.entity.AppealRecord;
 import com.tutict.finalassignmentcloud.entity.OffenseRecord;
 import com.tutict.finalassignmentcloud.entity.PaymentRecord;
@@ -22,6 +23,7 @@ import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.annotation.security.RolesAllowed;
+import jakarta.validation.Valid;
 import java.util.Map;
 import java.util.logging.Level;
 import java.util.logging.Logger;
@@ -29,6 +31,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
@@ -154,7 +157,9 @@ public class WorkflowController {
     public ResponseEntity<?> triggerAppealEvent(@PathVariable Long appealId,
                                                 @PathVariable AppealProcessEvent event,
                                                 @RequestHeader(value = "Idempotency-Key", required = false)
-                                                String idempotencyKey) {
+                                                String idempotencyKey,
+                                                @Valid @RequestBody(required = false)
+                                                WorkflowAppealEventRequest payload) {
         if (isBlank(idempotencyKey)) {
             return missingKey();
         }
@@ -182,7 +187,8 @@ public class WorkflowController {
             return workflowConflict();
         }
         try {
-            AppealRecord updated = appealRecordService.updateProcessStatus(appealId, newState);
+            AppealRecord updated = appealRecordService.updateProcessStatus(
+                    appealId, newState, payload == null ? null : payload.getReason());
             workflowEventLedger.markSuccess(idempotencyKey, appealId);
             return ResponseEntity.ok(updated);
         } catch (RuntimeException ex) {
