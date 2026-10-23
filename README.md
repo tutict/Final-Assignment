@@ -336,6 +336,17 @@ RAG 数据表定义见：
 
 - `finalAssignmentBackend/src/main/resources/rag/rag_schema.sql`
 
+## RAG 答案质量评估
+
+`scripts/ragas` 提供离线的 RAGAS 答案质量评估，与 CI 中的检索排序门禁互补：检索上下文来自真实 `POST /api/rag/query`，答案来自真实 `POST /api/ai/chat/stream`，由本地裁判模型打分。
+
+- 数据集：30 道可回答题（覆盖全部 22 个 PUBLIC 语料块，含 4 道多跳）、3 道不可回答题、3 个 ACL 探针
+- 依赖：uv + CPython 3.12、ES/MySQL/Redis、Ollama（`nomic-embed-text` / `qwen2.5:7b` / `bge-m3`）
+- 运行：后端以 `AI_AGENT_ENABLED=false RAG_RETRIEVAL_ENABLED=true` 启动，再执行 `uv run ragas-eval all --top-k 5`
+- 基线（2026-10-23，llama3.2，topK=5）：Context Recall 0.967、Context Precision 0.851、Faithfulness 0.802、Answer Correctness 0.760；ACL 泄漏 0、上下文漂移 0、可评分覆盖 30/30；不可回答拒答率 1/3 是当前主要缺口
+
+操作步骤与已知限制见 [scripts/ragas/README.md](scripts/ragas/README.md)，完整基线与发现见 [docs/ai/ragas/baseline-2026-10-23.md](docs/ai/ragas/baseline-2026-10-23.md)。
+
 ## 后端包结构
 
 后端已经从单纯的平铺包逐步拆成按领域归属组织的结构。详细说明见：

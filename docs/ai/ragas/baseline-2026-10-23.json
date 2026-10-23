@@ -1,0 +1,171 @@
+{
+  "run_id": "baseline-20261023",
+  "timestamp": "2026-10-23T13:17:39+00:00",
+  "base_commit": "f36a91d1fc1827873a10e8c6e8cfff63bf488af2",
+  "git_dirty": true,
+  "code_commits": [
+    "8ee309f3",
+    "ecf56d6c"
+  ],
+  "code_commit_note": "评测时 HEAD 为 f36a91d1，工作区含未提交的纯 RAG/引用提示词改动；该改动与 RAGAS 工具链随后分别固化为 8ee309f3 与 ecf56d6c。",
+  "answer_mode": "pure-rag",
+  "top_k": 5,
+  "candidate_depth": 10,
+  "index_alias": "rag_chunk_ragas_current",
+  "models": {
+    "answer": "llama3.2",
+    "product_embedding": "nomic-embed-text",
+    "judge": "qwen2.5:7b",
+    "eval_embedding": "bge-m3"
+  },
+  "ragas_version": "0.4.3",
+  "dataset_hash": "292298fd0e39e0df136583008b585d235dc340dded60b34dadfb281a405ea044",
+  "golden_set_hash": "d8d8659a7e597c01f8058339dc4e94f89b0d4193d5f88ad8763fd44668095559",
+  "corpus_hash": "42a579afea0119d31e073eba95311d4e8a1e0dc66d8195690f99f680dd20382b",
+  "document_count": 31,
+  "counts": {
+    "answerable": 30,
+    "unanswerable": 3,
+    "acl_probe": 3,
+    "scored": 30,
+    "scored_coverage": 1.0
+  },
+  "metrics": {
+    "faithfulness": {
+      "mean": 0.8016666666666666,
+      "target": 0.75,
+      "meets_target": true
+    },
+    "response_relevancy": {
+      "mean": 0.791841651625013,
+      "target": 0.75,
+      "meets_target": true
+    },
+    "context_precision": {
+      "mean": 0.8511111110406111,
+      "target": 0.6,
+      "meets_target": true
+    },
+    "context_recall": {
+      "mean": 0.9666666666666667,
+      "target": 0.85,
+      "meets_target": true
+    },
+    "answer_correctness": {
+      "mean": 0.7601057957713572,
+      "target": 0.55,
+      "meets_target": true
+    }
+  },
+  "citation_compliance": 0.9666666666666667,
+  "fallback_rate": 0.0,
+  "context_drift_count": 0,
+  "provider_error_count": 0,
+  "guardrail_refusal_count": 0,
+  "multihop": {
+    "count": 4,
+    "scored": 4,
+    "faithfulness": 0.8541666666666666,
+    "response_relevancy": 0.6395826699941155,
+    "context_precision": 0.6749999999608334,
+    "context_recall": 1.0,
+    "answer_correctness": 0.7829157200162042
+  },
+  "retrieval": {
+    "hit_at_5": 29,
+    "hit_rate_at_5": 0.9666666666666667,
+    "relevant_chunk_recall": 0.9333333333333333,
+    "max_context_tokens": 387,
+    "context_budget_tokens": 1200,
+    "all_within_budget": true,
+    "median_answer_latency_ms": 510.3,
+    "misses": [
+      {
+        "id": "a01",
+        "question": "罚款最晚需要在多长时间内缴纳？",
+        "missing": "c-fine-payment-guide",
+        "observed_top5": [
+          "c-fine-refund",
+          "c-progress-message",
+          "c-appeal-evidence",
+          "c-appeal-deadline",
+          "c-appeal-process"
+        ]
+      },
+      {
+        "id": "a02",
+        "question": "缴纳罚款有哪些渠道？",
+        "missing": "c-fine-payment-guide",
+        "observed_top5": [
+          "c-fine-payment-methods",
+          "c-fine-receipt",
+          "c-appeal-process",
+          "c-license-points",
+          "c-rag-assistant"
+        ]
+      },
+      {
+        "id": "a28",
+        "question": "车辆年检和过户分别需要办理什么？",
+        "missing": "c-vehicle-transfer",
+        "observed_top5": [
+          "c-vehicle-inspection",
+          "c-license-restore",
+          "c-appeal-process",
+          "c-license-points",
+          "c-license-cycle"
+        ]
+      }
+    ]
+  },
+  "unanswerable": {
+    "total": 3,
+    "abstained": 1,
+    "abstention_rate": 0.3333333333333333,
+    "target": 0.8,
+    "meets_target": false,
+    "detail": {
+      "u01": "拒答",
+      "u02": "未拒答；部分表达不确定后仍继续作答，并混入越南语词",
+      "u03": "未拒答；用违停条款回答应急车道问题，答案看似合理但无知识库依据"
+    }
+  },
+  "acl": {
+    "total": 3,
+    "leaked": 0,
+    "passed": 3,
+    "user_control_visible": true
+  },
+  "internal_label_leaks": {
+    "count": 6,
+    "ids": [
+      "a01",
+      "a02",
+      "a03",
+      "a15",
+      "a19",
+      "a28"
+    ],
+    "examples": [
+      "根据 retrieved context [4], ...",
+      "根据 retrieved_context [1], ..."
+    ],
+    "smoke_only_example": "根据manual_rag_document[c-fine-payment-methods], ...（3 题冒烟运行的 a02；基线答案改为 retrieved_context）"
+  },
+  "hard_failures": [],
+  "findings": [
+    "topK=5 时 dev 的候选深度为 10；RRF 只对进入候选列表的文档计分，BM25 排名第 1 的正确块若不在向量 top10，会失去向量贡献并被挤出 top5。a01/a02/a28 均属此模式。",
+    "同一查询把 topK 提高到 8 后 c-fine-payment-guide 与 c-vehicle-transfer 分别进入第 5/6 名，说明候选深度是当前召回的主要杠杆。",
+    "6/30 答案带出内部上下文标签（retrieved_context、manual_rag_document[...]），属于产品可见的输出卫生问题。",
+    "不可回答题只有 1/3 拒答；u03 用通用知识作答且仍带 [4] 引用，引用护栏无法识别这类无依据回答。",
+    "llama3.2 出现中英/中越混写（a21、u02）和占位符（a16 的 [ unspecified ]），提示词无法完全约束模型输出。",
+    "DEPARTMENT ACL 在真实接口下把部门身份折叠为字符串 DEPARTMENT，与 AclFilterService 的真实部门名匹配不一致，部门语料对任何人不可见；ACL 探针因此只覆盖 ROLE/USER。",
+    "ES 9.4.1 上首次自动建索引时 alias 未创建且无显式报错，评估环境手工补建；建议把 alias 缺失纳入启动检查。"
+  ],
+  "artifacts": {
+    "report": "artifacts/ragas/baseline-20261023/report.md",
+    "metrics": "artifacts/ragas/baseline-20261023/metrics.json",
+    "samples": "artifacts/ragas/baseline-20261023/samples.jsonl",
+    "note": "artifacts/ 已在仓库 .gitignore 中排除；本 JSON 是基线快照。"
+  }
+}

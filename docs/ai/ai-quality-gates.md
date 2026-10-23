@@ -99,3 +99,83 @@ rest of the message is preserved, and the guard is deterministic and unit-tested
 
 Toggle: `ai.guardrail.citation-enforcement.enabled` (env `AI_GUARDRAIL_CITATION_ENFORCEMENT`,
 default `true`).
+
+## 4. RAGAS answer-quality baseline (on demand)
+
+Section 1 checks retrieval ranking offline. `scripts/ragas` complements it by scoring the
+**answers** produced by the real HTTP pipeline: retrieval comes from `POST /api/rag/query`
+and answers from `POST /api/ai/chat/stream` (same identity, prompt, guardrails and Ollama
+models as the product). It is not part of CI because it requires ES, MySQL, Redis and local
+Ollama models.
+
+### Dataset
+
+* 30 answerable Chinese questions covering all 22 PUBLIC golden chunks, 4 of them multihop.
+* 3 unanswerable questions (abstention / hallucination probes).
+* 3 ACL probes (USER -> admin log, wrong user -> "my offense record", no department -> department SOP).
+* Each seeded chunk uses the golden `chunkId` as `sourceId`, so retrieval results align with
+  the dataset exactly. `golden-set.json` is read-only.
+
+### Running
+
+The server must run in pure-RAG mode; otherwise the agent tool router answers from the
+database instead of the retrieved context:
+
+```bash
+cd finalAssignmentBackend
+AI_AGENT_ENABLED=false RAG_RETRIEVAL_ENABLED=true \
+RAG_INDEX_NAME=rag_chunk_ragas_v1 RAG_INDEX_ALIAS=rag_chunk_ragas_current \
+mvn spring-boot:run
+
+cd scripts/ragas
+uv sync --frozen
+uv run ragas-eval validate
+uv run ragas-eval preflight
+uv run ragas-eval seed
+uv run ragas-eval run --top-k 5 --run-id baseline-20261023
+```
+
+Readiness is proven in two steps: every chunk embedding task must be `SUCCEEDED`, then each
+seeded `source_id` must be term-visible on the configured alias. The check deliberately does
+not assume semantic ranking quality, because ranking is what the evaluation measures.
+
+Models: product answer `llama3.2`, product embedding `nomic-embed-text`, judge `qwen2.5:7b`,
+evaluation embedding `bge-m3` (evaluation side only). `RAGAS_OLLAMA_URL` must point at the
+instance that actually holds the judge and evaluation embedding.
+
+### Metrics and baseline (2026-10-23)
+
+RAGAS 0.4.3: Faithfulness, Response Relevancy, LLM Context Precision (with reference),
+LLM Context Recall, Answer Correctness. Hard failures are ACL leakage, context drift,
+provider errors, scoring failures and preflight failures; score thresholds in
+`scripts/ragas/targets.json` are advisory until a baseline is reviewed (`--enforce` turns
+them into failures).
+
+| metric | baseline | target |
+| --- | ---: | ---: |
+| Faithfulness | 0.8017 | 0.75 |
+| Response Relevancy | 0.7918 | 0.75 |
+| Context Precision | 0.8511 | 0.60 |
+| Context Recall | 0.9667 | 0.85 |
+| Answer Correctness | 0.7601 | 0.55 |
+| Citation compliance | 0.9667 | 0.90 |
+| Fallback rate | 0.0000 | <= 0.10 |
+| Unanswerable abstention | 0.3333 | 0.80 (advisory) |
+
+30/30 answerable samples were scored, with 0 ACL leaks, 0 context drift and 0 provider
+errors. Retrieval hit@5 was 29/30 and relevant-chunk recall 93.3%. Known gaps: weak
+abstention on out-of-corpus questions, internal context labels (`retrieved_context`) leaking
+into 6/30 answers, and a retrieval-depth issue where a BM25 top-1 chunk can miss the final
+top-5 at `topK=5` because it is absent from the vector candidate list.
+
+Full report and machine-readable snapshot:
+`docs/ai/ragas/baseline-2026-10-23.md` and `.json`. Raw artifacts stay in
+`artifacts/ragas/<run-id>/` (gitignored).
+
+### Limitations
+
+* Only pure-RAG mode is covered; the default agent mode routes knowledge questions to tools.
+* Absolute scores depend on the judge model; individual zero scores should be checked against
+  the answer and contexts before being treated as defects.
+* The suite needs ES/MySQL/Redis + Ollama and stays outside CI; CI keeps the deterministic
+  retrieval gate from section 1.
