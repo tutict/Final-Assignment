@@ -44,6 +44,8 @@ def compute_metrics(
             base_url=settings.ollama_url,
             temperature=0,
             num_ctx=8192,
+            # Verdicts are short; a runaway generation would otherwise stall the whole run.
+            num_predict=512,
             client_kwargs={"trust_env": False},
         )
     )

@@ -33,8 +33,8 @@ class HybridRetrieverTest {
                 new RetrievalQuery("query", new AclFilterService.AccessContext("u1", java.util.Set.of(), null), 2)
         );
 
-        assertThat(results).extracting(RetrievalResult::chunkId).containsExactly("a", "c");
-        assertThat(Math.abs(results.getFirst().finalScore() - rrfScore(1, 0.4, 60) - rrfScore(1, 0.6, 60)))
+        assertThat(results).extracting(RetrievalResult::chunkId).containsExactly("a", "b");
+        assertThat(Math.abs(results.getFirst().finalScore() - rrfScore(1, 0.8, 60) - rrfScore(1, 0.2, 60)))
                 .isLessThan(0.0001);
     }
 

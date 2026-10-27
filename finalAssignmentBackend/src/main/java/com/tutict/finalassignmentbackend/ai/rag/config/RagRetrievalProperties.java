@@ -9,8 +9,8 @@ public class RagRetrievalProperties {
 
     private boolean enabled = false;
     private int topK = 10;
-    private double vectorWeight = 0.6;
-    private double bm25Weight = 0.4;
+    private double vectorWeight = 0.2;
+    private double bm25Weight = 0.8;
     private double minScore = 0.2;
     private int candidateMultiplier = 3;
     private int rrfRankConstant = 60;

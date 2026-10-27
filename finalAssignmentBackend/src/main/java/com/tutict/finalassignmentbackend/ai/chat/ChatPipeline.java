@@ -2,6 +2,7 @@ package com.tutict.finalassignmentbackend.ai.chat;
 
 import com.tutict.finalassignmentbackend.ai.agent.AgentRuntime;
 import com.tutict.finalassignmentbackend.ai.guardrail.AnswerGroundingPolicy;
+import com.tutict.finalassignmentbackend.ai.guardrail.AnswerTextSanitizer;
 import com.tutict.finalassignmentbackend.ai.guardrail.GroundingDecision;
 import com.tutict.finalassignmentbackend.ai.guardrail.PromptInjectionGuard;
 import com.tutict.finalassignmentbackend.ai.prompt.ContextBuilder;
@@ -246,8 +247,7 @@ public class ChatPipeline {
             List<RetrievalResult> sources,
             boolean groundingRequired
     ) {
-        if (!groundingRequired || answerGroundingPolicy == null
-                || !answerGroundingPolicy.isEnforcementEnabled()) {
+        if (!groundingRequired) {
             return events;
         }
         return Flux.defer(() -> {
@@ -279,16 +279,60 @@ public class ChatPipeline {
                 .map(ChatStreamEvent::token)
                 .filter(Objects::nonNull)
                 .collect(Collectors.joining());
-        GroundingDecision decision = answerGroundingPolicy.evaluate(answer, sources);
-        if (decision.grounded()) {
-            return Flux.fromIterable(buffered);
+        String sanitized = AnswerTextSanitizer.sanitize(answer);
+
+        // Do not let a response made only of internal labels turn into a successful empty answer.
+        if (!answer.isBlank() && sanitized.isBlank()) {
+            return refusedAnswer(buffered, AnswerGroundingPolicy.UNCITED_ANSWER);
         }
-        String sessionKey = firstNonBlank(buffered.getFirst().sessionKey());
-        String messageId = firstNonBlank(buffered.getFirst().messageId());
-        return Flux.just(
-                ChatStreamEvent.token(sessionKey, messageId, decision.answer()),
-                ChatStreamEvent.done(sessionKey, messageId)
-        );
+
+        // Judge the user-visible text so stripped labels cannot satisfy grounding on their own.
+        GroundingDecision decision = answerGroundingPolicy == null
+                ? GroundingDecision.allowed(sanitized)
+                : answerGroundingPolicy.evaluate(sanitized, sources);
+        if (decision.grounded()) {
+            return Objects.equals(sanitized, answer)
+                    ? Flux.fromIterable(buffered)
+                    : Flux.fromIterable(replaceAnswer(buffered, sanitized));
+        }
+        return refusedAnswer(buffered, decision.answer());
+    }
+
+    private static Flux<ChatStreamEvent> refusedAnswer(List<ChatStreamEvent> buffered, String answer) {
+        return Flux.fromIterable(replaceAnswer(buffered, answer));
+    }
+
+    private static List<ChatStreamEvent> replaceAnswer(List<ChatStreamEvent> buffered, String answer) {
+        List<ChatStreamEvent> events = new ArrayList<>();
+        ChatStreamEvent firstToken = null;
+        boolean answerEmitted = false;
+        boolean done = false;
+        for (ChatStreamEvent event : buffered) {
+            if (ChatStreamEventType.TOKEN.wireName().equals(event.type())) {
+                if (firstToken == null) {
+                    firstToken = event;
+                }
+                events.add(new ChatStreamEvent(
+                        event.type(),
+                        event.sessionKey(),
+                        event.messageId(),
+                        answerEmitted ? "" : answer,
+                        event.payload(),
+                        event.timestamp()
+                ));
+                answerEmitted = true;
+            } else if (ChatStreamEventType.DONE.wireName().equals(event.type())) {
+                events.add(event);
+                done = true;
+            }
+        }
+        if (firstToken == null) {
+            throw new IllegalArgumentException("A sanitized answer must contain a token event");
+        }
+        if (!done) {
+            events.add(ChatStreamEvent.done(firstToken.sessionKey(), firstToken.messageId()));
+        }
+        return events;
     }
 
     /**

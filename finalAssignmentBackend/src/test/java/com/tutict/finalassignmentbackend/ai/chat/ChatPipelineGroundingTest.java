@@ -71,6 +71,80 @@ class ChatPipelineGroundingTest {
     }
 
     @Test
+    void stripsInternalContextLabelsFromGroundedAnswer() {
+        CapturingProvider provider = new CapturingProvider(
+                "primary",
+                tokenStream("\u6839\u636e retrieved_context [1], \u7f5a\u6b3e\u9700\u5728\u5341\u4e94\u65e5\u5185\u7f34\u7eb3\u3002")
+        );
+        StubRagQueryService rag = new StubRagQueryService(List.of(source()));
+        ChatPipeline pipeline = pipeline(provider, rag, ragProperties(true));
+
+        List<ChatStreamEvent> events = pipeline.stream(new AiChatStreamRequest(
+                        "\u7f5a\u6b3e\u600e\u4e48\u7f34\u7eb3\uff1f", "session-1", Map.of()))
+                .collectList()
+                .block(Duration.ofSeconds(2));
+
+        assertThat(events).extracting(ChatStreamEvent::type)
+                .containsExactly(ChatStreamEventType.TOKEN.wireName(), ChatStreamEventType.DONE.wireName());
+        assertThat(events.getFirst().token())
+                .isEqualTo("\u6839\u636e [1], \u7f5a\u6b3e\u9700\u5728\u5341\u4e94\u65e5\u5185\u7f34\u7eb3\u3002");
+    }
+
+    @Test
+    void returnsSafeFallbackWhenSanitizationRemovesTheEntireAnswer() {
+        CapturingProvider provider = new CapturingProvider("primary", Flux.just(
+                new AiToken("retrieved_context", false, Map.of("traceId", "trace-empty")),
+                new AiToken("", true, Map.of())
+        ));
+        StubRagQueryService rag = new StubRagQueryService(List.of(source()));
+        ChatPipeline pipeline = pipeline(provider, rag, ragProperties(true));
+
+        List<ChatStreamEvent> events = pipeline.stream(new AiChatStreamRequest("q", "session-1", Map.of()))
+                .collectList()
+                .block(Duration.ofSeconds(2));
+
+        assertThat(events.getFirst().token()).isEqualTo(AnswerGroundingPolicy.UNCITED_ANSWER);
+        assertThat(events.getFirst().payload()).isEqualTo(Map.of("traceId", "trace-empty", "provider", "primary"));
+    }
+
+    @Test
+    void sanitizesRetrievedLabelsWhenCitationEnforcementIsDisabled() {
+        CapturingProvider provider = new CapturingProvider(
+                "primary",
+                tokenStream("retrieved_context: \u7f5a\u6b3e\u9700\u5728\u5341\u4e94\u65e5\u5185\u7f34\u7eb3\u3002")
+        );
+        StubRagQueryService rag = new StubRagQueryService(List.of(source()));
+        ChatPipeline pipeline = pipeline(provider, rag, ragProperties(true), false);
+
+        List<ChatStreamEvent> events = pipeline.stream(new AiChatStreamRequest("q", "session-1", Map.of()))
+                .collectList()
+                .block(Duration.ofSeconds(2));
+
+        assertThat(events.getFirst().token()).isEqualTo("\u7f5a\u6b3e\u9700\u5728\u5341\u4e94\u65e5\u5185\u7f34\u7eb3\u3002");
+    }
+
+    @Test
+    void preservesTokenPayloadWhenSanitizingAnswer() {
+        CapturingProvider provider = new CapturingProvider("primary", Flux.just(
+                new AiToken("retrieved_context: ", false, Map.of("traceId", "trace-1")),
+                new AiToken("answer [1]", false, Map.of("traceId", "trace-2")),
+                new AiToken("", true, Map.of())
+        ));
+        StubRagQueryService rag = new StubRagQueryService(List.of(source()));
+        ChatPipeline pipeline = pipeline(provider, rag, ragProperties(true));
+
+        List<ChatStreamEvent> events = pipeline.stream(new AiChatStreamRequest("q", "session-1", Map.of()))
+                .collectList()
+                .block(Duration.ofSeconds(2));
+
+        assertThat(events.getFirst().token()).isEqualTo("answer [1]");
+        assertThat(events.getFirst().payload()).isEqualTo(Map.of("traceId", "trace-1", "provider", "primary"));
+        assertThat(events).hasSize(3);
+        assertThat(events.get(1).token()).isEmpty();
+        assertThat(events.get(1).payload()).isEqualTo(Map.of("traceId", "trace-2", "provider", "primary"));
+    }
+
+    @Test
     void doesNotEnforceGroundingWhenRetrievalIsDisabled() {
         CapturingProvider provider = new CapturingProvider("primary", tokenStream("plain answer"));
         ChatPipeline pipeline = pipeline(provider, null, ragProperties(false));
@@ -174,11 +248,21 @@ class ChatPipelineGroundingTest {
             RagQueryService ragQueryService,
             RagRetrievalProperties ragProperties
     ) {
+        return pipeline(provider, ragQueryService, ragProperties, true);
+    }
+
+    private static ChatPipeline pipeline(
+            CapturingProvider provider,
+            RagQueryService ragQueryService,
+            RagRetrievalProperties ragProperties,
+            boolean citationEnforcementEnabled
+    ) {
         return pipeline(
                 new ChatStreamService(registry(provider), Duration.ofSeconds(60)),
                 ragQueryService,
                 ragProperties,
-                null
+                null,
+                citationEnforcementEnabled
         );
     }
 
@@ -187,6 +271,16 @@ class ChatPipelineGroundingTest {
             RagQueryService ragQueryService,
             RagRetrievalProperties ragProperties,
             AgentRuntime runtime
+    ) {
+        return pipeline(streamService, ragQueryService, ragProperties, runtime, true);
+    }
+
+    private static ChatPipeline pipeline(
+            ChatStreamService streamService,
+            RagQueryService ragQueryService,
+            RagRetrievalProperties ragProperties,
+            AgentRuntime runtime,
+            boolean citationEnforcementEnabled
     ) {
         PromptAssembler promptAssembler = new PromptAssembler(new PromptTemplateService(), new ContextBuilder(200));
         return new ChatPipeline(
@@ -199,7 +293,7 @@ class ChatPipelineGroundingTest {
                 testConstraintService(),
                 runtime,
                 null,
-                new AnswerGroundingPolicy(true),
+                new AnswerGroundingPolicy(citationEnforcementEnabled),
                 new PromptInjectionGuard()
         );
     }

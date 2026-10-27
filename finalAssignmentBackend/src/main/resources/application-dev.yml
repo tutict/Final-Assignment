@@ -65,5 +65,6 @@ management:
 rag:
   retrieval:
     enabled: true
-    candidate-multiplier: 2
+    # Keep dev aligned with the production default; allow experiments to override it.
+    candidate-multiplier: ${RAG_RETRIEVAL_CANDIDATE_MULTIPLIER:3}
 

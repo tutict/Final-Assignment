@@ -31,8 +31,10 @@ public class PromptTemplateService {
                     + "do not add facts that they do not support.");
             sections.add("- Cite supporting sentences with the context index in ASCII brackets, "
                     + "for example [1] or [2]; never cite conversation turns as sources.");
-            sections.add("- If the retrieved context is insufficient, state that the knowledge base does not "
-                    + "cover the question instead of guessing.");
+            sections.add("- Never reveal internal labels or resource identifiers such as retrieved_context, "
+                    + "manual_rag_document, or rag_chunk; cite only with [n].");
+            sections.add("- If the retrieved context does not contain the answer, say that the knowledge base "
+                    + "does not cover the question; do not use general knowledge or cite unrelated context.");
             sections.add("- Answer in the same language as the user message.");
         }
         sections.add("- " + INJECTION_WARNING);
