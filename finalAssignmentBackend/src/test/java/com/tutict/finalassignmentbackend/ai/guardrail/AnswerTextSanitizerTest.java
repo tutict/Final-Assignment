@@ -45,6 +45,14 @@ class AnswerTextSanitizerTest {
     }
 
     @Test
+    void removesPlaceholderCitationAndKeepsNumericMarker() {
+        assertThat(AnswerTextSanitizer.sanitize("根据车辆管理相关规定 [n][2] 办理过户。"))
+                .isEqualTo("根据车辆管理相关规定 [2] 办理过户。");
+        assertThat(AnswerTextSanitizer.sanitize("根据 [N] 规定，罚款需在十五日内缴纳。"))
+                .isEqualTo("根据 规定，罚款需在十五日内缴纳。");
+    }
+
+    @Test
     void normalizesSpacingLeftByRemovedLabel() {
         assertThat(AnswerTextSanitizer.sanitize("根据  retrieved_context，[1] 罚款。"))
                 .isEqualTo("根据 [1] 罚款。");

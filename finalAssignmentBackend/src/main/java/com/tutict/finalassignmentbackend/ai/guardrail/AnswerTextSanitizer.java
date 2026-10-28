@@ -24,6 +24,8 @@ public final class AnswerTextSanitizer {
             Pattern.CASE_INSENSITIVE | Pattern.UNICODE_CASE
     );
 
+    private static final Pattern PLACEHOLDER_CITATION = Pattern.compile("\\[\\s*n\\s*\\]",
+            Pattern.CASE_INSENSITIVE);
     private static final Pattern SPACE_BEFORE_PUNCTUATION = Pattern.compile("[ \\t]+([,，.。;；:：!?！？、])");
     private static final Pattern REPEATED_SPACES = Pattern.compile("[ \\t]{2,}");
 
@@ -36,6 +38,7 @@ public final class AnswerTextSanitizer {
         }
         String sanitized = LEADING_CONNECTIVE.matcher(answer).replaceAll("$1 ");
         sanitized = INTERNAL_LABEL.matcher(sanitized).replaceAll("");
+        sanitized = PLACEHOLDER_CITATION.matcher(sanitized).replaceAll("");
         sanitized = SPACE_BEFORE_PUNCTUATION.matcher(sanitized).replaceAll("$1");
         sanitized = REPEATED_SPACES.matcher(sanitized).replaceAll(" ");
         return sanitized.strip();
