@@ -29,6 +29,13 @@ ai:
     # the model output is replaced with a safe fallback. Set to false to disable.
     citation-enforcement:
       enabled: ${AI_GUARDRAIL_CITATION_ENFORCEMENT:true}
+    # After citation enforcement, a separate judge checks that the retrieved passages actually
+    # cover the asked subject instead of a related one. Fails open on timeout or parse errors.
+    # Verification only runs when a judge model is configured; the chat model is not used here.
+    topic-verification:
+      enabled: ${AI_GUARDRAIL_TOPIC_VERIFICATION:true}
+      model: ${AI_GUARDRAIL_TOPIC_MODEL:}
+      timeout: ${AI_GUARDRAIL_TOPIC_TIMEOUT:PT12S}
   ollama:
     enabled: ${OLLAMA_ENABLED:true}
     base-url: ${OLLAMA_URL:http://localhost:11434}

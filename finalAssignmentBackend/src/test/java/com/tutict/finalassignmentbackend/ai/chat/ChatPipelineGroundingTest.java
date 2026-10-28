@@ -3,6 +3,7 @@ package com.tutict.finalassignmentbackend.ai.chat;
 import com.tutict.finalassignmentbackend.ai.agent.AgentRuntime;
 import com.tutict.finalassignmentbackend.ai.guardrail.AnswerGroundingPolicy;
 import com.tutict.finalassignmentbackend.ai.guardrail.PromptInjectionGuard;
+import com.tutict.finalassignmentbackend.ai.guardrail.TopicGroundingVerifier;
 import com.tutict.finalassignmentbackend.ai.prompt.AgentConstraintService;
 import com.tutict.finalassignmentbackend.ai.prompt.AiAgentRole;
 import com.tutict.finalassignmentbackend.ai.prompt.AiAgentRoleResolver;
@@ -329,6 +330,63 @@ class ChatPipelineGroundingTest {
         assertThat(events.get(1).token()).isEqualTo("uncited summary");
     }
 
+    @Test
+    void refusesWhenTopicVerifierFindsSourcesDoNotCoverTheQuestion() {
+        CapturingProvider provider = new CapturingProvider(
+                "primary",
+                tokenStream("\u8f66\u8f86\u8fc7\u6237\u9700\u4e70\u5356\u53cc\u65b9\u643a\u5e26\u8eab\u4efd\u8bc1\u529e\u7406 [1]\u3002")
+        );
+        StubRagQueryService rag = new StubRagQueryService(List.of(source()));
+        ChatPipeline pipeline = pipelineWithVerifier(
+                provider,
+                rag,
+                "{\"topic_in_sources\":false,\"reason\":\"\u8d44\u6599\u8bb2\u7684\u662f\u8fc7\u6237\"}"
+        );
+
+        List<ChatStreamEvent> events = pipeline.stream(new AiChatStreamRequest(
+                        "\u8f66\u8f86\u62a5\u5e9f\u6d41\u7a0b\u662f\u4ec0\u4e48\uff1f", "session-1", Map.of()))
+                .collectList()
+                .block(Duration.ofSeconds(2));
+
+        assertThat(events).extracting(ChatStreamEvent::type)
+                .containsExactly(ChatStreamEventType.TOKEN.wireName(), ChatStreamEventType.DONE.wireName());
+        assertThat(events.getFirst().token()).isEqualTo(AnswerGroundingPolicy.NO_SOURCE_ANSWER);
+    }
+
+    @Test
+    void keepsAnswerWhenTopicVerifierFindsSourcesCoverTheQuestion() {
+        String answer = "\u7f5a\u6b3e\u9700\u5728\u5341\u4e94\u65e5\u5185\u7f34\u7eb3 [1]\u3002";
+        CapturingProvider provider = new CapturingProvider("primary", tokenStream(answer));
+        StubRagQueryService rag = new StubRagQueryService(List.of(source()));
+        ChatPipeline pipeline = pipelineWithVerifier(
+                provider,
+                rag,
+                "{\"topic_in_sources\":true,\"reason\":\"\u4e3b\u9898\u4e00\u81f4\"}"
+        );
+
+        List<ChatStreamEvent> events = pipeline.stream(new AiChatStreamRequest(
+                        "\u7f5a\u6b3e\u600e\u4e48\u7f34\u7eb3\uff1f", "session-1", Map.of()))
+                .collectList()
+                .block(Duration.ofSeconds(2));
+
+        assertThat(events.getFirst().token()).isEqualTo(answer);
+    }
+
+    @Test
+    void keepsAnswerWhenTopicVerifierFailsOpen() {
+        String answer = "\u7f5a\u6b3e\u9700\u5728\u5341\u4e94\u65e5\u5185\u7f34\u7eb3 [1]\u3002";
+        CapturingProvider provider = new CapturingProvider("primary", tokenStream(answer));
+        StubRagQueryService rag = new StubRagQueryService(List.of(source()));
+        ChatPipeline pipeline = pipelineWithVerifier(provider, rag, "not-json");
+
+        List<ChatStreamEvent> events = pipeline.stream(new AiChatStreamRequest(
+                        "\u7f5a\u6b3e\u600e\u4e48\u7f34\u7eb3\uff1f", "session-1", Map.of()))
+                .collectList()
+                .block(Duration.ofSeconds(2));
+
+        assertThat(events.getFirst().token()).isEqualTo(answer);
+    }
+
     private static ChatPipeline pipeline(
             CapturingProvider provider,
             RagQueryService ragQueryService,
@@ -382,6 +440,70 @@ class ChatPipelineGroundingTest {
                 new AnswerGroundingPolicy(citationEnforcementEnabled),
                 new PromptInjectionGuard()
         );
+    }
+
+    private static ChatPipeline pipelineWithVerifier(
+            CapturingProvider provider,
+            RagQueryService ragQueryService,
+            String judgeResponse
+    ) {
+        PromptAssembler promptAssembler = new PromptAssembler(new PromptTemplateService(), new ContextBuilder(200));
+        TopicGroundingVerifier verifier = new TopicGroundingVerifier(
+                judgeRegistry(judgeResponse),
+                new com.fasterxml.jackson.databind.ObjectMapper(),
+                true,
+                "judge-model",
+                Duration.ofSeconds(2)
+        );
+        return new ChatPipeline(
+                new ChatStreamService(registry(provider), Duration.ofSeconds(60)),
+                promptAssembler,
+                ragQueryService,
+                ragProperties(true),
+                null,
+                new AiAgentRoleResolver(),
+                testConstraintService(),
+                null,
+                null,
+                new AnswerGroundingPolicy(true),
+                new PromptInjectionGuard(),
+                verifier
+        );
+    }
+
+    private static AiProviderRegistry judgeRegistry(String response) {
+        AiProvider judge = new AiProvider() {
+            @Override
+            public String providerName() {
+                return "judge";
+            }
+
+            @Override
+            public boolean supportsStreaming() {
+                return false;
+            }
+
+            @Override
+            public Flux<AiToken> stream(AiChatPrompt prompt, AiGenerationOptions options) {
+                return Flux.empty();
+            }
+
+            @Override
+            public Mono<AiMessage> complete(AiChatPrompt prompt, AiGenerationOptions options) {
+                return Mono.just(new AiMessage(response, Map.of()));
+            }
+
+            @Override
+            public Mono<ProviderHealth> health() {
+                return Mono.just(ProviderHealth.up("ok"));
+            }
+        };
+        AiProviderProperties properties = new AiProviderProperties();
+        properties.getProvider().setPrimary("judge");
+        properties.getProvider().setFallback("noop");
+        properties.getProvider().setTimeout(Duration.ofSeconds(2));
+        properties.getProvider().setRetryAttempts(0);
+        return new AiProviderRegistry(List.of(judge, new NoopAiProvider()), properties);
     }
 
     private static AiProviderRegistry registry(CapturingProvider provider) {

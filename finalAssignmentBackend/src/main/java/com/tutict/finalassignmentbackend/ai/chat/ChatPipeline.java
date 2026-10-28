@@ -5,6 +5,7 @@ import com.tutict.finalassignmentbackend.ai.guardrail.AnswerGroundingPolicy;
 import com.tutict.finalassignmentbackend.ai.guardrail.AnswerTextSanitizer;
 import com.tutict.finalassignmentbackend.ai.guardrail.GroundingDecision;
 import com.tutict.finalassignmentbackend.ai.guardrail.PromptInjectionGuard;
+import com.tutict.finalassignmentbackend.ai.guardrail.TopicGroundingVerifier;
 import com.tutict.finalassignmentbackend.ai.prompt.ContextBuilder;
 import com.tutict.finalassignmentbackend.ai.prompt.AgentConstraintService;
 import com.tutict.finalassignmentbackend.ai.prompt.AiAgentRole;
@@ -49,6 +50,7 @@ public class ChatPipeline {
     private final ObjectProvider<AgentRuntime> agentRuntimeProvider;
     private final AnswerGroundingPolicy answerGroundingPolicy;
     private final PromptInjectionGuard promptInjectionGuard;
+    private final TopicGroundingVerifier topicGroundingVerifier;
 
     @Autowired
     public ChatPipeline(
@@ -61,7 +63,8 @@ public class ChatPipeline {
             AgentConstraintService agentConstraintService,
             ObjectProvider<AgentRuntime> agentRuntime,
             AnswerGroundingPolicy answerGroundingPolicy,
-            PromptInjectionGuard promptInjectionGuard
+            PromptInjectionGuard promptInjectionGuard,
+            ObjectProvider<TopicGroundingVerifier> topicGroundingVerifier
     ) {
         this(
                 chatStreamService,
@@ -74,7 +77,8 @@ public class ChatPipeline {
                 null,
                 agentRuntime,
                 answerGroundingPolicy,
-                promptInjectionGuard
+                promptInjectionGuard,
+                topicGroundingVerifier.getIfAvailable()
         );
     }
 
@@ -163,6 +167,25 @@ public class ChatPipeline {
             AnswerGroundingPolicy answerGroundingPolicy,
             PromptInjectionGuard promptInjectionGuard
     ) {
+        this(chatStreamService, promptAssembler, ragQueryService, ragRetrievalProperties,
+                aiChatSearchService, aiAgentRoleResolver, agentConstraintService, agentRuntime,
+                agentRuntimeProvider, answerGroundingPolicy, promptInjectionGuard, null);
+    }
+
+    ChatPipeline(
+            ChatStreamService chatStreamService,
+            PromptAssembler promptAssembler,
+            RagQueryService ragQueryService,
+            RagRetrievalProperties ragRetrievalProperties,
+            AIChatSearchService aiChatSearchService,
+            AiAgentRoleResolver aiAgentRoleResolver,
+            AgentConstraintService agentConstraintService,
+            AgentRuntime agentRuntime,
+            ObjectProvider<AgentRuntime> agentRuntimeProvider,
+            AnswerGroundingPolicy answerGroundingPolicy,
+            PromptInjectionGuard promptInjectionGuard,
+            TopicGroundingVerifier topicGroundingVerifier
+    ) {
         this.chatStreamService = chatStreamService;
         this.promptAssembler = promptAssembler;
         this.ragQueryService = ragQueryService;
@@ -178,6 +201,7 @@ public class ChatPipeline {
         this.promptInjectionGuard = promptInjectionGuard == null
                 ? new PromptInjectionGuard()
                 : promptInjectionGuard;
+        this.topicGroundingVerifier = topicGroundingVerifier;
     }
 
     public Flux<ChatStreamEvent> stream(AiChatStreamRequest request) {
@@ -250,7 +274,7 @@ public class ChatPipeline {
                                 metadata
                         ))
                         : null;
-        return applyGrounding(events, retrievalResults, groundingRequired, citationRetry);
+        return applyGrounding(events, retrievalResults, groundingRequired, citationRetry, sanitizedMessage);
     }
 
     /**
@@ -268,18 +292,20 @@ public class ChatPipeline {
             Flux<ChatStreamEvent> events,
             List<RetrievalResult> sources,
             boolean groundingRequired,
-            Supplier<Flux<ChatStreamEvent>> citationRetry
+            Supplier<Flux<ChatStreamEvent>> citationRetry,
+            String question
     ) {
         if (!groundingRequired) {
             return events;
         }
-        return bufferAndResolve(events, sources, citationRetry);
+        return bufferAndResolve(events, sources, citationRetry, question);
     }
 
     private Flux<ChatStreamEvent> bufferAndResolve(
             Flux<ChatStreamEvent> events,
             List<RetrievalResult> sources,
-            Supplier<Flux<ChatStreamEvent>> citationRetry
+            Supplier<Flux<ChatStreamEvent>> citationRetry,
+            String question
     ) {
         return Flux.defer(() -> {
             List<ChatStreamEvent> buffered = new ArrayList<>();
@@ -292,14 +318,15 @@ public class ChatPipeline {
                 }
                 buffered.add(event);
                 return Flux.empty();
-            }).concatWith(Flux.defer(() -> resolveGrounding(buffered, sources, citationRetry)));
+            }).concatWith(Flux.defer(() -> resolveGrounding(buffered, sources, citationRetry, question)));
         });
     }
 
     private Flux<ChatStreamEvent> resolveGrounding(
             List<ChatStreamEvent> buffered,
             List<RetrievalResult> sources,
-            Supplier<Flux<ChatStreamEvent>> citationRetry
+            Supplier<Flux<ChatStreamEvent>> citationRetry,
+            String question
     ) {
         if (buffered.isEmpty()) {
             return Flux.empty();
@@ -320,7 +347,7 @@ public class ChatPipeline {
         // Do not let a response made only of internal labels turn into a successful empty answer.
         if (!answer.isBlank() && sanitized.isBlank()) {
             return citationRetry != null
-                    ? retryWithCitations(buffered, sources, citationRetry)
+                    ? retryWithCitations(buffered, sources, citationRetry, question)
                     : refusedAnswer(buffered, AnswerGroundingPolicy.UNCITED_ANSWER);
         }
 
@@ -329,19 +356,29 @@ public class ChatPipeline {
                 ? GroundingDecision.allowed(sanitized)
                 : answerGroundingPolicy.evaluate(sanitized, sources);
         if (decision.grounded()) {
-            return Objects.equals(sanitized, answer)
-                    ? Flux.fromIterable(buffered)
-                    : Flux.fromIterable(replaceAnswer(buffered, sanitized));
+            List<ChatStreamEvent> replay = Objects.equals(sanitized, answer)
+                    ? buffered
+                    : replaceAnswer(buffered, sanitized);
+            if (topicGroundingVerifier == null) {
+                return Flux.fromIterable(replay);
+            }
+            // The citation guardrail proves the answer points at *some* source, not that the
+            // source is about the asked subject. Verify asynchronously and fail open.
+            return topicGroundingVerifier.verify(question, sanitized, sources)
+                    .flatMapMany(verdict -> verdict.grounded()
+                            ? Flux.fromIterable(replay)
+                            : refusedAnswer(buffered, verdict.answer()));
         }
         return citationRetry != null
-                ? retryWithCitations(buffered, sources, citationRetry)
+                ? retryWithCitations(buffered, sources, citationRetry, question)
                 : refusedAnswer(buffered, decision.answer());
     }
 
     private Flux<ChatStreamEvent> retryWithCitations(
             List<ChatStreamEvent> buffered,
             List<RetrievalResult> sources,
-            Supplier<Flux<ChatStreamEvent>> citationRetry
+            Supplier<Flux<ChatStreamEvent>> citationRetry,
+            String question
     ) {
         ChatStreamEvent first = buffered.getFirst();
         logger.info(
@@ -353,7 +390,8 @@ public class ChatPipeline {
         return bufferAndResolve(
                 citationRetry.get().map(event -> rebind(event, first.sessionKey(), first.messageId())),
                 sources,
-                null
+                null,
+                question
         );
     }
 
