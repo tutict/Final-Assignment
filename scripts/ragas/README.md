@@ -1,6 +1,6 @@
 # RAGAS 答案质量评估
 
-离线评估 Spring 主后端的 RAG 答案质量。与 CI 中的 `RagRetrievalQualityTest`（只评估 recall/MRR/nDCG）互补：
+离线评估后端 RAG 的答案质量（默认 Spring 主后端，也可指向 Spring Cloud）。与 CI 中的 `RagRetrievalQualityTest`（只评估 recall/MRR/nDCG）互补：
 本工具回答“检索到的资料是否被正确、忠实、可引用地用于回答”。
 
 评估使用真实产品链路：同一 `ChatPipeline`、同一提示词、同一 Ollama 模型与引用护栏。检索上下文来自
@@ -63,6 +63,37 @@ uv run ragas-eval all --top-k 5
 ```bash
 uv run ragas-eval seed --cleanup
 ```
+
+## 评测 Spring Cloud 后端
+
+默认配置面向 Spring 主后端（`finalAssignmentBackend`）。同一套数据集与评分流程无需改代码即可指向
+`finalAssignmentCloud`：Cloud 拆为网关 + 业务服务 + AI + RAG，评测统一从网关进入。Cloud 的数据集、seed
+载荷、SSE 事件、管理接口契约、检索融合权重（BM25 0.8 / 向量 0.2、候选深度倍率 3）与主后端一致。
+
+```powershell
+# 启动含 AI 模块的 Cloud 栈；8080 被主后端占用时换一个网关端口
+$env:AI_AGENT_ENABLED = "false"
+$env:AI_RAG_ENABLED = "true"
+$env:RAG_RETRIEVAL_ENABLED = "true"
+$env:RAG_INDEX_NAME = "rag_chunk_ragas_v1"
+$env:RAG_INDEX_ALIAS = "rag_chunk_ragas_current"
+powershell -ExecutionPolicy Bypass -File scripts\start-cloud-backend.ps1 -IncludeAi -GatewayPort 18080
+```
+
+```bash
+cd scripts/ragas
+RAGAS_BASE_URL=http://127.0.0.1:18080 \
+RAGAS_TARGET_LABEL="Spring Cloud 后端" \
+RAGAS_INDEX_ALIAS=rag_chunk_ragas_current \
+uv run ragas-eval all --top-k 5
+```
+
+- `RAGAS_TARGET_LABEL` 只写入 `manifest.json` 与报告环境表，用于区分同一数据集在不同后端的运行。
+- Cloud 与主后端共用同一 MySQL `traffic` 库，`RAGAS_DRIVER_*` / `RAGAS_ADMIN_*` 默认账号通常可直接复用。
+- ES / Redis / MySQL 不在默认端口时，服务端覆盖 `ELASTICSEARCH_URIS`、`SPRING_DATA_REDIS_PORT`、
+  `SPRING_DATASOURCE_URL` 等；评测端覆盖 `RAGAS_ES_URL`（就绪检查用）。
+- Cloud 的 RAG 服务以独立进程运行，`RAG_INDEX_NAME` / `RAG_INDEX_ALIAS` 必须与该进程一致；AI 服务通过
+  Feign 访问 RAG，纯 RAG 模式必须关闭 `AI_AGENT_ENABLED` 并开启 `AI_RAG_ENABLED`。
 
 ## 数据集
 

@@ -41,6 +41,7 @@ METRIC_KEYS = (
 @dataclass(frozen=True)
 class Settings:
     base_url: str
+    target_label: str
     driver_username: str
     driver_password: str
     admin_username: str
@@ -59,6 +60,7 @@ def load_settings(**overrides: object) -> Settings:
     load_dotenv(SCRIPT_DIR / ".env")
     values: dict[str, object] = {
         "base_url": os.getenv("RAGAS_BASE_URL", "http://localhost:9080").rstrip("/"),
+        "target_label": os.getenv("RAGAS_TARGET_LABEL", "Spring 主后端"),
         "driver_username": os.getenv("RAGAS_DRIVER_USERNAME", "ce@ce.com"),
         "driver_password": os.getenv("RAGAS_DRIVER_PASSWORD", "123456"),
         "admin_username": os.getenv("RAGAS_ADMIN_USERNAME", "superadmin"),

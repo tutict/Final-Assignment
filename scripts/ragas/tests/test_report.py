@@ -181,6 +181,23 @@ def test_render_markdown_includes_slices_and_errors() -> None:
     assert "LEAK" in markdown
     assert "RAGAS 评分失败" in markdown
     assert "附带发现一" in markdown
+    assert "评估目标" not in markdown
+
+
+def test_render_markdown_labels_evaluation_target() -> None:
+    samples = [answerable("a1")]
+    probes = [acl_probe()]
+    unanswered = [unanswerable()]
+    result = aggregate(samples, unanswered, probes, TARGETS)
+    markdown = render_markdown(
+        dict(manifest(), target="Spring Cloud 后端"),
+        result,
+        samples,
+        unanswered,
+        probes,
+        [],
+    )
+    assert "| 评估目标 | Spring Cloud 后端 |" in markdown
 
 
 def test_write_outputs_creates_all_artifacts(tmp_path) -> None:

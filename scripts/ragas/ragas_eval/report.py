@@ -161,18 +161,23 @@ def render_markdown(
     lines.append("")
     lines.append("| 项目 | 值 |")
     lines.append("| --- | --- |")
-    for key, value in (
-            ("运行 ID", manifest.get("run_id")),
-            ("时间", manifest.get("timestamp")),
-            ("Git commit", manifest.get("git_commit")),
-            ("后端", manifest.get("base_url")),
-            ("答案模型", manifest.get("answer_model")),
-            ("裁判模型", manifest.get("judge_model")),
-            ("裁判嵌入", manifest.get("judge_embedding_model")),
-            ("topK", manifest.get("top_k")),
-            ("数据集 hash", _short_hash(manifest.get("dataset_hash"))),
-            ("语料 hash", _short_hash(manifest.get("corpus_hash"))),
-    ):
+    rows = [
+        ("运行 ID", manifest.get("run_id")),
+        ("时间", manifest.get("timestamp")),
+        ("Git commit", manifest.get("git_commit")),
+    ]
+    if manifest.get("target"):
+        rows.append(("评估目标", manifest.get("target")))
+    rows.extend((
+        ("后端", manifest.get("base_url")),
+        ("答案模型", manifest.get("answer_model")),
+        ("裁判模型", manifest.get("judge_model")),
+        ("裁判嵌入", manifest.get("judge_embedding_model")),
+        ("topK", manifest.get("top_k")),
+        ("数据集 hash", _short_hash(manifest.get("dataset_hash"))),
+        ("语料 hash", _short_hash(manifest.get("corpus_hash"))),
+    ))
+    for key, value in rows:
         lines.append(f"| {key} | {value} |")
     lines.append("")
     lines.append("## 总表")

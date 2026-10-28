@@ -494,6 +494,7 @@ def _manifest(
         "git_commit": _git(["rev-parse", "HEAD"]),
         "git_dirty": bool(_git(["status", "--porcelain"])),
         "base_url": settings.base_url,
+        "target": settings.target_label,
         "answer_mode": "pure-rag",
         "answer_model": settings.answer_model,
         "judge_model": settings.judge_model,
