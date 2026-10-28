@@ -2,13 +2,20 @@ package com.tutict.finalassignmentcloud.ai.chat;
 
 import com.tutict.finalassignmentcloud.ai.agent.AgentRuntime;
 import com.tutict.finalassignmentcloud.ai.client.rag.RagRetrievalResult;
+import com.tutict.finalassignmentcloud.ai.guardrail.AnswerGroundingPolicy;
+import com.tutict.finalassignmentcloud.ai.guardrail.AnswerTextSanitizer;
+import com.tutict.finalassignmentcloud.ai.guardrail.GroundingDecision;
+import com.tutict.finalassignmentcloud.ai.guardrail.PromptInjectionGuard;
 import com.tutict.finalassignmentcloud.ai.prompt.AgentConstraintService;
 import com.tutict.finalassignmentcloud.ai.prompt.AiAgentRole;
 import com.tutict.finalassignmentcloud.ai.prompt.AiAgentRoleResolver;
 import com.tutict.finalassignmentcloud.ai.prompt.PromptAssembler;
 import com.tutict.finalassignmentcloud.ai.service.AIChatSearchService;
 import com.tutict.finalassignmentcloud.ai.service.RagRetrievalService;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.ObjectProvider;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import reactor.core.publisher.Flux;
 
@@ -17,10 +24,15 @@ import java.util.Collection;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.UUID;
+import java.util.function.Supplier;
+import java.util.stream.Collectors;
 
 @Service
 public class ChatPipeline {
+
+    private static final Logger logger = LoggerFactory.getLogger(ChatPipeline.class);
 
     private final ChatStreamService chatStreamService;
     private final PromptAssembler promptAssembler;
@@ -28,8 +40,12 @@ public class ChatPipeline {
     private final AIChatSearchService aiChatSearchService;
     private final AiAgentRoleResolver aiAgentRoleResolver;
     private final AgentConstraintService agentConstraintService;
+    private final AgentRuntime agentRuntime;
     private final ObjectProvider<AgentRuntime> agentRuntimeProvider;
+    private final AnswerGroundingPolicy answerGroundingPolicy;
+    private final PromptInjectionGuard promptInjectionGuard;
 
+    @Autowired
     public ChatPipeline(
             ChatStreamService chatStreamService,
             PromptAssembler promptAssembler,
@@ -37,15 +53,75 @@ public class ChatPipeline {
             ObjectProvider<AIChatSearchService> aiChatSearchService,
             AiAgentRoleResolver aiAgentRoleResolver,
             AgentConstraintService agentConstraintService,
-            ObjectProvider<AgentRuntime> agentRuntimeProvider
+            ObjectProvider<AgentRuntime> agentRuntimeProvider,
+            AnswerGroundingPolicy answerGroundingPolicy,
+            PromptInjectionGuard promptInjectionGuard
+    ) {
+        this(
+                chatStreamService,
+                promptAssembler,
+                ragRetrievalService.getIfAvailable(),
+                aiChatSearchService.getIfAvailable(),
+                aiAgentRoleResolver,
+                agentConstraintService,
+                agentRuntimeProvider.getIfAvailable(),
+                null,
+                answerGroundingPolicy,
+                promptInjectionGuard
+        );
+    }
+
+    ChatPipeline(
+            ChatStreamService chatStreamService,
+            PromptAssembler promptAssembler,
+            RagRetrievalService ragRetrievalService,
+            AIChatSearchService aiChatSearchService,
+            AiAgentRoleResolver aiAgentRoleResolver,
+            AgentConstraintService agentConstraintService,
+            AgentRuntime agentRuntime,
+            AnswerGroundingPolicy answerGroundingPolicy,
+            PromptInjectionGuard promptInjectionGuard
+    ) {
+        this(
+                chatStreamService,
+                promptAssembler,
+                ragRetrievalService,
+                aiChatSearchService,
+                aiAgentRoleResolver,
+                agentConstraintService,
+                agentRuntime,
+                null,
+                answerGroundingPolicy,
+                promptInjectionGuard
+        );
+    }
+
+    private ChatPipeline(
+            ChatStreamService chatStreamService,
+            PromptAssembler promptAssembler,
+            RagRetrievalService ragRetrievalService,
+            AIChatSearchService aiChatSearchService,
+            AiAgentRoleResolver aiAgentRoleResolver,
+            AgentConstraintService agentConstraintService,
+            AgentRuntime agentRuntime,
+            ObjectProvider<AgentRuntime> agentRuntimeProvider,
+            AnswerGroundingPolicy answerGroundingPolicy,
+            PromptInjectionGuard promptInjectionGuard
     ) {
         this.chatStreamService = chatStreamService;
         this.promptAssembler = promptAssembler;
-        this.ragRetrievalService = ragRetrievalService.getIfAvailable();
-        this.aiChatSearchService = aiChatSearchService.getIfAvailable();
+        this.ragRetrievalService = ragRetrievalService;
+        this.aiChatSearchService = aiChatSearchService;
         this.aiAgentRoleResolver = aiAgentRoleResolver;
         this.agentConstraintService = agentConstraintService;
+        this.agentRuntime = agentRuntime;
         this.agentRuntimeProvider = agentRuntimeProvider;
+        this.answerGroundingPolicy = answerGroundingPolicy == null
+                ? new AnswerGroundingPolicy(true)
+                : answerGroundingPolicy;
+        this.promptInjectionGuard = promptInjectionGuard == null
+                ? new PromptInjectionGuard()
+                : promptInjectionGuard;
     }
 
     public Flux<ChatStreamEvent> stream(AiChatStreamRequest request) {
@@ -82,23 +158,230 @@ public class ChatPipeline {
         if (identity.driverId() != null) {
             metadata.putIfAbsent("driverId", identity.driverId());
         }
+        boolean ragEngaged = ragEnabled(metadata);
         List<RagRetrievalResult> retrievalResults = new ArrayList<>();
         retrievalResults.addAll(retrieve(userMessage, metadata));
         retrievalResults.addAll(webResults);
         AiAgentRole agentRole = identity.isAuthenticated()
                 ? aiAgentRoleResolver.resolve(Map.of("roles", identity.roles()))
                 : aiAgentRoleResolver.resolve(metadata);
+        // Tool-routing constraints only make sense when the agent loop is active. In pure RAG
+        // mode (ai.agent.enabled=false) injecting navigation/draft rules would steer the model
+        // away from answering from the retrieved context.
+        AgentRuntime runtime = resolveAgentRuntime();
+        String agentConstraints = runtime != null && agentConstraintService != null
+                ? agentConstraintService.constraintsFor(agentRole)
+                : "";
+        String sanitizedMessage = sanitizeUserMessage(userMessage);
+        List<String> conversationWindow = conversationWindow(metadata);
         String prompt = promptAssembler.assemble(
-                userMessage,
-                conversationWindow(metadata),
+                sanitizedMessage,
+                conversationWindow,
                 retrievalResults,
-                agentConstraintService.constraintsFor(agentRole)
+                agentConstraints
         );
-        AgentRuntime runtime = agentRuntimeProvider == null ? null : agentRuntimeProvider.getIfAvailable();
-        if (runtime != null) {
-            return runtime.run(userMessage, request.sessionKey(), prompt, metadata, identity);
+        Flux<ChatStreamEvent> events = runtime != null
+                ? runtime.run(userMessage, request.sessionKey(), prompt, metadata, identity)
+                : chatStreamService.stream(new AiChatStreamRequest(prompt, request.sessionKey(), metadata));
+        boolean groundingRequired = ragEngaged || !retrievalResults.isEmpty();
+        // One repair attempt with a citation-focused prompt, then the guardrail still refuses.
+        // The agent path is excluded because replaying it would re-run tools and side effects.
+        Supplier<Flux<ChatStreamEvent>> citationRetry =
+                runtime == null && !retrievalResults.isEmpty()
+                        ? () -> chatStreamService.stream(new AiChatStreamRequest(
+                                promptAssembler.assembleCitationRepair(
+                                        sanitizedMessage,
+                                        conversationWindow,
+                                        retrievalResults,
+                                        agentConstraints
+                                ),
+                                request.sessionKey(),
+                                metadata
+                        ))
+                        : null;
+        return applyGrounding(events, retrievalResults, groundingRequired, citationRetry);
+    }
+
+    /**
+     * 输出护栏：当本轮问答确实依赖知识库/检索时，要求回答带有可核验的引用来源；否则用安全
+     * 兜底文本替换模型输出，避免“无依据回答”。
+     *
+     * <p>为了能真正阻止无引用回答到达用户，这里对“需要引用”的回合做缓冲：先收集完整回答，
+     * 判定通过才按原样回放事件，否则只发出兜底回答。非检索回合不缓冲，保持原有流式体验。
+     *
+     * <p>只对<b>纯文本回答</b>做引用强制：基础设施消息（熔断/降级兜底、错误）与结构化
+     * 控制事件（TOOL / DRAFT / RESULT / ACTION / QUEUE 等）原样透传。否则一次拒答会连草稿卡片、导航动作
+     * 一并吞掉，或把“AI 暂时不可用”误改成引用拒答。
+     */
+    private Flux<ChatStreamEvent> applyGrounding(
+            Flux<ChatStreamEvent> events,
+            List<RagRetrievalResult> sources,
+            boolean groundingRequired,
+            Supplier<Flux<ChatStreamEvent>> citationRetry
+    ) {
+        if (!groundingRequired) {
+            return events;
         }
-        return chatStreamService.stream(new AiChatStreamRequest(prompt, request.sessionKey(), metadata));
+        return bufferAndResolve(events, sources, citationRetry);
+    }
+
+    private Flux<ChatStreamEvent> bufferAndResolve(
+            Flux<ChatStreamEvent> events,
+            List<RagRetrievalResult> sources,
+            Supplier<Flux<ChatStreamEvent>> citationRetry
+    ) {
+        return Flux.defer(() -> {
+            List<ChatStreamEvent> buffered = new ArrayList<>();
+            return events.concatMap(event -> {
+                // Keep-alives and queue positions are not answer text: forward them immediately so
+                // the connection stays alive, and keep them out of the grounding decision so a
+                // queue notice can never exempt an uncited answer from the guardrail.
+                if (isImmediateEvent(event)) {
+                    return Flux.just(event);
+                }
+                buffered.add(event);
+                return Flux.empty();
+            }).concatWith(Flux.defer(() -> resolveGrounding(buffered, sources, citationRetry)));
+        });
+    }
+
+    private Flux<ChatStreamEvent> resolveGrounding(
+            List<ChatStreamEvent> buffered,
+            List<RagRetrievalResult> sources,
+            Supplier<Flux<ChatStreamEvent>> citationRetry
+    ) {
+        if (buffered.isEmpty()) {
+            return Flux.empty();
+        }
+        // Infrastructure messages and structured control events are not "answers": pass them
+        // through untouched so a refusal never swallows a draft card / action / tool result or
+        // rewrites a bulkhead fallback.
+        if (buffered.stream().anyMatch(ChatPipeline::isNonTextEvent)) {
+            return Flux.fromIterable(buffered);
+        }
+        String answer = buffered.stream()
+                .filter(event -> ChatStreamEventType.TOKEN.wireName().equals(event.type()))
+                .map(ChatStreamEvent::token)
+                .filter(Objects::nonNull)
+                .collect(Collectors.joining());
+        String sanitized = AnswerTextSanitizer.sanitize(answer);
+
+        // Do not let a response made only of internal labels turn into a successful empty answer.
+        if (!answer.isBlank() && sanitized.isBlank()) {
+            return citationRetry != null
+                    ? retryWithCitations(buffered, sources, citationRetry)
+                    : refusedAnswer(buffered, AnswerGroundingPolicy.UNCITED_ANSWER);
+        }
+
+        // Judge the user-visible text so stripped labels cannot satisfy grounding on their own.
+        GroundingDecision decision = answerGroundingPolicy == null
+                ? GroundingDecision.allowed(sanitized)
+                : answerGroundingPolicy.evaluate(sanitized, sources);
+        if (decision.grounded()) {
+            return Objects.equals(sanitized, answer)
+                    ? Flux.fromIterable(buffered)
+                    : Flux.fromIterable(replaceAnswer(buffered, sanitized));
+        }
+        return citationRetry != null
+                ? retryWithCitations(buffered, sources, citationRetry)
+                : refusedAnswer(buffered, decision.answer());
+    }
+
+    private Flux<ChatStreamEvent> retryWithCitations(
+            List<ChatStreamEvent> buffered,
+            List<RagRetrievalResult> sources,
+            Supplier<Flux<ChatStreamEvent>> citationRetry
+    ) {
+        ChatStreamEvent first = buffered.getFirst();
+        logger.info(
+                "Retrying uncited answer with citation repair. sessionKey={}, messageId={}",
+                first.sessionKey(),
+                first.messageId()
+        );
+        // Keep the first attempt's identity so one SSE stream never mixes message ids.
+        return bufferAndResolve(
+                citationRetry.get().map(event -> rebind(event, first.sessionKey(), first.messageId())),
+                sources,
+                null
+        );
+    }
+
+    private static ChatStreamEvent rebind(ChatStreamEvent event, String sessionKey, String messageId) {
+        if (Objects.equals(event.sessionKey(), sessionKey) && Objects.equals(event.messageId(), messageId)) {
+            return event;
+        }
+        return new ChatStreamEvent(
+                event.type(),
+                sessionKey,
+                messageId,
+                event.token(),
+                event.payload(),
+                event.timestamp()
+        );
+    }
+
+    private static Flux<ChatStreamEvent> refusedAnswer(List<ChatStreamEvent> buffered, String answer) {
+        return Flux.fromIterable(replaceAnswer(buffered, answer));
+    }
+
+    private static List<ChatStreamEvent> replaceAnswer(List<ChatStreamEvent> buffered, String answer) {
+        List<ChatStreamEvent> events = new ArrayList<>();
+        ChatStreamEvent firstToken = null;
+        boolean answerEmitted = false;
+        boolean done = false;
+        for (ChatStreamEvent event : buffered) {
+            if (ChatStreamEventType.TOKEN.wireName().equals(event.type())) {
+                if (firstToken == null) {
+                    firstToken = event;
+                }
+                events.add(new ChatStreamEvent(
+                        event.type(),
+                        event.sessionKey(),
+                        event.messageId(),
+                        answerEmitted ? "" : answer,
+                        event.payload(),
+                        event.timestamp()
+                ));
+                answerEmitted = true;
+            } else if (ChatStreamEventType.DONE.wireName().equals(event.type())) {
+                events.add(event);
+                done = true;
+            }
+        }
+        if (firstToken == null) {
+            throw new IllegalArgumentException("A sanitized answer must contain a token event");
+        }
+        if (!done) {
+            events.add(ChatStreamEvent.done(firstToken.sessionKey(), firstToken.messageId()));
+        }
+        return events;
+    }
+
+    /**
+     * 真正受引用强制约束的只有 TOKEN / DONE；其他类型以及任何带
+     * {@code isFallback} 载荷的事件都视为非文本事件。
+     */
+    private static boolean isNonTextEvent(ChatStreamEvent event) {
+        String type = event.type();
+        if (!ChatStreamEventType.TOKEN.wireName().equals(type)
+                && !ChatStreamEventType.DONE.wireName().equals(type)) {
+            return true;
+        }
+        return event.payload() instanceof Map<?, ?> payload
+                && Boolean.TRUE.equals(payload.get("isFallback"));
+    }
+
+    private static boolean isImmediateEvent(ChatStreamEvent event) {
+        String type = event.type();
+        return ChatStreamEventType.KEEPALIVE.wireName().equals(type)
+                || ChatStreamEventType.QUEUE.wireName().equals(type);
+    }
+
+    private String sanitizeUserMessage(String userMessage) {
+        if (promptInjectionGuard == null || userMessage == null) {
+            return userMessage;
+        }
+        return promptInjectionGuard.sanitize(userMessage);
     }
 
     private List<RagRetrievalResult> webSearch(String userMessage) {
@@ -142,6 +425,17 @@ public class ChatPipeline {
             return List.of();
         }
         return ragRetrievalService.retrieve(userMessage, metadata);
+    }
+
+    private AgentRuntime resolveAgentRuntime() {
+        if (agentRuntime != null) {
+            return agentRuntime;
+        }
+        return agentRuntimeProvider == null ? null : agentRuntimeProvider.getIfAvailable();
+    }
+
+    private boolean ragEnabled(Map<String, Object> metadata) {
+        return ragRetrievalService != null && ragRetrievalService.isEnabled(metadata);
     }
 
     private static List<String> conversationWindow(Map<String, Object> metadata) {

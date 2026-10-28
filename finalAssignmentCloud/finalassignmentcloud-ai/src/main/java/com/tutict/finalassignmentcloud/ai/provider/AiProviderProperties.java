@@ -107,6 +107,15 @@ public class AiProviderProperties {
         private boolean enabled = true;
         private String baseUrl = "http://localhost:11434";
         private String chatModel = "llama3.2";
+        private double temperature = 0.2;
+
+        public double getTemperature() {
+            return temperature;
+        }
+
+        public void setTemperature(double temperature) {
+            this.temperature = temperature;
+        }
 
         public boolean isEnabled() {
             return enabled;

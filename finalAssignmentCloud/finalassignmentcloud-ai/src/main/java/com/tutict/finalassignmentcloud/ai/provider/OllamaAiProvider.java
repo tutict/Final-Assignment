@@ -46,7 +46,7 @@ public class OllamaAiProvider implements AiProvider {
         return client()
                 .post()
                 .uri("/api/chat")
-                .bodyValue(requestBody(prompt, true))
+                .bodyValue(requestBody(prompt, true, options))
                 .retrieve()
                 .bodyToFlux(String.class)
                 .flatMapIterable(this::parseStreamChunk)
@@ -63,7 +63,7 @@ public class OllamaAiProvider implements AiProvider {
         return client()
                 .post()
                 .uri("/api/chat")
-                .bodyValue(requestBody(prompt, false))
+                .bodyValue(requestBody(prompt, false, options))
                 .retrieve()
                 .bodyToMono(String.class)
                 .timeout(options.timeout())
@@ -95,12 +95,25 @@ public class OllamaAiProvider implements AiProvider {
                 .build();
     }
 
-    private Map<String, Object> requestBody(AiChatPrompt prompt, boolean stream) {
-        return Map.of(
-                "model", properties.getOllama().getChatModel(),
-                "stream", stream,
-                "messages", List.of(Map.of("role", "user", "content", prompt.message()))
-        );
+    Map<String, Object> requestBody(AiChatPrompt prompt, boolean stream, AiGenerationOptions options) {
+        java.util.LinkedHashMap<String, Object> body = new java.util.LinkedHashMap<>();
+        body.put("model", properties.getOllama().getChatModel());
+        body.put("stream", stream);
+        body.put("messages", List.of(Map.of("role", "user", "content", prompt.message())));
+        java.util.LinkedHashMap<String, Object> ollamaOptions = new java.util.LinkedHashMap<>();
+        Double temperature = options.temperature() == null
+                ? properties.getOllama().getTemperature()
+                : options.temperature();
+        if (temperature != null) {
+            ollamaOptions.put("temperature", temperature);
+        }
+        if (options.maxTokens() != null) {
+            ollamaOptions.put("num_predict", options.maxTokens());
+        }
+        if (!ollamaOptions.isEmpty()) {
+            body.put("options", ollamaOptions);
+        }
+        return body;
     }
 
     private List<AiToken> parseStreamChunk(String chunk) {

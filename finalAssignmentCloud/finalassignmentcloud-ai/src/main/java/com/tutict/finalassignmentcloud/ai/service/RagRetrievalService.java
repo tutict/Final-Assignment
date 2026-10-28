@@ -49,7 +49,7 @@ public class RagRetrievalService {
         }
     }
 
-    private boolean isEnabled(Map<String, Object> metadata) {
+    public boolean isEnabled(Map<String, Object> metadata) {
         Object override = firstValue(metadata, "ragEnabled", "rag_enabled", "useRag", "use_rag");
         if (override == null) {
             return properties.isEnabled();

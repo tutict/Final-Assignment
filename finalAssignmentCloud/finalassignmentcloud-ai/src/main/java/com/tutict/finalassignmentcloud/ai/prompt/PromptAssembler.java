@@ -20,10 +20,32 @@ public class PromptAssembler {
     public String assemble(
             String userMessage,
             List<String> conversationWindow,
+            List<RagRetrievalResult> retrievalResults
+    ) {
+        return assemble(userMessage, conversationWindow, retrievalResults, "");
+    }
+
+    public String assemble(
+            String userMessage,
+            List<String> conversationWindow,
             List<RagRetrievalResult> retrievalResults,
             String agentConstraints
     ) {
         return promptTemplateService.render(
+                userMessage,
+                conversationWindow(conversationWindow),
+                contextBuilder.build(retrievalResults),
+                agentConstraints
+        );
+    }
+
+    public String assembleCitationRepair(
+            String userMessage,
+            List<String> conversationWindow,
+            List<RagRetrievalResult> retrievalResults,
+            String agentConstraints
+    ) {
+        return promptTemplateService.renderCitationRepair(
                 userMessage,
                 conversationWindow(conversationWindow),
                 contextBuilder.build(retrievalResults),
@@ -38,15 +60,26 @@ public class PromptAssembler {
         StringBuilder builder = new StringBuilder();
         int index = 1;
         for (String turn : conversationWindow) {
-            String normalized = turn == null ? "" : turn.trim().replaceAll("[\\p{Zs}\\t\\r\\n]+", " ");
+            String normalized = normalizeTurn(turn);
             if (normalized.isBlank()) {
                 continue;
             }
             if (!builder.isEmpty()) {
                 builder.append("\n");
             }
-            builder.append("[").append(index++).append("] ").append(normalized);
+            builder.append("[")
+                    .append(index)
+                    .append("] ")
+                    .append(normalized);
+            index++;
         }
         return builder.toString();
+    }
+
+    private static String normalizeTurn(String value) {
+        if (value == null) {
+            return "";
+        }
+        return value.trim().replaceAll("[\\p{Zs}\\t\\r\\n]+", " ");
     }
 }
