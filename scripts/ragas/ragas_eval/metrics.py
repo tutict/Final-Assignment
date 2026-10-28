@@ -49,6 +49,19 @@ def compute_metrics(
             client_kwargs={"trust_env": False},
         )
     )
+    # AnswerCorrectness first asks the judge to decompose both answers into statements, so it
+    # needs more output headroom than a yes/no verdict. It also runs alone: under concurrent
+    # load a malformed decomposition silently collapses the factual score to zero.
+    correctness_judge = LangchainLLMWrapper(
+        ChatOllama(
+            model=settings.judge_model,
+            base_url=settings.ollama_url,
+            temperature=0,
+            num_ctx=8192,
+            num_predict=2048,
+            client_kwargs={"trust_env": False},
+        )
+    )
     embeddings = LangchainEmbeddingsWrapper(
         OllamaEmbeddings(
             model=settings.judge_embedding_model,
@@ -56,29 +69,69 @@ def compute_metrics(
             client_kwargs={"trust_env": False},
         )
     )
-    metrics = [
+    primary_metrics = [
         Faithfulness(),
         ResponseRelevancy(),
         LLMContextPrecisionWithReference(),
         LLMContextRecall(),
-        AnswerCorrectness(),
     ]
     run_config = RunConfig(max_workers=max_workers, timeout=timeout, max_retries=max_retries)
 
     try:
-        dataset = EvaluationDataset.from_hf_dataset(
-            Dataset.from_list(
-                [
-                    {
-                        "user_input": record["user_input"],
-                        "response": record["response"],
-                        "retrieved_contexts": record["retrieved_contexts"],
-                        "reference": record["reference"],
-                    }
-                    for record in records
-                ]
-            )
+        primary_rows = _evaluate_rows(
+            records, primary_metrics, judge, embeddings, run_config, "primary metrics"
         )
+        correctness_rows = _evaluate_rows(
+            records,
+            [AnswerCorrectness()],
+            correctness_judge,
+            embeddings,
+            RunConfig(max_workers=1, timeout=max(timeout, 600), max_retries=max_retries),
+            "answer correctness",
+        )
+        correctness_rows = _retry_missing(
+            records, correctness_rows, correctness_judge, embeddings, max_retries
+        )
+    except MetricsError:
+        raise
+    except Exception as error:  # RAGAS raises heterogeneous parser/validation errors
+        raise MetricsError(f"RAGAS evaluation failed: {error}") from error
+
+    if len(primary_rows) != len(records) or len(correctness_rows) != len(records):
+        raise MetricsError(
+            f"RAGAS returned {len(primary_rows)}/{len(correctness_rows)} rows for {len(records)} inputs"
+        )
+
+    rows: list[dict[str, float | None]] = []
+    for index in range(len(records)):
+        merged: dict[str, float | None] = {}
+        for source in (primary_rows[index], correctness_rows[index]):
+            for column, value in source.items():
+                key = canonical_metric_key(str(column))
+                if key is not None and key not in merged:
+                    merged[key] = as_float(value)
+        rows.append({key: merged.get(key) for key in METRIC_KEYS})
+    return rows
+
+
+def _evaluate_rows(records, metrics, judge, embeddings, run_config, label: str):
+    from datasets import Dataset
+    from ragas import EvaluationDataset, evaluate
+
+    dataset = EvaluationDataset.from_hf_dataset(
+        Dataset.from_list(
+            [
+                {
+                    "user_input": record["user_input"],
+                    "response": record["response"],
+                    "retrieved_contexts": record["retrieved_contexts"],
+                    "reference": record["reference"],
+                }
+                for record in records
+            ]
+        )
+    )
+    try:
         result = evaluate(
             dataset=dataset,
             metrics=metrics,
@@ -86,22 +139,39 @@ def compute_metrics(
             embeddings=embeddings,
             run_config=run_config,
         )
-        frame = result.to_pandas()
     except Exception as error:  # RAGAS raises heterogeneous parser/validation errors
-        raise MetricsError(f"RAGAS evaluation failed: {error}") from error
+        raise MetricsError(f"RAGAS {label} evaluation failed: {error}") from error
+    return result.to_pandas().to_dict("records")
 
-    rows: list[dict[str, float | None]] = []
-    for record in frame.to_dict("records"):
-        row: dict[str, float | None] = {}
-        for column, value in record.items():
-            key = canonical_metric_key(str(column))
-            if key is not None and key not in row:
-                row[key] = as_float(value)
-        rows.append({key: row.get(key) for key in METRIC_KEYS})
 
-    if len(rows) != len(records):
-        raise MetricsError(f"RAGAS returned {len(rows)} rows for {len(records)} inputs")
-    return rows
+def _retry_missing(records, correctness_rows, judge, embeddings, max_retries: int):
+    from ragas.metrics import AnswerCorrectness
+
+    missing = [
+        index
+        for index, row in enumerate(correctness_rows)
+        if as_float(row.get("answer_correctness")) is None
+    ]
+    for _ in range(max(0, max_retries)):
+        if not missing:
+            break
+        retry_rows = _evaluate_rows(
+            [records[index] for index in missing],
+            [AnswerCorrectness()],
+            judge,
+            embeddings,
+            RunConfig(max_workers=1, timeout=600, max_retries=max_retries),
+            "answer correctness retry",
+        )
+        for index, row in zip(missing, retry_rows, strict=True):
+            if as_float(row.get("answer_correctness")) is not None:
+                correctness_rows[index] = row
+        missing = [
+            index
+            for index, row in enumerate(correctness_rows)
+            if as_float(row.get("answer_correctness")) is None
+        ]
+    return correctness_rows
 
 
 def canonical_metric_key(column: str) -> str | None:

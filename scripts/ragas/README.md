@@ -85,6 +85,9 @@ uv run ragas-eval seed --cleanup
 RAGAS 指标（`ragas 0.4.3`）：Faithfulness、Response Relevancy、LLM Context Precision (with reference)、
 LLM Context Recall、Answer Correctness。
 
+Answer Correctness 单独评测：裁判 `num_predict=2048`、`max_workers=1`，缺失行串行重试；其余四项并行。
+512-token 上限会截断长中文答案的陈述拆分，使 AC 假性归零。
+
 以下样本不进入 RAGAS 均值，并在报告中单独计数：
 
 - 检索为空
