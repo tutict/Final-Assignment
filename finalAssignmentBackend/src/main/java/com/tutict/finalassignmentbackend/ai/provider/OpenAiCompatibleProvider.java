@@ -123,7 +123,7 @@ public class OpenAiCompatibleProvider implements AiProvider {
                 .post()
                 .uri("/chat/completions")
                 .headers(this::applyAuth)
-                .bodyValue(requestBody(prompt, true))
+                .bodyValue(requestBody(prompt, true, options))
                 .retrieve()
                 .onStatus(this::isTooManyRequests, this::rateLimited)
                 .bodyToFlux(String.class)
@@ -136,7 +136,7 @@ public class OpenAiCompatibleProvider implements AiProvider {
                 .post()
                 .uri("/chat/completions")
                 .headers(this::applyAuth)
-                .bodyValue(requestBody(prompt, false))
+                .bodyValue(requestBody(prompt, false, options))
                 .retrieve()
                 .onStatus(this::isTooManyRequests, this::rateLimited)
                 .bodyToMono(String.class)
@@ -207,10 +207,18 @@ public class OpenAiCompatibleProvider implements AiProvider {
         return retryAfter.compareTo(MAX_RETRY_AFTER) > 0 ? MAX_RETRY_AFTER : retryAfter;
     }
 
-    private Map<String, Object> requestBody(AiChatPrompt prompt, boolean stream) {
+    private Map<String, Object> requestBody(AiChatPrompt prompt, boolean stream, AiGenerationOptions options) {
         java.util.LinkedHashMap<String, Object> body = new java.util.LinkedHashMap<>();
-        body.put("model", properties.getOpenaiCompatible().getChatModel());
+        String model = options.model() == null || options.model().isBlank()
+                ? properties.getOpenaiCompatible().getChatModel()
+                : options.model().trim();
+        body.put("model", model);
         body.put("stream", stream);
+        if (options.responseFormat() != null && !options.responseFormat().isEmpty()) {
+            // OpenAI-compatible endpoints vary in their JSON-schema support; json_object is the
+            // widest common denominator and the prompt still names the required key.
+            body.put("response_format", Map.of("type", "json_object"));
+        }
         body.put("messages", AiProviderToolSupport.messagesFrom(prompt));
         java.util.List<java.util.Map<String, Object>> tools = AiProviderToolSupport.toolsFrom(prompt);
         if (!tools.isEmpty()) {

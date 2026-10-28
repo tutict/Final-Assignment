@@ -97,8 +97,14 @@ public class OllamaAiProvider implements AiProvider {
 
     Map<String, Object> requestBody(AiChatPrompt prompt, boolean stream, AiGenerationOptions options) {
         java.util.LinkedHashMap<String, Object> body = new java.util.LinkedHashMap<>();
-        body.put("model", properties.getOllama().getChatModel());
+        String model = options.model() == null || options.model().isBlank()
+                ? properties.getOllama().getChatModel()
+                : options.model().trim();
+        body.put("model", model);
         body.put("stream", stream);
+        if (options.responseFormat() != null && !options.responseFormat().isEmpty()) {
+            body.put("format", options.responseFormat());
+        }
         body.put("messages", List.of(Map.of("role", "user", "content", prompt.message())));
         java.util.LinkedHashMap<String, Object> ollamaOptions = new java.util.LinkedHashMap<>();
         Double temperature = options.temperature() == null

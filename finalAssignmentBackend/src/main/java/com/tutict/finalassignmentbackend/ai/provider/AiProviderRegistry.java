@@ -99,7 +99,10 @@ public class AiProviderRegistry {
     }
 
     public Mono<AiMessage> complete(String message, Map<String, Object> metadata) {
-        AiGenerationOptions options = AiGenerationOptions.from(properties, metadata);
+        return complete(message, metadata, AiGenerationOptions.from(properties, metadata));
+    }
+
+    public Mono<AiMessage> complete(String message, Map<String, Object> metadata, AiGenerationOptions options) {
         AiChatPrompt prompt = new AiChatPrompt(message, metadata);
         AiProvider primary = activeProvider();
         AiProvider fallback = fallbackProvider();
@@ -122,6 +125,16 @@ public class AiProviderRegistry {
                 .onErrorResume(error -> fallback.complete(prompt, options)
                         .timeout(options.timeout())
                         .map(result -> withProvider(result, fallback.providerName())));
+    }
+
+    /**
+     * Side-channel completion for guardrail judgements. It deliberately bypasses fallback and the
+     * provider failure counter: a broken judge model must not open the circuit that serves chat
+     * traffic, and the caller treats any error as "no verdict" rather than swapping in a fallback
+     * answer.
+     */
+    public Mono<AiMessage> completeIsolated(String message, AiGenerationOptions options) {
+        return activeProvider().complete(new AiChatPrompt(message, Map.of()), options);
     }
 
     public Mono<Map<String, ProviderHealth>> providerHealth() {

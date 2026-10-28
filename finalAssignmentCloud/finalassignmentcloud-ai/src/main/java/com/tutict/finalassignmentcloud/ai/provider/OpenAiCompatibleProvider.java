@@ -48,7 +48,7 @@ public class OpenAiCompatibleProvider implements AiProvider {
                 .post()
                 .uri("/chat/completions")
                 .headers(this::applyAuth)
-                .bodyValue(requestBody(prompt, true))
+                .bodyValue(requestBody(prompt, true, options))
                 .retrieve()
                 .bodyToFlux(String.class)
                 .flatMapIterable(this::parseStreamChunk)
@@ -64,7 +64,7 @@ public class OpenAiCompatibleProvider implements AiProvider {
                 .post()
                 .uri("/chat/completions")
                 .headers(this::applyAuth)
-                .bodyValue(requestBody(prompt, false))
+                .bodyValue(requestBody(prompt, false, options))
                 .retrieve()
                 .bodyToMono(String.class)
                 .timeout(options.timeout())
@@ -112,12 +112,20 @@ public class OpenAiCompatibleProvider implements AiProvider {
         }
     }
 
-    private Map<String, Object> requestBody(AiChatPrompt prompt, boolean stream) {
-        return Map.of(
-                "model", properties.getOpenaiCompatible().getChatModel(),
-                "stream", stream,
-                "messages", List.of(Map.of("role", "user", "content", prompt.message()))
-        );
+    private Map<String, Object> requestBody(AiChatPrompt prompt, boolean stream, AiGenerationOptions options) {
+        String model = options.model() == null || options.model().isBlank()
+                ? properties.getOpenaiCompatible().getChatModel()
+                : options.model().trim();
+        java.util.LinkedHashMap<String, Object> body = new java.util.LinkedHashMap<>();
+        body.put("model", model);
+        body.put("stream", stream);
+        if (options.responseFormat() != null && !options.responseFormat().isEmpty()) {
+            // OpenAI-compatible endpoints vary in their JSON-schema support; json_object is the
+            // widest common denominator and the prompt still names the required key.
+            body.put("response_format", Map.of("type", "json_object"));
+        }
+        body.put("messages", List.of(Map.of("role", "user", "content", prompt.message())));
+        return body;
     }
 
     private List<AiToken> parseStreamChunk(String chunk) {

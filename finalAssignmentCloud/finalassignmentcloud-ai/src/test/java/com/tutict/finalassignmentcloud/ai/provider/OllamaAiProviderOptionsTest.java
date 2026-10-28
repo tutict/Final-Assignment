@@ -63,6 +63,35 @@ class OllamaAiProviderOptionsTest {
         assertThat(options(body)).containsEntry("temperature", 0.35);
     }
 
+    @Test
+    void sendsPerCallModelAndJsonFormatForVerification() {
+        Map<String, Object> body = provider.requestBody(
+                new AiChatPrompt("hello", Map.of()),
+                false,
+                AiGenerationOptions.forVerification(
+                        Duration.ofSeconds(2),
+                        "qwen2.5:7b",
+                        Map.of(
+                                "type", "object",
+                                "properties", Map.of("topic_in_sources", Map.of("type", "boolean"))
+                        )
+                )
+        );
+
+        assertThat(body).containsEntry("model", "qwen2.5:7b");
+        assertThat(format(body))
+                .containsEntry("type", "object")
+                .containsEntry("properties", Map.of("topic_in_sources", Map.of("type", "boolean")));
+        assertThat(options(body))
+                .containsEntry("temperature", 0.0)
+                .containsEntry("num_predict", 96);
+    }
+
+    @SuppressWarnings("unchecked")
+    private static Map<String, Object> format(Map<String, Object> body) {
+        return (Map<String, Object>) body.get("format");
+    }
+
     @SuppressWarnings("unchecked")
     private static Map<String, Object> options(Map<String, Object> body) {
         return (Map<String, Object>) body.get("options");

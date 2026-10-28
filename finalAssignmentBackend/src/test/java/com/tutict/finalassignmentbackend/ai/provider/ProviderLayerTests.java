@@ -88,6 +88,61 @@ class OllamaAiProviderTest {
     }
 
     @Test
+    void sendsPerCallModelAndJsonFormatForVerification() throws IOException {
+        java.util.concurrent.atomic.AtomicReference<String> requestBody =
+                new java.util.concurrent.atomic.AtomicReference<>("");
+        HttpServer server = HttpServer.create(new InetSocketAddress(0), 0);
+        server.createContext("/api/chat", exchange -> {
+            requestBody.set(new String(exchange.getRequestBody().readAllBytes(), StandardCharsets.UTF_8));
+            byte[] body = """
+                    {"message":{"content":"{\\"topic_in_sources\\":true}"},"done":true}
+                    """.getBytes(StandardCharsets.UTF_8);
+            exchange.getResponseHeaders().add("Content-Type", "application/json");
+            exchange.sendResponseHeaders(200, body.length);
+            try (OutputStream output = exchange.getResponseBody()) {
+                output.write(body);
+            }
+        });
+        server.start();
+        try {
+            AiProviderProperties properties = ProviderLayerTestSupport.properties(
+                    "ollama",
+                    "noop",
+                    Duration.ofSeconds(1)
+            );
+            properties.getOllama().setBaseUrl("http://localhost:" + server.getAddress().getPort());
+            properties.getOllama().setChatModel("llama3.2");
+            OllamaAiProvider provider = new OllamaAiProvider(
+                    properties,
+                    WebClient.builder(),
+                    new ObjectMapper()
+            );
+
+            AiMessage message = provider.complete(
+                            new AiChatPrompt("hello", Map.of()),
+                            AiGenerationOptions.forVerification(
+                                    Duration.ofSeconds(1),
+                                    "qwen2.5:7b",
+                                    Map.of(
+                                            "type", "object",
+                                            "properties", Map.of("topic_in_sources", Map.of("type", "boolean")),
+                                            "required", List.of("topic_in_sources"))
+                            )
+                    )
+                    .block(Duration.ofSeconds(2));
+
+            assertThat(requestBody.get())
+                    .contains("\"model\":\"qwen2.5:7b\"")
+                    .contains("\"format\":{")
+                    .contains("\"topic_in_sources\":{\"type\":\"boolean\"}");
+            assertThat(message).isNotNull();
+            assertThat(message.text()).isEqualTo("{\"topic_in_sources\":true}");
+        } finally {
+            server.stop(0);
+        }
+    }
+
+    @Test
     void streamsOllamaNdjsonAndReportsHealth() throws IOException {
         HttpServer server = HttpServer.create(new InetSocketAddress(0), 0);
         server.createContext("/api/chat", exchange -> {
@@ -179,6 +234,60 @@ class AiProviderRegistryTest {
         registry.health("primary").block(Duration.ofSeconds(1));
 
         assertThat(healthCalls).hasValue(1);
+    }
+
+    @Test
+    void isolatedCompletionDoesNotTripTheChatCircuitBreaker() {
+        AtomicInteger judgeCalls = new AtomicInteger();
+        AiProvider primary = new AiProvider() {
+            @Override
+            public String providerName() {
+                return "primary";
+            }
+
+            @Override
+            public boolean supportsStreaming() {
+                return true;
+            }
+
+            @Override
+            public Flux<AiToken> stream(AiChatPrompt prompt, AiGenerationOptions options) {
+                return Flux.just(new AiToken("ok", true, Map.of()));
+            }
+
+            @Override
+            public Mono<AiMessage> complete(AiChatPrompt prompt, AiGenerationOptions options) {
+                judgeCalls.incrementAndGet();
+                return Mono.error(new IllegalStateException("judge down"));
+            }
+
+            @Override
+            public Mono<ProviderHealth> health() {
+                return Mono.just(ProviderHealth.up("ok"));
+            }
+        };
+        AiProviderProperties properties = ProviderLayerTestSupport.properties(
+                "primary",
+                "noop",
+                Duration.ofSeconds(1)
+        );
+        properties.getProvider().setCircuitBreakerFailureThreshold(1);
+        AiProviderRegistry registry = new AiProviderRegistry(
+                List.of(primary, new NoopAiProvider()),
+                properties
+        );
+
+        for (int attempt = 0; attempt < 3; attempt++) {
+            registry.completeIsolated("judge", ProviderLayerTestSupport.options(Duration.ofSeconds(1)))
+                    .onErrorResume(error -> Mono.empty())
+                    .block(Duration.ofSeconds(1));
+        }
+
+        List<AiToken> tokens = registry.stream("hello", Map.of())
+                .collectList()
+                .block(Duration.ofSeconds(1));
+        assertThat(judgeCalls).hasValue(3);
+        assertThat(tokens).extracting(AiToken::text).contains("ok");
     }
 }
 
@@ -370,6 +479,55 @@ class OpenAiCompatibleProviderTest {
             assertThat(tokens).extracting(AiToken::text).contains("ok");
             assertThat(tokens).allSatisfy(token ->
                     assertThat(String.valueOf(token.metadata())).doesNotContain("sk-secret"));
+        } finally {
+            server.stop(0);
+        }
+    }
+
+    @Test
+    void honorsPerCallModelAndJsonResponseFormat() throws IOException {
+        java.util.concurrent.atomic.AtomicReference<String> requestBody =
+                new java.util.concurrent.atomic.AtomicReference<>("");
+        HttpServer server = HttpServer.create(new InetSocketAddress(0), 0);
+        server.createContext("/chat/completions", exchange -> {
+            requestBody.set(new String(exchange.getRequestBody().readAllBytes(), StandardCharsets.UTF_8));
+            byte[] body = """
+                    {"choices":[{"message":{"content":"{\\"topic_in_sources\\":true}"}}]}
+                    """.getBytes(StandardCharsets.UTF_8);
+            exchange.getResponseHeaders().add("Content-Type", "application/json");
+            exchange.sendResponseHeaders(200, body.length);
+            try (OutputStream output = exchange.getResponseBody()) {
+                output.write(body);
+            }
+        });
+        server.start();
+        try {
+            AiProviderProperties properties = ProviderLayerTestSupport.properties(
+                    "openai-compatible",
+                    "noop",
+                    Duration.ofSeconds(2)
+            );
+            properties.getOpenaiCompatible().setEnabled(true);
+            properties.getOpenaiCompatible().setBaseUrl("http://localhost:" + server.getAddress().getPort());
+            properties.getOpenaiCompatible().setChatModel("chat-model");
+            OpenAiCompatibleProvider provider = new OpenAiCompatibleProvider(
+                    properties,
+                    WebClient.builder(),
+                    new ObjectMapper()
+            );
+
+            AiMessage message = provider.complete(
+                            new AiChatPrompt("hello", Map.of()),
+                            AiGenerationOptions.forVerification(
+                                    Duration.ofSeconds(1), "judge-model", Map.of("type", "object"))
+                    )
+                    .block(Duration.ofSeconds(2));
+
+            assertThat(requestBody.get())
+                    .contains("\"model\":\"judge-model\"")
+                    .contains("\"response_format\":{\"type\":\"json_object\"}");
+            assertThat(message).isNotNull();
+            assertThat(message.text()).contains("topic_in_sources");
         } finally {
             server.stop(0);
         }

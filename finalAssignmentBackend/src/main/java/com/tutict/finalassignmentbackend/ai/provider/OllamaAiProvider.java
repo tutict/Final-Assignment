@@ -125,8 +125,14 @@ public class OllamaAiProvider implements AiProvider {
 
     private Map<String, Object> requestBody(AiChatPrompt prompt, boolean stream, AiGenerationOptions options) {
         java.util.LinkedHashMap<String, Object> body = new java.util.LinkedHashMap<>();
-        body.put("model", properties.getOllama().getChatModel());
+        String model = options.model() == null || options.model().isBlank()
+                ? properties.getOllama().getChatModel()
+                : options.model().trim();
+        body.put("model", model);
         body.put("stream", stream);
+        if (options.responseFormat() != null && !options.responseFormat().isEmpty()) {
+            body.put("format", options.responseFormat());
+        }
         body.put("messages", AiProviderToolSupport.messagesFrom(prompt));
         java.util.List<java.util.Map<String, Object>> tools = AiProviderToolSupport.toolsFrom(prompt);
         if (!tools.isEmpty()) {
