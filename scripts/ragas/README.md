@@ -21,10 +21,14 @@ AI_AGENT_ENABLED=false RAG_RETRIEVAL_ENABLED=true mvn spring-boot:run
 
 ```bash
 RAG_INDEX_NAME=rag_chunk_ragas_v1 RAG_INDEX_ALIAS=rag_chunk_ragas_current \
-AI_AGENT_ENABLED=false RAG_RETRIEVAL_ENABLED=true mvn spring-boot:run
+AI_AGENT_ENABLED=false RAG_RETRIEVAL_ENABLED=true \
+AI_GUARDRAIL_TOPIC_MODEL=qwen2.5:7b mvn spring-boot:run
 
 export RAGAS_INDEX_ALIAS=rag_chunk_ragas_current
 ```
+
+- `AI_GUARDRAIL_TOPIC_MODEL` 显式开启生成后主题校验：答案通过引用护栏后，再由该模型判断检索资料是否真的覆盖所问主题。未设置时校验保持关闭：判官应由独立模型承担，不应由生成答案的 `llama3.2` 自审。
+  `AI_GUARDRAIL_TOPIC_TIMEOUT`（默认 `PT12S`）控制单次判定超时，超时或输出无法解析时放行回答。
 
 - Ollama 模型：
 
@@ -77,6 +81,7 @@ $env:AI_RAG_ENABLED = "true"
 $env:RAG_RETRIEVAL_ENABLED = "true"
 $env:RAG_INDEX_NAME = "rag_chunk_ragas_v1"
 $env:RAG_INDEX_ALIAS = "rag_chunk_ragas_current"
+$env:AI_GUARDRAIL_TOPIC_MODEL = "qwen2.5:7b"
 powershell -ExecutionPolicy Bypass -File scripts\start-cloud-backend.ps1 -IncludeAi -GatewayPort 18080
 ```
 

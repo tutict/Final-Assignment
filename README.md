@@ -346,11 +346,13 @@ RAG 数据表定义见：
 - Spring 主后端与 Cloud 的混合检索默认 BM25 / 向量权重为 `0.8 / 0.2`，候选深度倍率为 `3`；可分别用 `RAG_RETRIEVAL_BM25_WEIGHT`、`RAG_RETRIEVAL_VECTOR_WEIGHT` 和 `RAG_RETRIEVAL_CANDIDATE_MULTIPLIER` 覆盖
 - 改进复跑（2026-10-28，llama3.2，topK=5）：Faithfulness 0.9889、Response Relevancy 0.8889、Context Precision 0.9609、Context Recall 0.9833、Answer Correctness 0.7781；30/30 可评分，引用合规 30/30，ACL 泄漏、上下文漂移和 provider 错误均为 0；不可回答拒答率仍为 0/3，是主要缺口
 - Cloud 对齐复跑（2026-10-28，同数据集与裁判，`AI_AGENT_ENABLED=false`，topK=5）：Faithfulness 0.9569、Response Relevancy 0.8574、Context Precision 0.9511、Context Recall 0.9828、Answer Correctness 0.7569；29/30 可评分（a10 引用修复失败被拒答），ACL 泄漏 0/3，与主后端配对差 0.0000–0.0331，检索结果逐题一致
+- 拒答复跑（2026-10-29，`qwen2.5:7b` 主题判官，topK=5）：不可回答拒答 3/3（此前五组均为 0/3），27/30 可评分，Faithfulness 0.9907、Response Relevancy 0.8521、Context Precision 0.9949、Context Recall 0.9815、Answer Correctness 0.7713；a16/a28 被误拒，ACL 泄漏与上下文漂移均为 0
 - `RAGAS_TARGET_LABEL` 会写入 manifest 与报告环境表，用于区分同一数据集在不同后端的运行
 - RAG 提示词只向模型暴露 `[n]` 与正文；Ollama 默认 `temperature=0.2`；检索命中但答案无引用时先做一次引用修复重试，仍无引用才拒答（Agent 路径不重试）
+- 生成后主题校验由 `AI_GUARDRAIL_TOPIC_MODEL` 显式开启（例如 `qwen2.5:7b`）：答案通过引用护栏后，再判断检索资料是否覆盖所问主题，未覆盖时拒答；未配置时校验关闭。`AI_GUARDRAIL_TOPIC_TIMEOUT` 默认 `PT12S`，超时或输出无法解析时放行
 - RAG 回合会清理模型输出中的检索内部标签；`AI_GUARDRAIL_CITATION_ENFORCEMENT=false` 只关闭引用强制，不关闭标签清洗。若清洗移除全部非空回答，会返回安全提示；清洗替换原答时会保留各 token 的 SSE payload metadata
 
-操作步骤与已知限制见 [scripts/ragas/README.md](scripts/ragas/README.md)，基线见 [docs/ai/ragas/baseline-2026-10-23.md](docs/ai/ragas/baseline-2026-10-23.md)，检索和答案质量改进记录见 [docs/ai/ragas/improvement-2026-10-23.md](docs/ai/ragas/improvement-2026-10-23.md) 与 [docs/ai/ragas/improvement-2026-10-28.md](docs/ai/ragas/improvement-2026-10-28.md)；Cloud 后端的移植与对齐结果见 [docs/ai/ragas/cloud-parity-2026-10-28.md](docs/ai/ragas/cloud-parity-2026-10-28.md)。
+操作步骤与已知限制见 [scripts/ragas/README.md](scripts/ragas/README.md)，基线见 [docs/ai/ragas/baseline-2026-10-23.md](docs/ai/ragas/baseline-2026-10-23.md)，检索和答案质量改进记录见 [docs/ai/ragas/improvement-2026-10-23.md](docs/ai/ragas/improvement-2026-10-23.md) 与 [docs/ai/ragas/improvement-2026-10-28.md](docs/ai/ragas/improvement-2026-10-28.md)；拒答改造见 [docs/ai/ragas/refusal-2026-10-29.md](docs/ai/ragas/refusal-2026-10-29.md)；Cloud 后端的移植与对齐结果见 [docs/ai/ragas/cloud-parity-2026-10-28.md](docs/ai/ragas/cloud-parity-2026-10-28.md)。
 
 ## 后端包结构
 
