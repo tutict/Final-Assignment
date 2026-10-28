@@ -7,6 +7,7 @@ import com.tutict.finalassignmentcloud.ai.client.rag.RagRetrievalResult;
 import com.tutict.finalassignmentcloud.ai.config.AiRagProperties;
 import com.tutict.finalassignmentcloud.ai.guardrail.AnswerGroundingPolicy;
 import com.tutict.finalassignmentcloud.ai.guardrail.PromptInjectionGuard;
+import com.tutict.finalassignmentcloud.ai.guardrail.TopicGroundingVerifier;
 import com.tutict.finalassignmentcloud.ai.prompt.AgentConstraintService;
 import com.tutict.finalassignmentcloud.ai.prompt.AiAgentRole;
 import com.tutict.finalassignmentcloud.ai.prompt.AiAgentRoleResolver;
@@ -406,6 +407,64 @@ class ChatPipelineGroundingTest {
                 .contains("[2] assistant: prior answer");
     }
 
+    @Test
+    void refusesWhenTopicVerifierFindsSourcesDoNotCoverTheQuestion() {
+        CapturingProvider provider = new CapturingProvider(
+                "primary",
+                tokenStream("车辆过户需买卖双方携带身份证办理 [1]。")
+        );
+        ChatPipeline pipeline = pipelineWithVerifier(
+                provider,
+                new StubRagRetrievalService(List.of(source()), true),
+                "{\"topic_in_sources\":false,\"reason\":\"资料讲的是过户\"}"
+        );
+
+        List<ChatStreamEvent> events = pipeline.stream(new AiChatStreamRequest(
+                        "车辆报废流程是什么？", "session-1", Map.of()))
+                .collectList()
+                .block(Duration.ofSeconds(2));
+
+        assertThat(events).extracting(ChatStreamEvent::type)
+                .containsExactly(ChatStreamEventType.TOKEN.wireName(), ChatStreamEventType.DONE.wireName());
+        assertThat(events.getFirst().token()).isEqualTo(AnswerGroundingPolicy.NO_SOURCE_ANSWER);
+    }
+
+    @Test
+    void keepsAnswerWhenTopicVerifierFindsSourcesCoverTheQuestion() {
+        String answer = "罚款需在十五日内缴纳 [1]。";
+        CapturingProvider provider = new CapturingProvider("primary", tokenStream(answer));
+        ChatPipeline pipeline = pipelineWithVerifier(
+                provider,
+                new StubRagRetrievalService(List.of(source()), true),
+                "{\"topic_in_sources\":true,\"reason\":\"主题一致\"}"
+        );
+
+        List<ChatStreamEvent> events = pipeline.stream(new AiChatStreamRequest(
+                        "罚款怎么缴纳？", "session-1", Map.of()))
+                .collectList()
+                .block(Duration.ofSeconds(2));
+
+        assertThat(events.getFirst().token()).isEqualTo(answer);
+    }
+
+    @Test
+    void keepsAnswerWhenTopicVerifierFailsOpen() {
+        String answer = "罚款需在十五日内缴纳 [1]。";
+        CapturingProvider provider = new CapturingProvider("primary", tokenStream(answer));
+        ChatPipeline pipeline = pipelineWithVerifier(
+                provider,
+                new StubRagRetrievalService(List.of(source()), true),
+                "not-json"
+        );
+
+        List<ChatStreamEvent> events = pipeline.stream(new AiChatStreamRequest(
+                        "罚款怎么缴纳？", "session-1", Map.of()))
+                .collectList()
+                .block(Duration.ofSeconds(2));
+
+        assertThat(events.getFirst().token()).isEqualTo(answer);
+    }
+
     private static ChatPipeline pipeline(
             CapturingProvider provider,
             StubRagRetrievalService rag,
@@ -438,6 +497,68 @@ class ChatPipelineGroundingTest {
                 new AnswerGroundingPolicy(citationEnforcementEnabled),
                 new PromptInjectionGuard()
         );
+    }
+
+    private static ChatPipeline pipelineWithVerifier(
+            CapturingProvider provider,
+            StubRagRetrievalService rag,
+            String judgeResponse
+    ) {
+        PromptAssembler promptAssembler = new PromptAssembler(new PromptTemplateService(), new ContextBuilder(200));
+        TopicGroundingVerifier verifier = new TopicGroundingVerifier(
+                judgeRegistry(judgeResponse),
+                new ObjectMapper(),
+                true,
+                "judge-model",
+                Duration.ofSeconds(2)
+        );
+        return new ChatPipeline(
+                new ChatStreamService(registry(provider), Duration.ofSeconds(60)),
+                promptAssembler,
+                rag,
+                null,
+                new AiAgentRoleResolver(),
+                testConstraintService(),
+                null,
+                new AnswerGroundingPolicy(true),
+                new PromptInjectionGuard(),
+                verifier
+        );
+    }
+
+    private static AiProviderRegistry judgeRegistry(String response) {
+        AiProvider judge = new AiProvider() {
+            @Override
+            public String providerName() {
+                return "judge";
+            }
+
+            @Override
+            public boolean supportsStreaming() {
+                return false;
+            }
+
+            @Override
+            public Flux<AiToken> stream(AiChatPrompt prompt, AiGenerationOptions options) {
+                return Flux.empty();
+            }
+
+            @Override
+            public Mono<AiMessage> complete(AiChatPrompt prompt, AiGenerationOptions options) {
+                return Mono.just(new AiMessage(response, Map.of()));
+            }
+
+            @Override
+            public Mono<ProviderHealth> health() {
+                return Mono.just(ProviderHealth.up("ok"));
+            }
+        };
+        AiProviderProperties properties = new AiProviderProperties();
+        properties.getProvider().setPrimary("judge");
+        properties.getProvider().setFallback("noop");
+        properties.getProvider().setTimeout(Duration.ofSeconds(2));
+        properties.getProvider().setRetryAttempts(0);
+        return new AiProviderRegistry(List.of(judge, new NoopAiProvider()), properties);
     }
 
     private static AiProviderRegistry registry(CapturingProvider provider) {
