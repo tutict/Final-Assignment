@@ -186,12 +186,20 @@ start_module finalassignmentcloud-traffic "$CLOUD_TRAFFIC_PORT" 384m
 start_module finalassignmentcloud-audit "$CLOUD_AUDIT_PORT" 256m || true
 start_module finalassignmentcloud-system "$CLOUD_SYSTEM_PORT" 256m || true
 start_module finalassignmentcloud-rag "$CLOUD_RAG_PORT" 768m
+if [ "$INCLUDE_AI" = "true" ]; then
+  start_module finalassignmentcloud-ai "$CLOUD_AI_PORT" 768m
+else
+  log "Skipping finalassignmentcloud-ai (use --include-ai or CLOUD_INCLUDE_AI=true)"
+fi
 
 HEALTH_WAIT="${CLOUD_SERVICE_HEALTH_WAIT_SECONDS:-180}"
 wait_health finalassignmentcloud-user "$CLOUD_USER_PORT" "$HEALTH_WAIT"
 wait_health finalassignmentcloud-auth "$CLOUD_AUTH_PORT" "$HEALTH_WAIT"
 wait_health finalassignmentcloud-traffic "$CLOUD_TRAFFIC_PORT" "$HEALTH_WAIT"
 wait_health finalassignmentcloud-rag "$CLOUD_RAG_PORT" "$HEALTH_WAIT" || true
+if [ "$INCLUDE_AI" = "true" ]; then
+  wait_health finalassignmentcloud-ai "$CLOUD_AI_PORT" "$HEALTH_WAIT" || true
+fi
 
 start_module_with_retry finalassignmentcloud-gateway "$CLOUD_GATEWAY_PORT" 256m 10
 
