@@ -16,6 +16,8 @@ import com.tutict.finalassignmentbackend.ai.rag.dto.RetrievalResult;
 import com.tutict.finalassignmentbackend.ai.rag.query.ServerSideRagQueryRequest;
 import com.tutict.finalassignmentbackend.ai.rag.query.RagQueryService;
 import com.tutict.finalassignmentbackend.service.ai.AIChatSearchService;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.core.io.DefaultResourceLoader;
@@ -28,10 +30,13 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.UUID;
+import java.util.function.Supplier;
 import java.util.stream.Collectors;
 
 @Service
 public class ChatPipeline {
+
+    private static final Logger logger = LoggerFactory.getLogger(ChatPipeline.class);
 
     private final ChatStreamService chatStreamService;
     private final PromptAssembler promptAssembler;
@@ -214,9 +219,11 @@ public class ChatPipeline {
         String agentConstraints = runtime != null && agentConstraintService != null
                 ? agentConstraintService.constraintsFor(agentRole)
                 : "";
+        String sanitizedMessage = sanitizeUserMessage(userMessage);
+        List<String> conversationWindow = conversationWindow(metadata);
         String prompt = promptAssembler.assemble(
-                sanitizeUserMessage(userMessage),
-                conversationWindow(metadata),
+                sanitizedMessage,
+                conversationWindow,
                 retrievalResults,
                 agentConstraints
         );
@@ -228,7 +235,22 @@ public class ChatPipeline {
                         metadata
                 ));
         boolean groundingRequired = ragEngaged || !retrievalResults.isEmpty();
-        return applyGrounding(events, retrievalResults, groundingRequired);
+        // One repair attempt with a citation-focused prompt, then the guardrail still refuses.
+        // The agent path is excluded because replaying it would re-run tools and side effects.
+        Supplier<Flux<ChatStreamEvent>> citationRetry =
+                runtime == null && !retrievalResults.isEmpty()
+                        ? () -> chatStreamService.stream(new AiChatStreamRequest(
+                                promptAssembler.assembleCitationRepair(
+                                        sanitizedMessage,
+                                        conversationWindow,
+                                        retrievalResults,
+                                        agentConstraints
+                                ),
+                                request.sessionKey(),
+                                metadata
+                        ))
+                        : null;
+        return applyGrounding(events, retrievalResults, groundingRequired, citationRetry);
     }
 
     /**
@@ -245,26 +267,40 @@ public class ChatPipeline {
     private Flux<ChatStreamEvent> applyGrounding(
             Flux<ChatStreamEvent> events,
             List<RetrievalResult> sources,
-            boolean groundingRequired
+            boolean groundingRequired,
+            Supplier<Flux<ChatStreamEvent>> citationRetry
     ) {
         if (!groundingRequired) {
             return events;
         }
+        return bufferAndResolve(events, sources, citationRetry);
+    }
+
+    private Flux<ChatStreamEvent> bufferAndResolve(
+            Flux<ChatStreamEvent> events,
+            List<RetrievalResult> sources,
+            Supplier<Flux<ChatStreamEvent>> citationRetry
+    ) {
         return Flux.defer(() -> {
             List<ChatStreamEvent> buffered = new ArrayList<>();
             return events.concatMap(event -> {
-                // Keep-alives are forwarded immediately so the client connection stays alive
-                // while the answer is buffered for citation checking.
-                if (ChatStreamEventType.KEEPALIVE.wireName().equals(event.type())) {
+                // Keep-alives and queue positions are not answer text: forward them immediately so
+                // the connection stays alive, and keep them out of the grounding decision so a
+                // queue notice can never exempt an uncited answer from the guardrail.
+                if (isImmediateEvent(event)) {
                     return Flux.just(event);
                 }
                 buffered.add(event);
                 return Flux.empty();
-            }).concatWith(Flux.defer(() -> resolveGrounding(buffered, sources)));
+            }).concatWith(Flux.defer(() -> resolveGrounding(buffered, sources, citationRetry)));
         });
     }
 
-    private Flux<ChatStreamEvent> resolveGrounding(List<ChatStreamEvent> buffered, List<RetrievalResult> sources) {
+    private Flux<ChatStreamEvent> resolveGrounding(
+            List<ChatStreamEvent> buffered,
+            List<RetrievalResult> sources,
+            Supplier<Flux<ChatStreamEvent>> citationRetry
+    ) {
         if (buffered.isEmpty()) {
             return Flux.empty();
         }
@@ -283,7 +319,9 @@ public class ChatPipeline {
 
         // Do not let a response made only of internal labels turn into a successful empty answer.
         if (!answer.isBlank() && sanitized.isBlank()) {
-            return refusedAnswer(buffered, AnswerGroundingPolicy.UNCITED_ANSWER);
+            return citationRetry != null
+                    ? retryWithCitations(buffered, sources, citationRetry)
+                    : refusedAnswer(buffered, AnswerGroundingPolicy.UNCITED_ANSWER);
         }
 
         // Judge the user-visible text so stripped labels cannot satisfy grounding on their own.
@@ -295,7 +333,42 @@ public class ChatPipeline {
                     ? Flux.fromIterable(buffered)
                     : Flux.fromIterable(replaceAnswer(buffered, sanitized));
         }
-        return refusedAnswer(buffered, decision.answer());
+        return citationRetry != null
+                ? retryWithCitations(buffered, sources, citationRetry)
+                : refusedAnswer(buffered, decision.answer());
+    }
+
+    private Flux<ChatStreamEvent> retryWithCitations(
+            List<ChatStreamEvent> buffered,
+            List<RetrievalResult> sources,
+            Supplier<Flux<ChatStreamEvent>> citationRetry
+    ) {
+        ChatStreamEvent first = buffered.getFirst();
+        logger.info(
+                "Retrying uncited answer with citation repair. sessionKey={}, messageId={}",
+                first.sessionKey(),
+                first.messageId()
+        );
+        // Keep the first attempt's identity so one SSE stream never mixes message ids.
+        return bufferAndResolve(
+                citationRetry.get().map(event -> rebind(event, first.sessionKey(), first.messageId())),
+                sources,
+                null
+        );
+    }
+
+    private static ChatStreamEvent rebind(ChatStreamEvent event, String sessionKey, String messageId) {
+        if (Objects.equals(event.sessionKey(), sessionKey) && Objects.equals(event.messageId(), messageId)) {
+            return event;
+        }
+        return new ChatStreamEvent(
+                event.type(),
+                sessionKey,
+                messageId,
+                event.token(),
+                event.payload(),
+                event.timestamp()
+        );
     }
 
     private static Flux<ChatStreamEvent> refusedAnswer(List<ChatStreamEvent> buffered, String answer) {
@@ -347,6 +420,12 @@ public class ChatPipeline {
         }
         return event.payload() instanceof Map<?, ?> payload
                 && Boolean.TRUE.equals(payload.get("isFallback"));
+    }
+
+    private static boolean isImmediateEvent(ChatStreamEvent event) {
+        String type = event.type();
+        return ChatStreamEventType.KEEPALIVE.wireName().equals(type)
+                || ChatStreamEventType.QUEUE.wireName().equals(type);
     }
 
     private String sanitizeUserMessage(String userMessage) {

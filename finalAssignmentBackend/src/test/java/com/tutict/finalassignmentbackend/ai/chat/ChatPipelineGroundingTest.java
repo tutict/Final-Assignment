@@ -55,6 +55,92 @@ class ChatPipelineGroundingTest {
     }
 
     @Test
+    void retriesOnceWithCitationRepairWhenFirstAnswerIsUncited() {
+        CapturingProvider provider = new CapturingProvider("primary", List.of(
+                tokenStream("\u7f5a\u6b3e\u53ef\u4ee5\u5206\u671f\u7f34\u7eb3\u3002"),
+                tokenStream("\u7f5a\u6b3e\u9700\u5728\u5341\u4e94\u65e5\u5185\u7f34\u7eb3 [1]\u3002")
+        ));
+        StubRagQueryService rag = new StubRagQueryService(List.of(source()));
+        ChatPipeline pipeline = pipeline(provider, rag, ragProperties(true));
+
+        List<ChatStreamEvent> events = pipeline.stream(new AiChatStreamRequest(
+                        "\u7f5a\u6b3e\u600e\u4e48\u7f34\u7eb3\uff1f", "session-1", Map.of()))
+                .collectList()
+                .block(Duration.ofSeconds(2));
+
+        assertThat(events).extracting(ChatStreamEvent::type)
+                .containsExactly(ChatStreamEventType.TOKEN.wireName(), ChatStreamEventType.DONE.wireName());
+        assertThat(events.getFirst().token())
+                .isEqualTo("\u7f5a\u6b3e\u9700\u5728\u5341\u4e94\u65e5\u5185\u7f34\u7eb3 [1]\u3002");
+        assertThat(provider.calls()).isEqualTo(2);
+        assertThat(provider.prompts().get(0)).doesNotContain("previous draft was rejected");
+        assertThat(provider.prompts().get(1)).contains("previous draft was rejected");
+        assertThat(events).allSatisfy(event ->
+                assertThat(event.messageId()).isEqualTo(events.getFirst().messageId()));
+    }
+
+    @Test
+    void refusesAfterASingleUnsuccessfulCitationRepair() {
+        CapturingProvider provider = new CapturingProvider(
+                "primary",
+                tokenStream("\u7f5a\u6b3e\u53ef\u4ee5\u5206\u671f\u7f34\u7eb3\u3002")
+        );
+        StubRagQueryService rag = new StubRagQueryService(List.of(source()));
+        ChatPipeline pipeline = pipeline(provider, rag, ragProperties(true));
+
+        List<ChatStreamEvent> events = pipeline.stream(new AiChatStreamRequest("q", "session-1", Map.of()))
+                .collectList()
+                .block(Duration.ofSeconds(2));
+
+        assertThat(events.getFirst().token()).isEqualTo(AnswerGroundingPolicy.UNCITED_ANSWER);
+        assertThat(provider.calls()).isEqualTo(2);
+    }
+
+    @Test
+    void doesNotRetryWhenCitationEnforcementIsDisabled() {
+        CapturingProvider provider = new CapturingProvider(
+                "primary",
+                tokenStream("\u7f5a\u6b3e\u53ef\u4ee5\u5206\u671f\u7f34\u7eb3\u3002")
+        );
+        StubRagQueryService rag = new StubRagQueryService(List.of(source()));
+        ChatPipeline pipeline = pipeline(provider, rag, ragProperties(true), false);
+
+        List<ChatStreamEvent> events = pipeline.stream(new AiChatStreamRequest("q", "session-1", Map.of()))
+                .collectList()
+                .block(Duration.ofSeconds(2));
+
+        assertThat(events.getFirst().token()).isEqualTo("\u7f5a\u6b3e\u53ef\u4ee5\u5206\u671f\u7f34\u7eb3\u3002");
+        assertThat(provider.calls()).isEqualTo(1);
+    }
+
+    @Test
+    void forwardsQueueEventsImmediatelyWithoutExemptingGrounding() {
+        Flux<AiToken> uncited = Flux.just(
+                new AiToken("", false, Map.of("queue", Map.of("position", 2))),
+                new AiToken("\u7f5a\u6b3e\u53ef\u4ee5\u5206\u671f\u7f34\u7eb3\u3002", false, Map.of()),
+                new AiToken("", true, Map.of())
+        );
+        CapturingProvider provider = new CapturingProvider("primary", List.of(
+                uncited,
+                tokenStream("\u7f5a\u6b3e\u9700\u5728\u5341\u4e94\u65e5\u5185\u7f34\u7eb3 [1]\u3002")
+        ));
+        StubRagQueryService rag = new StubRagQueryService(List.of(source()));
+        ChatPipeline pipeline = pipeline(provider, rag, ragProperties(true));
+
+        List<ChatStreamEvent> events = pipeline.stream(new AiChatStreamRequest("q", "session-1", Map.of()))
+                .collectList()
+                .block(Duration.ofSeconds(2));
+
+        assertThat(events).extracting(ChatStreamEvent::type).containsExactly(
+                ChatStreamEventType.QUEUE.wireName(),
+                ChatStreamEventType.TOKEN.wireName(),
+                ChatStreamEventType.DONE.wireName()
+        );
+        assertThat(events.get(1).token()).isEqualTo("\u7f5a\u6b3e\u9700\u5728\u5341\u4e94\u65e5\u5185\u7f34\u7eb3 [1]\u3002");
+        assertThat(provider.calls()).isEqualTo(2);
+    }
+
+    @Test
     void passesThroughCitedAnswerUnchanged() {
         CapturingProvider provider = new CapturingProvider("primary", tokenStream("\u8bf7\u5728\u5341\u4e94\u65e5\u5185\u7f34\u7eb3 [1]"));
         StubRagQueryService rag = new StubRagQueryService(List.of(source()));
@@ -350,12 +436,17 @@ class ChatPipelineGroundingTest {
 
     private static final class CapturingProvider implements AiProvider {
         private final String name;
-        private final Flux<AiToken> stream;
+        private final List<Flux<AiToken>> streams;
         private final List<String> prompts = new ArrayList<>();
+        private int calls;
 
         private CapturingProvider(String name, Flux<AiToken> stream) {
+            this(name, List.of(stream));
+        }
+
+        private CapturingProvider(String name, List<Flux<AiToken>> streams) {
             this.name = name;
-            this.stream = stream;
+            this.streams = streams;
         }
 
         @Override
@@ -371,7 +462,9 @@ class ChatPipelineGroundingTest {
         @Override
         public Flux<AiToken> stream(AiChatPrompt prompt, AiGenerationOptions options) {
             prompts.add(prompt.message());
-            return stream;
+            int index = Math.min(calls, streams.size() - 1);
+            calls++;
+            return streams.get(index);
         }
 
         @Override
@@ -386,6 +479,10 @@ class ChatPipelineGroundingTest {
 
         private List<String> prompts() {
             return prompts;
+        }
+
+        private int calls() {
+            return calls;
         }
     }
 
