@@ -41,6 +41,20 @@ public class PromptAssembler {
         );
     }
 
+    public String assembleCitationRepair(
+            String userMessage,
+            List<String> conversationWindow,
+            List<RetrievalResult> retrievalResults,
+            String agentConstraints
+    ) {
+        return promptTemplateService.renderCitationRepair(
+                userMessage,
+                conversationWindow(conversationWindow),
+                contextBuilder.build(retrievalResults),
+                agentConstraints
+        );
+    }
+
     private static String conversationWindow(List<String> conversationWindow) {
         if (conversationWindow == null || conversationWindow.isEmpty()) {
             return "";

@@ -7,8 +7,6 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
-import java.util.Locale;
-import java.util.Map;
 
 @Service
 public class ContextBuilder {
@@ -73,46 +71,11 @@ public class ContextBuilder {
 
     private String entry(int index, RetrievalResult result) {
         // Retrieved context is untrusted: neutralize instruction-like spans before they
-        // reach the model, so a poisoned document cannot hijack the prompt.
+        // reach the model, so a poisoned document cannot hijack the prompt. Titles,
+        // sources, and scores stay out of the prompt so the model cannot echo internal
+        // identifiers into the answer; only the citation index and content are needed.
         return "[" + index + "]\n"
-                + "title: " + injectionGuard.sanitize(clean(result.title())) + "\n"
-                + "source: " + source(result) + "\n"
-                + "score: " + score(result.finalScore()) + "\n"
                 + "content: " + injectionGuard.sanitize(normalizeWhitespace(result.content()));
-    }
-
-    private static String source(RetrievalResult result) {
-        String explicit = metadataString(result.metadata(), "source", "citationSource");
-        if (!explicit.isBlank()) {
-            return explicit;
-        }
-        String sourceTable = clean(result.sourceTable());
-        String sourceId = clean(result.sourceId());
-        if (!sourceTable.isBlank() && !sourceId.isBlank()) {
-            return sourceTable + ":" + sourceId;
-        }
-        if (!sourceTable.isBlank()) {
-            return sourceTable;
-        }
-        String documentId = clean(result.documentId());
-        if (!documentId.isBlank()) {
-            return documentId;
-        }
-        return clean(result.chunkId());
-    }
-
-    private static String metadataString(Map<String, Object> metadata, String... keys) {
-        for (String key : keys) {
-            Object value = metadata.get(key);
-            if (value != null && !value.toString().isBlank()) {
-                return value.toString().trim();
-            }
-        }
-        return "";
-    }
-
-    private static String score(double score) {
-        return String.format(Locale.ROOT, "%.4f", score);
     }
 
     private static void appendEntry(StringBuilder body, String entry) {

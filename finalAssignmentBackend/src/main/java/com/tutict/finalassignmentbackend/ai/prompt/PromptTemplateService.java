@@ -17,6 +17,25 @@ public class PromptTemplateService {
             String retrievedContext,
             String agentConstraints
     ) {
+        return render(userMessage, conversationWindow, retrievedContext, agentConstraints, false);
+    }
+
+    public String renderCitationRepair(
+            String userMessage,
+            String conversationWindow,
+            String retrievedContext,
+            String agentConstraints
+    ) {
+        return render(userMessage, conversationWindow, retrievedContext, agentConstraints, true);
+    }
+
+    private String render(
+            String userMessage,
+            String conversationWindow,
+            String retrievedContext,
+            String agentConstraints,
+            boolean citationRepair
+    ) {
         String constraints = cleanBlock(agentConstraints);
         String context = cleanBlock(retrievedContext);
         boolean hasContext = hasContextBody(context);
@@ -29,12 +48,18 @@ public class PromptTemplateService {
         if (hasContext) {
             sections.add("- Base the answer only on <retrieved_context> and the conversation window; "
                     + "do not add facts that they do not support.");
-            sections.add("- Cite supporting sentences with the context index in ASCII brackets, "
-                    + "for example [1] or [2]; never cite conversation turns as sources.");
-            sections.add("- Never reveal internal labels or resource identifiers such as retrieved_context, "
-                    + "manual_rag_document, or rag_chunk; cite only with [n].");
-            sections.add("- If the retrieved context does not contain the answer, say that the knowledge base "
-                    + "does not cover the question; do not use general knowledge or cite unrelated context.");
+            if (citationRepair) {
+                sections.add("- Your previous draft was rejected because it contained no citation. "
+                        + "Rewrite the answer and end every factual sentence with the [n] marker of "
+                        + "the context entry it came from.");
+            }
+            sections.add("- Cite every factual sentence with the numeric marker of the context entry it "
+                    + "came from, for example: 罚款需在十五日内缴纳 [1]。 Never cite conversation turns.");
+            sections.add("- Do not mention document titles, source identifiers, retrieval scores, or "
+                    + "internal labels in the answer.");
+            sections.add("- If the context only covers a related but different topic, say that the knowledge "
+                    + "base does not cover the question; if the question has several parts, answer each "
+                    + "covered part and name the part the context does not cover.");
             sections.add("- Answer in the same language as the user message.");
         }
         sections.add("- " + INJECTION_WARNING);
