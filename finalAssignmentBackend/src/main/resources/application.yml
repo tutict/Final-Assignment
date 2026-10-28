@@ -33,6 +33,8 @@ ai:
     enabled: ${OLLAMA_ENABLED:true}
     base-url: ${OLLAMA_URL:http://localhost:11434}
     chat-model: ${OLLAMA_MODEL:${OLLAMA_CHAT_MODEL:llama3.2}}
+    # Low temperature keeps citation and language adherence stable for grounded answers.
+    temperature: ${OLLAMA_TEMPERATURE:0.2}
     slots: ${OLLAMA_SLOTS:2}
     max-queue: ${OLLAMA_MAX_QUEUE:32}
     queue-timeout: ${OLLAMA_QUEUE_TIMEOUT:PT1S}

@@ -107,6 +107,7 @@ public class AiProviderProperties {
         private boolean enabled = true;
         private String baseUrl = "http://localhost:11434";
         private String chatModel = "llama3.2";
+        private double temperature = 0.2;
         private int slots = 2;
         private int maxQueue = 32;
         private Duration queueTimeout = Duration.ofSeconds(90);
@@ -157,6 +158,14 @@ public class AiProviderProperties {
 
         public void setQueueTimeout(Duration queueTimeout) {
             this.queueTimeout = queueTimeout;
+        }
+
+        public double getTemperature() {
+            return temperature;
+        }
+
+        public void setTemperature(double temperature) {
+            this.temperature = temperature;
         }
     }
 

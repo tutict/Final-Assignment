@@ -44,6 +44,50 @@ class MockAiProviderTest {
 class OllamaAiProviderTest {
 
     @Test
+    void sendsConfiguredTemperatureToOllama() throws IOException {
+        java.util.concurrent.atomic.AtomicReference<String> requestBody =
+                new java.util.concurrent.atomic.AtomicReference<>("");
+        HttpServer server = HttpServer.create(new InetSocketAddress(0), 0);
+        server.createContext("/api/chat", exchange -> {
+            requestBody.set(new String(exchange.getRequestBody().readAllBytes(), StandardCharsets.UTF_8));
+            byte[] body = """
+                    {"message":{"content":"ok"},"done":true}
+                    """.getBytes(StandardCharsets.UTF_8);
+            exchange.getResponseHeaders().add("Content-Type", "application/x-ndjson");
+            exchange.sendResponseHeaders(200, body.length);
+            try (OutputStream output = exchange.getResponseBody()) {
+                output.write(body);
+            }
+        });
+        server.start();
+        try {
+            AiProviderProperties properties = ProviderLayerTestSupport.properties(
+                    "ollama",
+                    "noop",
+                    Duration.ofSeconds(1)
+            );
+            properties.getOllama().setBaseUrl("http://localhost:" + server.getAddress().getPort());
+            properties.getOllama().setTemperature(0.1);
+            OllamaAiProvider provider = new OllamaAiProvider(
+                    properties,
+                    WebClient.builder(),
+                    new ObjectMapper()
+            );
+
+            provider.stream(
+                            new AiChatPrompt("hello", Map.of()),
+                            ProviderLayerTestSupport.options(Duration.ofSeconds(1))
+                    )
+                    .collectList()
+                    .block(Duration.ofSeconds(1));
+
+            assertThat(requestBody.get()).contains("\"options\":{\"temperature\":0.1}");
+        } finally {
+            server.stop(0);
+        }
+    }
+
+    @Test
     void streamsOllamaNdjsonAndReportsHealth() throws IOException {
         HttpServer server = HttpServer.create(new InetSocketAddress(0), 0);
         server.createContext("/api/chat", exchange -> {

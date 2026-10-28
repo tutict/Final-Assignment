@@ -63,7 +63,7 @@ public class OllamaAiProvider implements AiProvider {
         Flux<AiToken> tokens = client()
                 .post()
                 .uri("/api/chat")
-                .bodyValue(requestBody(prompt, true))
+                .bodyValue(requestBody(prompt, true, options))
                 .retrieve()
                 .bodyToFlux(String.class)
                 .flatMapIterable(this::parseStreamChunk)
@@ -81,7 +81,7 @@ public class OllamaAiProvider implements AiProvider {
         Mono<AiMessage> completion = client()
                 .post()
                 .uri("/api/chat")
-                .bodyValue(requestBody(prompt, false))
+                .bodyValue(requestBody(prompt, false, options))
                 .retrieve()
                 .bodyToMono(String.class)
                 .timeout(options.timeout())
@@ -123,7 +123,7 @@ public class OllamaAiProvider implements AiProvider {
                 .build();
     }
 
-    private Map<String, Object> requestBody(AiChatPrompt prompt, boolean stream) {
+    private Map<String, Object> requestBody(AiChatPrompt prompt, boolean stream, AiGenerationOptions options) {
         java.util.LinkedHashMap<String, Object> body = new java.util.LinkedHashMap<>();
         body.put("model", properties.getOllama().getChatModel());
         body.put("stream", stream);
@@ -131,6 +131,19 @@ public class OllamaAiProvider implements AiProvider {
         java.util.List<java.util.Map<String, Object>> tools = AiProviderToolSupport.toolsFrom(prompt);
         if (!tools.isEmpty()) {
             body.put("tools", tools);
+        }
+        java.util.LinkedHashMap<String, Object> ollamaOptions = new java.util.LinkedHashMap<>();
+        Double temperature = options.temperature() == null
+                ? properties.getOllama().getTemperature()
+                : options.temperature();
+        if (temperature != null) {
+            ollamaOptions.put("temperature", temperature);
+        }
+        if (options.maxTokens() != null) {
+            ollamaOptions.put("num_predict", options.maxTokens());
+        }
+        if (!ollamaOptions.isEmpty()) {
+            body.put("options", ollamaOptions);
         }
         return body;
     }
