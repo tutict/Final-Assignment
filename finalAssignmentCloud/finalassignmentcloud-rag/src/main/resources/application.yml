@@ -87,8 +87,8 @@ rag:
   retrieval:
     enabled: ${RAG_RETRIEVAL_ENABLED:false}
     top-k: ${RAG_RETRIEVAL_TOP_K:10}
-    vector-weight: ${RAG_RETRIEVAL_VECTOR_WEIGHT:0.6}
-    bm25-weight: ${RAG_RETRIEVAL_BM25_WEIGHT:0.4}
+    vector-weight: ${RAG_RETRIEVAL_VECTOR_WEIGHT:0.2}
+    bm25-weight: ${RAG_RETRIEVAL_BM25_WEIGHT:0.8}
     min-score: ${RAG_RETRIEVAL_MIN_SCORE:0.2}
     candidate-multiplier: ${RAG_RETRIEVAL_CANDIDATE_MULTIPLIER:3}
     rrf-rank-constant: ${RAG_RETRIEVAL_RRF_RANK_CONSTANT:60}
