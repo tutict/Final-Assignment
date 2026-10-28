@@ -56,7 +56,7 @@ marker `[已过滤的指令性内容]`, so the model sees data rather than instr
 
 It is applied to:
 
-* retrieved context (title + content) in `ContextBuilder`, and
+* retrieved context content in `ContextBuilder`, and
 * the user message before prompt assembly in `ChatPipeline`.
 
 ### 3.2 Citation enforcement
@@ -70,15 +70,23 @@ that actually rely on retrieval:
 
 `ChatPipeline` buffers the model output only for retrieval-grounded turns, so an uncited
 answer can be replaced before it reaches the user; non-retrieval turns keep streaming
-unchanged.
+unchanged. Before refusing, a pure-chat turn with retrieved sources gets **one citation
+repair retry**: the same request is re-issued with an extra instruction that every
+factual sentence must carry an `[n]` marker. The retry keeps the first attempt's
+`messageId`, and only a second uncited answer is replaced with the refusal. The agent
+path is excluded because replaying it would re-run tools and side effects.
+
+Queue notifications (`QUEUE`) and keep-alives are forwarded immediately and are never
+buffered as answer text, so a queue notice cannot exempt an answer from citation
+checking.
 
 Scope and safety of the rewrite:
 
 * Only **plain-text answers** (TOKEN / DONE) are subject to enforcement. Structured
-  control events (`TOOL`, `DRAFT`, `RESULT`, `ACTION`, `QUEUE`) and infrastructure
-  messages (bulkhead/fallback, `ERROR`, any event carrying `isFallback`) pass through
-  untouched, so a refusal can never swallow a draft card, a navigation action or rewrite
-  an "AI unavailable" fallback.
+  control events (`TOOL`, `DRAFT`, `RESULT`, `ACTION`) and infrastructure messages
+  (bulkhead/fallback, `ERROR`, any event carrying `isFallback`) pass through untouched,
+  so a refusal can never swallow a draft card, a navigation action or rewrite an
+  "AI unavailable" fallback.
 * Keep-alives are forwarded immediately while the answer is buffered, so the SSE
   connection stays alive during the check.
 * Citation matching ignores non-distinctive identifiers (bare row ids such as `12` or
@@ -86,10 +94,12 @@ Scope and safety of the rewrite:
   Han titles count from two characters; Latin identifiers must contain a letter and be
   at least four characters (e.g. `doc-1`).
 
-Residual gap: retrieved `source` strings are rendered verbatim (they are technical
-identifiers such as `docs:7`), and the agent path passes the caller's own message
-through as a user turn. Both are deliberate: sanitizing them would break citation
-matching and intent routing respectively.
+Residual gap: retrieved context is rendered as citation index plus content only, so
+document titles, source ids and scores are no longer available to the model to echo.
+Citation matching still accepts a distinctive source id or title if a model emits one
+spontaneously, but those identifiers are no longer part of the prompt. The agent path
+passes the caller's own message through as a user turn; that is deliberate, since
+sanitizing it would break intent routing.
 
 The injection filter is recall-oriented by design, so it has a bounded false-positive
 rate on user input (for example a question phrased as "how do I ignore the previous
@@ -141,7 +151,8 @@ not assume semantic ranking quality, because ranking is what the evaluation meas
 
 Models: product answer `llama3.2`, product embedding `nomic-embed-text`, judge `qwen2.5:7b`,
 evaluation embedding `bge-m3` (evaluation side only). `RAGAS_OLLAMA_URL` must point at the
-instance that actually holds the judge and evaluation embedding.
+instance that actually holds the judge and evaluation embedding. The product path sends
+`temperature=0.2` by default (`OLLAMA_TEMPERATURE`).
 
 ### Metrics and baseline (2026-10-23)
 
@@ -171,6 +182,46 @@ top-5 at `topK=5` because it is absent from the vector candidate list.
 Full report and machine-readable snapshot:
 `docs/ai/ragas/baseline-2026-10-23.md` and `.json`. Raw artifacts stay in
 `artifacts/ragas/<run-id>/` (gitignored).
+
+### Latest results (2026-10-28)
+
+Final round `improvement4-20261028`, same dataset and models, topK=5:
+
+| metric | value | target |
+| --- | ---: | ---: |
+| Faithfulness | 0.9889 | 0.75 |
+| Response Relevancy | 0.8889 | 0.75 |
+| Context Precision | 0.9609 | 0.60 |
+| Context Recall | 0.9833 | 0.85 |
+| Answer Correctness | 0.7781 | 0.55 |
+| Citation compliance | 1.0000 | 0.90 |
+| Fallback rate | 0.0000 | <= 0.10 |
+| Unanswerable abstention | 0.0000 | 0.80 (advisory) |
+
+30/30 answerable samples scored, 0 ACL leaks, 0 context drift, 0 provider errors. Context
+Precision is averaged over 29 samples: the judge output for a30 failed to parse. Retrieval
+regressed nothing: hit@5 is 30/30 with recall 0.9833, MRR 0.9833, nDCG@5 0.9769; the
+production default `topK=10` scores hit 30/30, recall 1.0000, MRR 0.9833, nDCG 0.9898.
+
+What changed relative to the baseline: retrieved context now exposes only the citation
+index and content (no titles, source ids or scores), the prompt has five citation rules
+with a repair variant, Ollama runs at `temperature=0.2`, and an uncited answer gets one
+citation-repair retry before the guardrail refuses. Citation compliance moved 0.8333
+(25/30 scored) -> 0.9000 (27/30) -> 1.0000 (30/30) across the three 2026-10-28 runs.
+On the 23 samples scored in every run, Faithfulness is 0.8087 -> 0.9855 and Context
+Precision 0.8551 -> 0.9485; Answer Correctness remains noisy (0.7313 -> 0.7568).
+
+Two earlier numbers need correction:
+
+* The first-round AC drop (0.7601 -> 0.6479) was a harness artifact: the judge was
+  capped at 512 tokens, which truncated statement decomposition. Rescoring the same
+  answers with 2048 tokens gives 0.7579 (baseline) and 0.7710 (first round). AC now runs
+  isolated with `num_predict=2048`, `max_workers=1` and retries missing rows.
+* The historical "1/3" unanswerable abstention was a citation-guardrail refusal
+  (`u01` returned `UNCITED_ANSWER`), not model abstention. True abstention is 0/3 in
+  every run and remains the main quality gap.
+
+Full report: `docs/ai/ragas/improvement-2026-10-28.md`.
 
 ### Limitations
 

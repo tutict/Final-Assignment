@@ -344,10 +344,11 @@ RAG 数据表定义见：
 - 依赖：uv + CPython 3.12、ES/MySQL/Redis、Ollama（`nomic-embed-text` / `qwen2.5:7b` / `bge-m3`）
 - 运行：后端以 `AI_AGENT_ENABLED=false RAG_RETRIEVAL_ENABLED=true` 启动，再执行 `uv run ragas-eval all --top-k 5`
 - Spring 主后端混合检索默认 BM25 / 向量权重为 `0.8 / 0.2`，候选深度倍率为 `3`；可分别用 `RAG_RETRIEVAL_BM25_WEIGHT`、`RAG_RETRIEVAL_VECTOR_WEIGHT` 和 `RAG_RETRIEVAL_CANDIDATE_MULTIPLIER` 覆盖
-- 改进复跑（2026-10-23，llama3.2，topK=5）：Faithfulness 0.826、Response Relevancy 0.842、Context Precision 0.856、Context Recall 0.967、Answer Correctness 0.648；引用合规 30/30，ACL 泄漏和上下文漂移均为 0；不可回答拒答率为 0/3，仍是主要缺口
+- 改进复跑（2026-10-28，llama3.2，topK=5）：Faithfulness 0.9889、Response Relevancy 0.8889、Context Precision 0.9609、Context Recall 0.9833、Answer Correctness 0.7781；30/30 可评分，引用合规 30/30，ACL 泄漏、上下文漂移和 provider 错误均为 0；不可回答拒答率仍为 0/3，是主要缺口
+- RAG 提示词只向模型暴露 `[n]` 与正文；Ollama 默认 `temperature=0.2`；检索命中但答案无引用时先做一次引用修复重试，仍无引用才拒答（Agent 路径不重试）
 - RAG 回合会清理模型输出中的检索内部标签；`AI_GUARDRAIL_CITATION_ENFORCEMENT=false` 只关闭引用强制，不关闭标签清洗。若清洗移除全部非空回答，会返回安全提示；清洗替换原答时会保留各 token 的 SSE payload metadata
 
-操作步骤与已知限制见 [scripts/ragas/README.md](scripts/ragas/README.md)，基线见 [docs/ai/ragas/baseline-2026-10-23.md](docs/ai/ragas/baseline-2026-10-23.md)，检索和答案质量改进记录见 [docs/ai/ragas/improvement-2026-10-23.md](docs/ai/ragas/improvement-2026-10-23.md)。
+操作步骤与已知限制见 [scripts/ragas/README.md](scripts/ragas/README.md)，基线见 [docs/ai/ragas/baseline-2026-10-23.md](docs/ai/ragas/baseline-2026-10-23.md)，检索和答案质量改进记录见 [docs/ai/ragas/improvement-2026-10-23.md](docs/ai/ragas/improvement-2026-10-23.md) 与 [docs/ai/ragas/improvement-2026-10-28.md](docs/ai/ragas/improvement-2026-10-28.md)。
 
 ## 后端包结构
 
