@@ -85,6 +85,17 @@ func TestRagQueryServiceHybridRetrievalAclAndRerank(t *testing.T) {
 	}
 }
 
+func TestDefaultRagConfigMatchesSpringRetrievalWeights(t *testing.T) {
+	config := DefaultRagConfig()
+
+	if config.VectorWeight != 0.2 {
+		t.Fatalf("vector weight = %v, want 0.2", config.VectorWeight)
+	}
+	if config.BM25Weight != 0.8 {
+		t.Fatalf("bm25 weight = %v, want 0.8", config.BM25Weight)
+	}
+}
+
 func TestRagQueryServiceReturnsEmptyWhenDisabledOrBlank(t *testing.T) {
 	service := NewRagQueryService(&memoryRagSearchBackend{}, &memoryRagEmbeddingProvider{}, DefaultRagConfig())
 	result, err := service.Query(context.Background(), RagQueryRequest{Query: "traffic appeal"}, NewRagAccessContext("u1", nil))

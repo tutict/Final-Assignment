@@ -201,6 +201,36 @@ func applyEnvOverrides(conf config.RagConf) config.RagConf {
 			conf.OllamaTimeoutMillis = millis
 		}
 	}
+	if value := strings.TrimSpace(os.Getenv("RAG_RETRIEVAL_BM25_WEIGHT")); value != "" {
+		if weight, err := strconv.ParseFloat(value, 64); err == nil && weight > 0 {
+			conf.BM25Weight = weight
+		}
+	}
+	if value := strings.TrimSpace(os.Getenv("RAG_RETRIEVAL_VECTOR_WEIGHT")); value != "" {
+		if weight, err := strconv.ParseFloat(value, 64); err == nil && weight > 0 {
+			conf.VectorWeight = weight
+		}
+	}
+	if value := strings.TrimSpace(os.Getenv("RAG_RETRIEVAL_MIN_SCORE")); value != "" {
+		if score, err := strconv.ParseFloat(value, 64); err == nil && score > 0 {
+			conf.MinScore = score
+		}
+	}
+	if value := strings.TrimSpace(os.Getenv("RAG_RETRIEVAL_CANDIDATE_MULTIPLIER")); value != "" {
+		if multiplier, err := strconv.Atoi(value); err == nil && multiplier > 0 {
+			conf.CandidateMultiplier = multiplier
+		}
+	}
+	if value := strings.TrimSpace(os.Getenv("RAG_RETRIEVAL_RRF_RANK_CONSTANT")); value != "" {
+		if constant, err := strconv.Atoi(value); err == nil && constant > 0 {
+			conf.RRFRankConstant = constant
+		}
+	}
+	if value := strings.TrimSpace(os.Getenv("RAG_RERANK_LEXICAL_WEIGHT")); value != "" {
+		if weight, err := strconv.ParseFloat(value, 64); err == nil && weight > 0 {
+			conf.RerankLexicalWeight = weight
+		}
+	}
 	return conf
 }
 

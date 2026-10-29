@@ -94,3 +94,62 @@ func TestNormalizeConfKeepsDeterministicDefaults(t *testing.T) {
 		t.Fatalf("model = %q, want deterministic-384", conf.EmbeddingModel)
 	}
 }
+
+func TestApplyEnvOverridesReplacesRetrievalWeights(t *testing.T) {
+	t.Setenv("RAG_RETRIEVAL_BM25_WEIGHT", "0.85")
+	t.Setenv("RAG_RETRIEVAL_VECTOR_WEIGHT", "0.15")
+	t.Setenv("RAG_RETRIEVAL_MIN_SCORE", "0.35")
+	t.Setenv("RAG_RETRIEVAL_CANDIDATE_MULTIPLIER", "5")
+	t.Setenv("RAG_RETRIEVAL_RRF_RANK_CONSTANT", "30")
+	t.Setenv("RAG_RERANK_LEXICAL_WEIGHT", "0.25")
+
+	conf := applyEnvOverrides(config.RagConf{
+		BM25Weight:          0.8,
+		VectorWeight:        0.2,
+		MinScore:            0.2,
+		CandidateMultiplier: 3,
+		RRFRankConstant:     60,
+		RerankLexicalWeight: 0.15,
+	})
+
+	if conf.BM25Weight != 0.85 {
+		t.Fatalf("bm25 weight = %v, want 0.85", conf.BM25Weight)
+	}
+	if conf.VectorWeight != 0.15 {
+		t.Fatalf("vector weight = %v, want 0.15", conf.VectorWeight)
+	}
+	if conf.MinScore != 0.35 {
+		t.Fatalf("min score = %v, want 0.35", conf.MinScore)
+	}
+	if conf.CandidateMultiplier != 5 {
+		t.Fatalf("candidate multiplier = %d, want 5", conf.CandidateMultiplier)
+	}
+	if conf.RRFRankConstant != 30 {
+		t.Fatalf("rrf rank constant = %d, want 30", conf.RRFRankConstant)
+	}
+	if conf.RerankLexicalWeight != 0.25 {
+		t.Fatalf("rerank lexical weight = %v, want 0.25", conf.RerankLexicalWeight)
+	}
+}
+
+func TestApplyEnvOverridesIgnoresInvalidRetrievalWeights(t *testing.T) {
+	t.Setenv("RAG_RETRIEVAL_BM25_WEIGHT", "not-a-number")
+	t.Setenv("RAG_RETRIEVAL_VECTOR_WEIGHT", "0")
+	t.Setenv("RAG_RETRIEVAL_CANDIDATE_MULTIPLIER", "-2")
+
+	conf := applyEnvOverrides(config.RagConf{
+		BM25Weight:          0.8,
+		VectorWeight:        0.2,
+		CandidateMultiplier: 3,
+	})
+
+	if conf.BM25Weight != 0.8 {
+		t.Fatalf("bm25 weight = %v, want the configured 0.8", conf.BM25Weight)
+	}
+	if conf.VectorWeight != 0.2 {
+		t.Fatalf("vector weight = %v, want the configured 0.2", conf.VectorWeight)
+	}
+	if conf.CandidateMultiplier != 3 {
+		t.Fatalf("candidate multiplier = %d, want the configured 3", conf.CandidateMultiplier)
+	}
+}

@@ -29,8 +29,8 @@ Rag:
   MaxRequeueLimit: 5000
   MaxUploadBytes: 8388608
   RetrievalTopK: 10
-  VectorWeight: 0.6
-  BM25Weight: 0.4
+  VectorWeight: 0.2
+  BM25Weight: 0.8
   MinScore: 0.2
   CandidateMultiplier: 3
   RRFRankConstant: 60
