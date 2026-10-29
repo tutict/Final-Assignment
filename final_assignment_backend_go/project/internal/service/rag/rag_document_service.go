@@ -3,6 +3,7 @@ package rag
 import (
 	"context"
 	"fmt"
+	"log"
 	"sort"
 	"strings"
 	"time"
@@ -14,6 +15,8 @@ type RagDocumentService struct {
 	documents RagDocumentStore
 	chunks    RagChunkStore
 	tasks     RagEmbeddingTaskStore
+	tree      RagTreeDeletionStore
+	vectors   RagChunkVectorDeleter
 	config    RagConfig
 }
 
@@ -21,14 +24,22 @@ func NewRagDocumentService(
 	documents RagDocumentStore,
 	chunks RagChunkStore,
 	tasks RagEmbeddingTaskStore,
+	tree RagTreeDeletionStore,
 	config RagConfig,
 ) *RagDocumentService {
 	return &RagDocumentService{
 		documents: documents,
 		chunks:    chunks,
 		tasks:     tasks,
+		tree:      tree,
 		config:    normalizeRagConfig(config),
 	}
+}
+
+// WithVectorDeletion 接入索引删除器，文档删除后同步清理向量文档。
+func (s *RagDocumentService) WithVectorDeletion(vectors RagChunkVectorDeleter) *RagDocumentService {
+	s.vectors = vectors
+	return s
 }
 
 func (s *RagDocumentService) List(ctx context.Context, query string, limit int) ([]domain.RagDocument, error) {
@@ -125,35 +136,33 @@ func (s *RagDocumentService) MarkIndexed(ctx context.Context, document domain.Ra
 	return document, nil
 }
 
+// DeleteDocumentTree 删除文档及其分块、嵌入任务。
+//
+// 库里的删除是一次事务，索引里的向量文档在删除成功后再清理：
+// 索引删除失败只记日志，不回滚库里的删除——残留的向量文档会在检索回读时被过滤掉。
 func (s *RagDocumentService) DeleteDocumentTree(ctx context.Context, documentID string) (map[string]int64, error) {
-	chunks, err := s.chunks.ListByDocumentID(ctx, documentID)
+	documentID = strings.TrimSpace(documentID)
+	if documentID == "" {
+		return nil, fmt.Errorf("document id must not be blank")
+	}
+
+	chunkIDs, counts, err := s.tree.DeleteDocumentTree(ctx, documentID)
 	if err != nil {
 		return nil, err
 	}
+	s.removeChunksFromIndex(ctx, chunkIDs)
+	return counts, nil
+}
 
-	var deletedTasks int64
-	for _, chunk := range chunks {
-		count, err := s.tasks.DeleteByChunkID(ctx, chunk.ID)
-		if err != nil {
-			return nil, err
+func (s *RagDocumentService) removeChunksFromIndex(ctx context.Context, chunkIDs []string) {
+	if s.vectors == nil {
+		return
+	}
+	for _, chunkID := range chunkIDs {
+		if err := s.vectors.DeleteChunk(ctx, chunkID); err != nil {
+			log.Printf("[RAG] failed to delete chunk %s from the index: %v", chunkID, err)
 		}
-		deletedTasks += count
 	}
-
-	deletedChunks, err := s.chunks.DeleteByDocumentID(ctx, documentID)
-	if err != nil {
-		return nil, err
-	}
-	deletedDocuments, err := s.documents.DeleteByID(ctx, documentID)
-	if err != nil {
-		return nil, err
-	}
-
-	return map[string]int64{
-		"documents": deletedDocuments,
-		"chunks":    deletedChunks,
-		"tasks":     deletedTasks,
-	}, nil
 }
 
 func NormalizeRagSourceDocument(source domain.RagSourceDocument) (domain.RagSourceDocument, error) {

@@ -38,7 +38,13 @@ func TestRagIndexingServiceIndexesDocumentChunksAndTasks(t *testing.T) {
 	tasks := newMemoryRagEmbeddingTaskStore()
 	config := DefaultRagConfig()
 
-	documentService := NewRagDocumentService(documents, chunks, tasks, config)
+	documentService := NewRagDocumentService(
+		documents,
+		chunks,
+		tasks,
+		newMemoryRagTreeDeletionStore(documents, chunks, tasks),
+		config,
+	)
 	chunkService := NewRagChunkService(chunks)
 	taskService := NewRagEmbeddingTaskService(tasks, chunks, config)
 	indexingService := NewRagIndexingService(
@@ -251,14 +257,6 @@ func (s *memoryRagDocumentStore) CountByStatus(_ context.Context, status string)
 	return count, nil
 }
 
-func (s *memoryRagDocumentStore) DeleteByID(_ context.Context, id string) (int64, error) {
-	if _, ok := s.items[id]; !ok {
-		return 0, nil
-	}
-	delete(s.items, id)
-	return 1, nil
-}
-
 type memoryRagChunkStore struct {
 	items map[string]domain.RagChunk
 }
@@ -318,17 +316,6 @@ func (s *memoryRagChunkStore) ResetEmbedding(_ context.Context, chunkID, model s
 	return 1, nil
 }
 
-func (s *memoryRagChunkStore) DeleteByDocumentID(_ context.Context, documentID string) (int64, error) {
-	var count int64
-	for id, chunk := range s.items {
-		if chunk.DocumentID == documentID {
-			delete(s.items, id)
-			count++
-		}
-	}
-	return count, nil
-}
-
 type memoryRagEmbeddingTaskStore struct {
 	items map[string]domain.RagEmbeddingTask
 }
@@ -385,17 +372,6 @@ func (s *memoryRagEmbeddingTaskStore) ResetByChunkID(_ context.Context, chunkID,
 			task.LastError = ""
 			task.UpdatedAt = now
 			s.items[id] = task
-			count++
-		}
-	}
-	return count, nil
-}
-
-func (s *memoryRagEmbeddingTaskStore) DeleteByChunkID(_ context.Context, chunkID string) (int64, error) {
-	var count int64
-	for id, task := range s.items {
-		if task.ChunkID == chunkID {
-			delete(s.items, id)
 			count++
 		}
 	}

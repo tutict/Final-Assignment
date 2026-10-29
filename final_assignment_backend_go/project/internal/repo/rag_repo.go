@@ -73,11 +73,6 @@ func (r *RagDocumentRepo) CountByStatus(ctx context.Context, status string) (int
 	return count, err
 }
 
-func (r *RagDocumentRepo) DeleteByID(ctx context.Context, id string) (int64, error) {
-	result := r.db.WithContext(ctx).Where("id = ?", id).Delete(&domain.RagDocument{})
-	return result.RowsAffected, result.Error
-}
-
 type RagChunkRepo struct {
 	db *gorm.DB
 }
@@ -126,11 +121,6 @@ func (r *RagChunkRepo) ResetEmbedding(ctx context.Context, chunkID, model string
 			"embedding_hash":  "",
 			"updated_at":      now,
 		})
-	return result.RowsAffected, result.Error
-}
-
-func (r *RagChunkRepo) DeleteByDocumentID(ctx context.Context, documentID string) (int64, error) {
-	result := r.db.WithContext(ctx).Where("document_id = ?", documentID).Delete(&domain.RagChunk{})
 	return result.RowsAffected, result.Error
 }
 
@@ -184,11 +174,6 @@ func (r *RagEmbeddingTaskRepo) ResetByChunkID(ctx context.Context, chunkID, prov
 			"last_error":    "",
 			"updated_at":    now,
 		})
-	return result.RowsAffected, result.Error
-}
-
-func (r *RagEmbeddingTaskRepo) DeleteByChunkID(ctx context.Context, chunkID string) (int64, error) {
-	result := r.db.WithContext(ctx).Where("chunk_id = ?", chunkID).Delete(&domain.RagEmbeddingTask{})
 	return result.RowsAffected, result.Error
 }
 

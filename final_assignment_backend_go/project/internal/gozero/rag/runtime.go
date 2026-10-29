@@ -108,7 +108,16 @@ func NewRuntime(conf config.RagConf) (*Runtime, error) {
 		return nil, fmt.Errorf("Rag.ElasticsearchAddresses is required when Rag.EmbeddingEnabled or Rag.RetrievalEnabled is true")
 	}
 
-	documentService := service.NewRagDocumentService(documentRepo, chunkRepo, taskRepo, serviceConfig)
+	documentService := service.NewRagDocumentService(
+		documentRepo,
+		chunkRepo,
+		taskRepo,
+		repo.NewRagTreeDeletionRepo(db),
+		serviceConfig,
+	)
+	if indexManager != nil {
+		documentService.WithVectorDeletion(indexManager)
+	}
 	chunkService := service.NewRagChunkService(chunkRepo)
 	embeddingTaskService := service.NewRagEmbeddingTaskService(taskRepo, chunkRepo, serviceConfig).
 		WithProcessing(documentRepo, provider, indexManager)

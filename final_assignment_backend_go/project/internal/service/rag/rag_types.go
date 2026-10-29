@@ -71,7 +71,6 @@ type RagDocumentStore interface {
 	ListPage(ctx context.Context, query string, offset, limit int) ([]domain.RagDocument, int64, error)
 	Count(ctx context.Context) (int64, error)
 	CountByStatus(ctx context.Context, status string) (int64, error)
-	DeleteByID(ctx context.Context, id string) (int64, error)
 }
 
 type RagChunkStore interface {
@@ -81,7 +80,6 @@ type RagChunkStore interface {
 	ListForRequeue(ctx context.Context, limit int) ([]domain.RagChunk, error)
 	Count(ctx context.Context) (int64, error)
 	ResetEmbedding(ctx context.Context, chunkID, model string, now time.Time) (int64, error)
-	DeleteByDocumentID(ctx context.Context, documentID string) (int64, error)
 }
 
 type RagEmbeddingTaskStore interface {
@@ -90,7 +88,6 @@ type RagEmbeddingTaskStore interface {
 	ListRunnable(ctx context.Context, limit int, now time.Time) ([]domain.RagEmbeddingTask, error)
 	CountByStatus(ctx context.Context, status string) (int64, error)
 	ResetByChunkID(ctx context.Context, chunkID, provider, model string, now time.Time) (int64, error)
-	DeleteByChunkID(ctx context.Context, chunkID string) (int64, error)
 	ListByChunkIDs(ctx context.Context, chunkIDs []string) ([]domain.RagEmbeddingTask, error)
 }
 
@@ -133,6 +130,18 @@ type RagVectorStore interface {
 		provider string,
 		model string,
 	) error
+}
+
+// RagChunkVectorDeleter 删除索引里的分块向量文档。
+type RagChunkVectorDeleter interface {
+	DeleteChunk(ctx context.Context, chunkID string) error
+}
+
+// RagTreeDeletionStore 在一次事务里删除文档、分块与嵌入任务。
+//
+// 返回被删除的分块 ID，调用方据此清理索引里的向量文档。
+type RagTreeDeletionStore interface {
+	DeleteDocumentTree(ctx context.Context, documentID string) ([]string, map[string]int64, error)
 }
 
 type RagSearchBackend interface {

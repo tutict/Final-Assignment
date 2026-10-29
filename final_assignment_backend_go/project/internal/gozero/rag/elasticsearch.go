@@ -187,6 +187,36 @@ func (m *ElasticsearchIndexManager) IndexChunk(
 	return nil
 }
 
+// DeleteChunk 删除索引里的向量文档。
+//
+// 文档不存在时按成功处理：删除必须幂等，重复删除不能报错。
+func (m *ElasticsearchIndexManager) DeleteChunk(ctx context.Context, chunkID string) error {
+	if m == nil || m.client == nil {
+		return fmt.Errorf("Elasticsearch client is not configured")
+	}
+	chunkID = strings.TrimSpace(chunkID)
+	if chunkID == "" {
+		return nil
+	}
+	req := esapi.DeleteRequest{
+		Index:      m.config.AliasName,
+		DocumentID: chunkID,
+		Refresh:    "false",
+	}
+	resp, err := req.Do(ctx, m.client)
+	if err != nil {
+		return fmt.Errorf("delete RAG chunk %s from Elasticsearch: %w", chunkID, err)
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode == http.StatusNotFound {
+		return nil
+	}
+	if resp.IsError() {
+		return esError("delete RAG chunk "+chunkID, resp)
+	}
+	return nil
+}
+
 func (m *ElasticsearchIndexManager) ensureReady(ctx context.Context) error {
 	m.mutex.Lock()
 	defer m.mutex.Unlock()
