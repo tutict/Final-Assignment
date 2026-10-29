@@ -159,6 +159,10 @@ cd final_assignment_backend_quarkus
 
 ## 未完成：Quarkus RAGAS
 
+> **已于同日补齐。** 本节描述的是本文写作时的状态。ES / embedding 移植与端到端评测随后完成，
+> 见 [quarkus-rag-elasticsearch-2026-10-29.md](quarkus-rag-elasticsearch-2026-10-29.md)；下文
+> 「Quarkus 没有 ES 索引别名与 embedding 队列」等结论以该文档为准。
+
 RAGAS 本轮没有对 Quarkus 执行，原因是评测前置条件不匹配：
 
 - `scripts/ragas/ragas_eval/seed.py` 与 `client.py` 除了 `POST /api/rag/query` 和

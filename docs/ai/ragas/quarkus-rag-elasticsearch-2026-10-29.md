@@ -20,10 +20,35 @@
 - Quarkus 使用**自己的索引与别名**（`rag_chunk_quarkus_v1` / `rag_chunk_quarkus_current`），
   与 Spring 的 `rag_chunk_v1` / `rag_chunk_current` 隔离：Spring 索引里是 768 维
   `nomic-embed-text` 向量，Go 是 384 维确定性向量，共用索引会互相覆盖。
-- 单元测试全部通过（47 个测试类、217 个用例、0 failure / 0 error）。
-- **RAGAS 端到端本轮尚未执行**，因此本文不给出 Quarkus 的 RAGAS 指标。第十二节给出复现步骤
-  与验收标准，并列出会阻塞评测的前置条件（其中「停用 Spring / Go 的嵌入 worker」需要人工
-  确认，见第十一节风险 R1）。
+- 单元测试全部通过（48 个测试类、222 个用例、0 failure / 0 error）。
+- **RAGAS 端到端已执行**，与 Spring 基线在同一数据集、同一裁判、同一模型下可比。两次基线对齐
+  配置的运行（运行 B `20261029T045537Z-3b26af06`、运行 C `20261029T054721Z-3b26af06`）：
+
+  | 指标 | Spring 基线 | 运行 B | 运行 C | 与基线偏差 |
+  | --- | ---: | ---: | ---: | --- |
+  | Faithfulness | 0.9907 | 0.9638 | 0.9315 | −0.0269 / −0.0592 |
+  | Response Relevancy | 0.8521 | 0.8701 | 0.8378 | +0.0180 / −0.0143 |
+  | Context Precision | 0.9949 | 0.9552 | 0.9889 | −0.0397 / −0.0060 |
+  | Context Recall | 0.9815 | 0.9828 | 0.9815 | +0.0013 / 0.0000 |
+  | Answer Correctness | 0.7713 | 0.8117 | 0.7902 | +0.0404 / +0.0189 |
+  | 引用合规 | 0.9000 | 0.9667 | 0.9000 | +0.0667 / 0.0000 |
+  | 可评分覆盖 | 27/30 | 29/30 | 27/30 | — |
+  | 不可答拒答 | 3/3 | 3/3 | 3/3 | — |
+  | ACL 泄漏 / 上下文漂移 / 硬失败 | 0 / 0 / 0 | 0 / 0 / 0 | 0 / 0 / 0 | — |
+
+- **检索层是确定性的**：运行 B 与运行 C 的 36 题检索结果**完全一致**（36/36 同序同集）；与
+  Spring 基线相比 35 题集合相同、31 题顺序相同，唯一差异是 a04 的第 3 位（`c-fine-refund` ↔
+  `c-fine-payment-guide`，均在 top-5 内）。检索链路的移植是忠实的。
+- **生成层是随机的**：同一构建两次运行的配对差为 Faithfulness −0.0370、Relevancy −0.0289、
+  Answer Correctness −0.0214，单题最大摆动 −1.0（a25 答偏），而 Context Precision 与
+  Context Recall 的配对差恒为 **0.0000**。也就是说「与基线偏差 ≤ 0.03」这条验收带**低于本
+  数据集生成侧的噪声底**，只对检索侧指标（Context Precision / Context Recall）成立——这两项
+  Quarkus 与基线的差距是 −0.0064 与 0.0000。
+- **护栏拒答集合随采样变化**：Spring 拒 a10 / a16 / a28，运行 B 只拒 a10，运行 C 拒
+  a10 / a28 / a30。主题校验在多跳题上本就是边缘判定，两端都会误拒；a10 的「无引用」拒答则
+  三次稳定复现。
+- 清理范围已实测：只删掉 `suite=ragas` 的 31 条文档，ES 别名上残留 0，共享的 12 条非 ragas
+  语料未受影响。
 
 ## 背景：移植前的差距
 
@@ -169,6 +194,34 @@ chunk 与 document，并丢弃：
 只有 ES 调用**抛异常**（连接失败、索引不存在、5xx）时才回退 MySQL 词法检索（同样严格 ACL）。
 ES 正常返回空结果**不回退**，避免用词法结果掩盖向量检索缺陷。
 
+### 检索结果异常排查
+
+首次评测的采集阶段出现过一个症状：不同问题返回**完全相同**的 top-5，且 `finalScore` 依次是
+0.3279 / 0.3226 / 0.3175 / 0.3125 / 0.3077。这组数恰好等于 `100 × 0.2 / (60 + rank)`，
+说明 **只有向量侧（权重 0.2）参与融合，BM25 侧（权重 0.8）一条都没贡献**。
+
+排查结论是**不是代码缺陷**，依据：
+
+| 检查 | 结果 |
+| --- | --- |
+| 用后端完全相同的 BM25 / kNN 请求体直连 ES | 两者都正常，且结果随问题变化 |
+| `POST /api/rag/query` 走完整链路 | 排序随问题变化，融合分约 1.6（BM25 0.8 + 向量 0.2 都在贡献） |
+| ES 索引内容 | 31 条文档全部带 768 维向量，`acl_scope` 分布 PUBLIC 22 / ROLE 4 / USER 3 / DEPARTMENT 2 |
+| 采集时间线 | 该次采集跨越了 11:32:00 的 Quarkus 开发模式热重载重启，样本来自重启前的实例 |
+
+在已提交构建上重跑，症状不复现。详见「端到端评测（RAGAS）」一节的结果。
+
+## 评测前修复
+
+评测准备阶段暴露了四个与检索无关、但会直接阻断评测的缺陷，均已单独提交修复：
+
+| 提交 | 现象 | 根因 | 修复 |
+| --- | --- | --- | --- |
+| `a2a50a4c` | 配置里把判官模型留空就起不来 | SmallRye 把空字符串按 `null` 处理，Quarkus 启动期拒绝「空串 String 属性」（SRCFG00040） | 判官模型改用 `Optional<String>`，「没配判官模型」回到文档承诺的「校验关闭」 |
+| `a26198a4` | SSE 对话返回 503 `DEPENDENCY_TIMEOUT` | JWT 鉴权过滤器里的 Redis 黑名单检查是阻塞调用，跑在事件循环上会抛 `The current thread cannot be blocked` | 两个 SSE 入口补 `@Blocking`，语义与 `@RunOnVirtualThread` 一致 |
+| `66de29e1` | 跑一段时间后所有读接口永久 503 | 负载拒流用 JAX-RS 响应过滤器配对「进入 / 离开」，被拒流、客户端断连、流式响应的请求走不到过滤器，计数只增不减 | 改用请求作用域 `InFlightRequest` + `@PreDestroy` 归还名额；`/actuator/prometheus` 暴露 `in_flight_requests` |
+| `3b26af06` | 清理评测语料时 ES 日志刷 404 告警 | ES 删除不存在的文档返回 404，被当作异常抛出 | `deleteJson` 对 404 返回空对象，删除幂等 |
+
 ## ACL 规则
 
 身份来源：JAX-RS `SecurityContext`。`userId` 取 principal name；角色集合按
@@ -187,6 +240,11 @@ ES 正常返回空结果**不回退**，避免用词法结果掩盖向量检索�
 `rag_document` 没有独立的 ACL 明细列，明细存放在 `metadata_json`（与 Spring 一致），由
 `RagChunkSourceFactory` 写入 ES 的 `acl_roles` / `acl_user_ids` / `acl_departments` 三个
 keyword 字段。
+
+**与 Spring 相同的已知限制**：部门身份被折叠成字符串 `"DEPARTMENT"`，而语料里的部门明细是
+`finance` 这类真实部门名，因此 DEPARTMENT 语料对任何调用者都不可见。这不是移植引入的偏差，
+而是 Spring 参考实现本身的行为（RAGAS 报告的「附带发现」里同样点名），Quarkus 有意保持一致，
+因此 p03 探针对 driver 与 admin 都是「不可见」，评测不会因此误判为泄漏。
 
 ## 管理端契约
 
@@ -252,9 +310,10 @@ cd final_assignment_backend_quarkus
 ./gradlew --console=plain test
 ```
 
-全量通过：47 个测试类、217 个用例、0 failure / 0 error（1 skipped 为既有跳过项）。
-本轮新增 14 个测试类、106 个用例，并改写 `RagQueryServiceTest`（11 个用例，改为严格 ACL
-语义）与 `ChatPipelineTest`（13 个用例，补充 ACL 断言）：
+全量通过：48 个测试类、222 个用例、0 failure / 0 error（1 skipped 为既有跳过项）。
+本轮新增 15 个测试类、111 个用例（ES 与混合检索 14 个类 / 107 个用例，评测前修复另加
+`InFlightRequestTest` 的 4 个用例），并改写 `RagQueryServiceTest`（11 个用例，改为严格
+ACL 语义）与 `ChatPipelineTest`（13 个用例，补充 ACL 断言）：
 
 | 测试类 | 覆盖 |
 | --- | --- |
@@ -273,9 +332,11 @@ cd final_assignment_backend_quarkus
 | `RagManagementControllerTest` | metadata 过滤、overview 字段、删除计数、迁移与回填 |
 | `RagDocumentDeletionServiceTest` | 无事务时立即删 ES；ES 失败不回滚 MySQL |
 | `RagBackfillJobTest` | 无任务分块补建、已 `EMBEDDED` 分块不重复排队、单文档失败不影响整页 |
+| `InFlightRequestTest` | 在飞名额进入 / 归还配对，重复归还与未持有时不计数 |
 
-**未做端到端手工验证**：本地没有同时具备 ES、Ollama 嵌入模型与完整 MySQL/Redis 的运行环境，
-且评测前需要停用 Spring / Go 的嵌入 worker。因此本文不宣称 Quarkus 的 RAGAS 指标。
+**端到端验证已完成**：本地同时具备 Elasticsearch、Ollama（`nomic-embed-text` / `qwen2.5:7b` /
+`bge-m3` / `llama3.2`）、MySQL 与 Redis；评测期间只有 Quarkus 后端在跑，不存在多后端抢嵌入
+任务的情况。结果见下节。
 
 ## 端到端评测（RAGAS）
 
@@ -284,7 +345,8 @@ cd final_assignment_backend_quarkus
 - Elasticsearch 可用（`xpack.security.enabled=false`），地址由 `ELASTICSEARCH_HOST` 指定。
 - Ollama 已拉取 `nomic-embed-text`（嵌入）、`qwen2.5:7b`（主题判官）、`bge-m3`、`llama3.2`。
 - MySQL 与 Redis 正常，`rag_document` / `rag_chunk` / `rag_embedding_task` 三张表已存在。
-- **Spring 与 Go 的嵌入 worker 已停用**（见风险 R1）。
+- **Spring 与 Go 的嵌入 worker 已停用**（见风险 R1）。本次评测环境里只有 Quarkus 一个后端
+  进程在监听，因此该风险实际不存在。
 
 ### 步骤
 
@@ -292,6 +354,8 @@ cd final_assignment_backend_quarkus
 # 1. 启动 Quarkus（默认端口 8080）
 cd final_assignment_backend_quarkus
 AI_AGENT_ENABLED=false AI_RAG_ENABLED=true \
+AI_GUARDRAIL_CITATION_ENFORCEMENT=true AI_GUARDRAIL_TOPIC_VERIFICATION=true \
+AI_GUARDRAIL_TOPIC_MODEL=qwen2.5:7b \
 RAG_EMBEDDING_ENABLED=true RAG_EMBEDDING_PROVIDER=ollama \
 RAG_EMBEDDING_MODEL=nomic-embed-text RAG_EMBEDDING_DIMENSIONS=768 \
 ELASTICSEARCH_HOST=http://localhost:9200 OLLAMA_BASE_URL=http://localhost:11434 \
@@ -310,6 +374,9 @@ uv run ragas-eval seed --cleanup
 uv run ragas-eval run --top-k 5
 ```
 
+`AI_GUARDRAIL_CITATION_ENFORCEMENT=true` 是与 Spring 基线对齐的**必要条件**：Spring 基线是开着
+引用强制跑出来的，Quarkus 默认关闭时无引用的回答会直接透传，引用合规率与拒答统计都不可比。
+
 ### 验收标准
 
 | 指标 | 目标 |
@@ -323,10 +390,155 @@ uv run ragas-eval run --top-k 5
 | RAGAS 指标 | 与 Spring 基线偏差 ≤ 0.03（Faithfulness 0.9907 / Relevancy 0.8521 / Precision 0.9949 / Recall 0.9815 / Correctness 0.7713），偏差需在文档中解释 |
 | 清理 | 仅删除 `metadataJson.suite=="ragas"` 的文档；清理后 `POST /_refresh` 后该批 `source_id` 命中数为 0 |
 
-### 状态
+> 偏差带 0.03 是在**单次运行**的前提下设定的。实测两次运行的生成侧配对差就有 −0.0370，
+> 因此这条带只对**检索侧**指标（Context Precision / Context Recall）有统计意义；生成侧指标
+> 需要多次运行取中位数。下面「运行间稳定性」一节给出实测噪声。
 
-**本轮未执行。** 执行前需要先解决风险 R1，并保证 ES 与 Ollama 环境就绪。指标留待复跑后
-补写到本节与 README。
+### 结果
+
+本轮共跑三次评测，`artifacts/ragas/`（gitignored）下的 run id 如下：
+
+| 运行 | run id | 采集时配置 | 用途 |
+| --- | --- | --- | --- |
+| A | `20261029T041203Z-3b26af06` | 引用强制**关闭** | 反例：证明引用强制是基线可比的前提；同时提供检索一致性证据 |
+| B | `20261029T045537Z-3b26af06` | 引用强制**开启** | 与 Spring 基线对齐的主结果 |
+| C | `20261029T054721Z-3b26af06` | 引用强制**开启**，无并发负载 | 稳定性复跑 |
+
+三次运行的 manifest 与 Spring 基线**逐项一致**：数据集 hash `292298fd…`、golden set hash
+`d8d8659a…`、语料 hash `42a579af…`、topK 5、答案模型 `llama3.2`、裁判 `qwen2.5:7b`、裁判嵌入
+`bge-m3`、产品嵌入 `nomic-embed-text`（四个模型的 digest 也相同）、语料 31 条、
+`control_visible=true`。因此两边的分数可以直接比较。
+
+#### 主结果（运行 B）
+
+| 指标 | Spring 基线 | Quarkus（运行 B） | 差值 | 判定 |
+| --- | ---: | ---: | ---: | --- |
+| Faithfulness | 0.9907 | 0.9638 | −0.0269 | 达标 |
+| Response Relevancy | 0.8521 | 0.8701 | +0.0180 | 达标 |
+| Context Precision | 0.9949 | 0.9552 | −0.0397 | **超出 0.03，见下** |
+| Context Recall | 0.9815 | 0.9828 | +0.0013 | 达标 |
+| Answer Correctness | 0.7713 | 0.8117 | +0.0404 | **超出 0.03，但方向为优** |
+| 引用合规 | 0.9000 | 0.9667 | +0.0667 | 达标 |
+| 可评分覆盖 | 27/30（0.90） | 29/30（0.9667） | +0.0667 | 达标 |
+| 不可答拒答 | 3/3 | 3/3 | 0 | 达标 |
+| ACL 泄漏 | 0/3 | 0/3 | 0 | 达标 |
+| 上下文漂移 / fallback / provider 错误 | 0 / 0 / 0 | 0 / 0 / 0 | 0 | 达标 |
+| 护栏拒答 | 3（a10 uncited、a16/a28 误拒） | 1（a10 uncited） | −2 | 优于基线 |
+| 硬失败 | 无 | 无 | — | 达标 |
+
+两项超出 0.03 的偏差都能归因，且**不是检索退化**：
+
+- **Context Precision −0.0397**：几乎全部来自样本集合差异，不是上下文变差。两边都评分的 26 个
+  样本上，配对差只有 **−0.0064**。差值来自 a28（「车辆年检和过户分别需要办理什么？」，多跳题）：
+  Spring 的主题校验把它**误拒**了（`refusal-2026-10-29.md` 已记录该误拒），因此没有分数；
+  Quarkus 正常作答，裁判给出 context precision 0.0——检索到的首条覆盖年检、次条覆盖过户，
+  但裁判按「逐字覆盖」的严格口径判为不相关。这是 Spring 的误拒被消除后暴露出来的题目，
+  不是 Quarkus 检索更差。
+- **Answer Correctness +0.0404**：方向为优，来自答案生成侧的采样波动，不是检索差异。配对差
+  +0.0326，样本内正负相抵：a13 +0.4061、a19 +0.3001、a04 +0.2453 对 a11 −0.2517、
+  a07 −0.1176、a25 −0.1037。同样的模型与提示词，不同采样得到不同的事实分解质量。
+
+#### 运行 C（稳定性复跑）
+
+| 指标 | Spring 基线 | 运行 B | 运行 C | B↔C 配对差 |
+| --- | ---: | ---: | ---: | ---: |
+| Faithfulness | 0.9907 | 0.9638 | 0.9315 | −0.0370 |
+| Response Relevancy | 0.8521 | 0.8701 | 0.8378 | −0.0289 |
+| Context Precision | 0.9949 | 0.9552 | 0.9889 | **0.0000** |
+| Context Recall | 0.9815 | 0.9828 | 0.9815 | **0.0000** |
+| Answer Correctness | 0.7713 | 0.8117 | 0.7902 | −0.0214 |
+| 引用合规 | 0.9000 | 0.9667 | 0.9000 | — |
+| 可评分覆盖 | 27/30 | 29/30 | 27/30 | — |
+| 护栏拒答 | 3 | 1 | 3 | — |
+| 硬失败 | 无 | 无 | 无 | — |
+
+配对差取两次运行都评分的 27 个可答样本；与 Spring 基线对比时取双方都评分的样本
+（26–27 个，取决于被拒答的题目是否重合）。
+
+运行 C 相对基线：Faithfulness −0.0592（超出 0.03），Relevancy −0.0143、Context Precision
+−0.0060、Context Recall 0.0000、Answer Correctness +0.0189（均在带内）。**同一个构建，一次
+运行全部达标、另一次运行有一项超出**，这本身说明验收带与运行噪声同量级。
+
+#### 运行间稳定性
+
+| 维度 | B ↔ C | 判定 |
+| --- | --- | --- |
+| 检索结果（同序同集） | 36/36 完全一致 | 检索层**确定性** |
+| Context Precision / Context Recall 配对差 | 0.0000 / 0.0000 | 由检索决定，**零噪声** |
+| Faithfulness 配对差 | −0.0370（单题最大 −1.0000） | 生成侧噪声大于验收带 |
+| Response Relevancy 配对差 | −0.0289（单题最大 −0.2191） | 同上 |
+| Answer Correctness 配对差 | −0.0214（单题最大 −0.3485） | 同上 |
+| 答案文本不同 | 21/36 | 生成每次采样都不同 |
+| 护栏拒答集合 | B={a10}，C={a10, a28, a30} | 主题校验随采样摆动 |
+
+结论：**「与基线偏差 ≤ 0.03」只对检索侧指标成立**。检索由 ES 命中与 MySQL 回读决定，
+同一构建逐次可复现（36/36）；答案由 `llama3.2` 采样生成，配对差本身就能达到 −0.0370，
+因此对 Faithfulness / Relevancy / Answer Correctness 谈 0.03 量级的偏差没有统计意义。
+两次 Quarkus 运行与 Spring 基线在检索侧指标上的差距是 **−0.0064 / 0.0000**。
+
+运行间差异最大的三题都可解释：
+
+- **a25**（缴纳罚款支持微信或支付宝吗？）：运行 C 的答案是「[1] 罚款需在十五日内缴纳。」——
+  答非所问，faithfulness 从 1.0 掉到 0.0，answer correctness 掉到 0.19。检索结果三次完全
+  相同，属于纯生成侧的采样事故。
+- **a30**（申诉材料与退款）：运行 C 被主题校验误拒（`no_source`），运行 B 与 Spring 正常作答。
+- **a28**（年检与过户）：Spring 误拒，运行 B 正常作答，运行 C 又误拒。
+
+#### 检索一致性
+
+把三次运行采集到的 `sourceId` 列表与 Spring 基线逐题对比（36 题，含 30 可答 + 3 不可答 + 3 探针）：
+
+| 对比项 | 运行 A | 运行 B | 运行 C |
+| --- | --- | --- | --- |
+| 与 Spring **顺序完全一致** | 31/36 | 31/36 | 31/36 |
+| 与 Spring **集合一致** | 35/36 | 35/36 | 35/36 |
+| 两次 Quarkus 运行之间完全一致 | — | 36/36 | 36/36 |
+
+唯一有差异的是 a04：Spring 的第 3 条是 `c-fine-refund`，Quarkus 是 `c-fine-payment-guide`，
+两者都在 top-5 内、分数接近。其余 35 题的检索结果与 Spring **逐条相同**。检索链路的移植是
+忠实的。
+
+#### 护栏行为
+
+三次运行的护栏拒答集合：
+
+| 运行 | 拒答样本 | 数量 |
+| --- | --- | --- |
+| Spring 基线 | a10（uncited）、a16 / a28（no_source） | 3 |
+| 运行 B | a10（uncited） | 1 |
+| 运行 C | a10（uncited）、a28 / a30（no_source） | 3 |
+
+a10 的「无引用」拒答在三次运行中稳定复现，说明引用强制与引用修复链路是确定性生效的；
+主题校验（`no_source`）则随采样摆动，两端都会在多跳题上误拒——它是 Spring 参考实现继承来的
+边缘判定，不是 Quarkus 移植引入的缺陷。可评分覆盖因此在 27/30 与 29/30 之间浮动。
+
+#### 运行 A（引用强制关闭）作为反例
+
+| 指标 | 运行 A | 运行 B | 运行 C | Spring 基线 |
+| --- | ---: | ---: | ---: | ---: |
+| Faithfulness | 0.9467 | 0.9638 | 0.9315 | 0.9907 |
+| Context Precision | 0.9567 | 0.9552 | 0.9889 | 0.9949 |
+| Answer Correctness | 0.7634 | 0.8117 | 0.7902 | 0.7713 |
+| 引用合规 | 0.8667 | 0.9667 | 0.9000 | 0.9000 |
+| 可评分覆盖 | 30/30 | 29/30 | 27/30 | 27/30 |
+| 护栏拒答 | 0 | 1 | 3 | 3 |
+
+关闭引用强制时，a10 / a11 / a19 / a20 四个无引用回答被直接透传，引用合规率掉到 0.8667、
+可评分覆盖虚高到 30/30——**分数看起来更「完整」，实际是护栏没生效**。这也解释了为什么
+Quarkus 的引用强制默认值虽然仍是 `false`，评测必须显式打开。
+
+### 清理范围
+
+`seed --cleanup` 的实现只删除 `metadataJson.suite == "ragas"` 的文档（`cleanup_suite_documents`
+逐条解析 `metadata_json` 后过滤），清理范围由构造保证。评测结束后的实测：
+
+| 位置 | 清理前 | 清理后 |
+| --- | --- | --- |
+| MySQL `rag_document` | 43 条（31 条 `suite=ragas` + 12 条无 suite） | 12 条（全部为共享的非 ragas 语料） |
+| ES `rag_chunk_quarkus_current` 上该批 `source_id` 命中 | 31 | **0**（`POST /_refresh` 后复核） |
+
+共享的 12 条 `perf-rag-*` 语料（Spring 侧播种，3 个版本 × 4 条）从未进入 Quarkus 索引，
+清理过程不涉及它们，清理后仍完整保留。
 
 ## 风险与边界
 
@@ -338,8 +550,10 @@ uv run ragas-eval run --top-k 5
   评测）。
 - **R2 中文分词**：`standard` 分析器对中文按字切分，效果弱于 IK。本次与 Spring 保持一致，
   若召回不达标再单独评估分析器插件（需要 ES 镜像安装插件）。
-- **R3 引用强制门禁**：`AI_GUARDRAIL_CITATION_ENFORCEMENT` 在 Quarkus 仍默认 `false`，只有在
-  有评测证据后才单独开启。
+- **R3 引用强制门禁**：`AI_GUARDRAIL_CITATION_ENFORCEMENT` 在 Quarkus 仍默认 `false`。本轮已经
+  拿到评测证据（运行 A 证明关闭时引用合规只有 0.8667、无引用回答被直接透传；运行 B 打开后
+  引用合规 0.9667、拒答与 Spring 基线可比），但把默认值改成 `true` 属于改变默认行为，需要单独
+  提交并复核其它链路的回归，不在本次范围内。评测时必须显式打开。
 - **R4 回填语义差异**：Spring 的回填面向业务表抽取，Quarkus 的回填面向知识文档分块，两者
   指标不可直接对比。
 - **R5 环境差异**：Quarkus 默认端口 8080（RAGAS 默认 9080 是 Spring），评测必须显式设置
@@ -347,3 +561,11 @@ uv run ragas-eval run --top-k 5
 - **R6 依赖共享**：`rag_embedding_task` 与 `rag_chunk` 表由多个后端共享，跨后端并发写入时
   分块状态与向量可能不一致；`MySqlRagCandidateStore` 的回读过滤会把这类分块排除在结果之外，
   但不会自动修复。
+- **R7 评测带低于生成侧噪声底**：同一构建两次运行的 Faithfulness 配对差就有 −0.0370（单题
+  最大 −1.0），因此「与基线偏差 ≤ 0.03」只对检索侧指标（Context Precision / Context Recall，
+  两次运行配对差均为 0.0000）有统计意义；对生成侧指标应当看多次运行的中位数，或把带宽放宽到
+  与噪声同量级。单次运行的差异不能直接当作回归。
+- **R8 主题校验是边缘判定**：`no_source` 拒答在多跳题上随采样摆动（Spring 拒 a16/a28，
+  Quarkus 运行 B 拒 a28、运行 C 拒 a28/a30），两端都会误拒。这是 Spring 参考实现继承来的
+  行为，不是移植缺陷；若要降低误拒率，需要调整主题校验的判定口径（单独议题）。
+

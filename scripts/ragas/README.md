@@ -100,6 +100,46 @@ uv run ragas-eval all --top-k 5
 - Cloud 的 RAG 服务以独立进程运行，`RAG_INDEX_NAME` / `RAG_INDEX_ALIAS` 必须与该进程一致；AI 服务通过
   Feign 访问 RAG，纯 RAG 模式必须关闭 `AI_AGENT_ENABLED` 并开启 `AI_RAG_ENABLED`。
 
+## 评测 Quarkus 后端
+
+`final_assignment_backend_quarkus` 与主后端共用同一套 RAG 数据表，但使用**自己的 ES 索引与别名**
+（`rag_chunk_quarkus_v1` / `rag_chunk_quarkus_current`），避免与 Spring 的 768 维向量、Go 的 384 维向量
+互相覆盖。评测时必须显式指定别名与端口。
+
+```powershell
+cd final_assignment_backend_quarkus
+$env:AI_AGENT_ENABLED = "false"
+$env:AI_RAG_ENABLED = "true"
+$env:AI_GUARDRAIL_TOPIC_MODEL = "qwen2.5:7b"
+$env:AI_GUARDRAIL_CITATION_ENFORCEMENT = "true"   # 与主后端基线对齐
+$env:RAG_EMBEDDING_ENABLED = "true"
+$env:RAG_EMBEDDING_PROVIDER = "ollama"
+$env:RAG_EMBEDDING_MODEL = "nomic-embed-text"
+$env:RAG_EMBEDDING_DIMENSIONS = "768"
+$env:ELASTICSEARCH_HOST = "http://localhost:9200"
+.\gradlew.bat --console=plain quarkusDev
+```
+
+```bash
+cd scripts/ragas
+RAGAS_BASE_URL=http://localhost:8080 \
+RAGAS_ES_URL=http://localhost:9200 \
+RAGAS_INDEX_ALIAS=rag_chunk_quarkus_current \
+RAGAS_TARGET_LABEL="Quarkus" \
+uv run ragas-eval all --top-k 5
+```
+
+- Quarkus 默认端口 8080（RAGAS 默认指向 Spring），必须显式设置 `RAGAS_BASE_URL`。
+- Quarkus 的嵌入后台轮询默认关闭（`rag.embedding.scheduler-enabled=false`），由
+  `POST /api/rag/admin/embedding/run` 显式驱动；`seed` 会自动调用。
+- `rag_embedding_task` 表由多个后端共用：评测期间其他后端的嵌入 worker 必须停用，否则会抢走
+  Quarkus 的任务并写进别的索引。
+- **单次运行不要用于判定回归**：答案由模型采样生成，同一构建两次运行的 Faithfulness 配对差就有
+  −0.0370（单题最大 −1.0）；检索侧指标（Context Precision / Context Recall）才是确定性的。
+  评测 Quarkus 的实测结论见
+  [../../docs/ai/ragas/quarkus-rag-elasticsearch-2026-10-29.md](../../docs/ai/ragas/quarkus-rag-elasticsearch-2026-10-29.md)。
+- 细节见 [../../docs/ai/ragas/quarkus-rag-elasticsearch-2026-10-29.md](../../docs/ai/ragas/quarkus-rag-elasticsearch-2026-10-29.md)。
+
 ## 数据集
 
 `dataset/ragas-dataset.json`：
