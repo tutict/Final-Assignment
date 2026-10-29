@@ -150,12 +150,10 @@ func (p *OpenAIProvider) parseSSEStream(reader io.Reader, tokenChan chan<- servi
 		data := strings.TrimPrefix(line, "data: ")
 		data = strings.TrimSpace(data)
 
-		// Check for stream end
+		// Check for stream end. The terminal token is a sentinel only: the answer text was
+		// already streamed chunk by chunk, so repeating it here would duplicate the reply.
 		if data == "[DONE]" {
-			tokenChan <- service.AiToken{
-				Text:     fullText.String(),
-				Finished: true,
-			}
+			tokenChan <- service.AiToken{Finished: true}
 			return nil
 		}
 
@@ -189,10 +187,7 @@ func (p *OpenAIProvider) parseSSEStream(reader io.Reader, tokenChan chan<- servi
 
 		// Check if finished
 		if chunk.Choices[0].FinishReason != nil {
-			tokenChan <- service.AiToken{
-				Text:     fullText.String(),
-				Finished: true,
-			}
+			tokenChan <- service.AiToken{Finished: true}
 			return nil
 		}
 	}

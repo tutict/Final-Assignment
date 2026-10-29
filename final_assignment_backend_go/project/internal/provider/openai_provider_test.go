@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 	"time"
 
@@ -151,11 +152,7 @@ done:
 		t.Error("Stream did not finish properly")
 	}
 
-	if len(tokens) < 3 {
-		t.Errorf("Expected at least 3 tokens, got %d", len(tokens))
-	}
-
-	// Verify we got the expected content
+	// Verify we got the expected content exactly once: a terminal sentinel must not repeat it.
 	expectedTokens := []string{"你好", "，", "世界"}
 	for i, expected := range expectedTokens {
 		if i >= len(tokens) {
@@ -165,6 +162,9 @@ done:
 		if tokens[i] != expected {
 			t.Errorf("Token %d = %s, want %s", i, tokens[i], expected)
 		}
+	}
+	if joined := strings.Join(tokens, ""); joined != "你好，世界" {
+		t.Errorf("Streamed answer = %q, want %q", joined, "你好，世界")
 	}
 }
 
