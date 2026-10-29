@@ -5,17 +5,13 @@ import dev.langchain4j.model.chat.StreamingChatModel;
 import dev.langchain4j.model.chat.request.ChatRequest;
 import dev.langchain4j.model.chat.response.ChatResponse;
 import dev.langchain4j.model.chat.response.StreamingChatResponseHandler;
-import finalassignmentbackend.ai.agent.AgentModels;
-import finalassignmentbackend.ai.agent.AgentRuntime;
+import finalassignmentbackend.ai.chat.ChatPipeline;
 import finalassignmentbackend.controller.DriverAccessGuard;
 import finalassignmentbackend.reliability.ModelCallBulkhead;
 import finalassignmentbackend.service.ai.AIChatSearchService;
-import io.smallrye.common.annotation.RunOnVirtualThread;
-import jakarta.annotation.security.RolesAllowed;
 import io.smallrye.mutiny.Multi;
+import jakarta.annotation.security.RolesAllowed;
 import jakarta.inject.Inject;
-import jakarta.json.bind.Jsonb;
-import jakarta.json.bind.JsonbBuilder;
 import jakarta.ws.rs.Consumes;
 import jakarta.ws.rs.DefaultValue;
 import jakarta.ws.rs.GET;
@@ -25,16 +21,12 @@ import jakarta.ws.rs.Produces;
 import jakarta.ws.rs.QueryParam;
 import jakarta.ws.rs.core.Context;
 import jakarta.ws.rs.core.MediaType;
-import jakarta.ws.rs.core.Response;
 import jakarta.ws.rs.core.SecurityContext;
 
 import java.time.Duration;
-import java.time.Instant;
-import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.UUID;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
@@ -49,11 +41,18 @@ public class ChatController {
 
     @Inject
     AIChatSearchService aiChatSearchService;
-    @Inject AgentRuntime agentRuntime;
-    @Inject DriverAccessGuard driverAccessGuard;
-    @Inject ModelCallBulkhead modelCalls;
-    @Inject finalassignmentbackend.reliability.ReliabilityMetrics metrics;
-    private final Jsonb jsonb = JsonbBuilder.create();
+
+    @Inject
+    ChatPipeline chatPipeline;
+
+    @Inject
+    DriverAccessGuard driverAccessGuard;
+
+    @Inject
+    ModelCallBulkhead modelCalls;
+
+    @Inject
+    finalassignmentbackend.reliability.ReliabilityMetrics metrics;
 
     @GET
     @Path("/chat")
@@ -114,59 +113,28 @@ public class ChatController {
     @POST
     @Path("/chat/stream")
     @Consumes(MediaType.APPLICATION_JSON)
-    @Produces("text/event-stream")
-    @RunOnVirtualThread
-    public Response chatStream(@Context SecurityContext securityContext, Map<String, Object> request) {
-        String message = stringValue(request, "message");
-        String massage = stringValue(request, "massage");
-        boolean webSearch = booleanValue(request, "webSearch");
-        String userMessage = resolveMessage(message, massage);
+    @Produces(MediaType.SERVER_SENT_EVENTS)
+    public Multi<String> chatStream(@Context SecurityContext securityContext, Map<String, Object> request) {
+        String message = resolveMessage(stringValue(request, "message"), stringValue(request, "massage"));
         String sessionKey = stringValue(request, "sessionKey");
-        if (sessionKey == null || sessionKey.isBlank()) sessionKey = UUID.randomUUID().toString();
-        String username = securityContext != null && securityContext.getUserPrincipal() != null ? securityContext.getUserPrincipal().getName() : "anonymous";
-        String role = "USER";
-        if (securityContext != null) {
-            if (securityContext.isUserInRole("SUPER_ADMIN")) role = "SUPER_ADMIN";
-            else if (securityContext.isUserInRole("ADMIN")) role = "ADMIN";
-            else if (securityContext.isUserInRole("USER") || securityContext.isUserInRole("DRIVER")) role = "USER";
+        String username = securityContext != null && securityContext.getUserPrincipal() != null
+                ? securityContext.getUserPrincipal().getName()
+                : "anonymous";
+        Map<String, Object> metadata = request != null && request.get("metadata") instanceof Map<?, ?> raw
+                ? ChatPipeline.stringMap(raw)
+                : new LinkedHashMap<>();
+        if (request != null && request.get("webSearch") != null) {
+            metadata.putIfAbsent("webSearchRequested", request.get("webSearch"));
         }
-        Long driverId = driverAccessGuard.currentDriverId(securityContext);
-        StringBuilder sse = new StringBuilder();
-        if (!agentRuntime.bindSession(username, sessionKey)) {
-            sse.append("data: ").append(jsonb.toJson(Map.of("type", "error", "sessionKey", sessionKey, "payload", Map.of("message", "不能使用其他用户的会话"), "timestamp", Instant.now().toString()))).append("\n\n");
-            return Response.ok(sse.toString()).type("text/event-stream;charset=UTF-8").build();
-        }
-        AgentModels.Context context = new AgentModels.Context(role, sessionKey, username, username, driverId, false);
-        List<String> prefix = new ArrayList<>();
-        for (Map<String, Object> event : agentRuntime.execute(userMessage, context)) {
-            prefix.add(jsonb.toJson(event));
-        }
-        for (String json : prefix) {
-            sse.append("data: ").append(json).append("\n\n");
-        }
-        String done = jsonb.toJson(Map.of("type", "done", "sessionKey", sessionKey, "timestamp", Instant.now().toString()));
-        boolean skipModel = prefix.stream().anyMatch(json -> json.contains("\"type\":\"draft\"") || json.contains("\"type\":\"result\"") || json.contains("\"type\":\"error\""));
-        if (!skipModel) {
-            try {
-                List<String> tokens = chat(userMessage, null, webSearch).collect().asList().await().atMost(Duration.ofSeconds(2));
-                for (String token : tokens) {
-                    sse.append("data: ").append(jsonb.toJson(tokenEvent(sessionKey, token))).append("\n\n");
-                }
-            } catch (RuntimeException ex) {
-                sse.append("data: ").append(jsonb.toJson(Map.of("type", "error", "sessionKey", sessionKey, "payload", Map.of("message", "模型生成失败"), "timestamp", Instant.now().toString()))).append("\n\n");
-            }
-        }
-        sse.append("data: ").append(done).append("\n\n");
-        return Response.ok(sse.toString()).type("text/event-stream;charset=UTF-8").build();
-    }
-
-    private static Map<String, Object> tokenEvent(String sessionKey, String token) {
-        Map<String, Object> event = new LinkedHashMap<>();
-        event.put("type", "token");
-        event.put("sessionKey", sessionKey);
-        event.put("token", token);
-        event.put("timestamp", Instant.now().toString());
-        return event;
+        return chatPipeline.stream(new ChatPipeline.Request(
+                message,
+                sessionKey,
+                username,
+                username,
+                resolveRole(securityContext),
+                () -> driverAccessGuard.currentDriverId(username),
+                metadata
+        ));
     }
 
     @GET
@@ -202,6 +170,19 @@ public class ChatController {
         return promptBuilder.append("User question: ").append(userMessage).toString();
     }
 
+    private static String resolveRole(SecurityContext securityContext) {
+        if (securityContext == null) {
+            return "USER";
+        }
+        if (securityContext.isUserInRole("SUPER_ADMIN")) {
+            return "SUPER_ADMIN";
+        }
+        if (securityContext.isUserInRole("ADMIN")) {
+            return "ADMIN";
+        }
+        return "USER";
+    }
+
     private static String resolveMessage(String message, String massage) {
         return message != null && !message.isBlank() ? message : (massage == null ? "" : massage);
     }
@@ -211,14 +192,6 @@ public class ChatController {
             return null;
         }
         return String.valueOf(request.get(key));
-    }
-
-    private static boolean booleanValue(Map<String, Object> request, String key) {
-        if (request == null || request.get(key) == null) {
-            return false;
-        }
-        Object value = request.get(key);
-        return value instanceof Boolean bool ? bool : Boolean.parseBoolean(String.valueOf(value));
     }
 
     private static String formatSearchResults(List<Map<String, String>> results) {

@@ -91,6 +91,16 @@ quarkus:
       max-size: 20
       acquisition-timeout: 200ms
       new-connection-sql: SET SESSION max_execution_time=3000
+  # The chat model comes from the quarkus-langchain4j-ollama extension. Its 10s default timeout
+  # cuts prompt evaluation on CPU-only hosts, so the default is raised; OLLAMA_TEMPERATURE
+  # matches the Spring backend to keep citation adherence stable.
+  langchain4j:
+    ollama:
+      base-url: ${OLLAMA_BASE_URL:http://localhost:11434}
+      timeout: ${AI_CHAT_TIMEOUT:120s}
+      chat-model:
+        model-id: ${AI_CHAT_MODEL:llama3.2}
+        temperature: ${OLLAMA_TEMPERATURE:0.2}
   redis:
     timeout: 300ms
     blacklist:
@@ -104,6 +114,18 @@ rag:
   chunk:
     size: 500
     overlap: 100
+
+# Chat pipeline configuration. AI_AGENT_ENABLED=false turns every turn into a pure-RAG answer
+# (no tool routing), which is what the RAGAS harness expects. Guardrail switches are documented
+# in docs/ai/ragas/quarkus-refusal-2026-10-29.md.
+ai:
+  agent:
+    enabled: ${AI_AGENT_ENABLED:true}
+  rag:
+    enabled: ${AI_RAG_ENABLED:true}
+    top-k: ${AI_RAG_TOP_K:5}
+  prompt:
+    context-token-budget: ${AI_PROMPT_CONTEXT_TOKEN_BUDGET:1200}
 
 # Align HTTP Bearer verification (quarkus-smallrye-jwt) with TokenProvider HS256 signing.
 # TokenProvider HMAC-SHA256s jwt.secret.key as UTF-8 (or standard-Base64 if the value decodes).

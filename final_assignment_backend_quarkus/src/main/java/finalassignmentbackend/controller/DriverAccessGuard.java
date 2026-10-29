@@ -39,7 +39,14 @@ public class DriverAccessGuard {
         if (securityContext == null || securityContext.getUserPrincipal() == null) {
             return null;
         }
-        UserProfileResponse profile = authWsService.getCurrentUserProfile(securityContext.getUserPrincipal().getName());
+        return currentDriverId(securityContext.getUserPrincipal().getName());
+    }
+
+    public Long currentDriverId(String username) {
+        if (username == null || username.isBlank()) {
+            return null;
+        }
+        UserProfileResponse profile = authWsService.getCurrentUserProfile(username);
         return profile == null ? null : profile.getDriverId();
     }
 

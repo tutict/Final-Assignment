@@ -43,6 +43,8 @@ public class NetWorkHandler extends AbstractVerticle {
 
     private static final Logger log = Logger.getLogger(NetWorkHandler.class.getName());
 
+    private static final int STREAMING_IDLE_TIMEOUT_SECONDS = 180;
+
     @ConfigProperty(name = "network.server.port", defaultValue = "8080")
     int port;
 
@@ -69,6 +71,7 @@ public class NetWorkHandler extends AbstractVerticle {
 
     private final Map<String, Set<ServerWebSocket>> webSocketsByUsername = new ConcurrentHashMap<>();
     private WebClient webClient;
+    private WebClient streamingWebClient;
 
 
     @Override
@@ -78,6 +81,14 @@ public class NetWorkHandler extends AbstractVerticle {
                 .setIdleTimeout(10)
                 .setMaxPoolSize(32);
         this.webClient = WebClient.create(vertx.getDelegate(), clientOptions);
+        // SSE chat can legitimately stay silent for a while (retrieval, judge model, prompt
+        // evaluation on CPU). The 10s default idle timeout would cut those streams, so chat
+        // traffic gets its own client with a generation-sized budget.
+        WebClientOptions streamingOptions = new WebClientOptions()
+                .setConnectTimeout(2000)
+                .setIdleTimeout(STREAMING_IDLE_TIMEOUT_SECONDS)
+                .setMaxPoolSize(8);
+        this.streamingWebClient = WebClient.create(vertx.getDelegate(), streamingOptions);
         Router router = Router.router(vertx);
         configureCors(router);
         setupNetWorksServer(router);
@@ -378,6 +389,10 @@ public class NetWorkHandler extends AbstractVerticle {
         uni.subscribe().with(ignored -> { }, failure -> { });
     }
 
+    private static boolean isStreamingPath(String path) {
+        return path != null && path.startsWith("/api/ai/chat/stream");
+    }
+
     private static boolean isHopByHopHeader(String name) {
         if (name == null) {
             return true;
@@ -420,8 +435,9 @@ public class NetWorkHandler extends AbstractVerticle {
             headers.add("X-Forwarded-For", request.remoteAddress().host());
         }
 
+        WebClient client = isStreamingPath(path) ? streamingWebClient : webClient;
         HttpMethod method = request.method();
-        var httpRequest = webClient.requestAbs(method, targetUrl).putHeaders(headers);
+        var httpRequest = client.requestAbs(method, targetUrl).putHeaders(headers);
 
         if (method == HttpMethod.GET || method == HttpMethod.DELETE) {
             httpRequest.send()
