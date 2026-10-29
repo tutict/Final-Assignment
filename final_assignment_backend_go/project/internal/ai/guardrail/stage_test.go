@@ -152,6 +152,34 @@ func TestStageRepairsOnceThenRefuses(t *testing.T) {
 	}
 }
 
+func TestStageKeepsTheOriginalRefusalWhenTheRepairStreamFails(t *testing.T) {
+	repair := func(context.Context) (<-chan aisvc.AiChatStreamEvent, error) {
+		// 半截文本里恰好带了 [1]：如果把它当成重试结果，引用检查会判定通过，
+		// 用户看到的是一句被截断的话而不是原来的拒答。
+		return eventStream(
+			providerToken("罚款需在十五日内缴纳 [1]，但"),
+			aisvc.AiChatStreamEvent{Type: aisvc.ChatStreamEventTypeError, SessionKey: "s1", Payload: "upstream failed"},
+		), nil
+	}
+	stage := &Stage{Policy: CitationPolicy{EnforcementEnabled: true}}
+	out := stage.Wrap(
+		context.Background(),
+		eventStream(providerToken("没有引用的草稿。"), providerDone()),
+		"罚款怎么缴",
+		knowledgeSource("罚款应在十五日内缴纳"),
+		"msg-12",
+		repair,
+	)
+
+	events := collectEvents(out)
+	if got := answerOf(events); got != UncitedAnswer {
+		t.Fatalf("answer = %q, want the original uncited refusal", got)
+	}
+	if events[len(events)-1].Type != aisvc.ChatStreamEventTypeDone {
+		t.Fatalf("last event = %s, want done", events[len(events)-1].Type)
+	}
+}
+
 func TestStagePassesErrorsThrough(t *testing.T) {
 	stage := &Stage{Policy: CitationPolicy{EnforcementEnabled: true}}
 	out := stage.Wrap(

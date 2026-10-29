@@ -2,6 +2,8 @@ package guardrail
 
 import (
 	"context"
+	"errors"
+	"fmt"
 	"strings"
 	"time"
 
@@ -135,10 +137,20 @@ func runRepair(ctx context.Context, repair RepairFunc) (string, []aisvc.AiChatSt
 		case aisvc.ChatStreamEventTypeDone:
 			return builder.String(), tokens, nil
 		case aisvc.ChatStreamEventTypeError:
-			return builder.String(), tokens, nil
+			// 重试流自己挂了：半截文本不能当成重试结果用，否则用户看到的是被截断的
+			// 答案而不是原来的拒答。把错误抛给调用方，让它保留首次判定。
+			return "", nil, repairStreamError(event)
 		}
 	}
 	return builder.String(), tokens, nil
+}
+
+// repairStreamError 把 error 事件还原成 error。事件里的 Payload 由 chat 管线填字符串。
+func repairStreamError(event aisvc.AiChatStreamEvent) error {
+	if message, ok := event.Payload.(string); ok && strings.TrimSpace(message) != "" {
+		return fmt.Errorf("citation repair stream failed: %s", message)
+	}
+	return errors.New("citation repair stream failed")
 }
 
 func joinTokens(events []aisvc.AiChatStreamEvent) string {
