@@ -18,8 +18,9 @@
 - `MAX_TOP_K` 由 20 提升到 50，满足评测脚本 `_user_control_visible` 用 `max(50, top_k)`
   取控制文档的要求。
 - Quarkus 使用**自己的索引与别名**（`rag_chunk_quarkus_v1` / `rag_chunk_quarkus_current`），
-  与 Spring 的 `rag_chunk_v1` / `rag_chunk_current` 隔离：Spring 索引里是 768 维
-  `nomic-embed-text` 向量，Go 是 384 维确定性向量，共用索引会互相覆盖。
+  与 Spring 的 `rag_chunk_v1` / `rag_chunk_current` 隔离：各后端索引里都是 768 维
+  `nomic-embed-text` 向量，但 `chunk_id` 生成算法与写入时机各自独立，共用索引会互相覆盖。
+  （本报告写作时 Go 仍是 384 维确定性向量，Go 后续也已切换为 `nomic-embed-text`。）
 - 单元测试全部通过（48 个测试类、222 个用例、0 failure / 0 error）。
 - **RAGAS 端到端已执行**，与 Spring 基线在同一数据集、同一裁判、同一模型下可比。两次基线对齐
   配置的运行（运行 B `20261029T045537Z-3b26af06`、运行 C `20261029T054721Z-3b26af06`）：
