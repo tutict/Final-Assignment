@@ -24,13 +24,21 @@ type OpenAIProvider struct {
 	completionClient *http.Client
 }
 
+// defaultProviderTimeout bounds a single provider call: connection setup and the wait for the
+// response headers. It matches the Spring budget (AI_PROVIDER_TIMEOUT, 60s); a tighter deadline
+// aborts a cold model load before Ollama can answer.
+const defaultProviderTimeout = 60 * time.Second
+
 // NewOpenAIProvider creates a new OpenAI provider
-func NewOpenAIProvider(apiKey, baseURL, model string) *OpenAIProvider {
+func NewOpenAIProvider(apiKey, baseURL, model string, timeout time.Duration) *OpenAIProvider {
 	if baseURL == "" {
 		baseURL = "https://api.openai.com/v1"
 	}
 	if model == "" {
 		model = "gpt-4"
+	}
+	if timeout <= 0 {
+		timeout = defaultProviderTimeout
 	}
 
 	return &OpenAIProvider{
@@ -38,14 +46,16 @@ func NewOpenAIProvider(apiKey, baseURL, model string) *OpenAIProvider {
 		baseURL: strings.TrimSuffix(baseURL, "/"),
 		model:   model,
 		client: &http.Client{
-			Timeout: 120 * time.Second,
+			// The exchange budget covers the whole streamed answer; the header budget only
+			// covers the wait for the first response byte.
+			Timeout: 2 * timeout,
 			Transport: &http.Transport{
-				DialContext:           (&net.Dialer{Timeout: 700 * time.Millisecond}).DialContext,
-				ResponseHeaderTimeout: 700 * time.Millisecond,
+				DialContext:           (&net.Dialer{Timeout: timeout}).DialContext,
+				ResponseHeaderTimeout: timeout,
 			},
 		},
-		// Chat and judge have different latency envelopes: the 700ms chat header timeout is
-		// unusable for a 7B judge, so auxiliary calls get their own client bounded by context.
+		// Chat and judge have different latency envelopes: the chat header budget is unusable
+		// for a 7B judge, so auxiliary calls get their own client bounded by context.
 		completionClient: &http.Client{
 			Transport: &http.Transport{
 				DialContext: (&net.Dialer{Timeout: 5 * time.Second}).DialContext,
@@ -73,7 +83,7 @@ func (p *OpenAIProvider) Stream(
 		defer close(tokenChan)
 		defer close(errChan)
 
-		if err := p.streamRequest(ctx, prompt, metadata, tokenChan); err != nil {
+		if err := p.streamRequest(ctx, prompt, metadata, config.Temperature, tokenChan); err != nil {
 			errChan <- err
 		}
 	}()
@@ -181,6 +191,7 @@ func (p *OpenAIProvider) streamRequest(
 	ctx context.Context,
 	prompt string,
 	metadata map[string]any,
+	temperature float64,
 	tokenChan chan<- service.AiToken,
 ) error {
 	// Build request payload
@@ -195,9 +206,12 @@ func (p *OpenAIProvider) streamRequest(
 		},
 	}
 
-	// Add optional parameters from metadata
-	if temperature, ok := metadata["temperature"].(float64); ok {
+	// The configured temperature is the baseline; a per-request value wins.
+	if temperature > 0 {
 		requestBody["temperature"] = temperature
+	}
+	if override, ok := metadata["temperature"].(float64); ok {
+		requestBody["temperature"] = override
 	}
 	if maxTokens, ok := metadata["maxTokens"].(int); ok {
 		requestBody["max_tokens"] = maxTokens

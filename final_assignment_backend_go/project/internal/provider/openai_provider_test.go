@@ -57,7 +57,7 @@ func TestNewOpenAIProvider(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			provider := NewOpenAIProvider(tt.apiKey, tt.baseURL, tt.model)
+			provider := NewOpenAIProvider(tt.apiKey, tt.baseURL, tt.model, 0)
 
 			if provider.apiKey != tt.apiKey {
 				t.Errorf("apiKey = %s, want %s", provider.apiKey, tt.apiKey)
@@ -73,7 +73,7 @@ func TestNewOpenAIProvider(t *testing.T) {
 }
 
 func TestOpenAIProvider_ProviderName(t *testing.T) {
-	provider := NewOpenAIProvider("sk-test", "", "")
+	provider := NewOpenAIProvider("sk-test", "", "", 0)
 	if name := provider.ProviderName(); name != "openai" {
 		t.Errorf("ProviderName() = %s, want openai", name)
 	}
@@ -116,7 +116,7 @@ func TestOpenAIProvider_Stream(t *testing.T) {
 	}))
 	defer server.Close()
 
-	provider := NewOpenAIProvider("sk-test", server.URL, "gpt-4")
+	provider := NewOpenAIProvider("sk-test", server.URL, "gpt-4", 0)
 
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
@@ -176,7 +176,7 @@ func TestOpenAIProvider_Stream_Error(t *testing.T) {
 	}))
 	defer server.Close()
 
-	provider := NewOpenAIProvider("invalid-key", server.URL, "gpt-4")
+	provider := NewOpenAIProvider("invalid-key", server.URL, "gpt-4", 0)
 
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
@@ -206,7 +206,7 @@ func TestOpenAIProvider_Stream_ContextCancellation(t *testing.T) {
 	}))
 	defer server.Close()
 
-	provider := NewOpenAIProvider("sk-test", server.URL, "gpt-4")
+	provider := NewOpenAIProvider("sk-test", server.URL, "gpt-4", 0)
 
 	ctx, cancel := context.WithTimeout(context.Background(), 100*time.Millisecond)
 	defer cancel()
@@ -255,7 +255,7 @@ func TestOpenAIProvider_Stream_WithMetadata(t *testing.T) {
 	}))
 	defer server.Close()
 
-	provider := NewOpenAIProvider("sk-test", server.URL, "gpt-4")
+	provider := NewOpenAIProvider("sk-test", server.URL, "gpt-4", 0)
 
 	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
 	defer cancel()
@@ -304,7 +304,7 @@ func TestOpenAIProvider_CompleteUsesPerCallOptions(t *testing.T) {
 	}))
 	defer server.Close()
 
-	provider := NewOpenAIProvider("sk-test", server.URL, "llama3.2")
+	provider := NewOpenAIProvider("sk-test", server.URL, "llama3.2", 0)
 	options := service.VerificationOptions(
 		5*time.Second,
 		"qwen2.5:7b",
@@ -343,7 +343,7 @@ func TestOpenAIProvider_CompleteErrorStatus(t *testing.T) {
 	}))
 	defer server.Close()
 
-	provider := NewOpenAIProvider("sk-test", server.URL, "llama3.2")
+	provider := NewOpenAIProvider("sk-test", server.URL, "llama3.2", 0)
 	_, err := provider.Complete(context.Background(), "judge this", service.GenerationOptions{Timeout: 2 * time.Second})
 	if err == nil {
 		t.Fatal("expected an error for a 400 response")

@@ -41,6 +41,9 @@ type AiChatConfig struct {
 	DriverAgentConstraints         string
 	AdminAgentConstraints          string
 	SuperAdminAgentConstraints     string
+	// Temperature 是生成温度。低于 1 才能让检索式回答保持可复现，
+	// 默认值与 Spring / Quarkus 参考实现一致。
+	Temperature float64
 }
 
 func DefaultAiChatConfig() AiChatConfig {
@@ -66,6 +69,7 @@ func DefaultAiChatConfig() AiChatConfig {
 		DriverAgentConstraints:         defaultDriverAgentConstraints,
 		AdminAgentConstraints:          defaultAdminAgentConstraints,
 		SuperAdminAgentConstraints:     defaultSuperAdminAgentConstraints,
+		Temperature:                    0.2,
 	}
 }
 
@@ -191,6 +195,9 @@ func normalizeAiChatConfig(config AiChatConfig) AiChatConfig {
 	}
 	if config.SuperAdminAgentConstraints == "" {
 		config.SuperAdminAgentConstraints = defaults.SuperAdminAgentConstraints
+	}
+	if config.Temperature <= 0 {
+		config.Temperature = defaults.Temperature
 	}
 	return config
 }

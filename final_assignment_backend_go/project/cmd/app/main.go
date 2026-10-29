@@ -120,6 +120,7 @@ func main() {
 		OpenAICompatibleEnabled:   aiChatConfig.ProviderType == "openai",
 		OpenAICompatibleAPIKey:    aiChatConfig.ProviderAPIKey,
 		OpenAICompatibleChatModel: aiChatConfig.ProviderModel,
+		Temperature:               aiChatConfig.ProviderTemperature,
 	}
 
 	// 初始化 Chat Pipeline

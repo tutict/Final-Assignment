@@ -10,10 +10,12 @@ import (
 // AiChatConfig holds all configuration for the AI chat system
 type AiChatConfig struct {
 	// AI Provider settings
-	ProviderType   string // "openai", "claude", "local"
-	ProviderAPIKey string
-	ProviderModel  string
-	ProviderURL    string // For custom/local providers
+	ProviderType        string // "openai", "claude", "local"
+	ProviderAPIKey      string
+	ProviderModel       string
+	ProviderURL         string // For custom/local providers
+	ProviderTemperature float64
+	ProviderTimeout     time.Duration
 
 	// RAG settings
 	RAGEnabled     bool
@@ -57,10 +59,12 @@ type AiChatConfig struct {
 func LoadFromEnv() *AiChatConfig {
 	cfg := &AiChatConfig{
 		// AI Provider defaults
-		ProviderType:   getEnv("AI_PROVIDER_TYPE", "openai"),
-		ProviderAPIKey: getEnv("AI_PROVIDER_API_KEY", ""),
-		ProviderModel:  getEnv("AI_PROVIDER_MODEL", "gpt-4"),
-		ProviderURL:    getEnv("AI_PROVIDER_URL", ""),
+		ProviderType:        getEnv("AI_PROVIDER_TYPE", "openai"),
+		ProviderAPIKey:      getEnv("AI_PROVIDER_API_KEY", ""),
+		ProviderModel:       getEnv("AI_PROVIDER_MODEL", "gpt-4"),
+		ProviderURL:         getEnv("AI_PROVIDER_URL", ""),
+		ProviderTemperature: getEnvFloat("AI_PROVIDER_TEMPERATURE", 0.2),
+		ProviderTimeout:     getEnvDuration("AI_PROVIDER_TIMEOUT", 60*time.Second),
 
 		// RAG defaults
 		RAGEnabled:     getEnvBool("RAG_ENABLED", true),

@@ -27,6 +27,7 @@ func (f *Factory) CreateProvider() (service.AiProvider, error) {
 			f.config.ProviderAPIKey,
 			f.config.ProviderURL,
 			f.config.ProviderModel,
+			f.config.ProviderTimeout,
 		), nil
 
 	case "claude":
@@ -39,6 +40,7 @@ func (f *Factory) CreateProvider() (service.AiProvider, error) {
 			f.config.ProviderAPIKey,
 			f.config.ProviderURL,
 			f.config.ProviderModel,
+			f.config.ProviderTimeout,
 		), nil
 
 	case "local":
@@ -50,6 +52,7 @@ func (f *Factory) CreateProvider() (service.AiProvider, error) {
 			"", // Local providers typically don't need API key
 			f.config.ProviderURL,
 			f.config.ProviderModel,
+			f.config.ProviderTimeout,
 		), nil
 
 	default:
