@@ -112,13 +112,17 @@ func main() {
 		if err != nil {
 			log.Printf("[WARNING] Failed to initialize chat pipeline: %v", err)
 		} else {
-			facade := &agent.DomainFacade{
-				DB:      db,
-				Offense: offense.NewOffenseInformationService(repo.NewOffenseInformationRepo(db)),
-				Fine:    offense.NewFineInformationService(repo.NewFineInformationRepo(db)),
-				Appeal:  appeal.NewAppealManagementService(repo.NewAppealManagementRepo(db)),
+			if aiChatConfig.AgentEnabled {
+				facade := &agent.DomainFacade{
+					DB:      db,
+					Offense: offense.NewOffenseInformationService(repo.NewOffenseInformationRepo(db)),
+					Fine:    offense.NewFineInformationService(repo.NewFineInformationRepo(db)),
+					Appeal:  appeal.NewAppealManagementService(repo.NewAppealManagementRepo(db)),
+				}
+				chatPipeline.SetAgent(agent.NewRuntime(facade))
+			} else {
+				log.Println("[INFO] AI agent disabled; running pure-RAG chat")
 			}
-			chatPipeline.SetAgent(agent.NewRuntime(facade))
 		}
 	}
 

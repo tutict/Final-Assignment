@@ -32,6 +32,13 @@ type AiChatConfig struct {
 	AdminAgentConstraints      string
 	SuperAdminAgentConstraints string
 
+	// Answer guardrail settings
+	AgentEnabled               bool
+	CitationEnforcementEnabled bool
+	TopicVerificationEnabled   bool
+	TopicModel                 string
+	TopicTimeout               time.Duration
+
 	// Server settings
 	ServerPort         int
 	ServerReadTimeout  time.Duration
@@ -71,6 +78,13 @@ func LoadFromEnv() *AiChatConfig {
 		DriverAgentConstraints:     getEnv("DRIVER_CONSTRAINTS", "# Driver\n- Can only view own records"),
 		AdminAgentConstraints:      getEnv("ADMIN_CONSTRAINTS", "# Admin\n- Can manage department records"),
 		SuperAdminAgentConstraints: getEnv("SUPER_ADMIN_CONSTRAINTS", "# Super Admin\n- Full system access"),
+
+		// Answer guardrail defaults
+		AgentEnabled:               getEnvBool("AI_AGENT_ENABLED", true),
+		CitationEnforcementEnabled: getEnvBool("AI_GUARDRAIL_CITATION_ENFORCEMENT", true),
+		TopicVerificationEnabled:   getEnvBool("AI_GUARDRAIL_TOPIC_VERIFICATION", true),
+		TopicModel:                 getEnv("AI_GUARDRAIL_TOPIC_MODEL", ""),
+		TopicTimeout:               getEnvDuration("AI_GUARDRAIL_TOPIC_TIMEOUT", 12*time.Second),
 
 		// Server defaults
 		ServerPort:         getEnvInt("SERVER_PORT", 8081),
