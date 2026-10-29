@@ -131,10 +131,38 @@ class RagIndexManagerTest {
         assertTrue(client.calls.contains("PUT /rag_chunk_quarkus_v2/_doc/chk_123"));
     }
 
+    @Test
+    void restartFollowsTheMigratedAliasInsteadOfTheConfiguredIndex() {
+        // 模拟重启：配置里的写入索引仍是 v1，但别名已经被迁移端点指向 v2。
+        RagIndexManager target = manager();
+        client.indexPresent = true;
+        client.aliasPresent = true;
+        client.aliasTargets.put("rag_chunk_quarkus_v2", true);
+
+        target.ensureReady();
+
+        assertEquals("rag_chunk_quarkus_v2", target.indexName());
+        assertTrue(client.calls.stream().noneMatch(call -> call.startsWith("POST")));
+    }
+
+    @Test
+    void aliasWithSeveralTargetsUsesTheWriteIndex() {
+        RagIndexManager target = manager();
+        client.indexPresent = true;
+        client.aliasPresent = true;
+        client.aliasTargets.put("rag_chunk_quarkus_v1", false);
+        client.aliasTargets.put("rag_chunk_quarkus_v2", true);
+
+        target.ensureReady();
+
+        assertEquals("rag_chunk_quarkus_v2", target.indexName());
+    }
+
     private static final class FakeElasticsearchClient extends ElasticsearchClient {
 
         private final List<String> calls = new ArrayList<>();
         private final List<String> aliasBodies = new ArrayList<>();
+        private final java.util.Map<String, Boolean> aliasTargets = new java.util.LinkedHashMap<>();
         private boolean indexPresent = true;
         private boolean aliasPresent = true;
 
@@ -150,7 +178,11 @@ class RagIndexManagerTest {
             if (!aliasPresent) {
                 return Optional.empty();
             }
-            return Optional.of(Json.createObjectBuilder().build());
+            jakarta.json.JsonObjectBuilder indices = Json.createObjectBuilder();
+            aliasTargets.forEach((index, writeIndex) -> indices.add(index,
+                    Json.createObjectBuilder().add("rag_chunk_quarkus_current",
+                            Json.createObjectBuilder().add("is_write_index", writeIndex))));
+            return Optional.of(indices.build());
         }
 
         @Override

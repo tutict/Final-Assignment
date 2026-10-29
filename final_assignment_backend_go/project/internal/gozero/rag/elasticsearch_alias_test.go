@@ -17,6 +17,8 @@ type aliasServer struct {
 	aliasTargets map[string][]string
 	aliasUpdates [][]byte
 	createdIndex []string
+	// writeIndex 非空时，该索引在别名元数据里带上 is_write_index=true。
+	writeIndex string
 }
 
 func newAliasServer(aliasTargets map[string][]string) *aliasServer {
@@ -61,7 +63,11 @@ func (s *aliasServer) handler(t *testing.T) http.HandlerFunc {
 			}
 			payload := map[string]any{}
 			for _, target := range targets {
-				payload[target] = map[string]any{"aliases": map[string]any{alias: map[string]any{}}}
+				metadata := map[string]any{}
+				if s.writeIndex != "" && target == s.writeIndex {
+					metadata["is_write_index"] = true
+				}
+				payload[target] = map[string]any{"aliases": map[string]any{alias: metadata}}
 			}
 			w.Header().Set("Content-Type", "application/json")
 			_ = json.NewEncoder(w).Encode(payload)
@@ -70,6 +76,9 @@ func (s *aliasServer) handler(t *testing.T) http.HandlerFunc {
 			s.aliasUpdates = append(s.aliasUpdates, body)
 			w.WriteHeader(http.StatusOK)
 			_, _ = w.Write([]byte(`{"acknowledged":true}`))
+		case r.Method == http.MethodHead:
+			// 索引存在性探测：这个假服务里的索引只在 PUT 之后才存在。
+			w.WriteHeader(http.StatusNotFound)
 		default:
 			w.WriteHeader(http.StatusOK)
 			_, _ = w.Write([]byte(`{}`))
@@ -77,7 +86,7 @@ func (s *aliasServer) handler(t *testing.T) http.HandlerFunc {
 	}
 }
 
-func TestEnsureReadySwitchesAliasToConfiguredIndex(t *testing.T) {
+func TestEnsureReadyFollowsExistingAliasInsteadOfRevertingIt(t *testing.T) {
 	server := newAliasServer(map[string][]string{
 		"rag_chunk_go_current": {"rag_chunk_go_v1"},
 	})
@@ -86,15 +95,48 @@ func TestEnsureReadySwitchesAliasToConfiguredIndex(t *testing.T) {
 	if err := manager.ensureReady(context.Background()); err != nil {
 		t.Fatalf("ensureReady() error = %v", err)
 	}
+	if len(server.aliasUpdates) != 0 {
+		t.Fatalf("alias updates = %d, want 0: an existing alias is authoritative", len(server.aliasUpdates))
+	}
+	if manager.activeIndex != "rag_chunk_go_v1" {
+		t.Fatalf("activeIndex = %q, want the alias target", manager.activeIndex)
+	}
+}
+
+func TestEnsureReadyCreatesConfiguredIndexWhenAliasIsMissing(t *testing.T) {
+	server := newAliasServer(nil)
+	manager := newAliasIndexManager(t, server.handler(t))
+
+	if err := manager.ensureReady(context.Background()); err != nil {
+		t.Fatalf("ensureReady() error = %v", err)
+	}
+	if len(server.createdIndex) != 1 || server.createdIndex[0] != "rag_chunk_go_768_v1" {
+		t.Fatalf("created indexes = %v, want the configured index", server.createdIndex)
+	}
 	if len(server.aliasUpdates) != 1 {
 		t.Fatalf("alias updates = %d, want 1", len(server.aliasUpdates))
 	}
-	body := string(server.aliasUpdates[0])
-	if !strings.Contains(body, "rag_chunk_go_768_v1") {
+	if body := string(server.aliasUpdates[0]); !strings.Contains(body, "rag_chunk_go_768_v1") {
 		t.Fatalf("alias update = %s, want the configured index", body)
 	}
-	if !strings.Contains(body, "rag_chunk_go_v1") {
-		t.Fatalf("alias update = %s, want the stale index removed", body)
+}
+
+func TestAliasIndicesPrefersTheWriteIndex(t *testing.T) {
+	server := newAliasServer(map[string][]string{
+		"rag_chunk_go_current": {"rag_chunk_go_768_v1", "rag_chunk_go_768_v2"},
+	})
+	server.writeIndex = "rag_chunk_go_768_v2"
+	manager := newAliasIndexManager(t, server.handler(t))
+
+	indices, err := manager.aliasIndices(context.Background())
+	if err != nil {
+		t.Fatalf("aliasIndices() error = %v", err)
+	}
+	if len(indices) != 2 {
+		t.Fatalf("indices = %v, want two entries", indices)
+	}
+	if indices[0] != "rag_chunk_go_768_v2" {
+		t.Fatalf("indices = %v, want the write index first", indices)
 	}
 }
 
@@ -113,21 +155,19 @@ func TestEnsureReadyKeepsAliasWhenItAlreadyPointsAtConfiguredIndex(t *testing.T)
 }
 
 func TestEnsureReadyKeepsManualMigrationTarget(t *testing.T) {
+	// 模拟重启：上一个进程用迁移端点把别名指向 v2，配置里的索引仍是 v1。
 	server := newAliasServer(map[string][]string{
-		"rag_chunk_go_current": {"rag_chunk_go_768_v1"},
+		"rag_chunk_go_current": {"rag_chunk_go_768_v2"},
 	})
 	manager := newAliasIndexManager(t, server.handler(t))
-
-	if _, err := manager.SwitchWriteAlias(context.Background(), "rag_chunk_go_768_v2"); err != nil {
-		t.Fatalf("SwitchWriteAlias() error = %v", err)
-	}
-	server.aliasTargets["rag_chunk_go_current"] = []string{"rag_chunk_go_768_v2"}
-	server.aliasUpdates = nil
 
 	if err := manager.ensureReady(context.Background()); err != nil {
 		t.Fatalf("ensureReady() error = %v", err)
 	}
 	if len(server.aliasUpdates) != 0 {
 		t.Fatalf("alias updates = %d, want 0: the migration target must not be reverted", len(server.aliasUpdates))
+	}
+	if manager.activeIndex != "rag_chunk_go_768_v2" {
+		t.Fatalf("activeIndex = %q, want the migration target", manager.activeIndex)
 	}
 }

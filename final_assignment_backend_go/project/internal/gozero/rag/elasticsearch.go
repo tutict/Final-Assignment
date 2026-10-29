@@ -231,6 +231,22 @@ func (m *ElasticsearchIndexManager) ensureReady(ctx context.Context) error {
 	if m.ready {
 		return nil
 	}
+	// 别名是权威，配置里的索引名只用于「别名还不存在时建哪一个」。
+	// 反过来做（把别名拨回配置索引）会让运维通过迁移端点切到新索引后，
+	// 在下次重启的第一次写入时被静默回滚，新索引里的向量再也检索不到。
+	existing, err := m.aliasIndices(ctx)
+	if err != nil {
+		return err
+	}
+	if len(existing) > 0 {
+		target := existing[0]
+		if _, err := m.CreateIndex(ctx, target); err != nil {
+			return err
+		}
+		m.activeIndex = target
+		m.ready = true
+		return nil
+	}
 	target := strings.TrimSpace(m.activeIndex)
 	if target == "" {
 		target = m.config.IndexName
@@ -238,28 +254,11 @@ func (m *ElasticsearchIndexManager) ensureReady(ctx context.Context) error {
 	if _, err := m.CreateIndex(ctx, target); err != nil {
 		return err
 	}
-	// 别名必须跟着当前写入索引走：残留的旧别名会把新维度的向量写进旧索引，
-	// 或者让检索一直命中切换前的数据。
-	existing, err := m.aliasIndices(ctx)
-	if err != nil {
+	if _, err := m.SwitchWriteAlias(ctx, target); err != nil {
 		return err
-	}
-	if !containsExact(existing, target) {
-		if _, err := m.SwitchWriteAlias(ctx, target); err != nil {
-			return err
-		}
 	}
 	m.ready = true
 	return nil
-}
-
-func containsExact(values []string, target string) bool {
-	for _, value := range values {
-		if value == target {
-			return true
-		}
-	}
-	return false
 }
 
 func (m *ElasticsearchIndexManager) aliasIndices(ctx context.Context) ([]string, error) {
@@ -282,12 +281,46 @@ func (m *ElasticsearchIndexManager) aliasIndices(ctx context.Context) ([]string,
 		return nil, fmt.Errorf("decode Elasticsearch alias %s: %w", m.config.AliasName, err)
 	}
 	indices := make([]string, 0, len(payload))
+	writeIndex := ""
 	for indexName, value := range payload {
-		if _, ok := value.Aliases[m.config.AliasName]; ok {
-			indices = append(indices, indexName)
+		metadata, ok := value.Aliases[m.config.AliasName]
+		if !ok {
+			continue
 		}
+		if isWriteAlias(metadata) {
+			writeIndex = indexName
+		}
+		indices = append(indices, indexName)
+	}
+	// 别名同时指向多个索引时，写入目标是标了 is_write_index 的那个。
+	if writeIndex != "" && (len(indices) == 0 || indices[0] != writeIndex) {
+		ordered := make([]string, 0, len(indices))
+		ordered = append(ordered, writeIndex)
+		for _, indexName := range indices {
+			if indexName != writeIndex {
+				ordered = append(ordered, indexName)
+			}
+		}
+		indices = ordered
 	}
 	return indices, nil
+}
+
+// isWriteAlias 判断别名元数据是否把该索引标成写索引。
+func isWriteAlias(metadata any) bool {
+	switch typed := metadata.(type) {
+	case bool:
+		return typed
+	case map[string]any:
+		value, ok := typed["is_write_index"]
+		if !ok {
+			return false
+		}
+		flag, ok := value.(bool)
+		return ok && flag
+	default:
+		return false
+	}
 }
 
 func (m *ElasticsearchIndexManager) indexDefinition() map[string]any {

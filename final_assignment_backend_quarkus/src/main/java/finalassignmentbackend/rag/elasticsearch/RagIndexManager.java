@@ -47,6 +47,20 @@ public class RagIndexManager {
             if (ready) {
                 return new IndexState(false, false);
             }
+            // 别名是权威。运维用迁移端点切到新索引后，重启不能把写入拨回配置里的旧索引，
+            // 否则新文档会落在一个检索永远走不到的库里。
+            Optional<String> aliasTarget = writeAliasTarget();
+            if (aliasTarget.isPresent()) {
+                String target = aliasTarget.get();
+                boolean created = false;
+                if (!client.exists("/" + target)) {
+                    client.putJson("/" + target, mapping.createBody());
+                    created = true;
+                }
+                activeIndex = target;
+                ready = true;
+                return new IndexState(created, false);
+            }
             boolean created = false;
             if (!client.exists("/" + indexName())) {
                 client.putJson("/" + indexName(), mapping.createBody());
@@ -56,6 +70,33 @@ public class RagIndexManager {
             ready = true;
             return new IndexState(created, aliasSwitched);
         }
+    }
+
+    /** 别名当前指向的写索引；别名不存在时返回 empty。 */
+    private Optional<String> writeAliasTarget() {
+        Optional<JsonObject> existing = client.findJson("/_alias/" + aliasName());
+        if (existing.isEmpty()) {
+            return Optional.empty();
+        }
+        JsonObject indices = existing.get();
+        String first = null;
+        for (String index : indices.keySet()) {
+            if (first == null) {
+                first = index;
+            }
+            JsonObject aliases = indices.getJsonObject(index);
+            if (aliases == null) {
+                continue;
+            }
+            jakarta.json.JsonValue metadata = aliases.get(aliasName());
+            if (metadata == null || metadata.getValueType() != jakarta.json.JsonValue.ValueType.OBJECT) {
+                continue;
+            }
+            if (metadata.asJsonObject().getBoolean("is_write_index", false)) {
+                return Optional.of(index);
+            }
+        }
+        return Optional.ofNullable(first);
     }
 
     /**
