@@ -119,7 +119,7 @@ Quarkus 读取与 Spring / Go 同名的环境变量：
 | --- | --- | --- |
 | `AI_AGENT_ENABLED` | `true` | `false` = 纯 RAG，不路由工具 |
 | `AI_RAG_ENABLED` | `true` | 请求可用 `metadata.ragEnabled=false` 单次关闭 |
-| `AI_RAG_TOP_K` | `5` | 请求可用 `metadata.ragTopK` / `topK` 覆盖，上限 20 |
+| `AI_RAG_TOP_K` | `10` | 请求可用 `metadata.ragTopK` / `topK` 覆盖，上限 20；默认值已与 Spring / Go 对齐 |
 | `AI_PROMPT_CONTEXT_TOKEN_BUDGET` | `1200` | 进入提示词与护栏的资料预算 |
 | `AI_GUARDRAIL_CITATION_ENFORCEMENT` | `false` | **Quarkus 默认关闭**；开启后无引用即拒答 |
 | `AI_GUARDRAIL_TOPIC_VERIFICATION` | `true` | 需同时配置裁判模型才生效 |

@@ -166,7 +166,10 @@ ai:
     enabled: ${AI_AGENT_ENABLED:true}
   rag:
     enabled: ${AI_RAG_ENABLED:true}
-    top-k: ${AI_RAG_TOP_K:5}
+    # 与 Spring 单体（rag.retrieval.top-k）和 Go（chat_pipeline 的 defaultTopK）保持一致：
+    # 这是交互式聊天不带 metadata.ragTopK 时的默认上下文条数。RAGAS 评测每轮都显式传
+    # ragTopK（默认 5），所以评测分数不受这里影响，改的是真实用户看到的检索深度。
+    top-k: ${AI_RAG_TOP_K:10}
   prompt:
     context-token-budget: ${AI_PROMPT_CONTEXT_TOKEN_BUDGET:1200}
   guardrail:

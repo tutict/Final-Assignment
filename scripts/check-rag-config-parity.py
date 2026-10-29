@@ -4,9 +4,8 @@
 只读静态配置，不启动任何服务。任何一项偏离期望值、或两个后端共用同一个索引名，
 都以非零退出码结束；这样 CI 能直接挡住配置漂移。
 
-允许的差异只有三类，都在 ALLOWED_SKIPS 里显式写明：
+允许的差异只有两类，都在 ALLOWED_SKIPS 里显式写明：
   * 部署开关（enabled）随环境变化；
-  * 聊天链路的 topK 在评测里本来就是 10 / 5 两档；
   * gozero-rag-live 是 deterministic-384 的压测档，只豁免 provider/model/dimensions。
 """
 
@@ -24,6 +23,7 @@ QUARKUS = "final_assignment_backend_quarkus/src/main/resources/application.yaml"
 SPRING = "finalAssignmentBackend/src/main/resources/application.yml"
 CLOUD_AI = "finalAssignmentCloud/finalassignmentcloud-ai/src/main/resources/application.yml"
 CLOUD_RAG = "finalAssignmentCloud/finalassignmentcloud-rag/src/main/resources/application.yml"
+GO_CHAT_PIPELINE = "final_assignment_backend_go/project/internal/ai/chat_pipeline.go"
 
 EXPECTED = {
     "provider": "ollama",
@@ -36,6 +36,11 @@ EXPECTED = {
     "rrf_rank_constant": 60,
     "rerank_lexical_weight": 0.15,
     "rerank_enabled": True,
+    # 交互式聊天的默认上下文条数（请求带 metadata.ragTopK 时以请求为准）。三个后端的
+    # 配置项各不相同（Spring 复用 rag.retrieval.top-k，Cloud/Quarkus 用 ai.rag.top-k，
+    # Go 是代码里的 defaultTopK），取值不同会让同一个问题在不同后端看到不同深度的资料。
+    # RAGAS 评测每轮显式传 ragTopK，不走这里，所以别拿评测分数当这个值的证据。
+    "chat_top_k": 10,
 }
 
 # (backend, field) -> 跳过校验。live 档故意使用 deterministic 嵌入做压测。
@@ -159,6 +164,8 @@ BACKENDS: dict[str, tuple[str, dict[str, str]]] = {
         "rerank_enabled": "rag.retrieval.rerank-enabled",
         "index": "rag.index.name",
         "alias": "rag.index.alias",
+        # 聊天回合不带 topK 时，Spring 的 RagQueryService 回落到检索档的 top-k。
+        "chat_top_k": "rag.retrieval.top-k",
     }),
     "cloud_rag": (CLOUD_RAG, {
         "provider": "rag.embedding.provider",
@@ -179,6 +186,14 @@ BACKENDS: dict[str, tuple[str, dict[str, str]]] = {
     }),
 }
 
+
+def go_chat_top_k() -> int | None:
+    """Go 的聊天 topK 是代码里的常量，不在 yaml 里，只能读源码。"""
+    path = ROOT / GO_CHAT_PIPELINE
+    if not path.is_file():
+        return None
+    match = re.search(r"\bdefaultTopK\s*(?::=|=)\s*(\d+)", path.read_text(encoding="utf-8"))
+    return int(match.group(1)) if match else None
 
 
 def main() -> int:
@@ -216,17 +231,23 @@ def main() -> int:
             if len(owners) > 1:
                 errors.append(f"{label} 未隔离：{', '.join(owners)} 共用 {name!r}")
 
+    go_top_k = go_chat_top_k()
+    if go_top_k is None:
+        errors.append(f"go: 读不到 {GO_CHAT_PIPELINE} 里的 defaultTopK")
+    else:
+        rows.append(("go", "chat_top_k", go_top_k))
+        if go_top_k != EXPECTED["chat_top_k"]:
+            errors.append(
+                f"go.chat_top_k = {go_top_k!r}，期望 {EXPECTED['chat_top_k']}（{GO_CHAT_PIPELINE} 的 defaultTopK）"
+            )
+
     chat_top_k = {backend: value for backend, field, value in rows if field == "chat_top_k"}
-    allowed_top_k = {5, 10}
-    for name, value in chat_top_k.items():
-        if value not in allowed_top_k:
-            errors.append(f"{name}.chat_top_k = {value!r}，只允许 {sorted(allowed_top_k)}")
 
     width = max((len(backend) for backend, _, _ in rows), default=8)
     for backend, field, value in rows:
         print(f"{backend:<{width}}  {field:<24} {value!r}")
     if chat_top_k:
-        print("\n聊天链路 topK（允许 5 / 10 两档）：", chat_top_k)
+        print("\n聊天链路 topK（四端必须同档）：", chat_top_k)
 
     if errors:
         print("\n发现配置漂移：", file=sys.stderr)

@@ -62,6 +62,11 @@ uv run ragas-eval run --top-k 5   # 全量基线
 uv run ragas-eval all --top-k 5
 ```
 
+`--top-k`（或 `RAGAS_TOP_K`）会写进每轮请求的 `metadata.ragTopK`，**覆盖后端自己的默认值**。
+所以基线一律用 5 是评测口径，不等于线上默认：交互式聊天的默认值是 10（四端一致，见
+`scripts/check-rag-config-parity.py`）。想验证线上口径就显式跑 `--top-k 10`，但那批数字与
+历史基线不可直接比较——上下文条数变了，context_precision / faithfulness 都会跟着动。
+
 清理 RAGAS 文档（只删除 `metadataJson.suite == "ragas"` 的记录，不触碰其它知识库数据）：
 
 ```bash

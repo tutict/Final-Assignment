@@ -290,7 +290,7 @@ Quarkus 侧没有对应的抽取器，这里改为保证已有知识文档的向
 | `rag.retrieval.rerank-enabled` / `rerank-lexical-weight` | `true` / `0.15` | 词法加权 |
 | `rag.mysql-fallback-enabled` | `true` | 仅 ES 异常时启用词法回退 |
 | `AI_AGENT_ENABLED` | `true` | 评测时设为 `false` 进入纯 RAG |
-| `AI_RAG_TOP_K` | `5` | 对话链路的默认 topK |
+| `AI_RAG_TOP_K` | `10` | 对话链路的默认 topK（与 Spring / Go 一致） |
 
 ## 失败与降级矩阵
 
