@@ -95,6 +95,38 @@ type AiProvider interface {
 	Stream(ctx context.Context, prompt string, metadata map[string]any, options AiChatConfig) (<-chan AiToken, <-chan error)
 }
 
+// GenerationOptions describes a single non-streaming completion. It exists so auxiliary calls
+// (for example a grounding judge) can pick their own model, output format and timeout without
+// inheriting the chat model's configuration.
+type GenerationOptions struct {
+	Model          string
+	Temperature    *float64
+	MaxTokens      int
+	ResponseFormat map[string]any
+	Timeout        time.Duration
+	RetryAttempts  int
+}
+
+// VerificationOptions is the calibrated profile for a grounding judge call: deterministic,
+// short output, no retries.
+func VerificationOptions(timeout time.Duration, model string, responseFormat map[string]any) GenerationOptions {
+	temperature := 0.0
+	return GenerationOptions{
+		Model:          model,
+		Temperature:    &temperature,
+		MaxTokens:      96,
+		ResponseFormat: responseFormat,
+		Timeout:        timeout,
+		RetryAttempts:  0,
+	}
+}
+
+// IsolatedCompleter is implemented by providers that can run a completion outside the chat
+// stream path. Failures here must not affect chat availability.
+type IsolatedCompleter interface {
+	Complete(ctx context.Context, prompt string, options GenerationOptions) (string, error)
+}
+
 type AiChatRagQuerier interface {
 	Query(ctx context.Context, request rag.RagQueryRequest) (rag.RagQueryResponse, error)
 }

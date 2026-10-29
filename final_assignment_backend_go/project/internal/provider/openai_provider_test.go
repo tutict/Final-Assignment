@@ -289,3 +289,66 @@ done:
 		t.Error("Server did not receive request")
 	}
 }
+
+func TestOpenAIProvider_CompleteUsesPerCallOptions(t *testing.T) {
+	var captured map[string]any
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path != "/chat/completions" {
+			t.Errorf("path = %s, want /chat/completions", r.URL.Path)
+		}
+		if err := json.NewDecoder(r.Body).Decode(&captured); err != nil {
+			t.Errorf("decode request: %v", err)
+		}
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = w.Write([]byte(`{"choices":[{"message":{"content":"{\"topic_in_sources\":true}"}}]}`))
+	}))
+	defer server.Close()
+
+	provider := NewOpenAIProvider("sk-test", server.URL, "llama3.2")
+	options := service.VerificationOptions(
+		5*time.Second,
+		"qwen2.5:7b",
+		map[string]any{"type": "json_object"},
+	)
+	content, err := provider.Complete(context.Background(), "judge this", options)
+	if err != nil {
+		t.Fatalf("Complete error: %v", err)
+	}
+	if content != `{"topic_in_sources":true}` {
+		t.Fatalf("content = %q", content)
+	}
+
+	if captured["model"] != "qwen2.5:7b" {
+		t.Errorf("model = %v, want qwen2.5:7b", captured["model"])
+	}
+	if captured["stream"] != false {
+		t.Errorf("stream = %v, want false", captured["stream"])
+	}
+	if captured["temperature"] != float64(0) {
+		t.Errorf("temperature = %v, want 0", captured["temperature"])
+	}
+	if captured["max_tokens"] != float64(96) {
+		t.Errorf("max_tokens = %v, want 96", captured["max_tokens"])
+	}
+	responseFormat, ok := captured["response_format"].(map[string]any)
+	if !ok || responseFormat["type"] != "json_object" {
+		t.Errorf("response_format = %v, want json_object", captured["response_format"])
+	}
+}
+
+func TestOpenAIProvider_CompleteErrorStatus(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusBadRequest)
+		_, _ = w.Write([]byte(`{"error":{"message":"response_format not supported"}}`))
+	}))
+	defer server.Close()
+
+	provider := NewOpenAIProvider("sk-test", server.URL, "llama3.2")
+	_, err := provider.Complete(context.Background(), "judge this", service.GenerationOptions{Timeout: 2 * time.Second})
+	if err == nil {
+		t.Fatal("expected an error for a 400 response")
+	}
+	if !strings.Contains(err.Error(), "status 400") {
+		t.Fatalf("error = %v, want status 400", err)
+	}
+}

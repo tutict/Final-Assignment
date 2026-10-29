@@ -17,10 +17,11 @@ import (
 
 // OpenAIProvider implements AiProvider for OpenAI-compatible APIs
 type OpenAIProvider struct {
-	apiKey  string
-	baseURL string
-	model   string
-	client  *http.Client
+	apiKey           string
+	baseURL          string
+	model            string
+	client           *http.Client
+	completionClient *http.Client
 }
 
 // NewOpenAIProvider creates a new OpenAI provider
@@ -41,6 +42,13 @@ func NewOpenAIProvider(apiKey, baseURL, model string) *OpenAIProvider {
 			Transport: &http.Transport{
 				DialContext:           (&net.Dialer{Timeout: 700 * time.Millisecond}).DialContext,
 				ResponseHeaderTimeout: 700 * time.Millisecond,
+			},
+		},
+		// Chat and judge have different latency envelopes: the 700ms chat header timeout is
+		// unusable for a 7B judge, so auxiliary calls get their own client bounded by context.
+		completionClient: &http.Client{
+			Transport: &http.Transport{
+				DialContext: (&net.Dialer{Timeout: 5 * time.Second}).DialContext,
 			},
 		},
 	}
@@ -71,6 +79,101 @@ func (p *OpenAIProvider) Stream(
 	}()
 
 	return tokenChan, errChan
+}
+
+// Complete runs a single non-streaming completion. Auxiliary callers (grounding judge) use it;
+// unlike Stream it honours a per-call model and JSON response format.
+func (p *OpenAIProvider) Complete(
+	ctx context.Context,
+	prompt string,
+	options service.GenerationOptions,
+) (string, error) {
+	timeout := options.Timeout
+	if timeout <= 0 {
+		timeout = 60 * time.Second
+	}
+	callCtx, cancel := context.WithTimeout(ctx, timeout)
+	defer cancel()
+
+	model := p.model
+	if options.Model != "" {
+		model = options.Model
+	}
+	requestBody := map[string]any{
+		"model":  model,
+		"stream": false,
+		"messages": []map[string]string{
+			{"role": "user", "content": prompt},
+		},
+	}
+	if options.Temperature != nil {
+		requestBody["temperature"] = *options.Temperature
+	}
+	if options.MaxTokens > 0 {
+		requestBody["max_tokens"] = options.MaxTokens
+	}
+	if len(options.ResponseFormat) > 0 {
+		requestBody["response_format"] = options.ResponseFormat
+	}
+
+	bodyBytes, err := json.Marshal(requestBody)
+	if err != nil {
+		return "", fmt.Errorf("failed to marshal request: %w", err)
+	}
+
+	attempts := options.RetryAttempts + 1
+	if attempts < 1 {
+		attempts = 1
+	}
+	var lastErr error
+	for attempt := 0; attempt < attempts; attempt++ {
+		content, err := p.completeOnce(callCtx, bodyBytes)
+		if err == nil {
+			return content, nil
+		}
+		lastErr = err
+	}
+	return "", lastErr
+}
+
+func (p *OpenAIProvider) completeOnce(ctx context.Context, bodyBytes []byte) (string, error) {
+	req, err := http.NewRequestWithContext(
+		ctx,
+		http.MethodPost,
+		p.baseURL+"/chat/completions",
+		bytes.NewReader(bodyBytes),
+	)
+	if err != nil {
+		return "", fmt.Errorf("failed to create request: %w", err)
+	}
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("Authorization", "Bearer "+p.apiKey)
+
+	resp, err := p.completionClient.Do(req)
+	if err != nil {
+		return "", fmt.Errorf("request failed: %w", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		body, _ := io.ReadAll(io.LimitReader(resp.Body, 4096))
+		return "", fmt.Errorf("completion API error (status %d): %s", resp.StatusCode, string(body))
+	}
+
+	var payload struct {
+		Choices []struct {
+			Message struct {
+				Content string `json:"content"`
+			} `json:"message"`
+		} `json:"choices"`
+	}
+	if err := json.NewDecoder(resp.Body).Decode(&payload); err != nil {
+		return "", fmt.Errorf("failed to decode completion: %w", err)
+	}
+	if len(payload.Choices) == 0 {
+		return "", fmt.Errorf("completion returned no choices")
+	}
+	return payload.Choices[0].Message.Content, nil
 }
 
 // streamRequest performs the actual streaming request
