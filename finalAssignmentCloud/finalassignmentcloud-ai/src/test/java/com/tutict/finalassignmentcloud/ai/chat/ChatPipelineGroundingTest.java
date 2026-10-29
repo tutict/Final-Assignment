@@ -336,6 +336,37 @@ class ChatPipelineGroundingTest {
     }
 
     @Test
+    void groundsTheFinalAgentSegmentEvenWhenControlEventsPrecedeIt() {
+        AgentRuntime runtime = new CapturingAgentRuntime(sessionKey -> Flux.just(
+                ChatStreamEvent.payload(ChatStreamEventType.DRAFT.wireName(), sessionKey, "m-1",
+                        Map.of("draftId", "d1")),
+                ChatStreamEvent.token(sessionKey, "m-1", "uncited summary"),
+                ChatStreamEvent.done(sessionKey, "m-1")
+        ));
+        ChatPipeline pipeline = pipeline(
+                new ChatStreamService(
+                        registry(new CapturingProvider("primary", tokenStream("unused"))),
+                        Duration.ofSeconds(30)
+                ),
+                new StubRagRetrievalService(List.of(source()), true),
+                runtime,
+                true
+        );
+
+        List<ChatStreamEvent> events = pipeline.stream(new AiChatStreamRequest("q", "session-1", Map.of()))
+                .collectList()
+                .block(Duration.ofSeconds(5));
+
+        assertThat(events).extracting(ChatStreamEvent::type).containsExactly(
+                ChatStreamEventType.DRAFT.wireName(),
+                ChatStreamEventType.TOKEN.wireName(),
+                ChatStreamEventType.DONE.wireName()
+        );
+        // The draft card survives, but the answer text after it is still judged.
+        assertThat(events.get(1).token()).isEqualTo(AnswerGroundingPolicy.UNCITED_ANSWER);
+    }
+
+    @Test
     void omitsAgentConstraintsWhenAgentRuntimeIsAbsent() {
         CapturingProvider provider = new CapturingProvider("primary", tokenStream("answer [1]"));
         ChatPipeline pipeline = pipeline(

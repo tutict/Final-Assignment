@@ -289,6 +289,46 @@ class ChatPipelineGroundingTest {
     }
 
     @Test
+    void groundsTheFinalAgentSegmentEvenWhenControlEventsPrecedeIt() {
+        CapturingProvider provider = new CapturingProvider("primary", tokenStream("unused"));
+        AgentRuntime runtime = new AgentRuntime(null, null, null, null, null, null, 4) {
+            @Override
+            public Flux<ChatStreamEvent> run(
+                    String userMessage,
+                    String sessionKey,
+                    String assembledPrompt,
+                    Map<String, Object> metadata,
+                    AiCallerIdentity identity
+            ) {
+                return Flux.just(
+                        ChatStreamEvent.payload(ChatStreamEventType.DRAFT.wireName(), sessionKey, "m-1",
+                                Map.of("draftId", "d1")),
+                        ChatStreamEvent.token(sessionKey, "m-1", "uncited summary"),
+                        ChatStreamEvent.done(sessionKey, "m-1")
+                );
+            }
+        };
+        ChatPipeline pipeline = pipeline(
+                new ChatStreamService(registry(provider), Duration.ofSeconds(30)),
+                new StubRagQueryService(List.of(source())),
+                ragProperties(true),
+                runtime
+        );
+
+        List<ChatStreamEvent> events = pipeline.stream(new AiChatStreamRequest("q", "session-1", Map.of()))
+                .collectList()
+                .block(Duration.ofSeconds(2));
+
+        assertThat(events).extracting(ChatStreamEvent::type).containsExactly(
+                ChatStreamEventType.DRAFT.wireName(),
+                ChatStreamEventType.TOKEN.wireName(),
+                ChatStreamEventType.DONE.wireName()
+        );
+        // The draft card survives, but the answer text after it is still judged.
+        assertThat(events.get(1).token()).isEqualTo(AnswerGroundingPolicy.UNCITED_ANSWER);
+    }
+
+    @Test
     void preservesStructuredAgentEventsOnAGroundedTurn() {
         CapturingProvider provider = new CapturingProvider("primary", tokenStream("unused"));
         AgentRuntime runtime = new AgentRuntime(null, null, null, null, null, null, 4) {

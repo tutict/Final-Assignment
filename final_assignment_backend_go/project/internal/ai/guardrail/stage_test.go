@@ -172,7 +172,7 @@ func TestStagePassesErrorsThrough(t *testing.T) {
 	}
 }
 
-func TestStageBypassesGroundingOnControlEvents(t *testing.T) {
+func TestStageGroundsTheAnswerAfterAControlEvent(t *testing.T) {
 	token := "这是工具卡片前的说明。"
 	stage := &Stage{Policy: CitationPolicy{EnforcementEnabled: true}}
 	out := stage.Wrap(
@@ -192,12 +192,13 @@ func TestStageBypassesGroundingOnControlEvents(t *testing.T) {
 	if events[0].Type != "draft" {
 		t.Fatalf("first event = %s, want draft passthrough", events[0].Type)
 	}
-	if got := answerOf(events); got != token {
-		t.Fatalf("answer = %q, want %q", got, token)
+	// The text after the control event is the answer segment; it must not skip the guardrail.
+	if got := answerOf(events); got != UncitedAnswer {
+		t.Fatalf("answer = %q, want the uncited refusal", got)
 	}
 }
 
-func TestStageStreamsTokensAfterControlEvent(t *testing.T) {
+func TestStageFlushesTheSegmentBeforeAControlEvent(t *testing.T) {
 	stage := &Stage{Policy: CitationPolicy{EnforcementEnabled: true}}
 	in := make(chan aisvc.AiChatStreamEvent)
 	out := stage.Wrap(
@@ -209,20 +210,17 @@ func TestStageStreamsTokensAfterControlEvent(t *testing.T) {
 		nil,
 	)
 
-	in <- aisvc.AiChatStreamEvent{Type: "draft", SessionKey: "s1"}
-	if event := <-out; event.Type != "draft" {
-		t.Fatalf("first event = %s, want draft", event.Type)
-	}
-
-	token := "工具卡片之后的说明。"
+	token := "工具卡片之前的说明。"
 	in <- aisvc.AiChatStreamEvent{Type: aisvc.ChatStreamEventTypeToken, SessionKey: "s1", Token: &token}
-	select {
-	case event := <-out:
-		if event.Type != aisvc.ChatStreamEventTypeToken || event.Token == nil || *event.Token != token {
-			t.Fatalf("event = %+v, want the token before the model finishes", event)
-		}
-	case <-time.After(time.Second):
-		t.Fatal("token was held until the stream ended")
+	in <- aisvc.AiChatStreamEvent{Type: "draft", SessionKey: "s1"}
+
+	first := <-out
+	if first.Type != aisvc.ChatStreamEventTypeToken || first.Token == nil || *first.Token != token {
+		t.Fatalf("first event = %+v, want the buffered text", first)
+	}
+	second := <-out
+	if second.Type != "draft" {
+		t.Fatalf("second event = %s, want the control event", second.Type)
 	}
 	close(in)
 

@@ -33,9 +33,11 @@ func (s *Stage) Wrap(
 	go func() {
 		defer close(out)
 
-		var buffered []aisvc.AiChatStreamEvent
+		// segment 是「还没有被判定过的一段纯文本」。控制事件之前的文本立即放行，
+		// 之后的文本重新开始累积：agent 回合即使先吐工具卡片，最后仍会有一段答案，
+		// 那一段必须过引用与主题检查。
+		var segment []aisvc.AiChatStreamEvent
 		sessionKey := ""
-		nonTextSeen := false
 		terminal := ""
 
 		for event := range in {
@@ -44,26 +46,20 @@ func (s *Stage) Wrap(
 			}
 			switch event.Type {
 			case aisvc.ChatStreamEventTypeToken:
-				if nonTextSeen {
-					out <- stampEvent(event, messageID)
-					continue
-				}
-				buffered = append(buffered, event)
+				segment = append(segment, event)
 			case aisvc.ChatStreamEventTypeDone:
 				terminal = aisvc.ChatStreamEventTypeDone
 			case aisvc.ChatStreamEventTypeError:
 				terminal = aisvc.ChatStreamEventTypeError
 				out <- stampEvent(event, messageID)
 			default:
-				// A control event means this is not a pure text answer. Flush what was buffered
-				// and stream the rest untouched instead of holding it until the model finishes.
-				if !nonTextSeen {
-					nonTextSeen = true
-					for _, pending := range buffered {
-						out <- stampEvent(pending, messageID)
-					}
-					buffered = nil
+				// Structured control events pass through untouched, and the text that came
+				// before them is flushed immediately so the stream never stalls behind a
+				// pending grounding decision.
+				for _, pending := range segment {
+					out <- stampEvent(pending, messageID)
 				}
+				segment = nil
 				out <- stampEvent(event, messageID)
 			}
 			if terminal != "" {
@@ -74,16 +70,8 @@ func (s *Stage) Wrap(
 		if terminal == aisvc.ChatStreamEventTypeError {
 			return
 		}
-		// A structured control event means this was not a pure text answer; judge nothing.
-		if nonTextSeen {
-			for _, event := range buffered {
-				out <- stampEvent(event, messageID)
-			}
-			out <- doneEvent(sessionKey, messageID)
-			return
-		}
 
-		answer := joinTokens(buffered)
+		answer := joinTokens(segment)
 		sanitized := Sanitize(answer)
 		decision := s.Policy.Evaluate(sanitized, sources)
 		if answer != "" && sanitized == "" {
@@ -97,7 +85,7 @@ func (s *Stage) Wrap(
 				answer = retryAnswer
 				sanitized = retrySanitized
 				if retryDecision.Grounded {
-					buffered = retryEvents
+					segment = retryEvents
 					decision = retryDecision
 				} else {
 					decision = retryDecision
@@ -117,8 +105,8 @@ func (s *Stage) Wrap(
 			return
 		}
 
-		if sanitized == answer && len(buffered) > 0 {
-			for _, event := range buffered {
+		if sanitized == answer && len(segment) > 0 {
+			for _, event := range segment {
 				out <- stampEvent(event, messageID)
 			}
 		} else if sanitized != "" {

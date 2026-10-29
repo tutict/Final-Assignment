@@ -308,7 +308,9 @@ public class ChatPipeline {
             String question
     ) {
         return Flux.defer(() -> {
-            List<ChatStreamEvent> buffered = new ArrayList<>();
+            // segment 是「尚未判定的最后一段纯文本」。控制事件之前的文本先放行，
+            // 之后的文本重新累积：agent 回合即使先吐工具卡片，最后仍有一段答案要判定。
+            List<ChatStreamEvent> segment = new ArrayList<>();
             return events.concatMap(event -> {
                 // Keep-alives and queue positions are not answer text: forward them immediately so
                 // the connection stays alive, and keep them out of the grounding decision so a
@@ -316,9 +318,16 @@ public class ChatPipeline {
                 if (isImmediateEvent(event)) {
                     return Flux.just(event);
                 }
-                buffered.add(event);
-                return Flux.empty();
-            }).concatWith(Flux.defer(() -> resolveGrounding(buffered, sources, citationRetry, question)));
+                if (!isNonTextEvent(event)) {
+                    segment.add(event);
+                    return Flux.empty();
+                }
+                // Structured control events pass through untouched, and the text before them is
+                // flushed immediately so the stream never stalls behind a pending decision.
+                List<ChatStreamEvent> flushed = new ArrayList<>(segment);
+                segment.clear();
+                return Flux.fromIterable(flushed).concatWith(Flux.just(event));
+            }).concatWith(Flux.defer(() -> resolveGrounding(segment, sources, citationRetry, question)));
         });
     }
 
