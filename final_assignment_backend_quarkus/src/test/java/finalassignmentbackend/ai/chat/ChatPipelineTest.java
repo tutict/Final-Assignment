@@ -5,6 +5,7 @@ import dev.langchain4j.model.chat.request.ChatRequest;
 import dev.langchain4j.model.chat.response.StreamingChatResponseHandler;
 import finalassignmentbackend.ai.agent.AgentModels;
 import finalassignmentbackend.ai.agent.AgentRuntime;
+import finalassignmentbackend.ai.guardrail.GuardrailStage;
 import finalassignmentbackend.rag.service.RagQueryService;
 import finalassignmentbackend.rag.service.RagQueryService.RetrievedChunk;
 import finalassignmentbackend.reliability.ModelCallBulkhead;
@@ -39,6 +40,9 @@ class ChatPipelineTest {
         pipeline.agentRuntime = agent;
         pipeline.ragQueryService = rag;
         pipeline.promptAssembler = new PromptAssembler();
+        // Both guardrail switches stay off here: these tests cover the pipeline contract, the
+        // guardrail has its own suite.
+        pipeline.guardrailStage = new GuardrailStage();
         pipeline.modelCalls = new ModelCallBulkhead();
         pipeline.agentEnabled = true;
         pipeline.ragEnabledByDefault = true;

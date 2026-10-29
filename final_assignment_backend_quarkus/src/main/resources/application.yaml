@@ -126,6 +126,11 @@ ai:
     top-k: ${AI_RAG_TOP_K:5}
   prompt:
     context-token-budget: ${AI_PROMPT_CONTEXT_TOKEN_BUDGET:1200}
+  guardrail:
+    # Off by default in this backend until the chat path is calibrated with RAGAS; answers are
+    # still sanitized. Set AI_GUARDRAIL_CITATION_ENFORCEMENT=true to refuse uncited answers.
+    citation-enforcement:
+      enabled: ${AI_GUARDRAIL_CITATION_ENFORCEMENT:false}
 
 # Align HTTP Bearer verification (quarkus-smallrye-jwt) with TokenProvider HS256 signing.
 # TokenProvider HMAC-SHA256s jwt.secret.key as UTF-8 (or standard-Base64 if the value decodes).

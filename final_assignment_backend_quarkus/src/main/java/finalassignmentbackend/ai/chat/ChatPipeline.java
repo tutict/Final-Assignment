@@ -7,6 +7,7 @@ import dev.langchain4j.model.chat.response.ChatResponse;
 import dev.langchain4j.model.chat.response.StreamingChatResponseHandler;
 import finalassignmentbackend.ai.agent.AgentModels;
 import finalassignmentbackend.ai.agent.AgentRuntime;
+import finalassignmentbackend.ai.guardrail.GuardrailStage;
 import finalassignmentbackend.ai.guardrail.PromptInjectionGuard;
 import finalassignmentbackend.rag.service.RagQueryService;
 import finalassignmentbackend.reliability.ModelCallBulkhead;
@@ -29,16 +30,17 @@ import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicLong;
+import java.util.function.Supplier;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
 /**
- * Pure-RAG chat pipeline: retrieve → number the sources → prompt → stream → (guardrail, added
- * separately) → SSE frames. Tool-routed turns keep the previous behaviour: the agent answers on
- * its own and the model is not called.
+ * Pure-RAG chat pipeline: retrieve → number the sources → prompt → stream → guardrail → SSE
+ * frames. Tool-routed turns keep the previous behaviour: the agent answers on its own and the
+ * model is not called.
  *
- * <p>Everything blocking (JDBC retrieval, GraalPy web search, agent lookups) runs on the worker
- * pool, so the Vert.x event loop only sees the reactive plumbing.
+ * <p>Everything blocking (JDBC retrieval, GraalPy web search, agent lookups, guardrail
+ * judgement) runs on the worker pool, so the Vert.x event loop only sees the reactive plumbing.
  */
 @ApplicationScoped
 public class ChatPipeline {
@@ -53,6 +55,7 @@ public class ChatPipeline {
     @Inject AgentRuntime agentRuntime;
     @Inject RagQueryService ragQueryService;
     @Inject PromptAssembler promptAssembler;
+    @Inject GuardrailStage guardrailStage;
     @Inject AIChatSearchService aiChatSearchService;
     @Inject ModelCallBulkhead modelCalls;
     @Inject ReliabilityMetrics metrics;
@@ -131,13 +134,31 @@ public class ChatPipeline {
             return Multi.createFrom().iterable(prefix);
         }
 
-        List<RagQueryService.RetrievedChunk> sources = collectSources(request, message);
+        boolean ragEngaged = booleanValue(request.metadata(), "ragEnabled", ragEnabledByDefault);
+        List<RagQueryService.RetrievedChunk> sources = collectSources(request, message, ragEngaged);
+        String sanitizedMessage = injectionGuard.sanitize(message);
+        List<String> conversationWindow = conversationWindow(request.metadata());
         PromptAssembler.Assembled assembled = promptAssembler.assemble(
-                injectionGuard.sanitize(message),
-                conversationWindow(request.metadata()),
+                sanitizedMessage,
+                conversationWindow,
                 sources
         );
         Multi<ChatStreamEvent> tokens = tokenEvents(assembled.prompt(), sessionKey, messageId, permitHeld);
+        // Spring parity: any turn that engaged retrieval is judged on the sources the model
+        // actually saw, even when the search returned nothing (then the guardrail refuses).
+        if (ragEngaged || !assembled.sources().isEmpty()) {
+            List<RagQueryService.RetrievedChunk> judgedSources = assembled.sources();
+            // One repair attempt with a citation-focused prompt, then the guardrail still refuses.
+            Supplier<Multi<ChatStreamEvent>> citationRepair = judgedSources.isEmpty()
+                    ? null
+                    : () -> tokenEvents(
+                            promptAssembler.assembleCitationRepair(
+                                    sanitizedMessage, conversationWindow, judgedSources).prompt(),
+                            sessionKey,
+                            messageId,
+                            permitHeld);
+            tokens = guardrailStage.apply(tokens, sanitizedMessage, judgedSources, citationRepair);
+        }
         if (prefix.isEmpty()) {
             return tokens;
         }
@@ -155,9 +176,13 @@ public class ChatPipeline {
         return agentRuntime.execute(message, context);
     }
 
-    private List<RagQueryService.RetrievedChunk> collectSources(Request request, String message) {
+    private List<RagQueryService.RetrievedChunk> collectSources(
+            Request request,
+            String message,
+            boolean ragEngaged
+    ) {
         List<RagQueryService.RetrievedChunk> sources = new ArrayList<>();
-        if (booleanValue(request.metadata(), "ragEnabled", ragEnabledByDefault)) {
+        if (ragEngaged) {
             try {
                 sources.addAll(ragQueryService.retrieve(message, request.role(), topK(request.metadata())));
             } catch (RuntimeException ex) {
