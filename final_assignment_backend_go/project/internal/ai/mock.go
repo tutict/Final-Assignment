@@ -9,12 +9,12 @@ import (
 
 // MockRagQueryService is a mock implementation of AiChatRagQuerier for testing
 type MockRagQueryService struct {
-	QueryFunc func(ctx context.Context, req ragsvc.RagQueryRequest) (ragsvc.RagQueryResponse, error)
+	QueryFunc func(ctx context.Context, req ragsvc.RagQueryRequest, access ragsvc.RagAccessContext) (ragsvc.RagQueryResponse, error)
 }
 
-func (m *MockRagQueryService) Query(ctx context.Context, req ragsvc.RagQueryRequest) (ragsvc.RagQueryResponse, error) {
+func (m *MockRagQueryService) Query(ctx context.Context, req ragsvc.RagQueryRequest, access ragsvc.RagAccessContext) (ragsvc.RagQueryResponse, error) {
 	if m.QueryFunc != nil {
-		return m.QueryFunc(ctx, req)
+		return m.QueryFunc(ctx, req, access)
 	}
 	return ragsvc.RagQueryResponse{
 		Results: []ragsvc.RagRetrievalResult{

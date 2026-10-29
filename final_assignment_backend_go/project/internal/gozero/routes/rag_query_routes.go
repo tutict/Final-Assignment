@@ -28,7 +28,9 @@ func ragQueryHandler(runtime *gozerorag.Runtime) http.HandlerFunc {
 			response.OK(w, service.RagQueryResponse{Results: []service.RagRetrievalResult{}})
 			return
 		}
-		result, err := runtime.Query.Query(r.Context(), request)
+		// go-zero 服务是迁移脚手架，没有接入 JWT 鉴权：检索身份只能按匿名处理，
+		// 也就是只有 PUBLIC 文档可见。请求体里的角色不参与判定。
+		result, err := runtime.Query.Query(r.Context(), request, service.NewRagAccessContext("", nil))
 		if err != nil {
 			serviceError(w, err)
 			return

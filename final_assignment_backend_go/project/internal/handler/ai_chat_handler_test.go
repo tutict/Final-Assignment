@@ -24,7 +24,7 @@ func TestAiChatHandler_StreamChat(t *testing.T) {
 
 	// Create mock services
 	mockRag := &ai.MockRagQueryService{
-		QueryFunc: func(ctx context.Context, req ragsvc.RagQueryRequest) (ragsvc.RagQueryResponse, error) {
+		QueryFunc: func(ctx context.Context, req ragsvc.RagQueryRequest, access ragsvc.RagAccessContext) (ragsvc.RagQueryResponse, error) {
 			return ragsvc.RagQueryResponse{
 				Results: []ragsvc.RagRetrievalResult{
 					{
@@ -226,6 +226,115 @@ func TestAiChatHandler_StreamChat_InvalidRequest(t *testing.T) {
 				}
 			}
 		})
+	}
+}
+
+// TestAiChatHandler_StreamChat_DiscardsClientSuppliedIdentity verifies that the identity
+// carried by the request body never reaches the retrieval layer.
+func TestAiChatHandler_StreamChat_DiscardsClientSuppliedIdentity(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+
+	var captured ragsvc.RagAccessContext
+	capturedCalled := false
+	mockRag := &ai.MockRagQueryService{
+		QueryFunc: func(ctx context.Context, req ragsvc.RagQueryRequest, access ragsvc.RagAccessContext) (ragsvc.RagQueryResponse, error) {
+			captured = access
+			capturedCalled = true
+			return ragsvc.RagQueryResponse{}, nil
+		},
+	}
+
+	pipeline, err := ai.NewChatPipeline(mockRag, &ai.MockAiProvider{}, aisvc.DefaultAiChatConfig())
+	if err != nil {
+		t.Fatalf("NewChatPipeline() error = %v", err)
+	}
+
+	body, _ := json.Marshal(aisvc.AiChatStreamRequest{
+		Message:    "Hello",
+		SessionKey: "identity",
+		Metadata: map[string]any{
+			"ragEnabled": true,
+			"username":   "attacker",
+			"userId":     "attacker",
+			"roles":      []any{"SUPER_ADMIN"},
+			"department": "ALL",
+		},
+	})
+	req := httptest.NewRequest(http.MethodPost, "/api/ai/chat/stream", bytes.NewReader(body))
+	req.Header.Set("Content-Type", "application/json")
+	w := httptest.NewRecorder()
+
+	router := gin.New()
+	router.POST("/api/ai/chat/stream", NewAiChatHandler(pipeline).StreamChat)
+	router.ServeHTTP(w, req)
+
+	if !capturedCalled {
+		t.Fatal("expected the retrieval layer to be called")
+	}
+	if captured.UserID != "" {
+		t.Errorf("access user id = %q, want empty", captured.UserID)
+	}
+	if len(captured.Roles) != 0 {
+		t.Errorf("access roles = %v, want empty", captured.Roles)
+	}
+	if captured.Department != "" {
+		t.Errorf("access department = %q, want empty", captured.Department)
+	}
+}
+
+// TestAiChatHandler_StreamChat_UsesServerIdentity verifies that the identity derived by the
+// authentication middleware reaches the retrieval layer.
+func TestAiChatHandler_StreamChat_UsesServerIdentity(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+
+	var captured ragsvc.RagAccessContext
+	capturedCalled := false
+	mockRag := &ai.MockRagQueryService{
+		QueryFunc: func(ctx context.Context, req ragsvc.RagQueryRequest, access ragsvc.RagAccessContext) (ragsvc.RagQueryResponse, error) {
+			captured = access
+			capturedCalled = true
+			return ragsvc.RagQueryResponse{}, nil
+		},
+	}
+
+	pipeline, err := ai.NewChatPipeline(mockRag, &ai.MockAiProvider{}, aisvc.DefaultAiChatConfig())
+	if err != nil {
+		t.Fatalf("NewChatPipeline() error = %v", err)
+	}
+
+	body, _ := json.Marshal(aisvc.AiChatStreamRequest{
+		Message:    "Hello",
+		SessionKey: "identity",
+		Metadata: map[string]any{
+			"ragEnabled": true,
+			"username":   "attacker",
+			"roles":      []any{"SUPER_ADMIN"},
+		},
+	})
+	req := httptest.NewRequest(http.MethodPost, "/api/ai/chat/stream", bytes.NewReader(body))
+	req.Header.Set("Content-Type", "application/json")
+	w := httptest.NewRecorder()
+
+	router := gin.New()
+	router.Use(func(c *gin.Context) {
+		c.Set("username", "driver-1")
+		c.Set("normalizedRoles", []string{"FINANCE"})
+		c.Next()
+	})
+	router.POST("/api/ai/chat/stream", NewAiChatHandler(pipeline).StreamChat)
+	router.ServeHTTP(w, req)
+
+	if !capturedCalled {
+		t.Fatal("expected the retrieval layer to be called")
+	}
+	if captured.UserID != "driver-1" {
+		t.Errorf("access user id = %q, want driver-1", captured.UserID)
+	}
+	if len(captured.Roles) != 1 || captured.Roles[0] != "FINANCE" {
+		t.Errorf("access roles = %v, want [FINANCE]", captured.Roles)
+	}
+	if captured.Department != "DEPARTMENT" {
+		t.Errorf("access department = %q, want DEPARTMENT", captured.Department)
 	}
 }
 

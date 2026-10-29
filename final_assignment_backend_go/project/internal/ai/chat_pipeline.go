@@ -79,8 +79,8 @@ func (cp *ChatPipeline) Stream(
 	ragEnabled := cp.isRagEnabled(metadata)
 	var ragResults []ragsvc.RagRetrievalResult
 	if ragEnabled && cp.ragQueryService != nil {
-		ragRequest := cp.buildRagRequest(req.Message, metadata)
-		ragResponse, err := cp.ragQueryService.Query(ctx, ragRequest)
+		ragRequest, ragAccess := cp.buildRagRequest(req.Message, metadata)
+		ragResponse, err := cp.ragQueryService.Query(ctx, ragRequest, ragAccess)
 		if err != nil {
 			// Log error but don't fail - continue without RAG context
 			fmt.Printf("[ChatPipeline] RAG query failed: %v\n", err)
@@ -247,8 +247,11 @@ func (cp *ChatPipeline) isRagEnabled(metadata map[string]any) bool {
 	return true
 }
 
-// buildRagRequest constructs a RAG query request from metadata
-func (cp *ChatPipeline) buildRagRequest(message string, metadata map[string]any) ragsvc.RagQueryRequest {
+// buildRagRequest 构造检索请求与检索身份。
+//
+// 身份只取自服务端写入的 metadata（username / roles），department 由角色推导，
+// 请求体里的同名字段不参与判定。
+func (cp *ChatPipeline) buildRagRequest(message string, metadata map[string]any) (ragsvc.RagQueryRequest, ragsvc.RagAccessContext) {
 	defaultTopK := 10
 	req := ragsvc.RagQueryRequest{
 		Query: message,
@@ -265,29 +268,25 @@ func (cp *ChatPipeline) buildRagRequest(message string, metadata map[string]any)
 		req.TopK = &topKInt
 	}
 
-	// Extract userId
-	if userId, ok := metadata["userId"].(string); ok {
-		req.UserID = userId
-	}
+	username, _ := metadata["username"].(string)
+	return req, ragsvc.NewRagAccessContext(username, serverRoles(metadata))
+}
 
-	// Extract roles
+// serverRoles 读取服务端写入的角色集合；没有角色时返回空集合，不套用默认角色。
+func serverRoles(metadata map[string]any) []string {
 	if roles, ok := metadata["roles"].([]string); ok {
-		req.Roles = roles
-	} else if rolesAny, ok := metadata["roles"].([]any); ok {
-		req.Roles = make([]string, 0, len(rolesAny))
+		return roles
+	}
+	if rolesAny, ok := metadata["roles"].([]any); ok {
+		result := make([]string, 0, len(rolesAny))
 		for _, r := range rolesAny {
 			if roleStr, ok := r.(string); ok {
-				req.Roles = append(req.Roles, roleStr)
+				result = append(result, roleStr)
 			}
 		}
+		return result
 	}
-
-	// Extract department
-	if department, ok := metadata["department"].(string); ok {
-		req.Department = department
-	}
-
-	return req
+	return nil
 }
 
 // getAgentConstraints returns agent constraints based on user role

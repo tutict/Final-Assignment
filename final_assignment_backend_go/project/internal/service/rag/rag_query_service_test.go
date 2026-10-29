@@ -17,7 +17,7 @@ func TestRagQueryServiceHybridRetrievalAclAndRerank(t *testing.T) {
 				BM25Score:   9,
 				Metadata: map[string]any{
 					"acl_scope": "ROLE",
-					"acl_roles": []any{"admin"},
+					"acl_roles": []any{"ADMIN"},
 				},
 			},
 			{
@@ -50,7 +50,7 @@ func TestRagQueryServiceHybridRetrievalAclAndRerank(t *testing.T) {
 				VectorScore: 0.83,
 				Metadata: map[string]any{
 					"acl_scope": "ROLE",
-					"acl_roles": []any{"admin"},
+					"acl_roles": []any{"ADMIN"},
 				},
 			},
 		},
@@ -60,11 +60,9 @@ func TestRagQueryServiceHybridRetrievalAclAndRerank(t *testing.T) {
 	service := NewRagQueryService(backend, &memoryRagEmbeddingProvider{}, config)
 
 	result, err := service.Query(context.Background(), RagQueryRequest{
-		Query:  " illegal   parking appeal ",
-		TopK:   &topK,
-		UserID: "u1",
-		Roles:  []string{"admin"},
-	})
+		Query: " illegal   parking appeal ",
+		TopK:  &topK,
+	}, NewRagAccessContext("u1", []string{"admin"}))
 	if err != nil {
 		t.Fatalf("Query() error = %v", err)
 	}
@@ -89,7 +87,7 @@ func TestRagQueryServiceHybridRetrievalAclAndRerank(t *testing.T) {
 
 func TestRagQueryServiceReturnsEmptyWhenDisabledOrBlank(t *testing.T) {
 	service := NewRagQueryService(&memoryRagSearchBackend{}, &memoryRagEmbeddingProvider{}, DefaultRagConfig())
-	result, err := service.Query(context.Background(), RagQueryRequest{Query: "traffic appeal"})
+	result, err := service.Query(context.Background(), RagQueryRequest{Query: "traffic appeal"}, NewRagAccessContext("u1", nil))
 	if err != nil {
 		t.Fatalf("Query() error = %v", err)
 	}
@@ -100,7 +98,7 @@ func TestRagQueryServiceReturnsEmptyWhenDisabledOrBlank(t *testing.T) {
 	config := DefaultRagConfig()
 	config.RetrievalEnabled = true
 	service = NewRagQueryService(&memoryRagSearchBackend{}, &memoryRagEmbeddingProvider{}, config)
-	result, err = service.Query(context.Background(), RagQueryRequest{Query: " \t\r\n "})
+	result, err = service.Query(context.Background(), RagQueryRequest{Query: " \t\r\n "}, NewRagAccessContext("u1", nil))
 	if err != nil {
 		t.Fatalf("blank Query() error = %v", err)
 	}
@@ -110,7 +108,7 @@ func TestRagQueryServiceReturnsEmptyWhenDisabledOrBlank(t *testing.T) {
 }
 
 func TestRagAclAllowsPublicRoleUserAndDepartmentScopes(t *testing.T) {
-	context := newRagAccessContext("u1", []string{"admin"}, "traffic")
+	context := RagAccessContext{UserID: "u1", Roles: []string{"ADMIN"}, Department: "traffic"}
 	cases := []struct {
 		name    string
 		result  RagRetrievalResult
@@ -123,7 +121,7 @@ func TestRagAclAllowsPublicRoleUserAndDepartmentScopes(t *testing.T) {
 		},
 		{
 			name:    "role match",
-			result:  RagRetrievalResult{Metadata: map[string]any{"acl_scope": "ROLE", "acl_roles": []any{"admin"}}},
+			result:  RagRetrievalResult{Metadata: map[string]any{"acl_scope": "ROLE", "acl_roles": []any{"ADMIN"}}},
 			allowed: true,
 		},
 		{

@@ -32,7 +32,12 @@ func NewRagQueryService(
 	}
 }
 
-func (s *RagQueryService) Query(ctx context.Context, request RagQueryRequest) (RagQueryResponse, error) {
+// Query 执行检索。accessContext 只能由服务端鉴权结果构造，请求体不参与身份判定。
+func (s *RagQueryService) Query(
+	ctx context.Context,
+	request RagQueryRequest,
+	accessContext RagAccessContext,
+) (RagQueryResponse, error) {
 	if s == nil || !s.config.Enabled || !s.config.RetrievalEnabled || s.searchBackend == nil {
 		return RagQueryResponse{Results: []RagRetrievalResult{}}, nil
 	}
@@ -46,8 +51,8 @@ func (s *RagQueryService) Query(ctx context.Context, request RagQueryRequest) (R
 	}
 	query := RagRetrievalQuery{
 		NormalizedQuery: normalizedQuery,
-		AccessContext:   newRagAccessContext(request.UserID, request.Roles, request.Department),
-		TopK:            normalizeLimit(topK, 0),
+		AccessContext:   accessContext,
+		TopK:            normalizeLimit(topK, MaxRagTopK),
 	}
 	return RagQueryResponse{Results: s.retrieve(ctx, query)}, nil
 }
@@ -184,14 +189,6 @@ func (s *RagQueryService) rerank(query string, results []RagRetrievalResult) []R
 		return reranked[left].FinalScore > reranked[right].FinalScore
 	})
 	return reranked
-}
-
-func newRagAccessContext(userID string, roles []string, department string) RagAccessContext {
-	return RagAccessContext{
-		UserID:     blankToEmpty(userID),
-		Roles:      normalizeRagList(roles),
-		Department: blankToEmpty(department),
-	}
 }
 
 func buildRagAccessFilter(context RagAccessContext) RagAccessFilter {
@@ -365,10 +362,6 @@ func containsRagValue(values []string, target string) bool {
 		}
 	}
 	return false
-}
-
-func blankToEmpty(value string) string {
-	return strings.TrimSpace(value)
 }
 
 func valueToString(value any) string {

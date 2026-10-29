@@ -213,11 +213,10 @@ func main() {
 	router.GET("/api/ws-ticket/stats", handler.NewWsTicketHandler(wsTicketService).GetStats)
 	registerEventBusRoute(router)
 
-	// RAG 查询路由
-	router.POST("/api/rag/query", ragQueryHandler(ragRuntime))
-
 	// 需要认证的路由
 	router.Use(requiredPrincipal(tokenProvider, blacklistService), accessPolicy())
+	// RAG 查询需要登录：检索身份来自 JWT，对齐 Spring 的 401 语义
+	router.POST("/api/rag/query", ragQueryHandler(ragRuntime))
 	router.POST("/api/ws-ticket", handler.NewWsTicketHandler(wsTicketService).IssueTicketFromAuth)
 	router.GET("/actuator/prometheus", reliability.Prometheus(db))
 	router.POST("/actuator/ledgerReconcile", reliability.LedgerReconcile(func() (int, error) {
@@ -593,6 +592,8 @@ func envDurationOrDefault(name string, fallback time.Duration) time.Duration {
 }
 
 // ragQueryHandler 处理 RAG 查询请求
+//
+// 检索身份只来自服务端鉴权结果：请求体里的 roles / userId / department 不参与判定。
 func ragQueryHandler(runtime *gozerorag.Runtime) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		var request ragsvc.RagQueryRequest
@@ -611,7 +612,7 @@ func ragQueryHandler(runtime *gozerorag.Runtime) gin.HandlerFunc {
 			return
 		}
 
-		result, err := runtime.Query.Query(c.Request.Context(), request)
+		result, err := runtime.Query.Query(c.Request.Context(), request, ragAccessContext(c))
 		if err != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{
 				"success": false,
@@ -622,4 +623,13 @@ func ragQueryHandler(runtime *gozerorag.Runtime) gin.HandlerFunc {
 
 		c.JSON(http.StatusOK, result)
 	}
+}
+
+// ragAccessContext 从 gin 上下文里的鉴权结果构造检索身份。
+func ragAccessContext(c *gin.Context) ragsvc.RagAccessContext {
+	usernameValue, _ := c.Get("username")
+	rolesValue, _ := c.Get("normalizedRoles")
+	username, _ := usernameValue.(string)
+	roles, _ := rolesValue.([]string)
+	return ragsvc.NewRagAccessContext(username, roles)
 }

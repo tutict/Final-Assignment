@@ -17,6 +17,9 @@ import (
 
 const ragIDDelimiter = "\x1f"
 
+// MaxRagTopK 是检索接口允许的最大返回条数，与 Spring 参考实现一致。
+const MaxRagTopK = 50
+
 type RagConfig struct {
 	Enabled              bool
 	IndexingEnabled      bool
@@ -137,12 +140,12 @@ type RagSearchBackend interface {
 	VectorSearch(ctx context.Context, queryVector []float32, aclFilter RagAccessFilter, limit int) ([]RagRetrievalResult, error)
 }
 
+// RagQueryRequest 只接受客户端提供的检索参数。
+//
+// 调用者身份（userId / roles / department）不在请求体里，必须由服务端鉴权结果单独传入。
 type RagQueryRequest struct {
-	Query      string   `json:"query"`
-	TopK       *int     `json:"topK,omitempty"`
-	UserID     string   `json:"userId,omitempty"`
-	Roles      []string `json:"roles,omitempty"`
-	Department string   `json:"department,omitempty"`
+	Query string `json:"query"`
+	TopK  *int   `json:"topK,omitempty"`
 }
 
 type RagQueryResponse struct {

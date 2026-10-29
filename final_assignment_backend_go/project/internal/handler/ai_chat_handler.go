@@ -60,12 +60,16 @@ func (h *AiChatHandler) StreamChat(c *gin.Context) {
 	if req.Metadata == nil {
 		req.Metadata = map[string]any{}
 	}
-	if username, ok := c.Get("username"); ok {
-		req.Metadata["username"] = username
-	}
-	if roles, ok := c.Get("normalizedRoles"); ok {
-		req.Metadata["roles"] = roles
-	}
+	// 身份只来自服务端：请求体里的 username / userId / roles / department 一律丢弃，
+	// 没有有效令牌时身份为空，检索链路只能看到 PUBLIC 文档。
+	usernameValue, _ := c.Get("username")
+	rolesValue, _ := c.Get("normalizedRoles")
+	username, _ := usernameValue.(string)
+	roles, _ := rolesValue.([]string)
+	req.Metadata["username"] = username
+	req.Metadata["userId"] = username
+	req.Metadata["roles"] = roles
+	delete(req.Metadata, "department")
 	if req.SessionKey == "" {
 		req.SessionKey = fmt.Sprintf("sess-%d", time.Now().UnixNano())
 	}

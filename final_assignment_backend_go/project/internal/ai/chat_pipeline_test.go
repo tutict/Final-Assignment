@@ -99,7 +99,7 @@ func TestChatPipeline_Stream(t *testing.T) {
 			// Setup mock RAG service
 			mockRag := &MockRagQueryService{}
 			if tt.mockRagResponse != nil {
-				mockRag.QueryFunc = func(ctx context.Context, req ragsvc.RagQueryRequest) (ragsvc.RagQueryResponse, error) {
+				mockRag.QueryFunc = func(ctx context.Context, req ragsvc.RagQueryRequest, access ragsvc.RagAccessContext) (ragsvc.RagQueryResponse, error) {
 					return *tt.mockRagResponse, nil
 				}
 			}
