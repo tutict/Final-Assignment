@@ -99,6 +99,11 @@ uv run ragas-eval all --top-k 5
   `SPRING_DATASOURCE_URL` 等；评测端覆盖 `RAGAS_ES_URL`（就绪检查用）。
 - Cloud 的 RAG 服务以独立进程运行，`RAG_INDEX_NAME` / `RAG_INDEX_ALIAS` 必须与该进程一致；AI 服务通过
   Feign 访问 RAG，纯 RAG 模式必须关闭 `AI_AGENT_ENABLED` 并开启 `AI_RAG_ENABLED`。
+- 语料主键与分块主键都是内容哈希的确定性结果，重复 seed 写回的是同一批行与同一批 ES 文档；
+  评测前请确保别名指向的索引里已有 31 篇 `suite=ragas` 语料（`wait_for_index_visibility` 会校验）。
+- 2026-10-29 的实测结果（当前代码，含主题校验）：五项指标全部达标，不可答拒答 3/3，ACL 泄漏 0，
+  与主后端配对 36/36 同集合、35/36 同顺序。详见
+  [../../docs/ai/ragas/cloud-ragas-2026-10-29.md](../../docs/ai/ragas/cloud-ragas-2026-10-29.md)。
 
 ## 评测 Quarkus 后端
 
