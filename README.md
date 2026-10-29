@@ -336,6 +336,35 @@ RAG 数据表定义见：
 
 - `finalAssignmentBackend/src/main/resources/rag/rag_schema.sql`
 
+### Quarkus 后端的 RAG 与 Elasticsearch
+
+`final_assignment_backend_quarkus` 与 Spring 主后端共用同一套 RAG 数据表，但拥有独立的 ES
+索引与别名，避免不同后端的向量（Spring 768 维、Go 384 维）互相覆盖：
+
+| 项 | 值 |
+| --- | --- |
+| 物理索引 | `rag_chunk_quarkus_v1`（`rag.index.name`） |
+| 写别名 | `rag_chunk_quarkus_current`（`rag.index.alias`） |
+| ES 地址 | `ELASTICSEARCH_HOST`，默认 `http://localhost:9200` |
+| 向量 | Ollama `nomic-embed-text`，768 维，`dense_vector` + cosine |
+
+检索链路为 BM25 + kNN 混合：ES 侧做粗过滤（PUBLIC / 角色 / 用户 / 部门），命中后回读 MySQL
+执行严格收敛（分块必须是 `EMBEDDED`、文档必须是 `READY`、必须是知识库来源、ACL 必须放行）。
+**ACL 身份只来自服务端**，`POST /api/rag/query` 请求体里的 `roles` / `asRole` 会被忽略。
+
+嵌入队列的后台轮询默认关闭（`rag.embedding.scheduler-enabled=false`），由管理端显式驱动：
+
+```text
+POST /api/rag/admin/index/migrate?indexName=rag_chunk_quarkus_v1   # 准备索引与别名
+POST /api/rag/admin/embedding/run?limit=50                          # 消费一批嵌入任务
+POST /api/rag/admin/embedding/requeue?limit=100                     # 重新排队失败/未嵌入的分块
+POST /api/rag/admin/backfill?page=1&size=200                        # 知识文档回填
+```
+
+`rag_embedding_task` 表由 Spring / Go / Quarkus 共用，多后端同时跑嵌入 worker 会互相抢任务，
+评测期间需停用其他后端的 worker。细节见
+[docs/ai/ragas/quarkus-rag-elasticsearch-2026-10-29.md](docs/ai/ragas/quarkus-rag-elasticsearch-2026-10-29.md)。
+
 ## RAG 答案质量评估
 
 `scripts/ragas` 提供离线的 RAGAS 答案质量评估，与 CI 中的检索排序门禁互补：检索上下文来自真实 `POST /api/rag/query`，答案来自真实 `POST /api/ai/chat/stream`，由本地裁判模型打分。
@@ -352,9 +381,10 @@ RAG 数据表定义见：
 - 生成后主题校验由 `AI_GUARDRAIL_TOPIC_MODEL` 显式开启（例如 `qwen2.5:7b`）：答案通过引用护栏后，再判断检索资料是否覆盖所问主题，未覆盖时拒答；未配置时校验关闭。`AI_GUARDRAIL_TOPIC_TIMEOUT` 默认 `PT12S`，超时或输出无法解析时放行
 - RAG 回合会清理模型输出中的检索内部标签；`AI_GUARDRAIL_CITATION_ENFORCEMENT=false` 只关闭引用强制，不关闭标签清洗。若清洗移除全部非空回答，会返回安全提示；清洗替换原答时会保留各 token 的 SSE payload metadata
 - Go 后端已移植同一套答案层防护（清洗 → 引用护栏与一次修复 → 主题校验），并新增同名 `AI_AGENT_ENABLED` / `AI_GUARDRAIL_*` 环境变量；与 Spring 的差异是 Go 的引用护栏默认开启，检索为空或失败时会拒答，可显式关闭回退。Go 本轮未跑 RAGAS，原因与复现步骤见 [docs/ai/ragas/go-parity-2026-10-29.md](docs/ai/ragas/go-parity-2026-10-29.md)
-- Quarkus 后端已具备纯 RAG 对话链路与同一套答案层防护（清洗 → 引用护栏与一次修复 → 主题校验），裁判模型复用 `OLLAMA_BASE_URL` 下独立配置的 Ollama 模型；**引用强制在 Quarkus 默认关闭**（`AI_GUARDRAIL_CITATION_ENFORCEMENT=false`），且检索走 MySQL、没有 ES/向量检索，因此本轮未跑 RAGAS，细节见 [docs/ai/ragas/quarkus-refusal-2026-10-29.md](docs/ai/ragas/quarkus-refusal-2026-10-29.md)
+- Quarkus 后端已具备纯 RAG 对话链路与同一套答案层防护（清洗 → 引用护栏与一次修复 → 主题校验），裁判模型复用 `OLLAMA_BASE_URL` 下独立配置的 Ollama 模型；**引用强制在 Quarkus 默认关闭**（`AI_GUARDRAIL_CITATION_ENFORCEMENT=false`）
+- Quarkus 后端现已补齐 Elasticsearch 索引、Ollama 向量嵌入与 BM25 + 向量混合检索：使用独立索引 `rag_chunk_quarkus_v1` / 别名 `rag_chunk_quarkus_current`，检索身份只来自服务端（请求体 `roles`/`asRole` 被忽略），ACL 改为 `acl_scope` + metadata 明细的严格放行，`topK` 上限提升到 50。管理端 `/index/migrate`、`/embedding/run`、`/embedding/requeue`、`/backfill` 均为真实实现。**Quarkus 的 RAGAS 端到端本轮尚未执行**，原因与复现步骤见 [docs/ai/ragas/quarkus-rag-elasticsearch-2026-10-29.md](docs/ai/ragas/quarkus-rag-elasticsearch-2026-10-29.md)
 
-操作步骤与已知限制见 [scripts/ragas/README.md](scripts/ragas/README.md)，基线见 [docs/ai/ragas/baseline-2026-10-23.md](docs/ai/ragas/baseline-2026-10-23.md)，检索和答案质量改进记录见 [docs/ai/ragas/improvement-2026-10-23.md](docs/ai/ragas/improvement-2026-10-23.md) 与 [docs/ai/ragas/improvement-2026-10-28.md](docs/ai/ragas/improvement-2026-10-28.md)；拒答改造见 [docs/ai/ragas/refusal-2026-10-29.md](docs/ai/ragas/refusal-2026-10-29.md)；Cloud 后端的移植与对齐结果见 [docs/ai/ragas/cloud-parity-2026-10-28.md](docs/ai/ragas/cloud-parity-2026-10-28.md)；Go 后端的移植见 [docs/ai/ragas/go-parity-2026-10-29.md](docs/ai/ragas/go-parity-2026-10-29.md)；Quarkus 后端的纯 RAG 与拒答移植见 [docs/ai/ragas/quarkus-refusal-2026-10-29.md](docs/ai/ragas/quarkus-refusal-2026-10-29.md)。
+操作步骤与已知限制见 [scripts/ragas/README.md](scripts/ragas/README.md)，基线见 [docs/ai/ragas/baseline-2026-10-23.md](docs/ai/ragas/baseline-2026-10-23.md)，检索和答案质量改进记录见 [docs/ai/ragas/improvement-2026-10-23.md](docs/ai/ragas/improvement-2026-10-23.md) 与 [docs/ai/ragas/improvement-2026-10-28.md](docs/ai/ragas/improvement-2026-10-28.md)；拒答改造见 [docs/ai/ragas/refusal-2026-10-29.md](docs/ai/ragas/refusal-2026-10-29.md)；Cloud 后端的移植与对齐结果见 [docs/ai/ragas/cloud-parity-2026-10-28.md](docs/ai/ragas/cloud-parity-2026-10-28.md)；Go 后端的移植见 [docs/ai/ragas/go-parity-2026-10-29.md](docs/ai/ragas/go-parity-2026-10-29.md)；Quarkus 后端的纯 RAG 与拒答移植见 [docs/ai/ragas/quarkus-refusal-2026-10-29.md](docs/ai/ragas/quarkus-refusal-2026-10-29.md)，ES 兼容与混合检索见 [docs/ai/ragas/quarkus-rag-elasticsearch-2026-10-29.md](docs/ai/ragas/quarkus-rag-elasticsearch-2026-10-29.md)。
 
 ## 后端包结构
 
@@ -1107,6 +1137,13 @@ Go 后端编译与测试：
 cd final_assignment_backend_go
 go build ./...
 go test ./...
+```
+
+Quarkus 后端编译与测试：
+
+```powershell
+cd final_assignment_backend_quarkus
+./gradlew --console=plain test
 ```
 
 Go 后端性能测试：
