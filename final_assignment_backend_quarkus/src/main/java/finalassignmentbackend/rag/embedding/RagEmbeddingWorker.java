@@ -83,7 +83,21 @@ public class RagEmbeddingWorker {
     /** 把失败、中毒或尚未嵌入的分块重新排队。 */
     public RequeueResult requeue(int requestedLimit) {
         int limit = Math.min(Math.max(1, requestedLimit), 1000);
-        List<RagChunk> chunks = store.selectChunksNeedingEmbedding(limit);
+        return requeueChunks(store.selectChunksNeedingEmbedding(limit));
+    }
+
+    /**
+     * 把全部分块重新排队。
+     *
+     * <p>索引被清空或换到新索引后，库里的分块仍然是 EMBEDDED，按状态筛选不会把它们挑出来；
+     * 只有显式重排才能把向量重新灌回索引。
+     */
+    public RequeueResult requeueAll(int requestedLimit) {
+        int limit = Math.min(Math.max(1, requestedLimit), 5000);
+        return requeueChunks(store.selectChunks(limit));
+    }
+
+    private RequeueResult requeueChunks(List<RagChunk> chunks) {
         int requeuedChunks = 0;
         int requeuedTasks = 0;
         int createdTasks = 0;

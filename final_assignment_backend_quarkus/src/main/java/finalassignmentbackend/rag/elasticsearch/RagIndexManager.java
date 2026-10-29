@@ -6,6 +6,7 @@ import jakarta.inject.Inject;
 import jakarta.json.Json;
 import jakarta.json.JsonObject;
 
+import java.time.Instant;
 import java.util.Optional;
 import java.util.logging.Level;
 import java.util.logging.Logger;
@@ -30,6 +31,13 @@ public class RagIndexManager {
     public record IndexState(boolean createdIndex, boolean aliasSwitched) {
     }
 
+    /** 迁移结果。 */
+    public record MigrationResult(boolean createdIndex, boolean aliasSwitched, String targetIndexName) {
+    }
+
+    /** 当前写入的物理索引；迁移后指向新索引。 */
+    private volatile String activeIndex;
+
     /** 幂等地确保索引与别名存在。 */
     public IndexState ensureReady() {
         if (ready) {
@@ -48,6 +56,28 @@ public class RagIndexManager {
             ready = true;
             return new IndexState(created, aliasSwitched);
         }
+    }
+
+    /**
+     * 迁移到指定索引。
+     *
+     * <p>目标索引不存在就按当前映射建出来，然后把写别名从旧索引挪过去。写入始终落在
+     * 目标索引上，检索走别名，两边不会指向不同的库。
+     */
+    public MigrationResult migrateToNewIndex(String requestedIndexName) {
+        String current = indexName();
+        String target = requestedIndexName == null || requestedIndexName.isBlank()
+                ? current + "_" + Instant.now().toEpochMilli()
+                : requestedIndexName.trim();
+        boolean created = false;
+        if (!client.exists("/" + target)) {
+            client.putJson("/" + target, mapping.createBody());
+            created = true;
+        }
+        boolean aliasSwitched = switchAlias(target);
+        activeIndex = target;
+        ready = true;
+        return new MigrationResult(created, aliasSwitched, target);
     }
 
     public boolean indexExists() {
@@ -95,8 +125,42 @@ public class RagIndexManager {
         return true;
     }
 
+    /** 把写别名从所有旧索引挪到目标索引。 */
+    private boolean switchAlias(String targetIndex) {
+        jakarta.json.JsonArrayBuilder actions = Json.createArrayBuilder();
+        client.findJson("/_alias/" + aliasName()).ifPresent(existing -> {
+            for (String index : existing.keySet()) {
+                if (index.equals(targetIndex)) {
+                    continue;
+                }
+                actions.add(Json.createObjectBuilder()
+                        .add("remove", Json.createObjectBuilder()
+                                .add("index", index)
+                                .add("alias", aliasName())
+                                .build())
+                        .build());
+            }
+        });
+        actions.add(Json.createObjectBuilder()
+                .add("add", Json.createObjectBuilder()
+                        .add("index", targetIndex)
+                        .add("alias", aliasName())
+                        .add("is_write_index", true)
+                        .build())
+                .build());
+        client.postJson("/_aliases", Json.createObjectBuilder()
+                .add("actions", actions)
+                .build());
+        return true;
+    }
+
     public String indexName() {
-        return properties.getIndexName();
+        String current = activeIndex;
+        if (current == null || current.isBlank()) {
+            current = properties.getIndexName();
+            activeIndex = current;
+        }
+        return current;
     }
 
     public String aliasName() {

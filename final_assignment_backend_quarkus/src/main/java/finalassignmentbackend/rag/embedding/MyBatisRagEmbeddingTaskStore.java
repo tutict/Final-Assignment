@@ -165,6 +165,13 @@ public class MyBatisRagEmbeddingTaskStore implements RagEmbeddingTaskStore {
     }
 
     @Override
+    public List<RagChunk> selectChunks(int limit) {
+        return chunkMapper.selectList(new QueryWrapper<RagChunk>()
+                .orderByAsc("updated_at")
+                .last("LIMIT " + limit));
+    }
+
+    @Override
     public int resetChunk(RagChunk chunk, String model) {
         UpdateWrapper<RagChunk> wrapper = new UpdateWrapper<>();
         wrapper.set("status", RagEmbeddingStatus.CHUNK_PENDING_EMBEDDING)

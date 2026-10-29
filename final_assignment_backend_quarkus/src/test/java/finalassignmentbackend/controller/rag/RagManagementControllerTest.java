@@ -8,9 +8,11 @@ import finalassignmentbackend.mapper.RagDocumentMapper;
 import finalassignmentbackend.mapper.RagEmbeddingTaskMapper;
 import finalassignmentbackend.rag.config.RagProperties;
 import finalassignmentbackend.rag.elasticsearch.RagIndexManager;
+import finalassignmentbackend.rag.embedding.RagEmbeddingWorker;
 import finalassignmentbackend.rag.entity.RagChunk;
 import finalassignmentbackend.rag.entity.RagDocument;
 import finalassignmentbackend.rag.entity.RagEmbeddingTask;
+import finalassignmentbackend.rag.service.RagBackfillJob;
 import finalassignmentbackend.rag.service.RagDocumentDeletionService;
 import jakarta.ws.rs.core.Response;
 import org.junit.jupiter.api.BeforeEach;
@@ -41,6 +43,8 @@ class RagManagementControllerTest {
     private RagProperties properties;
     private FakeIndexManager indexManager;
     private FakeDeletionService deletionService;
+    private FakeEmbeddingWorker embeddingWorker;
+    private FakeBackfillJob backfillJob;
     private List<RagDocument> documents;
     private List<RagChunk> chunks;
     private List<RagEmbeddingTask> tasks;
@@ -55,10 +59,14 @@ class RagManagementControllerTest {
         properties = new RagProperties();
         indexManager = new FakeIndexManager();
         deletionService = new FakeDeletionService();
+        embeddingWorker = new FakeEmbeddingWorker();
+        backfillJob = new FakeBackfillJob();
         controller = new RagManagementController();
         controller.ragProperties = properties;
         controller.ragIndexManager = indexManager;
         controller.deletionService = deletionService;
+        controller.embeddingWorker = embeddingWorker;
+        controller.backfillJob = backfillJob;
         controller.documentMapper = documentMapper();
         controller.chunkMapper = chunkMapper();
         controller.taskMapper = taskMapper();
@@ -156,12 +164,66 @@ class RagManagementControllerTest {
 
     @Test
     void migrationReportsTheIndexState() {
-        Map<String, Object> body = body(controller.migrate());
+        Map<String, Object> body = body(controller.migrate(null, false, 1000));
 
         assertEquals(true, body.get("enabled"));
         assertEquals(true, body.get("createdIndex"));
         assertEquals("rag_chunk_quarkus_v1", body.get("indexName"));
         assertEquals("rag_chunk_quarkus_current", body.get("alias"));
+        assertEquals(0, body.get("requeuedChunks"));
+    }
+
+    @Test
+    void migrationToAnotherIndexReportsTheTargetAndCanRequeue() {
+        Map<String, Object> body = body(controller.migrate("rag_chunk_quarkus_v2", true, 500));
+
+        assertEquals(true, body.get("createdIndex"));
+        assertEquals(true, body.get("aliasSwitched"));
+        assertEquals("rag_chunk_quarkus_v2", body.get("indexName"));
+        assertEquals(7, body.get("requeuedChunks"));
+        assertEquals(3, body.get("requeuedTasks"));
+        assertEquals(4, body.get("createdTasks"));
+        assertEquals(500, embeddingWorker.requeueLimit);
+    }
+
+    @Test
+    void migrationIsRejectedWhenElasticsearchIsDisabled() {
+        properties.setElasticsearchEnabled(false);
+
+        Response response = controller.migrate(null, false, 1000);
+
+        assertEquals(409, response.getStatus());
+        assertEquals("RAG_DISABLED", ((ApiResponse<?>) response.getEntity()).errorCode);
+    }
+
+    @Test
+    void backfillReportsTheProcessedDocuments() {
+        Map<String, Object> body = body(controller.backfill(1, 200));
+
+        assertEquals(5, body.get("processedDocuments"));
+        assertEquals(1, body.get("failedDocuments"));
+        assertEquals(true, body.get("hasMore"));
+        assertEquals(true, body.get("enabled"));
+    }
+
+    @Test
+    void backfillRunAlsoReportsTheProcessedPages() {
+        Map<String, Object> body = body(controller.backfillRun(1, 200, 20));
+
+        assertEquals(9, body.get("processedDocuments"));
+        assertEquals(2, body.get("failedDocuments"));
+        assertEquals(3, body.get("processedPages"));
+        assertEquals(false, body.get("hasMore"));
+    }
+
+    @Test
+    void backfillIsRejectedWhenRagIsDisabled() {
+        properties.setEnabled(false);
+
+        Response response = controller.backfill(1, 200);
+
+        assertEquals(409, response.getStatus());
+        assertEquals("RAG_DISABLED", ((ApiResponse<?>) response.getEntity()).errorCode);
     }
 
     @SuppressWarnings("unchecked")
@@ -271,6 +333,38 @@ class RagManagementControllerTest {
         @Override
         public RagIndexManager.IndexState ensureReady() {
             return new RagIndexManager.IndexState(true, true);
+        }
+
+        @Override
+        public RagIndexManager.MigrationResult migrateToNewIndex(String requestedIndexName) {
+            return new RagIndexManager.MigrationResult(true, true, requestedIndexName);
+        }
+    }
+
+    private static final class FakeEmbeddingWorker extends RagEmbeddingWorker {
+
+        private int requeueLimit;
+
+        @Override
+        public RequeueResult requeueAll(int requestedLimit) {
+            requeueLimit = requestedLimit;
+            return new RequeueResult(7, 3, 4);
+        }
+    }
+
+    private static final class FakeBackfillJob extends RagBackfillJob {
+
+        private RagBackfillResult result = new RagBackfillResult(5, 1, true, true);
+        private RagBackfillRunResult runResult = new RagBackfillRunResult(9, 2, 3, false, true);
+
+        @Override
+        public RagBackfillResult runBatch(int page, int size) {
+            return result;
+        }
+
+        @Override
+        public RagBackfillRunResult runBatches(int startPage, int size, int maxPages) {
+            return runResult;
         }
     }
 

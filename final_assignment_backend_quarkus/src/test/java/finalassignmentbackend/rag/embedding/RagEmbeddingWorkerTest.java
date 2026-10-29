@@ -138,6 +138,20 @@ class RagEmbeddingWorkerTest {
         assertEquals(RagEmbeddingStatus.PENDING, store.statusOf("emb_" + chunk.getId()));
     }
 
+    @Test
+    void requeueAllAlsoRequeuesChunksThatWereAlreadyEmbedded() {
+        RagChunk chunk = chunk("chunk-1", "doc-1");
+        chunk.setStatus(RagEmbeddingStatus.CHUNK_EMBEDDED);
+        store.chunks.put("chunk-1", chunk);
+
+        RagEmbeddingWorker.RequeueResult result = worker.requeueAll(10);
+
+        assertEquals(1, result.requeuedChunks());
+        assertEquals(1, result.createdTasks());
+        assertEquals(RagEmbeddingStatus.CHUNK_PENDING_EMBEDDING, chunk.getStatus());
+        assertEquals(RagEmbeddingStatus.PENDING, store.statusOf("emb_chunk-1"));
+    }
+
     private static RagEmbeddingTask pendingTask(String id, String chunkId) {
         RagEmbeddingTask task = new RagEmbeddingTask();
         task.setId(id);
@@ -303,6 +317,12 @@ class RagEmbeddingWorkerTest {
                     selected.add(chunk);
                 }
             }
+            return selected.size() > limit ? selected.subList(0, limit) : selected;
+        }
+
+        @Override
+        public List<RagChunk> selectChunks(int limit) {
+            List<RagChunk> selected = new ArrayList<>(chunks.values());
             return selected.size() > limit ? selected.subList(0, limit) : selected;
         }
 

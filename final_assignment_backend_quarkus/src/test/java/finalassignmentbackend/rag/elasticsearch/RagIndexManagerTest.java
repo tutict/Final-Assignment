@@ -102,6 +102,35 @@ class RagIndexManagerTest {
         assertTrue(client.calls.contains("DELETE /rag_chunk_quarkus_v1/_doc/chk_123"));
     }
 
+    @Test
+    void migrationCreatesTheTargetIndexAndMovesTheWriteAlias() {
+        RagIndexManager target = manager();
+        client.indexPresent = false;
+        client.aliasPresent = false;
+
+        RagIndexManager.MigrationResult result = target.migrateToNewIndex("rag_chunk_quarkus_v2");
+
+        assertTrue(result.createdIndex());
+        assertTrue(result.aliasSwitched());
+        assertEquals("rag_chunk_quarkus_v2", result.targetIndexName());
+        assertTrue(client.calls.contains("PUT /rag_chunk_quarkus_v2"));
+        assertTrue(client.aliasBodies.get(0).contains("rag_chunk_quarkus_v2"));
+        assertTrue(client.aliasBodies.get(0).contains("is_write_index"));
+    }
+
+    @Test
+    void migrationKeepsWritingIntoTheTargetIndex() {
+        RagIndexManager target = manager();
+        client.indexPresent = true;
+        client.aliasPresent = true;
+
+        target.migrateToNewIndex("rag_chunk_quarkus_v2");
+        target.indexChunk("chk_123", Json.createObjectBuilder().add("chunk_id", "chk_123").build());
+
+        assertEquals("rag_chunk_quarkus_v2", target.indexName());
+        assertTrue(client.calls.contains("PUT /rag_chunk_quarkus_v2/_doc/chk_123"));
+    }
+
     private static final class FakeElasticsearchClient extends ElasticsearchClient {
 
         private final List<String> calls = new ArrayList<>();

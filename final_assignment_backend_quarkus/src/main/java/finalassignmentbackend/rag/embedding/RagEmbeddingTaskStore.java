@@ -42,6 +42,9 @@ public interface RagEmbeddingTaskStore {
     /** 需要重新嵌入的分块。 */
     List<RagChunk> selectChunksNeedingEmbedding(int limit);
 
+    /** 全部分块（不区分状态）：索引被清空或换库后用它把向量重新灌回去。 */
+    List<RagChunk> selectChunks(int limit);
+
     int resetChunk(RagChunk chunk, String model);
 
     int resetTasks(String chunkId, String provider, String model);

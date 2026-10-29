@@ -15,6 +15,7 @@ import finalassignmentbackend.rag.entity.RagChunk;
 import finalassignmentbackend.rag.entity.RagDocument;
 import finalassignmentbackend.rag.entity.RagEmbeddingTask;
 import finalassignmentbackend.rag.service.RagAdminDocumentSupport;
+import finalassignmentbackend.rag.service.RagBackfillJob;
 import finalassignmentbackend.rag.service.RagDocumentDeletionService;
 import finalassignmentbackend.rag.service.RagIndexingService;
 import io.smallrye.common.annotation.RunOnVirtualThread;
@@ -64,6 +65,7 @@ public class RagManagementController {
     @Inject RagIndexManager ragIndexManager;
     @Inject RagEmbeddingWorker embeddingWorker;
     @Inject RagDocumentDeletionService deletionService;
+    @Inject RagBackfillJob backfillJob;
 
     @GET
     @Path("/overview")
@@ -298,16 +300,38 @@ public class RagManagementController {
     @POST
     @Path("/backfill")
     @RunOnVirtualThread
-    public Response backfill() {
-        return Response.ok(ApiResponse.ok(Map.of("processedDocuments", 0, "failedDocuments", 0, "hasMore", false, "enabled", ragProperties.isIndexingEnabled()))).build();
+    public Response backfill(@QueryParam("page") @DefaultValue("1") int page,
+                             @QueryParam("size") @DefaultValue("200") int size) {
+        if (!ragProperties.isEnabled() || !ragProperties.isIndexingEnabled()) {
+            return Response.status(409).entity(ApiResponse.error("RAG_DISABLED", "RAG backfill is not enabled")).build();
+        }
+        RagBackfillJob.RagBackfillResult result = backfillJob.runBatch(page, size);
+        return Response.ok(ApiResponse.ok(Map.of(
+                "processedDocuments", result.processedDocuments(),
+                "failedDocuments", result.failedDocuments(),
+                "hasMore", result.hasMore(),
+                "enabled", result.enabled()
+        ))).build();
     }
 
     @POST
     @Path("/backfill/run")
     @Consumes(MediaType.WILDCARD)
     @RunOnVirtualThread
-    public Response backfillRun() {
-        return Response.ok(ApiResponse.ok(Map.of("processedDocuments", 0, "failedDocuments", 0, "processedPages", 0, "hasMore", false, "enabled", ragProperties.isIndexingEnabled()))).build();
+    public Response backfillRun(@QueryParam("startPage") @DefaultValue("1") int startPage,
+                                @QueryParam("size") @DefaultValue("200") int size,
+                                @QueryParam("maxPages") @DefaultValue("20") int maxPages) {
+        if (!ragProperties.isEnabled() || !ragProperties.isIndexingEnabled()) {
+            return Response.status(409).entity(ApiResponse.error("RAG_DISABLED", "RAG backfill is not enabled")).build();
+        }
+        RagBackfillJob.RagBackfillRunResult result = backfillJob.runBatches(startPage, size, maxPages);
+        return Response.ok(ApiResponse.ok(Map.of(
+                "processedDocuments", result.processedDocuments(),
+                "failedDocuments", result.failedDocuments(),
+                "processedPages", result.processedPages(),
+                "hasMore", result.hasMore(),
+                "enabled", result.enabled()
+        ))).build();
     }
 
     @POST
@@ -338,21 +362,48 @@ public class RagManagementController {
         return Response.ok(ApiResponse.ok(body)).build();
     }
 
+    /**
+     * 准备索引。
+     *
+     * <p>不带参数时只保证配置里的索引与别名就绪（幂等）；带上 indexName 则迁移到该索引，
+     * 并把写别名挪过去。索引被清空后用 requeue=true 重新排队全部分块，把向量灌回去。
+     */
     @POST
     @Path("/index/migrate")
     @RunOnVirtualThread
-    public Response migrate() {
+    public Response migrate(@QueryParam("indexName") String indexName,
+                            @QueryParam("requeue") @DefaultValue("false") boolean requeue,
+                            @QueryParam("requeueLimit") @DefaultValue("1000") int requeueLimit) {
         if (!ragProperties.isEnabled() || !ragProperties.isElasticsearchEnabled()) {
             return Response.status(409).entity(ApiResponse.error("RAG_DISABLED", "RAG indexing is not enabled")).build();
         }
         try {
-            RagIndexManager.IndexState state = ragIndexManager.ensureReady();
+            boolean createdIndex;
+            boolean aliasSwitched;
+            String target;
+            if (indexName == null || indexName.isBlank()) {
+                RagIndexManager.IndexState state = ragIndexManager.ensureReady();
+                createdIndex = state.createdIndex();
+                aliasSwitched = state.aliasSwitched();
+                target = ragIndexManager.indexName();
+            } else {
+                RagIndexManager.MigrationResult migration = ragIndexManager.migrateToNewIndex(indexName);
+                createdIndex = migration.createdIndex();
+                aliasSwitched = migration.aliasSwitched();
+                target = migration.targetIndexName();
+            }
+            RagEmbeddingWorker.RequeueResult requeueResult = requeue
+                    ? embeddingWorker.requeueAll(requeueLimit)
+                    : new RagEmbeddingWorker.RequeueResult(0, 0, 0);
             Map<String, Object> body = new LinkedHashMap<>();
             body.put("enabled", true);
-            body.put("createdIndex", state.createdIndex());
-            body.put("aliasSwitched", state.aliasSwitched());
-            body.put("indexName", ragIndexManager.indexName());
+            body.put("createdIndex", createdIndex);
+            body.put("aliasSwitched", aliasSwitched);
+            body.put("indexName", target);
             body.put("alias", ragIndexManager.aliasName());
+            body.put("requeuedChunks", requeueResult.requeuedChunks());
+            body.put("requeuedTasks", requeueResult.requeuedTasks());
+            body.put("createdTasks", requeueResult.createdTasks());
             body.put("message", "Elasticsearch index and alias are ready; documents are written by the embedding worker.");
             return Response.ok(ApiResponse.ok(body)).build();
         } catch (ElasticsearchException error) {
