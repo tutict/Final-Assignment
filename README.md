@@ -341,7 +341,21 @@ RAG 数据表定义见：
 ### Quarkus 后端的 RAG 与 Elasticsearch
 
 `final_assignment_backend_quarkus` 与 Spring 主后端共用同一套 RAG 数据表，但拥有独立的 ES
-索引与别名，避免不同后端的向量互相覆盖（四个后端现在统一使用 768 维 `nomic-embed-text`，索引仍按后端隔离）：
+索引与别名，避免不同后端的向量互相覆盖。四个后端的 API 档统一使用 768 维
+`nomic-embed-text`，索引按后端隔离：
+
+| 后端 | 物理索引 | 写别名 |
+| --- | --- | --- |
+| Spring 单体 | `rag_chunk_v1` | `rag_chunk_current` |
+| Spring Cloud | `rag_chunk_cloud_v1` | `rag_chunk_cloud_current` |
+| Go | `rag_chunk_go_768_v1` | `rag_chunk_go_current` |
+| Quarkus | `rag_chunk_quarkus_v1` | `rag_chunk_quarkus_current` |
+
+> `project/etc/gozero-rag-live.yaml` 是本地压测专用档，故意保留 deterministic-384 嵌入与
+> `rag_chunk_go_live_*` 索引，不计入上面的 768 维口径。
+> `scripts/check-rag-config-parity.py` 会校验上述权重、维度与索引隔离，配置漂移时退出码为 1。
+
+Quarkus 的配置项如下：
 
 | 项 | 值 |
 | --- | --- |
@@ -462,7 +476,7 @@ git tag -n99 -l                # 查看全部标签及其说明
 - 驾驶员账号通过 `driver_information.user_id` 关联司机档案
 - 车辆通过 `driver_vehicle` 与驾驶员建立多对多绑定
 - 违法、罚款、扣分、申诉围绕 `offense_record` 串联
-- RAG 使用独立的 `rag_document`、`rag_chunk`、`rag_embedding_task`，向量写入 Elasticsearch `rag_chunk_current`
+- RAG 使用独立的 `rag_document`、`rag_chunk`、`rag_embedding_task`，向量写入 Elasticsearch；每个后端有自己的索引与别名（见上文「Quarkus 后端的 RAG 与 Elasticsearch」的表）
 
 ## Spring Cloud 微服务版本
 

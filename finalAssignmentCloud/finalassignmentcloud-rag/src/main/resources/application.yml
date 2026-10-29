@@ -78,8 +78,9 @@ rag:
     retry-delay: ${RAG_EMBEDDING_RETRY_DELAY:PT1M}
     poll-interval-ms: ${RAG_EMBEDDING_POLL_INTERVAL_MS:30000}
   index:
-    name: ${RAG_INDEX_NAME:rag_chunk_v1}
-    alias: ${RAG_INDEX_ALIAS:rag_chunk_current}
+    # 与 Spring 单体隔离：同一个 ES 集群里两套后端共用索引会让删除/重建互相覆盖。
+    name: ${RAG_INDEX_NAME:rag_chunk_cloud_v1}
+    alias: ${RAG_INDEX_ALIAS:rag_chunk_cloud_current}
     text-analyzer: ${RAG_INDEX_TEXT_ANALYZER:standard}
     number-of-shards: ${RAG_INDEX_SHARDS:1}
     number-of-replicas: ${RAG_INDEX_REPLICAS:0}
