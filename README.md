@@ -15,6 +15,8 @@
 | [后端包结构](finalAssignmentBackend/PACKAGE_LAYOUT.md) | Spring Boot 主后端的分层、领域包和命名规则 |
 | [数据库设计](database/DATABASE_DESIGN.md) | MySQL 表、角色、业务关联、敏感字段和 RAG 表设计 |
 | [压测报告](docs/performance/load-test-2026-09-21.md) | 2026-09-21 四后端 k6（Spring / Cloud / Go / Quarkus）；历史 Spring 基线见 2026-06-01 |
+| [版本标签](#版本标签) | `v0.1.0` ~ `v0.7.0` 能力里程碑标签与对应文档 |
+| [RAG 评测报告](#rag-答案质量评估) | Spring / Cloud / Go / Quarkus 四后端的 RAGAS 答案质量评测结果 |
 | [脚本说明](scripts/README.md) | 启动、Debezium、AI 链路测试等脚本参数 |
 
 ## 当前主线
@@ -422,6 +424,25 @@ POST /api/rag/admin/backfill?page=1&size=200                        # 知识文�
 - RAGAS 需要 ES + MySQL + Redis + Ollama，不适合放进 CI；CI 继续只跑确定性的检索门禁
 
 操作步骤与已知限制见 [scripts/ragas/README.md](scripts/ragas/README.md)。各轮报告：基线 [baseline-2026-10-23.md](docs/ai/ragas/baseline-2026-10-23.md)，检索与答案质量改进 [improvement-2026-10-23.md](docs/ai/ragas/improvement-2026-10-23.md) 与 [improvement-2026-10-28.md](docs/ai/ragas/improvement-2026-10-28.md)，拒答改造 [refusal-2026-10-29.md](docs/ai/ragas/refusal-2026-10-29.md)；Cloud 后端的移植与对齐 [cloud-parity-2026-10-28.md](docs/ai/ragas/cloud-parity-2026-10-28.md) 与本轮评测 [cloud-ragas-2026-10-29.md](docs/ai/ragas/cloud-ragas-2026-10-29.md)；Go 后端的移植 [go-parity-2026-10-29.md](docs/ai/ragas/go-parity-2026-10-29.md) 与评测 [go-ragas-2026-10-29.md](docs/ai/ragas/go-ragas-2026-10-29.md)；Quarkus 后端的纯 RAG 与拒答移植 [quarkus-refusal-2026-10-29.md](docs/ai/ragas/quarkus-refusal-2026-10-29.md) 与 ES 兼容、混合检索 [quarkus-rag-elasticsearch-2026-10-29.md](docs/ai/ragas/quarkus-rag-elasticsearch-2026-10-29.md)。
+
+## 版本标签
+
+仓库按能力里程碑打版本标签（语义化版本，均为附注标签），可直接检出任意里程碑：
+
+| 标签 | 日期 | 里程碑 | 对应文档 |
+| --- | --- | --- | --- |
+| `v0.1.0` | 2026-10-16 | RAG 检索门禁与接地护栏 | [docs/ai/ai-quality-gates.md](docs/ai/ai-quality-gates.md) |
+| `v0.2.0` | 2026-10-23 | RAGAS 答案质量评测工具链与基线 | [docs/ai/ragas/baseline-2026-10-23.md](docs/ai/ragas/baseline-2026-10-23.md) |
+| `v0.3.0` | 2026-10-28 | 检索与答案质量改进（第二轮） | [docs/ai/ragas/improvement-2026-10-28.md](docs/ai/ragas/improvement-2026-10-28.md) |
+| `v0.4.0` | 2026-10-28 | Spring Cloud 多后端拆分与 RAG 对齐 | [docs/ai/ragas/cloud-parity-2026-10-28.md](docs/ai/ragas/cloud-parity-2026-10-28.md) |
+| `v0.5.0` | 2026-10-29 | 四后端拒答能力移植 | [docs/ai/ragas/refusal-2026-10-29.md](docs/ai/ragas/refusal-2026-10-29.md) |
+| `v0.6.0` | 2026-10-29 | Quarkus Elasticsearch 兼容与混合检索 | [docs/ai/ragas/quarkus-rag-elasticsearch-2026-10-29.md](docs/ai/ragas/quarkus-rag-elasticsearch-2026-10-29.md) |
+| `v0.7.0` | 2026-10-29 | 四后端 RAGAS 评测基线与评测报告 | [docs/ai/ragas/cloud-ragas-2026-10-29.md](docs/ai/ragas/cloud-ragas-2026-10-29.md) |
+
+```bash
+git checkout v0.7.0            # 检出里程碑
+git tag -n99 -l                # 查看全部标签及其说明
+```
 
 ## 后端包结构
 
