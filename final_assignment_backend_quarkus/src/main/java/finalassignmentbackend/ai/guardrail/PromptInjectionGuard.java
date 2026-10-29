@@ -1,5 +1,6 @@
 package finalassignmentbackend.ai.guardrail;
 
+import java.text.Normalizer;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.regex.Matcher;
@@ -18,13 +19,15 @@ public final class PromptInjectionGuard {
 
     private static final List<Rule> RULES = List.of(
             new Rule("override_instructions", Pattern.compile(
-                    "(ignore|disregard|forget)\\s+(all\\s+)?(the\\s+)?(previous|prior|above|earlier|preceding)\\s+"
-                            + "(instructions?|prompts?|rules?|context)", FLAGS)),
+                    "(ignore|disregard|forget|pay\\s+no\\s+attention\\s+to|stop\\s+following|do\\s+not\\s+follow)"
+                            + "\\s+(the\\s+|all\\s+)*(previous|prior|above|earlier|preceding)?\\s*(system\\s+)?"
+                            + "(instructions?|prompts?|rules?|directives?|context)", FLAGS)),
             new Rule("override_instructions", Pattern.compile(
-                    "(忽略|无视|忘记|不要理会)(以上|上述|之前|前面|先前|所有|全部)(的)?(指令|要求|提示|内容|规则|上下文)")),
+                    "(忽略|无视|忘记|不要理会|不要遵守|不用遵守|别再遵守)(以上|上述|之前|前面|先前|所有|全部)(的)?"
+                            + "(指令|要求|提示|内容|规则|上下文)")),
             new Rule("reveal_system_prompt", Pattern.compile(
                     "(reveal|show|print|repeat|output|leak)\\s+(me\\s+)?(your\\s+)?(system\\s+)?"
-                            + "(prompt|instructions?|rules?)", FLAGS)),
+                            + "(prompt|instructions?|rules?|directives?)", FLAGS)),
             new Rule("reveal_system_prompt", Pattern.compile(
                     "(输出|打印|泄露|告诉我|重复|展示)(一下)?(你的)?(系统)?(提示词|提示|指令|规则|system\\s*prompt)")),
             new Rule("role_hijack", Pattern.compile("you\\s+are\\s+now\\s+", FLAGS)),
@@ -43,8 +46,11 @@ public final class PromptInjectionGuard {
         if (text == null || text.isBlank()) {
             return InjectionScan.clean(text);
         }
+        // Match on a normalized copy: full-width letters, NBSP and zero-width joiners cannot
+        // smuggle an instruction past the patterns. Unmatched text is returned as-is.
+        String candidate = normalizeForMatching(text);
         List<String> signals = new ArrayList<>();
-        String sanitized = text;
+        String sanitized = candidate;
         for (Rule rule : RULES) {
             Matcher matcher = rule.pattern().matcher(sanitized);
             if (matcher.find()) {
@@ -52,7 +58,24 @@ public final class PromptInjectionGuard {
                 sanitized = matcher.replaceAll(Matcher.quoteReplacement(NEUTRALIZED_MARKER));
             }
         }
-        return new InjectionScan(!signals.isEmpty(), List.copyOf(signals), sanitized);
+        if (signals.isEmpty()) {
+            return InjectionScan.clean(text);
+        }
+        return new InjectionScan(true, List.copyOf(signals), sanitized);
+    }
+
+    /** NFKC-folds full-width characters and drops format characters / non-breaking spaces. */
+    static String normalizeForMatching(String text) {
+        String normalized = Normalizer.normalize(text, Normalizer.Form.NFKC);
+        StringBuilder builder = new StringBuilder(normalized.length());
+        normalized.codePoints().forEach(codePoint -> {
+            if (codePoint == 0x00A0 || codePoint == 0x3000) {
+                builder.append(' ');
+            } else if (Character.getType(codePoint) != Character.FORMAT) {
+                builder.appendCodePoint(codePoint);
+            }
+        });
+        return builder.toString();
     }
 
     public String sanitize(String text) {
