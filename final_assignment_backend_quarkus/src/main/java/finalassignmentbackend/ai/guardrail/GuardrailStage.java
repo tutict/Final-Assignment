@@ -32,6 +32,7 @@ public class GuardrailStage {
     private static final Duration REPAIR_TIMEOUT = Duration.ofSeconds(180);
 
     @Inject AnswerGroundingPolicy policy;
+    @Inject TopicGroundingVerifier verifier;
 
     /**
      * @param events  模型 token 事件流
@@ -99,7 +100,13 @@ public class GuardrailStage {
         List<ChatStreamEvent> replay = Objects.equals(sanitized, answer)
                 ? buffered
                 : List.of(singleAnswerToken(buffered, sanitized));
-        return replay;
+        if (verifier == null) {
+            return replay;
+        }
+        // The citation guardrail proves the answer points at *some* source, not that the source
+        // is about the asked subject. Verification fails open on its own.
+        GroundingDecision verdict = verifier.verify(question, sanitized, sources);
+        return verdict.grounded() ? replay : List.of(singleAnswerToken(buffered, verdict.answer()));
     }
 
     private List<ChatStreamEvent> retryWithCitations(

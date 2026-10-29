@@ -131,6 +131,12 @@ ai:
     # still sanitized. Set AI_GUARDRAIL_CITATION_ENFORCEMENT=true to refuse uncited answers.
     citation-enforcement:
       enabled: ${AI_GUARDRAIL_CITATION_ENFORCEMENT:false}
+    # A separate judge model checks the answer is about the asked subject. Without a model the
+    # check stays off; timeouts and unparseable verdicts fail open.
+    topic-verification:
+      enabled: ${AI_GUARDRAIL_TOPIC_VERIFICATION:true}
+      model: ${AI_GUARDRAIL_TOPIC_MODEL:}
+      timeout: ${AI_GUARDRAIL_TOPIC_TIMEOUT:PT12S}
 
 # Align HTTP Bearer verification (quarkus-smallrye-jwt) with TokenProvider HS256 signing.
 # TokenProvider HMAC-SHA256s jwt.secret.key as UTF-8 (or standard-Base64 if the value decodes).
