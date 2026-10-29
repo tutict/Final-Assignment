@@ -65,9 +65,14 @@ public class RagIndexManager {
         client.putJson("/" + indexName() + "/_doc/" + chunkId, source);
     }
 
-    /** 删除分块文档；文档不存在视为成功。 */
+    /** 删除分块文档；索引不存在说明还没有向量，无需删除。 */
     public void deleteChunk(String chunkId) {
-        ensureReady();
+        if (chunkId == null || chunkId.isBlank()) {
+            return;
+        }
+        if (!client.exists("/" + indexName())) {
+            return;
+        }
         client.deleteJson("/" + indexName() + "/_doc/" + chunkId);
     }
 

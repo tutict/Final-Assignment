@@ -1,60 +1,73 @@
 package finalassignmentbackend.rag.service;
 
+import finalassignmentbackend.mapper.RagChunkMapper;
+import finalassignmentbackend.mapper.RagDocumentMapper;
+import finalassignmentbackend.mapper.RagEmbeddingTaskMapper;
+import finalassignmentbackend.offense.governance.AfterCommitBoundary;
+import finalassignmentbackend.rag.RagHashSupport;
 import finalassignmentbackend.rag.chunk.ChineseTextChunker;
 import finalassignmentbackend.rag.chunk.Chunker;
 import finalassignmentbackend.rag.config.RagProperties;
 import finalassignmentbackend.rag.dto.RagSourceDocument;
+import finalassignmentbackend.rag.elasticsearch.RagIndexManager;
+import finalassignmentbackend.rag.embedding.RagEmbeddingStatus;
 import finalassignmentbackend.rag.entity.RagChunk;
 import finalassignmentbackend.rag.entity.RagDocument;
 import finalassignmentbackend.rag.entity.RagEmbeddingTask;
-import finalassignmentbackend.mapper.RagChunkMapper;
-import finalassignmentbackend.mapper.RagDocumentMapper;
-import finalassignmentbackend.mapper.RagEmbeddingTaskMapper;
-import jakarta.inject.Inject;
 import jakarta.enterprise.context.ApplicationScoped;
+import jakarta.inject.Inject;
 import jakarta.transaction.Transactional;
 
-import java.nio.charset.StandardCharsets;
-import java.security.MessageDigest;
-import java.security.NoSuchAlgorithmException;
 import java.time.LocalDateTime;
-import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import java.util.ArrayList;
 import java.util.HashSet;
-import java.util.HexFormat;
 import java.util.List;
 import java.util.Locale;
 import java.util.Set;
+import java.util.logging.Level;
+import java.util.logging.Logger;
+import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
+import com.baomidou.mybatisplus.core.conditions.update.UpdateWrapper;
 
 @ApplicationScoped
 public class RagIndexingService {
+
+    private static final Logger LOG = Logger.getLogger(RagIndexingService.class.getName());
 
     private final RagDocumentService documentService;
     private final RagChunkService chunkService;
     private final RagEmbeddingTaskService embeddingTaskService;
     private final Chunker chunker;
+    private final RagIndexManager indexManager;
 
     public RagIndexingService(
             RagDocumentService documentService,
             RagChunkService chunkService,
             RagEmbeddingTaskService embeddingTaskService,
-            Chunker chunker
+            Chunker chunker,
+            RagIndexManager indexManager
     ) {
         this.documentService = documentService;
         this.chunkService = chunkService;
         this.embeddingTaskService = embeddingTaskService;
         this.chunker = chunker;
+        this.indexManager = indexManager;
     }
 
     @Transactional
     public RagIndexingResult index(RagSourceDocument sourceDocument) {
-        RagDocument document = documentService.upsert(sourceDocument);
+        RagDocumentService.DocumentUpsert upsert = documentService.upsert(sourceDocument);
+        RagDocument document = upsert.document();
         List<RagChunk> chunks = new ArrayList<>();
         List<RagEmbeddingTask> tasks = new ArrayList<>();
         for (Chunker.Chunk chunk : chunker.chunk(sourceDocument)) {
             RagChunk ragChunk = chunkService.upsert(document, chunk);
+            RagEmbeddingTask task = embeddingTaskService.ensurePendingTask(ragChunk, upsert.aclChanged());
+            if (!RagEmbeddingStatus.SUCCEEDED.equals(task.getStatus())) {
+                chunkService.markPendingEmbedding(ragChunk);
+            }
             chunks.add(ragChunk);
-            tasks.add(embeddingTaskService.ensurePendingTask(ragChunk));
+            tasks.add(task);
         }
         List<String> removedChunkIds = chunkService.replaceExcept(
                 document.getId(),
@@ -62,7 +75,19 @@ public class RagIndexingService {
         );
         embeddingTaskService.deleteByChunkIds(removedChunkIds);
         documentService.markIndexed(document);
+        new AfterCommitBoundary().afterCommit(() -> removeFromIndex(removedChunkIds));
         return new RagIndexingResult(document, List.copyOf(chunks), List.copyOf(tasks));
+    }
+
+    /** ES 里的向量文档必须随分块一起消失，删除失败只记日志：库里的分块才是权威数据。 */
+    private void removeFromIndex(List<String> chunkIds) {
+        for (String chunkId : chunkIds) {
+            try {
+                indexManager.deleteChunk(chunkId);
+            } catch (RuntimeException error) {
+                LOG.log(Level.WARNING, "Failed to delete RAG chunk from Elasticsearch: " + chunkId, error);
+            }
+        }
     }
 
     public record RagIndexingResult(
@@ -84,7 +109,16 @@ class RagDocumentService {
         this.mapper = mapper;
     }
 
-    RagDocument upsert(RagSourceDocument source) {
+    /**
+     * 写入或更新文档。
+     *
+     * @param aclChanged 可见性相关的字段（acl_scope 与 metadata）是否发生变化；
+     *                   变化时必须重新生成向量，否则 ES 里留着旧 ACL 的副本
+     */
+    record DocumentUpsert(RagDocument document, boolean aclChanged) {
+    }
+
+    DocumentUpsert upsert(RagSourceDocument source) {
         String id = RagHashSupport.stableId(
                 "doc",
                 source.sourceTable(),
@@ -95,6 +129,7 @@ class RagDocumentService {
         LocalDateTime now = LocalDateTime.now();
         RagDocument document = mapper.selectById(id);
         boolean insert = document == null;
+        boolean aclChanged = insert || !sameAcl(document, source);
         if (insert) {
             document = new RagDocument();
             document.setId(id);
@@ -116,13 +151,21 @@ class RagDocumentService {
         } else {
             mapper.updateById(document);
         }
-        return document;
+        return new DocumentUpsert(document, aclChanged);
     }
 
     void markIndexed(RagDocument document) {
         document.setIndexedAt(LocalDateTime.now());
         document.setUpdatedAt(document.getIndexedAt());
         mapper.updateById(document);
+    }
+
+    private static boolean sameAcl(RagDocument document, RagSourceDocument source) {
+        String scope = normalizeAclScope(source.aclScope());
+        String metadata = source.metadataJson() == null ? "" : source.metadataJson();
+        String storedScope = document.getAclScope() == null ? "" : document.getAclScope();
+        String storedMetadata = document.getMetadataJson() == null ? "" : document.getMetadataJson();
+        return scope.equals(storedScope) && metadata.equals(storedMetadata);
     }
 
     private static String normalizeAclScope(String aclScope) {
@@ -164,6 +207,8 @@ class RagChunkService {
         LocalDateTime now = LocalDateTime.now();
         RagChunk ragChunk = mapper.selectById(id);
         boolean insert = ragChunk == null;
+        // 分块 id 由内容哈希决定：id 不变就说明内容没变，已有的向量仍然有效，不必重新排队。
+        boolean contentUnchanged = !insert && chunk.contentHash().equals(ragChunk.getContentHash());
         if (insert) {
             ragChunk = new RagChunk();
             ragChunk.setId(id);
@@ -176,7 +221,9 @@ class RagChunkService {
         ragChunk.setTokenCount(chunk.tokenCount());
         ragChunk.setCharCount(chunk.charCount());
         ragChunk.setSourceField(chunk.sourceField());
-        ragChunk.setStatus("PENDING_EMBEDDING");
+        if (!contentUnchanged) {
+            ragChunk.setStatus(RagEmbeddingStatus.CHUNK_PENDING_EMBEDDING);
+        }
         ragChunk.setUpdatedAt(now);
         if (insert) {
             mapper.insert(ragChunk);
@@ -185,16 +232,23 @@ class RagChunkService {
         }
         return ragChunk;
     }
+
+    /** 把分块退回待嵌入状态，检索侧据此排除还没写入 ES 的向量。 */
+    void markPendingEmbedding(RagChunk chunk) {
+        if (RagEmbeddingStatus.CHUNK_PENDING_EMBEDDING.equals(chunk.getStatus())) {
+            return;
+        }
+        chunk.setStatus(RagEmbeddingStatus.CHUNK_PENDING_EMBEDDING);
+        chunk.setUpdatedAt(LocalDateTime.now());
+        mapper.updateById(chunk);
+    }
 }
 
 @ApplicationScoped
 class RagEmbeddingTaskService {
 
-    static final String STATUS_PENDING = "PENDING";
-    static final String STATUS_RUNNING = "RUNNING";
-    static final String STATUS_SUCCEEDED = "SUCCEEDED";
-    static final String STATUS_FAILED = "FAILED";
-    static final String STATUS_POISONED = "POISONED";
+    static final String STATUS_PENDING = RagEmbeddingStatus.PENDING;
+    static final String STATUS_SUCCEEDED = RagEmbeddingStatus.SUCCEEDED;
 
     private final RagEmbeddingTaskMapper mapper;
     private final RagProperties properties;
@@ -223,36 +277,65 @@ class RagEmbeddingTaskService {
         }
     }
 
-    RagEmbeddingTask ensurePendingTask(RagChunk chunk) {
+    /**
+     * 保证分块有且只有一条待处理任务。
+     *
+     * <p>任务键里含 provider 与 model，换模型会生成新键；这里按 chunk_id 复用最近的一条并清掉
+     * 重复项，重复索引同一份内容不会把队列越堆越长。
+     */
+    RagEmbeddingTask ensurePendingTask(RagChunk chunk, boolean aclChanged) {
         String provider = normalize(properties.getEmbeddingProvider(), "unassigned");
         String model = normalize(properties.getEmbeddingModel(), "unassigned");
-        String taskKey = RagHashSupport.stableId(
-                "emb",
-                chunk.getId(),
-                provider,
-                model
-        );
         LocalDateTime now = LocalDateTime.now();
-        RagEmbeddingTask task = mapper.selectById(taskKey);
-        if (task != null) {
+
+        List<RagEmbeddingTask> existing = mapper.selectList(new QueryWrapper<RagEmbeddingTask>()
+                .eq("chunk_id", chunk.getId())
+                .orderByDesc("created_at"));
+        RagEmbeddingTask task = existing.isEmpty() ? null : existing.get(0);
+        for (int i = 1; i < existing.size(); i++) {
+            mapper.deleteById(existing.get(i).getId());
+        }
+
+        if (task == null) {
+            String taskKey = RagHashSupport.stableId("emb", chunk.getId(), provider, model);
+            task = new RagEmbeddingTask();
+            task.setId(taskKey);
+            task.setChunkId(chunk.getId());
+            task.setTaskKey(taskKey);
+            task.setProvider(provider);
+            task.setModel(model);
             task.setStatus(STATUS_PENDING);
-            task.setNextRetryAt(null);
+            task.setAttemptCount(0);
+            task.setCreatedAt(now);
             task.setUpdatedAt(now);
-            mapper.updateById(task);
+            mapper.insert(task);
             return task;
         }
 
-        task = new RagEmbeddingTask();
-        task.setId(taskKey);
-        task.setChunkId(chunk.getId());
-        task.setTaskKey(taskKey);
-        task.setProvider(provider);
-        task.setModel(model);
-        task.setStatus(STATUS_PENDING);
-        task.setAttemptCount(0);
-        task.setCreatedAt(now);
-        task.setUpdatedAt(now);
-        mapper.insert(task);
+        boolean upToDate = !aclChanged
+                && STATUS_SUCCEEDED.equals(task.getStatus())
+                && provider.equals(task.getProvider())
+                && model.equals(task.getModel())
+                && RagEmbeddingStatus.CHUNK_EMBEDDED.equals(chunk.getStatus());
+        if (!upToDate) {
+            UpdateWrapper<RagEmbeddingTask> wrapper = new UpdateWrapper<>();
+            wrapper.set("provider", provider)
+                    .set("model", model)
+                    .set("status", STATUS_PENDING)
+                    .set("attempt_count", 0)
+                    .set("updated_at", now)
+                    .setSql("next_retry_at = null")
+                    .setSql("last_error = null")
+                    .eq("id", task.getId());
+            mapper.update(null, wrapper);
+            task.setProvider(provider);
+            task.setModel(model);
+            task.setStatus(STATUS_PENDING);
+            task.setAttemptCount(0);
+            task.setNextRetryAt(null);
+            task.setLastError(null);
+            task.setUpdatedAt(now);
+        }
         return task;
     }
 
@@ -260,25 +343,3 @@ class RagEmbeddingTaskService {
         return value == null || value.isBlank() ? fallback : value.trim();
     }
 }
-
-final class RagHashSupport {
-
-    private static final String DELIMITER = "\u001F";
-
-    private RagHashSupport() {
-    }
-
-    static String stableId(String prefix, String... parts) {
-        return prefix + "_" + sha256Hex(String.join(DELIMITER, parts)).substring(0, 32);
-    }
-
-    private static String sha256Hex(String value) {
-        try {
-            MessageDigest digest = MessageDigest.getInstance("SHA-256");
-            return HexFormat.of().formatHex(digest.digest(value.getBytes(StandardCharsets.UTF_8)));
-        } catch (NoSuchAlgorithmException error) {
-            throw new IllegalStateException("SHA-256 is not available", error);
-        }
-    }
-}
-

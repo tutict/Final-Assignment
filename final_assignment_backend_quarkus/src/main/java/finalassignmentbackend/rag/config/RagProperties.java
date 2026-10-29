@@ -47,11 +47,11 @@ public class RagProperties {
     @ConfigProperty(name = "rag.embedding.enabled", defaultValue = "false")
     boolean embeddingEnabled = false;
 
-    @ConfigProperty(name = "rag.embedding.provider", defaultValue = "unassigned")
-    String embeddingProvider = "unassigned";
+    @ConfigProperty(name = "rag.embedding.provider", defaultValue = "ollama")
+    String embeddingProvider = "ollama";
 
-    @ConfigProperty(name = "rag.embedding.model", defaultValue = "unassigned")
-    String embeddingModel = "unassigned";
+    @ConfigProperty(name = "rag.embedding.model", defaultValue = "nomic-embed-text")
+    String embeddingModel = "nomic-embed-text";
 
     @ConfigProperty(name = "rag.embedding.dimensions", defaultValue = "768")
     int embeddingDimensions = 768;
@@ -237,5 +237,137 @@ public class RagProperties {
 
     public boolean isMysqlFallbackEnabled() {
         return mysqlFallbackEnabled;
+    }
+
+    public void setEnabled(boolean enabled) {
+        this.enabled = enabled;
+    }
+
+    public void setIndexingEnabled(boolean indexingEnabled) {
+        this.indexingEnabled = indexingEnabled;
+    }
+
+    public void setChunkSize(int chunkSize) {
+        this.chunkSize = chunkSize;
+    }
+
+    public void setChunkOverlap(int chunkOverlap) {
+        this.chunkOverlap = chunkOverlap;
+    }
+
+    public void setElasticsearchEnabled(boolean elasticsearchEnabled) {
+        this.elasticsearchEnabled = elasticsearchEnabled;
+    }
+
+    public void setElasticsearchTimeout(Duration elasticsearchTimeout) {
+        this.elasticsearchTimeout = elasticsearchTimeout;
+    }
+
+    public void setIndexName(String indexName) {
+        this.indexName = indexName;
+    }
+
+    public void setIndexAlias(String indexAlias) {
+        this.indexAlias = indexAlias;
+    }
+
+    public void setIndexTextAnalyzer(String indexTextAnalyzer) {
+        this.indexTextAnalyzer = indexTextAnalyzer;
+    }
+
+    public void setIndexShards(int indexShards) {
+        this.indexShards = indexShards;
+    }
+
+    public void setIndexReplicas(int indexReplicas) {
+        this.indexReplicas = indexReplicas;
+    }
+
+    public void setIndexRefreshInterval(String indexRefreshInterval) {
+        this.indexRefreshInterval = indexRefreshInterval;
+    }
+
+    public void setEmbeddingEnabled(boolean embeddingEnabled) {
+        this.embeddingEnabled = embeddingEnabled;
+    }
+
+    public void setEmbeddingProvider(String embeddingProvider) {
+        this.embeddingProvider = embeddingProvider;
+    }
+
+    public void setEmbeddingModel(String embeddingModel) {
+        this.embeddingModel = embeddingModel;
+    }
+
+    public void setEmbeddingDimensions(int embeddingDimensions) {
+        this.embeddingDimensions = embeddingDimensions;
+    }
+
+    public void setEmbeddingBaseUrl(String embeddingBaseUrl) {
+        this.embeddingBaseUrl = embeddingBaseUrl;
+    }
+
+    public void setEmbeddingBatchSize(int embeddingBatchSize) {
+        this.embeddingBatchSize = embeddingBatchSize;
+    }
+
+    public void setEmbeddingMaxAttempts(int embeddingMaxAttempts) {
+        this.embeddingMaxAttempts = embeddingMaxAttempts;
+    }
+
+    public void setEmbeddingRetryDelay(Duration embeddingRetryDelay) {
+        this.embeddingRetryDelay = embeddingRetryDelay;
+    }
+
+    public void setEmbeddingTimeout(Duration embeddingTimeout) {
+        this.embeddingTimeout = embeddingTimeout;
+    }
+
+    public void setEmbeddingRequestBudget(Duration embeddingRequestBudget) {
+        this.embeddingRequestBudget = embeddingRequestBudget;
+    }
+
+    public void setEmbeddingSchedulerEnabled(boolean embeddingSchedulerEnabled) {
+        this.embeddingSchedulerEnabled = embeddingSchedulerEnabled;
+    }
+
+    public void setEmbeddingPollInterval(Duration embeddingPollInterval) {
+        this.embeddingPollInterval = embeddingPollInterval;
+    }
+
+    public void setRetrievalEnabled(boolean retrievalEnabled) {
+        this.retrievalEnabled = retrievalEnabled;
+    }
+
+    public void setBm25Weight(double bm25Weight) {
+        this.bm25Weight = bm25Weight;
+    }
+
+    public void setVectorWeight(double vectorWeight) {
+        this.vectorWeight = vectorWeight;
+    }
+
+    public void setMinScore(double minScore) {
+        this.minScore = minScore;
+    }
+
+    public void setCandidateMultiplier(int candidateMultiplier) {
+        this.candidateMultiplier = candidateMultiplier;
+    }
+
+    public void setRrfRankConstant(int rrfRankConstant) {
+        this.rrfRankConstant = rrfRankConstant;
+    }
+
+    public void setRerankEnabled(boolean rerankEnabled) {
+        this.rerankEnabled = rerankEnabled;
+    }
+
+    public void setRerankLexicalWeight(double rerankLexicalWeight) {
+        this.rerankLexicalWeight = rerankLexicalWeight;
+    }
+
+    public void setMysqlFallbackEnabled(boolean mysqlFallbackEnabled) {
+        this.mysqlFallbackEnabled = mysqlFallbackEnabled;
     }
 }

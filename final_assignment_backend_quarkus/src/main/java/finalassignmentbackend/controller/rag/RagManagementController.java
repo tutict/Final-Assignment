@@ -10,6 +10,7 @@ import finalassignmentbackend.rag.config.RagProperties;
 import finalassignmentbackend.rag.dto.RagSourceDocument;
 import finalassignmentbackend.rag.elasticsearch.ElasticsearchException;
 import finalassignmentbackend.rag.elasticsearch.RagIndexManager;
+import finalassignmentbackend.rag.embedding.RagEmbeddingWorker;
 import finalassignmentbackend.rag.entity.RagChunk;
 import finalassignmentbackend.rag.entity.RagDocument;
 import finalassignmentbackend.rag.entity.RagEmbeddingTask;
@@ -56,6 +57,7 @@ public class RagManagementController {
     @Inject RagIndexingService indexingService;
     @Inject RagProperties ragProperties;
     @Inject RagIndexManager ragIndexManager;
+    @Inject RagEmbeddingWorker embeddingWorker;
 
     @GET
     @Path("/overview")
@@ -293,15 +295,28 @@ public class RagManagementController {
     @Path("/embedding/run")
     @Consumes(MediaType.WILDCARD)
     @RunOnVirtualThread
-    public Response embeddingRun() {
-        return Response.ok(ApiResponse.ok(Map.of("selectedTasks", 0, "succeededTasks", 0, "failedTasks", 0, "enabled", ragProperties.isEnabled(), "alreadyRunning", false))).build();
+    public Response embeddingRun(@QueryParam("limit") @DefaultValue("50") int limit) {
+        RagEmbeddingWorker.EmbeddingBatchResult result = embeddingWorker.processPendingBatch(limit);
+        Map<String, Object> body = new LinkedHashMap<>();
+        body.put("selectedTasks", result.selectedTasks());
+        body.put("succeededTasks", result.succeededTasks());
+        body.put("failedTasks", result.failedTasks());
+        body.put("enabled", result.enabled());
+        body.put("alreadyRunning", result.alreadyRunning());
+        body.put("hasMore", result.hasMore());
+        return Response.ok(ApiResponse.ok(body)).build();
     }
 
     @POST
     @Path("/embedding/requeue")
     @RunOnVirtualThread
-    public Response embeddingRequeue() {
-        return Response.ok(ApiResponse.ok(Map.of("requeuedChunks", 0, "requeuedTasks", 0, "createdTasks", 0))).build();
+    public Response embeddingRequeue(@QueryParam("limit") @DefaultValue("100") int limit) {
+        RagEmbeddingWorker.RequeueResult result = embeddingWorker.requeue(limit);
+        Map<String, Object> body = new LinkedHashMap<>();
+        body.put("requeuedChunks", result.requeuedChunks());
+        body.put("requeuedTasks", result.requeuedTasks());
+        body.put("createdTasks", result.createdTasks());
+        return Response.ok(ApiResponse.ok(body)).build();
     }
 
     @POST
