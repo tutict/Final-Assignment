@@ -358,3 +358,6 @@ node_modules/
 
 # React TS frontend build output
 /final_assignment_front_react/dist/
+
+# Local agent workspace (project notes, memory, caches) — never shared.
+.workbuddy/
