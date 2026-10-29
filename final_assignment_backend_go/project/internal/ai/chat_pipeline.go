@@ -35,10 +35,7 @@ func NewChatPipeline(
 	aiProvider aisvc.AiProvider,
 	config aisvc.AiChatConfig,
 ) (*ChatPipeline, error) {
-	promptAssembler, err := NewPromptAssembler()
-	if err != nil {
-		return nil, fmt.Errorf("failed to create prompt assembler: %w", err)
-	}
+	promptAssembler := NewPromptAssembler()
 
 	// Normalize config
 	normalizedConfig := normalizeAiChatConfig(config)

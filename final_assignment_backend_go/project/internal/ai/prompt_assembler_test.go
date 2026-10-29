@@ -66,10 +66,7 @@ func TestContextBuilder_Build(t *testing.T) {
 }
 
 func TestPromptAssembler_Assemble(t *testing.T) {
-	pa, err := NewPromptAssembler()
-	if err != nil {
-		t.Fatalf("NewPromptAssembler() error = %v", err)
-	}
+	pa := NewPromptAssembler()
 
 	tests := []struct {
 		name               string
@@ -84,7 +81,7 @@ func TestPromptAssembler_Assemble(t *testing.T) {
 			name:             "basic prompt without context",
 			userMessage:      "交通违章如何处理？",
 			agentConstraints: "You are a helpful assistant.",
-			wantContains:     []string{"交通违章如何处理", "helpful assistant", "User:"},
+			wantContains:     []string{"交通违章如何处理", "helpful assistant", "User message:"},
 		},
 		{
 			name:        "prompt with conversation window",
