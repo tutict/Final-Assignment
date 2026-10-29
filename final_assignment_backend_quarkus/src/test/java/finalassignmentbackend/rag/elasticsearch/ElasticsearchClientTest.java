@@ -91,6 +91,15 @@ class ElasticsearchClientTest {
     }
 
     @Test
+    void deleteTreatsMissingDocumentAsSuccess() {
+        respond(404, "{\"result\":\"not_found\"}");
+
+        client.deleteJson("/rag_chunk_quarkus_v1/_doc/missing");
+
+        assertEquals(List.of("DELETE"), methods);
+    }
+
+    @Test
     void unreachableHostRaisesElasticsearchException() {
         client.host = "http://127.0.0.1:1";
 

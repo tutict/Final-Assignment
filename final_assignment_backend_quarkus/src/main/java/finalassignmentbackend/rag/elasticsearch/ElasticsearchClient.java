@@ -68,8 +68,20 @@ public class ElasticsearchClient {
         return write("PUT", path, body);
     }
 
+    /**
+     * 删除文档。目标不存在（404）视为删除成功：删除是幂等操作，文档可能从未进过索引
+     * （例如其他后端写入的历史数据）。
+     */
     public JsonObject deleteJson(String path) {
-        return write("DELETE", path, null);
+        Response response = execute("DELETE", path, null);
+        if (response.status() == 404) {
+            return Json.createObjectBuilder().build();
+        }
+        if (response.status() >= 400) {
+            throw new ElasticsearchException("Elasticsearch DELETE failed for " + path,
+                    response.status(), response.body());
+        }
+        return parse(response);
     }
 
     /** HEAD 探测：资源存在返回 true。 */
