@@ -9,6 +9,8 @@ import finalassignmentbackend.ai.chat.ChatPipeline;
 import finalassignmentbackend.controller.DriverAccessGuard;
 import finalassignmentbackend.reliability.ModelCallBulkhead;
 import finalassignmentbackend.service.ai.AIChatSearchService;
+import io.smallrye.common.annotation.Blocking;
+import io.smallrye.common.annotation.RunOnVirtualThread;
 import io.smallrye.mutiny.Multi;
 import jakarta.annotation.security.RolesAllowed;
 import jakarta.inject.Inject;
@@ -57,6 +59,8 @@ public class ChatController {
     @GET
     @Path("/chat")
     @Produces(MediaType.SERVER_SENT_EVENTS)
+    @Blocking
+    @RunOnVirtualThread
     public Multi<String> chat(
             @QueryParam("message") String message,
             @QueryParam("massage") String massage,
@@ -114,6 +118,8 @@ public class ChatController {
     @Path("/chat/stream")
     @Consumes(MediaType.APPLICATION_JSON)
     @Produces(MediaType.SERVER_SENT_EVENTS)
+    @Blocking
+    @RunOnVirtualThread
     public Multi<String> chatStream(@Context SecurityContext securityContext, Map<String, Object> request) {
         String message = resolveMessage(stringValue(request, "message"), stringValue(request, "massage"));
         String sessionKey = stringValue(request, "sessionKey");
