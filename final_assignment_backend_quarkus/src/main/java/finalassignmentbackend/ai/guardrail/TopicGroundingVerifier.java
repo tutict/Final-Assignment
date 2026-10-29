@@ -16,6 +16,7 @@ import org.eclipse.microprofile.config.inject.ConfigProperty;
 import java.time.Duration;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
@@ -57,8 +58,15 @@ public class TopicGroundingVerifier {
     @ConfigProperty(name = "ai.guardrail.topic-verification.enabled", defaultValue = "true")
     boolean enabled;
 
-    @ConfigProperty(name = "ai.guardrail.topic-verification.model", defaultValue = "")
-    String model;
+    /**
+     * 判官模型名。
+     *
+     * <p>用 Optional 而不是带空串默认值的 String：SmallRye 把空字符串按 null 处理，
+     * 而 Quarkus 在启动期会拒绝"配置成空串"的 String 属性（SRCFG00040），导致配置里
+     * 留空 = 应用起不来。Optional 让"没配判官模型"回到文档承诺的"校验关闭"。
+     */
+    @ConfigProperty(name = "ai.guardrail.topic-verification.model")
+    Optional<String> model;
 
     @ConfigProperty(name = "ai.guardrail.topic-verification.timeout", defaultValue = "PT12S")
     Duration timeout;
@@ -70,14 +78,26 @@ public class TopicGroundingVerifier {
 
     @PostConstruct
     void logConfiguration() {
-        if (enabled && (model == null || model.isBlank())) {
+        if (enabled && judgeModel() == null) {
             LOG.warning("Topic verification stays off: configure ai.guardrail.topic-verification.model "
                     + "with a judge stronger than the chat model to enable it");
         }
     }
 
     public boolean isEnabled() {
-        return enabled && model != null && !model.isBlank();
+        return enabled && judgeModel() != null;
+    }
+
+    /** 判官模型名；未配置或全是空白时返回 null，表示校验关闭。 */
+    private String judgeModel() {
+        if (model == null || model.isEmpty()) {
+            return null;
+        }
+        String value = model.get();
+        if (value == null || value.isBlank()) {
+            return null;
+        }
+        return value.trim();
     }
 
     public GroundingDecision verify(
@@ -144,9 +164,13 @@ public class TopicGroundingVerifier {
             throw new IllegalStateException("Judge model factory is not configured");
         }
         Duration effectiveTimeout = timeout == null ? Duration.ofSeconds(12) : timeout;
+        String judgeModel = judgeModel();
+        if (judgeModel == null) {
+            throw new IllegalStateException("Topic verification judge model is not configured");
+        }
         synchronized (this) {
             if (judge == null) {
-                judge = judgeFactory.create(model.trim(), effectiveTimeout);
+                judge = judgeFactory.create(judgeModel, effectiveTimeout);
             }
             return judge;
         }

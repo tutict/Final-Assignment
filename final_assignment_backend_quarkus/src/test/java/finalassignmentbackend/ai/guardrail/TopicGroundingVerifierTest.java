@@ -10,6 +10,7 @@ import org.junit.jupiter.api.Test;
 
 import java.time.Duration;
 import java.util.List;
+import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
@@ -21,7 +22,7 @@ class TopicGroundingVerifierTest {
     @Test
     void staysDisabledWithoutAJudgeModel() {
         TopicGroundingVerifier verifier = verifier();
-        verifier.model = "  ";
+        verifier.model = Optional.of("  ");
 
         assertFalse(verifier.isEnabled());
         assertTrue(verifier.verify("报废流程？", "过户流程 [1]。", knowledgeSources()).grounded());
@@ -115,7 +116,7 @@ class TopicGroundingVerifierTest {
     private static TopicGroundingVerifier verifier() {
         TopicGroundingVerifier verifier = new TopicGroundingVerifier();
         verifier.enabled = true;
-        verifier.model = "judge-model";
+        verifier.model = Optional.of("judge-model");
         verifier.timeout = Duration.ofSeconds(2);
         return verifier;
     }
