@@ -8,6 +8,8 @@ import finalassignmentbackend.mapper.RagDocumentMapper;
 import finalassignmentbackend.mapper.RagEmbeddingTaskMapper;
 import finalassignmentbackend.rag.config.RagProperties;
 import finalassignmentbackend.rag.dto.RagSourceDocument;
+import finalassignmentbackend.rag.elasticsearch.ElasticsearchException;
+import finalassignmentbackend.rag.elasticsearch.RagIndexManager;
 import finalassignmentbackend.rag.entity.RagChunk;
 import finalassignmentbackend.rag.entity.RagDocument;
 import finalassignmentbackend.rag.entity.RagEmbeddingTask;
@@ -53,6 +55,7 @@ public class RagManagementController {
     @Inject RagEmbeddingTaskMapper taskMapper;
     @Inject RagIndexingService indexingService;
     @Inject RagProperties ragProperties;
+    @Inject RagIndexManager ragIndexManager;
 
     @GET
     @Path("/overview")
@@ -305,7 +308,22 @@ public class RagManagementController {
     @Path("/index/migrate")
     @RunOnVirtualThread
     public Response migrate() {
-        return Response.ok(ApiResponse.ok(Map.of("enabled", ragProperties.isEnabled(), "createdIndex", false, "aliasSwitched", false, "message", "Quarkus RAG stores documents in MySQL; Elasticsearch alias switch is optional."))).build();
+        if (!ragProperties.isEnabled() || !ragProperties.isElasticsearchEnabled()) {
+            return Response.status(409).entity(ApiResponse.error("RAG_DISABLED", "RAG indexing is not enabled")).build();
+        }
+        try {
+            RagIndexManager.IndexState state = ragIndexManager.ensureReady();
+            Map<String, Object> body = new LinkedHashMap<>();
+            body.put("enabled", true);
+            body.put("createdIndex", state.createdIndex());
+            body.put("aliasSwitched", state.aliasSwitched());
+            body.put("indexName", ragIndexManager.indexName());
+            body.put("alias", ragIndexManager.aliasName());
+            body.put("message", "Elasticsearch index and alias are ready; documents are written by the embedding worker.");
+            return Response.ok(ApiResponse.ok(body)).build();
+        } catch (ElasticsearchException error) {
+            return Response.status(503).entity(ApiResponse.error("ELASTICSEARCH_UNAVAILABLE", error.getMessage())).build();
+        }
     }
 
     private Map<String, RagEmbeddingTask> latestTasks(List<RagChunk> chunks) {

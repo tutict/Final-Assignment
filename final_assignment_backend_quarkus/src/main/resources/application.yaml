@@ -114,6 +114,49 @@ rag:
   chunk:
     size: 500
     overlap: 100
+  # Elasticsearch index lifecycle. The Quarkus backend owns its own index/alias so it never
+  # overwrites the Spring backend's vectors (different chunk ids, same ES cluster).
+  elasticsearch:
+    enabled: true
+    timeout: 10s
+  index:
+    name: rag_chunk_quarkus_v1
+    alias: rag_chunk_quarkus_current
+    text-analyzer: standard
+    shards: 1
+    replicas: 0
+    refresh-interval: 30s
+  embedding:
+    # Off by default: enabling it makes the backend talk to Ollama for vectors.
+    enabled: false
+    provider: ollama
+    model: nomic-embed-text
+    dimensions: 768
+    base-url: ${OLLAMA_BASE_URL:http://localhost:11434}
+    batch-size: 25
+    max-attempts: 3
+    retry-delay: 1m
+    timeout: 30s
+    request-budget: 20s
+    # The embedding task table is shared by the Spring/Go/Quarkus backends, so the background
+    # poller stays off; POST /api/rag/admin/embedding/run drives the queue explicitly.
+    scheduler-enabled: false
+    poll-interval: 30s
+  retrieval:
+    enabled: true
+    bm25-weight: 0.8
+    vector-weight: 0.2
+    min-score: 0.2
+    candidate-multiplier: 3
+    rrf-rank-constant: 60
+    rerank-enabled: true
+    rerank-lexical-weight: 0.15
+  mysql-fallback-enabled: true
+
+# Shared with the existing ES reader and the dev Docker container (RunDocker sets the same
+# system property when it starts Elasticsearch).
+elasticsearch:
+  host: ${ELASTICSEARCH_HOST:http://localhost:9200}
 
 # Chat pipeline configuration. AI_AGENT_ENABLED=false turns every turn into a pure-RAG answer
 # (no tool routing), which is what the RAGAS harness expects. Guardrail switches are documented
