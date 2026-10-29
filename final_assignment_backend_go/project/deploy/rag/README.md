@@ -23,7 +23,13 @@ Useful smoke checks:
 Invoke-WebRequest -UseBasicParsing http://127.0.0.1:8081/api/rag/admin/overview
 Invoke-WebRequest -UseBasicParsing -Method POST http://127.0.0.1:8081/api/rag/admin/backfill
 Invoke-WebRequest -UseBasicParsing -Method POST http://127.0.0.1:8081/api/rag/admin/embedding/run
-Invoke-WebRequest -UseBasicParsing -Method POST http://127.0.0.1:8081/api/rag/query -ContentType 'application/json' -Body '{"query":"illegal parking appeal","topK":5,"roles":["admin"]}'
+Invoke-WebRequest -UseBasicParsing -Method POST http://127.0.0.1:8081/api/rag/query -ContentType 'application/json' -Body '{"query":"illegal parking appeal","topK":5}'
 ```
 
-The default live config uses deterministic embeddings, so Ollama is not required for this dependency stack.
+The live stack keeps deterministic embeddings, so Ollama is not required for this dependency stack.
+Its alias (`rag_chunk_go_live_current`) is namespaced on purpose: the shared cluster's
+`rag_chunk_current` alias belongs to the Spring pressure-test index, and reusing it would let
+the two backends overwrite each other's vectors.
+
+This scaffold has no JWT middleware, so retrieval runs as an anonymous principal and only PUBLIC
+documents are visible. Run `cmd/app` instead when a role-scoped answer has to be verified.

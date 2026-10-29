@@ -103,8 +103,8 @@ uv run ragas-eval all --top-k 5
 ## 评测 Quarkus 后端
 
 `final_assignment_backend_quarkus` 与主后端共用同一套 RAG 数据表，但使用**自己的 ES 索引与别名**
-（`rag_chunk_quarkus_v1` / `rag_chunk_quarkus_current`），避免与 Spring 的 768 维向量、Go 的 384 维向量
-互相覆盖。评测时必须显式指定别名与端口。
+（`rag_chunk_quarkus_v1` / `rag_chunk_quarkus_current`），避免与 Spring 的 `rag_chunk_current`、
+Go 的 `rag_chunk_go_current` 互相覆盖。评测时必须显式指定别名与端口。
 
 ```powershell
 cd final_assignment_backend_quarkus
@@ -139,6 +139,40 @@ uv run ragas-eval all --top-k 5
   评测 Quarkus 的实测结论见
   [../../docs/ai/ragas/quarkus-rag-elasticsearch-2026-10-29.md](../../docs/ai/ragas/quarkus-rag-elasticsearch-2026-10-29.md)。
 - 细节见 [../../docs/ai/ragas/quarkus-rag-elasticsearch-2026-10-29.md](../../docs/ai/ragas/quarkus-rag-elasticsearch-2026-10-29.md)。
+
+## 评测 Go 后端
+
+`final_assignment_backend_go` 使用**自己的 ES 索引与别名**（`rag_chunk_go_768_v1` /
+`rag_chunk_go_current`），向量同样来自 Ollama `nomic-embed-text`（768 维），与 Spring 的
+`rag_chunk_current` 隔离。
+
+```bash
+cd final_assignment_backend_go
+PORT=8080 \
+AI_AGENT_ENABLED=false \
+AI_GUARDRAIL_CITATION_ENFORCEMENT=true \
+AI_GUARDRAIL_TOPIC_VERIFICATION=true \
+AI_GUARDRAIL_TOPIC_MODEL=qwen2.5:7b \
+AI_GUARDRAIL_TOPIC_TIMEOUT=20s \
+RAG_RETRIEVAL_BM25_WEIGHT=0.8 RAG_RETRIEVAL_VECTOR_WEIGHT=0.2 \
+go run ./project/cmd/app
+```
+
+```bash
+cd scripts/ragas
+RAGAS_BASE_URL=http://127.0.0.1:8080 \
+RAGAS_ES_URL=http://127.0.0.1:9200 \
+RAGAS_INDEX_ALIAS=rag_chunk_go_current \
+RAGAS_TARGET_LABEL="Go 后端" \
+uv run ragas-eval run --top-k 5
+```
+
+- `cmd/app` 监听 `PORT`（默认 8080），`cmd/gozeroapi` 才用 `gozero-api.yaml` 里的 8081；RAGAS 默认指向
+  Spring 的 9080，评测 Go 时必须显式设置 `RAGAS_BASE_URL`。
+- Go 的检索身份只来自服务端 JWT，请求体里的 `roles` / `asRole` 被忽略；ACL 探针因此是真实约束。
+- 检索权重通过 `RAG_RETRIEVAL_*` 环境变量覆盖，默认值已与 Spring 一致（BM25 0.8 / 向量 0.2）。
+- 实测结论见 [../../docs/ai/ragas/go-ragas-2026-10-29.md](../../docs/ai/ragas/go-ragas-2026-10-29.md)，
+  移植说明见 [../../docs/ai/ragas/go-parity-2026-10-29.md](../../docs/ai/ragas/go-parity-2026-10-29.md)。
 
 ## 数据集
 

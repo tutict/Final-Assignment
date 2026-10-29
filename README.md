@@ -380,12 +380,13 @@ POST /api/rag/admin/backfill?page=1&size=200                        # 知识文�
 - RAG 提示词只向模型暴露 `[n]` 与正文；Ollama 默认 `temperature=0.2`；检索命中但答案无引用时先做一次引用修复重试，仍无引用才拒答（Agent 路径不重试）
 - 生成后主题校验由 `AI_GUARDRAIL_TOPIC_MODEL` 显式开启（例如 `qwen2.5:7b`）：答案通过引用护栏后，再判断检索资料是否覆盖所问主题，未覆盖时拒答；未配置时校验关闭。`AI_GUARDRAIL_TOPIC_TIMEOUT` 默认 `PT12S`，超时或输出无法解析时放行
 - RAG 回合会清理模型输出中的检索内部标签；`AI_GUARDRAIL_CITATION_ENFORCEMENT=false` 只关闭引用强制，不关闭标签清洗。若清洗移除全部非空回答，会返回安全提示；清洗替换原答时会保留各 token 的 SSE payload metadata
-- Go 后端已移植同一套答案层防护（清洗 → 引用护栏与一次修复 → 主题校验），并新增同名 `AI_AGENT_ENABLED` / `AI_GUARDRAIL_*` 环境变量；与 Spring 的差异是 Go 的引用护栏默认开启，检索为空或失败时会拒答，可显式关闭回退。Go 本轮未跑 RAGAS，原因与复现步骤见 [docs/ai/ragas/go-parity-2026-10-29.md](docs/ai/ragas/go-parity-2026-10-29.md)
+- Go 后端已移植同一套答案层防护（清洗 → 引用护栏与一次修复 → 主题校验），并新增同名 `AI_AGENT_ENABLED` / `AI_GUARDRAIL_*` 环境变量；与 Spring 的差异是 Go 的引用护栏默认开启，检索为空或失败时会拒答，可显式关闭回退。移植说明见 [docs/ai/ragas/go-parity-2026-10-29.md](docs/ai/ragas/go-parity-2026-10-29.md)
+- Go RAGAS 端到端已执行（2026-10-29，同数据集与裁判，`AI_AGENT_ENABLED=false`、引用强制开启，topK=5）：Faithfulness 0.9667、Relevancy 0.8891、Context Precision 1.0000、Context Recall 1.0000、Answer Correctness 0.8108，引用合规 27/30，可评分 27/30；不可答拒答 3/3、ACL 泄漏 0、上下文漂移 0、无硬失败。首轮暴露三处叠加缺陷（对话链路丢弃 `ragTopK`、裁判下发完整 JSON Schema 而非 `json_object`、判定解析按首尾花括号切片导致 fail-open），修复后拒答率由 0/3 回到 3/3。检索层与自身上一轮 36/36 完全一致，与 Spring 基线 33/36 集合相同、29/36 顺序相同。根因分析与复现命令见 [docs/ai/ragas/go-ragas-2026-10-29.md](docs/ai/ragas/go-ragas-2026-10-29.md)
 - Quarkus 后端已具备纯 RAG 对话链路与同一套答案层防护（清洗 → 引用护栏与一次修复 → 主题校验），裁判模型复用 `OLLAMA_BASE_URL` 下独立配置的 Ollama 模型；**引用强制在 Quarkus 默认关闭**（`AI_GUARDRAIL_CITATION_ENFORCEMENT=false`），评测时必须显式打开才能与基线可比
 - Quarkus 后端现已补齐 Elasticsearch 索引、Ollama 向量嵌入与 BM25 + 向量混合检索：使用独立索引 `rag_chunk_quarkus_v1` / 别名 `rag_chunk_quarkus_current`，检索身份只来自服务端（请求体 `roles`/`asRole` 被忽略），ACL 改为 `acl_scope` + metadata 明细的严格放行，`topK` 上限提升到 50。管理端 `/index/migrate`、`/embedding/run`、`/embedding/requeue`、`/backfill` 均为真实实现。详见 [docs/ai/ragas/quarkus-rag-elasticsearch-2026-10-29.md](docs/ai/ragas/quarkus-rag-elasticsearch-2026-10-29.md)
 - Quarkus RAGAS 端到端已执行两次（2026-10-29，同数据集与裁判，`AI_AGENT_ENABLED=false`、引用强制开启，topK=5）。运行 B：Faithfulness 0.9638、Relevancy 0.8701、Context Precision 0.9552、Context Recall 0.9828、Answer Correctness 0.8117，引用合规 29/30，可评分 29/30；运行 C：Faithfulness 0.9315、Relevancy 0.8378、Context Precision 0.9889、Context Recall 0.9815、Answer Correctness 0.7902，引用合规 27/30，可评分 27/30。两次均不可答拒答 3/3、ACL 泄漏 0、上下文漂移 0、无硬失败。检索层是确定性的：两次运行 36/36 完全一致，与 Spring 基线 35/36 集合相同、31/36 顺序相同；生成层随采样摆动，同一构建两次的 Faithfulness 配对差就有 −0.0370，因此「与基线偏差 ≤ 0.03」只对检索侧指标（Context Precision / Context Recall，实测差距 −0.0064 / 0.0000）成立。偏差归因与稳定性分析见 [docs/ai/ragas/quarkus-rag-elasticsearch-2026-10-29.md](docs/ai/ragas/quarkus-rag-elasticsearch-2026-10-29.md)
 
-操作步骤与已知限制见 [scripts/ragas/README.md](scripts/ragas/README.md)，基线见 [docs/ai/ragas/baseline-2026-10-23.md](docs/ai/ragas/baseline-2026-10-23.md)，检索和答案质量改进记录见 [docs/ai/ragas/improvement-2026-10-23.md](docs/ai/ragas/improvement-2026-10-23.md) 与 [docs/ai/ragas/improvement-2026-10-28.md](docs/ai/ragas/improvement-2026-10-28.md)；拒答改造见 [docs/ai/ragas/refusal-2026-10-29.md](docs/ai/ragas/refusal-2026-10-29.md)；Cloud 后端的移植与对齐结果见 [docs/ai/ragas/cloud-parity-2026-10-28.md](docs/ai/ragas/cloud-parity-2026-10-28.md)；Go 后端的移植见 [docs/ai/ragas/go-parity-2026-10-29.md](docs/ai/ragas/go-parity-2026-10-29.md)；Quarkus 后端的纯 RAG 与拒答移植见 [docs/ai/ragas/quarkus-refusal-2026-10-29.md](docs/ai/ragas/quarkus-refusal-2026-10-29.md)，ES 兼容与混合检索见 [docs/ai/ragas/quarkus-rag-elasticsearch-2026-10-29.md](docs/ai/ragas/quarkus-rag-elasticsearch-2026-10-29.md)。
+操作步骤与已知限制见 [scripts/ragas/README.md](scripts/ragas/README.md)，基线见 [docs/ai/ragas/baseline-2026-10-23.md](docs/ai/ragas/baseline-2026-10-23.md)，检索和答案质量改进记录见 [docs/ai/ragas/improvement-2026-10-23.md](docs/ai/ragas/improvement-2026-10-23.md) 与 [docs/ai/ragas/improvement-2026-10-28.md](docs/ai/ragas/improvement-2026-10-28.md)；拒答改造见 [docs/ai/ragas/refusal-2026-10-29.md](docs/ai/ragas/refusal-2026-10-29.md)；Cloud 后端的移植与对齐结果见 [docs/ai/ragas/cloud-parity-2026-10-28.md](docs/ai/ragas/cloud-parity-2026-10-28.md)；Go 后端的移植见 [docs/ai/ragas/go-parity-2026-10-29.md](docs/ai/ragas/go-parity-2026-10-29.md)，RAGAS 评测见 [docs/ai/ragas/go-ragas-2026-10-29.md](docs/ai/ragas/go-ragas-2026-10-29.md)；Quarkus 后端的纯 RAG 与拒答移植见 [docs/ai/ragas/quarkus-refusal-2026-10-29.md](docs/ai/ragas/quarkus-refusal-2026-10-29.md)，ES 兼容与混合检索见 [docs/ai/ragas/quarkus-rag-elasticsearch-2026-10-29.md](docs/ai/ragas/quarkus-rag-elasticsearch-2026-10-29.md)。
 
 ## 后端包结构
 
@@ -855,27 +856,42 @@ ws://localhost:8080/eventbus?ticket=wst_xxxxx
 // POST /api/rag/query
 {
   "query": "如何缴纳罚款",
-  "topK": 5,
-  "minScore": 0.3
+  "topK": 5
 }
 
 // 响应
 {
   "results": [
     {
+      "chunkId": "c-fine-payment-methods",
+      "documentId": "doc-fine-payment",
+      "title": "罚款缴纳方式",
+      "sourceType": "MANUAL",
+      "sourceId": "c-fine-payment-methods",
       "content": "罚款缴纳流程...",
-      "score": 0.85,
-      "source": "driver_manual.pdf"
+      "bm25Score": 0.72,
+      "vectorScore": 0.81,
+      "finalScore": 0.85,
+      "metadata": {}
     }
   ]
 }
 ```
 
 检索策略：
-- BM25 关键词匹配
-- 向量语义检索
-- 重排序优化
+- BM25 关键词匹配（权重 0.8）
+- 向量语义检索（权重 0.2），向量来自 Ollama `nomic-embed-text`（768 维）
+- RRF 融合 + 词法重排（重排词法权重 0.15）
 - 多源融合（手工录入/文档上传/网页爬取）
+
+索引与身份：
+- Elasticsearch 索引 `rag_chunk_go_768_v1` / 别名 `rag_chunk_go_current`，与 Spring 的
+  `rag_chunk_current` 隔离，避免两端向量互相覆盖
+- **检索身份只来自服务端 JWT**：请求体里的 `roles` / `asRole` / `userId` / `department` 一律忽略；
+  ACL 按 `acl_scope` + metadata 明细（角色 / 用户 / 部门）严格放行
+- 权重、候选倍率、RRF 常数与重排权重可用 `RAG_RETRIEVAL_BM25_WEIGHT`、
+  `RAG_RETRIEVAL_VECTOR_WEIGHT`、`RAG_RETRIEVAL_CANDIDATE_MULTIPLIER`、
+  `RAG_RETRIEVAL_RRF_RANK_CONSTANT`、`RAG_RERANK_LEXICAL_WEIGHT` 覆盖
 
 #### 4. 容器化依赖管理
 
