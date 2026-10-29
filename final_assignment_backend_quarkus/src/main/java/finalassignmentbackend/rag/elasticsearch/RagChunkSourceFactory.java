@@ -1,5 +1,6 @@
 package finalassignmentbackend.rag.elasticsearch;
 
+import finalassignmentbackend.rag.access.RagAclPolicy;
 import finalassignmentbackend.rag.entity.RagChunk;
 import finalassignmentbackend.rag.entity.RagDocument;
 import jakarta.enterprise.context.ApplicationScoped;
@@ -13,6 +14,7 @@ import jakarta.json.JsonString;
 import jakarta.json.JsonValue;
 
 import java.io.StringReader;
+import java.util.Locale;
 
 /**
  * 把 MySQL 中的文档与分块翻译成 ES 文档。
@@ -25,11 +27,11 @@ import java.io.StringReader;
 public class RagChunkSourceFactory {
 
     /** 角色列表的候选键名，兼容驼峰与下划线两种写法。 */
-    public static final String[] ROLE_KEYS = {"acl_roles", "aclRoles", "roles", "role"};
+    public static final String[] ROLE_KEYS = RagAclPolicy.ROLE_KEYS;
     /** 用户列表的候选键名。 */
-    public static final String[] USER_KEYS = {"acl_user_ids", "aclUserIds", "userIds", "userId"};
+    public static final String[] USER_KEYS = RagAclPolicy.USER_KEYS;
     /** 部门列表的候选键名。 */
-    public static final String[] DEPARTMENT_KEYS = {"acl_departments", "aclDepartments", "departments", "department"};
+    public static final String[] DEPARTMENT_KEYS = RagAclPolicy.DEPARTMENT_KEYS;
 
     public JsonObject build(RagDocument document, RagChunk chunk, float[] vector, String provider, String model) {
         JsonObject metadata = metadata(document.getMetadataJson());
@@ -44,7 +46,8 @@ public class RagChunkSourceFactory {
         add(source, "source_version", document.getSourceVersion());
         add(source, "source_field", chunk.getSourceField());
         add(source, "route", document.getRoute());
-        add(source, "acl_scope", document.getAclScope());
+        // scope 缺省即 PUBLIC：ES 侧用 term 过滤 ACL，缺省值必须显式写出来才筛得到。
+        add(source, "acl_scope", scope(document.getAclScope()));
         source.add("acl_roles", list(metadata, ROLE_KEYS));
         source.add("acl_user_ids", list(metadata, USER_KEYS));
         source.add("acl_departments", list(metadata, DEPARTMENT_KEYS));
@@ -129,5 +132,9 @@ public class RagChunkSourceFactory {
             return;
         }
         builder.add(name, value);
+    }
+
+    private static String scope(String aclScope) {
+        return aclScope == null || aclScope.isBlank() ? "PUBLIC" : aclScope.trim().toUpperCase(Locale.ROOT);
     }
 }

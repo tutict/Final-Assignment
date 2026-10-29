@@ -9,6 +9,7 @@ import finalassignmentbackend.ai.agent.AgentModels;
 import finalassignmentbackend.ai.agent.AgentRuntime;
 import finalassignmentbackend.ai.guardrail.GuardrailStage;
 import finalassignmentbackend.ai.guardrail.PromptInjectionGuard;
+import finalassignmentbackend.rag.access.RagAccessContext;
 import finalassignmentbackend.rag.service.RagQueryService;
 import finalassignmentbackend.reliability.ModelCallBulkhead;
 import finalassignmentbackend.reliability.ReliabilityMetrics;
@@ -184,7 +185,7 @@ public class ChatPipeline {
         List<RagQueryService.RetrievedChunk> sources = new ArrayList<>();
         if (ragEngaged) {
             try {
-                sources.addAll(ragQueryService.retrieve(message, request.role(), topK(request.metadata())));
+                sources.addAll(ragQueryService.retrieve(message, accessContext(request), topK(request.metadata())));
             } catch (RuntimeException ex) {
                 // Spring semantics: a retrieval failure behaves like an empty result set. The
                 // guardrail then refuses instead of letting the model answer without evidence.
@@ -195,6 +196,13 @@ public class ChatPipeline {
             sources.addAll(webSearchSources(message));
         }
         return sources;
+    }
+
+    /** 检索身份来自登录态：用户名与角色都不接受客户端传入。 */
+    private static RagAccessContext accessContext(Request request) {
+        String role = request.role() == null ? "" : request.role().trim();
+        Set<String> roles = role.isBlank() ? Set.of() : Set.of(role);
+        return RagAccessContext.of(request.username(), roles);
     }
 
     private List<RagQueryService.RetrievedChunk> webSearchSources(String message) {

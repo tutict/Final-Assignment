@@ -7,6 +7,7 @@ import finalassignmentbackend.ai.agent.AgentModels;
 import finalassignmentbackend.ai.agent.AgentRuntime;
 import finalassignmentbackend.ai.guardrail.AnswerGroundingPolicy;
 import finalassignmentbackend.ai.guardrail.GuardrailStage;
+import finalassignmentbackend.rag.access.RagAccessContext;
 import finalassignmentbackend.rag.service.RagQueryService;
 import finalassignmentbackend.rag.service.RagQueryService.RetrievedChunk;
 import finalassignmentbackend.reliability.ModelCallBulkhead;
@@ -20,6 +21,7 @@ import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -192,6 +194,19 @@ class ChatPipelineTest {
         assertFalse(rag.called);
     }
 
+    @Test
+    void retrievalIdentityComesFromTheSessionInsteadOfThePayload() {
+        rag.results = List.of(source());
+
+        collect(new ChatPipeline.Request("罚款怎么缴？", "s1", "alice", "alice", "TRAFFIC_POLICE", () -> null,
+                Map.of("username", "mallory", "role", "SUPER_ADMIN")));
+
+        assertNotNull(rag.lastContext);
+        assertEquals("alice", rag.lastContext.userId());
+        assertEquals(Set.of("TRAFFIC_POLICE"), rag.lastContext.roles());
+        assertEquals("DEPARTMENT", rag.lastContext.department());
+    }
+
     private void enableCitationEnforcement() {
         pipeline.guardrailStage = new GuardrailStage(new AnswerGroundingPolicy(true), null);
     }
@@ -280,11 +295,13 @@ class ChatPipelineTest {
         List<RetrievedChunk> results = List.of();
         RuntimeException failure;
         boolean called;
+        RagAccessContext lastContext;
 
         @Override
-        public List<RetrievedChunk> retrieve(String query, String asRole, int topK) {
+        public List<RetrievedChunk> retrieve(String query, RagAccessContext context, int topK) {
             called = true;
             calls.incrementAndGet();
+            lastContext = context;
             if (failure != null) {
                 throw failure;
             }

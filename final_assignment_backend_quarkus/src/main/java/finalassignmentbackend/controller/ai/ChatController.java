@@ -180,6 +180,15 @@ public class ChatController {
         if (securityContext.isUserInRole("ADMIN")) {
             return "ADMIN";
         }
+        if (securityContext.isUserInRole("TRAFFIC_POLICE")) {
+            return "TRAFFIC_POLICE";
+        }
+        if (securityContext.isUserInRole("FINANCE")) {
+            return "FINANCE";
+        }
+        if (securityContext.isUserInRole("APPEAL_REVIEWER")) {
+            return "APPEAL_REVIEWER";
+        }
         return "USER";
     }
 
