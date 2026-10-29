@@ -389,7 +389,7 @@ POST /api/rag/admin/backfill?page=1&size=200                        # 知识文�
 
 - 数据集：30 道可回答题（覆盖全部 22 个 PUBLIC 语料块，含 4 道多跳）、3 道不可回答题、3 个 ACL 探针
 - 依赖：uv + CPython 3.12、ES / MySQL / Redis、Ollama（产品嵌入 `nomic-embed-text`、裁判 `qwen2.5:7b`、评测嵌入 `bge-m3`、答案模型 `llama3.2`）
-- 运行：后端以 `AI_AGENT_ENABLED=false RAG_RETRIEVAL_ENABLED=true` 启动，再执行 `uv run ragas-eval all --top-k 5`
+- 运行：后端以 `AI_AGENT_ENABLED=false RAG_RETRIEVAL_ENABLED=true AI_GUARDRAIL_TOPIC_MODEL=qwen2.5:7b` 启动，再执行 `uv run ragas-eval all`（默认 top-k=10，与四端交互式聊天默认值一致）
 - 可比性：四个后端共用同一份数据集与 golden 语料（dataset `292298fd…`、golden `d8d8659a…`、corpus `42a579af…`），模型指纹一致；混合检索统一为 BM25 0.8 / 向量 0.2、词法 rerank 0.15、候选深度倍率 3
 - 护栏口径：引用强制开启；生成后主题校验由 `AI_GUARDRAIL_TOPIC_MODEL=qwen2.5:7b` 显式开启，未配置时校验关闭
 - `RAGAS_TARGET_LABEL` 会写入 manifest 与报告环境表，用于区分同一数据集在不同后端的运行
@@ -398,28 +398,35 @@ POST /api/rag/admin/backfill?page=1&size=200                        # 知识文�
 
 质量指标（均值，列标题为 `targets.json` 阈值；原始产物在 `artifacts/ragas/<run-id>/`，已 gitignore）：
 
-| 后端 | 运行 ID | Faithfulness ≥0.75 | Relevancy ≥0.75 | Context Precision ≥0.60 | Context Recall ≥0.85 | Answer Correctness ≥0.55 | 引用合规 ≥0.90 |
-| --- | --- | ---: | ---: | ---: | ---: | ---: | ---: |
-| Spring 单体 | `20261029-refusal-verifier` | 0.9907 | 0.8521 | 0.9949 | 0.9815 | 0.7713 | 0.9000 |
-| Spring Cloud | `cloud-ragas-20261029` | 0.9658 | 0.8435 | 0.9536 | 0.9821 | 0.7451 | 0.9333 |
-| Go | `20261029-go-parity-fixed` | 0.9667 | 0.8891 | 1.0000 | 1.0000 | 0.8108 | 0.9000 |
-| Quarkus | `20261029T054721Z-3b26af06` | 0.9315 | 0.8378 | 0.9889 | 0.9815 | 0.7902 | 0.9000 |
+| 后端 | 运行 ID | topK | Faithfulness ≥0.75 | Relevancy ≥0.75 | Context Precision ≥0.60 | Context Recall ≥0.85 | Answer Correctness ≥0.55 | 引用合规 ≥0.90 |
+| --- | --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
+| Spring 单体 | `baseline-20261029-topk10-verifier` | 10 | 0.9036 | 0.8900 | 0.9468 | 1.0000 | 0.7770 | 0.9333 |
+| Spring 单体 | `20261029-refusal-verifier` | 5 | 0.9907 | 0.8521 | 0.9949 | 0.9815 | 0.7713 | 0.9000 |
+| Spring Cloud | `cloud-ragas-20261029` | 5 | 0.9658 | 0.8435 | 0.9536 | 0.9821 | 0.7451 | 0.9333 |
+| Go | `20261029-go-parity-fixed` | 5 | 0.9667 | 0.8891 | 1.0000 | 1.0000 | 0.8108 | 0.9000 |
+| Quarkus | `20261029T054721Z-3b26af06` | 5 | 0.9315 | 0.8378 | 0.9889 | 0.9815 | 0.7902 | 0.9000 |
+
+Spring 单体给出两种 topK 口径：**10 是当前默认值**（与四端交互式聊天一致，`DEFAULT_TOP_K=10`），5 是历史基线。topK 决定候选深度（`topK × 3`）与 RRF 分数，两种口径的最终列表不是嵌套关系，**不能逐题对照**；Cloud / Go / Quarkus 三行本轮仍是 topK=5，跨口径同样不可直接比。要复现旧数必须显式传 `--top-k 5`。
 
 护栏与安全：
 
-| 后端 | 可评分覆盖 ≥0.90 | 不可答拒答 ≥0.80 | ACL 泄漏 ≤0 | 上下文漂移 | provider 错误 | fallback ≤0.10 | 硬失败 | 被排除的题目 |
-| --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| Spring 单体 | 27/30 (0.90) | 3/3 (1.00) | 0 | 0 | 0 | 0 | 无 | a10 无引用；a16、a28 主题未覆盖 |
-| Spring Cloud | 28/30 (0.93) | 3/3 (1.00) | 0 | 0 | 0 | 0 | 无 | a10、a20 无引用 |
-| Go | 27/30 (0.90) | 3/3 (1.00) | 0 | 0 | 0 | 0 | 无 | a24、a25、a28 主题未覆盖 |
-| Quarkus | 27/30 (0.90) | 3/3 (1.00) | 0 | 0 | 0 | 0 | 无 | a10 无引用；a28、a30 主题未覆盖 |
+| 后端 | topK | 可评分覆盖 ≥0.90 | 不可答拒答 ≥0.80 | ACL 泄漏 ≤0 | 上下文漂移 | provider 错误 | fallback ≤0.10 | 硬失败 | 被排除的题目 |
+| --- | ---: | --- | --- | --- | --- | --- | --- | --- | --- |
+| Spring 单体 | 10 | 28/30 (0.93) | 3/3 (1.00) | 0 | 0 | 0 | 0 | 无 | a16 主题未覆盖；a19 无引用 |
+| Spring 单体 | 5 | 27/30 (0.90) | 3/3 (1.00) | 0 | 0 | 0 | 0 | 无 | a10 无引用；a16、a28 主题未覆盖 |
+| Spring Cloud | 5 | 28/30 (0.93) | 3/3 (1.00) | 0 | 0 | 0 | 0 | 无 | a10、a20 无引用 |
+| Go | 5 | 27/30 (0.90) | 3/3 (1.00) | 0 | 0 | 0 | 0 | 无 | a24、a25、a28 主题未覆盖 |
+| Quarkus | 5 | 27/30 (0.90) | 3/3 (1.00) | 0 | 0 | 0 | 0 | 无 | a10 无引用；a28、a30 主题未覆盖 |
 
 ### 结论
 
 - 四个后端在纯 RAG 模式下五项 RAGAS 指标全部达标，引用合规率均 ≥ 0.90；ACL 泄漏、上下文漂移、provider 错误与 fallback 全为 0，无硬失败。
 - 拒答是这一轮改造的重点：开启生成后主题校验后，四个后端对 3 道不可答题全部拒答（此前各后端都是 0/3）；代价是可答题误拒 2～3 道（6%～10%），主题校验在多跳题上本就是边缘判定。
+- topK 从 5 提到 10 补上了检索侧的最后一处块级缺口：相关块召回 100%（topK=5 对照运行 `20261029-refusal-verifier` 为 98.33%，唯一缺口是 a02 的 `c-fine-payment-guide`），Context Recall 1.0000（5 时为 0.9815）；top-10 命中数两种口径都是 30/30。代价是单题上下文从 379 token 涨到 763 token（预算 1200）、延迟中位数 692 ms → 811 ms。
+- 配对比较（两次都评分的 26 题）显示 Faithfulness −0.0750，但其中 −1.0（a17 漏「警告」）与 −0.5（a27 漏「拖移」）是模型缩答、−0.5（a11）是裁判假阴性——正确块在两种 topK 下都排第 1，检索没变。**topK=10 不影响检索质量，只让上下文变长、模型更容易压缩答案。**
 - 检索层等价，差异只在并列名次：Cloud 与 Spring 基线 36/36 同集合、35/36 同顺序（仅 a19 第 3/4 位互换）；Go 与自身上一轮 36/36 完全一致、与 Spring 33/36 同集合、29/36 同顺序；Quarkus 两次运行 36/36 完全一致、与 Spring 35/36 同集合、31/36 同顺序。
 - 生成层存在采样噪声：同一构建两次运行的 Faithfulness 配对差可达 −0.0370（单题最大 −1.0），因此「与基线偏差 ≤ 0.03」只对检索侧指标（Context Precision / Context Recall）成立，判定回归要靠检索侧指标或多次运行的均值。
+- 答案过短是当前最稳定的质量短板：a07/a26/a09/a04 都是「忠实但不全」（Faithfulness ≥ 0.83，Answer Correctness 0.46～0.60）。另有裁判假阴性需人工兜底：a14 的答案与参考答案逐字等价，Answer Correctness 仍只有 0.4874。
 
 ### 护栏实现口径
 
@@ -437,7 +444,7 @@ POST /api/rag/admin/backfill?page=1&size=200                        # 知识文�
 - 评测固定纯 RAG 模式（`AI_AGENT_ENABLED=false`），不代表默认 Agent 模式的表现
 - RAGAS 需要 ES + MySQL + Redis + Ollama，不适合放进 CI；CI 继续只跑确定性的检索门禁
 
-操作步骤与已知限制见 [scripts/ragas/README.md](scripts/ragas/README.md)。各轮报告：基线 [baseline-2026-10-23.md](docs/ai/ragas/baseline-2026-10-23.md)，检索与答案质量改进 [improvement-2026-10-23.md](docs/ai/ragas/improvement-2026-10-23.md) 与 [improvement-2026-10-28.md](docs/ai/ragas/improvement-2026-10-28.md)，拒答改造 [refusal-2026-10-29.md](docs/ai/ragas/refusal-2026-10-29.md)；Cloud 后端的移植与对齐 [cloud-parity-2026-10-28.md](docs/ai/ragas/cloud-parity-2026-10-28.md) 与本轮评测 [cloud-ragas-2026-10-29.md](docs/ai/ragas/cloud-ragas-2026-10-29.md)；Go 后端的移植 [go-parity-2026-10-29.md](docs/ai/ragas/go-parity-2026-10-29.md) 与评测 [go-ragas-2026-10-29.md](docs/ai/ragas/go-ragas-2026-10-29.md)；Quarkus 后端的纯 RAG 与拒答移植 [quarkus-refusal-2026-10-29.md](docs/ai/ragas/quarkus-refusal-2026-10-29.md) 与 ES 兼容、混合检索 [quarkus-rag-elasticsearch-2026-10-29.md](docs/ai/ragas/quarkus-rag-elasticsearch-2026-10-29.md)。
+操作步骤与已知限制见 [scripts/ragas/README.md](scripts/ragas/README.md)。各轮报告：基线 [baseline-2026-10-23.md](docs/ai/ragas/baseline-2026-10-23.md) 与默认 topK=10 重跑 [baseline-2026-10-30-topk10.md](docs/ai/ragas/baseline-2026-10-30-topk10.md)，检索与答案质量改进 [improvement-2026-10-23.md](docs/ai/ragas/improvement-2026-10-23.md) 与 [improvement-2026-10-28.md](docs/ai/ragas/improvement-2026-10-28.md)，拒答改造 [refusal-2026-10-29.md](docs/ai/ragas/refusal-2026-10-29.md)；Cloud 后端的移植与对齐 [cloud-parity-2026-10-28.md](docs/ai/ragas/cloud-parity-2026-10-28.md) 与本轮评测 [cloud-ragas-2026-10-29.md](docs/ai/ragas/cloud-ragas-2026-10-29.md)；Go 后端的移植 [go-parity-2026-10-29.md](docs/ai/ragas/go-parity-2026-10-29.md) 与评测 [go-ragas-2026-10-29.md](docs/ai/ragas/go-ragas-2026-10-29.md)；Quarkus 后端的纯 RAG 与拒答移植 [quarkus-refusal-2026-10-29.md](docs/ai/ragas/quarkus-refusal-2026-10-29.md) 与 ES 兼容、混合检索 [quarkus-rag-elasticsearch-2026-10-29.md](docs/ai/ragas/quarkus-rag-elasticsearch-2026-10-29.md)。
 
 ## 版本标签
 
