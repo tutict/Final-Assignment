@@ -7,22 +7,27 @@ import jakarta.inject.Inject;
 import jakarta.ws.rs.Priorities;
 import jakarta.ws.rs.container.ContainerRequestContext;
 import jakarta.ws.rs.container.ContainerRequestFilter;
-import jakarta.ws.rs.container.ContainerResponseContext;
-import jakarta.ws.rs.container.ContainerResponseFilter;
 import jakarta.ws.rs.core.MediaType;
 import jakarta.ws.rs.core.Response;
 import jakarta.ws.rs.ext.Provider;
-import java.util.concurrent.atomic.AtomicInteger;
 import org.eclipse.microprofile.config.inject.ConfigProperty;
 
+/**
+ * 负载拒流：数据库连接池吃紧时把读请求与账务写入挡在门外。
+ *
+ * <p>并发数由 {@link InFlightRequest} 记账——请求作用域 Bean 在请求结束时一定销毁，
+ * 名额必定归还，因此计数不会因为流式响应或被拒绝的请求而虚高。
+ */
 @Provider
 @ApplicationScoped
 @Priority(Priorities.AUTHENTICATION - 100)
-public class LoadShedFilter implements ContainerRequestFilter, ContainerResponseFilter {
+public class LoadShedFilter implements ContainerRequestFilter {
 
-    static final String IN_FLIGHT = "reliability.inflight";
+    @Inject
+    InFlightCounter counter;
 
-    private final AtomicInteger inFlight = new AtomicInteger();
+    @Inject
+    InFlightRequest inFlightRequest;
 
     @Inject
     ReliabilityMetrics metrics;
@@ -39,11 +44,11 @@ public class LoadShedFilter implements ContainerRequestFilter, ContainerResponse
         if (!loadShedEnabled || dataSource == null || metrics == null) {
             return;
         }
+        inFlightRequest.hold();
         String path = requestContext.getUriInfo() == null ? "" : requestContext.getUriInfo().getPath();
         String method = requestContext.getMethod();
         int max = dataSource.getConfiguration().connectionPoolConfiguration().maxSize();
-        int now = inFlight.incrementAndGet();
-        requestContext.setProperty(IN_FLIGHT, Boolean.TRUE);
+        int now = counter.value();
         var pool = dataSource.getMetrics();
         double utilization = max <= 0 ? 0d : (double) pool.activeCount() / max;
         int awaiting = (int) Math.min(Integer.MAX_VALUE, pool.awaitingCount());
@@ -52,25 +57,11 @@ public class LoadShedFilter implements ContainerRequestFilter, ContainerResponse
                 && !LoadShedPolicy.shedWhenBusy(method, path, now, max)) {
             return;
         }
-        release(requestContext);
         metrics.loadShed();
         requestContext.abortWith(Response.status(Response.Status.SERVICE_UNAVAILABLE)
                 .header("Retry-After", "1")
                 .type(MediaType.APPLICATION_JSON)
                 .entity("{\"errorCode\":\"LOAD_SHED\",\"message\":\"Overloaded\"}")
                 .build());
-    }
-
-    @Override
-    public void filter(ContainerRequestContext requestContext, ContainerResponseContext responseContext) {
-        release(requestContext);
-    }
-
-    private void release(ContainerRequestContext requestContext) {
-        if (requestContext.getProperty(IN_FLIGHT) == null) {
-            return;
-        }
-        requestContext.removeProperty(IN_FLIGHT);
-        inFlight.decrementAndGet();
     }
 }

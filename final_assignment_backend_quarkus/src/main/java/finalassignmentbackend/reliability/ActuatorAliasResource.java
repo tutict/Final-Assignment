@@ -26,6 +26,9 @@ public class ActuatorAliasResource {
     ReliabilityMetrics metrics;
 
     @Inject
+    InFlightCounter inFlightCounter;
+
+    @Inject
     LedgerReconciliation ledgerReconciliation;
 
     @GET
@@ -83,7 +86,8 @@ public class ActuatorAliasResource {
     @RolesAllowed({"ADMIN", "SUPER_ADMIN"})
     @Produces("text/plain")
     public String prometheus() {
-        return metrics.prometheus(backupSuccessEpoch(), poolAwaiting(), poolBlockingMillis());
+        return metrics.prometheus(backupSuccessEpoch(), poolAwaiting(), poolBlockingMillis())
+                + "in_flight_requests " + inFlightCounter.value() + "\n";
     }
 
     private long backupSuccessEpoch() {
