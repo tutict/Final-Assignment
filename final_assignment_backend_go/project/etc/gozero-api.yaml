@@ -12,11 +12,13 @@ Rag:
   ElasticsearchAddresses: ["http://127.0.0.1:9200"]
   ElasticsearchUsername: ""
   ElasticsearchPassword: ""
-  ElasticsearchIndex: rag_chunk_go_v1
+  # 768 维向量与 Spring/Quarkus 参考实现保持一致；nomic-embed-text 的维度不可改写，
+  # 换嵌入模型时必须换索引名，否则旧映射会拒绝新向量。
+  ElasticsearchIndex: rag_chunk_go_768_v1
   ElasticsearchAlias: rag_chunk_go_current
-  EmbeddingProvider: deterministic
-  EmbeddingModel: deterministic-384
-  EmbeddingDimensions: 384
+  EmbeddingProvider: ollama
+  EmbeddingModel: nomic-embed-text
+  EmbeddingDimensions: 768
   OllamaBaseURL: http://127.0.0.1:11434
   OllamaTimeoutMillis: 30000
   MaxBatchSize: 500

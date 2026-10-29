@@ -4,6 +4,7 @@ import (
 	"database/sql"
 	"fmt"
 	"os"
+	"strconv"
 	"strings"
 	"time"
 
@@ -18,14 +19,16 @@ import (
 )
 
 const (
-	defaultIndexName      = "rag_chunk"
-	defaultAliasName      = "rag_chunk_current"
-	defaultUploadBytes    = 8 * 1024 * 1024
-	defaultEmbeddingDims  = 384
-	defaultOllamaBaseURL  = "http://127.0.0.1:11434"
-	defaultOllamaTimeout  = 30 * time.Second
-	defaultMaxBatchSize   = 500
-	defaultMaxRequeueSize = 5000
+	defaultIndexName           = "rag_chunk"
+	defaultAliasName           = "rag_chunk_current"
+	defaultUploadBytes         = 8 * 1024 * 1024
+	defaultEmbeddingDims       = 384
+	defaultOllamaEmbeddingDims = 768
+	defaultOllamaEmbeddingName = "nomic-embed-text"
+	defaultOllamaBaseURL       = "http://127.0.0.1:11434"
+	defaultOllamaTimeout       = 30 * time.Second
+	defaultMaxBatchSize        = 500
+	defaultMaxRequeueSize      = 5000
 )
 
 type Runtime struct {
@@ -45,6 +48,7 @@ type Runtime struct {
 }
 
 func NewRuntime(conf config.RagConf) (*Runtime, error) {
+	conf = applyEnvOverrides(conf)
 	conf = normalizeConf(conf)
 	// Env override wins over the YAML value so deployments don't need to
 	// rewrite the checked-in local-dev config file.
@@ -165,6 +169,56 @@ func (r *Runtime) Ready() bool {
 	return r != nil && r.Enabled && r.Documents != nil
 }
 
+// applyEnvOverrides 让部署方无需改写签入的 YAML 就能切换 RAG 接线。
+//
+// 覆盖发生在默认值之前：没有设置的环境变量保留 YAML 里的取值。
+func applyEnvOverrides(conf config.RagConf) config.RagConf {
+	if addresses := envList("RAG_ELASTICSEARCH_ADDRESSES"); len(addresses) > 0 {
+		conf.ElasticsearchAddresses = addresses
+	}
+	if value := strings.TrimSpace(os.Getenv("RAG_ELASTICSEARCH_INDEX")); value != "" {
+		conf.ElasticsearchIndex = value
+	}
+	if value := strings.TrimSpace(os.Getenv("RAG_ELASTICSEARCH_ALIAS")); value != "" {
+		conf.ElasticsearchAlias = value
+	}
+	if value := strings.TrimSpace(os.Getenv("RAG_EMBEDDING_PROVIDER")); value != "" {
+		conf.EmbeddingProvider = value
+	}
+	if value := strings.TrimSpace(os.Getenv("RAG_EMBEDDING_MODEL")); value != "" {
+		conf.EmbeddingModel = value
+	}
+	if value := strings.TrimSpace(os.Getenv("RAG_EMBEDDING_DIMENSIONS")); value != "" {
+		if dims, err := strconv.Atoi(value); err == nil && dims > 0 {
+			conf.EmbeddingDimensions = dims
+		}
+	}
+	if value := strings.TrimSpace(os.Getenv("RAG_OLLAMA_BASE_URL")); value != "" {
+		conf.OllamaBaseURL = value
+	}
+	if value := strings.TrimSpace(os.Getenv("RAG_OLLAMA_TIMEOUT_MILLIS")); value != "" {
+		if millis, err := strconv.Atoi(value); err == nil && millis > 0 {
+			conf.OllamaTimeoutMillis = millis
+		}
+	}
+	return conf
+}
+
+func envList(name string) []string {
+	raw := strings.TrimSpace(os.Getenv(name))
+	if raw == "" {
+		return nil
+	}
+	values := make([]string, 0)
+	for _, item := range strings.Split(raw, ",") {
+		item = strings.TrimSpace(item)
+		if item != "" {
+			values = append(values, item)
+		}
+	}
+	return values
+}
+
 func normalizeConf(conf config.RagConf) config.RagConf {
 	defaults := service.DefaultRagConfig()
 	rerankExplicitlyDisabled := !conf.RerankEnabled && conf.RerankLexicalWeight > 0
@@ -174,14 +228,24 @@ func normalizeConf(conf config.RagConf) config.RagConf {
 	if conf.ElasticsearchAlias == "" {
 		conf.ElasticsearchAlias = defaultAliasName
 	}
-	if conf.EmbeddingProvider == "" {
-		conf.EmbeddingProvider = "deterministic"
+	provider := strings.ToLower(strings.TrimSpace(conf.EmbeddingProvider))
+	if provider == "" {
+		provider = "deterministic"
+		conf.EmbeddingProvider = provider
 	}
 	if conf.EmbeddingDimensions <= 0 {
-		conf.EmbeddingDimensions = defaultEmbeddingDims
+		if provider == "ollama" {
+			conf.EmbeddingDimensions = defaultOllamaEmbeddingDims
+		} else {
+			conf.EmbeddingDimensions = defaultEmbeddingDims
+		}
 	}
 	if conf.EmbeddingModel == "" {
-		conf.EmbeddingModel = conf.EmbeddingProvider + "-" + fmt.Sprint(conf.EmbeddingDimensions)
+		if provider == "ollama" {
+			conf.EmbeddingModel = defaultOllamaEmbeddingName
+		} else {
+			conf.EmbeddingModel = provider + "-" + fmt.Sprint(conf.EmbeddingDimensions)
+		}
 	}
 	if conf.MaxBatchSize <= 0 {
 		conf.MaxBatchSize = defaultMaxBatchSize

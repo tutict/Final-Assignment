@@ -30,7 +30,10 @@ type ElasticsearchIndexManager struct {
 	client *elasticsearch.Client
 	config ElasticsearchIndexConfig
 	ready  bool
-	mutex  sync.Mutex
+	// activeIndex 是别名当前应当指向的索引。默认等于配置里的索引，
+	// 手动迁移到新索引后必须跟随，否则下一次写入会被拉回旧索引。
+	activeIndex string
+	mutex       sync.Mutex
 }
 
 func NewElasticsearchIndexManager(client *elasticsearch.Client, config ElasticsearchIndexConfig) *ElasticsearchIndexManager {
@@ -52,7 +55,11 @@ func NewElasticsearchIndexManager(client *elasticsearch.Client, config Elasticse
 	if config.TextAnalyzer == "" {
 		config.TextAnalyzer = "standard"
 	}
-	return &ElasticsearchIndexManager{client: client, config: config}
+	return &ElasticsearchIndexManager{
+		client:      client,
+		config:      config,
+		activeIndex: config.IndexName,
+	}
 }
 
 func (m *ElasticsearchIndexManager) CreateIndex(ctx context.Context, indexName string) (bool, error) {
@@ -134,6 +141,7 @@ func (m *ElasticsearchIndexManager) SwitchWriteAlias(ctx context.Context, indexN
 	if resp.IsError() {
 		return false, esError("switch Elasticsearch alias "+m.config.AliasName, resp)
 	}
+	m.activeIndex = indexName
 	m.ready = false
 	return true, nil
 }
@@ -223,24 +231,35 @@ func (m *ElasticsearchIndexManager) ensureReady(ctx context.Context) error {
 	if m.ready {
 		return nil
 	}
-	if _, err := m.CreateIndex(ctx, m.config.IndexName); err != nil {
+	target := strings.TrimSpace(m.activeIndex)
+	if target == "" {
+		target = m.config.IndexName
+	}
+	if _, err := m.CreateIndex(ctx, target); err != nil {
 		return err
 	}
-	existsReq := esapi.IndicesExistsAliasRequest{Name: []string{m.config.AliasName}}
-	existsResp, err := existsReq.Do(ctx, m.client)
+	// 别名必须跟着当前写入索引走：残留的旧别名会把新维度的向量写进旧索引，
+	// 或者让检索一直命中切换前的数据。
+	existing, err := m.aliasIndices(ctx)
 	if err != nil {
-		return fmt.Errorf("check Elasticsearch alias %s: %w", m.config.AliasName, err)
+		return err
 	}
-	defer existsResp.Body.Close()
-	if existsResp.StatusCode == http.StatusNotFound {
-		if _, err := m.SwitchWriteAlias(ctx, m.config.IndexName); err != nil {
+	if !containsExact(existing, target) {
+		if _, err := m.SwitchWriteAlias(ctx, target); err != nil {
 			return err
 		}
-	} else if existsResp.StatusCode != http.StatusOK {
-		return esError("check Elasticsearch alias "+m.config.AliasName, existsResp)
 	}
 	m.ready = true
 	return nil
+}
+
+func containsExact(values []string, target string) bool {
+	for _, value := range values {
+		if value == target {
+			return true
+		}
+	}
+	return false
 }
 
 func (m *ElasticsearchIndexManager) aliasIndices(ctx context.Context) ([]string, error) {

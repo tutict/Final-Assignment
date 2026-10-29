@@ -16,8 +16,10 @@ Rag:
     - "http://127.0.0.1:9201"
   ElasticsearchUsername: ""
   ElasticsearchPassword: ""
-  ElasticsearchIndex: rag_chunk_v1
-  ElasticsearchAlias: rag_chunk_current
+  # 别名带 live 后缀：共享集群里 rag_chunk_current 属于 Spring 压测索引，
+  # 共用别名会让两套后端互相覆盖向量。
+  ElasticsearchIndex: rag_chunk_go_live_v1
+  ElasticsearchAlias: rag_chunk_go_live_current
   EmbeddingProvider: deterministic
   EmbeddingModel: deterministic-384
   EmbeddingDimensions: 384
