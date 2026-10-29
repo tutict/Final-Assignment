@@ -5,6 +5,7 @@ import dev.langchain4j.model.chat.request.ChatRequest;
 import dev.langchain4j.model.chat.response.StreamingChatResponseHandler;
 import finalassignmentbackend.ai.agent.AgentModels;
 import finalassignmentbackend.ai.agent.AgentRuntime;
+import finalassignmentbackend.ai.guardrail.AnswerGroundingPolicy;
 import finalassignmentbackend.ai.guardrail.GuardrailStage;
 import finalassignmentbackend.rag.service.RagQueryService;
 import finalassignmentbackend.rag.service.RagQueryService.RetrievedChunk;
@@ -40,8 +41,7 @@ class ChatPipelineTest {
         pipeline.agentRuntime = agent;
         pipeline.ragQueryService = rag;
         pipeline.promptAssembler = new PromptAssembler();
-        // Both guardrail switches stay off here: these tests cover the pipeline contract, the
-        // guardrail has its own suite.
+        // Guardrail switches stay off by default here; the refusal tests enable them explicitly.
         pipeline.guardrailStage = new GuardrailStage();
         pipeline.modelCalls = new ModelCallBulkhead();
         pipeline.agentEnabled = true;
@@ -128,6 +128,78 @@ class ChatPipelineTest {
         assertEquals("assistant: turn-12", window.getLast());
     }
 
+    @Test
+    void uncitedRagAnswerIsRepairedOnceThenRefused() {
+        enableCitationEnforcement();
+        rag.results = List.of(source());
+        model.tokens = List.of("罚款十五日。");
+
+        List<Map<String, Object>> events = collect(request("罚款怎么缴？"));
+
+        assertEquals(2, model.calls.get());
+        assertEquals(List.of("token", "done"), types(events));
+        assertEquals(AnswerGroundingPolicy.UNCITED_ANSWER, answer(events));
+        String messageId = String.valueOf(events.getFirst().get("messageId"));
+        assertTrue(events.stream().allMatch(event -> messageId.equals(event.get("messageId"))));
+    }
+
+    @Test
+    void citationRepairRecoversTheAnswer() {
+        enableCitationEnforcement();
+        rag.results = List.of(source());
+        model.tokens = List.of("罚款十五日。");
+        model.retryTokens = List.of("罚款需在十五日内缴纳 [1]。");
+
+        List<Map<String, Object>> events = collect(request("罚款怎么缴？"));
+
+        assertEquals(2, model.calls.get());
+        assertEquals("罚款需在十五日内缴纳 [1]。", answer(events));
+    }
+
+    @Test
+    void emptyRetrievalRefusesWithoutCallingTheRepair() {
+        enableCitationEnforcement();
+        rag.results = List.of();
+
+        List<Map<String, Object>> events = collect(request("罚款怎么缴？"));
+
+        assertEquals(1, model.calls.get());
+        assertEquals(AnswerGroundingPolicy.NO_SOURCE_ANSWER, answer(events));
+    }
+
+    @Test
+    void retrievalFailureRefusesInsteadOfAnsweringWithoutEvidence() {
+        enableCitationEnforcement();
+        rag.failure = new IllegalStateException("search backend down");
+        model.tokens = List.of("罚款十五日。");
+
+        List<Map<String, Object>> events = collect(request("罚款怎么缴？"));
+
+        assertEquals(1, model.calls.get());
+        assertEquals(AnswerGroundingPolicy.NO_SOURCE_ANSWER, answer(events));
+    }
+
+    @Test
+    void requestCanDisableRagAndBypassTheGuardrail() {
+        enableCitationEnforcement();
+        model.tokens = List.of("罚款十五日。");
+
+        List<Map<String, Object>> events = collect(new ChatPipeline.Request(
+                "罚款怎么缴？", "s1", "alice", "alice", "USER", null, Map.of("ragEnabled", false)));
+
+        assertEquals(1, model.calls.get());
+        assertEquals("罚款十五日。", answer(events));
+        assertFalse(rag.called);
+    }
+
+    private void enableCitationEnforcement() {
+        pipeline.guardrailStage = new GuardrailStage(new AnswerGroundingPolicy(true), null);
+    }
+
+    private static RetrievedChunk source() {
+        return new RetrievedChunk("c1", "d1", "s1", "罚款应在十五日内缴纳。", "罚款规定", "MANUAL", null, 1.0);
+    }
+
     private ChatPipeline.Request request(String message) {
         return new ChatPipeline.Request(message, "s1", "alice", "alice", "USER", () -> null, Map.of());
     }
@@ -172,14 +244,18 @@ class ChatPipelineTest {
 
     private static final class FakeModel implements StreamingChatModel {
         List<String> tokens = List.of("好");
+        List<String> retryTokens;
+        final AtomicInteger calls = new AtomicInteger();
         boolean called;
         String lastPrompt;
 
         @Override
         public void chat(ChatRequest chatRequest, StreamingChatResponseHandler handler) {
             called = true;
+            int call = calls.incrementAndGet();
             lastPrompt = ((dev.langchain4j.data.message.UserMessage) chatRequest.messages().getFirst()).singleText();
-            tokens.forEach(handler::onPartialResponse);
+            List<String> parts = call > 1 && retryTokens != null ? retryTokens : tokens;
+            parts.forEach(handler::onPartialResponse);
             handler.onCompleteResponse(null);
         }
     }
@@ -202,12 +278,16 @@ class ChatPipelineTest {
     private static final class FakeRag extends RagQueryService {
         final AtomicInteger calls = new AtomicInteger();
         List<RetrievedChunk> results = List.of();
+        RuntimeException failure;
         boolean called;
 
         @Override
         public List<RetrievedChunk> retrieve(String query, String asRole, int topK) {
             called = true;
             calls.incrementAndGet();
+            if (failure != null) {
+                throw failure;
+            }
             return results;
         }
     }

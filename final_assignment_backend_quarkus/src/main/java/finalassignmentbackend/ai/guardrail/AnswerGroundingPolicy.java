@@ -34,6 +34,13 @@ public class AnswerGroundingPolicy {
     @ConfigProperty(name = "ai.guardrail.citation-enforcement.enabled", defaultValue = "false")
     boolean enforcementEnabled;
 
+    public AnswerGroundingPolicy() {
+    }
+
+    public AnswerGroundingPolicy(boolean enforcementEnabled) {
+        this.enforcementEnabled = enforcementEnabled;
+    }
+
     public boolean isEnforcementEnabled() {
         return enforcementEnabled;
     }

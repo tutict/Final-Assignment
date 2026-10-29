@@ -34,6 +34,14 @@ public class GuardrailStage {
     @Inject AnswerGroundingPolicy policy;
     @Inject TopicGroundingVerifier verifier;
 
+    public GuardrailStage() {
+    }
+
+    public GuardrailStage(AnswerGroundingPolicy policy, TopicGroundingVerifier verifier) {
+        this.policy = policy;
+        this.verifier = verifier;
+    }
+
     /**
      * @param events  模型 token 事件流
      * @param question 已经过提示注入清洗的用户问题
