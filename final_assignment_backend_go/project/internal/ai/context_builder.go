@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"strings"
 
+	"final_assignment_backend_go/project/internal/ai/guardrail"
 	service "final_assignment_backend_go/project/internal/service/rag"
 )
 
@@ -36,13 +37,15 @@ func (cb *ContextBuilder) BuildWithSources(results []service.RagRetrievalResult)
 	}
 
 	// Titles, sources, and scores stay out of the prompt so the model cannot echo internal
-	// identifiers into the answer; only the citation index and content are needed.
+	// identifiers into the answer; only the citation index and content are needed. Retrieved
+	// passages are untrusted, so instruction-like spans are neutralized before they reach the
+	// model and a poisoned document cannot hijack the prompt.
 	var builder strings.Builder
 	included := make([]service.RagRetrievalResult, 0, len(results))
 	currentTokens := 0
 
 	for _, result := range results {
-		content := strings.Join(strings.Fields(result.Content), " ")
+		content := guardrail.SanitizeInjection(strings.Join(strings.Fields(result.Content), " "))
 		if content == "" {
 			continue
 		}
