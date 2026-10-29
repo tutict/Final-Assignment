@@ -53,19 +53,21 @@ uv run ragas-eval validate
 uv run ragas-eval preflight
 uv run ragas-eval seed
 uv run ragas-eval run --limit 3   # 冒烟：每种类型 3 题
-uv run ragas-eval run --top-k 5   # 全量基线
+uv run ragas-eval run --top-k 10   # 全量基线
 ```
 
 一键执行（预检 → 写入 → 评估）：
 
 ```bash
-uv run ragas-eval all --top-k 5
+uv run ragas-eval all --top-k 10
 ```
 
 `--top-k`（或 `RAGAS_TOP_K`）会写进每轮请求的 `metadata.ragTopK`，**覆盖后端自己的默认值**。
-所以基线一律用 5 是评测口径，不等于线上默认：交互式聊天的默认值是 10（四端一致，见
-`scripts/check-rag-config-parity.py`）。想验证线上口径就显式跑 `--top-k 10`，但那批数字与
-历史基线不可直接比较——上下文条数变了，context_precision / faithfulness 都会跟着动。
+默认值与四个后端交互式聊天的默认值一致，都是 10（见 `scripts/check-rag-config-parity.py` 的
+`chat_top_k`），所以基线数字描述的就是线上配置。
+
+改用 10 之前的历史基线（top-k=5，含此前各轮四后端报告）与当前基线**不可直接比较**——上下文
+条数变了，context_precision / faithfulness 都会跟着动。要复现旧数字请显式传 `--top-k 5`。
 
 清理 RAGAS 文档（只删除 `metadataJson.suite == "ragas"` 的记录，不触碰其它知识库数据）：
 
@@ -95,7 +97,7 @@ cd scripts/ragas
 RAGAS_BASE_URL=http://127.0.0.1:18080 \
 RAGAS_TARGET_LABEL="Spring Cloud 后端" \
 RAGAS_INDEX_ALIAS=rag_chunk_ragas_current \
-uv run ragas-eval all --top-k 5
+uv run ragas-eval all --top-k 10
 ```
 
 - `RAGAS_TARGET_LABEL` 只写入 `manifest.json` 与报告环境表，用于区分同一数据集在不同后端的运行。
@@ -136,7 +138,7 @@ RAGAS_BASE_URL=http://localhost:8080 \
 RAGAS_ES_URL=http://localhost:9200 \
 RAGAS_INDEX_ALIAS=rag_chunk_quarkus_current \
 RAGAS_TARGET_LABEL="Quarkus" \
-uv run ragas-eval all --top-k 5
+uv run ragas-eval all --top-k 10
 ```
 
 - Quarkus 默认端口 8080（RAGAS 默认指向 Spring），必须显式设置 `RAGAS_BASE_URL`。
@@ -174,7 +176,7 @@ RAGAS_BASE_URL=http://127.0.0.1:8080 \
 RAGAS_ES_URL=http://127.0.0.1:9200 \
 RAGAS_INDEX_ALIAS=rag_chunk_go_current \
 RAGAS_TARGET_LABEL="Go 后端" \
-uv run ragas-eval run --top-k 5
+uv run ragas-eval run --top-k 10
 ```
 
 - `cmd/app` 监听 `PORT`（默认 8080），`cmd/gozeroapi` 才用 `gozero-api.yaml` 里的 8081；RAGAS 默认指向

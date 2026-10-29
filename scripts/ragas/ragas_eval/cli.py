@@ -61,7 +61,7 @@ def build_parser() -> argparse.ArgumentParser:
 
 def _add_seed_arguments(parser: argparse.ArgumentParser, *, include_top_k: bool = True) -> None:
     if include_top_k:
-        parser.add_argument("--top-k", type=int, default=DEFAULT_TOP_K, help="retrieval topK (default: 5)")
+        parser.add_argument("--top-k", type=int, default=DEFAULT_TOP_K, help="retrieval topK (default: 10)")
     parser.add_argument(
         "--cleanup",
         action="store_true",
@@ -70,7 +70,7 @@ def _add_seed_arguments(parser: argparse.ArgumentParser, *, include_top_k: bool 
 
 
 def _add_run_arguments(parser: argparse.ArgumentParser) -> None:
-    parser.add_argument("--top-k", type=int, default=DEFAULT_TOP_K, help="retrieval topK (default: 5)")
+    parser.add_argument("--top-k", type=int, default=DEFAULT_TOP_K, help="retrieval topK (default: 10)")
     parser.add_argument("--limit", type=int, default=None, help="limit questions per kind (smoke runs)")
     parser.add_argument("--output", type=Path, default=ARTIFACTS_ROOT, help="artifact root directory")
     parser.add_argument("--run-id", default=None, help="override the generated run id")

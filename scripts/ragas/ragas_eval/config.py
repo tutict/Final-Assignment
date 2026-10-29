@@ -27,7 +27,9 @@ USER_CONTROL_SOURCE_ID = "ragas-user-control"
 USER_CONTROL_TITLE = "评测用户控制文档"
 USER_CONTROL_CONTENT = "本文档仅用于验证 USER ACL 正向可见性，不包含任何业务知识，不应出现在业务问题的检索上下文中。"
 CONTEXT_TOKEN_BUDGET = 1200
-DEFAULT_TOP_K = 5
+# 与四个后端交互式聊天的默认值保持一致（见 scripts/check-rag-config-parity.py 的 chat_top_k）。
+# 评测若用别的值，测出来的就不是线上配置下的质量。
+DEFAULT_TOP_K = 10
 
 METRIC_KEYS = (
     "faithfulness",
