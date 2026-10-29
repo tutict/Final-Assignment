@@ -219,6 +219,62 @@ func TestChatPipeline_ExtractRoles(t *testing.T) {
 	}
 }
 
+func TestChatPipeline_BuildRagRequestHonoursRequestedTopK(t *testing.T) {
+	pipeline, err := NewChatPipeline(&MockRagQueryService{}, &MockAiProvider{}, aisvc.DefaultAiChatConfig())
+	if err != nil {
+		t.Fatalf("NewChatPipeline() error = %v", err)
+	}
+
+	tests := []struct {
+		name     string
+		metadata map[string]any
+		want     int
+	}{
+		{
+			name:     "json numbers arrive as float64",
+			metadata: map[string]any{"ragTopK": float64(5)},
+			want:     5,
+		},
+		{
+			name:     "topK as float64",
+			metadata: map[string]any{"topK": float64(3)},
+			want:     3,
+		},
+		{
+			name:     "ragTopK wins over topK",
+			metadata: map[string]any{"ragTopK": float64(5), "topK": float64(9)},
+			want:     5,
+		},
+		{
+			name:     "int metadata is accepted",
+			metadata: map[string]any{"ragTopK": 7},
+			want:     7,
+		},
+		{
+			name:     "non positive values fall back to the default",
+			metadata: map[string]any{"ragTopK": float64(0)},
+			want:     10,
+		},
+		{
+			name:     "missing metadata falls back to the default",
+			metadata: map[string]any{},
+			want:     10,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			request, _ := pipeline.buildRagRequest("问题", tt.metadata)
+			if request.TopK == nil {
+				t.Fatal("topK is nil")
+			}
+			if *request.TopK != tt.want {
+				t.Fatalf("topK = %d, want %d", *request.TopK, tt.want)
+			}
+		})
+	}
+}
+
 func TestChatPipeline_ExtractConversationWindow(t *testing.T) {
 	tests := []struct {
 		name         string

@@ -2,6 +2,7 @@ package ai
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"sync/atomic"
 	"time"
@@ -255,18 +256,48 @@ func (cp *ChatPipeline) buildRagRequest(message string, metadata map[string]any)
 		TopK:  &defaultTopK, // Default
 	}
 
-	// Extract topK
-	if topK, ok := metadata["topK"].(int); ok && topK > 0 {
+	// JSON numbers arrive as float64, so an int-only assertion would silently drop the
+	// requested topK and fall back to the default. ragTopK wins over topK, as in Spring.
+	if topK := metadataInt(metadata, "ragTopK", "topK"); topK > 0 {
 		req.TopK = &topK
-	} else if ragTopK, ok := metadata["ragTopK"].(int); ok && ragTopK > 0 {
-		req.TopK = &ragTopK
-	} else if topKFloat, ok := metadata["topK"].(float64); ok && topKFloat > 0 {
-		topKInt := int(topKFloat)
-		req.TopK = &topKInt
 	}
 
 	username, _ := metadata["username"].(string)
 	return req, ragsvc.NewRagAccessContext(username, serverRoles(metadata))
+}
+
+// metadataInt reads the first key that carries a positive integer. Every JSON number type has
+// to be accepted: encoding/json decodes numbers into float64, not int.
+func metadataInt(metadata map[string]any, keys ...string) int {
+	for _, key := range keys {
+		switch value := metadata[key].(type) {
+		case int:
+			if value > 0 {
+				return value
+			}
+		case int32:
+			if value > 0 {
+				return int(value)
+			}
+		case int64:
+			if value > 0 {
+				return int(value)
+			}
+		case float64:
+			if value > 0 {
+				return int(value)
+			}
+		case float32:
+			if value > 0 {
+				return int(value)
+			}
+		case json.Number:
+			if parsed, err := value.Int64(); err == nil && parsed > 0 {
+				return int(parsed)
+			}
+		}
+	}
+	return 0
 }
 
 // serverRoles 读取服务端写入的角色集合；没有角色时返回空集合，不套用默认角色。
