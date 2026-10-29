@@ -85,7 +85,10 @@ func TestRagQueryServiceHybridRetrievalAclAndRerank(t *testing.T) {
 	}
 }
 
-func TestDefaultRagConfigMatchesSpringRetrievalWeights(t *testing.T) {
+// 默认检索档是「词法为主」：BM25 0.8 + 向量 0.2。这里锁住的是本包自己的默认值，
+// 不读 Spring 的配置文件；四个后端的数值一致性由 scripts/check-rag-config-parity.py 负责，
+// 那条守卫会同时读 yaml 与四份配置，改名成 "MatchesSpring..." 只会让人误以为这里跨后端校验过。
+func TestDefaultRagConfigUsesLexicalHeavyWeights(t *testing.T) {
 	config := DefaultRagConfig()
 
 	if config.VectorWeight != 0.2 {
@@ -93,6 +96,21 @@ func TestDefaultRagConfigMatchesSpringRetrievalWeights(t *testing.T) {
 	}
 	if config.BM25Weight != 0.8 {
 		t.Fatalf("bm25 weight = %v, want 0.8", config.BM25Weight)
+	}
+	if config.MinScore != 0.2 {
+		t.Fatalf("min score = %v, want 0.2", config.MinScore)
+	}
+	if config.CandidateMultiplier != 3 {
+		t.Fatalf("candidate multiplier = %d, want 3", config.CandidateMultiplier)
+	}
+	if config.RRFRankConstant != 60 {
+		t.Fatalf("rrf rank constant = %d, want 60", config.RRFRankConstant)
+	}
+	if !config.RerankEnabled || config.RerankLexicalWeight != 0.15 {
+		t.Fatalf("rerank = %v/%v, want enabled with 0.15", config.RerankEnabled, config.RerankLexicalWeight)
+	}
+	if config.RetrievalTopK != 10 {
+		t.Fatalf("retrieval topK = %d, want 10", config.RetrievalTopK)
 	}
 }
 

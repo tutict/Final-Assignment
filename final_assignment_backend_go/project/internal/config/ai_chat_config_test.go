@@ -11,8 +11,7 @@ func TestLoadFromEnv(t *testing.T) {
 	os.Setenv("AI_PROVIDER_TYPE", "claude")
 	os.Setenv("AI_PROVIDER_API_KEY", "test-key")
 	os.Setenv("AI_PROVIDER_MODEL", "claude-3-opus")
-	os.Setenv("RAG_ENABLED", "true")
-	os.Setenv("RAG_TOP_K", "5")
+	os.Setenv("RAG_TOKEN_BUDGET", "800")
 	os.Setenv("SERVER_PORT", "9090")
 	os.Setenv("WEB_SEARCH_ENABLED", "false")
 
@@ -20,8 +19,7 @@ func TestLoadFromEnv(t *testing.T) {
 		os.Unsetenv("AI_PROVIDER_TYPE")
 		os.Unsetenv("AI_PROVIDER_API_KEY")
 		os.Unsetenv("AI_PROVIDER_MODEL")
-		os.Unsetenv("RAG_ENABLED")
-		os.Unsetenv("RAG_TOP_K")
+		os.Unsetenv("RAG_TOKEN_BUDGET")
 		os.Unsetenv("SERVER_PORT")
 		os.Unsetenv("WEB_SEARCH_ENABLED")
 	}()
@@ -37,11 +35,8 @@ func TestLoadFromEnv(t *testing.T) {
 	if cfg.ProviderModel != "claude-3-opus" {
 		t.Errorf("ProviderModel = %s, want claude-3-opus", cfg.ProviderModel)
 	}
-	if !cfg.RAGEnabled {
-		t.Error("RAGEnabled should be true")
-	}
-	if cfg.RAGTopK != 5 {
-		t.Errorf("RAGTopK = %d, want 5", cfg.RAGTopK)
+	if cfg.RAGTokenBudget != 800 {
+		t.Errorf("RAGTokenBudget = %d, want 800", cfg.RAGTokenBudget)
 	}
 	if cfg.ServerPort != 9090 {
 		t.Errorf("ServerPort = %d, want 9090", cfg.ServerPort)
@@ -55,7 +50,7 @@ func TestLoadFromEnv_Defaults(t *testing.T) {
 	// Clear all env vars to test defaults
 	envVars := []string{
 		"AI_PROVIDER_TYPE", "AI_PROVIDER_API_KEY", "AI_PROVIDER_MODEL",
-		"RAG_ENABLED", "RAG_TOP_K", "SERVER_PORT",
+		"SERVER_PORT",
 	}
 	for _, key := range envVars {
 		os.Unsetenv(key)
@@ -69,11 +64,8 @@ func TestLoadFromEnv_Defaults(t *testing.T) {
 	if cfg.ProviderModel != "gpt-4" {
 		t.Errorf("Default ProviderModel = %s, want gpt-4", cfg.ProviderModel)
 	}
-	if !cfg.RAGEnabled {
-		t.Error("Default RAGEnabled should be true")
-	}
-	if cfg.RAGTopK != 10 {
-		t.Errorf("Default RAGTopK = %d, want 10", cfg.RAGTopK)
+	if cfg.RAGTokenBudget != 1200 {
+		t.Errorf("Default RAGTokenBudget = %d, want 1200", cfg.RAGTokenBudget)
 	}
 	if cfg.ServerPort != 8081 {
 		t.Errorf("Default ServerPort = %d, want 8081", cfg.ServerPort)
@@ -94,7 +86,7 @@ func TestAiChatConfig_Validate(t *testing.T) {
 			config: &AiChatConfig{
 				ProviderType:   "openai",
 				ProviderAPIKey: "sk-test",
-				RAGTopK:        10,
+				RAGTokenBudget: 1200,
 				ServerPort:     8080,
 			},
 			wantErr: false,
@@ -104,7 +96,7 @@ func TestAiChatConfig_Validate(t *testing.T) {
 			config: &AiChatConfig{
 				ProviderType:   "",
 				ProviderAPIKey: "sk-test",
-				RAGTopK:        10,
+				RAGTokenBudget: 1200,
 				ServerPort:     8080,
 			},
 			wantErr: true,
@@ -114,7 +106,7 @@ func TestAiChatConfig_Validate(t *testing.T) {
 			config: &AiChatConfig{
 				ProviderType:   "openai",
 				ProviderAPIKey: "",
-				RAGTopK:        10,
+				RAGTokenBudget: 1200,
 				ServerPort:     8080,
 			},
 			wantErr: true,
@@ -124,17 +116,17 @@ func TestAiChatConfig_Validate(t *testing.T) {
 			config: &AiChatConfig{
 				ProviderType:   "local",
 				ProviderAPIKey: "",
-				RAGTopK:        10,
+				RAGTokenBudget: 1200,
 				ServerPort:     8080,
 			},
 			wantErr: false,
 		},
 		{
-			name: "invalid RAG TopK",
+			name: "invalid RAG token budget",
 			config: &AiChatConfig{
 				ProviderType:   "openai",
 				ProviderAPIKey: "sk-test",
-				RAGTopK:        0,
+				RAGTokenBudget: 0,
 				ServerPort:     8080,
 			},
 			wantErr: true,
@@ -144,7 +136,7 @@ func TestAiChatConfig_Validate(t *testing.T) {
 			config: &AiChatConfig{
 				ProviderType:   "openai",
 				ProviderAPIKey: "sk-test",
-				RAGTopK:        10,
+				RAGTokenBudget: 1200,
 				ServerPort:     0,
 			},
 			wantErr: true,
@@ -154,7 +146,7 @@ func TestAiChatConfig_Validate(t *testing.T) {
 			config: &AiChatConfig{
 				ProviderType:   "openai",
 				ProviderAPIKey: "sk-test",
-				RAGTopK:        10,
+				RAGTokenBudget: 1200,
 				ServerPort:     70000,
 			},
 			wantErr: true,

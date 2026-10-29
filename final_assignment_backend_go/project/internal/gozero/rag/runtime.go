@@ -173,6 +173,14 @@ func (r *Runtime) Ready() bool {
 //
 // 覆盖发生在默认值之前：没有设置的环境变量保留 YAML 里的取值。
 func applyEnvOverrides(conf config.RagConf) config.RagConf {
+	// RAG_ENABLED 是文档里承诺的总开关（DEPLOYMENT.md、k6/README.md），历史上它只写进
+	// AiChatConfig 的一个没人读的字段，写了也不起任何作用。这里让它真正覆盖 yaml 的
+	// Rag.Enabled，压测想关掉检索时才有可用的开关。
+	if raw := strings.TrimSpace(os.Getenv("RAG_ENABLED")); raw != "" {
+		if enabled, err := strconv.ParseBool(raw); err == nil {
+			conf.Enabled = enabled
+		}
+	}
 	if addresses := envList("RAG_ELASTICSEARCH_ADDRESSES"); len(addresses) > 0 {
 		conf.ElasticsearchAddresses = addresses
 	}

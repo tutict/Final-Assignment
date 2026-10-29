@@ -18,9 +18,10 @@ type AiChatConfig struct {
 	ProviderTimeout     time.Duration
 
 	// RAG settings
-	RAGEnabled     bool
-	RAGTopK        int
-	RAGMinScore    float64
+	//
+	// 检索侧的开关、topK、min_score 只有一处真相：etc/gozero-rag.yaml（配合 RAG_RETRIEVAL_*
+	// 环境变量，见 internal/gozero/rag/runtime.go）。这里只保留聊天侧真正会读的上下文预算，
+	// 以前那三个 RAG_* 字段从来没有被任何代码读过，却和 yaml 给出两套互相矛盾的默认值。
 	RAGTokenBudget int
 
 	// Web Search settings
@@ -67,9 +68,6 @@ func LoadFromEnv() *AiChatConfig {
 		ProviderTimeout:     getEnvDuration("AI_PROVIDER_TIMEOUT", 60*time.Second),
 
 		// RAG defaults
-		RAGEnabled:     getEnvBool("RAG_ENABLED", true),
-		RAGTopK:        getEnvInt("RAG_TOP_K", 10),
-		RAGMinScore:    getEnvFloat("RAG_MIN_SCORE", 0.5),
 		RAGTokenBudget: getEnvInt("RAG_TOKEN_BUDGET", 1200),
 
 		// Web Search defaults
@@ -117,8 +115,8 @@ func (c *AiChatConfig) Validate() error {
 		return fmt.Errorf("AI_PROVIDER_API_KEY is required for provider type %s", c.ProviderType)
 	}
 
-	if c.RAGTopK <= 0 {
-		return fmt.Errorf("RAG_TOP_K must be positive, got %d", c.RAGTopK)
+	if c.RAGTokenBudget <= 0 {
+		return fmt.Errorf("RAG_TOKEN_BUDGET must be positive, got %d", c.RAGTokenBudget)
 	}
 
 	if c.ServerPort <= 0 || c.ServerPort > 65535 {

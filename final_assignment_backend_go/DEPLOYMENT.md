@@ -154,8 +154,7 @@ data: {"type":"done","timestamp":"..."}
 
 | 配置项 | 默认值 | 说明 |
 |--------|--------|------|
-| `RAG_ENABLED` | `true` | 启用 RAG 检索 |
-| `RAG_TOP_K` | `10` | RAG 检索结果数 |
+| `RAG_ENABLED` | `true` | 覆盖 `etc/gozero-rag.yaml` 的 `Rag.Enabled`；`false` 时聊天链路不检索，只走纯模型回答 |
 | `WEB_SEARCH_ENABLED` | `true` | 启用 Web 搜索 |
 | `AI_AGENT_ENABLED` | `true` | `false` 时只做纯 RAG 对话，不路由工具 |
 | `AI_GUARDRAIL_CITATION_ENFORCEMENT` | `true` | 检索回合无引用时不回答；关闭后仍做标签清洗 |
@@ -164,6 +163,15 @@ data: {"type":"done","timestamp":"..."}
 | `AI_GUARDRAIL_TOPIC_TIMEOUT` | `12s` | 裁判调用超时，评测建议 `20s` |
 | `SERVER_PORT` | `8081` | HTTP 服务端口 |
 | `AGENT_CONSTRAINTS_PATH` | `./constraints` | 角色策略文件路径 |
+
+检索侧的权重、阈值与索引不在这个表里，只有一处真相：`etc/gozero-rag.yaml`。需要按环境改写时
+用同族环境变量覆盖（`RAG_RETRIEVAL_BM25_WEIGHT`、`RAG_RETRIEVAL_VECTOR_WEIGHT`、
+`RAG_RETRIEVAL_MIN_SCORE`、`RAG_RETRIEVAL_CANDIDATE_MULTIPLIER`、
+`RAG_RETRIEVAL_RRF_RANK_CONSTANT`、`RAG_RERANK_LEXICAL_WEIGHT`）。聊天侧的 top-K 由请求
+元数据 `ragTopK` / `topK` 决定，缺省 10，与 Spring 参考实现一致。
+
+> 早期文档里的 `RAG_TOP_K`、`RAG_MIN_SCORE` 从未被任何代码读取过，已删除；它们与 yaml
+> 里的值互相矛盾，照抄会导致「改了配置却不生效」。
 
 引用护栏默认开启意味着：RAG 被启用但检索为空或检索失败时，聊天会返回标准拒答文本
 （`NO_SOURCE_ANSWER`）。依赖无资料自由问答的部署需要设置

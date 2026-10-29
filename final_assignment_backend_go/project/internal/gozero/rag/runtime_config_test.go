@@ -153,3 +153,24 @@ func TestApplyEnvOverridesIgnoresInvalidRetrievalWeights(t *testing.T) {
 		t.Fatalf("candidate multiplier = %d, want the configured 3", conf.CandidateMultiplier)
 	}
 }
+
+func TestApplyEnvOverridesHonoursTheRagEnabledSwitch(t *testing.T) {
+	t.Setenv("RAG_ENABLED", "false")
+
+	conf := applyEnvOverrides(config.RagConf{Enabled: true})
+
+	if conf.Enabled {
+		t.Fatal("RAG_ENABLED=false 必须关掉检索，否则压测关不掉这条链路")
+	}
+}
+
+func TestApplyEnvOverridesKeepsTheYamlSwitchWithoutAnEnvValue(t *testing.T) {
+	t.Setenv("RAG_ENABLED", "")
+
+	if conf := applyEnvOverrides(config.RagConf{Enabled: true}); !conf.Enabled {
+		t.Fatal("没设置 RAG_ENABLED 时应当沿用 yaml 的 Rag.Enabled=true")
+	}
+	if conf := applyEnvOverrides(config.RagConf{Enabled: false}); conf.Enabled {
+		t.Fatal("没设置 RAG_ENABLED 时应当沿用 yaml 的 Rag.Enabled=false")
+	}
+}
