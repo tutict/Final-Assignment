@@ -15,6 +15,7 @@ import finalassignmentbackend.rag.entity.RagChunk;
 import finalassignmentbackend.rag.entity.RagDocument;
 import finalassignmentbackend.rag.entity.RagEmbeddingTask;
 import finalassignmentbackend.rag.service.RagAdminDocumentSupport;
+import finalassignmentbackend.rag.service.RagDocumentDeletionService;
 import finalassignmentbackend.rag.service.RagIndexingService;
 import io.smallrye.common.annotation.RunOnVirtualThread;
 import jakarta.annotation.security.RolesAllowed;
@@ -44,12 +45,16 @@ import java.util.Locale;
 import finalassignmentbackend.rag.ingestion.RagUploadTextExtractor;
 import java.util.Map;
 import java.util.UUID;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 
 @Path("/api/rag/admin")
 @Produces(MediaType.APPLICATION_JSON)
 @Consumes(MediaType.APPLICATION_JSON)
 @RolesAllowed({"SUPER_ADMIN", "ADMIN"})
 public class RagManagementController {
+
+    private static final Logger LOG = Logger.getLogger(RagManagementController.class.getName());
 
     @Inject RagDocumentMapper documentMapper;
     @Inject RagChunkMapper chunkMapper;
@@ -58,6 +63,7 @@ public class RagManagementController {
     @Inject RagProperties ragProperties;
     @Inject RagIndexManager ragIndexManager;
     @Inject RagEmbeddingWorker embeddingWorker;
+    @Inject RagDocumentDeletionService deletionService;
 
     @GET
     @Path("/overview")
@@ -66,6 +72,7 @@ public class RagManagementController {
         Map<String, Object> body = new LinkedHashMap<>();
         body.put("ragEnabled", ragProperties.isEnabled());
         body.put("indexingEnabled", ragProperties.isIndexingEnabled());
+        body.put("embeddingEnabled", ragProperties.isEmbeddingEnabled());
         body.put("documentCount", documentMapper.selectCount(new QueryWrapper<>()));
         body.put("readyDocumentCount", documentMapper.selectCount(new QueryWrapper<RagDocument>().eq("status", "READY")));
         body.put("chunkCount", chunkMapper.selectCount(new QueryWrapper<>()));
@@ -73,6 +80,10 @@ public class RagManagementController {
         body.put("failedEmbeddingTaskCount", taskMapper.selectCount(new QueryWrapper<RagEmbeddingTask>().eq("status", "FAILED")));
         body.put("succeededEmbeddingTaskCount", taskMapper.selectCount(new QueryWrapper<RagEmbeddingTask>().eq("status", "SUCCEEDED")));
         body.put("poisonedEmbeddingTaskCount", taskMapper.selectCount(new QueryWrapper<RagEmbeddingTask>().eq("status", "POISONED")));
+        body.put("indexName", ragIndexManager.indexName());
+        body.put("indexAlias", ragIndexManager.aliasName());
+        // ES 不可达时只报告索引不存在，绝不让概览接口整体失败。
+        body.put("indexExists", ragProperties.isElasticsearchEnabled() && indexExists());
         return Response.ok(ApiResponse.ok(body)).build();
     }
 
@@ -88,7 +99,14 @@ public class RagManagementController {
         QueryWrapper<RagDocument> wrapper = new QueryWrapper<RagDocument>().orderByDesc("updated_at");
         if (query != null && !query.isBlank()) {
             String keyword = query.trim();
-            wrapper.and(nested -> nested.like("title", keyword).or().like("source_table", keyword).or().like("source_id", keyword));
+            // metadata_json 必须一起匹配：评测语料靠 metadata 里的 suite 标记识别。
+            wrapper.and(nested -> nested
+                    .like("title", keyword)
+                    .or().like("source_table", keyword)
+                    .or().like("source_id", keyword)
+                    .or().like("acl_scope", keyword)
+                    .or().like("route", keyword)
+                    .or().apply("CAST(metadata_json AS CHAR) LIKE {0}", "%" + keyword + "%"));
         }
         Page<RagDocument> result = documentMapper.selectPage(new Page<>(pageNo, pageSize), wrapper);
         Map<String, Object> body = new LinkedHashMap<>();
@@ -123,6 +141,9 @@ public class RagManagementController {
             view.put("charCount", chunk.getCharCount());
             view.put("embeddingStatus", task == null ? "" : task.getStatus());
             view.put("lastError", task == null ? "" : defaultIfBlank(task.getLastError(), ""));
+            view.put("embeddingModel", defaultIfBlank(chunk.getEmbeddingModel(), ""));
+            view.put("embeddingHash", defaultIfBlank(chunk.getEmbeddingHash(), ""));
+            view.put("updatedAt", chunk.getUpdatedAt());
             views.add(view);
         }
         Map<String, Object> body = new LinkedHashMap<>();
@@ -266,14 +287,12 @@ public class RagManagementController {
         if (documentId == null || documentId.isBlank()) {
             return Response.status(Response.Status.BAD_REQUEST).entity(ApiResponse.error("INVALID_DOCUMENT_ID", "documentId must not be blank")).build();
         }
-        List<RagChunk> chunks = chunkMapper.selectList(new QueryWrapper<RagChunk>().eq("document_id", documentId));
-        int deletedTasks = 0;
-        for (RagChunk chunk : chunks) {
-            deletedTasks += taskMapper.delete(new QueryWrapper<RagEmbeddingTask>().eq("chunk_id", chunk.getId()));
-        }
-        int deletedChunks = chunkMapper.delete(new QueryWrapper<RagChunk>().eq("document_id", documentId));
-        int deletedDocuments = documentMapper.deleteById(documentId);
-        return Response.ok(ApiResponse.ok(Map.of("documents", deletedDocuments, "chunks", deletedChunks, "tasks", deletedTasks))).build();
+        RagDocumentDeletionService.DeletionResult result = deletionService.delete(documentId);
+        return Response.ok(ApiResponse.ok(Map.of(
+                "documents", result.documents(),
+                "chunks", result.chunks(),
+                "tasks", result.tasks()
+        ))).build();
     }
 
     @POST
@@ -338,6 +357,16 @@ public class RagManagementController {
             return Response.ok(ApiResponse.ok(body)).build();
         } catch (ElasticsearchException error) {
             return Response.status(503).entity(ApiResponse.error("ELASTICSEARCH_UNAVAILABLE", error.getMessage())).build();
+        }
+    }
+
+    /** 探测索引是否存在；任何探测失败都按「不存在」处理，概览接口不能因此挂掉。 */
+    private boolean indexExists() {
+        try {
+            return ragIndexManager.indexExists();
+        } catch (RuntimeException error) {
+            LOG.log(Level.WARNING, "Failed to probe the RAG index in Elasticsearch", error);
+            return false;
         }
     }
 
