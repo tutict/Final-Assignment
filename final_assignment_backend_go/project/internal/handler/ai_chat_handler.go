@@ -99,8 +99,8 @@ func (h *AiChatHandler) StreamChat(c *gin.Context) {
 		defer h.bulkhead.Release()
 	}
 
-	// Create context with timeout
-	ctx, cancel := context.WithTimeout(c.Request.Context(), 2*time.Minute)
+	// Budget covers generation, one citation repair, and a judge call.
+	ctx, cancel := context.WithTimeout(c.Request.Context(), 3*time.Minute)
 	defer cancel()
 
 	// Get event stream from chat pipeline

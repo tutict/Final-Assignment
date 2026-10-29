@@ -78,6 +78,7 @@ func TestPromptAssembler_Assemble(t *testing.T) {
 		ragResults         []service.RagRetrievalResult
 		agentConstraints   string
 		wantContains       []string
+		wantNotContains    []string
 	}{
 		{
 			name:             "basic prompt without context",
@@ -128,10 +129,14 @@ func TestPromptAssembler_Assemble(t *testing.T) {
 			wantContains: []string{
 				"如何缴纳罚款",
 				"我有违章记录",
-				"罚款缴纳流程",
+				"罚款可通过线上或线下渠道缴纳",
 				"Driver",
 				"agent_constraints",
+				"[1]",
+				"Cite every factual sentence",
 			},
+			// Internal identifiers must not reach the model; only the citation index does.
+			wantNotContains: []string{"罚款缴纳流程", "0.92", "BUSINESS"},
 		},
 	}
 
@@ -146,6 +151,11 @@ func TestPromptAssembler_Assemble(t *testing.T) {
 			for _, want := range tt.wantContains {
 				if !contains(got, want) {
 					t.Errorf("PromptAssembler.Assemble() result does not contain %q\nGot:\n%s", want, got)
+				}
+			}
+			for _, unwanted := range tt.wantNotContains {
+				if contains(got, unwanted) {
+					t.Errorf("PromptAssembler.Assemble() result contains %q\nGot:\n%s", unwanted, got)
 				}
 			}
 		})

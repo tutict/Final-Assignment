@@ -3,8 +3,11 @@ package ai
 import (
 	"context"
 	"fmt"
+	"sync/atomic"
+	"time"
 
 	"final_assignment_backend_go/project/internal/ai/agent"
+	"final_assignment_backend_go/project/internal/ai/guardrail"
 	aisvc "final_assignment_backend_go/project/internal/service/ai"
 	ragsvc "final_assignment_backend_go/project/internal/service/rag"
 )
@@ -17,6 +20,13 @@ type ChatPipeline struct {
 	aiProvider      aisvc.AiProvider
 	config          aisvc.AiChatConfig
 	agentRuntime    *agent.Runtime
+	guardrail       *guardrail.Stage
+}
+
+var messageSequence atomic.Uint64
+
+func newMessageID() string {
+	return fmt.Sprintf("msg-%d-%d", time.Now().UnixNano(), messageSequence.Add(1))
 }
 
 // NewChatPipeline creates a new ChatPipeline with all dependencies
@@ -49,6 +59,11 @@ func (cp *ChatPipeline) Agent() *agent.Runtime {
 	return cp.agentRuntime
 }
 
+// SetGuardrail installs the answer-layer guardrail. Without it the pipeline streams as before.
+func (cp *ChatPipeline) SetGuardrail(stage *guardrail.Stage) {
+	cp.guardrail = stage
+}
+
 // Stream orchestrates the complete chat pipeline and returns a stream of events
 func (cp *ChatPipeline) Stream(
 	ctx context.Context,
@@ -61,8 +76,9 @@ func (cp *ChatPipeline) Stream(
 	}
 
 	// 2. Check if RAG is enabled
+	ragEnabled := cp.isRagEnabled(metadata)
 	var ragResults []ragsvc.RagRetrievalResult
-	if cp.isRagEnabled(metadata) && cp.ragQueryService != nil {
+	if ragEnabled && cp.ragQueryService != nil {
 		ragRequest := cp.buildRagRequest(req.Message, metadata)
 		ragResponse, err := cp.ragQueryService.Query(ctx, ragRequest)
 		if err != nil {
@@ -79,17 +95,35 @@ func (cp *ChatPipeline) Stream(
 	// 4. Extract conversation window
 	conversationWindow := extractConversationWindow(metadata)
 
-	// 5. Assemble final prompt
-	finalPrompt, err := cp.promptAssembler.Assemble(
-		req.Message,
-		conversationWindow,
-		ragResults,
-		agentConstraints,
+	// 5. Assemble final prompt; keep the sources that actually fit in the context
+	var (
+		finalPrompt string
+		usedSources []ragsvc.RagRetrievalResult
+		err         error
 	)
+	if ragEnabled {
+		finalPrompt, usedSources, err = cp.promptAssembler.AssembleWithSources(
+			req.Message,
+			conversationWindow,
+			ragResults,
+			agentConstraints,
+		)
+	} else {
+		finalPrompt, err = cp.promptAssembler.Assemble(
+			req.Message,
+			conversationWindow,
+			nil,
+			agentConstraints,
+		)
+	}
 	if err != nil {
 		return nil, fmt.Errorf("failed to assemble prompt: %w", err)
 	}
 
+	// One message identity per SSE stream, including the citation-repair attempt.
+	messageID := newMessageID()
+
+	var events <-chan aisvc.AiChatStreamEvent
 	if cp.agentRuntime != nil {
 		agentEvents := cp.agentRuntime.Execute(req.Message, cp.agentContext(req.SessionKey, metadata))
 		if len(agentEvents) > 0 {
@@ -100,27 +134,61 @@ func (cp *ChatPipeline) Stream(
 					out <- aisvc.AiChatStreamEvent{
 						Type:       event.Type,
 						SessionKey: event.SessionKey,
-						MessageID:  event.MessageID,
+						MessageID:  messageID,
 						Token:      event.Token,
 						Payload:    event.Payload,
 						Timestamp:  event.Timestamp,
 					}
 				}
-				providerChan, err := cp.streamFromProvider(ctx, finalPrompt, req.SessionKey, metadata)
+				providerChan, err := cp.streamFromProvider(ctx, finalPrompt, req.SessionKey, messageID, metadata)
 				if err != nil {
-					out <- aisvc.AiChatStreamEvent{Type: aisvc.ChatStreamEventTypeError, SessionKey: req.SessionKey, Payload: err.Error()}
+					out <- aisvc.AiChatStreamEvent{
+						Type:       aisvc.ChatStreamEventTypeError,
+						SessionKey: req.SessionKey,
+						MessageID:  messageID,
+						Payload:    err.Error(),
+					}
 					return
 				}
 				for event := range providerChan {
 					out <- event
 				}
 			}()
-			return out, nil
+			events = out
 		}
 	}
 
-	// 6. Stream from AI provider
-	return cp.streamFromProvider(ctx, finalPrompt, req.SessionKey, metadata)
+	if events == nil {
+		events, err = cp.streamFromProvider(ctx, finalPrompt, req.SessionKey, messageID, metadata)
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	// 6. Ground only turns that actually went through retrieval. A request-level opt-out
+	// (ragEnabled=false) keeps the historical behavior.
+	if cp.guardrail == nil || !ragEnabled {
+		return events, nil
+	}
+
+	var repair guardrail.RepairFunc
+	if len(usedSources) > 0 && cp.agentRuntime == nil {
+		// The agent path is excluded from repair: replaying it would re-run tools.
+		repair = func(repairCtx context.Context) (<-chan aisvc.AiChatStreamEvent, error) {
+			repairPrompt, err := cp.promptAssembler.AssembleCitationRepair(
+				req.Message,
+				conversationWindow,
+				usedSources,
+				agentConstraints,
+			)
+			if err != nil {
+				return nil, err
+			}
+			return cp.streamFromProvider(repairCtx, repairPrompt, req.SessionKey, messageID, metadata)
+		}
+	}
+
+	return cp.guardrail.Wrap(ctx, events, req.Message, usedSources, messageID, repair), nil
 }
 
 func (cp *ChatPipeline) agentContext(sessionKey string, metadata map[string]any) agent.Context {
@@ -295,6 +363,7 @@ func (cp *ChatPipeline) streamFromProvider(
 	ctx context.Context,
 	prompt string,
 	sessionKey string,
+	messageID string,
 	metadata map[string]any,
 ) (<-chan aisvc.AiChatStreamEvent, error) {
 	// Get token stream from provider
@@ -313,6 +382,7 @@ func (cp *ChatPipeline) streamFromProvider(
 				outChan <- aisvc.AiChatStreamEvent{
 					Type:       aisvc.ChatStreamEventTypeError,
 					SessionKey: sessionKey,
+					MessageID:  messageID,
 					Payload:    "Request cancelled",
 				}
 				return
@@ -325,6 +395,7 @@ func (cp *ChatPipeline) streamFromProvider(
 					outChan <- aisvc.AiChatStreamEvent{
 						Type:       aisvc.ChatStreamEventTypeError,
 						SessionKey: sessionKey,
+						MessageID:  messageID,
 						Payload:    err.Error(),
 					}
 					return
@@ -335,17 +406,21 @@ func (cp *ChatPipeline) streamFromProvider(
 					outChan <- aisvc.AiChatStreamEvent{
 						Type:       aisvc.ChatStreamEventTypeDone,
 						SessionKey: sessionKey,
+						MessageID:  messageID,
 					}
 					return
 				}
 
-				// Send token event
-				tokenText := token.Text
-				outChan <- aisvc.AiChatStreamEvent{
-					Type:       aisvc.ChatStreamEventTypeToken,
-					SessionKey: sessionKey,
-					Token:      &tokenText,
-					Payload:    token,
+				// Send token event; the terminal sentinel carries no text of its own.
+				if token.Text != "" {
+					tokenText := token.Text
+					outChan <- aisvc.AiChatStreamEvent{
+						Type:       aisvc.ChatStreamEventTypeToken,
+						SessionKey: sessionKey,
+						MessageID:  messageID,
+						Token:      &tokenText,
+						Payload:    token,
+					}
 				}
 
 				// Check if this is the last token
@@ -353,6 +428,7 @@ func (cp *ChatPipeline) streamFromProvider(
 					outChan <- aisvc.AiChatStreamEvent{
 						Type:       aisvc.ChatStreamEventTypeDone,
 						SessionKey: sessionKey,
+						MessageID:  messageID,
 					}
 					return
 				}

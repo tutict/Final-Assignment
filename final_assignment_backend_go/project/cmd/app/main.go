@@ -21,6 +21,7 @@ import (
 	"final_assignment_backend_go/project/global_exception"
 	"final_assignment_backend_go/project/internal/ai"
 	"final_assignment_backend_go/project/internal/ai/agent"
+	"final_assignment_backend_go/project/internal/ai/guardrail"
 	appapi "final_assignment_backend_go/project/internal/app"
 	"final_assignment_backend_go/project/internal/auth"
 	aiconfig "final_assignment_backend_go/project/internal/config"
@@ -42,6 +43,22 @@ import (
 	"github.com/gorilla/websocket"
 	"github.com/zeromicro/go-zero/core/conf"
 )
+
+func buildGuardrail(aiProvider aisvc.AiProvider, cfg *aiconfig.AiChatConfig) *guardrail.Stage {
+	policy := guardrail.CitationPolicy{EnforcementEnabled: cfg.CitationEnforcementEnabled}
+	var verifier *guardrail.Verifier
+	if completer, ok := aiProvider.(aisvc.IsolatedCompleter); ok {
+		verifier = guardrail.NewVerifier(
+			completer,
+			cfg.TopicVerificationEnabled,
+			cfg.TopicModel,
+			cfg.TopicTimeout,
+		)
+	} else if cfg.TopicVerificationEnabled && strings.TrimSpace(cfg.TopicModel) != "" {
+		log.Printf("[WARNING] Topic verification stays off: provider %T does not support isolated completion", aiProvider)
+	}
+	return &guardrail.Stage{Policy: policy, Verifier: verifier}
+}
 
 func main() {
 	// 初始化数据库
@@ -123,6 +140,7 @@ func main() {
 			} else {
 				log.Println("[INFO] AI agent disabled; running pure-RAG chat")
 			}
+			chatPipeline.SetGuardrail(buildGuardrail(aiProvider, aiChatConfig))
 		}
 	}
 

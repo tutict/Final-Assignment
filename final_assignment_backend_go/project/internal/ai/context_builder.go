@@ -24,44 +24,39 @@ func NewContextBuilder(maxTokens int) *ContextBuilder {
 
 // Build formats retrieval results into a context string
 func (cb *ContextBuilder) Build(results []service.RagRetrievalResult) string {
+	context, _ := cb.BuildWithSources(results)
+	return context
+}
+
+// BuildWithSources returns the context text plus the sources that actually made it into it.
+// The guardrail must judge the same subset the model saw, not the full top-K.
+func (cb *ContextBuilder) BuildWithSources(results []service.RagRetrievalResult) (string, []service.RagRetrievalResult) {
 	if len(results) == 0 {
-		return ""
+		return "", nil
 	}
 
+	// Titles, sources, and scores stay out of the prompt so the model cannot echo internal
+	// identifiers into the answer; only the citation index and content are needed.
 	var builder strings.Builder
-	builder.WriteString("Retrieved Context:\n\n")
-
+	included := make([]service.RagRetrievalResult, 0, len(results))
 	currentTokens := 0
-	includedCount := 0
 
-	for i, result := range results {
-		// Estimate tokens (rough: 1 token ≈ 1.5 characters for Chinese)
-		titleTokens := len([]rune(result.Title)) / 2
-		contentTokens := len([]rune(result.Content)) / 2
-		estimatedTokens := titleTokens + contentTokens + 20 // +20 for formatting
-
-		// Check if adding this result would exceed budget
-		if currentTokens+estimatedTokens > cb.MaxTokens && includedCount > 0 {
-			builder.WriteString(fmt.Sprintf("\n[Context truncated: %d more results omitted due to token limit]\n", len(results)-i))
+	for _, result := range results {
+		content := strings.Join(strings.Fields(result.Content), " ")
+		if content == "" {
+			continue
+		}
+		entryTokens := len([]rune(content))/2 + 12 // rough Chinese token estimate + formatting
+		if currentTokens+entryTokens > cb.MaxTokens && len(included) > 0 {
 			break
 		}
-
-		// Format result
-		builder.WriteString(fmt.Sprintf("[%d] %s\n", i+1, result.Title))
-		builder.WriteString(fmt.Sprintf("Source: %s", result.SourceType))
-		if result.Route != "" {
-			builder.WriteString(fmt.Sprintf(" | Route: %s", result.Route))
+		if len(included) > 0 {
+			builder.WriteString("\n\n")
 		}
-		builder.WriteString(fmt.Sprintf(" | Score: %.2f\n", result.FinalScore))
-		builder.WriteString(fmt.Sprintf("%s\n\n", result.Content))
-
-		currentTokens += estimatedTokens
-		includedCount++
+		builder.WriteString(fmt.Sprintf("[%d]\ncontent: %s", len(included)+1, content))
+		included = append(included, result)
+		currentTokens += entryTokens
 	}
 
-	if includedCount == 0 {
-		return ""
-	}
-
-	return builder.String()
+	return builder.String(), included
 }
