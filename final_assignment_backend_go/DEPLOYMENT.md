@@ -157,8 +157,18 @@ data: {"type":"done","timestamp":"..."}
 | `RAG_ENABLED` | `true` | 启用 RAG 检索 |
 | `RAG_TOP_K` | `10` | RAG 检索结果数 |
 | `WEB_SEARCH_ENABLED` | `true` | 启用 Web 搜索 |
+| `AI_AGENT_ENABLED` | `true` | `false` 时只做纯 RAG 对话，不路由工具 |
+| `AI_GUARDRAIL_CITATION_ENFORCEMENT` | `true` | 检索回合无引用时不回答；关闭后仍做标签清洗 |
+| `AI_GUARDRAIL_TOPIC_VERIFICATION` | `true` | 需同时配置裁判模型才生效 |
+| `AI_GUARDRAIL_TOPIC_MODEL` | 空 | 主题校验裁判模型，例如 `qwen2.5:7b`；空 = 关闭并打印 WARN |
+| `AI_GUARDRAIL_TOPIC_TIMEOUT` | `12s` | 裁判调用超时，评测建议 `20s` |
 | `SERVER_PORT` | `8081` | HTTP 服务端口 |
 | `AGENT_CONSTRAINTS_PATH` | `./constraints` | 角色策略文件路径 |
+
+引用护栏默认开启意味着：RAG 被启用但检索为空或检索失败时，聊天会返回标准拒答文本
+（`NO_SOURCE_ANSWER`）。依赖无资料自由问答的部署需要设置
+`AI_GUARDRAIL_CITATION_ENFORCEMENT=false`。拒答链路与移植细节见
+[docs/ai/ragas/go-parity-2026-10-29.md](../docs/ai/ragas/go-parity-2026-10-29.md)。
 
 ## 架构说明
 
