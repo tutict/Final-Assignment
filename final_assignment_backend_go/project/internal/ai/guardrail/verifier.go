@@ -144,7 +144,7 @@ func parseVerdict(rawResponse string) *bool {
 	if strings.TrimSpace(rawResponse) == "" {
 		return nil
 	}
-	node := readFirstObject(rawResponse)
+	node := readVerdictObject(rawResponse)
 	if node == nil {
 		return nil
 	}
@@ -169,18 +169,67 @@ func parseVerdict(rawResponse string) *bool {
 	return nil
 }
 
-func readFirstObject(rawResponse string) map[string]any {
-	var node map[string]any
-	if err := json.Unmarshal([]byte(rawResponse), &node); err == nil && node != nil {
-		return node
-	}
-	start := strings.Index(rawResponse, "{")
-	end := strings.LastIndex(rawResponse, "}")
-	if start < 0 || end <= start {
+// readVerdictObject returns the JSON object that carries the verdict.
+//
+// A judge that is not constrained to structured output answers with prose around the object, so
+// slicing from the first brace to the last one loses the verdict. Every balanced object is read
+// instead and the last one that carries topic_in_sources wins: a model that first drafts a
+// verdict and then revises it has stated its final opinion last.
+func readVerdictObject(rawResponse string) map[string]any {
+	trimmed := strings.TrimSpace(rawResponse)
+	if trimmed == "" {
 		return nil
 	}
-	if err := json.Unmarshal([]byte(rawResponse[start:end+1]), &node); err != nil {
-		return nil
+	var direct map[string]any
+	if err := json.Unmarshal([]byte(trimmed), &direct); err == nil && direct != nil {
+		if _, ok := direct["topic_in_sources"]; ok {
+			return direct
+		}
 	}
-	return node
+	var verdict map[string]any
+	for _, candidate := range jsonObjects(rawResponse) {
+		var node map[string]any
+		if err := json.Unmarshal([]byte(candidate), &node); err != nil || node == nil {
+			continue
+		}
+		if _, ok := node["topic_in_sources"]; ok {
+			verdict = node
+		}
+	}
+	return verdict
+}
+
+// jsonObjects returns every balanced {...} block in the raw text, ignoring braces inside strings.
+func jsonObjects(raw string) []string {
+	var objects []string
+	for index := 0; index < len(raw); index++ {
+		if raw[index] != '{' {
+			continue
+		}
+		depth := 0
+		inString := false
+		escaped := false
+		for end := index; end < len(raw); end++ {
+			character := raw[end]
+			switch {
+			case escaped:
+				escaped = false
+			case character == '\\' && inString:
+				escaped = true
+			case character == '"':
+				inString = !inString
+			case inString:
+			case character == '{':
+				depth++
+			case character == '}':
+				depth--
+				if depth == 0 {
+					objects = append(objects, raw[index:end+1])
+					index = end
+					end = len(raw)
+				}
+			}
+		}
+	}
+	return objects
 }

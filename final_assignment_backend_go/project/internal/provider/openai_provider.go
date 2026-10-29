@@ -123,7 +123,9 @@ func (p *OpenAIProvider) Complete(
 		requestBody["max_tokens"] = options.MaxTokens
 	}
 	if len(options.ResponseFormat) > 0 {
-		requestBody["response_format"] = options.ResponseFormat
+		// OpenAI-compatible endpoints vary in their JSON-schema support; json_object is the
+		// widest common denominator and the prompt still names the required key.
+		requestBody["response_format"] = map[string]any{"type": "json_object"}
 	}
 
 	bodyBytes, err := json.Marshal(requestBody)

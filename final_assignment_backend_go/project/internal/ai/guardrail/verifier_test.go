@@ -70,6 +70,17 @@ func TestVerifierParsesLenientVerdicts(t *testing.T) {
 		{name: "textual true", response: `{"topic_in_sources":"TRUE"}`},
 		{name: "garbage", response: "无法判断"},
 		{name: "missing field", response: `{"reason":"unknown"}`},
+		{
+			name: "prose around the verdict",
+			response: " false\n\n资料中没有提到相关内容。 {\"topic_in_sources\":false,\"reason\":\"未提及\"}" +
+				" 资料中没有相关内容。 {\"topic_in_sources\":false,\"reason\":\"无相关内容\"}",
+			refused: true,
+		},
+		{
+			name: "revised verdict wins",
+			response: "{\"topic_in_sources\":false,\"reason\":\"草稿\"}\n\n重新判断如下：\n\n" +
+				"{\"topic_in_sources\":true,\"reason\":\"主题一致\"}",
+		},
 	}
 
 	for _, tt := range tests {

@@ -308,7 +308,11 @@ func TestOpenAIProvider_CompleteUsesPerCallOptions(t *testing.T) {
 	options := service.VerificationOptions(
 		5*time.Second,
 		"qwen2.5:7b",
-		map[string]any{"type": "json_object"},
+		map[string]any{
+			"type":       "object",
+			"properties": map[string]any{"topic_in_sources": map[string]any{"type": "boolean"}},
+			"required":   []string{"topic_in_sources"},
+		},
 	)
 	content, err := provider.Complete(context.Background(), "judge this", options)
 	if err != nil {
