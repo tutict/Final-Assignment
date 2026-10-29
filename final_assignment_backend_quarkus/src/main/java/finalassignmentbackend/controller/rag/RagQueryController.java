@@ -1,12 +1,8 @@
 package finalassignmentbackend.controller.rag;
 
-import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import finalassignmentbackend.dto.ApiResponse;
-import finalassignmentbackend.mapper.RagChunkMapper;
-import finalassignmentbackend.mapper.RagDocumentMapper;
-import finalassignmentbackend.rag.entity.RagChunk;
-import finalassignmentbackend.rag.entity.RagDocument;
 import finalassignmentbackend.rag.service.RagAdminDocumentSupport;
+import finalassignmentbackend.rag.service.RagQueryService;
 import io.smallrye.common.annotation.RunOnVirtualThread;
 import jakarta.annotation.security.RolesAllowed;
 import jakarta.inject.Inject;
@@ -18,10 +14,8 @@ import jakarta.ws.rs.core.MediaType;
 import jakarta.ws.rs.core.Response;
 
 import java.util.ArrayList;
-import java.util.Comparator;
 import java.util.LinkedHashMap;
 import java.util.List;
-import java.util.Locale;
 import java.util.Map;
 
 @Path("/api/rag")
@@ -30,8 +24,7 @@ import java.util.Map;
 @RolesAllowed({"SUPER_ADMIN", "ADMIN", "TRAFFIC_POLICE", "FINANCE", "USER"})
 public class RagQueryController {
 
-    @Inject RagDocumentMapper documentMapper;
-    @Inject RagChunkMapper chunkMapper;
+    @Inject RagQueryService ragQueryService;
 
     @POST
     @Path("/query")
@@ -49,41 +42,23 @@ public class RagQueryController {
             asRole = String.valueOf(request.get("asRole"));
         }
         asRole = RagAdminDocumentSupport.normalizePreviewRole(asRole);
-        int topK = 5;
+        int topK = RagQueryService.DEFAULT_TOP_K;
         if (request.get("topK") instanceof Number number) {
-            topK = Math.max(1, Math.min(number.intValue(), 20));
-        }
-        List<RagDocument> docs = documentMapper.selectList(new QueryWrapper<RagDocument>().in("source_type", List.of("MANUAL", "UPLOAD")));
-        Map<String, RagDocument> allowed = new LinkedHashMap<>();
-        List<String> ids = new ArrayList<>();
-        for (RagDocument document : docs) {
-            if (RagAdminDocumentSupport.isKnowledgeDocument(document) && RagAdminDocumentSupport.previewAllows(asRole, document.getAclScope())) {
-                allowed.put(document.getId(), document);
-                ids.add(document.getId());
-            }
-        }
-        if (ids.isEmpty()) {
-            return Response.ok(ApiResponse.ok(Map.of("results", List.of()))).build();
+            topK = Math.max(1, Math.min(number.intValue(), RagQueryService.MAX_TOP_K));
         }
         List<Map<String, Object>> results = new ArrayList<>();
-        List<RagChunk> chunks = chunkMapper.selectList(new QueryWrapper<RagChunk>().in("document_id", ids).orderByAsc("chunk_no"));
-        for (RagChunk chunk : chunks) {
-            RagDocument document = allowed.get(chunk.getDocumentId());
-            if (document == null) continue;
-            double score = RagAdminDocumentSupport.keywordScore(query, document.getTitle(), chunk.getContent());
-            if (score <= 0) continue;
+        for (RagQueryService.RetrievedChunk chunk : ragQueryService.retrieve(query, asRole, topK)) {
             Map<String, Object> item = new LinkedHashMap<>();
-            item.put("chunkId", chunk.getId());
-            item.put("documentId", document.getId());
-            item.put("content", chunk.getContent());
-            item.put("title", document.getTitle());
-            item.put("sourceType", document.getSourceType());
-            item.put("route", document.getRoute());
-            item.put("finalScore", score);
+            item.put("chunkId", chunk.chunkId());
+            item.put("documentId", chunk.documentId());
+            item.put("sourceId", chunk.sourceId());
+            item.put("content", chunk.content());
+            item.put("title", chunk.title());
+            item.put("sourceType", chunk.sourceType());
+            item.put("route", chunk.route());
+            item.put("finalScore", chunk.finalScore());
             results.add(item);
         }
-        results.sort(Comparator.comparingDouble(item -> -((Number) item.get("finalScore")).doubleValue()));
-        if (results.size() > topK) results = new ArrayList<>(results.subList(0, topK));
         return Response.ok(ApiResponse.ok(Map.of("results", results))).build();
     }
 }
