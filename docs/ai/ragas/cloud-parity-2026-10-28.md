@@ -1,5 +1,10 @@
 # Cloud 后端 RAG 答案质量对齐报告（2026-10-28）
 
+> **引用合规口径（2026-10-30 重述）**：本报告的「引用合规」分母已改为**已交付答案**（剔除
+> provider 错误与护栏拒答），括号内保留旧口径（含拒答，等价于 1 − 拒答率）。变更原因见
+> [baseline-2026-10-30-topk10.md](baseline-2026-10-30-topk10.md) 的「指标口径提醒」；
+> 原始产物 `artifacts/` 未回溯改写。
+
 本报告把主后端第二轮的答案层改进移植到 `finalAssignmentCloud`，并用同一套 RAGAS 数据集复测。
 移植范围包括纯 RAG 开关、上下文去元数据、引用提示词、`temperature=0.2`、内部标签清洗与一次性
 引用修复重试；同时修正 Cloud 混合检索融合权重与主后端不一致的问题。评测固定数据集、语料、
@@ -7,8 +12,8 @@
 
 ## 结论摘要
 
-- 移植在 Cloud 上按预期工作：29/30 可评分，五项 RAGAS 指标全部达标，引用合规 0.9667，
-  fallback、上下文漂移、provider 错误与 ACL 泄漏均为 0，无硬失败。
+- 移植在 Cloud 上按预期工作：29/30 可评分，五项 RAGAS 指标全部达标，引用合规 1.0000
+  （29/29，旧口径 0.9667），fallback、上下文漂移、provider 错误与 ACL 泄漏均为 0，无硬失败。
 - 与主后端 `improvement4-20261028` 配对（29 道共同题）后，Cloud 各项均值低 0.00–0.03：
   Faithfulness −0.0316、Response Relevancy −0.0331、Context Precision −0.0084、Context Recall
   0.0000、Answer Correctness −0.0189。
@@ -77,7 +82,8 @@ Cloud 检索配置原为 BM25 0.6 / 向量 0.4，与主后端第二轮验证过�
 | Context Precision (with reference) | 0.9511 | 0.6000 | PASS |
 | Context Recall | 0.9828 | 0.8500 | PASS |
 | Answer Correctness | 0.7569 | 0.5500 | PASS |
-| Citation compliance | 0.9667 | 0.9000 | PASS |
+| Citation compliance | 1.0000 | 0.9000 | PASS |
+| Citation compliance (all answerable) | 0.9667 | - | - |
 | Fallback rate | 0.0000 | ≤ 0.1000 | PASS |
 
 | 项目 | 值 |
@@ -85,7 +91,7 @@ Cloud 检索配置原为 BM25 0.6 / 向量 0.4，与主后端第二轮验证过�
 | 可回答题总数 | 30 |
 | 可评分样本 | 29 |
 | 可评分覆盖率 | 96.67% |
-| 引用合规 | 29 / 30 |
+| 引用合规 | 29 / 29（旧口径 29/30） |
 | 上下文漂移 | 0 |
 | Provider 错误 | 0 |
 | Fallback 比例 | 0.0000 |
@@ -120,8 +126,9 @@ F 与 AC 的剩余差距（约 0.01–0.02）与裁判波动同量级：a25 两�
 
 ### 3. 引用、覆盖率与运行卫生
 
-- 引用合规 29/30（0.9667）：唯一失败的是 a10，两轮生成均无 `[n]` 引用，护栏返回拒答文本并标记
-  `guardrail_uncited`，该题不参与指标均值。
+- 引用合规 29/29（1.0000，旧口径 29/30 = 0.9667）：唯一失败的是 a10，两轮生成均无 `[n]` 引用，
+  护栏返回拒答文本并标记 `guardrail_uncited`。按新口径这题没有交付答案，不进分母；旧口径把它
+  算作不合规，因此两个值差一道题。
 - 整轮评估只触发 2 次引用修复重试（AI 服务日志 `Retrying uncited answer with citation repair`）：
   1 次补齐引用后正常进入评分，1 次为 a10 且重试后仍无引用。
 - fallback 比例 0.0000，上下文漂移 0，provider 错误 0；30 道可回答题的检索上下文为 340–379

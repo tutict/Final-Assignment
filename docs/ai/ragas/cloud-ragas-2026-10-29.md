@@ -1,5 +1,10 @@
 # Spring Cloud 后端 RAGAS 评测报告（2026-10-29）
 
+> **引用合规口径（2026-10-30 重述）**：本报告的「引用合规」分母已改为**已交付答案**（剔除
+> provider 错误与护栏拒答），括号内保留旧口径（含拒答，等价于 1 − 拒答率）。变更原因见
+> [baseline-2026-10-30-topk10.md](baseline-2026-10-30-topk10.md) 的「指标口径提醒」；
+> 原始产物 `artifacts/` 未回溯改写。
+
 本报告记录 `finalAssignmentCloud` 在**当前代码**（已含生成后主题校验）下的 RAGAS 端到端评测结果，
 并与 Spring 主后端基线逐题配对比较。上一轮结果见
 [cloud-parity-2026-10-28.md](cloud-parity-2026-10-28.md)（那一轮尚未移植主题校验，拒答率 0/3）；
@@ -8,8 +13,8 @@
 ## 结论摘要
 
 - Cloud 在纯 RAG 模式下**全部指标达标**：Faithfulness 0.9658、Response Relevancy 0.8435、
-  Context Precision 0.9536、Context Recall 0.9821、Answer Correctness 0.7451、引用合规 0.9333，
-  fallback / 上下文漂移 / provider 错误 / ACL 泄漏均为 0，无硬失败。
+  Context Precision 0.9536、Context Recall 0.9821、Answer Correctness 0.7451、引用合规 1.0000
+  （旧口径 0.9333），fallback / 上下文漂移 / provider 错误 / ACL 泄漏均为 0，无硬失败。
 - **拒答能力生效**：3 道不可答题全部拒答（上一轮 0/3），3 条 ACL 探针全部未泄漏。
 - 与 Spring 基线配对（26 道共同可评分题）差距很小：Faithfulness −0.0080、Relevancy −0.0047、
   Context Precision −0.0067、Context Recall **±0.0000**、Answer Correctness −0.0357。
@@ -46,7 +51,8 @@
 | Context Precision (with reference) | 0.9536 | 0.6000 | PASS |
 | Context Recall | 0.9821 | 0.8500 | PASS |
 | Answer Correctness | 0.7451 | 0.5500 | PASS |
-| Citation compliance | 0.9333 | 0.9000 | PASS |
+| Citation compliance | 1.0000 | 0.9000 | PASS |
+| Citation compliance (all answerable) | 0.9333 | - | - |
 | Fallback rate | 0.0000 | ≤ 0.1000 | PASS |
 
 | 项目 | 值 |
@@ -54,7 +60,7 @@
 | 可回答题总数 | 30 |
 | 可评分样本 | 28 |
 | 可评分覆盖率 | 93.33% |
-| 引用合规 | 28 / 30 |
+| 引用合规 | 28 / 28（旧口径 28/30） |
 | 上下文漂移 | 0 |
 | Provider 错误 | 0 |
 | Fallback 比例 | 0.0000 |
@@ -79,10 +85,14 @@
 | Context Precision | 0.9949 | 0.9536 | −0.0413 |
 | Context Recall | 0.9815 | 0.9821 | +0.0006 |
 | Answer Correctness | 0.7713 | 0.7451 | −0.0262 |
-| 引用合规 | 0.9000 | 0.9333 | +0.0333 |
+| 引用合规 | 1.0000 | 1.0000 | 0.0000 |
 | 可评分覆盖 | 27/30 | 28/30 | +1 |
 | 不可答拒答 | 3/3 | 3/3 | — |
 | ACL 泄漏 / 上下文漂移 / provider 错误 / 硬失败 | 0 / 0 / 0 / 无 | 0 / 0 / 0 / 无 | — |
+
+新口径下两边引用合规都是 1.0000（旧口径 Spring 0.9000、Cloud 0.9333）：旧口径的差值纯粹
+来自两边被拒答的题数不同（3 题 vs 2 题），不是 Cloud 少写了引用。要比较拒答规模请看
+可评分覆盖一行。
 
 ### 2. 逐题配对（26 道两侧都可评分的题）
 
@@ -142,7 +152,7 @@ c-appeal-process, c-offense-notice, c-idempotency`——第 3/4 位互换，两�
 | Context Precision | 0.9511 | 0.9536 |
 | Context Recall | 0.9828 | 0.9821 |
 | Answer Correctness | 0.7569 | 0.7451 |
-| 引用合规 | 0.9667 | 0.9333 |
+| 引用合规 | 1.0000 | 1.0000 |
 | 可评分覆盖 | 29/30 | 28/30 |
 | 不可答拒答 | 0/3 | **3/3** |
 | ACL 泄漏 | 0 | 0 |
