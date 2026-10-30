@@ -247,4 +247,6 @@ provider 错误、RAGAS 评分失败与预检失败。基线评审后可用 `--e
   但低分应如实呈现，必要时用 `OLLAMA_MODEL=qwen2.5:7b` 重启服务做对照（不改变基线）。
 - 已知 DEPARTMENT ACL 缺陷（未在本工具中绕过）：真实接口把部门身份折叠为字符串 `"DEPARTMENT"`，
   而 `AclFilterService` 按真实部门名匹配，DEPARTMENT 语料对任何人不可见。ACL 探针只覆盖 ROLE/USER。
-- RAGAS 需要 ES + MySQL + Redis + Ollama，不适合放进现有 CI；CI 继续只跑确定性的检索门禁。
+- 端到端评测需要 ES + MySQL + Redis + Ollama，不适合放进现有 CI；CI 的 `ai-quality-gates`
+  job 只跑 `pytest tests`（解析、聚合、配置口径与跨后端文案一致性）与
+  `scripts/check-rag-config-parity.py`，不连任何服务。

@@ -295,5 +295,6 @@ uv run ragas-eval run --top-k 10 --run-id baseline-20261029-topk10-verifier
   真实缺陷。其余中高分样本未逐条复核。
 - DEPARTMENT 作用域语料当前对任何身份都不可见（部门身份被折叠成字符串 `"DEPARTMENT"`，
   而 ACL 按真实部门名匹配），ACL 探针因此只覆盖 ROLE / USER。
-- 数据集固定为 30 + 3 + 3 条，未覆盖扫描版 PDF、图片 OCR 与多轮对话；RAGAS 需要
-  ES/MySQL/Redis + Ollama，未进 CI。
+- 数据集固定为 30 + 3 + 3 条，未覆盖扫描版 PDF、图片 OCR 与多轮对话；端到端评测需要
+  ES/MySQL/Redis + Ollama，仍未进 CI（CI 的 `ai-quality-gates` 只跑工具链单元测试与配置
+  一致性检查）。

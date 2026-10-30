@@ -135,6 +135,29 @@ jobs:
           go build ./...
           go test ./... -count=1
 
+  ai-quality-gates:
+    name: AI quality gates (config parity + RAGAS tooling)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      # 四个后端的检索/聊天参数一旦漂移就挡在这里（纯标准库，不需要任何服务）。
+      - name: Cross-backend RAG config parity
+        run: python scripts/check-rag-config-parity.py
+      - uses: astral-sh/setup-uv@v5
+        with:
+          enable-cache: true
+          cache-dependency-glob: scripts/ragas/uv.lock
+      # RAGAS 评测工具链自身的单元测试：不连 ES/MySQL/Ollama，只验证解析、聚合、
+      # 配置口径与跨后端文案一致性。端到端评测仍需本地跑，见 scripts/ragas/README.md。
+      - name: RAGAS tooling unit tests
+        working-directory: scripts/ragas
+        run: |
+          uv sync --frozen
+          uv run --frozen pytest tests -q
+
   react-frontend:
     name: React (frontend)
     runs-on: ubuntu-latest

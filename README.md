@@ -444,7 +444,7 @@ Spring 单体给出两种 topK 口径：**10 是当前默认值**（与四端交
 - 主题校验判断的是「检索资料是否覆盖所问主题」，不是「资料是否蕴含答案中的具体事实」，两者不等价
 - 引用合规只检查格式与编号范围，不验证引用是否真的支持结论
 - 评测固定纯 RAG 模式（`AI_AGENT_ENABLED=false`），不代表默认 Agent 模式的表现
-- RAGAS 需要 ES + MySQL + Redis + Ollama，不适合放进 CI；CI 继续只跑确定性的检索门禁
+- **端到端** RAGAS 需要 ES + MySQL + Redis + Ollama，不适合放进 CI；CI 里跑的是工具链自身的单元测试与跨后端配置一致性检查（job `ai-quality-gates`），检索排序门禁仍由 Java 侧承担
 
 操作步骤与已知限制见 [scripts/ragas/README.md](scripts/ragas/README.md)。各轮报告：基线 [baseline-2026-10-23.md](docs/ai/ragas/baseline-2026-10-23.md) 与默认 topK=10 重跑 [baseline-2026-10-30-topk10.md](docs/ai/ragas/baseline-2026-10-30-topk10.md)，检索与答案质量改进 [improvement-2026-10-23.md](docs/ai/ragas/improvement-2026-10-23.md) 与 [improvement-2026-10-28.md](docs/ai/ragas/improvement-2026-10-28.md)，拒答改造 [refusal-2026-10-29.md](docs/ai/ragas/refusal-2026-10-29.md)；Cloud 后端的移植与对齐 [cloud-parity-2026-10-28.md](docs/ai/ragas/cloud-parity-2026-10-28.md) 与本轮评测 [cloud-ragas-2026-10-29.md](docs/ai/ragas/cloud-ragas-2026-10-29.md)；Go 后端的移植 [go-parity-2026-10-29.md](docs/ai/ragas/go-parity-2026-10-29.md) 与评测 [go-ragas-2026-10-29.md](docs/ai/ragas/go-ragas-2026-10-29.md)；Quarkus 后端的纯 RAG 与拒答移植 [quarkus-refusal-2026-10-29.md](docs/ai/ragas/quarkus-refusal-2026-10-29.md) 与 ES 兼容、混合检索 [quarkus-rag-elasticsearch-2026-10-29.md](docs/ai/ragas/quarkus-rag-elasticsearch-2026-10-29.md)。
 
