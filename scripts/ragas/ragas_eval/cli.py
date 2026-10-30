@@ -210,6 +210,8 @@ def _print_run_summary(result) -> None:
         print(f"[METRIC] {key}: {rendered} (target={metric['target']}, meets={metric['meets_target']})")
     print(
         f"[RESULT] citation_compliance={_fmt(result.result['citation_compliance'])} "
+        f"citation_compliance_all={_fmt(result.result['citation_compliance_all'])} "
+        f"guardrail_refusals={result.result['guardrail_refusal_count']} "
         f"fallback_rate={_fmt(result.result['fallback_rate'])} "
         f"acl_leaks={result.result['acl']['leaked']} "
         f"drift={result.result['context_drift_count']}"

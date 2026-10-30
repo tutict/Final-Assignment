@@ -219,8 +219,13 @@ Answer Correctness 单独评测：裁判 `num_predict=2048`、`max_workers=1`，
 - 引用护栏拒答（`NO_SOURCE_ANSWER` / `UNCITED_ANSWER`）
 - 空答案、RAGAS 评分失败
 
-引用合规率按“答案包含至少一个有效 `[n]` / `【n】`”统计；ACL 探针只做硬断言，任何受限 `sourceId`
-出现即视为泄漏。不可回答问题只统计拒答率。
+引用合规率按“答案包含至少一个有效 `[n]` / `【n】`”统计，分母是**已交付答案**（剔除 provider 错误
+与护栏拒答）——拒答没有答案可交付，算进分母会让这个指标退化成拒答率的镜像。报告同时给出
+`Citation compliance (all answerable)`（分母含拒答的旧口径），用于对齐 2026-10-30 之前的历史基线。
+引用强制生效时交付答案必然带引用，因此新口径通常恒为 1.0000；这时区分度在「其中引用合规拒答」
+与旧口径两行上，关掉引用强制（如 Quarkus 默认配置）时新口径才有波动。
+
+ACL 探针只做硬断言，任何受限 `sourceId` 出现即视为泄漏。不可回答问题只统计拒答率。
 
 首轮阈值写在 `targets.json`，`enforce: false` 时仅为 advisory；硬失败只有 ACL 泄漏、上下文漂移、
 provider 错误、RAGAS 评分失败与预检失败。基线评审后可用 `--enforce` 启用分数阈值。

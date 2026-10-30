@@ -39,8 +39,19 @@ def aggregate(
     }
 
     non_error = [sample for sample in answerable if not sample.get("error")]
+    # 引用合规只回答「交付给用户的答案是否带引用」。护栏拒答根本没有答案可交付，
+    # 把它算成「不合规」会让这个指标退化成拒答率的镜像（28/30 就是 1 - 2/30）；
+    # 拒答的规模由 scored_coverage 与 exclusion_reasons 单独度量。
+    delivered = [sample for sample in non_error if not sample.get("guardrail_refusal")]
     citation_compliance = mean(
+        1.0 if sample.get("citation_compliant") else 0.0 for sample in delivered
+    )
+    # 旧口径（分母含护栏拒答）保留，便于与 2026-10-30 之前的历史基线直接对照。
+    citation_compliance_all = mean(
         1.0 if sample.get("citation_compliant") else 0.0 for sample in non_error
+    )
+    uncited_refusals = sum(
+        1 for sample in answerable if sample.get("guardrail_refusal") == "uncited"
     )
     fallback_rate = mean(
         1.0 if sample.get("fallback") else 0.0 for sample in answerable
@@ -64,6 +75,12 @@ def aggregate(
         "scored_coverage": scored_coverage,
         "metrics": metric_results,
         "citation_compliance": citation_compliance,
+        "citation_compliance_all": citation_compliance_all,
+        "citation_guard_refusal_count": uncited_refusals,
+        "citation_guard_refusal_rate": (
+            uncited_refusals / len(answerable) if answerable else None
+        ),
+        "delivered_samples": len(delivered),
         "fallback_rate": fallback_rate,
         "context_drift_count": sum(1 for sample in answerable if sample.get("context_drift")),
         "provider_error_count": sum(1 for sample in answerable if sample.get("error")),
@@ -129,9 +146,12 @@ def hard_failures(result: Mapping[str, Any], targets: Mapping[str, Any]) -> list
                 f"fallback rate {result['fallback_rate']:.2f} above target {float(max_fallback):.2f}"
             )
         min_citation = targets.get("citation_compliance")
-        if min_citation is not None and (result["citation_compliance"] or 0.0) < float(min_citation):
+        citation = result["citation_compliance"]
+        # None 表示全部答案都被护栏拦下、没有可交付样本：这种情况由
+        # scored_coverage 与「no sample could be scored」兜底，不在这里重复报。
+        if min_citation is not None and citation is not None and citation < float(min_citation):
             failures.append(
-                f"citation compliance {result['citation_compliance']:.2f} below target {float(min_citation):.2f}"
+                f"citation compliance {citation:.4f} below target {float(min_citation):.4f}"
             )
         min_abstention = targets.get("min_unanswerable_abstention")
         if (
@@ -196,12 +216,25 @@ def render_markdown(
         f"{_status(_meets(result['citation_compliance'], result['targets'].get('citation_compliance')))} |"
     )
     lines.append(
+        f"| Citation compliance (all answerable) | {_fmt(result['citation_compliance_all'])} | - | - |"
+    )
+    lines.append(
         f"| Fallback rate | {_fmt(result['fallback_rate'])} | "
         f"≤ {_fmt(result['targets'].get('max_fallback_rate'))} | "
         f"{_status(_at_most(result['fallback_rate'], result['targets'].get('max_fallback_rate')))} |"
     )
     lines.append("")
     lines.append("评分目标在首轮为 advisory；只有 ACL 泄漏、上下文漂移、provider 错误与预检失败为硬失败。")
+    lines.append(
+        "Citation compliance 的分母是**已交付答案**（剔除 provider 错误与护栏拒答，"
+        f"本次 {result.get('delivered_samples', 0)} 条）；含拒答的旧口径单列一行，"
+        "供与 2026-10-30 之前的基线对照。"
+    )
+    if result.get("citation_compliance") == 1.0 and result.get("citation_guard_refusal_count"):
+        lines.append(
+            "交付答案全部带引用（引用强制生效），因此这一项没有区分度；"
+            "被引用护栏拦下的题见「其中引用合规拒答」。"
+        )
     if result.get("metrics_error"):
         lines.append("")
         lines.append(f"> RAGAS 评分失败：{result['metrics_error']}")
@@ -213,9 +246,14 @@ def render_markdown(
     lines.append(f"| 可回答题总数 | {result['answerable_samples']} |")
     lines.append(f"| 可评分样本 | {result['scored_samples']} |")
     lines.append(f"| 可评分覆盖率 | {result['scored_coverage']:.2%} |")
+    lines.append(f"| 已交付答案 | {result['delivered_samples']} |")
     lines.append(f"| 上下文漂移 | {result['context_drift_count']} |")
     lines.append(f"| Provider 错误 | {result['provider_error_count']} |")
-    lines.append(f"| 引用护栏拒答 | {result['guardrail_refusal_count']} |")
+    lines.append(f"| 护栏拒答（合计） | {result['guardrail_refusal_count']} |")
+    lines.append(
+        f"| 其中引用合规拒答 | {result['citation_guard_refusal_count']}"
+        f" ({_fmt_result(result['citation_guard_refusal_rate'])}) |"
+    )
     lines.append(f"| Fallback 次数 | {_fmt(result['fallback_rate'])} (比例) |")
     if result["exclusion_reasons"]:
         reasons = "、".join(f"{key}={value}" for key, value in result["exclusion_reasons"].items())

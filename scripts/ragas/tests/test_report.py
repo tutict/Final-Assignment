@@ -115,6 +115,81 @@ def test_aggregate_uses_only_scored_samples_for_means() -> None:
     assert result["acl"]["leaked"] == 0
 
 
+def test_citation_compliance_counts_delivered_answers_only() -> None:
+    samples = [
+        answerable("a1", citation_compliant=True),
+        answerable("a2", citation_compliant=True),
+        # 引用护栏拒答：没有答案可交付，不能算成「不合规」
+        answerable(
+            "a3",
+            scored=False,
+            metrics={key: None for key in METRIC_KEYS},
+            citation_compliant=False,
+            guardrail_refusal="uncited",
+            exclusion_reason="guardrail_uncited",
+        ),
+        # 主题校验拒答：同理
+        answerable(
+            "a4",
+            scored=False,
+            metrics={key: None for key in METRIC_KEYS},
+            citation_compliant=False,
+            guardrail_refusal="no_source",
+            exclusion_reason="guardrail_no_source",
+        ),
+    ]
+    result = aggregate(samples, [unanswerable()], [acl_probe()], TARGETS)
+
+    assert result["delivered_samples"] == 2
+    assert result["citation_compliance"] == 1.0
+    assert result["citation_guard_refusal_count"] == 1
+    assert result["citation_guard_refusal_rate"] == 0.25
+    # 旧口径保持原样，历史基线才对得上
+    assert result["citation_compliance_all"] == 0.5
+
+
+def test_citation_compliance_is_none_when_every_answer_was_refused() -> None:
+    samples = [
+        answerable(
+            "a1",
+            scored=False,
+            metrics={key: None for key in METRIC_KEYS},
+            citation_compliant=False,
+            guardrail_refusal="uncited",
+            exclusion_reason="guardrail_uncited",
+        )
+    ]
+    result = aggregate(samples, [], [], dict(TARGETS, enforce=True))
+
+    assert result["delivered_samples"] == 0
+    assert result["citation_compliance"] is None
+    # 全部被拒时由 coverage 兜底，不要再报一条「引用合规 0.00」的误导性失败
+    assert not any("citation compliance" in failure for failure in result["hard_failures"])
+    assert any("scored coverage" in failure for failure in result["hard_failures"])
+
+
+def test_render_markdown_keeps_both_citation_definitions() -> None:
+    samples = [
+        answerable("a1", citation_compliant=True),
+        answerable(
+            "a2",
+            scored=False,
+            metrics={key: None for key in METRIC_KEYS},
+            citation_compliant=False,
+            guardrail_refusal="uncited",
+            exclusion_reason="guardrail_uncited",
+        ),
+    ]
+    result = aggregate(samples, [unanswerable()], [acl_probe()], TARGETS)
+    markdown = render_markdown(
+        manifest(), result, samples, [unanswerable()], [acl_probe()], []
+    )
+
+    assert "| Citation compliance | 1.0000 |" in markdown
+    assert "| Citation compliance (all answerable) | 0.5000 |" in markdown
+    assert "| 其中引用合规拒答 | 1 (50.00%) |" in markdown
+
+
 def test_hard_failures_cover_acl_drift_and_provider_errors() -> None:
     samples = [
         answerable("a1", context_drift=True),
