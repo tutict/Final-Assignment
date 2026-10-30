@@ -13,7 +13,7 @@
 
 - 五项 RAGAS 指标与引用合规全部达标，无硬失败：Faithfulness 0.9036、Response Relevancy
   0.8900、Context Precision 0.9468、Context Recall 1.0000、Answer Correctness 0.7770、
-  引用合规 28/30。
+  引用合规 28/28（分母为已交付答案）。
 - **topK=10 把上一轮剩下的块级漏召回补齐**：相关块召回 100%（topK=5 对照运行
   `20261029-refusal-verifier` 为 98.33%，唯一缺口是 a02 的 `c-fine-payment-guide`），
   Context Recall 从 0.9815 升到 1.0000。top-10 命中数两种口径都是 30/30，差异只在块级。
@@ -62,7 +62,8 @@
 | Context Precision (with reference) | 0.9468 | 0.6000 | PASS |
 | Context Recall | 1.0000 | 0.8500 | PASS |
 | Answer Correctness | 0.7770 | 0.5500 | PASS |
-| Citation compliance | 0.9333 | 0.9000 | PASS |
+| Citation compliance（已交付答案） | 1.0000 | 0.9000 | PASS |
+| Citation compliance（含拒答，旧口径） | 0.9333 | - | - |
 | Fallback rate | 0.0000 | ≤ 0.1000 | PASS |
 | 不可回答拒答率 | 1.0000 | ≥ 0.8000 | PASS |
 | 可评分覆盖率 | 0.9333 | ≥ 0.9000 | PASS |
@@ -220,10 +221,26 @@ ACL 探针 3/3 通过，受限 `sourceId`（`c-admin-audit-log`、`c-user-offens
 
 ## 指标口径提醒
 
-`citation_compliance` 的分母是全部 30 道可答题，而两处不合规正是被护栏拒答的 a16、a19
-（拒答文本不带 `[n]`）。也就是说这个指标当前与「未拒答题数」互为镜像：
-28/30 = 1 − 2/30。它在这份基线上不代表「引用质量下降」，只是拒答被计为不合规。
-若要单独度量引用质量，应把指标分母限定为已评分样本，这是后续工具链可以收紧的地方。
+本次运行产出的 `metrics.json` 里 `citation_compliance` 是**旧口径 0.9333**
+（28/30，分母含护栏拒答）。这个口径有问题：两处「不合规」正是被引用护栏拒答的 a16、a19
+（拒答文本本来就不带 `[n]`），所以 28/30 = 1 − 2/30，指标与拒答率互为镜像，读数会随
+拒答策略变动而漂移。
+
+跑完本轮后已把工具链改成：`citation_compliance` 的分母改为**已交付答案**（剔除 provider
+错误与护栏拒答），同时保留 `citation_compliance_all` 记录旧口径。按新定义重算本轮：
+
+| 口径 | 分子/分母 | 值 |
+| --- | --- | ---: |
+| Citation compliance（已交付） | 28 / 28 | 1.0000 |
+| Citation compliance（含拒答，旧口径） | 28 / 30 | 0.9333 |
+| 其中引用合规拒答 | 1 / 30 | 3.33% |
+
+要诚实说明：引用强制生效时交付答案必然带引用，所以新口径在四个后端上都是 1.0000，
+**它本身没有区分度**，作用是「不再把拒答算成引用缺陷」。真正有信息量的是另外两行——
+被引用护栏拦下的题数（本例 1 题），以及关掉引用强制后才会波动的 `citation_compliance`。
+拒答规模仍由 `scored_coverage`（0.9333，目标 0.90）与 `exclusion_reasons` 兜底。
+
+历史产物未回溯改写：`artifacts/ragas/*/metrics.json` 保留生成时的旧口径数值。
 
 ## 结论与建议
 
@@ -241,8 +258,9 @@ ACL 探针 3/3 通过，受限 `sourceId`（`c-admin-audit-log`、`c-user-offens
 5. **裁判假阴性需要人工复核兜底**（中）：a11（内容完整却 0.5）与 a14（逐字等价却
    0.487）证明小裁判模型对引用编号数量、短答案长度敏感。单题低分不能直接当缺陷处理，
    报告中应保留原始答案供复核。
-6. **`citation_compliance` 分母需要修正**（低）：让拒答不计入引用合规分母，否则该指标
-   会随拒答率波动而失真。
+6. **`citation_compliance` 分母已修正**（已完成）：拒答不再计入引用合规分母，旧口径保留为
+   `citation_compliance_all`。注意新口径在引用强制生效时恒为 1.0000，判定回归要看
+   「其中引用合规拒答」与旧口径，不能只看这一个数。
 
 ## 复现
 
