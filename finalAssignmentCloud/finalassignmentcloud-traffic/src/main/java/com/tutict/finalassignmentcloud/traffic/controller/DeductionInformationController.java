@@ -1,5 +1,6 @@
 package com.tutict.finalassignmentcloud.traffic.controller;
 
+import com.tutict.finalassignmentcloud.exception.DependencyUnavailableException;
 import com.tutict.finalassignmentcloud.entity.DeductionRecord;
 import com.tutict.finalassignmentcloud.traffic.service.BusinessRecordViewService;
 import com.tutict.finalassignmentcloud.traffic.service.DeductionRecordService;
@@ -296,6 +297,9 @@ public class DeductionInformationController {
         }
         if (ex instanceof IdempotencyConflictException || ex instanceof IdempotencyInProgressException) {
             return HttpStatus.CONFLICT;
+        }
+        if (ex instanceof DependencyUnavailableException) {
+            return HttpStatus.SERVICE_UNAVAILABLE;
         }
         return (ex instanceof IllegalArgumentException || ex instanceof IllegalStateException)
                 ? HttpStatus.BAD_REQUEST

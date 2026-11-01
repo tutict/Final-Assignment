@@ -8,17 +8,21 @@ import org.junit.jupiter.api.Test;
 class PoolShedPolicyTest {
 
     @Test
-    void nonLedgerGetsShedAtEightyPercentAndLedgerWritesWaitForThePool() {
-        assertTrue(PoolShedPolicy.shed("GET", "/api/users", 0.8, 0, 1));
-        assertFalse(PoolShedPolicy.shed("GET", "/api/payments/1", 0.9, 0, 0));
-        assertTrue(PoolShedPolicy.shed("POST", "/api/payments", 0.9, 0, 0));
-        assertTrue(PoolShedPolicy.shed("POST", "/api/payments", 0.1, 1, 0));
-        assertFalse(PoolShedPolicy.shed("GET", "/actuator/health", 1.0, 4, 0));
-        assertTrue(PoolShedPolicy.shedWhenBusy("GET", "/api/auth/me", 33, 32));
-        assertFalse(PoolShedPolicy.shedWhenBusy("GET", "/api/auth/me", 32, 32));
-        assertFalse(PoolShedPolicy.shedWhenBusy("GET", "/api/payments", 40, 32));
-        assertTrue(PoolShedPolicy.shedWhenBusy("POST", "/api/payments", 33, 32));
-        assertFalse(PoolShedPolicy.shedWhenBusy("GET", "/actuator/health", 100, 32));
-        assertFalse(PoolShedPolicy.shed("POST", "/api/users", 0.95, 0, 0));
+    void nonLedgerGetsShedOnlyWhenTheQueueIsDeepEnough() {
+        assertFalse(PoolShedPolicy.shed("GET", "/api/users", 1.0, 0, 0, 16));
+        assertFalse(PoolShedPolicy.shed("GET", "/api/users", 1.0, 7, 0, 16));
+        assertTrue(PoolShedPolicy.shed("GET", "/api/users", 1.0, 8, 0, 16));
+        assertTrue(PoolShedPolicy.shed("GET", "/api/users", 0.1, 1, 8, 2));
+    }
+
+    @Test
+    void ledgerAndHealthKeepTheirExistingRules() {
+        assertFalse(PoolShedPolicy.shed("GET", "/api/payments/1", 0.9, 0, 0, 16));
+        assertTrue(PoolShedPolicy.shed("POST", "/api/payments", 0.9, 0, 0, 16));
+        assertTrue(PoolShedPolicy.shed("POST", "/api/payments", 0.1, 1, 0, 16));
+        assertTrue(PoolShedPolicy.shed("GET", "/api/auth/me", 0.1, 1, 8, 2));
+        assertFalse(PoolShedPolicy.shed("GET", "/api/auth/me", 0.1, 0, 8, 16));
+        assertFalse(PoolShedPolicy.shed("GET", "/actuator/health", 1.0, 8, 0, 16));
+        assertFalse(PoolShedPolicy.shed("POST", "/api/users", 0.95, 0, 0, 16));
     }
 }

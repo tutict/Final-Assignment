@@ -1,5 +1,6 @@
 package com.tutict.finalassignmentcloud.traffic.controller;
 
+import com.tutict.finalassignmentcloud.exception.DependencyUnavailableException;
 import com.tutict.finalassignmentcloud.entity.DriverVehicle;
 import com.tutict.finalassignmentcloud.entity.VehicleInformation;
 import com.tutict.finalassignmentcloud.dto.response.ApiResponse;
@@ -563,6 +564,9 @@ public class VehicleInformationController {
         }
         if (ex instanceof IdempotencyConflictException || ex instanceof IdempotencyInProgressException) {
             return HttpStatus.CONFLICT;
+        }
+        if (ex instanceof DependencyUnavailableException) {
+            return HttpStatus.SERVICE_UNAVAILABLE;
         }
         return (ex instanceof IllegalArgumentException || ex instanceof IllegalStateException)
                 ? HttpStatus.BAD_REQUEST

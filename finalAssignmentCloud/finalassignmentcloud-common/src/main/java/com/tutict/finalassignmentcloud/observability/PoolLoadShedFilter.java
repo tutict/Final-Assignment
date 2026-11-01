@@ -9,7 +9,6 @@ import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import java.io.IOException;
-import java.util.concurrent.atomic.AtomicInteger;
 import javax.sql.DataSource;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.beans.factory.annotation.Value;
@@ -28,7 +27,6 @@ public class PoolLoadShedFilter extends OncePerRequestFilter {
     private final boolean enabled;
     private final ObjectProvider<DataSource> dataSource;
     private final Counter loadShed;
-    private final AtomicInteger inFlight = new AtomicInteger();
 
     public PoolLoadShedFilter(
             @Value("${app.reliability.load-shed:${RELIABILITY_LOAD_SHED:true}}") boolean enabled,
@@ -47,34 +45,26 @@ public class PoolLoadShedFilter extends OncePerRequestFilter {
             chain.doFilter(request, response);
             return;
         }
-        int admitted = inFlight.incrementAndGet();
         request.setAttribute(HANDLED, Boolean.TRUE);
-        try {
-            if (!enabled || !shouldShed(request, admitted)) {
-                chain.doFilter(request, response);
-                return;
-            }
-            if (loadShed != null) {
-                loadShed.increment();
-            }
-            response.setStatus(HttpServletResponse.SC_SERVICE_UNAVAILABLE);
-            response.setHeader("Retry-After", "1");
-            response.setContentType(MediaType.APPLICATION_JSON_VALUE);
-            response.getWriter().write("{\"errorCode\":\"LOAD_SHED\",\"message\":\"Overloaded\"}");
-        } finally {
-            inFlight.decrementAndGet();
+        if (!enabled || !shouldShed(request)) {
+            chain.doFilter(request, response);
+            return;
         }
+        if (loadShed != null) {
+            loadShed.increment();
+        }
+        response.setStatus(HttpServletResponse.SC_SERVICE_UNAVAILABLE);
+        response.setHeader("Retry-After", "1");
+        response.setContentType(MediaType.APPLICATION_JSON_VALUE);
+        response.getWriter().write("{\"errorCode\":\"LOAD_SHED\",\"message\":\"Overloaded\"}");
     }
 
-    private boolean shouldShed(HttpServletRequest request, int admitted) {
+    private boolean shouldShed(HttpServletRequest request) {
         DataSource source = dataSource.getIfAvailable();
         if (!(source instanceof HikariDataSource hikari)) {
             return false;
         }
         int maxPool = hikari.getMaximumPoolSize();
-        if (PoolShedPolicy.shedWhenBusy(request.getMethod(), request.getRequestURI(), admitted, maxPool)) {
-            return true;
-        }
         HikariPoolMXBean pool = hikari.getHikariPoolMXBean();
         if (pool == null || maxPool <= 0) {
             return false;
@@ -85,6 +75,7 @@ public class PoolLoadShedFilter extends OncePerRequestFilter {
                 request.getRequestURI(),
                 utilization,
                 pool.getThreadsAwaitingConnection(),
-                pool.getIdleConnections());
+                pool.getIdleConnections(),
+                maxPool);
     }
 }

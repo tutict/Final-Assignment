@@ -13,7 +13,9 @@ internal:
 spring:
   datasource:
     hikari:
-      connection-timeout: 250
+      maximum-pool-size: ${DB_MAX_POOL_SIZE:16}
+      minimum-idle: ${DB_MIN_IDLE:4}
+      connection-timeout: ${DB_CONNECTION_TIMEOUT_MS:1000}
       data-source-properties:
         sessionVariables: max_execution_time=3000
   main:

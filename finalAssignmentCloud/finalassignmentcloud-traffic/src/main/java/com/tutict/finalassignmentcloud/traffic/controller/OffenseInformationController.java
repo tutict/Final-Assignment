@@ -1,5 +1,6 @@
 package com.tutict.finalassignmentcloud.traffic.controller;
 
+import com.tutict.finalassignmentcloud.exception.DependencyUnavailableException;
 import com.tutict.finalassignmentcloud.entity.OffenseRecord;
 import com.tutict.finalassignmentcloud.reliability.IdempotencyReplayException;
 import com.tutict.finalassignmentcloud.reliability.IdempotencyConflictException;
@@ -329,6 +330,9 @@ public class OffenseInformationController {
         }
         if (ex instanceof IdempotencyConflictException || ex instanceof IdempotencyInProgressException) {
             return HttpStatus.CONFLICT;
+        }
+        if (ex instanceof DependencyUnavailableException) {
+            return HttpStatus.SERVICE_UNAVAILABLE;
         }
         return (ex instanceof IllegalArgumentException || ex instanceof IllegalStateException)
                 ? HttpStatus.BAD_REQUEST

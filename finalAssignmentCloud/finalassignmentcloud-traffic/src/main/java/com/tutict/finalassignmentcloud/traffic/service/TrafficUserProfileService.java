@@ -5,15 +5,19 @@ import com.tutict.finalassignmentcloud.dto.internal.InternalUserProfile;
 import com.tutict.finalassignmentcloud.dto.response.UserProfileResponse;
 import com.tutict.finalassignmentcloud.entity.DriverInformation;
 import com.tutict.finalassignmentcloud.entity.SysUser;
+import com.tutict.finalassignmentcloud.exception.DependencyUnavailableException;
 import com.tutict.finalassignmentcloud.traffic.client.UserClient;
 import feign.FeignException;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.GrantedAuthority;
 import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
 
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
@@ -29,14 +33,26 @@ public class TrafficUserProfileService {
             "FINANCE",
             "APPEAL_REVIEWER"
     );
+    private static final long PROFILE_TTL_MILLIS = 60_000L;
+    private static final int MAX_CACHED_PROFILES = 10_000;
 
     private final UserClient userClient;
     private final DriverInformationService driverInformationService;
+    private final long profileTtlMillis;
+    private final Map<String, CachedProfile> profiles = new ConcurrentHashMap<>();
 
+    @Autowired
     public TrafficUserProfileService(UserClient userClient,
                                      DriverInformationService driverInformationService) {
+        this(userClient, driverInformationService, PROFILE_TTL_MILLIS);
+    }
+
+    TrafficUserProfileService(UserClient userClient,
+                              DriverInformationService driverInformationService,
+                              long profileTtlMillis) {
         this.userClient = userClient;
         this.driverInformationService = driverInformationService;
+        this.profileTtlMillis = profileTtlMillis;
     }
 
     public UserProfileResponse getCurrentUserProfile(Authentication authentication) {
@@ -85,14 +101,33 @@ public class TrafficUserProfileService {
     }
 
     private SysUser safeGetByUsername(String username) {
+        long now = System.currentTimeMillis();
+        CachedProfile cached = profiles.get(username);
+        if (cached != null && cached.expiresAt() > now) {
+            return cached.user();
+        }
         try {
             InternalUserProfile profile = userClient.getByUsername(username);
-            return profile == null ? null : profile.toEntity();
+            if (profile == null) {
+                profiles.remove(username);
+                return null;
+            }
+            SysUser user = profile.toEntity();
+            if (profiles.size() >= MAX_CACHED_PROFILES) {
+                profiles.clear();
+            }
+            profiles.put(username, new CachedProfile(user, now + profileTtlMillis));
+            return user;
         } catch (FeignException.NotFound ex) {
+            profiles.remove(username);
             return null;
         } catch (FeignException ex) {
+            if (cached != null) {
+                LOG.log(Level.WARNING, "Serving cached user profile for " + username + " after lookup failure", ex);
+                return cached.user();
+            }
             LOG.log(Level.WARNING, "Failed to fetch user by username=" + username, ex);
-            return null;
+            throw new DependencyUnavailableException("user-service profile lookup failed for " + username, ex);
         }
     }
 
@@ -112,5 +147,8 @@ public class TrafficUserProfileService {
             return trimmed.charAt(0) + "****";
         }
         return trimmed.substring(0, 3) + "****" + trimmed.substring(trimmed.length() - 4);
+    }
+
+    private record CachedProfile(SysUser user, long expiresAt) {
     }
 }
