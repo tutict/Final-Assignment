@@ -14,7 +14,7 @@
 | [一键启动](#一键启动) | 启动 Docker 依赖、后端、Flutter Web 和本地 AI 环境 |
 | [后端包结构](finalAssignmentBackend/PACKAGE_LAYOUT.md) | Spring Boot 主后端的分层、领域包和命名规则 |
 | [数据库设计](database/DATABASE_DESIGN.md) | MySQL 表、角色、业务关联、敏感字段和 RAG 表设计 |
-| [压测报告](docs/performance/load-test-2026-09-21.md) | 2026-09-21 四后端 k6（Spring / Cloud / Go / Quarkus）；历史 Spring 基线见 2026-06-01 |
+| [压测报告](docs/performance/load-test-2026-11-01.md) | 2026-11-01 四后端 k6 / wrk（Spring / Cloud / Go / Quarkus）；全 API 四端全过，Cloud 分段仅 `ai_http_orchestration_ms` 未达严格阈值 |
 | [版本标签](#版本标签) | `v0.1.0` ~ `v0.7.0` 能力里程碑标签与对应文档 |
 | [RAG 评测报告](#rag-答案质量评估) | Spring / Cloud / Go / Quarkus 四后端的 RAGAS 答案质量评测结果 |
 | [脚本说明](scripts/README.md) | 启动、Debezium、AI 链路测试等脚本参数 |
@@ -121,6 +121,7 @@ Flutter Web
 
 ## 压测与性能基线
 
+- [2026-11-01 四后端 k6 / wrk 总览](docs/performance/load-test-2026-11-01.md) — 全 API 四端阈值全过（p95：Go 2.4ms / Quarkus 8.9ms / Spring 49.6ms / Cloud 51.3ms）；AI/RAG 分段 Spring / Go / Quarkus 通过，Cloud 仅 `ai_http_orchestration_ms` p95 4,970ms 超 1,200ms 阈值；同轮修复 Cloud 读链路误拒流与服务间依赖 503 放大
 - [2026-09-21 四后端 k6 总览](docs/performance/load-test-2026-09-21.md)
   - [Spring 单体](docs/performance/load-test-2026-09-21-spring.md)
   - [Spring Cloud 网关](docs/performance/load-test-2026-09-21-cloud.md)
