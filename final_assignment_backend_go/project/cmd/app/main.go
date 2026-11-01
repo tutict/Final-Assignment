@@ -197,14 +197,16 @@ func main() {
 	health := reliability.Health(db)
 	router.GET("/actuator/health", health)
 	router.GET("/actuator/health/liveness", reliability.Liveness)
+	router.GET("/actuator/health/readiness", health)
 	router.GET("/api/actuator/health", health)
 	router.POST("/api/auth/login", reliability.LoginRateLimit(), reliability.RequireProbe(blacklistService.Reachable), authHandler.Login)
 	router.POST("/api/auth/register", authHandler.RegisterUser)
 	router.POST("/api/auth/refresh", reliability.RequireProbe(blacklistService.Reachable), authHandler.Refresh)
 
 	// AI Chat 路由（如果已初始化）
+	var aiChatHandler *handler.AiChatHandler
 	if chatPipeline != nil {
-		aiChatHandler := handler.NewAiChatHandler(chatPipeline)
+		aiChatHandler = handler.NewAiChatHandler(chatPipeline)
 		handler.RegisterAiChatRoutes(router, aiChatHandler)
 	}
 
@@ -215,6 +217,10 @@ func main() {
 
 	// 需要认证的路由
 	router.Use(requiredPrincipal(tokenProvider, blacklistService), accessPolicy())
+	// 动作编排按登录角色返回导航动作，匿名请求 401，对齐 Spring 的鉴权语义。
+	if aiChatHandler != nil {
+		router.GET("/api/ai/chat/actions", aiChatHandler.GetChatActions)
+	}
 	// RAG 查询需要登录：检索身份来自 JWT，对齐 Spring 的 401 语义
 	router.POST("/api/rag/query", ragQueryHandler(ragRuntime))
 	router.POST("/api/ws-ticket", handler.NewWsTicketHandler(wsTicketService).IssueTicketFromAuth)
@@ -246,6 +252,7 @@ func main() {
 		log.Println("[INFO]   - POST /api/auth/register")
 		if chatPipeline != nil {
 			log.Println("[INFO]   - POST /api/ai/chat/stream")
+			log.Println("[INFO]   - GET  /api/ai/chat/actions")
 		}
 		log.Println("[INFO]   - POST /api/ws-ticket")
 		log.Println("[INFO]   - POST /api/rag/query")
