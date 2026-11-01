@@ -1,5 +1,5 @@
 import http from 'k6/http';
-import { check } from 'k6';
+import { check, sleep } from 'k6';
 
 export const BACKENDS = {
   spring: { name: 'spring', envKey: 'BASE_URL_SPRING', baseUrl: 'http://127.0.0.1:8080' },
@@ -112,6 +112,26 @@ export function login(baseUrl, username, password, endpoint) {
     JSON.stringify({ username, password }),
     jsonHeaders(endpoint || 'login'),
   );
+}
+
+export function loginWithRetry(baseUrl, username, password, endpoint) {
+  const params = jsonHeaders(endpoint || 'login');
+  params.responseCallback = http.expectedStatuses(200, 429);
+  const attempt = () => http.post(
+    `${baseUrl}/api/auth/login`,
+    JSON.stringify({ username, password }),
+    params,
+  );
+  let response = attempt();
+  for (let retry = 0; retry < 3 && response.status === 429; retry += 1) {
+    const header = response.headers['Retry-After'] || response.headers['Retry-after'] || '30';
+    const parsed = parseInt(header, 10);
+    const wait = Math.min(Math.max(Number.isFinite(parsed) ? parsed : 30, 1), 130);
+    console.warn(`Login for ${username} is rate limited; retrying in ${wait}s`);
+    sleep(wait);
+    response = attempt();
+  }
+  return response;
 }
 
 export function assertLogin(response, username) {

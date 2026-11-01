@@ -8,7 +8,7 @@ import {
   backendName,
   firstDocumentId,
   jsonBody,
-  login,
+  loginWithRetry,
   parseSseEvents,
   ragDocuments,
   ragResults,
@@ -39,9 +39,12 @@ const STRICT = (__ENV.PERF_STRICT || 'false').toLowerCase() === 'true';
 const SUMMARY_JSON = __ENV.PERF_SUMMARY_JSON || 'artifacts/k6/ai-rag-staged-load-summary.json';
 const RAG_QUERY = __ENV.PERF_RAG_QUERY || '驾驶员交通违法申诉材料、罚款缴纳、事故快处和车辆登记办理指南';
 const ACTION_MESSAGE = __ENV.PERF_ACTION_MESSAGE || '帮我打开交通违法申诉办理页面，并说明下一步需要填写什么';
-const MODEL_MESSAGE = __ENV.PERF_MODEL_MESSAGE || '请用三句话说明驾驶员交通违法申诉、罚款缴纳和事故快处的办理流程';
+const MODEL_MESSAGE = __ENV.PERF_MODEL_MESSAGE || '请用三句话说明超速、疲劳驾驶和占用应急车道的处罚标准';
 const AGENT_QUERY_MESSAGE = __ENV.PERF_AGENT_QUERY_MESSAGE || '查询我的违法记录';
 const AGENT_DRAFT_MESSAGE = __ENV.PERF_AGENT_DRAFT_MESSAGE || '我要申诉';
+// Go answers an exhausted model bulkhead with reason=bulkhead_full; Quarkus emits an error
+// event "模型繁忙，请稍后重试". Both are admission control, not provider absence.
+const SHED_MARKERS = ['bulkhead_full', '模型繁忙'];
 
 const aiHttpOrchestrationMs = new Trend('ai_http_orchestration_ms', true);
 const ragRetrievalMs = new Trend('rag_retrieval_ms', true);
@@ -55,8 +58,10 @@ const ragAdminForbiddenOk = new Rate('rag_admin_forbidden_ok');
 const aiModelOk = new Rate('ai_model_ok');
 const aiModelOllamaOk = new Rate('ai_model_ollama_ok');
 const aiModelNoopFallbackOk = new Rate('ai_model_noop_fallback_ok');
+const aiModelShed = new Rate('ai_model_shed');
 const agentLoopOk = new Rate('agent_loop_ok');
 const agentDraftOk = new Rate('agent_draft_ok');
+const agentDraftShed = new Rate('agent_draft_shed');
 
 const scenarios = {
   ai_http_orchestration: {
@@ -133,6 +138,7 @@ if (STRICT) {
 export const options = {
   scenarios,
   thresholds,
+  setupTimeout: '5m',
   summaryTrendStats: ['min', 'avg', 'med', 'p(90)', 'p(95)', 'p(99)', 'max'],
 };
 
@@ -147,9 +153,9 @@ if (INCLUDE_MODEL && STRICT) {
 }
 
 export function setup() {
-  const adminLogin = login(BASE_URL, ADMIN_USERNAME, ADMIN_PASSWORD, 'login_admin');
-  const superLogin = login(BASE_URL, SUPER_USERNAME, SUPER_PASSWORD, 'login_super');
-  const driverLogin = login(BASE_URL, DRIVER_USERNAME, DRIVER_PASSWORD, 'login_driver');
+  const adminLogin = loginWithRetry(BASE_URL, ADMIN_USERNAME, ADMIN_PASSWORD, 'login_admin');
+  const superLogin = loginWithRetry(BASE_URL, SUPER_USERNAME, SUPER_PASSWORD, 'login_super');
+  const driverLogin = loginWithRetry(BASE_URL, DRIVER_USERNAME, DRIVER_PASSWORD, 'login_driver');
   assertLogin(adminLogin, ADMIN_USERNAME);
   assertLogin(superLogin, SUPER_USERNAME);
   assertLogin(driverLogin, DRIVER_USERNAME);
@@ -281,31 +287,34 @@ export function agentLoop(data) {
     });
     agentLoopOk.add(queryOk);
 
-    const draftRes = http.post(
-      `${BASE_URL}/api/ai/chat/stream`,
-      JSON.stringify({
+    const draftRes = postAgentStream(
+      {
         message: AGENT_DRAFT_MESSAGE,
         sessionKey: `k6-draft-${__VU}-${__ITER}`,
         metadata: { webSearch: false },
-      }),
-      { ...streamHeaders(data.driverToken, 'ai_agent_draft'), timeout: '60s' },
+      },
+      data.driverToken,
+      'ai_agent_draft',
     );
     agentLoopMs.add(draftRes.timings.duration);
+    const draftShed = isBulkheadFallback(draftRes);
+    agentDraftShed.add(draftShed);
     const events = parseSseEvents(draftRes.body);
     const draftEvent = events.find((event) => String(event.type || '').toLowerCase() === 'draft');
     const draftOk = check(draftRes, {
       'driver draft stream is 200': (r) => r.status === 200,
       'write intent does not require model crash': (r) => r.status === 200,
     });
-    const foreign = http.post(
-      `${BASE_URL}/api/ai/chat/stream`,
-      JSON.stringify({
+    const foreign = postAgentStream(
+      {
         message: `确认办理 ${draftEvent?.payload?.draftId || '00000000-0000-0000-0000-000000000000'}`,
         sessionKey: `k6-foreign-${__VU}-${__ITER}`,
         metadata: { webSearch: false },
-      }),
-      { ...streamHeaders(data.adminToken, 'ai_agent_foreign_draft'), timeout: '60s' },
+      },
+      data.adminToken,
+      'ai_agent_foreign_draft',
     );
+    const foreignShed = isBulkheadFallback(foreign);
     const foreignBody = String(foreign.body || '');
     const foreignRejected = foreign.status === 200 && (
       foreignBody.includes('其他用户') ||
@@ -315,9 +324,9 @@ export function agentLoop(data) {
       sseHas(foreign.body, 'error')
     );
     check(foreign, {
-      'foreign draft confirm is rejected or explained': () => foreignRejected,
+      'foreign draft confirm is rejected or explained': () => foreignRejected || foreignShed,
     });
-    agentDraftOk.add(draftOk && foreignRejected);
+    agentDraftOk.add(draftOk && (foreignRejected || foreignShed));
   });
   sleep(0.2);
 }
@@ -346,6 +355,7 @@ export function aiModelGeneration(data) {
     aiModelOk.add(success);
     aiModelOllamaOk.add(success && providerStats.hasOllama && !providerStats.hasNoopFallback);
     aiModelNoopFallbackOk.add(success && providerStats.hasNoopFallback);
+    aiModelShed.add(providerStats.hasBulkhead);
   });
   sleep(0.2);
 }
@@ -357,8 +367,34 @@ export function handleSummary(data) {
   };
 }
 
+function isBulkheadFallback(res) {
+  const body = String((res && res.body) || '');
+  return SHED_MARKERS.some((marker) => body.includes(marker));
+}
+
+function postAgentStream(payload, token, tag, attempts = 3) {
+  let res;
+  for (let attempt = 0; attempt < attempts; attempt += 1) {
+    res = http.post(
+      `${BASE_URL}/api/ai/chat/stream`,
+      JSON.stringify(payload),
+      { ...streamHeaders(token, tag), timeout: '60s' },
+    );
+    if (!isBulkheadFallback(res)) {
+      return res;
+    }
+    sleep(0.5 * (attempt + 1));
+  }
+  return res;
+}
+
 function streamProviderStats(body) {
-  const stats = { hasOllama: false, hasNoopFallback: false };
+  const text = String(body || '');
+  const stats = {
+    hasOllama: false,
+    hasNoopFallback: false,
+    hasBulkhead: SHED_MARKERS.some((marker) => text.includes(marker)),
+  };
   for (const event of parseSseEvents(body)) {
     const payload = event.payload || event.metadata || {};
     const provider = String(payload.provider || event.provider || '').toLowerCase();
@@ -366,7 +402,7 @@ function streamProviderStats(body) {
     if (provider === 'ollama') {
       stats.hasOllama = true;
     }
-    if (provider === 'noop' || fallback) {
+    if (!stats.hasBulkhead && (provider === 'noop' || fallback)) {
       stats.hasNoopFallback = true;
     }
   }
@@ -389,10 +425,12 @@ function textSummary(data) {
     trend(metrics, 'rag_admin_ms', 'RAG 管理耗时'),
     line(metrics, 'agent_loop_ok', '帮办查询循环成功率'),
     line(metrics, 'agent_draft_ok', '帮办草稿/拒绝成功率'),
+    line(metrics, 'agent_draft_shed', '帮办草稿 模型降级比例'),
     trend(metrics, 'agent_loop_ms', '帮办循环耗时'),
     line(metrics, 'ai_model_ok', 'AI stream 返回成功率'),
     line(metrics, 'ai_model_ollama_ok', 'AI stream Ollama 真实调用成功率'),
     line(metrics, 'ai_model_noop_fallback_ok', 'AI stream noop fallback 比例'),
+    line(metrics, 'ai_model_shed', 'AI stream 模型降级比例'),
     trend(metrics, 'ai_model_generation_ms', '模型生成耗时'),
     `summary_json=${SUMMARY_JSON}`,
     '',

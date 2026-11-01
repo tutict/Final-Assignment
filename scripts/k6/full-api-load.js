@@ -9,6 +9,7 @@ import {
   healthPaths,
   jsonBody,
   jsonHeaders as libJsonHeaders,
+  loginWithRetry,
   ragResults,
   resolveBaseUrl,
 } from './lib.js';
@@ -93,6 +94,7 @@ if (loginRate > 0) {
 
 export const options = {
   scenarios,
+  setupTimeout: '5m',
   thresholds: {
     http_req_failed: ['rate<0.02'],
     http_req_duration: ['p(95)<1500', 'p(99)<5000'],
@@ -123,9 +125,9 @@ export function setup() {
     }));
   }
 
-  const userLogin = loginRequest(USERNAME, PASSWORD, 'login_user');
-  const adminLogin = loginRequest(ADMIN_USERNAME, ADMIN_PASSWORD, 'login_admin');
-  const superLogin = loginRequest(SUPER_USERNAME, SUPER_PASSWORD, 'login_super');
+  const userLogin = loginWithRetry(BASE_URL, USERNAME, PASSWORD, 'login_user');
+  const adminLogin = loginWithRetry(BASE_URL, ADMIN_USERNAME, ADMIN_PASSWORD, 'login_admin');
+  const superLogin = loginWithRetry(BASE_URL, SUPER_USERNAME, SUPER_PASSWORD, 'login_super');
 
   assertLogin(userLogin, USERNAME);
   assertLogin(adminLogin, ADMIN_USERNAME);
