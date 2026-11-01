@@ -97,9 +97,13 @@ public class RagChunkVectorIndexService {
     }
 
     private void ensureAlias(IndexOperations indexOperations) {
-        Map<String, ?> aliases = indexOperations.getAliases(mapping.aliasName());
-        if (!aliases.isEmpty()) {
-            return;
+        try {
+            Map<String, ?> aliases = indexOperations.getAliases(mapping.aliasName());
+            if (!aliases.isEmpty()) {
+                return;
+            }
+        } catch (RuntimeException error) {
+            // 别名不存在时查询本身就会 404，这正是下面要修复的状态。
         }
         AliasActionParameters parameters = AliasActionParameters.builder()
                 .withIndices(mapping.indexName())
