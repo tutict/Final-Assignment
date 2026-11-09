@@ -147,6 +147,8 @@ public class ChatPipeline {
         Multi<ChatStreamEvent> tokens = tokenEvents(assembled.prompt(), sessionKey, messageId, permitHeld);
         // Spring parity: any turn that engaged retrieval is judged on the sources the model
         // actually saw, even when the search returned nothing (then the guardrail refuses).
+        // Terminal agent results return above; this branch is the model fallback and keeps
+        // the pure-RAG empty-source refusal behavior.
         if (ragEngaged || !assembled.sources().isEmpty()) {
             List<RagQueryService.RetrievedChunk> judgedSources = assembled.sources();
             // One repair attempt with a citation-focused prompt, then the guardrail still refuses.

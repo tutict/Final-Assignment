@@ -245,12 +245,14 @@ public class ChatPipeline {
                 : "";
         String sanitizedMessage = sanitizeUserMessage(userMessage);
         List<String> conversationWindow = conversationWindow(metadata);
-        String prompt = promptAssembler.assemble(
+        PromptAssembler.Assembled assembled = promptAssembler.assembleWithSources(
                 sanitizedMessage,
                 conversationWindow,
                 retrievalResults,
                 agentConstraints
         );
+        String prompt = assembled.prompt();
+        List<RetrievalResult> groundedSources = assembled.sources();
         Flux<ChatStreamEvent> events = runtime != null
                 ? runtime.run(userMessage, request.sessionKey(), prompt, metadata, identity)
                 : chatStreamService.stream(new AiChatStreamRequest(
@@ -258,23 +260,31 @@ public class ChatPipeline {
                         request.sessionKey(),
                         metadata
                 ));
-        boolean groundingRequired = ragEngaged || !retrievalResults.isEmpty();
+        // Pure RAG must refuse when retrieval is empty. Agent turns can still ground an answer
+        // in tool results, so only require citations there when RAG sources reached the prompt.
+        boolean groundingRequired = !groundedSources.isEmpty() || (ragEngaged && runtime == null);
         // One repair attempt with a citation-focused prompt, then the guardrail still refuses.
         // The agent path is excluded because replaying it would re-run tools and side effects.
         Supplier<Flux<ChatStreamEvent>> citationRetry =
-                runtime == null && !retrievalResults.isEmpty()
+                runtime == null && !groundedSources.isEmpty()
                         ? () -> chatStreamService.stream(new AiChatStreamRequest(
                                 promptAssembler.assembleCitationRepair(
                                         sanitizedMessage,
                                         conversationWindow,
-                                        retrievalResults,
+                                        groundedSources,
                                         agentConstraints
                                 ),
                                 request.sessionKey(),
                                 metadata
                         ))
                         : null;
-        return applyGrounding(events, retrievalResults, groundingRequired, citationRetry, sanitizedMessage);
+        return applyGrounding(
+                events,
+                groundedSources,
+                groundingRequired,
+                citationRetry,
+                runtime == null ? sanitizedMessage : null
+        );
     }
 
     /**
@@ -368,7 +378,7 @@ public class ChatPipeline {
             List<ChatStreamEvent> replay = Objects.equals(sanitized, answer)
                     ? buffered
                     : replaceAnswer(buffered, sanitized);
-            if (topicGroundingVerifier == null) {
+            if (topicGroundingVerifier == null || question == null) {
                 return Flux.fromIterable(replay);
             }
             // The citation guardrail proves the answer points at *some* source, not that the

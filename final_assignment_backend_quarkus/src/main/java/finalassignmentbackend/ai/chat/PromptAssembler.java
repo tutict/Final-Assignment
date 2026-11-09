@@ -70,7 +70,7 @@ public class PromptAssembler {
                     context.append("\n\n");
                 }
                 context.append(entry);
-                included.add(source);
+                included.add(withContent(source, injectionGuard.sanitize(content)));
                 remainingTokens -= entryTokens;
                 index++;
             }
@@ -112,6 +112,15 @@ public class PromptAssembler {
         sections.add("User message:");
         sections.add(userMessage == null ? "" : userMessage.trim());
         return new Assembled(String.join("\n", sections).strip(), List.copyOf(included));
+    }
+
+    private static RagQueryService.RetrievedChunk withContent(
+            RagQueryService.RetrievedChunk source,
+            String content
+    ) {
+        return new RagQueryService.RetrievedChunk(
+                source.chunkId(), source.documentId(), source.sourceId(), content,
+                source.title(), source.sourceType(), source.route(), source.finalScore());
     }
 
     static String conversationWindow(List<String> conversationWindow) {

@@ -287,7 +287,7 @@ export function agentLoop(data) {
     });
     agentLoopOk.add(queryOk);
 
-    const draftRes = postAgentStream(
+    const draftAttempt = postAgentStream(
       {
         message: AGENT_DRAFT_MESSAGE,
         sessionKey: `k6-draft-${__VU}-${__ITER}`,
@@ -296,7 +296,8 @@ export function agentLoop(data) {
       data.driverToken,
       'ai_agent_draft',
     );
-    agentLoopMs.add(draftRes.timings.duration);
+    const draftRes = draftAttempt.response;
+    agentLoopMs.add(draftAttempt.durationMs);
     const draftShed = isBulkheadFallback(draftRes);
     agentDraftShed.add(draftShed);
     const events = parseSseEvents(draftRes.body);
@@ -305,7 +306,7 @@ export function agentLoop(data) {
       'driver draft stream is 200': (r) => r.status === 200,
       'write intent does not require model crash': (r) => r.status === 200,
     });
-    const foreign = postAgentStream(
+    const foreignAttempt = postAgentStream(
       {
         message: `确认办理 ${draftEvent?.payload?.draftId || '00000000-0000-0000-0000-000000000000'}`,
         sessionKey: `k6-foreign-${__VU}-${__ITER}`,
@@ -314,6 +315,7 @@ export function agentLoop(data) {
       data.adminToken,
       'ai_agent_foreign_draft',
     );
+    const foreign = foreignAttempt.response;
     const foreignShed = isBulkheadFallback(foreign);
     const foreignBody = String(foreign.body || '');
     const foreignRejected = foreign.status === 200 && (
@@ -373,6 +375,7 @@ function isBulkheadFallback(res) {
 }
 
 function postAgentStream(payload, token, tag, attempts = 3) {
+  const startedAt = Date.now();
   let res;
   for (let attempt = 0; attempt < attempts; attempt += 1) {
     res = http.post(
@@ -381,11 +384,11 @@ function postAgentStream(payload, token, tag, attempts = 3) {
       { ...streamHeaders(token, tag), timeout: '60s' },
     );
     if (!isBulkheadFallback(res)) {
-      return res;
+      return { response: res, durationMs: Date.now() - startedAt };
     }
     sleep(0.5 * (attempt + 1));
   }
-  return res;
+  return { response: res, durationMs: Date.now() - startedAt };
 }
 
 function streamProviderStats(body) {

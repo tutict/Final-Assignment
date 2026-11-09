@@ -136,6 +136,8 @@ k6 run scripts/k6/ai-rag-staged-load.js
 
 `scripts/performance/run-load-tests.ps1` 会先调用 `scripts/performance/seed-rag-load-dataset.ps1` 写入专用 RAG 压测资料，再以 `PERF_STRICT=true` 执行 AI/RAG 分段压测。`ai-rag-staged-load.js` 会在 AI stream 摘要中分别输出真实 `ollama` 调用成功率和 `noop fallback` 比例。
 
+Agent 草稿流遇到模型 bulkhead 时最多重试 3 次；`agent_loop_ms` 对草稿调用记录完整墙钟耗时，包含重试请求和退避等待，便于将准入保护开销计入延迟。
+
 ## 2026-09-21 四后端结果
 
 同一套脚本、`Duration 20s`。总览：`docs/performance/load-test-2026-09-21.md`。

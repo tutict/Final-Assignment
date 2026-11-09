@@ -9,6 +9,9 @@ import java.util.List;
 @Service
 public class PromptAssembler {
 
+    public record Assembled(String prompt, List<RagRetrievalResult> sources) {
+    }
+
     private final PromptTemplateService promptTemplateService;
     private final ContextBuilder contextBuilder;
 
@@ -23,6 +26,24 @@ public class PromptAssembler {
             List<RagRetrievalResult> retrievalResults
     ) {
         return assemble(userMessage, conversationWindow, retrievalResults, "");
+    }
+
+    public Assembled assembleWithSources(
+            String userMessage,
+            List<String> conversationWindow,
+            List<RagRetrievalResult> retrievalResults,
+            String agentConstraints
+    ) {
+        ContextBuilder.BuiltContext context = contextBuilder.buildWithSources(retrievalResults);
+        return new Assembled(
+                promptTemplateService.render(
+                        userMessage,
+                        conversationWindow(conversationWindow),
+                        context.context(),
+                        agentConstraints
+                ),
+                context.sources()
+        );
     }
 
     public String assemble(

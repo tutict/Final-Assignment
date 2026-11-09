@@ -3,9 +3,12 @@ package ai
 import (
 	"context"
 	ragsvc "final_assignment_backend_go/project/internal/service/rag"
+	"strings"
 	"testing"
 	"time"
 
+	"final_assignment_backend_go/project/internal/ai/agent"
+	"final_assignment_backend_go/project/internal/ai/guardrail"
 	aisvc "final_assignment_backend_go/project/internal/service/ai"
 )
 
@@ -173,6 +176,110 @@ func TestChatPipeline_Stream(t *testing.T) {
 				}
 			}
 		})
+	}
+}
+
+func TestChatPipelineAgentAnswerWithEmptyRagSourcesIsNotRefused(t *testing.T) {
+	const expected = "工具结果已整理。"
+	mockRag := &MockRagQueryService{
+		QueryFunc: func(context.Context, ragsvc.RagQueryRequest, ragsvc.RagAccessContext) (ragsvc.RagQueryResponse, error) {
+			return ragsvc.RagQueryResponse{}, nil
+		},
+	}
+	mockProvider := &MockAiProvider{
+		StreamFunc: func(context.Context, string, map[string]any, aisvc.AiChatConfig) (<-chan aisvc.AiToken, <-chan error) {
+			tokens := make(chan aisvc.AiToken, 1)
+			errors := make(chan error)
+			tokens <- aisvc.AiToken{Text: expected, Finished: true}
+			close(tokens)
+			close(errors)
+			return tokens, errors
+		},
+	}
+	pipeline, err := NewChatPipeline(mockRag, mockProvider, aisvc.DefaultAiChatConfig())
+	if err != nil {
+		t.Fatalf("NewChatPipeline() error = %v", err)
+	}
+	pipeline.SetAgent(agent.NewRuntime(nil))
+	pipeline.SetGuardrail(&guardrail.Stage{
+		Policy: guardrail.CitationPolicy{EnforcementEnabled: true},
+	})
+
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+	events, err := pipeline.Stream(ctx, aisvc.AiChatStreamRequest{
+		Message:    "备份恢复系统",
+		SessionKey: "agent-empty-rag",
+		Metadata: map[string]any{
+			"ragEnabled": true,
+			"roles":      []string{"SUPER_ADMIN"},
+		},
+	})
+	if err != nil {
+		t.Fatalf("Stream() error = %v", err)
+	}
+
+	var answer strings.Builder
+	var sawAgentAction bool
+	for event := range events {
+		if event.Type == "action" {
+			sawAgentAction = true
+		}
+		if event.Type == aisvc.ChatStreamEventTypeToken && event.Token != nil {
+			answer.WriteString(*event.Token)
+		}
+	}
+	if !sawAgentAction {
+		t.Fatal("expected the agent tool action to be preserved")
+	}
+	if got := answer.String(); got != expected {
+		t.Fatalf("agent answer = %q, want %q", got, expected)
+	}
+}
+
+func TestChatPipelineStillRefusesUnbackedModelFallbackAfterAgentNoOp(t *testing.T) {
+	mockRag := &MockRagQueryService{
+		QueryFunc: func(context.Context, ragsvc.RagQueryRequest, ragsvc.RagAccessContext) (ragsvc.RagQueryResponse, error) {
+			return ragsvc.RagQueryResponse{}, nil
+		},
+	}
+	mockProvider := &MockAiProvider{
+		StreamFunc: func(context.Context, string, map[string]any, aisvc.AiChatConfig) (<-chan aisvc.AiToken, <-chan error) {
+			tokens := make(chan aisvc.AiToken, 1)
+			errors := make(chan error)
+			tokens <- aisvc.AiToken{Text: "无引用的模型回答。", Finished: true}
+			close(tokens)
+			close(errors)
+			return tokens, errors
+		},
+	}
+	pipeline, err := NewChatPipeline(mockRag, mockProvider, aisvc.DefaultAiChatConfig())
+	if err != nil {
+		t.Fatalf("NewChatPipeline() error = %v", err)
+	}
+	pipeline.SetAgent(agent.NewRuntime(nil))
+	pipeline.SetGuardrail(&guardrail.Stage{
+		Policy: guardrail.CitationPolicy{EnforcementEnabled: true},
+	})
+
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+	events, err := pipeline.Stream(ctx, aisvc.AiChatStreamRequest{
+		Message:    "你好",
+		SessionKey: "agent-noop-fallback",
+		Metadata:   map[string]any{"ragEnabled": true},
+	})
+	if err != nil {
+		t.Fatalf("Stream() error = %v", err)
+	}
+	var answer strings.Builder
+	for event := range events {
+		if event.Type == aisvc.ChatStreamEventTypeToken && event.Token != nil {
+			answer.WriteString(*event.Token)
+		}
+	}
+	if got := answer.String(); got != guardrail.NoSourceAnswer {
+		t.Fatalf("model fallback answer = %q, want no-source refusal %q", got, guardrail.NoSourceAnswer)
 	}
 }
 

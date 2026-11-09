@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bytes"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -15,6 +16,40 @@ import (
 )
 
 const reactDevOrigin = "http://127.0.0.1:5173"
+
+func TestNewRouterDoesNotWriteQueryValuesToAccessLogs(t *testing.T) {
+	oldMode := gin.Mode()
+	gin.SetMode(gin.TestMode)
+	oldWriter := gin.DefaultWriter
+	var logs bytes.Buffer
+	gin.DefaultWriter = &logs
+	t.Cleanup(func() {
+		gin.DefaultWriter = oldWriter
+		gin.SetMode(oldMode)
+	})
+
+	router := newRouter()
+	router.GET("/api/ai/chat/actions", func(c *gin.Context) {
+		c.Status(http.StatusOK)
+	})
+	request := httptest.NewRequest(
+		http.MethodGet,
+		"/api/ai/chat/actions?message=phone-13800138000",
+		nil,
+	)
+	response := httptest.NewRecorder()
+	router.ServeHTTP(response, request)
+
+	if response.Code != http.StatusOK {
+		t.Fatalf("status = %d, want %d", response.Code, http.StatusOK)
+	}
+	if strings.Contains(logs.String(), "13800138000") {
+		t.Fatalf("access log contains query value: %s", logs.String())
+	}
+	if !strings.Contains(logs.String(), "/api/ai/chat/actions") {
+		t.Fatalf("access log omitted the route: %s", logs.String())
+	}
+}
 
 func TestRegisterRoutesDoesNotPanic(t *testing.T) {
 	oldMode := gin.Mode()

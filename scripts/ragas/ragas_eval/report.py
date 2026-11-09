@@ -42,7 +42,14 @@ def aggregate(
     # 引用合规只回答「交付给用户的答案是否带引用」。护栏拒答根本没有答案可交付，
     # 把它算成「不合规」会让这个指标退化成拒答率的镜像（28/30 就是 1 - 2/30）；
     # 拒答的规模由 scored_coverage 与 exclusion_reasons 单独度量。
-    delivered = [sample for sample in non_error if not sample.get("guardrail_refusal")]
+    delivered = [
+        sample
+        for sample in non_error
+        if not sample.get("guardrail_refusal")
+        and not sample.get("fallback")
+        and not sample.get("non_rag_events")
+        and str(sample.get("answer") or "").strip()
+    ]
     citation_compliance = mean(
         1.0 if sample.get("citation_compliant") else 0.0 for sample in delivered
     )

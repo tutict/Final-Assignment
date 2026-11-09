@@ -109,7 +109,8 @@ def test_aggregate_uses_only_scored_samples_for_means() -> None:
     assert result["metrics"]["faithfulness"]["meets_target"] is True
     assert result["exclusion_reasons"] == {"empty_context": 1}
     assert result["fallback_rate"] == 1 / 3
-    assert result["citation_compliance"] == 2 / 3
+    assert result["citation_compliance"] == 1.0
+    assert result["delivered_samples"] == 2
     assert result["multihop"]["metrics"]["faithfulness"] == 0.5
     assert result["unanswerable"]["abstention_rate"] == 1.0
     assert result["acl"]["leaked"] == 0
@@ -137,15 +138,33 @@ def test_citation_compliance_counts_delivered_answers_only() -> None:
             guardrail_refusal="no_source",
             exclusion_reason="guardrail_no_source",
         ),
+        # These samples did not deliver an answer either, despite not being guardrail refusals.
+        answerable(
+            "a5",
+            answer="",
+            scored=False,
+            metrics={key: None for key in METRIC_KEYS},
+            citation_compliant=False,
+            exclusion_reason="empty_answer",
+        ),
+        answerable(
+            "a6",
+            answer="AI unavailable",
+            scored=False,
+            metrics={key: None for key in METRIC_KEYS},
+            citation_compliant=False,
+            fallback=True,
+            exclusion_reason="provider_fallback",
+        ),
     ]
     result = aggregate(samples, [unanswerable()], [acl_probe()], TARGETS)
 
     assert result["delivered_samples"] == 2
     assert result["citation_compliance"] == 1.0
     assert result["citation_guard_refusal_count"] == 1
-    assert result["citation_guard_refusal_rate"] == 0.25
+    assert result["citation_guard_refusal_rate"] == 1 / 6
     # 旧口径保持原样，历史基线才对得上
-    assert result["citation_compliance_all"] == 0.5
+    assert result["citation_compliance_all"] == 1 / 3
 
 
 def test_citation_compliance_is_none_when_every_answer_was_refused() -> None:

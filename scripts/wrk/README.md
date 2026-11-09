@@ -88,6 +88,24 @@ docker run --rm `
 
 wrk 的 Lua `response` 回调不会在超时请求上触发，所以 timeout 无法像 HTTP 状态码一样被直接归因；这里的 missing 统计用于快速定位尾延迟端点，最终结论仍应结合后端访问日志、慢查询日志和 `endpoint` 标签指标。
 
+## 单端点状态探针
+
+`status-probe.lua` 每次只接受一个 `PERF_PATHS` 路径。一个 wrk 线程可以同时等待多个连接的响应，若轮换路径并用共享变量记录“当前路径”，响应乱序时状态码会归错端点；因此多路径配置会直接报错。需要比较多个端点时，对每个路径分别运行一次：
+
+```powershell
+$env:PERF_TOKEN='<admin access token>'
+$env:PERF_PATHS='/api/roles?page=1&size=10'
+docker run --rm `
+  -e PERF_TOKEN="$env:PERF_TOKEN" `
+  -e PERF_PATHS="$env:PERF_PATHS" `
+  -v "${PWD}\scripts\wrk:/scripts:ro" `
+  williamyeh/wrk -t4 -c24 -d20s `
+  -s /scripts/status-probe.lua `
+  http://host.docker.internal:8080
+```
+
+探针仍可用多个并发连接压单个路径；它输出该端点的状态码分布和首个非 2xx 响应体。跨端点结论应比较多次单路径运行的结果。
+
 ## RAG 管理 preview
 
 SUPER_ADMIN token 才能打 `/api/rag/admin/preview`。Cloud / Go / Quarkus 与 Spring 路径相同。

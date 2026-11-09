@@ -122,9 +122,11 @@ func (cp *ChatPipeline) Stream(
 	messageID := newMessageID()
 
 	var events <-chan aisvc.AiChatStreamEvent
+	agentProvidedEvidence := false
 	if cp.agentRuntime != nil {
 		agentEvents := cp.agentRuntime.Execute(req.Message, cp.agentContext(req.SessionKey, metadata))
 		if len(agentEvents) > 0 {
+			agentProvidedEvidence = hasSuccessfulAgentOutput(agentEvents)
 			out := make(chan aisvc.AiChatStreamEvent, len(agentEvents)+8)
 			go func() {
 				defer close(out)
@@ -165,8 +167,14 @@ func (cp *ChatPipeline) Stream(
 
 	// 6. Ground only turns that actually went through retrieval. A request-level opt-out
 	// (ragEnabled=false) keeps the historical behavior.
-	if cp.guardrail == nil || !ragEnabled {
+	if cp.guardrail == nil || !ragEnabled || (len(usedSources) == 0 && agentProvidedEvidence) {
 		return events, nil
+	}
+	guardrailStage := cp.guardrail
+	if cp.agentRuntime != nil {
+		copyStage := *cp.guardrail
+		copyStage.Verifier = nil
+		guardrailStage = &copyStage
 	}
 
 	var repair guardrail.RepairFunc
@@ -186,7 +194,22 @@ func (cp *ChatPipeline) Stream(
 		}
 	}
 
-	return cp.guardrail.Wrap(ctx, events, req.Message, usedSources, messageID, repair), nil
+	return guardrailStage.Wrap(ctx, events, req.Message, usedSources, messageID, repair), nil
+}
+
+func hasSuccessfulAgentOutput(events []agent.Event) bool {
+	for _, event := range events {
+		switch event.Type {
+		case "action", "draft":
+			return true
+		case "result":
+			payload, ok := event.Payload.(map[string]any)
+			if ok && payload["ok"] == true {
+				return true
+			}
+		}
+	}
+	return false
 }
 
 func (cp *ChatPipeline) agentContext(sessionKey string, metadata map[string]any) agent.Context {

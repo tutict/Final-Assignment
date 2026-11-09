@@ -44,6 +44,15 @@ import (
 	"github.com/zeromicro/go-zero/core/conf"
 )
 
+func newRouter() *gin.Engine {
+	router := gin.New()
+	router.Use(
+		gin.LoggerWithConfig(gin.LoggerConfig{SkipQueryString: true}),
+		gin.Recovery(),
+	)
+	return router
+}
+
 func buildGuardrail(aiProvider aisvc.AiProvider, cfg *aiconfig.AiChatConfig) *guardrail.Stage {
 	policy := guardrail.CitationPolicy{EnforcementEnabled: cfg.CitationEnforcementEnabled}
 	var verifier *guardrail.Verifier
@@ -179,7 +188,7 @@ func main() {
 	authHandler := handler.NewAuthHandler(authService)
 
 	// 创建路由
-	router := gin.Default()
+	router := newRouter()
 	router.Use(devCorsMiddleware())
 	router.Use(handler.FlexibleLocalTimeBody())
 	router.Use(global_exception.GlobalExceptionHandler())

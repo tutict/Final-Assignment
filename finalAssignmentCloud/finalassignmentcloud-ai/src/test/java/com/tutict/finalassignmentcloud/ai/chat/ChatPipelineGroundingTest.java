@@ -336,6 +336,37 @@ class ChatPipelineGroundingTest {
     }
 
     @Test
+    void allowsAgentAnswerWhenRagIsEnabledButNoSourcesWereRetrieved() {
+        String answer = "工具查询结果已整理。";
+        AgentRuntime runtime = new CapturingAgentRuntime(sessionKey -> Flux.just(
+                ChatStreamEvent.payload(ChatStreamEventType.ACTION.wireName(), sessionKey, "m-1",
+                        Map.of("type", "navigate")),
+                ChatStreamEvent.token(sessionKey, "m-1", answer),
+                ChatStreamEvent.done(sessionKey, "m-1")
+        ));
+        ChatPipeline pipeline = pipeline(
+                new ChatStreamService(
+                        registry(new CapturingProvider("primary", tokenStream("unused"))),
+                        Duration.ofSeconds(30)
+                ),
+                new StubRagRetrievalService(List.of(), true),
+                runtime,
+                true
+        );
+
+        List<ChatStreamEvent> events = pipeline.stream(new AiChatStreamRequest("q", "session-1", Map.of()))
+                .collectList()
+                .block(Duration.ofSeconds(2));
+
+        assertThat(events).extracting(ChatStreamEvent::type).containsExactly(
+                ChatStreamEventType.ACTION.wireName(),
+                ChatStreamEventType.TOKEN.wireName(),
+                ChatStreamEventType.DONE.wireName()
+        );
+        assertThat(events.get(1).token()).isEqualTo(answer);
+    }
+
+    @Test
     void groundsTheFinalAgentSegmentEvenWhenControlEventsPrecedeIt() {
         AgentRuntime runtime = new CapturingAgentRuntime(sessionKey -> Flux.just(
                 ChatStreamEvent.payload(ChatStreamEventType.DRAFT.wireName(), sessionKey, "m-1",

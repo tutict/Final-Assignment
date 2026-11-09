@@ -56,6 +56,7 @@ public class TopicGroundingVerifier {
 
     private final AiProviderRegistry providerRegistry;
     private final ObjectMapper objectMapper;
+    private final PromptInjectionGuard injectionGuard = new PromptInjectionGuard();
     private final boolean enabled;
     private final String model;
     private final Duration timeout;
@@ -112,21 +113,24 @@ public class TopicGroundingVerifier {
         }
         boolean hasUsableSource = false;
         for (RetrievalResult source : sources) {
-            // Web snippets are live search results, not curated knowledge; the calibrated prompt
-            // was built for knowledge-base passages and should not judge them.
+            // Web snippets are live search results, not curated knowledge; ignore them while
+            // still judging any curated RAG sources in the same mixed turn.
             if ("WEB_SEARCH".equalsIgnoreCase(source.sourceType())) {
-                return false;
+                continue;
             }
             hasUsableSource |= source.content() != null && !source.content().isBlank();
         }
         return hasUsableSource;
     }
 
-    private static String buildPrompt(String question, String answer, List<RetrievalResult> sources) {
+    private String buildPrompt(String question, String answer, List<RetrievalResult> sources) {
         StringBuilder context = new StringBuilder();
         int index = 1;
         for (RetrievalResult source : sources) {
-            String content = source.content() == null ? "" : source.content().strip();
+            if ("WEB_SEARCH".equalsIgnoreCase(source.sourceType())) {
+                continue;
+            }
+            String content = source.content() == null ? "" : injectionGuard.sanitize(source.content().strip());
             if (content.isEmpty()) {
                 continue;
             }

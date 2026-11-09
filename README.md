@@ -122,6 +122,7 @@ Flutter Web
 ## 压测与性能基线
 
 - [2026-11-01 四后端 k6 / wrk 总览](docs/performance/load-test-2026-11-01.md) — 全 API 四端阈值全过（p95：Go 2.4ms / Quarkus 8.9ms / Spring 49.6ms / Cloud 51.3ms）；AI/RAG 分段 Spring / Go / Quarkus 通过，Cloud 仅 `ai_http_orchestration_ms` p95 4,970ms 超 1,200ms 阈值；同轮修复 Cloud 读链路误拒流与服务间依赖 503 放大
+- wrk 端点级状态统计请每次只设一个 `PERF_PATHS` 路径；探针会拒绝多路径配置，避免并发响应乱序时把状态码归到错误端点（示例见 [wrk 脚本说明](scripts/wrk/README.md)）
 - [2026-09-21 四后端 k6 总览](docs/performance/load-test-2026-09-21.md)
   - [Spring 单体](docs/performance/load-test-2026-09-21-spring.md)
   - [Spring Cloud 网关](docs/performance/load-test-2026-09-21-cloud.md)
@@ -321,6 +322,8 @@ powershell -ExecutionPolicy Bypass -File scripts\debezium\register-mysql-cdc.ps1
 
 Elasticsearch 文档只写入脱敏展示值或低风险字段，不写入完整身份证号、手机号和银行卡号。
 
+Go 后端的 Gin access log 保留请求路径和状态信息，但省略 query string，避免聊天动作参数中的个人信息进入应用日志。不要把敏感信息放进 URL；浏览器、网关或反向代理可能有各自的访问日志。
+
 ## RAG 资料录入
 
 超级管理员可以通过 RAG 管理接口录入资料：
@@ -444,10 +447,10 @@ Spring 单体给出两种 topK 口径：**10 是当前默认值**（与四端交
 
 ### 护栏实现口径
 
-- RAG 提示词只向模型暴露 `[n]` 与正文；Ollama 默认 `temperature=0.2`；检索命中但答案无引用时先做一次引用修复重试，仍无引用才拒答（Agent 路径不重试）
+- RAG 提示词只向模型暴露 `[n]` 与正文；Ollama 默认 `temperature=0.2`；检索命中但答案无引用时先做一次引用修复重试，仍无引用才拒答（Agent 路径不重试）。纯 RAG 检索为空或失败仍会拒答；Agent 回合只有实际提供了 RAG 来源时才要求引用，工具回答不会因空引用集被误拒
 - 生成后主题校验由 `AI_GUARDRAIL_TOPIC_MODEL` 显式开启（例如 `qwen2.5:7b`）：答案通过引用护栏后，再判断检索资料是否覆盖所问主题，未覆盖时拒答；未配置时校验关闭。`AI_GUARDRAIL_TOPIC_TIMEOUT` 默认 `PT12S`，超时或输出无法解析时放行
 - RAG 回合会清理模型输出中的检索内部标签；`AI_GUARDRAIL_CITATION_ENFORCEMENT=false` 只关闭引用强制，不关闭标签清洗。若清洗移除全部非空回答，会返回安全提示；清洗替换原答时会保留各 token 的 SSE payload metadata
-- Go 后端已移植同一套答案层防护（清洗 → 引用护栏与一次修复 → 主题校验），并新增同名 `AI_AGENT_ENABLED` / `AI_GUARDRAIL_*` 环境变量；与 Spring 的差异是 Go 的引用护栏默认开启，检索为空或失败时会拒答，可显式关闭回退
+- Go 后端已移植同一套答案层防护（清洗 → 引用护栏与一次修复 → 主题校验），并新增同名 `AI_AGENT_ENABLED` / `AI_GUARDRAIL_*` 环境变量；与 Spring 的差异是 Go 的纯 RAG 引用护栏默认开启，检索为空或失败时会拒答，可显式关闭回退
 - Quarkus 后端已具备纯 RAG 对话链路与同一套答案层防护（清洗 → 引用护栏与一次修复 → 主题校验），裁判模型复用 `OLLAMA_BASE_URL` 下独立配置的 Ollama 模型；**引用强制在 Quarkus 默认关闭**（`AI_GUARDRAIL_CITATION_ENFORCEMENT=false`），评测时必须显式打开才能与基线可比
 
 ### 已知限制

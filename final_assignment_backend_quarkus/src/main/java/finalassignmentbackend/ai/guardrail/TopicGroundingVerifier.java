@@ -36,6 +36,7 @@ import java.util.logging.Logger;
 public class TopicGroundingVerifier {
 
     private static final Logger LOG = Logger.getLogger(TopicGroundingVerifier.class.getName());
+    private final PromptInjectionGuard injectionGuard = new PromptInjectionGuard();
 
     private static final String PROMPT_TEMPLATE = """
             你在审核知识库问答系统的一次回答，只判断主题是否对得上，不评价答案是否完整或正确。
@@ -148,7 +149,7 @@ public class TopicGroundingVerifier {
             // Web snippets are live search results, not curated knowledge; the calibrated prompt
             // was built for knowledge-base passages and should not judge them.
             if ("WEB_SEARCH".equalsIgnoreCase(source.sourceType())) {
-                return false;
+                continue;
             }
             hasUsableSource |= source.content() != null && !source.content().isBlank();
         }
@@ -176,7 +177,7 @@ public class TopicGroundingVerifier {
         }
     }
 
-    private static String buildPrompt(
+    private String buildPrompt(
             String question,
             String answer,
             List<RagQueryService.RetrievedChunk> sources
@@ -184,7 +185,10 @@ public class TopicGroundingVerifier {
         StringBuilder context = new StringBuilder();
         int index = 1;
         for (RagQueryService.RetrievedChunk source : sources) {
-            String content = source.content() == null ? "" : source.content().strip();
+            if ("WEB_SEARCH".equalsIgnoreCase(source.sourceType())) {
+                continue;
+            }
+            String content = source.content() == null ? "" : injectionGuard.sanitize(source.content().strip());
             if (content.isEmpty()) {
                 continue;
             }

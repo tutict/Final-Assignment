@@ -1,23 +1,22 @@
 local token = os.getenv("PERF_TOKEN") or ""
-local raw = os.getenv("PERF_PATHS") or "/api/auth/me,/api/roles?page=1&size=10,/api/permissions?page=1&size=10,/api/users?page=1&size=10,/actuator/health/liveness,/actuator/health/readiness"
+local raw = os.getenv("PERF_PATHS") or "/actuator/health"
 local endpoints = {}
 for part in string.gmatch(raw, "[^,]+") do
   table.insert(endpoints, part)
 end
-if #endpoints == 0 then
-  endpoints = { "/actuator/health" }
+if #endpoints ~= 1 then
+  error("status-probe.lua requires exactly one PERF_PATHS entry; run one endpoint per invocation")
 end
+local probe_path = endpoints[1]
 
 wrk.headers["Accept"] = "application/json"
 if token ~= "" then
   wrk.headers["Authorization"] = "Bearer " .. token
 end
 
-local counter = 0
 local status_counts = {}
 local path_status = {}
 local body_samples = {}
-local current_path = ""
 status_report = ""
 path_report = ""
 sample_report = ""
@@ -56,17 +55,15 @@ local function refresh_reports()
 end
 
 request = function()
-  counter = counter + 1
-  current_path = endpoints[((counter - 1) % #endpoints) + 1]
-  return wrk.format("GET", current_path)
+  return wrk.format("GET", probe_path)
 end
 
 response = function(status, headers, body)
   status_counts[status] = (status_counts[status] or 0) + 1
-  local statuses = path_status[current_path]
+  local statuses = path_status[probe_path]
   if statuses == nil then
     statuses = {}
-    path_status[current_path] = statuses
+    path_status[probe_path] = statuses
   end
   statuses[status] = (statuses[status] or 0) + 1
   if (status < 200 or status >= 300) and body_samples[status] == nil then

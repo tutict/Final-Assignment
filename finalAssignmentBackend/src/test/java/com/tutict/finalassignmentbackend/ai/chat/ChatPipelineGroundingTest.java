@@ -371,6 +371,48 @@ class ChatPipelineGroundingTest {
     }
 
     @Test
+    void allowsAgentAnswerWhenRagIsEnabledButNoSourcesWereRetrieved() {
+        String answer = "工具查询结果已整理。";
+        AgentRuntime runtime = new AgentRuntime(null, null, null, null, null, null, 4) {
+            @Override
+            public Flux<ChatStreamEvent> run(
+                    String userMessage,
+                    String sessionKey,
+                    String assembledPrompt,
+                    Map<String, Object> metadata,
+                    AiCallerIdentity identity
+            ) {
+                return Flux.just(
+                        ChatStreamEvent.payload(ChatStreamEventType.ACTION.wireName(), sessionKey, "m-1",
+                                Map.of("type", "navigate")),
+                        ChatStreamEvent.token(sessionKey, "m-1", answer),
+                        ChatStreamEvent.done(sessionKey, "m-1")
+                );
+            }
+        };
+        ChatPipeline pipeline = pipeline(
+                new ChatStreamService(
+                        registry(new CapturingProvider("primary", tokenStream("unused"))),
+                        Duration.ofSeconds(30)
+                ),
+                new StubRagQueryService(List.of()),
+                ragProperties(true),
+                runtime
+        );
+
+        List<ChatStreamEvent> events = pipeline.stream(new AiChatStreamRequest("q", "session-1", Map.of()))
+                .collectList()
+                .block(Duration.ofSeconds(2));
+
+        assertThat(events).extracting(ChatStreamEvent::type).containsExactly(
+                ChatStreamEventType.ACTION.wireName(),
+                ChatStreamEventType.TOKEN.wireName(),
+                ChatStreamEventType.DONE.wireName()
+        );
+        assertThat(events.get(1).token()).isEqualTo(answer);
+    }
+
+    @Test
     void refusesWhenTopicVerifierFindsSourcesDoNotCoverTheQuestion() {
         CapturingProvider provider = new CapturingProvider(
                 "primary",

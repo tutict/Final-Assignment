@@ -31,18 +31,38 @@ public class ContextBuilder {
     }
 
     public String build(List<RagRetrievalResult> results) {
-        return build(results, contextTokenBudget);
+        return buildWithSources(results).context();
+    }
+
+    public record BuiltContext(String context, List<RagRetrievalResult> sources) {
+    }
+
+    public BuiltContext buildWithSources(List<RagRetrievalResult> results) {
+        return buildWithSources(results, contextTokenBudget);
     }
 
     String build(List<RagRetrievalResult> results, int tokenBudget) {
-        String body = contextBody(results, Math.max(0, tokenBudget));
+        return buildWithSources(results, tokenBudget).context();
+    }
+
+    BuiltContext buildWithSources(List<RagRetrievalResult> results, int tokenBudget) {
+        List<RagRetrievalResult> included = new java.util.ArrayList<>();
+        String body = contextBody(results, Math.max(0, tokenBudget), included);
         if (body.isBlank()) {
-            return START_TAG + "\n" + END_TAG;
+            return new BuiltContext(START_TAG + "\n" + END_TAG, List.of());
         }
-        return START_TAG + "\n" + body + "\n" + END_TAG;
+        return new BuiltContext(START_TAG + "\n" + body + "\n" + END_TAG, List.copyOf(included));
     }
 
     private String contextBody(List<RagRetrievalResult> results, int tokenBudget) {
+        return contextBody(results, tokenBudget, null);
+    }
+
+    private String contextBody(
+            List<RagRetrievalResult> results,
+            int tokenBudget,
+            List<RagRetrievalResult> included
+    ) {
         if (results == null || results.isEmpty() || tokenBudget == 0) {
             return "";
         }
@@ -55,6 +75,9 @@ public class ContextBuilder {
             int entryTokens = estimateTokens(entry);
             if (entryTokens <= remainingTokens) {
                 appendEntry(body, entry);
+                if (included != null) {
+                    included.add(withContent(result, contentFromEntry(entry)));
+                }
                 remainingTokens -= entryTokens;
                 index++;
                 continue;
@@ -63,10 +86,25 @@ public class ContextBuilder {
             String truncated = truncateToTokenBudget(entry, remainingTokens);
             if (!truncated.isBlank()) {
                 appendEntry(body, truncated);
+                if (included != null) {
+                    included.add(withContent(result, contentFromEntry(truncated)));
+                }
             }
             break;
         }
         return body.toString();
+    }
+
+    private static String contentFromEntry(String entry) {
+        int marker = entry.indexOf("content: ");
+        return marker < 0 ? entry : entry.substring(marker + "content: ".length()).strip();
+    }
+
+    private static RagRetrievalResult withContent(RagRetrievalResult result, String content) {
+        return new RagRetrievalResult(
+                result.chunkId(), result.documentId(), content, result.title(), result.sourceType(),
+                result.sourceTable(), result.sourceId(), result.sourceField(), result.route(),
+                result.bm25Score(), result.vectorScore(), result.finalScore(), result.metadata());
     }
 
     private String entry(int index, RagRetrievalResult result) {

@@ -113,7 +113,7 @@ func (v *Verifier) shouldVerify(question, answer string, sources []ragsvc.RagRet
 		// Web snippets are live search results, not curated knowledge; the calibrated prompt
 		// was built for knowledge-base passages.
 		if strings.EqualFold(source.SourceType, "WEB_SEARCH") {
-			return false
+			continue
 		}
 		hasUsableSource = hasUsableSource || strings.TrimSpace(source.Content) != ""
 	}
@@ -124,7 +124,10 @@ func buildTopicPrompt(question, answer string, sources []ragsvc.RagRetrievalResu
 	var contextText strings.Builder
 	index := 1
 	for _, source := range sources {
-		content := strings.TrimSpace(source.Content)
+		if strings.EqualFold(source.SourceType, "WEB_SEARCH") {
+			continue
+		}
+		content := strings.TrimSpace(SanitizeInjection(source.Content))
 		if content == "" {
 			continue
 		}
